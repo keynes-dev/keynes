@@ -1,19 +1,15 @@
 # Phase 1 data model: Repository and code architecture
 
-Epic 000 creates repository engineering structure, not Keynes product data. Its
-small model exists only to make ownership and verification unambiguous.
+Epic 000 creates repository engineering structure, not Keynes product data. Its small model exists only to make ownership and verification unambiguous.
 
 ## Repository boundary
 
-A repository boundary is a directory with one responsibility and one documented
-owner.
+A repository boundary is a directory with one responsibility and one documented owner.
 
 ### Fields
 
-- `path`: One of `packages/contracts/`, `packages/database/`, `packages/sdk/`,
-  `packages/cloud/`, `scripts/`, or `docs/`.
-- `owner`: `@shubsharan`, the repository code owner responsible for changes in
-  the boundary.
+- `path`: One of `packages/contracts/`, `packages/database/`, `packages/sdk/`, `packages/cloud/`, `scripts/`, or `docs/`.
+- `owner`: `@shubsharan`, the repository code owner responsible for changes in the boundary.
 - `responsibility`: A short statement of what belongs in the boundary.
 - `public_edges`: Files or entry points that other boundaries may use.
 - `private_edges`: Files that other boundaries must not import or modify.
@@ -24,25 +20,20 @@ owner.
 - Every path has exactly one primary owner and responsibility.
 - Public and private edges do not overlap.
 - Placeholder documentation does not claim implemented Keynes behavior.
-- `packages/` groups product code but owns no behavior and is not a seventh
-  boundary.
+- `packages/` groups product code but owns no behavior and is not a seventh boundary.
 - New ownership boundaries require an explicit architecture decision.
 
 ## Root infrastructure
 
-Root infrastructure supports the ownership areas without becoming another
-product boundary.
+Root infrastructure supports the ownership areas without becoming another product boundary.
 
 ### Required files
 
-- Root package, pnpm workspace, lockfile, Turborepo, TypeScript, Oxlint, Oxfmt,
-  and Vitest configuration.
-- `.gitignore` entries for dependency installs, Turbo state, test and report
-  output, and generated build output.
+- Root package, pnpm workspace, lockfile, Turborepo, TypeScript, Oxlint, Oxfmt, and Vitest configuration.
+- `.gitignore` entries for dependency installs, Turbo state, test and report output, and generated build output.
 - The Apache-2.0 `LICENSE` text.
 - `.github/CODEOWNERS` assigning all repository paths to `@shubsharan`.
-- A least-privilege GitHub Actions workflow that runs the root verification
-  command.
+- A least-privilege GitHub Actions workflow that runs the root verification command.
 
 ### Rules
 
@@ -73,20 +64,16 @@ A workspace is a TypeScript package that participates in pnpm and Turborepo.
 
 ## Dependency rule
 
-A dependency rule states which boundary may consume another boundary and through
-which public edge.
+A dependency rule states which boundary may consume another boundary and through which public edge.
 
 ### Required rules
 
-- `packages/database/` is the only future owner of authoritative Budget
-  transitions.
-- `packages/sdk/` and `packages/cloud/` may use only versioned public database
-  procedures or protocols; neither may access private database storage.
+- `packages/database/` is the only future owner of authoritative Budget transitions.
+- `packages/sdk/` and `packages/cloud/` may use only versioned public database procedures or protocols; neither may access private database storage.
 - `packages/sdk/` and `packages/cloud/` do not import one another.
 - Runtime code never imports repository scripts or tests.
 
-Native pnpm and Turborepo diagnostics identify the package and relationship that
-violates these rules; Epic 000 maintains no parallel diagnostic-code system.
+Native pnpm and Turborepo diagnostics identify the package and relationship that violates these rules; Epic 000 maintains no parallel diagnostic-code system.
 
 ## Check result
 
@@ -103,8 +90,5 @@ A check result is the ordinary outcome reported by a root command or CI job.
 
 - Required Epic 000 checks must pass before the epic is complete.
 - A skipped or unrun check is never reported as passed.
-- Future runtime, conformance, security, compatibility, fault, packaging, and
-  performance work remains `NOT RUN` until its owning roadmap feature executes
-  meaningful tests.
-- GitHub Actions logs and check results are sufficient for Epic 000; the epic
-  defines no custom evidence schema or repository promotion protocol.
+- Future runtime, conformance, security, compatibility, fault, packaging, and performance work remains `NOT RUN` until its owning roadmap feature executes meaningful tests.
+- GitHub Actions logs and check results are sufficient for Epic 000; the epic defines no custom evidence schema or repository promotion protocol.
