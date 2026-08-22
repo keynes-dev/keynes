@@ -91,10 +91,11 @@ only command-scoped views of the requested Resources, application-supplied
 context, and the parent Budget's available holdings. Policies cannot inspect
 Keynes storage, application tables, secrets, history, or unrelated requests.
 
-The generated SDKs provide a typed relational builder as the default authoring
+The TypeScript SDK provides a typed relational builder as the default authoring
 experience. It compiles to the same SQL Policy envelope that the database
-validates and executes. Advanced users can publish raw SQL as an explicit
-lower-level escape hatch; it receives the same validation and sandboxing.
+validates and executes. Advanced users and non-TypeScript applications can
+publish raw SQL through the public database interface as an explicit lower-level
+escape hatch; it receives the same validation and sandboxing.
 
 For example, a support Budget can limit lower-priority work to 25 cents and two
 searches:
@@ -182,10 +183,10 @@ as zero or debits an ancestor to hide an overage.
 
 Timers, callbacks, monitoring adapters, and reconciliation workflows deliver
 usage evidence to application code that owns the Budget. Local state disappears
-with its `Keynes.local()` runtime. Durable deployments can reload a Budget by
-its stable identifier, but the identifier only locates state; the caller's
-database role or Cloud identity authorizes settlement. A downstream reporter
-does not decide that a Budget is ready to settle.
+with its local embedded runtime. Durable deployments can reload a Budget by its
+stable identifier, but the identifier only locates state; the caller's database
+role or Cloud identity authorizes settlement. A downstream reporter does not
+decide that a Budget is ready to settle.
 
 ## Honest authority and accounting
 
@@ -206,8 +207,8 @@ evidence, and overage uniformly for both Resource behaviors.
 
 Keynes implements Budget authority once in a PostgreSQL authority core. The same
 versioned procedures, Policy environment, and evidence model run in three
-supported hosts. SDKs and the public SQL interface call that core; they do not
-reimplement Budget transitions.
+deployment profiles. The TypeScript SDK and public SQL interface call that core;
+they do not reimplement Budget transitions.
 
 **Local PGlite** is the zero-service TypeScript experience. `Keynes.local()`
 starts a private, in-memory PGlite database inside the application process. It
@@ -217,17 +218,19 @@ descendant, command result, and event. File-backed local persistence is not a
 supported deployment.
 
 **Customer PostgreSQL** installs the same authority core in a customer-owned
-database. Applications can use generated TypeScript, Python, or Go SDKs, or the
-versioned `keynes_v1` SQL API. This deployment keeps Budget data under customer
-control and lets an application commit an approved request with its own job or
-outbox row in one transaction. An approval inside that transaction remains
-provisional until commit and cannot authorize external work before then.
+database. Applications can use the TypeScript SDK or the versioned `keynes_v1`
+SQL API. The SQL API is the supported integration surface for non-TypeScript
+applications. This deployment keeps Budget data under customer control and lets
+an application commit an approved request with its own job or outbox row in one
+transaction. An approval inside that transaction remains provisional until
+commit and cannot authorize external work before then.
 
 **Keynes Cloud** runs the authority core on managed PostgreSQL behind an
 authenticated service. Keynes owns tenant routing, upgrades, recovery, and high
-availability. Clients never receive database credentials or arbitrary SQL
-access. Cloud is the hosted choice when Budget authority must be durable and
-remotely accessible without customer-operated PostgreSQL.
+availability. Applications use the TypeScript SDK; clients never receive
+database credentials or arbitrary SQL access. Cloud is the hosted choice when
+Budget authority must be durable and remotely accessible without
+customer-operated PostgreSQL.
 
 Customer PostgreSQL and Cloud persist Budget identities, command results, and
 evidence. They can reload an authorized Budget and resolve a lost response by
@@ -245,7 +248,7 @@ Keynes owns immutable Resource type identity, Budget identity and lineage,
 Resource conservation and availability, canonical Resource Policy evaluation,
 atomic child creation, idempotent command replay, settlement state, direct and
 subtree accounting, unresolved usage, isolated deficits, canonical evidence, and
-the public database and SDK contracts.
+the public database and TypeScript SDK contracts.
 
 Keynes does not own study design, scoring, statistics, recommendations, or
 application operating decisions. An application-owned harness may consume Keynes
@@ -264,9 +267,9 @@ contract.
   request.
 - Policies are optional, narrow Resource constraints evaluated by the database
   that holds the Budget.
-- Policies are read-only SQL over a small, immutable command view. Typed SDK
-  builders are the default authoring path, and raw SQL is the lower-level escape
-  hatch.
+- Policies are read-only SQL over a small, immutable command view. The typed
+  TypeScript SDK builder is the default authoring path, and raw SQL is the
+  lower-level escape hatch for every caller.
 - Request context is one typed, immutable, application-asserted record and does
   not flow into the child.
 - Child Policies are optional, local to the child, and never propagate from the
@@ -278,9 +281,12 @@ contract.
   fiction.
 - One PostgreSQL authority core defines Budget behavior in local PGlite,
   customer-owned PostgreSQL, and managed Keynes Cloud.
-- Local authority is private and process-scoped. Customer PostgreSQL and Cloud
-  provide durable, reloadable authority with explicit authorization and recovery
-  responsibilities.
+- TypeScript is the only supported SDK. Non-TypeScript applications use the
+  public SQL interface in customer-owned PostgreSQL rather than a second SDK.
+- Local authority is private, process-scoped, daemon-free, and exposed only
+  through the TypeScript SDK.
+- Customer PostgreSQL and Cloud provide durable, reloadable authority with
+  explicit authorization and recovery responsibilities.
 - Customer PostgreSQL can commit Budget authority with application-owned rows
   without moving application effects into Keynes.
 - Keynes qualifies subtree issuance before same-database multi-source funding.

@@ -23,13 +23,13 @@ both the semantic implementation and, in durable customer deployments, a
 supported database API:
 
 - PGlite runs the core as an embedded, process-scoped PostgreSQL runtime for
-  local Node.js applications.
+  local TypeScript applications.
 - Customer PostgreSQL runs the core as an installable, durable authority that
   applications may compose with their own database transactions.
 - Managed PostgreSQL runs the core as the durable, multi-tenant authority for
   Keynes Cloud.
-- Generated SDKs and a versioned SQL interface expose the same logical commands
-  without creating another Budget implementation.
+- The generated TypeScript SDK contract and a versioned SQL interface expose the
+  same logical commands without creating another Budget implementation.
 - One migration graph, procedure contract, Policy environment, and conformance
   corpus define Keynes semantics in every host.
 
@@ -55,8 +55,8 @@ The architecture follows these rules:
 6. Customer PostgreSQL adds durable transactional composition, and Cloud adds
    managed authentication, routing, recovery, and administration, without
    changing the Budget model.
-7. SQL procedures and generated SDKs are public contracts; neither may bypass
-   the database authority.
+7. SQL procedures and the generated TypeScript SDK are public contracts;
+   neither may bypass the database authority.
 8. Application effects, provider retries, observations, and business outcomes
    remain application-owned.
 9. Keynes supports three hosts for one PostgreSQL authority core: ephemeral
@@ -70,6 +70,11 @@ The architecture follows these rules:
 ## System topology
 
 ### Local runtime
+
+TypeScript is the only supported SDK language. Its local path embeds PGlite and
+runs the exact authority core without reproducing transitions. Additional SDK
+languages are not reserved by this architecture and require a future explicit
+product, architecture, packaging, and qualification decision.
 
 ```text
 TypeScript application
@@ -105,12 +110,12 @@ commitment.
 ### Customer PostgreSQL runtime
 
 ```text
-TypeScript, Python, Go, or SQL application
+TypeScript or SQL application
                     |
           +---------+---------+
           |                   |
           v                   v
-   generated Keynes SDK   keynes_v1 SQL API
+   TypeScript Keynes SDK  keynes_v1 SQL API
           |                   |
           +---------+---------+
                     |
@@ -127,9 +132,9 @@ TypeScript, Python, Go, or SQL application
 ```
 
 The installable runtime places the authority core in an isolated database schema
-and exposes a versioned SQL API alongside generated SDKs. Applications may use
-SDK-owned transactions or invoke Keynes inside a caller-owned transaction. Base
-tables and internal functions remain private in both cases.
+and exposes a versioned SQL API alongside the TypeScript SDK. Applications may
+use SDK-owned transactions or invoke Keynes inside a caller-owned transaction.
+Base tables and internal functions remain private in both cases.
 
 Caller-owned transactions enable one important composition: a request and an
 application-owned job or outbox row can commit atomically. An approval observed
@@ -145,7 +150,7 @@ an identifier or setting an untrusted session variable.
 ### Cloud runtime
 
 ```text
-TypeScript, Python, or Go application
+TypeScript application
                   |
                   v
              Keynes SDK
@@ -168,9 +173,9 @@ TypeScript, Python, or Go application
               PostgreSQL
 ```
 
-The RPC service is a transport and security boundary. It does not reproduce
-Budget transitions in Go. It authenticates the caller, authorizes access to a
-tenant and Budget, invokes one shared PostgreSQL procedure, and translates the
+The TypeScript RPC service is a transport and security boundary. It does not
+reproduce Budget transitions. It authenticates the caller, authorizes access to
+a tenant and Budget, invokes one shared PostgreSQL procedure, and translates the
 committed result into the public protocol.
 
 Clients never receive database credentials and never issue arbitrary SQL to
@@ -196,16 +201,15 @@ administration. No host overlay may replace or fork the core Budget procedures.
 | Authority core                   | PostgreSQL SQL, PL/pgSQL, and one migration graph                    | Procedures, Policy isolation, transactions, private schema, and evidence                                             |
 | Local runtime adapter            | TypeScript and PGlite                                                | Private in-memory lifecycle, serialized access, migration startup, and result translation                            |
 | Customer PostgreSQL distribution | Signed migration bundle and generated SQL-only extension             | Installation, public SQL API, roles, upgrades, drift checks, and transaction composition                             |
-| Cloud service                    | Go and managed PostgreSQL                                            | Authenticated RPC, lineage routing, pooling, retries, recovery fencing, operational overlays, and result translation |
+| Cloud service                    | TypeScript and managed PostgreSQL                                    | Authenticated RPC, lineage routing, pooling, retries, recovery fencing, operational overlays, and result translation |
 | TypeScript SDK                   | TypeScript over PGlite, PostgreSQL executors, and the Cloud protocol | Typed Budget API, local lifecycle, durable transaction adapters, and Cloud transport                                 |
-| Generated SDKs                   | TypeScript, Python, and Go                                           | Typed customer PostgreSQL and Cloud access, with TypeScript also hosting local PGlite                                |
 | Contract source                  | JSON Schema 2020-12 and a procedure manifest                         | SDK types, validators, PostgreSQL wrappers, documentation, and fixtures                                              |
 | Contract fixtures                | Versioned canonical JSON and SQL                                     | Shared semantics, packaging equivalence, and runtime compatibility evidence                                          |
 
 PostgreSQL SQL and PL/pgSQL implement authority transitions once. Generated
 migrations create the relations, constraints, functions, Policy views, public
 API, and canonical result shapes in PGlite, customer PostgreSQL, and managed
-PostgreSQL. Local adapters, customer SDKs, and the Cloud service contain no
+PostgreSQL. The local adapter, customer SDK, and Cloud service contain no
 alternate Budget implementation.
 
 The authority core uses only PostgreSQL capabilities included in the supported
@@ -213,6 +217,43 @@ PGlite build and qualified customer and managed PostgreSQL releases. A required
 dependency must have a qualified PGlite WebAssembly build and supported durable
 PostgreSQL equivalent before it can enter the core. Host-only extensions remain
 outside Budget semantics.
+
+## Repository boundaries and staging
+
+The repository starts with six code and documentation ownership areas:
+
+```text
+contracts/  # Versioned logical contracts and canonical fixtures
+database/   # Authority SQL, migrations, and later PostgreSQL distribution
+sdk/        # The sole public TypeScript SDK and private local adapter
+cloud/      # The private TypeScript Cloud service
+scripts/    # Repository automation and later contract generation
+docs/       # Product, architecture, roadmap, ADRs, and guides
+```
+
+These are ownership boundaries, not six independently published packages.
+`sdk/` and `cloud/` are the TypeScript workspaces. `contracts/` and `database/`
+remain source boundaries. `scripts/` contains root-owned repository automation;
+production code never depends on it, and it does not become a
+published code-generation or verification package.
+
+Root repository infrastructure such as `package.json`, workspace and tool
+configuration, `.gitignore`, `LICENSE`, and `.github/workflows/` supports these
+areas without becoming another product or code ownership boundary.
+
+Tests stay with the code or contract owner. The authority core, SDK adapters,
+Cloud service, repository scripts, and later PostgreSQL distribution each own
+their focused tests. A root `tests/conformance/` area appears only when local
+PGlite, customer PostgreSQL, and managed Cloud are implemented and one suite can
+exercise several real hosts. Empty security, performance, compatibility, and
+host directories do not precede the behavior they qualify.
+
+Epic 000 creates only the six lean boundaries, the pnpm and Turborepo workspace,
+basic dependency checks, and owner-local engineering tests. Epic 100 adds
+contract generation as root-owned scripts. Epic 500 adds PostgreSQL distribution
+under `database/`, and Epic 700 adds the cross-host conformance area. This
+staging does not change the target components or move Budget semantics out of
+the authority core.
 
 ## Public domain model
 
@@ -355,9 +396,9 @@ SELECT keynes_v1.settle($1::jsonb);
 
 These calls are commands, not queries over mutable application tables. The local
 SDK invokes them through its private PGlite handle. Customer applications may
-invoke them through generated SDKs or directly through SQL. In Cloud, only the
-service execution role can invoke mutating procedures. No public role can write
-a base table or call an internal mutation function.
+invoke them through the TypeScript SDK or directly through SQL. In Cloud, only
+the service execution role can invoke mutating procedures. No public role can
+write a base table or call an internal mutation function.
 
 `publish_resource_type` derives the tenant and publisher from the authorized
 principal, stores the immutable definition, and returns its stable identifier.
@@ -407,9 +448,9 @@ The contract source contains:
   authorization class, transaction behavior, replay behavior, and public SQL
   name.
 
-One generator produces TypeScript, Python, and Go types; runtime validators;
-PostgreSQL validation and typed wrapper functions; SQL API documentation; and
-the canonical conformance fixtures. Keynes-specific generator rules define safe
+One generator produces TypeScript types and runtime validators; PostgreSQL
+validation and typed wrapper functions; SQL API documentation; and the canonical
+conformance fixtures. Keynes-specific generator rules define safe
 integers, required field presence, tagged unions, normalized identifiers,
 canonical key ordering, and digest domain separation. A generated artifact is
 accepted only when its embedded contract digest matches the installed public
@@ -547,9 +588,9 @@ it.
 
 ### Typed Policy authoring
 
-Generated SDKs expose a typed relational builder as the default Policy authoring
-path. The builder knows the application's declared Resources, context schema,
-the three command-scoped views, the permitted result columns, and the
+The TypeScript SDK exposes a typed relational builder as the default Policy
+authoring path. The builder knows the application's declared Resources, context
+schema, the three command-scoped views, the permitted result columns, and the
 allowlisted SQL operations. Its host-language callback constructs a data AST
 during Policy definition; it is never stored or executed as authoritative
 application code.
@@ -716,7 +757,7 @@ kind, or body returns `command_conflict` and does not change state.
 The local SDK creates an internal command ID for each public method invocation
 and reuses it only while retrying that invocation. Application developers do not
 manage local idempotency keys. Customer PostgreSQL and Cloud mutations are
-durable and can outlive a client process. Their generated SDKs require or
+durable and can outlive a client process. Their TypeScript adapters require or
 persist a durable idempotency key whenever an operation may be retried across an
 invocation boundary. Direct SQL callers must persist and reuse the command ID
 from their own durable operation record. Incompatible key reuse returns
@@ -757,9 +798,9 @@ authority.
 
 ## SDK experience
 
-Generated SDKs expose the same four-step workflow for customer PostgreSQL and
-Cloud, and the TypeScript SDK exposes it for local PGlite: create a Budget,
-request a child, perform application-owned work, and settle usage.
+The TypeScript SDK exposes the same four-step workflow for local PGlite,
+customer PostgreSQL, and Cloud: create a Budget, request a child, perform
+application-owned work, and settle usage.
 
 ### TypeScript
 
@@ -839,19 +880,14 @@ where a live `Budget` is required. A worker loads the committed Budget by ID
 before starting work. The raw SQL API cannot enforce this TypeScript
 distinction, so its contract and documentation state the commit rule explicitly.
 
-### Language portability
+### Language scope
 
-Cloud is language-neutral at the protocol boundary. Python, Go, and TypeScript
-SDKs are generated from the same logical contract and expose idiomatic versions
-of the Budget workflow without reproducing authority transitions. Customer
-PostgreSQL adapters use each language's normal transaction-executor interface;
-they do not own the application's connection pool.
-
-A future local adapter in another language must embed a compatible PGlite
-runtime or another qualified execution host for the exact authority core. It is
-not supported until it passes the same lifecycle, Policy sandbox, packaging, and
-runtime-compatibility gates as the TypeScript SDK. This architecture does not
-commit to supporting those adapters.
+TypeScript is the only supported SDK. Its generated contract and hand-authored
+façade cover local PGlite, customer PostgreSQL, and Cloud without reproducing
+authority transitions. The customer PostgreSQL SQL API and Cloud protocol remain
+versioned contracts, but this repository reserves no package, directory, API,
+runtime, or release commitment for another SDK language. A future SDK requires
+its own approved architecture and qualification gates.
 
 ## Packaging, installation, and footprint
 
@@ -882,10 +918,11 @@ object manifest and semantic fixtures. PGlite, Cloud, and hosted PostgreSQL
 providers that cannot install arbitrary extension files use the bundle.
 
 An upgrade can expand the private schema and install a new public major schema
-beside the old one. It cannot destructively contract until every supported SDK,
-service, Policy, and direct SQL caller has left the old contract. Downgrade
-means restoring a compatible backup and entering recovery reconciliation;
-reverse SQL does not pretend to undo committed authority or immutable evidence.
+beside the old one. It cannot destructively contract until every supported SDK
+version, service, Policy, and direct SQL caller has left the old contract.
+Downgrade means restoring a compatible backup and entering recovery
+reconciliation; reverse SQL does not pretend to undo committed authority or
+immutable evidence.
 
 The release pins the PGlite and PostgreSQL compatibility matrix. An upgrade may
 change the embedded PostgreSQL build or data-directory format, so local mode
@@ -936,9 +973,10 @@ means Keynes completed an authoritative evaluation. A database timeout,
 serialization failure, process crash, or lost network response has an unknown
 transport outcome until replay resolves the command ID.
 
-Every public error has a stable code and generated structured fields. SDKs map
-those fields to idiomatic errors without depending on PGlite, customer
-PostgreSQL, managed PostgreSQL, extension, installer, or transport error text.
+Every public error has a stable code and generated structured fields. The
+TypeScript SDK maps those fields to idiomatic errors without depending on
+PGlite, customer PostgreSQL, managed PostgreSQL, extension, installer, or
+transport error text.
 
 ## Authority placement and recovery
 
@@ -1035,8 +1073,8 @@ host and packaging form must pass before the change ships. Targeted suites
 supplement the shared fixtures: PGlite covers lifecycle, serialization,
 WebAssembly failure, and footprint; customer PostgreSQL covers installation,
 role binding, direct SQL, transaction composition, drift, extension upgrades,
-and operator recovery; managed PostgreSQL covers concurrent connections, lineage
-routing, fencing, tenant roles, forced failure, and rolling deployment.
+and operator recovery; managed PostgreSQL covers concurrent connections,
+lineage routing, fencing, tenant roles, forced failure, and rolling deployment.
 
 ## Versioning and migrations
 
@@ -1044,8 +1082,9 @@ The authority core has one private schema version, one ordered migration graph,
 one public major SQL schema per breaking contract, and one digest for each
 generated logical contract. Local startup applies the signed bundle to a fresh
 PGlite database before accepting commands. Customer PostgreSQL and Cloud roll
-the graph forward under an explicit compatibility window so old and new SDKs,
-SQL callers, and service instances can coexist. Operational overlays version
+the graph forward under an explicit compatibility window so old and new
+TypeScript SDK versions, SQL callers, and service instances can coexist.
+Operational overlays version
 independently but cannot change the authority-core contract.
 
 Additive changes remain within `keynes_v1` only when old callers can preserve
@@ -1133,8 +1172,9 @@ change replay, evidence, Policy results, or semantic digests.
 Keynes owns immutable Resource type identity, Budget identity and lineage,
 Resource conservation and availability, Policy evaluation, atomic child
 creation, idempotent command replay, settlement state, subtree accounting,
-unresolved usage, deficits, canonical evidence, public database contracts,
-generated SDK contracts, authority epochs, and fail-closed recovery state.
+unresolved usage, deficits, canonical evidence, public database contracts, the
+generated TypeScript SDK contract, authority epochs, and fail-closed recovery
+state.
 
 The application owns workflow validity, request construction, context
 assertions, external effects, provider idempotency, retries, usage observation,
@@ -1151,7 +1191,7 @@ This target architecture remains unqualified until executable evidence
 establishes the following gates:
 
 1. Generate the Resource type and Budget schemas, public SQL API, JSON
-   contracts, procedure manifest, TypeScript/Python/Go types, validators,
+   contracts, procedure manifest, TypeScript types, validators,
    wrappers, and fixtures; prove their contract and object digests agree.
 2. Run Resource publication, root allocation, request, and settlement through
    PGlite, customer PostgreSQL installed from the bundle, customer PostgreSQL
@@ -1171,8 +1211,8 @@ establishes the following gates:
    lineage placement, stale-writer fencing, replica read labeling, forced
    failover, point-in-time recovery, and unresolved evidence after data loss.
 7. Package and measure local PGlite, signed bundles, generated extensions, and
-   SDKs for the supported PostgreSQL, Node.js, operating-system, architecture,
-   and managed-provider matrix.
+   the TypeScript SDK for the supported PostgreSQL, Node.js, operating-system,
+   architecture, and managed-provider matrix.
 8. Qualify Cloud and customer operations for authentication, tenant isolation,
    idempotency, routing, backup, recovery, incident response, vulnerability
    response, rolling migration, and support without forking the authority core.

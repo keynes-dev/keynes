@@ -1,0 +1,10 @@
+{
+  "name": "@keynes/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}

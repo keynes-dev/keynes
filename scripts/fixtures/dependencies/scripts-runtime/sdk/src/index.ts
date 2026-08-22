@@ -1,0 +1,1 @@
+import "../../scripts/check.ts";

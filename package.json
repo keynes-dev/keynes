@@ -1,0 +1,30 @@
+{
+  "name": "keynes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "node scripts/check-toolchain.ts && pnpm install --frozen-lockfile",
+    "format": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml sdk cloud scripts",
+    "format:check": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml sdk cloud scripts",
+    "lint": "oxlint .",
+    "typecheck": "tsc --project tsconfig.json --noEmit && turbo run typecheck",
+    "test": "vitest run scripts && turbo run test",
+    "check:deps": "node scripts/check-structure.ts && node scripts/check-dependencies.ts",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:deps && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "es-module-lexer": "2.3.2",
+    "oxfmt": "0.64.0",
+    "oxlint": "1.79.0",
+    "turbo": "2.10.11",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": "24.19.0",
+    "pnpm": "11.21.0"
+  },
+  "packageManager": "pnpm@11.21.0"
+}

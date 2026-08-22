@@ -23,11 +23,11 @@ or product functionality begins.
 
 ## `000-repository-and-code-architecture`
 
-**Status:** **NOT RUN**
+**Status:** **IMPLEMENTED LOCALLY — CI NOT RUN**
 
-**Outcome:** Establish a minimal polyglot repository, explicit code ownership
-boundaries, enforceable dependency rules, and provider-free engineering gates
-before implementing Keynes behavior.
+**Outcome:** Establish a lean TypeScript and SQL repository, explicit ownership,
+basic dependency rules, and one local and CI engineering baseline before
+implementing Keynes behavior.
 
 **Dependencies:** None.
 
@@ -39,56 +39,52 @@ Cloud behavior.
 
 #### `001-repository-layout`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
-**Deliverable:** Create the top-level layout below, with a short ownership
-README and placeholder manifest in each executable or package boundary. Keep
-generated outputs separate from hand-authored sources.
+**Deliverable:** Create the six code and documentation ownership areas below.
+Add a short README to each area and a private placeholder manifest only where a
+TypeScript workspace requires one. Add a minimal root `.gitignore` and the
+approved Apache-2.0 `LICENSE`; root configuration and `.github/` infrastructure
+do not become additional ownership areas.
 
 ```text
-contracts/                  # Hand-authored schemas and procedure manifest
-database/authority-core/    # Canonical migrations, SQL, and PL/pgSQL
-packages/typescript/        # TypeScript SDK and local PGlite adapter
-sdks/python/                # Generated Python SDK and thin transport adapters
-sdks/go/                    # Generated Go SDK and thin transport adapters
-services/cloud/             # Go RPC, authentication, routing, and operations
-distribution/postgresql/    # Bundle installer and generated extension packaging
-tools/codegen/              # Contract and artifact generators
-tests/conformance/          # Host-neutral semantic fixtures and runners
-tests/security/             # Policy, role, tenant, and recovery adversarial suites
-tests/performance/          # Artifact-specific benchmarks and measurements
-docs/                       # Product, architecture, roadmap, ADRs, and guides
+contracts/  # Future logical contracts and canonical fixtures
+database/   # Future authority SQL, migrations, and distribution
+sdk/        # Sole TypeScript SDK and private local PGlite adapter
+cloud/      # Private TypeScript Cloud service
+scripts/    # Root-owned repository automation
+docs/       # Product, architecture, roadmap, ADRs, and guides
 ```
 
-**Acceptance evidence:** A structure check proves every declared boundary
-exists, every boundary has one documented owner and responsibility, generated
-paths are identifiable, and no placeholder claims implemented behavior.
+**Acceptance evidence:** A structure check proves that all six areas exist, each
+has one documented owner and responsibility, package manifests are private,
+generated and dependency outputs are ignored, the license is Apache-2.0, and no
+placeholder claims implemented behavior.
 
-#### `002-polyglot-workspace-bootstrap`
+#### `002-typescript-workspace-bootstrap`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
-**Deliverable:** Add a root `package.json` and `pnpm-workspace.yaml` for
-TypeScript orchestration, a `go.work` file for Go modules, Python
-`pyproject.toml` workspace configuration, committed lockfiles, and explicit
-Node.js, pnpm, Go, Python, PostgreSQL, and PGlite version pins. Root commands
-provide bootstrap, build, type-check, test, format-check, and full verification
-entry points.
+**Deliverable:** Add a root `package.json`, `pnpm-workspace.yaml`, Turborepo
+configuration, a committed pnpm lockfile, and exact Node.js and pnpm contributor
+pins. The workspace discovers the private `sdk/` and `cloud/` shells without
+creating a package for contracts, database sources, scripts, or verification.
 
 **Acceptance evidence:** A clean checkout installs from lockfiles, discovers
-every workspace, builds placeholder packages, runs every provider-free root
-check, and fails clearly when a required tool version is unsupported.
+both workspaces, type-checks both nonfunctional shells through Turborepo, leaves
+the lockfile unchanged, and fails clearly when a required tool version is
+unsupported.
 
 #### `003-module-ownership-boundaries`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
 **Deliverable:** Record the code architecture in repository-owned ADRs and
-package READMEs. `contracts/` owns logical interface sources;
-`database/authority-core/` owns committed Budget semantics; SDKs own typed call
-surfaces and result translation; the local adapter owns PGlite lifecycle;
-customer distribution owns installation; and Cloud owns transport,
-authentication, routing, recovery coordination, and operations.
+boundary READMEs. `contracts/` owns logical interface sources; `database/` owns
+the future authority core and later PostgreSQL distribution; `sdk/` owns the
+TypeScript call surface and private PGlite lifecycle; `cloud/` owns managed
+transport and operations; `scripts/` owns repository automation; and `docs/`
+owns product, architecture, sequencing, and decisions.
 
 **Acceptance evidence:** An architecture review maps every deliverable component
 from `architecture.md` to exactly one primary code boundary, identifies its
@@ -97,77 +93,74 @@ responsibility or competing Budget implementation.
 
 #### `004-dependency-direction-enforcement`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
-**Deliverable:** Define and enforce an acyclic dependency graph. Generators
-consume hand-authored contracts; generated artifacts feed the authority core,
-SDKs, service, and distributions; SDKs and Cloud invoke only versioned public
-procedures or protocols; production code never depends on conformance, security,
-or performance tests; and no adapter writes private authority tables or
-reproduces Budget transitions.
+**Deliverable:** Define and enforce a small acyclic dependency graph. The SDK,
+Cloud service, and future database implementation may consume contracts;
+production workspaces never import from `scripts/`, owner-local tests, or each
+other's private internals; and repository scripts never become runtime
+dependencies.
 
-**Acceptance evidence:** Automated boundary checks reject forbidden imports,
-undeclared workspace dependencies, cycles, runtime dependencies on
-code-generation tools, hand-edited generated files, private-schema access from
-adapters, and alternate request or settlement implementations outside the
-authority core.
+**Acceptance evidence:** Automated checks reject an undeclared workspace
+dependency, a dependency cycle, an import from another owner's private path,
+and a production dependency on `scripts/`, with an actionable diagnostic for
+each controlled fixture.
 
-#### `005-generated-artifact-architecture`
+#### `005-root-engineering-commands`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
-**Deliverable:** Establish generated-source directories, file headers, ownership
-rules, deterministic ordering, digest embedding, stale-output detection, and one
-root regeneration command. Generated code is checked in only where released SDKs
-or database distributions require source artifacts.
+**Deliverable:** Provide root commands for format, lint, type-check, test,
+dependency checks, and complete local verification. Turborepo orders workspace
+work; Oxfmt, Oxlint, `tsc`, and Vitest perform the owner-local checks. Epic 000
+does not define an emitted build artifact or module format.
 
-**Acceptance evidence:** A seed contract fixture regenerates byte-identically on
-two clean runs, changed inputs invalidate embedded digests, stale or manually
-edited outputs fail verification, and no generator is required at runtime.
+**Acceptance evidence:** Each command succeeds on a clean checkout and reports
+the expected pinned tool. One controlled failure in a repository-owned check
+proves that the aggregate command preserves a nonzero task exit.
 
-#### `006-test-and-evidence-architecture`
+#### `006-colocated-test-baseline`
 
-**Status:** **NOT RUN**
+**Status:** **VERIFIED LOCALLY**
 
-**Deliverable:** Define separate unit, contract-generation, migration,
-conformance, security, fault-injection, compatibility, packaging, and
-performance lanes. Shared fixtures carry stable case identities, contract and
-artifact digests, host identity, attempt identity, and retained result locations
-without making operational metadata semantic.
+**Deliverable:** Keep tests beside the workspace or script that owns the
+checked behavior. Add only Vitest smoke tests for the nonfunctional TypeScript
+shells and focused tests for repository scripts. Do not create empty
+conformance, security, performance, compatibility, packaging, or fault-injection
+suites.
 
-**Acceptance evidence:** Skeleton cases run provider-free against deterministic
-test doubles or empty adapters, expected skips are explicit, failed and not-run
-states remain distinct, and an evidence schema can trace every future roadmap
-gate to exact artifacts and tool versions.
+**Acceptance evidence:** Vitest discovers every owner-local test, each shell has
+one honest smoke test, repository-script tests fail closed, and no test claims
+Keynes runtime, host, security, compatibility, or performance coverage.
 
 #### `007-quality-and-ci-baseline`
 
-**Status:** **NOT RUN**
+**Status:** **IMPLEMENTED — CI NOT RUN**
 
-**Deliverable:** Add formatting, linting, type-checking, license and secret
-scanning, generated-diff checks, dependency-boundary checks, build checks, and
-provider-free tests to local verification and continuous integration. Pin CI
-actions and dependencies, cache only reproducible inputs, and keep networked,
-managed-provider, fault, and benchmark lanes explicit and separately authorized.
+**Deliverable:** Run frozen installation, formatting, linting, type checking,
+owner-local tests, and dependency checks in continuous integration.
+Pin CI actions, grant least privilege, and keep the workflow credential-free.
 
-**Acceptance evidence:** The baseline passes from a clean checkout, a controlled
-failure in each check blocks the workflow, generated or lockfile drift is
-visible, no credentials are required for the default lane, and CI retains
-machine-readable results without reporting unrun provider-backed suites as
-passed.
+**Acceptance evidence:** The same aggregate command passes locally and in CI
+from a clean checkout, lockfile drift is visible, every required failure blocks
+the workflow, and no credentials, database, PGlite runtime, or provider are
+required.
 
-**Exit gate:** A clean checkout bootstraps every workspace, builds the
-nonfunctional package shells, enforces ownership and dependency rules,
-regenerates the seed fixture byte-identically, runs the provider-free test
-skeleton, and passes the local and CI quality baseline. No Keynes functional
-behavior is present. **NOT RUN**.
+**Exit gate:** A clean checkout bootstraps and type-checks every workspace,
+enforces the basic dependency rules, and passes Oxfmt, Oxlint, `tsc`, Vitest,
+and the same Turborepo aggregate locally
+and in CI. No Keynes functional behavior, generated contract system, PostgreSQL
+package, cross-host suite, or evidence-promotion system is present. **NOT RUN**.
+The local portion passed on August 21, 2026 with Node.js 24.19.0 and pnpm
+11.21.0. The GitHub Actions portion remains **NOT RUN** until a retained run URL
+and commit SHA exist.
 
 ## `100-contract-foundation`
 
 **Status:** **NOT RUN**
 
-**Outcome:** Establish the versioned sources from which every database host,
-public interface, generated SDK, and conformance fixture is derived.
+**Outcome:** Establish the versioned sources from which every database host, the
+public SQL interface, the TypeScript SDK, and conformance fixtures are derived.
 
 **Dependencies:** `000-repository-and-code-architecture`.
 
@@ -184,8 +177,8 @@ normalized identifiers, canonical key ordering, and digest domain separation.
 
 **Acceptance evidence:** Valid and invalid fixture suites prove every schema
 boundary, unknown fields fail explicitly, equivalent values canonicalize
-identically, and every supported language preserves exact values through round
-trips.
+identically, and the TypeScript SDK and public SQL interface preserve exact
+values through round trips.
 
 #### `102-procedure-manifest`
 
@@ -196,8 +189,8 @@ SQL name, input and output contracts, authorization class, transaction behavior,
 replay behavior, and stable result or error families.
 
 **Acceptance evidence:** Automated checks prove that every public procedure,
-generated wrapper, SDK operation, and fixture references one manifest entry and
-that no manifest operation lacks an implementation target.
+generated wrapper, TypeScript SDK operation, and fixture references one manifest
+entry and that no manifest operation lacks an implementation target.
 
 #### `103-authority-migration-graph`
 
@@ -215,30 +208,33 @@ and immutable command or event meaning is never rewritten.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Reproducible generation of TypeScript, Python, and Go types;
-runtime validators; PostgreSQL wrappers; SQL API documentation; public object
-manifests; and canonical conformance fixtures.
+**Deliverable:** Root-owned scripts under `scripts/` reproducibly generate
+TypeScript types and runtime validators, PostgreSQL wrappers, SQL API
+documentation, public object manifests, and canonical conformance fixtures.
+Generation is build-time automation, not a published package or production
+dependency.
 
 **Acceptance evidence:** A clean regeneration produces no diff, generated
-artifacts embed the expected contract digest, and each SDK and database wrapper
-passes the same generated valid and invalid cases.
+artifacts embed the expected contract digest, and the TypeScript SDK and
+database wrappers pass the same generated valid and invalid cases.
 
-#### `105-conformance-harness`
+#### `105-conformance-case-contract`
 
 **Status:** **NOT RUN**
 
-**Deliverable:** A host-neutral harness that runs shared fixtures against local
-PGlite, bundle-installed customer PostgreSQL, extension-installed customer
-PostgreSQL, and managed Cloud.
+**Deliverable:** Define the host-neutral case format, canonical comparison
+rules, and host-adapter contract. Store canonical fixtures with their owning
+contracts; each later host epic implements and tests its adapter beside that
+host.
 
-**Acceptance evidence:** The harness compares canonical domain values, results,
-events, errors, reasons, blockers, and digests while excluding row identifiers,
-query plans, timestamps, and operational metadata.
+**Acceptance evidence:** Contract tests prove that cases identify canonical
+inputs and expected outputs and that comparison excludes row identifiers, query
+plans, timestamps, and operational metadata. No empty cross-host suite or host
+result is created.
 
 **Exit gate:** Generated artifacts, installed database objects, canonical
-fixtures, and embedded digests agree exactly. The harness can run the same
-semantic case against each host without host-specific expected results. **NOT
-RUN**.
+fixtures, and embedded digests agree exactly. The case and adapter contracts are
+ready for each real host without claiming cross-host execution. **NOT RUN**.
 
 ## `200-authority-core`
 
@@ -530,7 +526,8 @@ PostgreSQL installation and transaction composition.
 **Deliverable:** An installer verifies artifact signatures, migration and
 contract digests, PostgreSQL compatibility, build options, required privileges,
 and owned-object drift before applying the canonical bundle under an
-installation lock.
+installation lock. This feature creates the PostgreSQL distribution area under
+`database/`; Epic 000 does not scaffold it.
 
 **Acceptance evidence:** Installation tests cover fresh setup, interrupted
 setup, privilege failures, incompatible versions, altered artifacts, concurrent
@@ -565,9 +562,10 @@ allocation, execution, reading, and Policy authority.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Generated adapters support SDK-owned and caller-owned
-transactions, including atomic request plus application job or outbox insertion.
-An approved child remains pending until the caller-owned transaction commits.
+**Deliverable:** The generated TypeScript adapter supports SDK-owned and
+caller-owned transactions, including atomic request plus application job or
+outbox insertion. An approved child remains pending until the caller-owned
+transaction commits.
 
 **Acceptance evidence:** Tests prove commit and rollback behavior,
 request-plus-outbox atomicity, lost-response replay, prevention of pre-commit
@@ -623,9 +621,9 @@ accounting or Policy evaluation outside PostgreSQL.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** A versioned service maps authenticated TypeScript, Python, and
-Go SDK requests to the shared procedures and returns generated structured
-results and errors.
+**Deliverable:** A private TypeScript service maps authenticated TypeScript SDK
+requests to the shared procedures and returns generated structured results and
+errors.
 
 **Acceptance evidence:** Contract tests prove protocol negotiation, request
 validation, canonical body preservation, stable error translation, no arbitrary
@@ -703,8 +701,8 @@ and incident-response qualification. **NOT RUN**.
 
 **Status:** **NOT RUN**
 
-**Outcome:** Qualify the complete v1 across every supported host, SDK,
-installation form, and operational profile.
+**Outcome:** Qualify the complete V1 across the TypeScript SDK, public SQL
+interface, supported hosts, installation forms, and operational profiles.
 
 **Dependencies:** `000-repository-and-code-architecture` through
 `600-managed-cloud`.
@@ -715,9 +713,9 @@ installation form, and operational profile.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** The shared semantic corpus runs against local PGlite,
-bundle-installed customer PostgreSQL, extension-installed customer PostgreSQL,
-and managed Cloud.
+**Deliverable:** Create `tests/conformance/` after the real host adapters exist,
+then run the shared semantic corpus against local PGlite, bundle-installed
+customer PostgreSQL, extension-installed customer PostgreSQL, and managed Cloud.
 
 **Acceptance evidence:** Canonical results, events, errors, reasons, blockers,
 and digests match across all four paths for Resource publication, root creation,
@@ -752,8 +750,8 @@ recovery fencing.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Compatibility suites qualify public SQL schemas, generated
-SDKs, validators, wrappers, contract digests, and supported coexistence windows.
+**Deliverable:** Compatibility suites qualify public SQL schemas, the TypeScript
+SDK, validators, wrappers, contract digests, and supported coexistence windows.
 
 **Acceptance evidence:** Supported old and new clients preserve their declared
 meaning, incompatible digests fail explicitly, additive changes remain
@@ -764,8 +762,8 @@ callers observe the same committed results.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Released artifacts are tested and measured across the supported
-PostgreSQL, PGlite, Node.js, operating-system, architecture, and
+**Deliverable:** Released artifacts are tested and measured across the
+supported PostgreSQL, PGlite, Node.js, operating-system, architecture, and
 managed-provider matrix.
 
 **Acceptance evidence:** Retained measurements cover download and installed
@@ -788,8 +786,8 @@ provenance, and support escalation without forking the authority core.
 
 **Exit gate:** No host claims compatibility, security, performance, or
 production readiness until its corresponding evidence is retained and reviewed.
-V1 releases only when all required host, SDK, package, and operational evidence
-passes. **NOT RUN**.
+V1 releases only when all required host, TypeScript SDK, public SQL, package,
+and operational evidence passes. **NOT RUN**.
 
 ## `800-subtree-issuance`
 
@@ -810,8 +808,8 @@ without changing the scalar parent-funded request.
 without adding optional issuance fields to the v1 scalar request shape.
 
 **Acceptance evidence:** Contract tests prove old callers retain exact
-parent-funded semantics, unsupported versions fail explicitly, and generated
-SDKs expose issuance only when the installed contract supports it.
+parent-funded semantics, unsupported versions fail explicitly, and the
+TypeScript SDK exposes issuance only when the installed contract supports it.
 
 #### `802-issuer-authorization`
 
@@ -842,7 +840,7 @@ prevention of silent reissuance after evidence loss.
 **Status:** **NOT RUN**
 
 **Deliverable:** The shared corpus and migrations cover issuance on every
-supported host and SDK.
+supported host, the TypeScript SDK, and the public SQL interface.
 
 **Acceptance evidence:** Supported hosts produce matching canonical outcomes,
 while v1 and unsupported hosts reject issuance fields and commands without
@@ -914,9 +912,9 @@ Cloud never simulates cross-database atomicity through service orchestration.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Generated contracts, SDKs, migrations, shared fixtures, and
-operational procedures qualify multi-source funding without changing scalar
-requests for callers that do not adopt it.
+**Deliverable:** Generated contracts, the TypeScript SDK, migrations, shared
+fixtures, and operational procedures qualify multi-source funding without
+changing scalar requests for callers that do not adopt it.
 
 **Acceptance evidence:** All supported hosts produce matching canonical results
 under concurrency, failure, replay, migration, settlement, and recovery, while
