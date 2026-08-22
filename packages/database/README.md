@@ -5,7 +5,7 @@
 
 ## Responsibility
 
-`database/` is the sole future owner of authoritative PostgreSQL SQL,
+`packages/database/` is the sole future owner of authoritative PostgreSQL SQL,
 PL/pgSQL, the authority-core migration graph, and private storage. It will also
 own the customer PostgreSQL distribution when that deliverable is implemented.
 

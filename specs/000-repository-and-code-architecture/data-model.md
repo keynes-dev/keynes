@@ -10,8 +10,8 @@ owner.
 
 ### Fields
 
-- `path`: One of `contracts/`, `database/`, `sdk/`, `cloud/`, `scripts/`, or
-  `docs/`.
+- `path`: One of `packages/contracts/`, `packages/database/`, `packages/sdk/`,
+  `packages/cloud/`, `scripts/`, or `docs/`.
 - `owner`: `@shubsharan`, the repository code owner responsible for changes in
   the boundary.
 - `responsibility`: A short statement of what belongs in the boundary.
@@ -24,7 +24,9 @@ owner.
 - Every path has exactly one primary owner and responsibility.
 - Public and private edges do not overlap.
 - Placeholder documentation does not claim implemented Keynes behavior.
-- New top-level boundaries require an explicit architecture decision.
+- `packages/` groups product code but owns no behavior and is not a seventh
+  boundary.
+- New ownership boundaries require an explicit architecture decision.
 
 ## Root infrastructure
 
@@ -54,7 +56,7 @@ A workspace is a TypeScript package that participates in pnpm and Turborepo.
 
 ### Fields
 
-- `path`: Either `sdk/` or `cloud/` in Epic 000.
+- `path`: Either `packages/sdk/` or `packages/cloud/` in Epic 000.
 - `manifest`: The workspace's private `package.json`.
 - `tasks`: The workspace commands exposed to Turborepo.
 - `dependencies`: Declared external and workspace dependencies.
@@ -63,6 +65,9 @@ A workspace is a TypeScript package that participates in pnpm and Turborepo.
 
 - Every workspace is private and non-publishable in Epic 000.
 - The root pnpm workspace discovers every workspace from a clean checkout.
+- Each workspace manifest declares every package that workspace may access.
+- pnpm rejects workspace dependency cycles.
+- Turborepo rejects undeclared and cross-package imports.
 - Turborepo task-output caching remains disabled throughout Epic 000.
 - Production code does not depend on `scripts/`.
 
@@ -73,14 +78,15 @@ which public edge.
 
 ### Required rules
 
-- `database/` is the only future owner of authoritative Budget transitions.
-- `sdk/` and `cloud/` may use only versioned public database procedures or
-  protocols; neither may access private database storage.
-- `sdk/` and `cloud/` do not import one another.
+- `packages/database/` is the only future owner of authoritative Budget
+  transitions.
+- `packages/sdk/` and `packages/cloud/` may use only versioned public database
+  procedures or protocols; neither may access private database storage.
+- `packages/sdk/` and `packages/cloud/` do not import one another.
 - Runtime code never imports repository scripts or tests.
 
-Each rule has a stable diagnostic code so a failed check explains the exact
-boundary violation.
+Native pnpm and Turborepo diagnostics identify the package and relationship that
+violates these rules; Epic 000 maintains no parallel diagnostic-code system.
 
 ## Check result
 

@@ -23,25 +23,24 @@ the two-workspace task graph with task-output caching disabled throughout Epic
 **Language/Version**: Node.js 24.19.0 and pnpm 11.21.0 are the exact contributor
 and primary CI pins. PostgreSQL and PGlite versions are deferred to their
 implementation and qualification epics. The pinned repository tools are Turbo
-2.10.11, TypeScript 7.0.2, `@types/node` 24.13.3, Oxlint 1.79.0, Oxfmt 0.64.0,
-Vitest 4.1.11, and `es-module-lexer` 2.3.2. **Primary
-Dependencies**: Turborepo owns the task graph, `tsc --noEmit` type-checks,
-Oxlint lints, Oxfmt formats, and Vitest runs meaningful repository and tool
-tests. The narrow module lexer supports the repository-owned dependency check.
-Only `sdk/` and `cloud/` are pnpm workspaces.
-Root-owned utilities under `scripts/` perform structure and dependency checks
-through Node 24 native TypeScript execution in ESM mode, using erasable syntax
-without an extra runner or emitted build. Contract generation, generated-output
-drift checks, dedicated security scanning, and dependency-license policy are
-deferred to the roadmap features that have real inputs or release artifacts. The
-repository is licensed under Apache-2.0.
+2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11.
+**Primary Dependencies**: Turborepo owns the task graph and source-boundary
+validation, `tsc --noEmit` type-checks, Oxlint lints, Oxfmt formats, and Vitest
+runs meaningful workspace tests. Only `packages/sdk/` and `packages/cloud/`
+are pnpm workspaces. Their manifests declare package access; pnpm enforces the
+toolchain declarations and rejects dependency cycles. Epic 000 implements no
+root-owned script because its current rules are expressed by pnpm and
+Turborepo. Contract generation, generated-output drift checks, dedicated
+security scanning, and dependency-license policy are deferred to the roadmap
+features that have real inputs or release artifacts. The repository is licensed
+under Apache-2.0.
 **Storage**: Epic 000 stores repository sources and ordinary native verification
 reports only. It creates no tracked evidence-promotion hierarchy, attempt
 envelope, semantic digest, or current-attempt pointer. PostgreSQL and PGlite are
 not selected or installed; no database is started and no authority state is
-stored in this epic. **Testing**: Vitest tests
-are colocated with the repository-owned code they exercise. Epic 000 runs only
-meaningful repository and tool tests; future migration, conformance,
+stored in this epic. **Testing**: Vitest tests are colocated with the workspace
+code they exercise. Epic 000 runs only meaningful workspace tests; future
+migration, conformance,
 fault-injection, compatibility, packaging, and performance lanes remain outside
 this epic and `NOT RUN`. Advisory lookup and a repository-wide SBOM are out of
 scope. **Target Platform**: Contributor development on macOS and provider-free
@@ -70,7 +69,8 @@ Spec Kit feature.
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-- **Singular authority — PASS**: `database/` is the only boundary permitted to
+- **Singular authority — PASS**: `packages/database/` is the only boundary
+  permitted to
   own the hand-authored migration graph, SQL/PL/pgSQL sources, and
   future Budget semantics. Contracts remain logical interface sources. Future
   generators cannot become a second semantic source. This
@@ -89,16 +89,16 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
   and Cloud work without claiming conformance.
 - **Evidence-first delivery — PASS**: The work is structural and mechanical, so
   focused validation applies instead of red-before-green tests.
-  Repository-owned rules receive focused positive and
-  negative tests, while third-party tools retain their native diagnostics.
+  Third-party workspace tools retain their native diagnostics rather than
+  receiving duplicate repository-owned tests.
   Networked, paid, managed-provider, externally mutating, migration,
   conformance, fault, compatibility, packaging, and benchmark work remains
   outside Epic 000 and `NOT RUN`.
 
 The pre-research Constitution Check passes with no exception. The post-design
 check also passes: `data-model.md` keeps authority semantics out of repository
-engineering entities; root-owned scripts remain outside runtime workspaces;
-colocated tests exercise only meaningful repository and tool behavior; and
+engineering entities; root-owned scripts remain deferred; colocated tests
+exercise only meaningful workspace behavior; and
 future generation and runtime qualification remain explicitly `NOT RUN`. The
 design introduces no alternate authority, application effect, Policy behavior,
 public SDK behavior, or unsupported host claim. The check must run once more
@@ -120,30 +120,33 @@ specs/000-repository-and-code-architecture/
 ### Source Code (repository root)
 
 ```text
-contracts/
-database/
-sdk/
-cloud/
+packages/
+├── contracts/
+├── database/
+├── sdk/
+└── cloud/
 scripts/
 docs/
 └── adr/
 ```
 
-**Structure Decision**: `contracts/` reserves ownership of future logical
-interface inputs; `database/` reserves ownership of the future hand-authored
-PostgreSQL migration graph and SQL/PL/pgSQL sources; `sdk/` is the sole future
-public TypeScript release unit and reserves its private local PGlite adapter;
-`cloud/` owns the private nonfunctional TypeScript service shell; `scripts/`
-contains root-owned repository checks; and `docs/` owns
-architecture records and contributor guidance. Only `sdk/` and `cloud/` are pnpm
-workspaces. Scripts run from the root package and are neither a workspace nor a
-publishable package. Tests are colocated with the TypeScript or script source
-they exercise; the repository creates no empty test tree or future-lane
-placeholders. Epic 000 package manifests remain private and non-publishable, use
-repository-scoped provisional identifiers, and make no public registry,
-module-format, or browser-support promise. Contract generation begins in Epic
-100. This epic creates no generated-output system, tracked evidence-promotion
-directories, or distribution placeholder.
+**Structure Decision**: `packages/contracts/` reserves ownership of future
+logical interface inputs; `packages/database/` reserves ownership of the future
+hand-authored PostgreSQL migration graph and SQL/PL/pgSQL sources;
+`packages/sdk/` is the sole future public TypeScript release unit and reserves
+its private local PGlite adapter; `packages/cloud/` owns the private
+nonfunctional TypeScript service shell; `scripts/` reserves root-owned
+automation for later epics; and `docs/` owns architecture records and contributor
+guidance. `packages/` is only a namespace for all product code, and only its
+`sdk/` and `cloud/` children are pnpm workspaces. Scripts run from the root
+package and are neither a workspace nor a publishable package. Tests are
+colocated with the TypeScript source they exercise; the repository
+creates no empty test tree or future-lane placeholders. Epic 000 package
+manifests remain private and non-publishable, use repository-scoped provisional
+identifiers, and make no public registry, module-format, or browser-support
+promise. Contract generation begins in Epic 100. This epic creates no
+generated-output system, tracked evidence-promotion directories, or distribution
+placeholder.
 
 ## Complexity Tracking
 

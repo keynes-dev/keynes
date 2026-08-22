@@ -8,12 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@types/node':
-        specifier: 24.13.3
-        version: 24.13.3
-      es-module-lexer:
-        specifier: 2.3.2
-        version: 2.3.2
       oxfmt:
         specifier: 0.64.0
         version: 0.64.0
@@ -26,13 +20,18 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+
+  packages/cloud:
+    devDependencies:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
-  cloud: {}
-
-  sdk: {}
+  packages/sdk:
+    devDependencies:
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
 packages:
 
@@ -1081,6 +1080,7 @@ snapshots:
   '@types/node@24.13.3':
     dependencies:
       undici-types: 7.18.2
+    optional: true
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -1395,7 +1395,8 @@ snapshots:
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
 
-  undici-types@7.18.2: {}
+  undici-types@7.18.2:
+    optional: true
 
   vite@8.2.2(@types/node@24.13.3):
     dependencies:

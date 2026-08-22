@@ -28,10 +28,11 @@ decisions."
   as the contributor entry point and Turborepo for the task graph.
 - Q: What is the final approved Epic 000 scope? -> A: This answer supersedes all
   earlier repository-topology and scaffolding answers. Create only
-  `contracts/`, `database/`, `sdk/`, `cloud/`, `scripts/`, and `docs/`. Use a
-  lean TypeScript workspace with pnpm, Turborepo, the stable TypeScript 7 native
-  compiler through `tsc --noEmit`, Oxlint, Oxfmt, Vitest, and simple
-  repository-owned dependency checks. Keep tests colocated. Do not create a
+  `packages/contracts/`, `packages/database/`, `packages/sdk/`,
+  `packages/cloud/`, `scripts/`, and `docs/`. Use a lean TypeScript workspace
+  with pnpm, Turborepo, the stable TypeScript 7 native
+  compiler through `tsc --noEmit`, Oxlint, Oxfmt, Vitest, and native pnpm and
+  Turborepo dependency enforcement. Keep tests colocated. Do not create a
   distribution placeholder, dedicated tooling workspaces, an evidence
   promotion system, top-level test-lane directories, or executable skeletons
   for future test lanes.
@@ -41,7 +42,23 @@ decisions."
 - Q: Who owns the repository and which remaining implementation defaults apply?
   -> A: Add `.github/CODEOWNERS` with `* @shubsharan`. Use private provisional
   workspace names `@keynes/sdk` and `@keynes/cloud`, `ubuntu-24.04` CI, and Node
-  24 native TypeScript execution for root scripts without an extra runner.
+  24 native TypeScript execution for future root scripts without an extra
+  runner.
+- Q: Where should Turborepo workspaces live? -> A: Nest every Turborepo package
+  under `packages/`. Move the two current workspaces to `packages/sdk/` and
+  `packages/cloud/`; treat `packages/` as a namespace, not another ownership
+  boundary.
+- Q: Should contracts and database sources also live under `packages/`? -> A:
+  Yes. Put all product-code ownership areas under `packages/`:
+  `packages/contracts/`, `packages/database/`, `packages/sdk/`, and
+  `packages/cloud/`. Keep repository automation in `scripts/` and documentation
+  in `docs/`. Only SDK and Cloud are pnpm and Turborepo workspaces.
+- Q: Should Epic 000 retain custom dependency, structure, and toolchain scripts
+  and their tests? -> A: No. Let workspace manifests declare package access,
+  let pnpm enforce tool versions and reject dependency cycles, and use
+  `turbo boundaries` for source-import validation. Keep `scripts/` empty of
+  implementation until a later epic has automation that native tools cannot
+  express.
 
 ## User scenarios and testing
 
@@ -54,17 +71,18 @@ ownership before adding Keynes functionality.
 correct owned area.
 
 **Independent test**: Inspect a fresh checkout and confirm that each approved
-top-level area exists, has documented ownership, and claims no implemented
+ownership area exists, has documented ownership, and claims no implemented
 Keynes behavior.
 
 **Acceptance scenarios**:
 
 1. **Given** a fresh checkout, **When** I inspect the repository structure,
-   **Then** `contracts/`, `database/`, `sdk/`, `cloud/`, `scripts/`, and `docs/`
-   are present.
+   **Then** `packages/contracts/`, `packages/database/`, `packages/sdk/`,
+   `packages/cloud/`, `scripts/`, and `docs/` are present.
 2. **Given** an approved ownership area, **When** I inspect its README, **Then**
    its owner, responsibility, and nonfunctional state are clear; only the
-   `sdk/` and `cloud/` workspaces also require private manifests.
+   `packages/sdk/` and `packages/cloud/` workspaces also require private
+   manifests.
 3. **Given** the completed scaffold, **When** I inspect top-level directories,
    **Then** no distribution placeholder, dedicated tooling workspace, or empty
    test-lane directory exists.
@@ -103,16 +121,15 @@ understand which repository dependencies are allowed.
 **Why this priority**: Clear ownership and simple dependency rules prevent
 later work from introducing competing implementations or hidden coupling.
 
-**Independent test**: Review the ownership map and dependency rules, then run
-the repository check against valid and deliberately invalid dependency
-fixtures.
+**Independent test**: Review the ownership map and workspace manifests, then run
+the native pnpm and Turborepo dependency checks.
 
 **Acceptance scenarios**:
 
 1. **Given** an approved repository area, **When** I review the ownership map,
    **Then** it has exactly one primary owner and a documented responsibility.
-2. **Given** a workspace import or dependency, **When** the repository check
-   runs, **Then** the relationship either matches the documented graph or fails
+2. **Given** a workspace import or dependency, **When** `turbo boundaries`
+   runs, **Then** the relationship is declared by the importing package or fails
    with an actionable diagnostic.
 3. **Given** an undeclared workspace dependency or dependency cycle, **When**
    the repository check runs, **Then** verification fails.
@@ -121,14 +138,14 @@ fixtures.
 
 ### User story 4 - Keep tests with their owners (Priority: P4)
 
-As a contributor, I can find a package's tests beside the code or script that
-owns them and run all current tests from the root.
+As a contributor, I can find a package's tests beside the code that owns them
+and run all current tests from the root.
 
 **Why this priority**: Colocation keeps the initial repository small and makes
 test ownership obvious.
 
 **Independent test**: Run the root test command and confirm Vitest discovers
-the colocated tests in each implemented TypeScript workspace or script area.
+the colocated tests in each implemented TypeScript workspace.
 
 **Acceptance scenarios**:
 
@@ -149,9 +166,8 @@ required checks match continuous integration.
 **Why this priority**: A shared baseline prevents local success from diverging
 from continuous integration.
 
-**Independent test**: Run the complete local command and the CI workflow from a
-clean checkout, then confirm one controlled repository-check failure blocks the
-aggregate result.
+**Independent test**: Run the complete local command and inspect the CI workflow
+for the same verification entry point.
 
 **Acceptance scenarios**:
 
@@ -169,8 +185,7 @@ aggregate result.
 
 - An approved ownership area exists without an owner or responsibility.
 - A workspace is omitted from discovery or depends on an undeclared workspace.
-- A dependency check mistakes a development-only test import for a production
-  dependency.
+- A test imports a package that its workspace manifest does not declare.
 - A placeholder compiles but accidentally exposes or claims Keynes behavior.
 - A colocated test is not discovered by the root task graph.
 - Turborepo task-output caching is accidentally enabled.
@@ -181,18 +196,21 @@ aggregate result.
 
 ### Functional requirements
 
-- **FR-001**: The repository MUST contain `contracts/`, `database/`, `sdk/`,
-  `cloud/`, `scripts/`, and `docs/` as its approved code and documentation
-  ownership areas. Root configuration and `.github/` infrastructure MUST NOT be
-  treated as additional product or code boundaries.
+- **FR-001**: The repository MUST contain `packages/contracts/`,
+  `packages/database/`, `packages/sdk/`, `packages/cloud/`, `scripts/`, and
+  `docs/` as its approved code and documentation ownership areas. `packages/`
+  MUST group all product code without becoming an additional boundary. Only
+  `packages/sdk/` and `packages/cloud/` MUST participate in pnpm and Turborepo.
+  Root configuration and `.github/` infrastructure MUST NOT be treated as
+  additional product or code boundaries.
 - **FR-002**: Epic 000 MUST NOT create a generator, generated-output system,
   distribution placeholder, dedicated verification workspace, top-level
   test-lane directories, or executable skeletons for unavailable future lanes.
   Contract generation begins in Epic 100 when real inputs exist.
 - **FR-003**: Every approved ownership area MUST include a short ownership
-  README. Only the `sdk/` and `cloud/` workspaces MUST include private
-  placeholder manifests. These files MUST identify responsibility, dependency
-  direction, and nonfunctional state.
+  README. Only the `packages/sdk/` and `packages/cloud/` workspaces MUST include
+  private placeholder manifests. These files MUST identify responsibility,
+  dependency direction, and nonfunctional state.
 - **FR-004**: Repository-owned architecture documentation MUST map every Epic
   000 area to exactly one primary owner and describe its public and private
   edges without defining Keynes runtime behavior.
@@ -211,9 +229,10 @@ aggregate result.
 - **FR-009**: Tests MUST be colocated with the TypeScript workspace or
   repository script that owns the tested behavior and MUST NOT require a shared
   top-level test directory.
-- **FR-010**: Simple repository-owned checks under `scripts/` MUST reject
-  undeclared workspace dependencies, forbidden dependency directions, and
-  dependency cycles with actionable diagnostics.
+- **FR-010**: Workspace manifests MUST declare package access, pnpm MUST reject
+  dependency cycles, and Turborepo MUST reject undeclared or cross-package
+  imports with actionable diagnostics. Changes to declared workspace access
+  remain architecture-reviewed changes.
 - **FR-011**: The default local and continuous verification commands MUST be
   deterministic, provider-free, credential-free, and blocking for formatting,
   linting, type checking, dependency checks, and current colocated tests.
@@ -240,8 +259,8 @@ aggregate result.
 ### Constitutional requirements
 
 - **Authority and invariants**: Epic 000 implements no Budget transition. The
-  `database/` area records ownership only; it contains no functional migration,
-  procedure, or authority behavior.
+  `packages/database/` area records ownership only; it contains no functional
+  migration, procedure, or authority behavior.
 - **Application boundary**: Epic 000 executes no application effects. Test and
   repository-check scripts are engineering operations only.
 - **Policy and security**: Policy execution and security qualification are out
@@ -275,9 +294,9 @@ aggregate result.
 - **SC-002**: A clean checkout installs from the committed lockfile, discovers
   every TypeScript workspace, and runs every required root command without
   credentials or lockfile changes.
-- **SC-003**: The dependency check accepts every documented relationship and
-  rejects controlled undeclared-dependency, forbidden-direction, and cycle
-  cases with actionable diagnostics.
+- **SC-003**: The dependency check accepts every declared relationship,
+  Turborepo rejects undeclared or cross-package imports, and pnpm rejects
+  workspace dependency cycles.
 - **SC-004**: The root test command discovers all current colocated Vitest
   tests, with no empty top-level test-lane directories or vacuous future-lane
   passes.
@@ -307,9 +326,8 @@ aggregate result.
 - pnpm is the contributor-facing command surface, and Turborepo schedules the
   cross-workspace task graph. Task-output caching remains disabled in Epic 000.
 - The approved TypeScript quality tools are the stable TypeScript 7 native
-  compiler through `tsc --noEmit`, Oxlint, Oxfmt, and Vitest. Small
-  repository-owned scripts enforce the initial dependency rules without
-  becoming a separately published or dedicated tooling workspace.
+  compiler through `tsc --noEmit`, Oxlint, Oxfmt, and Vitest. pnpm and
+  Turborepo enforce the initial dependency rules without custom checker code.
 - Tests remain with their owning workspace or script. Future conformance,
   security, fault, compatibility, packaging, and performance lanes require
   later approved designs and remain `NOT RUN` until executed.

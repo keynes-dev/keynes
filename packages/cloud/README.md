@@ -6,8 +6,8 @@
 
 ## Responsibility
 
-`cloud/` owns the future private TypeScript service for Keynes Cloud. That
-service will own authentication, tenant and Budget authorization, routing,
+`packages/cloud/` owns the future private TypeScript service for Keynes Cloud.
+That service will own authentication, tenant and Budget authorization, routing,
 pooling, retries, recovery fencing, and translation between the public protocol
 and authoritative PostgreSQL procedures.
 
@@ -20,9 +20,9 @@ The future external edge is the versioned Cloud protocol defined by shared
 contracts. Within the repository, Cloud may consume public contract artifacts
 and invoke versioned public database procedures.
 
-Cloud must not import `sdk/`, private database storage, `scripts/`, or another
-area's owner-local tests. Clients never receive database credentials or use
-arbitrary SQL through Cloud.
+Cloud must not import `packages/sdk/`, private database storage, `scripts/`, or
+another area's owner-local tests. Clients never receive database credentials or
+use arbitrary SQL through Cloud.
 
 ## Private internals
 

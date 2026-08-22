@@ -55,8 +55,8 @@ The architecture follows these rules:
 6. Customer PostgreSQL adds durable transactional composition, and Cloud adds
    managed authentication, routing, recovery, and administration, without
    changing the Budget model.
-7. SQL procedures and the generated TypeScript SDK are public contracts;
-   neither may bypass the database authority.
+7. SQL procedures and the generated TypeScript SDK are public contracts; neither
+   may bypass the database authority.
 8. Application effects, provider retries, observations, and business outcomes
    remain application-owned.
 9. Keynes supports three hosts for one PostgreSQL authority core: ephemeral
@@ -220,40 +220,47 @@ outside Budget semantics.
 
 ## Repository boundaries and staging
 
-The repository starts with six code and documentation ownership areas:
+The repository starts with six code and documentation ownership areas. All
+product code lives under one non-owning `packages/` namespace:
 
 ```text
-contracts/  # Versioned logical contracts and canonical fixtures
-database/   # Authority SQL, migrations, and later PostgreSQL distribution
-sdk/        # The sole public TypeScript SDK and private local adapter
-cloud/      # The private TypeScript Cloud service
+packages/       # Namespace for product code; not an ownership boundary
+├── contracts/  # Versioned logical contracts and canonical fixtures
+├── database/   # Authority SQL, migrations, and PostgreSQL distribution
+├── sdk/        # The sole public TypeScript SDK and private local adapter
+└── cloud/      # The private TypeScript Cloud service
 scripts/    # Repository automation and later contract generation
 docs/       # Product, architecture, roadmap, ADRs, and guides
 ```
 
 These are ownership boundaries, not six independently published packages.
-`sdk/` and `cloud/` are the TypeScript workspaces. `contracts/` and `database/`
-remain source boundaries. `scripts/` contains root-owned repository automation;
-production code never depends on it, and it does not become a
-published code-generation or verification package.
+`packages/contracts/`, `packages/database/`, `packages/sdk/`, and
+`packages/cloud/` are product-code ownership boundaries. Only `packages/sdk/`
+and `packages/cloud/` are TypeScript workspaces discovered by pnpm and
+Turborepo. The `packages/` directory groups code but does not own behavior.
+`scripts/` contains root-owned repository automation; production code never
+depends on it, and it does not become a published code-generation or
+verification package.
 
 Root repository infrastructure such as `package.json`, workspace and tool
 configuration, `.gitignore`, `LICENSE`, and `.github/workflows/` supports these
 areas without becoming another product or code ownership boundary.
 
 Tests stay with the code or contract owner. The authority core, SDK adapters,
-Cloud service, repository scripts, and later PostgreSQL distribution each own
-their focused tests. A root `tests/conformance/` area appears only when local
+Cloud service, future repository scripts, and later PostgreSQL distribution
+each own their focused tests when they contain meaningful behavior. A root
+`tests/conformance/` area appears only when local
 PGlite, customer PostgreSQL, and managed Cloud are implemented and one suite can
 exercise several real hosts. Empty security, performance, compatibility, and
 host directories do not precede the behavior they qualify.
 
 Epic 000 creates only the six lean boundaries, the pnpm and Turborepo workspace,
-basic dependency checks, and owner-local engineering tests. Epic 100 adds
-contract generation as root-owned scripts. Epic 500 adds PostgreSQL distribution
-under `database/`, and Epic 700 adds the cross-host conformance area. This
-staging does not change the target components or move Budget semantics out of
-the authority core.
+native workspace-boundary checks, and owner-local engineering tests. Epic 100
+adds contract generation as root-owned scripts. Epic 500 adds PostgreSQL
+distribution under `packages/database/`, and Epic 700 adds the cross-host
+conformance area.
+This staging does not change the target components or move Budget semantics out
+of the authority core.
 
 ## Public domain model
 
@@ -450,11 +457,10 @@ The contract source contains:
 
 One generator produces TypeScript types and runtime validators; PostgreSQL
 validation and typed wrapper functions; SQL API documentation; and the canonical
-conformance fixtures. Keynes-specific generator rules define safe
-integers, required field presence, tagged unions, normalized identifiers,
-canonical key ordering, and digest domain separation. A generated artifact is
-accepted only when its embedded contract digest matches the installed public
-schema.
+conformance fixtures. Keynes-specific generator rules define safe integers,
+required field presence, tagged unions, normalized identifiers, canonical key
+ordering, and digest domain separation. A generated artifact is accepted only
+when its embedded contract digest matches the installed public schema.
 
 Application Resource names, units, and Policy context fields remain
 application-defined. Publishing a Resource type binds its name, unit, behavior,
@@ -1073,8 +1079,8 @@ host and packaging form must pass before the change ships. Targeted suites
 supplement the shared fixtures: PGlite covers lifecycle, serialization,
 WebAssembly failure, and footprint; customer PostgreSQL covers installation,
 role binding, direct SQL, transaction composition, drift, extension upgrades,
-and operator recovery; managed PostgreSQL covers concurrent connections,
-lineage routing, fencing, tenant roles, forced failure, and rolling deployment.
+and operator recovery; managed PostgreSQL covers concurrent connections, lineage
+routing, fencing, tenant roles, forced failure, and rolling deployment.
 
 ## Versioning and migrations
 
@@ -1084,8 +1090,8 @@ generated logical contract. Local startup applies the signed bundle to a fresh
 PGlite database before accepting commands. Customer PostgreSQL and Cloud roll
 the graph forward under an explicit compatibility window so old and new
 TypeScript SDK versions, SQL callers, and service instances can coexist.
-Operational overlays version
-independently but cannot change the authority-core contract.
+Operational overlays version independently but cannot change the authority-core
+contract.
 
 Additive changes remain within `keynes_v1` only when old callers can preserve
 their exact meaning and generated validators accept both versions explicitly. A
@@ -1191,8 +1197,8 @@ This target architecture remains unqualified until executable evidence
 establishes the following gates:
 
 1. Generate the Resource type and Budget schemas, public SQL API, JSON
-   contracts, procedure manifest, TypeScript types, validators,
-   wrappers, and fixtures; prove their contract and object digests agree.
+   contracts, procedure manifest, TypeScript types, validators, wrappers, and
+   fixtures; prove their contract and object digests agree.
 2. Run Resource publication, root allocation, request, and settlement through
    PGlite, customer PostgreSQL installed from the bundle, customer PostgreSQL
    installed from the extension, and managed Cloud; compare canonical results,

@@ -1,7 +1,0 @@
-{
-  "name": "@fixture/cloud",
-  "private": true,
-  "dependencies": {
-    "@fixture/sdk": "workspace:*"
-  }
-}

@@ -28,44 +28,50 @@ transition kernel, and placeholder directories for future languages.
 
 ## D003 — Lean repository taxonomy
 
-**Decision**: Use `contracts/`, `database/`, `sdk/`, `cloud/`, `scripts/`, and
-`docs/` as the six code and documentation ownership areas. Only `sdk/` and
-`cloud/` are pnpm workspaces. Tests remain colocated with their owner. Root
-configuration, `.gitignore`, `LICENSE`, and `.github/` are supporting repository
-infrastructure rather than additional product boundaries.
+**Decision**: Use `packages/contracts/`, `packages/database/`, `packages/sdk/`,
+`packages/cloud/`, `scripts/`, and `docs/` as the six code and documentation
+ownership areas. `packages/` is a non-owning namespace for all product code.
+Only `packages/sdk/` and `packages/cloud/` are pnpm workspaces. Tests remain
+colocated with their owner. Root configuration, `.gitignore`, `LICENSE`, and
+`.github/` are supporting repository infrastructure rather than additional
+product boundaries.
 
-**Rationale**: Each directory has a current ownership purpose. Flat names avoid
-plural category directories and empty package, distribution, tool, or test-lane
-boundaries.
+**Rationale**: Each ownership area has a current purpose. One `packages/`
+namespace gives all product code a predictable home without making every source
+boundary a publishable or runnable package. Repository automation and
+documentation remain visibly separate.
 
-**Alternatives considered**: `sdks/typescript/`, `services/cloud/`,
-`database/authority-core/`, `distribution/postgresql/`, dedicated code-generation
-and verification workspaces, and top-level test suites.
+**Alternatives considered**: Flat root code areas, nesting only pnpm workspaces,
+`sdks/typescript/`, `services/cloud/`, `database/authority-core/`,
+`distribution/postgresql/`, dedicated code-generation and verification
+workspaces, and top-level test suites.
 
 ## D004 — Workspace orchestration and quality tools
 
 **Decision**: Use pnpm as the contributor-facing command surface and Turborepo
-for the `sdk/` and `cloud/` task graph. Use TypeScript 7.0.2 through
-`tsc --noEmit`, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11. Disable local, CI,
-and remote Turborepo task-output caching for every Epic 000 task.
-Use `es-module-lexer` 2.3.2 for ECMAScript import syntax and a narrow
-repository-owned supplement for TypeScript-only type re-exports.
+for the `packages/sdk/` and `packages/cloud/` task graph. Use TypeScript 7.0.2
+through `tsc --noEmit`, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11. Disable
+local, CI, and remote Turborepo task-output caching for every Epic 000 task.
+Use `turbo boundaries` for source-import validation, workspace manifests for
+declared package access, and pnpm's native workspace-cycle rejection.
 
 **Rationale**: Turborepo preserves the requested explicit task graph. The Oxc
 tools and Vitest provide one small TypeScript quality stack, while disabling the
 cache avoids modeling incomplete inputs and outputs before real builds exist.
+Native workspace enforcement avoids maintaining a second import parser and its
+fixtures.
 The stable TypeScript 7 package uses the Go-native compiler behind the `tsc`
 command; the retired `tsgo` preview name is not part of the stack.
 
 **Alternatives considered**: Native pnpm orchestration, ESLint and Prettier,
-dependency-cruiser, Oxlint's experimental type-check mode, and
-`@typescript/native-preview`.
+dependency-cruiser, a repository-owned import parser, Oxlint's experimental
+type-check mode, and `@typescript/native-preview`.
 
 ## D005 — Toolchain pins
 
 **Decision**: Pin Node.js 24.19.0 and pnpm 11.21.0 for contributors and primary
-CI. Pin Turbo 2.10.11, TypeScript 7.0.2, `@types/node` 24.13.3, Oxlint 1.79.0,
-Oxfmt 0.64.0, Vitest 4.1.11, and `es-module-lexer` 2.3.2 in the lockfile. Defer
+CI. Pin Turbo 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and
+Vitest 4.1.11 in the lockfile. Defer
 PostgreSQL and PGlite version selection to their implementation and
 qualification epics.
 
@@ -78,15 +84,17 @@ installing database runtimes during repository bootstrap.
 
 ## D006 — Ownership and dependency directions
 
-**Decision**: `contracts/` owns future logical interfaces. `database/` is the
-only future owner of authoritative SQL and migrations. `sdk/` owns the public
-TypeScript surface and private PGlite lifecycle. `cloud/` owns the private
-managed service. `scripts/` owns repository automation. `docs/` owns product,
-architecture, sequencing, and decisions.
+**Decision**: `packages/contracts/` owns future logical interfaces.
+`packages/database/` is the only future owner of authoritative SQL and
+migrations. `packages/sdk/` owns the public TypeScript surface and private
+PGlite lifecycle. `packages/cloud/` owns the private managed service. `scripts/`
+owns repository automation. `docs/` owns product, architecture, sequencing, and
+decisions.
 
 Production workspaces do not import `scripts/`, owner-local tests, each other's
-private internals, or private database storage. Small root-owned checks enforce
-those directions and declared workspace dependencies.
+private internals, or private database storage. Workspace manifests declare
+package access, pnpm rejects cycles, and Turborepo validates imports against the
+declared package graph.
 
 **Rationale**: The graph protects the singular future authority without adding
 a framework or package solely to express six boundaries.
@@ -109,7 +117,7 @@ seed generator in Epic 000.
 ## D008 — Tests and future qualification lanes
 
 **Decision**: Add only colocated Vitest smoke tests for the two nonfunctional
-workspaces and focused tests for repository-owned checks. Do not create empty
+workspaces. Do not create empty
 conformance, security, compatibility, fault, packaging, or performance suites.
 Those lanes remain `NOT RUN` until an owning roadmap feature has meaningful
 behavior and artifacts to test.
@@ -149,9 +157,10 @@ external build attestations.
 
 ## D011 — Repository license and publication
 
-**Decision**: Use Apache-2.0 for the repository. Keep the `sdk/` and `cloud/`
-shells private and non-publishable in Epic 000. Do not invent a copyright holder,
-public npm coordinate, module-format promise, or browser-support claim.
+**Decision**: Use Apache-2.0 for the repository. Keep the `packages/sdk/` and
+`packages/cloud/` shells private and non-publishable in Epic 000. Do not invent
+a copyright holder, public npm coordinate, module-format promise, or
+browser-support claim.
 
 **Rationale**: Apache-2.0 supplies a permissive license and explicit patent grant.
 Publication decisions need real package qualification and namespace checks.
@@ -159,8 +168,7 @@ Publication decisions need real package qualification and namespace checks.
 **Alternatives considered**: MIT, no outbound license, and reserving a public npm
 identity before release work begins.
 
-The Epic 000 structure check requires the standard Apache-2.0 text in the root
-`LICENSE` file.
+Epic 000 retains the standard Apache-2.0 text in the root `LICENSE` file.
 
 ## D012 — Deferred repository governance
 
@@ -186,14 +194,14 @@ entering implementation.
 **Decision**: Assign all repository paths to `@shubsharan` in
 `.github/CODEOWNERS`. Name the two private, non-publishable workspaces
 `@keynes/sdk` and `@keynes/cloud`; these names make no registry or publication
-promise. Use `ubuntu-24.04` for the Linux x64 CI job. Execute root `.ts` scripts
-with Node 24 native type stripping in ESM mode, restrict them to erasable syntax,
-and add no TypeScript runner or emitted build step.
+promise. Use `ubuntu-24.04` for the Linux x64 CI job. Epic 000 adds no root
+TypeScript implementation. Future root `.ts` scripts use Node 24 native type
+stripping in ESM mode with erasable syntax and no TypeScript runner or emitted
+build step.
 
 **Rationale**: These choices keep ownership explicit and the toolchain small
-while preserving the approved two-workspace topology. Invalid dependency
-fixtures remain data inputs to focused tests and are excluded from ordinary
-type, lint, format, and test discovery.
+while preserving the approved two-workspace topology. Native pnpm and
+Turborepo checks replace custom dependency fixtures.
 
 **Alternatives considered**: Unassigned ownership, a GitHub team, different
 private package identifiers, a floating CI label, and adding `tsx` or an emitted

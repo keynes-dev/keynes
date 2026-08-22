@@ -5,7 +5,7 @@
 
 ## Responsibility
 
-`contracts/` owns the future versioned logical interfaces shared by the
+`packages/contracts/` owns the future versioned logical interfaces shared by the
 database, TypeScript SDK, and Cloud service. This includes the contract source
 and canonical fixtures that later generation and conformance work will consume.
 
@@ -18,8 +18,7 @@ Once contracts exist, versioned contract source and canonical fixtures are the
 only public edges that other areas may consume. A consumer must not infer a
 contract from another area's private implementation.
 
-The README is the only current edge. No executable contract is public in Epic
-000.
+The README is the only current edge. No executable contract is public in Epic 000.
 
 ## Private internals
 

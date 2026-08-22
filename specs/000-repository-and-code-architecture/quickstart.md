@@ -1,25 +1,30 @@
 # Quickstart: Contributor validation
 
-> **Status: VERIFIED LOCALLY AND IN CI.** The commands in this guide passed with
-> the exact Epic 000 toolchain locally and in the committed GitHub Actions
-> workflow. No Keynes runtime behavior exists.
+> **Status: VERIFIED LOCALLY; PRIOR BASELINE VERIFIED IN CI.** The current
+> `packages/` layout passes with the exact Epic 000 toolchain locally. The prior
+> committed baseline passed in GitHub Actions; CI for the uncommitted namespace
+> and native-enforcement amendment is `NOT RUN`. No Keynes runtime behavior
+> exists.
 
 ## Scope
 
-Epic 000 creates a lean repository baseline with these top-level areas:
+Epic 000 creates a lean repository baseline with these ownership areas:
 
 ```text
-contracts/
-database/
-sdk/
-cloud/
+packages/
+├── contracts/
+├── database/
+├── sdk/
+└── cloud/
 scripts/
 docs/
 ```
 
-The TypeScript workspaces use pnpm and Turborepo. Repository scripts provide
-small dependency and version checks without forming a dedicated tooling
-workspace. Tests stay with the workspace or script that owns them.
+`packages/` contains all product code but is not itself an ownership boundary.
+Only `packages/sdk/` and `packages/cloud/` are TypeScript workspaces using pnpm
+and Turborepo. pnpm and Turborepo provide toolchain and dependency enforcement;
+Epic 000 adds no custom checker implementation. Tests stay with the workspace
+that owns them.
 
 Epic 000 does not create a generator, generated-output system, distribution
 placeholder, evidence aggregation or promotion system, top-level test-lane
@@ -66,8 +71,9 @@ pnpm check:deps
 
 Turborepo schedules workspace tasks. The stable TypeScript 7 native compiler
 type-checks through `tsc --noEmit`, Oxlint checks lint rules, Oxfmt checks
-formatting, and Vitest runs colocated tests. The dependency command runs the
-small repository-owned checks from `scripts/`.
+formatting, and Vitest runs colocated tests. The dependency command runs
+`turbo boundaries`; workspace manifests declare package access and pnpm rejects
+workspace dependency cycles.
 
 A successful run proves only the nonfunctional repository shell. It does not
 qualify SDK, database-authority, local-runtime, distribution, or Cloud behavior.
@@ -83,18 +89,16 @@ checks, and current colocated tests. It must use no credentials,
 provider access, remote task-output cache, or success-shaped fallback. Any
 required check failure must make the command fail.
 
-## Dependency-check validation
+## Dependency validation
 
-The repository-owned dependency check must reject:
+The native workspace configuration divides responsibility explicitly:
 
-- an undeclared workspace dependency;
-- a dependency in a documented forbidden direction; and
-- a dependency cycle.
+- `pnpm-workspace.yaml` declares workspace membership and rejects cycles;
+- each workspace manifest declares the packages that workspace may access; and
+- `turbo boundaries` rejects imports outside the package or absent from its
+  declared dependencies.
 
-Its colocated Vitest tests may use controlled fixtures under `scripts/`. The
-fixtures must not require contributors to edit production source. Each invalid
-fixture passes only when the checker exits unsuccessfully for the expected
-reason; valid fixtures must pass.
+Epic 000 maintains no duplicate dependency parser, fixtures, or script tests.
 
 ## Continuous integration
 
@@ -106,6 +110,8 @@ visible. Epic 000 satisfied this requirement for commit
 [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
 
 CI status and command output are sufficient proof for this repository baseline.
+The later all-code `packages/` amendment currently has local verification only;
+its next CI run remains `NOT RUN` until the change is committed and pushed.
 Epic 000 does not aggregate results into a separate schema, attempt directory,
 or promoted evidence tree.
 
@@ -121,7 +127,7 @@ and executes it.
 
 The local Epic 000 baseline passed when bootstrap succeeded from committed
 inputs, both TypeScript workspaces type-checked, all required local checks
-passed, dependency fixtures behaved as specified, and the lockfile remained
-unchanged. Epic completion also required a successful run of the committed CI
-workflow. That run passed, and the final review confirmed that Epic 000 added
-zero Keynes functional behavior.
+passed, native dependency enforcement passed, and the lockfile remained
+unchanged. The earlier committed baseline passed CI; this native-enforcement
+amendment requires its own CI run after commit. The final review confirmed that
+Epic 000 added zero Keynes functional behavior.

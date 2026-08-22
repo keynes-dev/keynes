@@ -6,9 +6,9 @@
 
 ## Responsibility
 
-`sdk/` is the sole future public TypeScript SDK release unit. It owns the typed
-Budget API, database and Cloud adapters, and the private daemon-free PGlite
-lifecycle used by local mode.
+`packages/sdk/` is the sole future public TypeScript SDK release unit. It owns
+the typed Budget API, database and Cloud adapters, and the private daemon-free
+PGlite lifecycle used by local mode.
 
 Epic 000 creates only a private workspace shell. It implements no SDK method,
 local runtime, database connection, or Cloud transport.
@@ -20,8 +20,8 @@ from versioned contracts. Internally, the SDK may consume public contract
 artifacts and invoke only versioned database procedures or the contract-defined
 Cloud protocol.
 
-The SDK must not import `cloud/`, private database storage, `scripts/`, or
-another area's owner-local tests.
+The SDK must not import `packages/cloud/`, private database storage, `scripts/`,
+or another area's owner-local tests.
 
 ## Private internals
 

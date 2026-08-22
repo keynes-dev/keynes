@@ -10,9 +10,6 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "types": ["node"]
-  },
-  "include": ["scripts/**/*.ts"],
-  "exclude": ["node_modules", "scripts/fixtures/**"]
+    "skipLibCheck": true
+  }
 }

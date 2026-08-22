@@ -49,18 +49,18 @@ approved Apache-2.0 `LICENSE`; root configuration and `.github/` infrastructure
 do not become additional ownership areas.
 
 ```text
-contracts/  # Future logical contracts and canonical fixtures
-database/   # Future authority SQL, migrations, and distribution
-sdk/        # Sole TypeScript SDK and private local PGlite adapter
-cloud/      # Private TypeScript Cloud service
+packages/       # Namespace for product code; not an ownership boundary
+├── contracts/  # Future logical contracts and canonical fixtures
+├── database/   # Future authority SQL, migrations, and distribution
+├── sdk/        # Sole TypeScript SDK and private local PGlite adapter
+└── cloud/      # Private TypeScript Cloud service
 scripts/    # Root-owned repository automation
 docs/       # Product, architecture, roadmap, ADRs, and guides
 ```
-
-**Acceptance evidence:** A structure check proves that all six areas exist, each
-has one documented owner and responsibility, package manifests are private,
-generated and dependency outputs are ignored, the license is Apache-2.0, and no
-placeholder claims implemented behavior.
+**Acceptance evidence:** Repository inspection confirms that all six areas
+exist, each has one documented owner and responsibility, package manifests are
+private, generated and dependency outputs are ignored, the license is
+Apache-2.0, and no placeholder claims implemented behavior.
 
 #### `002-typescript-workspace-bootstrap`
 
@@ -68,8 +68,9 @@ placeholder claims implemented behavior.
 
 **Deliverable:** Add a root `package.json`, `pnpm-workspace.yaml`, Turborepo
 configuration, a committed pnpm lockfile, and exact Node.js and pnpm contributor
-pins. The workspace discovers the private `sdk/` and `cloud/` shells without
-creating a package for contracts, database sources, scripts, or verification.
+pins. The workspace discovers the private `packages/sdk/` and `packages/cloud/`
+shells without creating a package for contracts, database sources, scripts, or
+verification.
 
 **Acceptance evidence:** A clean checkout installs from lockfiles, discovers
 both workspaces, type-checks both nonfunctional shells through Turborepo, leaves
@@ -81,11 +82,12 @@ unsupported.
 **Status:** **COMPLETE**
 
 **Deliverable:** Record the code architecture in repository-owned ADRs and
-boundary READMEs. `contracts/` owns logical interface sources; `database/` owns
-the future authority core and later PostgreSQL distribution; `sdk/` owns the
-TypeScript call surface and private PGlite lifecycle; `cloud/` owns managed
-transport and operations; `scripts/` owns repository automation; and `docs/`
-owns product, architecture, sequencing, and decisions.
+boundary READMEs. `packages/contracts/` owns logical interface sources;
+`packages/database/` owns the future authority core and later PostgreSQL
+distribution; `packages/sdk/` owns the TypeScript call surface and private
+PGlite lifecycle; `packages/cloud/` owns managed transport and operations;
+`scripts/` owns repository automation; and `docs/` owns product, architecture,
+sequencing, and decisions. `packages/` is only a code namespace.
 
 **Acceptance evidence:** An architecture review maps every deliverable component
 from `architecture.md` to exactly one primary code boundary, identifies its
@@ -96,16 +98,15 @@ responsibility or competing Budget implementation.
 
 **Status:** **COMPLETE**
 
-**Deliverable:** Define and enforce a small acyclic dependency graph. The SDK,
-Cloud service, and future database implementation may consume contracts;
-production workspaces never import from `scripts/`, owner-local tests, or each
-other's private internals; and repository scripts never become runtime
-dependencies.
+**Deliverable:** Define and enforce a small acyclic dependency graph. Workspace
+manifests declare package access, pnpm rejects dependency cycles, and Turborepo
+rejects undeclared or cross-package imports. The SDK, Cloud service, and future
+database implementation may consume contracts; production workspaces never
+import from `scripts/`, owner-local tests, or each other's private internals.
 
-**Acceptance evidence:** Automated checks reject an undeclared workspace
-dependency, a dependency cycle, an import from another owner's private path,
-and a production dependency on `scripts/`, with an actionable diagnostic for
-each controlled fixture.
+**Acceptance evidence:** `pnpm check:deps` runs Turborepo's native boundary
+check, the workspace configuration rejects dependency cycles, and package
+manifests are the explicit authority for package access.
 
 #### `005-root-engineering-commands`
 
@@ -117,30 +118,30 @@ work; Oxfmt, Oxlint, `tsc`, and Vitest perform the owner-local checks. Epic 000
 does not define an emitted build artifact or module format.
 
 **Acceptance evidence:** Each command succeeds on a clean checkout and reports
-the expected pinned tool. One controlled failure in a repository-owned check
-proves that the aggregate command preserves a nonzero task exit.
+the expected pinned tool. Native tool failures preserve a nonzero aggregate
+exit.
 
 #### `006-colocated-test-baseline`
 
 **Status:** **COMPLETE**
 
-**Deliverable:** Keep tests beside the workspace or script that owns the
-checked behavior. Add only Vitest smoke tests for the nonfunctional TypeScript
-shells and focused tests for repository scripts. Do not create empty
-conformance, security, performance, compatibility, packaging, or fault-injection
-suites.
+**Deliverable:** Keep tests beside the workspace or script that owns the checked
+behavior. Epic 000 adds only Vitest smoke tests for the two nonfunctional
+TypeScript shells because it contains no custom script behavior. Do not create
+empty conformance, security, performance, compatibility, packaging, or
+fault-injection suites.
 
-**Acceptance evidence:** Vitest discovers every owner-local test, each shell has
-one honest smoke test, repository-script tests fail closed, and no test claims
-Keynes runtime, host, security, compatibility, or performance coverage.
+**Acceptance evidence:** Vitest discovers one honest smoke test for each shell,
+and no test claims Keynes runtime, host, security, compatibility, or performance
+coverage.
 
 #### `007-quality-and-ci-baseline`
 
 **Status:** **COMPLETE**
 
 **Deliverable:** Run frozen installation, formatting, linting, type checking,
-owner-local tests, and dependency checks in continuous integration.
-Pin CI actions, grant least privilege, and keep the workflow credential-free.
+owner-local tests, and dependency checks in continuous integration. Pin CI
+actions, grant least privilege, and keep the workflow credential-free.
 
 **Acceptance evidence:** The same aggregate command passes locally and in CI
 from a clean checkout, lockfile drift is visible, every required failure blocks
@@ -149,13 +150,15 @@ required.
 
 **Exit gate:** A clean checkout bootstraps and type-checks every workspace,
 enforces the basic dependency rules, and passes Oxfmt, Oxlint, `tsc`, Vitest,
-and the same Turborepo aggregate locally
-and in CI. No Keynes functional behavior, generated contract system, PostgreSQL
-package, cross-host suite, or evidence-promotion system is present. **PASSED**.
-The local portion passed on August 21, 2026 with Node.js 24.19.0 and pnpm
-11.21.0. The GitHub Actions portion passed for commit
-`c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in
+and the same Turborepo aggregate locally and in CI. No Keynes functional
+behavior, generated contract system, PostgreSQL package, cross-host suite, or
+evidence-promotion system is present. **PASSED**. The local portion passed on
+August 21, 2026 with Node.js 24.19.0 and pnpm 11.21.0. The GitHub Actions
+portion passed for commit `c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in
 [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
+The later move of all product-code boundaries under `packages/` passed frozen
+bootstrap and the full local baseline on August 21, 2026. CI for that uncommitted
+amendment is **NOT RUN**.
 
 ## `100-contract-foundation`
 
@@ -529,7 +532,7 @@ PostgreSQL installation and transaction composition.
 contract digests, PostgreSQL compatibility, build options, required privileges,
 and owned-object drift before applying the canonical bundle under an
 installation lock. This feature creates the PostgreSQL distribution area under
-`database/`; Epic 000 does not scaffold it.
+`packages/database/`; Epic 000 does not scaffold it.
 
 **Acceptance evidence:** Installation tests cover fresh setup, interrupted
 setup, privilege failures, incompatible versions, altered artifacts, concurrent
@@ -764,8 +767,8 @@ callers observe the same committed results.
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Released artifacts are tested and measured across the
-supported PostgreSQL, PGlite, Node.js, operating-system, architecture, and
+**Deliverable:** Released artifacts are tested and measured across the supported
+PostgreSQL, PGlite, Node.js, operating-system, architecture, and
 managed-provider matrix.
 
 **Acceptance evidence:** Retained measurements cover download and installed
