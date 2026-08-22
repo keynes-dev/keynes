@@ -35,8 +35,10 @@ behavior.
 
 ## Prerequisites
 
-Use Node.js 24.19.0 and pnpm 11.21.0. PostgreSQL and PGlite versions are deferred
-to their implementation epics. The default workflow does not require a database
+Use Node.js 24, 25, or 26 and pnpm 11.21.0. The repository and primary CI
+default to Node.js 24.19.0, but contributors do not need to replace another
+supported Node.js installation. PostgreSQL and PGlite versions are deferred to
+their implementation epics. The default workflow does not require a database
 package, running database, provider account, credential, or network service.
 
 Start from a clean checkout. Bootstrap and validation must leave tracked source

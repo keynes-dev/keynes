@@ -20,8 +20,9 @@ the two-workspace task graph with task-output caching disabled throughout Epic
 
 ## Technical Context
 
-**Language/Version**: Node.js 24.19.0 and pnpm 11.21.0 are the exact contributor
-and primary CI pins. PostgreSQL and PGlite versions are deferred to their
+**Language/Version**: Contributors may use Node.js 24 through 26. Node.js
+24.19.0 remains the repository default and primary CI version, and pnpm 11.21.0
+remains exact-pinned. PostgreSQL and PGlite versions are deferred to their
 implementation and qualification epics. The pinned repository tools are Turbo
 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11.
 **Primary Dependencies**: Turborepo owns the task graph and source-boundary

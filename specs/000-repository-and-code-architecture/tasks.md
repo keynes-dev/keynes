@@ -41,7 +41,7 @@ schedulable before implementing story-specific checks.
 
 **CRITICAL**: User-story implementation starts only after this phase completes.
 
-- [X] T005 Create the exact-pinned ESM root command surface in `package.json` and the two-workspace discovery definition in `pnpm-workspace.yaml`, including bootstrap, format, lint, type-check, test, dependency-check, and verify entry points with no emitted build command or TypeScript runner dependency
+- [X] T005 Create the version-declared ESM root command surface in `package.json` and the two-workspace discovery definition in `pnpm-workspace.yaml`, including bootstrap, format, lint, type-check, test, dependency-check, and verify entry points with no emitted build command or TypeScript runner dependency
 - [X] T006 [P] Configure the shared non-emitting TypeScript baseline in `tsconfig.json`, including erasable-only syntax and explicit TypeScript extensions, configure Oxlint in `.oxlintrc.json`, and configure Oxfmt in `.oxfmtrc.json`; use each tool's native configuration validation because these files are mechanical
 - [X] T007 [P] Configure the `sdk` and `cloud` task graph with task-output caching disabled in `turbo.json`; defer resolved graph inspection until both workspace manifests exist
 - [X] T008 Add exact private, non-publishable `@keynes/sdk` and `@keynes/cloud` workspace manifests and non-emitting TypeScript configuration to `packages/sdk/package.json`, `packages/sdk/tsconfig.json`, `packages/cloud/package.json`, and `packages/cloud/tsconfig.json`
@@ -83,7 +83,7 @@ unsupported declared Node or pnpm version.
 
 ### Focused tests for User Story 2
 
-- [X] T013 [P] [US2] Pin Node and pnpm in `.node-version`, `engines`, and `packageManager`, and enable pnpm's native strict engine enforcement
+- [X] T013 [P] [US2] Declare Node.js 24 through 26 support in `engines`, pin Node.js 24.19.0 as the repository and CI default in `.node-version`, pin pnpm in `engines` and `packageManager`, and enable pnpm's native strict engine enforcement
 - [X] T014 [P] [US2] Add failing-first nonfunctional shell smoke tests in `packages/sdk/src/scaffold.test.ts` and `packages/cloud/src/scaffold.test.ts`
 
 ### Implementation for User Story 2
@@ -222,7 +222,7 @@ non-owning `packages/` namespace while only SDK and Cloud remain workspaces.
 ## Implementation Strategy
 
 1. Complete the minimal root and ownership scaffold.
-2. Establish the exact-pinned two-workspace toolchain.
+2. Establish the version-declared two-workspace toolchain.
 3. Add focused tests for shell behavior and retain native workspace-tool
    diagnostics.
 4. Wire the root commands and provider-free CI without future-lane scaffolding.

@@ -93,7 +93,8 @@ Epic 100 introduces generation.
 
 - A contributor can identify responsibility and dependency direction from the
   repository tree.
-- The two current TypeScript workspaces share one small, exact-pinned toolchain.
+- The two current TypeScript workspaces share one small toolchain, with an exact
+  default for CI and a bounded Node.js contributor range.
 - Empty packages and test lanes cannot imply unsupported behavior or evidence.
 - Later epics can add real artifacts inside an already-owned area.
 

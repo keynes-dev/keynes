@@ -24,6 +24,9 @@ decisions."
 - Q: What version-pinning policy should the workspace use? -> A: Pin exact patch
   versions for development and CI, and document supported runtime compatibility
   as explicit version ranges.
+- Q: Must contributors switch to the repository's exact Node.js patch? -> A: No.
+  Support Node.js 24 through 26 for contributors, keep Node.js 24.19.0 as the
+  default and primary CI version, and keep pnpm pinned to 11.21.0.
 - Q: Which workspace tooling profile should Epic 000 establish? -> A: Use pnpm
   as the contributor entry point and Turborepo for the task graph.
 - Q: What is the final approved Epic 000 scope? -> A: This answer supersedes all
@@ -215,9 +218,10 @@ for the same verification entry point.
   000 area to exactly one primary owner and describe its public and private
   edges without defining Keynes runtime behavior.
 - **FR-005**: The root MUST provide `package.json`, `pnpm-workspace.yaml`, a
-  committed pnpm lockfile, and exact development and CI pins for Node.js and
-  pnpm. PostgreSQL and PGlite versions MUST be deferred to their implementation
-  and qualification epics.
+  committed pnpm lockfile, contributor support for Node.js 24 through 26, a
+  Node.js 24.19.0 default and primary CI pin, and an exact pnpm 11.21.0 pin.
+  PostgreSQL and PGlite versions MUST be deferred to their implementation and
+  qualification epics.
 - **FR-006**: The workspace MUST use pnpm as its contributor-facing command
   surface and Turborepo as its cross-workspace task graph.
 - **FR-007**: Root entry points MUST cover bootstrap, type checking, linting,
@@ -321,8 +325,9 @@ for the same verification entry point.
 - TypeScript is the only SDK and Cloud service language. PostgreSQL SQL/PL/pgSQL
   and private local PGlite are future runtime concerns, not behavior implemented
   by this epic.
-- Development and CI use exact patch pins. Supported runtime ranges, when
-  introduced, are documented separately from development pins.
+- Contributors may use Node.js 24 through 26 without changing their machine-wide
+  Node.js installation. `.node-version` keeps Node.js 24.19.0 as the default and
+  primary CI version, while pnpm remains pinned to 11.21.0.
 - pnpm is the contributor-facing command surface, and Turborepo schedules the
   cross-workspace task graph. Task-output caching remains disabled in Epic 000.
 - The approved TypeScript quality tools are the stable TypeScript 7 native

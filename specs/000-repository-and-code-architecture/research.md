@@ -69,15 +69,18 @@ type-check mode, and `@typescript/native-preview`.
 
 ## D005 — Toolchain pins
 
-**Decision**: Pin Node.js 24.19.0 and pnpm 11.21.0 for contributors and primary
-CI. Pin Turbo 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and
+**Decision**: Support Node.js 24 through 26 for contributors while keeping
+Node.js 24.19.0 as the repository default and primary CI version. Pin pnpm
+11.21.0, Turbo 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and
 Vitest 4.1.11 in the lockfile. Defer
 PostgreSQL and PGlite version selection to their implementation and
 qualification epics.
 
-**Rationale**: Exact repository-tool pins make the clean-checkout baseline
-repeatable. Database packages and host qualification belong to the epics that
-implement and test them.
+**Rationale**: The supported Node.js range avoids requiring contributors to
+replace a compatible machine-wide runtime. The default Node.js version and
+exact repository-tool pins keep the clean-checkout CI baseline repeatable.
+Database packages and host qualification belong to the epics that implement
+and test them.
 
 **Alternatives considered**: Floating development ranges, prerelease tools, and
 installing database runtimes during repository bootstrap.

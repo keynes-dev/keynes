@@ -15,6 +15,14 @@ accepted ADRs record durable architectural decisions.
 Documentation describes the target system. It does not make unverified work
 implemented by describing it.
 
+## Contributor workflow
+
+The [engineering workflow](workflow.md) defines how Spec Kit owns
+feature delivery while pstack supplies focused investigation, design, review,
+and verification methods inside each phase. The guide is a checked-in workflow
+contract. The project-local skill files remain workstation-local and ignored by
+Git.
+
 ## Allowed and public edges
 
 The source-of-truth documents and accepted ADRs are the public documentation
@@ -39,6 +47,6 @@ security, packaging, performance, or runtime evidence that has not executed.
 
 ## Deferred work
 
-Contributor guides, generated reference documentation, packaging guides, and
-host qualification reports arrive with the epics that own their real behavior
-and evidence. Epic 000 adds no generated documentation system.
+Generated reference documentation, packaging guides, and host qualification
+reports arrive with the epics that own their real behavior and evidence. Epic
+000 adds no generated documentation system.
