@@ -176,7 +176,7 @@ only evidence that actually ran.
 **Purpose**: Complete the CI-dependent exit gate only after explicit user
 authorization for Git history and remote mutation.
 
-- [ ] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/verify.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote Epic 000 from `CI NOT RUN` only if that exact run passes
+- [X] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/verify.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote Epic 000 from `CI NOT RUN` only if that exact run passes
 
 ---
 
@@ -225,7 +225,7 @@ authorization for Git history and remote mutation.
 5. Run the exit checks, update statuses honestly, and stop before any Keynes
    runtime, generator, distribution, or qualification work.
 
-## Local Verification Record
+## Verification Record
 
 **Date**: August 21, 2026
 **Toolchain**: Node.js 24.19.0 and pnpm 11.21.0
@@ -244,4 +244,6 @@ authorization for Git history and remote mutation.
 - `KEYNES_DEPENDENCY_FIXTURE=forbidden pnpm verify` exited nonzero with
   `DEP002_FORBIDDEN_DIRECTION`, proving aggregate failure propagation without a
   production-source edit.
-- GitHub Actions remains `NOT RUN`; no run URL or commit SHA exists yet.
+- GitHub Actions passed for commit
+  `c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in
+  [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).

@@ -1,8 +1,9 @@
 # Keynes implementation roadmap
 
-> **Status:** This roadmap defines the target implementation sequence. Every
-> epic, feature, exit gate, runtime check, security check, performance
-> measurement, packaging check, and conformance check is **NOT RUN**.
+> **Status:** This roadmap defines the target implementation sequence. Unless a
+> section records completed evidence, every epic, feature, exit gate, runtime
+> check, security check, performance measurement, packaging check, and
+> conformance check is **NOT RUN**.
 
 This roadmap turns the target [product](product.md) and
 [architecture](architecture.md) into dependency-ordered implementation work. It
@@ -23,7 +24,7 @@ or product functionality begins.
 
 ## `000-repository-and-code-architecture`
 
-**Status:** **IMPLEMENTED LOCALLY — CI NOT RUN**
+**Status:** **COMPLETE**
 
 **Outcome:** Establish a lean TypeScript and SQL repository, explicit ownership,
 basic dependency rules, and one local and CI engineering baseline before
@@ -39,7 +40,7 @@ Cloud behavior.
 
 #### `001-repository-layout`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Create the six code and documentation ownership areas below.
 Add a short README to each area and a private placeholder manifest only where a
@@ -63,7 +64,7 @@ placeholder claims implemented behavior.
 
 #### `002-typescript-workspace-bootstrap`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Add a root `package.json`, `pnpm-workspace.yaml`, Turborepo
 configuration, a committed pnpm lockfile, and exact Node.js and pnpm contributor
@@ -77,7 +78,7 @@ unsupported.
 
 #### `003-module-ownership-boundaries`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Record the code architecture in repository-owned ADRs and
 boundary READMEs. `contracts/` owns logical interface sources; `database/` owns
@@ -93,7 +94,7 @@ responsibility or competing Budget implementation.
 
 #### `004-dependency-direction-enforcement`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Define and enforce a small acyclic dependency graph. The SDK,
 Cloud service, and future database implementation may consume contracts;
@@ -108,7 +109,7 @@ each controlled fixture.
 
 #### `005-root-engineering-commands`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Provide root commands for format, lint, type-check, test,
 dependency checks, and complete local verification. Turborepo orders workspace
@@ -121,7 +122,7 @@ proves that the aggregate command preserves a nonzero task exit.
 
 #### `006-colocated-test-baseline`
 
-**Status:** **VERIFIED LOCALLY**
+**Status:** **COMPLETE**
 
 **Deliverable:** Keep tests beside the workspace or script that owns the
 checked behavior. Add only Vitest smoke tests for the nonfunctional TypeScript
@@ -135,7 +136,7 @@ Keynes runtime, host, security, compatibility, or performance coverage.
 
 #### `007-quality-and-ci-baseline`
 
-**Status:** **IMPLEMENTED — CI NOT RUN**
+**Status:** **COMPLETE**
 
 **Deliverable:** Run frozen installation, formatting, linting, type checking,
 owner-local tests, and dependency checks in continuous integration.
@@ -150,10 +151,11 @@ required.
 enforces the basic dependency rules, and passes Oxfmt, Oxlint, `tsc`, Vitest,
 and the same Turborepo aggregate locally
 and in CI. No Keynes functional behavior, generated contract system, PostgreSQL
-package, cross-host suite, or evidence-promotion system is present. **NOT RUN**.
+package, cross-host suite, or evidence-promotion system is present. **PASSED**.
 The local portion passed on August 21, 2026 with Node.js 24.19.0 and pnpm
-11.21.0. The GitHub Actions portion remains **NOT RUN** until a retained run URL
-and commit SHA exist.
+11.21.0. The GitHub Actions portion passed for commit
+`c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in
+[Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
 
 ## `100-contract-foundation`
 

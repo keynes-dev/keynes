@@ -1,9 +1,8 @@
 # Quickstart: Contributor validation
 
-> **Status: IMPLEMENTED LOCALLY - CI NOT RUN.** The commands in this guide were
-> verified locally with the exact Epic 000 toolchain. The committed GitHub
-> Actions workflow has not run for these uncommitted changes, and no Keynes
-> runtime behavior exists.
+> **Status: VERIFIED LOCALLY AND IN CI.** The commands in this guide passed with
+> the exact Epic 000 toolchain locally and in the committed GitHub Actions
+> workflow. No Keynes runtime behavior exists.
 
 ## Scope
 
@@ -102,8 +101,9 @@ reason; valid fixtures must pass.
 The workflow in `.github/workflows/verify.yml` runs the same required checks as
 `pnpm verify` from a clean checkout. It pins external actions and dependencies,
 uses least privilege, and makes lockfile changes or required-check failures
-visible. The workflow itself remains `NOT RUN` until these changes are committed
-and pushed to GitHub.
+visible. Epic 000 satisfied this requirement for commit
+`c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in
+[Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
 
 CI status and command output are sufficient proof for this repository baseline.
 Epic 000 does not aggregate results into a separate schema, attempt directory,
@@ -122,6 +122,6 @@ and executes it.
 The local Epic 000 baseline passed when bootstrap succeeded from committed
 inputs, both TypeScript workspaces type-checked, all required local checks
 passed, dependency fixtures behaved as specified, and the lockfile remained
-unchanged. Epic completion still requires a successful run of the committed CI
-workflow. The final review must also confirm that Epic 000 added zero Keynes
-functional behavior.
+unchanged. Epic completion also required a successful run of the committed CI
+workflow. That run passed, and the final review confirmed that Epic 000 added
+zero Keynes functional behavior.
