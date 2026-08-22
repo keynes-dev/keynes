@@ -1,5 +1,15 @@
 # Workflow
 
+Spec Kit features are the only numbered delivery units. Each feature uses the same identity in every location:
+
+```text
+FEAT-0001
+feat/0001-repository-and-code-architecture
+docs/features/0001-repository-and-code-architecture/
+```
+
+The roadmap groups features into unnumbered stages. A stage has no branch, template, or separate lifecycle. A standalone fix or refactor can use Spec Kit without belonging to a roadmap stage.
+
 Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each phase. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
 
 Do not create a pstack specification, plan, or task list when a Spec Kit artifact already owns that decision. This separation keeps one source of truth while still giving difficult work more scrutiny.

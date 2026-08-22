@@ -28,7 +28,7 @@
 
 - [x] Functional requirements have clear acceptance criteria.
 - [x] User scenarios cover the primary contributor flows.
-- [x] Measurable outcomes cover the complete approved Epic 000 baseline.
+- [x] Measurable outcomes cover the complete approved FEAT-0001 baseline.
 - [x] No unapproved architecture appears in the specification.
 - [x] Downstream plan, research, data-model, contract, and roadmap artifacts have been reconciled with this superseding lean scope.
 

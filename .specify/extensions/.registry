@@ -4,7 +4,7 @@
     "git": {
       "version": "1.0.0",
       "source": "local",
-      "manifest_hash": "sha256:9731aa8143a72fbebfdb440f155038ab42642517c2b2bdbbf67c8fdbe076ed79",
+      "manifest_hash": "sha256:c875d7db81926c38f5f9649bae343cc52aeaf49f555e014986c8dbf6d3246662",
       "enabled": true,
       "priority": 10,
       "registered_commands": {

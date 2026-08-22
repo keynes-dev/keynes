@@ -1,3 +1,8 @@
 {
-  "feature_directory": "specs/000-repository-and-code-architecture"
+  "version": 1,
+  "feature_id": "FEAT-0001",
+  "slug": "repository-and-code-architecture",
+  "branch": "feat/0001-repository-and-code-architecture",
+  "feature_directory": "docs/features/0001-repository-and-code-architecture",
+  "roadmap_stage": "Repository baseline"
 }

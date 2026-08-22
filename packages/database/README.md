@@ -1,7 +1,7 @@
 # Database
 
 - **Owner:** `@shubsharan`
-- **Functional status:** Nonfunctional in Epic 000
+- **Functional status:** Nonfunctional in FEAT-0001
 
 ## Responsibility
 
@@ -9,14 +9,14 @@
 PL/pgSQL, the authority-core migration graph, and private storage. It will also
 own the customer PostgreSQL distribution when that deliverable is implemented.
 
-Epic 000 creates no migration, procedure, table, Policy evaluator, or Budget
+FEAT-0001 creates no migration, procedure, table, Policy evaluator, or Budget
 transition.
 
 ## Allowed and public edges
 
 The future public edge consists only of versioned public database procedures
 and their contract-defined protocols. The SDK and Cloud service may invoke
-those edges when their owning epics implement them.
+those edges when their owning stages implement them.
 
 No other area may use private database storage as an integration surface.
 
@@ -37,5 +37,5 @@ reimplement authoritative Budget behavior.
 
 Database implementation, PostgreSQL and PGlite version selection, migration
 qualification, Policy isolation, recovery evidence, and host conformance belong
-to later roadmap epics. Epic 500 owns PostgreSQL distribution packaging. All of
-that work remains `NOT RUN` in Epic 000.
+to later roadmap stages. the PostgreSQL distribution stage owns PostgreSQL distribution packaging. All of
+that work remains `NOT RUN` in FEAT-0001.

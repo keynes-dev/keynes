@@ -5,7 +5,7 @@ description: "Task list template for feature implementation"
 
 # Tasks: [FEATURE NAME]
 
-**Input**: Design documents from `/specs/[###-feature-name]/`
+**Input**: Design documents from `/docs/features/[XXXX-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
 **Tests**: Behavioral tests are REQUIRED and MUST be written and observed

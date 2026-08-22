@@ -3,14 +3,16 @@
 - **Owner:** `@shubsharan`
 - **Status:** Nonfunctional repository infrastructure
 - **Package status:** Root-owned and non-publishable
-- **Functional status:** Repository engineering only in Epic 000
+- **Functional status:** Repository engineering only in FEAT-0001
 
 ## Responsibility
 
 `scripts/` owns repository automation that cannot be expressed by the native
-workspace tools. Epic 000 needs no custom script implementation: pnpm owns
+workspace tools. `feature-identity.mjs` owns the shared `FEAT-XXXX`, branch,
+and `docs/features/` identity used by Spec Kit. The repository baseline needs
+no duplicate dependency checker: pnpm owns
 workspace membership, declared dependencies, toolchain enforcement, and cycle
-rejection, while Turborepo validates package boundaries. Epic 100 may add
+rejection, while Turborepo validates package boundaries. The executable authority stage may add
 contract generation here when real contract and database inputs exist.
 
 This area does not own Keynes runtime behavior.
@@ -18,7 +20,7 @@ This area does not own Keynes runtime behavior.
 ## Allowed and public edges
 
 Root `package.json` commands are the contributor-facing edge. Later generators
-may read approved contract and database inputs under their owning epic.
+may read approved contract and database inputs under their owning stage.
 
 Production workspaces must never import `scripts/`. The directory is not a pnpm
 workspace, published package, runtime dependency, or alternate authority.
@@ -39,5 +41,5 @@ meaningful script logic.
 
 Contract generation, generated-output drift checks, distribution tooling,
 cross-host conformance, security, compatibility, packaging, fault, performance,
-and evidence-promotion systems belong to later roadmap epics. Epic 000 creates
+and evidence-promotion systems belong to later roadmap stages. FEAT-0001 creates
 no placeholder implementation for them.

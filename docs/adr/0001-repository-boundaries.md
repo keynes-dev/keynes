@@ -10,7 +10,7 @@
 
 Keynes needs repository ownership and a repeatable engineering baseline before runtime work begins. The target architecture includes contracts, one PostgreSQL authority core, one TypeScript SDK with local PGlite support, and one private TypeScript Cloud service. Creating a package, distribution, or verification workspace for every future deliverable would add empty boundaries and could make unimplemented behavior appear qualified.
 
-Epic 000 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-host evidence.
+FEAT-0001 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-host evidence.
 
 ## Decision drivers
 
@@ -18,7 +18,7 @@ Epic 000 must establish useful ownership without implementing Keynes behavior, s
 - Preserve one future database authority and prevent adapter-owned semantics.
 - Give current code and documentation exactly one accountable owner.
 - Support two TypeScript workspaces without inventing publication units.
-- Add future boundaries only when their owning epic has real artifacts.
+- Add future boundaries only when their owning stage has real artifacts.
 
 ## Considered options
 
@@ -50,7 +50,7 @@ The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud
 
 Each area owns its internal representation. Database tables, locks, transaction mechanics, and operational overlays remain private to `packages/database/`. Local PGlite lifecycle and transport adapters remain private to `packages/sdk/`. Authentication, routing, pooling, retries, and recovery mechanics remain private to `packages/cloud/`. Future generator implementations remain private to `scripts/`.
 
-Logical contracts are authored and versioned under `packages/contracts/`. Authoritative SQL, PL/pgSQL, and the migration graph remain under `packages/database/`. TypeScript is the only SDK and Cloud service language. Generated outputs must derive from approved contract and database sources when Epic 100 introduces generation.
+Logical contracts are authored and versioned under `packages/contracts/`. Authoritative SQL, PL/pgSQL, and the migration graph remain under `packages/database/`. TypeScript is the only SDK and Cloud service language. Generated outputs must derive from approved contract and database sources when the executable authority stage introduces generation.
 
 ## Consequences
 
@@ -59,11 +59,11 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 - A contributor can identify responsibility and dependency direction from the repository tree.
 - The two current TypeScript workspaces share one small toolchain, with an exact default for CI and a bounded Node.js contributor range.
 - Empty packages and test lanes cannot imply unsupported behavior or evidence.
-- Later epics can add real artifacts inside an already-owned area.
+- Later stages can add real artifacts inside an already-owned area.
 
 ### Negative consequences
 
-- Some ownership areas contain only documentation until their implementation epic begins.
+- Some ownership areas contain only documentation until their implementation stage begins.
 - Root-owned checks enforce the initial dependency graph without a dedicated architecture-analysis package.
 - Publication, database packaging, and host qualification require later decisions and cannot be inferred from the initial tree.
 
@@ -74,7 +74,7 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 - Preserves explicit ownership and the future authority boundary with only two current workspaces.
 - Groups all product code under one predictable namespace without adding a new behavioral boundary.
 - Keeps tests and automation close to their owner.
-- Leaves some areas source-only until their implementation epic begins.
+- Leaves some areas source-only until their implementation stage begins.
 
 ### Workspaces-only package namespace
 
@@ -85,7 +85,7 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 
 - Mirrors the eventual deliverable list in the initial tree.
 - Creates empty publication, distribution, generation, and qualification boundaries before real artifacts exist.
-- Adds orchestration and dependency policy that Epic 000 cannot meaningfully verify.
+- Adds orchestration and dependency policy that FEAT-0001 cannot meaningfully verify.
 
 ### One undifferentiated root workspace
 
@@ -95,13 +95,13 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 
 ## Deferred work
 
-Epic 100 owns contract generation and generated-output drift checks. Epic 500 owns PostgreSQL distribution packaging under `packages/database/`. Epic 700 owns a root cross-host conformance area after local PGlite, customer PostgreSQL, and managed Cloud are real. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning epic defines and executes them.
+the executable authority stage owns contract generation and generated-output drift checks. the PostgreSQL distribution stage owns PostgreSQL distribution packaging under `packages/database/`. the cross-host conformance stage owns a root cross-host conformance area after local PGlite, customer PostgreSQL, and managed Cloud are real. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
 
-Epic 000 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
+FEAT-0001 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
 
 ## Links
 
 - [Product thesis](../product.md)
 - [Runtime architecture](../architecture.md)
 - [Implementation roadmap](../roadmap.md)
-- [Epic 000 specification](../../specs/000-repository-and-code-architecture/spec.md)
+- [Feature 0001 specification](../features/0001-repository-and-code-architecture/spec.md)

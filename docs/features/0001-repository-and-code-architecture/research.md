@@ -1,10 +1,10 @@
 # Phase 0 research: Repository and code architecture
 
-This document records the architecture decisions approved for Epic 000. The epic establishes a small repository foundation and no Keynes product behavior.
+This document records the architecture decisions approved for FEAT-0001. The feature establishes a small repository foundation and no Keynes product behavior.
 
 ## D001 — Spec Kit delivery unit
 
-**Decision**: Use one Epic 000 Spec Kit cycle. Roadmap features `001` through `007` remain separately traceable through focused checks in one exit workflow.
+**Decision**: Use one FEAT-0001 Spec Kit cycle. The seven included deliverables remain separately traceable through focused checks in one exit workflow.
 
 **Rationale**: The features form one clean-checkout repository baseline. Separate branches and duplicate evidence bundles would add coordination without isolating meaningful product behavior.
 
@@ -28,7 +28,7 @@ This document records the architecture decisions approved for Epic 000. The epic
 
 ## D004 — Workspace orchestration and quality tools
 
-**Decision**: Use pnpm as the contributor-facing command surface and Turborepo for the `packages/sdk/` and `packages/cloud/` task graph. Use TypeScript 7.0.2 through `tsc --noEmit`, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11. Disable local, CI, and remote Turborepo task-output caching for every Epic 000 task. Use `turbo boundaries` for source-import validation, workspace manifests for declared package access, and pnpm's native workspace-cycle rejection.
+**Decision**: Use pnpm as the contributor-facing command surface and Turborepo for the `packages/sdk/` and `packages/cloud/` task graph. Use TypeScript 7.0.2 through `tsc --noEmit`, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11. Disable local, CI, and remote Turborepo task-output caching for every FEAT-0001 task. Use `turbo boundaries` for source-import validation, workspace manifests for declared package access, and pnpm's native workspace-cycle rejection.
 
 **Rationale**: Turborepo preserves the requested explicit task graph. The Oxc tools and Vitest provide one small TypeScript quality stack, while disabling the cache avoids modeling incomplete inputs and outputs before real builds exist. Native workspace enforcement avoids maintaining a second import parser and its fixtures. The stable TypeScript 7 package uses the Go-native compiler behind the `tsc` command; the retired `tsgo` preview name is not part of the stack.
 
@@ -36,9 +36,9 @@ This document records the architecture decisions approved for Epic 000. The epic
 
 ## D005 — Toolchain pins
 
-**Decision**: Support Node.js 24 through 26 for contributors while keeping Node.js 24.19.0 as the repository default and primary CI version. Pin pnpm 11.21.0, Turbo 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11 in the lockfile. Defer PostgreSQL and PGlite version selection to their implementation and qualification epics.
+**Decision**: Support Node.js 24 through 26 for contributors while keeping Node.js 24.19.0 as the repository default and primary CI version. Pin pnpm 11.21.0, Turbo 2.10.11, TypeScript 7.0.2, Oxlint 1.79.0, Oxfmt 0.64.0, and Vitest 4.1.11 in the lockfile. Defer PostgreSQL and PGlite version selection to their implementation and qualification stages.
 
-**Rationale**: The supported Node.js range avoids requiring contributors to replace a compatible machine-wide runtime. The default Node.js version and exact repository-tool pins keep the clean-checkout CI baseline repeatable. Database packages and host qualification belong to the epics that implement and test them.
+**Rationale**: The supported Node.js range avoids requiring contributors to replace a compatible machine-wide runtime. The default Node.js version and exact repository-tool pins keep the clean-checkout CI baseline repeatable. Database packages and host qualification belong to the features that implement and test them.
 
 **Alternatives considered**: Floating development ranges, prerelease tools, and installing database runtimes during repository bootstrap.
 
@@ -54,11 +54,11 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D007 — Generation is deferred
 
-**Decision**: Epic 000 creates no generator, synthetic contract, generated output, digest format, or drift check. Epic 100 introduces generation under `scripts/` when versioned contracts and database inputs exist.
+**Decision**: FEAT-0001 creates no generator, synthetic contract, generated output, digest format, or drift check. the executable authority stage introduces generation under `scripts/` when versioned contracts and database inputs exist.
 
 **Rationale**: A generator without real inputs would test scaffolding rather than the contract system Keynes will actually ship.
 
-**Alternatives considered**: A private code-generation workspace and a synthetic seed generator in Epic 000.
+**Alternatives considered**: A private code-generation workspace and a synthetic seed generator in FEAT-0001.
 
 ## D008 — Tests and future qualification lanes
 
@@ -70,7 +70,7 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D009 — Verification results
 
-**Decision**: Use command exit status, native diagnostics, GitHub Actions checks, and ordinary CI artifacts. Epic 000 creates no evidence-attempt schema, semantic digest, current-attempt pointer, or tracked promotion hierarchy.
+**Decision**: Use command exit status, native diagnostics, GitHub Actions checks, and ordinary CI artifacts. FEAT-0001 creates no evidence-attempt schema, semantic digest, current-attempt pointer, or tracked promotion hierarchy.
 
 **Rationale**: Commit-bound CI results are sufficient for repository scaffolding. A custom evidence product would exceed the nonfunctional code it verifies.
 
@@ -86,21 +86,21 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D011 — Repository license and publication
 
-**Decision**: Use Apache-2.0 for the repository. Keep the `packages/sdk/` and `packages/cloud/` shells private and non-publishable in Epic 000. Do not invent a copyright holder, public npm coordinate, module-format promise, or browser-support claim.
+**Decision**: Use Apache-2.0 for the repository. Keep the `packages/sdk/` and `packages/cloud/` shells private and non-publishable in FEAT-0001. Do not invent a copyright holder, public npm coordinate, module-format promise, or browser-support claim.
 
 **Rationale**: Apache-2.0 supplies a permissive license and explicit patent grant. Publication decisions need real package qualification and namespace checks.
 
 **Alternatives considered**: MIT, no outbound license, and reserving a public npm identity before release work begins.
 
-Epic 000 retains the standard Apache-2.0 text in the root `LICENSE` file.
+FEAT-0001 retains the standard Apache-2.0 text in the root `LICENSE` file.
 
 ## D012 — Deferred repository governance
 
 **Decision**: Defer dedicated secret scanning, dependency-license enforcement, SBOM generation, advisory lookup, PostgreSQL distribution packaging, contract generation, cross-host conformance, and evidence promotion to the roadmap features that own real dependencies, artifacts, hosts, or release claims.
 
-**Rationale**: These controls become valuable when there is something material to inspect or qualify. Epic 000 keeps CI credential-free and contains no product runtime or release artifact.
+**Rationale**: These controls become valuable when there is something material to inspect or qualify. FEAT-0001 keeps CI credential-free and contains no product runtime or release artifact.
 
-**Alternatives considered**: Gitleaks, a custom SPDX policy engine, Syft, OSV, distribution placeholders, and provider-free skeletons in Epic 000.
+**Alternatives considered**: Gitleaks, a custom SPDX policy engine, Syft, OSV, distribution placeholders, and provider-free skeletons in FEAT-0001.
 
 ## Pending user decisions
 
@@ -108,7 +108,7 @@ None. Any newly discovered architecture decision must return to the user before 
 
 ## D013 — Final repository implementation defaults
 
-**Decision**: Assign all repository paths to `@shubsharan` in `.github/CODEOWNERS`. Name the two private, non-publishable workspaces `@keynes/sdk` and `@keynes/cloud`; these names make no registry or publication promise. Use `ubuntu-24.04` for the Linux x64 CI job. Epic 000 adds no root TypeScript implementation. Future root `.ts` scripts use Node 24 native type stripping in ESM mode with erasable syntax and no TypeScript runner or emitted build step.
+**Decision**: Assign all repository paths to `@shubsharan` in `.github/CODEOWNERS`. Name the two private, non-publishable workspaces `@keynes/sdk` and `@keynes/cloud`; these names make no registry or publication promise. Use `ubuntu-24.04` for the Linux x64 CI job. FEAT-0001 adds no root TypeScript implementation. Future root `.ts` scripts use Node 24 native type stripping in ESM mode with erasable syntax and no TypeScript runner or emitted build step.
 
 **Rationale**: These choices keep ownership explicit and the toolchain small while preserving the approved two-workspace topology. Native pnpm and Turborepo checks replace custom dependency fixtures.
 

@@ -2,7 +2,7 @@
 
 - **Owner:** `@shubsharan`
 - **Workspace:** Private, non-publishable `@keynes/cloud`
-- **Functional status:** Nonfunctional in Epic 000
+- **Functional status:** Nonfunctional in FEAT-0001
 
 ## Responsibility
 
@@ -11,7 +11,7 @@ That service will own authentication, tenant and Budget authorization, routing,
 pooling, retries, recovery fencing, and translation between the public protocol
 and authoritative PostgreSQL procedures.
 
-Epic 000 creates only a private workspace shell. It implements no service,
+FEAT-0001 creates only a private workspace shell. It implements no service,
 endpoint, authentication, provider integration, or Keynes behavior.
 
 ## Allowed and public edges
@@ -33,11 +33,11 @@ these concerns may redefine Budget transitions or Policy evaluation.
 ## Source policy
 
 Use TypeScript only. Keep service tests beside the source they exercise. The
-Epic 000 manifest is private and makes no deployment, availability, provider,
+FEAT-0001 manifest is private and makes no deployment, availability, provider,
 protocol-compatibility, or publication claim.
 
 ## Deferred work
 
 Cloud runtime behavior, managed infrastructure, credentials, security testing,
 recovery testing, operational qualification, and public protocol support belong
-to later roadmap epics and remain `NOT RUN`.
+to later roadmap stages and remain `NOT RUN`.

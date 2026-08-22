@@ -10,10 +10,12 @@
     "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml packages scripts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
+    "test:feature-identity": "node --test scripts/feature-identity.test.mjs",
+    "check:feature-identity": "node scripts/feature-identity.mjs check-repository --json",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "check:deps": "turbo boundaries --ui=stream",
-    "verify": "turbo run quality typecheck test && pnpm check:deps"
+    "verify": "pnpm test:feature-identity && pnpm check:feature-identity && turbo run quality typecheck test && pnpm check:deps"
   },
   "devDependencies": {
     "oxfmt": "0.64.0",

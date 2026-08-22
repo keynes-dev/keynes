@@ -165,7 +165,7 @@ Root repository infrastructure such as `package.json`, workspace and tool config
 
 Tests stay with the code or contract owner. The authority core, SDK adapters, Cloud service, future repository scripts, and later PostgreSQL distribution each own their focused tests when they contain meaningful behavior. A root `tests/conformance/` area appears only when local PGlite, customer PostgreSQL, and managed Cloud are implemented and one suite can exercise several real hosts. Empty security, performance, compatibility, and host directories do not precede the behavior they qualify.
 
-Epic 000 creates only the six lean boundaries, the pnpm and Turborepo workspace, native workspace-boundary checks, and owner-local engineering tests. Epic 100 adds contract generation as root-owned scripts. Epic 500 adds PostgreSQL distribution under `packages/database/`, and Epic 700 adds the cross-host conformance area. The staging sequence does not change the target components or move Budget semantics out of the authority core.
+FEAT-0001 creates only the six lean boundaries, the pnpm and Turborepo workspace, native workspace-boundary checks, and owner-local engineering tests. the executable authority stage adds contract generation as root-owned scripts. the PostgreSQL distribution stage adds PostgreSQL distribution under `packages/database/`, and the cross-host conformance stage adds the cross-host conformance area. The staging sequence does not change the target components or move Budget semantics out of the authority core.
 
 ## Public domain model
 

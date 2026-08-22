@@ -17,8 +17,8 @@ function Test-HasGit {
 
 function Get-SpecKitEffectiveBranchName {
     param([string]$Branch)
-    if ($Branch -match '^([^/]+)/([^/]+)$') {
-        return $Matches[2]
+    if ($Branch -match '^feat/(\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*)$') {
+        return $Matches[1]
     }
     return $Branch
 }
@@ -29,22 +29,15 @@ function Test-FeatureBranch {
         [bool]$HasGit = $true
     )
 
-    # For non-git repos, we can't enforce branch naming but still provide output
     if (-not $HasGit) {
-        Write-Warning "[specify] Warning: Git repository not detected; skipped branch validation"
-        return $true
+        [Console]::Error.WriteLine("ERROR: Git is required for Keynes feature work")
+        return $false
     }
 
     $raw = $Branch
-    $Branch = Get-SpecKitEffectiveBranchName $raw
-
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    $hasMalformedTimestamp = ($Branch -match '^[0-9]{7}-[0-9]{6}-') -or ($Branch -match '^(?:\d{7}|\d{8})-\d{6}$')
-    $isSequential = ($Branch -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)
-    if (-not $isSequential -and $Branch -notmatch '^\d{8}-\d{6}-') {
+    if ($Branch -notmatch '^feat/\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$') {
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
-        [Console]::Error.WriteLine("Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
+        [Console]::Error.WriteLine("Feature branches must be named like feat/0001-feature-name")
         return $false
     }
     return $true

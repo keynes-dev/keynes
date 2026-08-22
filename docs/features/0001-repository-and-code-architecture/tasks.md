@@ -1,8 +1,8 @@
 # Tasks: Repository and Code Architecture
 
-**Input**: Design documents from `/specs/000-repository-and-code-architecture/` **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, and `quickstart.md`
+**Input**: Design documents from `/docs/features/0001-repository-and-code-architecture/` **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, and `quickstart.md`
 
-**Validation approach**: Epic 000 is structural and mechanical. No Keynes product behavior is implemented, so red-before-green behavioral tests do not apply to ownership documents, manifests, tool configuration, or CI wiring. Nonfunctional workspace shells receive focused Vitest tests before their implementations. pnpm and Turborepo retain their native diagnostics rather than receiving duplicate repository-owned implementations and fixtures.
+**Validation approach**: FEAT-0001 is structural and mechanical. No Keynes product behavior is implemented, so red-before-green behavioral tests do not apply to ownership documents, manifests, tool configuration, or CI wiring. Nonfunctional workspace shells receive focused Vitest tests before their implementations. pnpm and Turborepo retain their native diagnostics rather than receiving duplicate repository-owned implementations and fixtures.
 
 **Organization**: Tasks are grouped by contributor-facing user story. Roadmap features `001` through `007` are traced within one Spec Kit implementation.
 
@@ -120,7 +120,7 @@
 - [X] T025 [US5] Add the `ubuntu-24.04` x64, full-SHA-pinned, least-privilege, credential-free frozen-install and `pnpm verify` workflow to `.github/workflows/verify.yml`
 - [X] T026 [US5] Use one temporary undeclared import to prove a native boundary failure propagates with a nonzero exit, remove the probe, then run the passing provider-free baseline and retain the exact command results in the task completion note
 
-**Checkpoint**: Roadmap feature `007` and the Epic 000 local portion of the exit gate are satisfied. GitHub-hosted execution remains distinguishable from local workflow inspection until the pushed workflow runs.
+**Checkpoint**: The quality and CI baseline deliverable and the local portion of the repository baseline exit gate are satisfied. GitHub-hosted execution remains distinguishable from local workflow inspection until the pushed workflow runs.
 
 ---
 
@@ -128,9 +128,9 @@
 
 **Purpose**: Reconcile documentation with the implemented repository and report only evidence that actually ran.
 
-- [X] T027 [P] Replace planned command wording with the verified contributor workflow and preserve explicit future-lane `NOT RUN` statements in `specs/000-repository-and-code-architecture/quickstart.md`
-- [X] T028 [P] Update `docs/roadmap.md` statuses for features `001` through `007` and Epic 000 only from completed local checks; promote CI-dependent status only with a retained run URL and commit SHA, otherwise keep CI and the epic exit gate explicitly `NOT RUN`, and keep every future lane `NOT RUN`
-- [X] T029 Run the full Spec Kit checklist, `pnpm bootstrap`, `pnpm verify`, frozen-lockfile drift check, formatting diff check, and clean-source inspection; confirm zero Keynes functional behavior and mark every completed task `[X]` in `specs/000-repository-and-code-architecture/tasks.md`
+- [X] T027 [P] Replace planned command wording with the verified contributor workflow and preserve explicit future-lane `NOT RUN` statements in `docs/features/0001-repository-and-code-architecture/quickstart.md`
+- [X] T028 [P] Update the seven included deliverables and FEAT-0001 in `docs/roadmap.md` only from completed local checks; promote CI-dependent status only with a retained run URL and commit SHA, otherwise keep CI and the feature exit gate explicitly `NOT RUN`, and keep every future lane `NOT RUN`
+- [X] T029 Run the full Spec Kit checklist, `pnpm bootstrap`, `pnpm verify`, frozen-lockfile drift check, formatting diff check, and clean-source inspection; confirm zero Keynes functional behavior and mark every completed task `[X]` in `docs/features/0001-repository-and-code-architecture/tasks.md`
 
 ---
 
@@ -138,7 +138,7 @@
 
 **Purpose**: Complete the CI-dependent exit gate only after explicit user authorization for Git history and remote mutation.
 
-- [X] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/verify.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote Epic 000 from `CI NOT RUN` only if that exact run passes
+- [X] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/verify.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote FEAT-0001 from `CI NOT RUN` only if that exact run passes
 
 ---
 
@@ -162,15 +162,15 @@
 - **US5 (Phase 7)**: Depends on every required local command from US1-US4.
 - **Polish (Phase 8)**: Depends on all requested user stories and only records evidence that actually exists.
 - **External CI (Phase 9)**: Depends on Phase 8, explicit user authorization to commit and push, and a successful GitHub Actions run for the exact commit.
-- **Product code namespace (Phase 10)**: Depends on the accepted Epic 000 baseline and the user's explicit all-code nesting decision.
+- **Product code namespace (Phase 10)**: Depends on the accepted FEAT-0001 baseline and the user's explicit all-code nesting decision.
 
 ### User-story traceability
 
-- **US1 / Feature 001**: Six areas, ownership records, and root hygiene.
-- **US2 / Feature 002**: Exact pins, frozen bootstrap, two private workspaces, and the non-emitting type-check graph.
+- **US1 / Repository layout**: Six areas, ownership records, and root hygiene.
+- **US2 / TypeScript workspace bootstrap**: Exact pins, frozen bootstrap, two private workspaces, and the non-emitting type-check graph.
 - **US3 / Features 003-004**: ADR ownership map and enforced dependency graph.
 - **US4 / Features 005-006**: Root engineering commands and colocated tests.
-- **US5 / Feature 007**: Shared provider-free local and CI baseline.
+- **US5 / Quality and CI baseline**: Shared provider-free local and CI baseline.
 
 ### Parallel opportunities
 

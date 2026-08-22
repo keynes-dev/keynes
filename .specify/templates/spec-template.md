@@ -1,6 +1,8 @@
 # Feature Specification: [FEATURE NAME]
 
-**Feature Branch**: `[###-feature-name]`
+**Feature ID**: `[FEAT-XXXX]`
+**Feature branch**: `[feat/XXXX-feature-name]`
+**Roadmap stage**: `[stage name or None]`
 **Created**: [DATE]
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"

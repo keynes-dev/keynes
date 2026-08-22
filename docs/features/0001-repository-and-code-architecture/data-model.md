@@ -1,6 +1,6 @@
 # Phase 1 data model: Repository and code architecture
 
-Epic 000 creates repository engineering structure, not Keynes product data. Its small model exists only to make ownership and verification unambiguous.
+FEAT-0001 creates repository engineering structure, not Keynes product data. Its small model exists only to make ownership and verification unambiguous.
 
 ## Repository boundary
 
@@ -13,7 +13,7 @@ A repository boundary is a directory with one responsibility and one documented 
 - `responsibility`: A short statement of what belongs in the boundary.
 - `public_edges`: Files or entry points that other boundaries may use.
 - `private_edges`: Files that other boundaries must not import or modify.
-- `functional_status`: Fixed to `nonfunctional` for Epic 000 placeholders.
+- `functional_status`: Fixed to `nonfunctional` for FEAT-0001 placeholders.
 
 ### Rules
 
@@ -47,19 +47,19 @@ A workspace is a TypeScript package that participates in pnpm and Turborepo.
 
 ### Fields
 
-- `path`: Either `packages/sdk/` or `packages/cloud/` in Epic 000.
+- `path`: Either `packages/sdk/` or `packages/cloud/` in FEAT-0001.
 - `manifest`: The workspace's private `package.json`.
 - `tasks`: The workspace commands exposed to Turborepo.
 - `dependencies`: Declared external and workspace dependencies.
 
 ### Rules
 
-- Every workspace is private and non-publishable in Epic 000.
+- Every workspace is private and non-publishable in FEAT-0001.
 - The root pnpm workspace discovers every workspace from a clean checkout.
 - Each workspace manifest declares every package that workspace may access.
 - pnpm rejects workspace dependency cycles.
 - Turborepo rejects undeclared and cross-package imports.
-- Turborepo task-output caching remains disabled throughout Epic 000.
+- Turborepo task-output caching remains disabled throughout FEAT-0001.
 - Production code does not depend on `scripts/`.
 
 ## Dependency rule
@@ -73,7 +73,7 @@ A dependency rule states which boundary may consume another boundary and through
 - `packages/sdk/` and `packages/cloud/` do not import one another.
 - Runtime code never imports repository scripts or tests.
 
-Native pnpm and Turborepo diagnostics identify the package and relationship that violates these rules; Epic 000 maintains no parallel diagnostic-code system.
+Native pnpm and Turborepo diagnostics identify the package and relationship that violates these rules; FEAT-0001 maintains no parallel diagnostic-code system.
 
 ## Check result
 
@@ -88,7 +88,7 @@ A check result is the ordinary outcome reported by a root command or CI job.
 
 ### Rules
 
-- Required Epic 000 checks must pass before the epic is complete.
+- Required FEAT-0001 checks must pass before the feature is complete.
 - A skipped or unrun check is never reported as passed.
 - Future runtime, conformance, security, compatibility, fault, packaging, and performance work remains `NOT RUN` until its owning roadmap feature executes meaningful tests.
-- GitHub Actions logs and check results are sufficient for Epic 000; the epic defines no custom evidence schema or repository promotion protocol.
+- GitHub Actions logs and check results are sufficient for FEAT-0001; the feature defines no custom evidence schema or repository promotion protocol.

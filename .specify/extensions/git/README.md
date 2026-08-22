@@ -1,13 +1,13 @@
 # Git Branching Workflow Extension
 
-Git repository initialization, feature branch creation, numbering (sequential/timestamp), validation, remote detection, and auto-commit for Spec Kit.
+Git repository initialization, canonical feature branch creation, validation, remote detection, and auto-commit for Spec Kit.
 
 ## Overview
 
 This extension provides Git operations as an optional, self-contained module. It manages:
 
 - **Repository initialization** with configurable commit messages
-- **Feature branch creation** with sequential (`001-feature-name`) or timestamp (`20260319-143022-feature-name`) numbering
+- **Feature branch creation** with sequential four-digit `feat/0001-feature-name` identities
 - **Branch validation** to ensure branches follow naming conventions
 - **Git remote detection** for GitHub integration (e.g., issue creation)
 - **Auto-commit** after core commands (configurable per-command with custom messages)
@@ -17,7 +17,7 @@ This extension provides Git operations as an optional, self-contained module. It
 | Command | Description |
 |---------|-------------|
 | `speckit.git.initialize` | Initialize a Git repository with a configurable commit message |
-| `speckit.git.feature` | Create a feature branch with sequential or timestamp numbering |
+| `speckit.git.feature` | Reserve one canonical feature identity and branch |
 | `speckit.git.validate` | Validate current branch follows feature branch naming conventions |
 | `speckit.git.remote` | Detect Git remote URL for GitHub integration |
 | `speckit.git.commit` | Auto-commit changes (configurable per-command enable/disable and messages) |
@@ -50,7 +50,7 @@ This extension provides Git operations as an optional, self-contained module. It
 Configuration is stored in `.specify/extensions/git/git-config.yml`:
 
 ```yaml
-# Branch numbering strategy: "sequential" or "timestamp"
+# Keynes uses sequential four-digit feature numbers.
 branch_numbering: sequential
 
 # Custom commit message for git init
@@ -75,20 +75,16 @@ specify extension add git
 ## Disabling
 
 ```bash
-# Disable the git extension (spec creation continues without branching)
+# Disable the git extension
 specify extension disable git
 
 # Re-enable it
 specify extension enable git
 ```
 
-## Graceful Degradation
+## Git requirement
 
-When Git is not installed or the directory is not a Git repository:
-- Spec directories are still created under `specs/`
-- Branch creation is skipped with a warning
-- Branch validation is skipped with a warning
-- Remote detection returns empty results
+Keynes feature creation and validation require Git. The workflow does not create feature artifacts without a canonical branch identity.
 
 ## Scripts
 
