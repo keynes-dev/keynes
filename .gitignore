@@ -6,3 +6,20 @@
 
 # Misc
 .vscode/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Turborepo
+.turbo/
+
+# Tests and reports
+coverage/
+reports/
+test-results/
+
+# Generated output
+dist/
+build/
+*.tsbuildinfo

@@ -1,0 +1,5 @@
+packages:
+  - packages/sdk
+  - packages/cloud
+engineStrict: true
+disallowWorkspaceCycles: true

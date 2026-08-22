@@ -1,0 +1,43 @@
+# Repository scripts
+
+- **Owner:** `@shubsharan`
+- **Status:** Nonfunctional repository infrastructure
+- **Package status:** Root-owned and non-publishable
+- **Functional status:** Repository engineering only in Epic 000
+
+## Responsibility
+
+`scripts/` owns repository automation that cannot be expressed by the native
+workspace tools. Epic 000 needs no custom script implementation: pnpm owns
+workspace membership, declared dependencies, toolchain enforcement, and cycle
+rejection, while Turborepo validates package boundaries. Epic 100 may add
+contract generation here when real contract and database inputs exist.
+
+This area does not own Keynes runtime behavior.
+
+## Allowed and public edges
+
+Root `package.json` commands are the contributor-facing edge. Later generators
+may read approved contract and database inputs under their owning epic.
+
+Production workspaces must never import `scripts/`. The directory is not a pnpm
+workspace, published package, runtime dependency, or alternate authority.
+
+## Private internals
+
+Future generator implementations and their owner-local tests remain private
+implementation details.
+
+## Source policy
+
+Prefer pnpm and Turborepo configuration over custom code when they express the
+required repository rule directly. Future TypeScript scripts use Node 24 native
+execution in ESM mode with erasable syntax only, with focused tests beside any
+meaningful script logic.
+
+## Deferred work
+
+Contract generation, generated-output drift checks, distribution tooling,
+cross-host conformance, security, compatibility, packaging, fault, performance,
+and evidence-promotion systems belong to later roadmap epics. Epic 000 creates
+no placeholder implementation for them.

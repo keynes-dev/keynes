@@ -1,0 +1,29 @@
+{
+  "name": "keynes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "pnpm install --frozen-lockfile",
+    "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml packages scripts",
+    "format:check": "pnpm format",
+    "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml packages scripts",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check:deps": "turbo boundaries --ui=stream",
+    "verify": "turbo run quality typecheck test && pnpm check:deps"
+  },
+  "devDependencies": {
+    "oxfmt": "0.64.0",
+    "oxlint": "1.79.0",
+    "turbo": "2.10.11",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24",
+    "pnpm": "11.21.0"
+  },
+  "packageManager": "pnpm@11.21.0"
+}
