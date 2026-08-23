@@ -46,8 +46,8 @@
 
 **Goal**: Keep missing usage explicit, resolve it monotonically, return consumable and reusable Resources, and isolate overage.
 
-- [ ] T017 Write and run failing cases for nested settlement, open descendants, missing and later-known usage, request after sealing, reusable return, consumable return, isolated overage, arithmetic overflow, exact repeats, and conflicting known usage.
-- [ ] T018 Implement recursive subtree observation, unresolved state, bounded child charge, commitments, availability, deficits, Resource return behavior, exact no-op evidence, and `usage_conflict` until settlement and lifecycle suites pass.
+- [X] T017 Write and run failing cases for nested settlement, open descendants, missing and later-known usage, request after sealing, reusable return, consumable return, isolated overage, arithmetic overflow, exact repeats, and conflicting known usage.
+- [X] T018 Implement recursive subtree observation, unresolved state, bounded child charge, commitments, availability, deficits, Resource return behavior, exact no-op evidence, and `usage_conflict` until settlement and lifecycle suites pass.
 
 ## Phase 5: Prove replay and rollback
 

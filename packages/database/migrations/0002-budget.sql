@@ -445,6 +445,72 @@ AS $function$
   WHERE budget.tenant_id = selected_tenant AND budget.budget_id = selected_budget;
 $function$;
 
+CREATE FUNCTION keynes_internal.subtree_observed(
+  selected_tenant uuid,
+  selected_budget uuid,
+  selected_resource uuid
+) RETURNS numeric
+LANGUAGE sql
+STABLE
+AS $function$
+  WITH RECURSIVE subtree AS (
+    SELECT budget_id FROM keynes_internal.budgets
+    WHERE tenant_id = selected_tenant AND budget_id = selected_budget
+    UNION ALL
+    SELECT child.budget_id FROM keynes_internal.budgets AS child
+    JOIN subtree AS parent ON child.parent_budget_id = parent.budget_id
+    WHERE child.tenant_id = selected_tenant
+  )
+  SELECT coalesce(sum(fact.direct_usage_amount), 0)
+  FROM subtree
+  JOIN keynes_internal.budget_resources AS fact
+    ON fact.tenant_id = selected_tenant AND fact.budget_id = subtree.budget_id
+  WHERE fact.resource_type_id = selected_resource;
+$function$;
+
+CREATE FUNCTION keynes_internal.assert_safe_accounting(
+  selected_tenant uuid,
+  changed_budget uuid,
+  operation_name text
+) RETURNS void
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+  resource_id uuid;
+  observed numeric;
+BEGIN
+  FOR resource_id, observed IN
+    WITH RECURSIVE ancestry AS (
+      SELECT budget_id, parent_budget_id FROM keynes_internal.budgets
+      WHERE tenant_id = selected_tenant AND budget_id = changed_budget
+      UNION ALL
+      SELECT parent.budget_id, parent.parent_budget_id
+      FROM keynes_internal.budgets AS parent
+      JOIN ancestry AS child ON parent.budget_id = child.parent_budget_id
+      WHERE parent.tenant_id = selected_tenant
+    )
+    SELECT fact.resource_type_id,
+      keynes_internal.subtree_observed(
+        selected_tenant, ancestry.budget_id, fact.resource_type_id
+      )
+    FROM ancestry
+    JOIN keynes_internal.budget_resources AS fact
+      ON fact.tenant_id = selected_tenant AND fact.budget_id = ancestry.budget_id
+    ORDER BY ancestry.budget_id, fact.resource_type_id
+  LOOP
+    IF observed > 9007199254740991 THEN
+      PERFORM keynes_internal.raise_domain_error(
+        'arithmetic_error',
+        jsonb_build_object(
+          'operation', operation_name,
+          'resourceTypeId', resource_id::text
+        )
+      );
+    END IF;
+  END LOOP;
+END;
+$function$;
+
 CREATE FUNCTION keynes_internal.budget_projection(
   selected_tenant uuid,
   selected_budget uuid
@@ -457,7 +523,7 @@ DECLARE
   fact record;
   settled boolean;
   committed bigint;
-  observed bigint;
+  observed numeric;
   unresolved boolean;
   charge numeric;
   resources jsonb := '[]'::jsonb;
@@ -478,7 +544,12 @@ BEGIN
       WHEN keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
         AND fact.accounting_behavior = 'reusable' THEN 0
       WHEN keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
-        THEN least(child_fact.allocated_amount, coalesce(child_fact.direct_usage_amount, 0))
+        THEN least(
+          child_fact.allocated_amount,
+          keynes_internal.subtree_observed(
+            selected_tenant, child.budget_id, fact.resource_type_id
+          )
+        )
       ELSE child_fact.allocated_amount
     END), 0)
     INTO committed
@@ -488,15 +559,26 @@ BEGIN
     WHERE child.tenant_id = selected_tenant
       AND child.parent_budget_id = selected_budget
       AND child_fact.resource_type_id = fact.resource_type_id;
-    SELECT coalesce(fact.direct_usage_amount, 0) + coalesce(sum(child_fact.direct_usage_amount), 0),
-      fact.direct_usage_amount IS NULL OR budget_row.lifecycle = 'active'
-        OR coalesce(bool_or(child.lifecycle = 'active' OR child_fact.direct_usage_amount IS NULL), false)
-    INTO observed, unresolved
-    FROM keynes_internal.budgets AS child
-    JOIN keynes_internal.budget_resources AS child_fact
-      ON child_fact.tenant_id = child.tenant_id AND child_fact.budget_id = child.budget_id
-      AND child_fact.resource_type_id = fact.resource_type_id
-    WHERE child.tenant_id = selected_tenant AND child.parent_budget_id = selected_budget;
+    observed := keynes_internal.subtree_observed(
+      selected_tenant, selected_budget, fact.resource_type_id
+    );
+    WITH RECURSIVE subtree AS (
+      SELECT budget_id, lifecycle FROM keynes_internal.budgets
+      WHERE tenant_id = selected_tenant AND budget_id = selected_budget
+      UNION ALL
+      SELECT child.budget_id, child.lifecycle
+      FROM keynes_internal.budgets AS child
+      JOIN subtree AS parent ON child.parent_budget_id = parent.budget_id
+      WHERE child.tenant_id = selected_tenant
+    )
+    SELECT EXISTS (
+      SELECT 1 FROM subtree
+      JOIN keynes_internal.budget_resources AS descendant_fact
+        ON descendant_fact.tenant_id = selected_tenant
+        AND descendant_fact.budget_id = subtree.budget_id
+        AND descendant_fact.resource_type_id = fact.resource_type_id
+      WHERE subtree.lifecycle = 'active' OR descendant_fact.direct_usage_amount IS NULL
+    ) INTO unresolved;
     charge := CASE fact.accounting_behavior
       WHEN 'consumable' THEN coalesce(fact.direct_usage_amount, 0) + committed
       ELSE committed
@@ -593,6 +675,7 @@ DECLARE
   deficits jsonb;
   denial_reasons jsonb;
   available_amount numeric;
+  existing_usage bigint;
   domain_error_message text;
 BEGIN
   IF operation_name = 'publishResource' THEN
@@ -830,10 +913,6 @@ BEGIN
           'budget_not_found', jsonb_build_object('budgetId', target_id::text)
         );
       END IF;
-      IF budget.lifecycle <> 'active' THEN
-        RAISE EXCEPTION USING ERRCODE = '0A000',
-          MESSAGE = 'later settlement is not implemented in this phase';
-      END IF;
       IF jsonb_array_length(items) <> (
         SELECT count(*) FROM keynes_internal.budget_resources
         WHERE tenant_id = tenant AND budget_id = target_id
@@ -847,17 +926,41 @@ BEGIN
       ) THEN
         PERFORM keynes_internal.invalid_command(operation_name, '$.usage', 'allocatedResourceTypes');
       END IF;
+      PERFORM 1 FROM keynes_internal.budget_resources AS locked
+      WHERE locked.tenant_id = tenant AND locked.budget_id = target_id
+      ORDER BY locked.resource_type_id FOR UPDATE;
       FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
-        IF item->'amount' <> 'null'::jsonb THEN
+        SELECT fact.direct_usage_amount INTO existing_usage
+        FROM keynes_internal.budget_resources AS fact
+        WHERE fact.tenant_id = tenant AND fact.budget_id = target_id
+          AND fact.resource_type_id = (item->>'resourceTypeId')::uuid;
+        IF item->'amount' = 'null'::jsonb THEN
+          IF existing_usage IS NOT NULL THEN
+            PERFORM keynes_internal.invalid_command(
+              operation_name, '$.usage[].amount', 'monotone'
+            );
+          END IF;
+        ELSIF existing_usage IS NULL THEN
           UPDATE keynes_internal.budget_resources
           SET direct_usage_amount = (item->>'amount')::bigint, usage_command_id = command_id
           WHERE tenant_id = tenant AND budget_id = target_id
             AND resource_type_id = (item->>'resourceTypeId')::uuid;
           newly_known := newly_known || jsonb_build_array(item);
+        ELSIF existing_usage <> (item->>'amount')::bigint THEN
+          PERFORM keynes_internal.raise_domain_error(
+            'usage_conflict',
+            jsonb_build_object(
+              'budgetId', target_id::text,
+              'resourceTypeId', item->>'resourceTypeId',
+              'existing', existing_usage,
+              'attempted', (item->>'amount')::numeric
+            )
+          );
         END IF;
       END LOOP;
       UPDATE keynes_internal.budgets SET lifecycle = 'settling'
-      WHERE tenant_id = tenant AND budget_id = target_id;
+      WHERE tenant_id = tenant AND budget_id = target_id AND lifecycle = 'active';
+      PERFORM keynes_internal.assert_safe_accounting(tenant, target_id, operation_name);
       PERFORM keynes_internal.checkpoint('after_domain_mutation');
       SELECT coalesce(jsonb_agg(resource_type_id::text ORDER BY resource_type_id), '[]'::jsonb)
       INTO unresolved FROM keynes_internal.budget_resources
@@ -967,6 +1070,8 @@ $function$;
 REVOKE ALL ON FUNCTION keynes_internal.canonical_envelope(text, jsonb, text, boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.event_uuid(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.budget_is_settled(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.subtree_observed(uuid, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.assert_safe_accounting(uuid, uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.budget_projection(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.append_history(uuid, uuid, uuid, text, uuid, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.apply_command(text, jsonb) FROM PUBLIC;
