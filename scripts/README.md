@@ -12,7 +12,7 @@ workspace tools. `feature-identity.mjs` owns the shared `FEAT-XXXX`, branch,
 and `docs/features/` identity used by Spec Kit. The repository baseline needs
 no duplicate dependency checker: pnpm owns
 workspace membership, declared dependencies, toolchain enforcement, and cycle
-rejection, while Turborepo validates package boundaries. The executable authority stage may add
+rejection, while Turborepo validates package boundaries. The executable database stage may add
 contract generation here when real contract and database inputs exist.
 
 This area does not own Keynes runtime behavior.

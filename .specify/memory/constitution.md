@@ -1,27 +1,23 @@
 <!--
 Sync Impact Report
-- Version change: template -> 1.0.0
+- Version change: 1.0.0 -> 2.0.0
 - Modified principles:
-  - Template Principle 1 -> I. Singular Budget Authority
-  - Template Principle 2 -> II. Application-Owned Effects
-  - Template Principle 3 -> III. Narrow, Fail-Closed Resource Policy
-  - Template Principle 4 -> IV. One Contract Across Hosts
-  - Template Principle 5 -> V. Evidence-First, Test-First Delivery
-- Added sections:
-  - Product and Authority Constraints
-  - Delivery and Evidence Gates
+  - I. Singular Budget Authority: require one named procedure without a version label
+  - IV. One Contract Across Hosts: use contract digests now and add compatibility namespaces only when incompatible contracts coexist
+- Modified sections:
+  - Product and Authority Constraints -> Product constraints
+- Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ updated: .specify/templates/plan-template.md
+  - ✅ validated, no change: .specify/templates/plan-template.md
   - ✅ updated: .specify/templates/spec-template.md
-  - ✅ updated: .specify/templates/tasks-template.md
-  - ✅ updated: .agents/skills/speckit-tasks/SKILL.md
+  - ✅ validated, no change: .specify/templates/tasks-template.md
   - ✅ validated, no change: .specify/templates/checklist-template.md
   - ✅ validated, no command templates present: .specify/templates/commands/*.md
 - Runtime guidance reviewed:
-  - ✅ aligned, no change: docs/product.md
-  - ✅ aligned, no change: docs/architecture.md
-  - ✅ aligned, no change: docs/roadmap.md
+  - ✅ updated: docs/product.md
+  - ✅ updated: docs/architecture.md
+  - ✅ updated: docs/roadmap.md
   - ✅ aligned, no change: AGENTS.md
 - Follow-up TODOs: None
 -->
@@ -33,9 +29,9 @@ Sync Impact Report
 
 The database that stores a Budget MUST be the sole authority for both its
 committed state and its state-transition semantics. Every mutation MUST enter
-through one named, versioned procedure and commit one result atomically. SDKs,
+through one named procedure and commit one result atomically. SDKs,
 Cloud services, and deployment adapters MUST NOT reproduce Budget transitions,
-write private authority tables, or weaken Resource conservation. Missing usage,
+write private database tables, or weaken Resource conservation. Missing usage,
 overage, and unresolved settlement MUST remain explicit rather than becoming
 accounting fiction.
 
@@ -67,20 +63,21 @@ Policy context MUST be application-asserted, canonically recorded, and free of
 secrets.
 
 This rule makes Policy expressive enough for business constraints while keeping
-the authority boundary auditable and safe to execute in every supported host.
+the database boundary auditable and safe to execute in every supported host.
 
 ### IV. One Contract Across Hosts
 
-Local PGlite, customer PostgreSQL, and Keynes Cloud MUST run one versioned
-authority core: the same migration graph, public procedures, Policy environment,
-canonical errors, and evidence model. Adapters may differ in lifecycle,
+Local PGlite, customer PostgreSQL, and Keynes Cloud MUST run one database core:
+the same migration graph, public procedures, Policy environment, canonical
+errors, and evidence model. Adapters may differ in lifecycle,
 authentication, routing, concurrency controls, and operations, but MUST NOT
-redefine Budget behavior. Public SQL and generated SDK contracts MUST be
-versioned from shared sources. A host is supported only after the shared
-conformance corpus proves equivalent semantic results for that host. Subtree
-issuance, multi-source funding, or any new authority path MUST use a separate
-versioned contract and pass its own authorization, conservation, recovery, and
-conformance gates before release.
+redefine Budget behavior. Public SQL and generated SDK contracts MUST derive
+from shared sources and identify the exact contract digest. Compatibility
+namespaces MUST be introduced only when incompatible contracts must coexist.
+A host is supported only after the shared conformance corpus proves equivalent
+semantic results for that host. Subtree issuance, multi-source funding, or any
+new Resource path MUST use a separate public contract and pass its own
+authorization, conservation, recovery, and conformance gates before release.
 
 This rule prevents convenient entry points from becoming competing Keynes
 implementations.
@@ -101,7 +98,7 @@ artifacts, versions, host, and attempt that produced them.
 This rule makes progress falsifiable, keeps the fast development loop safe, and
 prevents planned behavior from being reported as delivered behavior.
 
-## Product and Authority Constraints
+## Product constraints
 
 - `Budget` MUST remain the only public stateful governance object. Resource
   publication defines immutable types but creates no quantity or spending
@@ -172,4 +169,4 @@ claims that exceed retained evidence. Governance review does not replace
 technical judgment: every rule and exception MUST be justified by the concrete
 correctness, security, operability, or product risk it controls.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-21
+**Version**: 2.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-22

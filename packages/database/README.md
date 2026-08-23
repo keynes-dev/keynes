@@ -6,7 +6,7 @@
 ## Responsibility
 
 `packages/database/` is the sole future owner of authoritative PostgreSQL SQL,
-PL/pgSQL, the authority-core migration graph, and private storage. It will also
+PL/pgSQL, the migration graph, and private storage. It will also
 own the customer PostgreSQL distribution when that deliverable is implemented.
 
 FEAT-0001 creates no migration, procedure, table, Policy evaluator, or Budget
@@ -14,7 +14,7 @@ transition.
 
 ## Allowed and public edges
 
-The future public edge consists only of versioned public database procedures
+The future public edge consists only of public database procedures
 and their contract-defined protocols. The SDK and Cloud service may invoke
 those edges when their owning stages implement them.
 
@@ -28,7 +28,7 @@ boundary. They must not become SDK or Cloud semantics.
 
 ## Source policy
 
-Keep hand-authored authority SQL, PL/pgSQL, and the migration graph in this
+Keep hand-authored database SQL, PL/pgSQL, and the migration graph in this
 area. The database remains the authority for committed state. Adapters may
 translate lifecycle, authentication, and transport concerns, but they must not
 reimplement authoritative Budget behavior.

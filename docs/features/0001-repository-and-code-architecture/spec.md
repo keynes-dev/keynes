@@ -121,7 +121,7 @@ As a contributor, I can run one provider-free local verification command whose r
 ### Functional requirements
 
 - **FR-001**: The repository MUST contain `packages/contracts/`, `packages/database/`, `packages/sdk/`, `packages/cloud/`, `scripts/`, and `docs/` as its approved code and documentation ownership areas. `packages/` MUST group all product code without becoming an additional boundary. Only `packages/sdk/` and `packages/cloud/` MUST participate in pnpm and Turborepo. Root configuration and `.github/` infrastructure MUST NOT be treated as additional product or code boundaries.
-- **FR-002**: FEAT-0001 MUST NOT create a generator, generated-output system, distribution placeholder, dedicated verification workspace, top-level test-lane directories, or executable skeletons for unavailable future lanes. Contract generation begins in the executable authority stage when real inputs exist.
+- **FR-002**: FEAT-0001 MUST NOT create a generator, generated-output system, distribution placeholder, dedicated verification workspace, top-level test-lane directories, or executable skeletons for unavailable future lanes. Contract generation begins in the executable database stage when real inputs exist.
 - **FR-003**: Every approved ownership area MUST include a short ownership README. Only the `packages/sdk/` and `packages/cloud/` workspaces MUST include private placeholder manifests. These files MUST identify responsibility, dependency direction, and nonfunctional state.
 - **FR-004**: Repository-owned architecture documentation MUST map every FEAT-0001 area to exactly one primary owner and describe its public and private edges without defining Keynes runtime behavior.
 - **FR-005**: The root MUST provide `package.json`, `pnpm-workspace.yaml`, a committed pnpm lockfile, contributor support for Node.js 24 through 26, a Node.js 24.19.0 default and primary CI pin, and an exact pnpm 11.21.0 pin. PostgreSQL and PGlite versions MUST be deferred to their implementation and qualification stages.
@@ -169,7 +169,7 @@ As a contributor, I can run one provider-free local verification command whose r
 ## Assumptions
 
 - FEAT-0001 uses one Spec Kit cycle. Its seven roadmap deliverables remain separately traceable, but the approved lean implementation does not create one feature or evidence subsystem per deliverable.
-- The final user clarifications supersede the earlier broad topology and defer generation until the executable authority stage. The reconciled planning artifacts use this lean scope.
+- The final user clarifications supersede the earlier broad topology and defer generation until the executable database stage. The reconciled planning artifacts use this lean scope.
 - TypeScript is the only SDK and Cloud service language. PostgreSQL SQL/PL/pgSQL and private local PGlite are future runtime concerns, not behavior implemented by this feature.
 - Contributors may use Node.js 24 through 26 without changing their machine-wide Node.js installation. `.node-version` keeps Node.js 24.19.0 as the default and primary CI version, while pnpm remains pinned to 11.21.0.
 - pnpm is the contributor-facing command surface, and Turborepo schedules the cross-workspace task graph. Task-output caching remains disabled in FEAT-0001.

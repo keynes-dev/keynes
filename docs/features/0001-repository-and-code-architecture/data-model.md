@@ -69,7 +69,7 @@ A dependency rule states which boundary may consume another boundary and through
 ### Required rules
 
 - `packages/database/` is the only future owner of authoritative Budget transitions.
-- `packages/sdk/` and `packages/cloud/` may use only versioned public database procedures or protocols; neither may access private database storage.
+- `packages/sdk/` and `packages/cloud/` may use only public database procedures or protocols; neither may access private database storage.
 - `packages/sdk/` and `packages/cloud/` do not import one another.
 - Runtime code never imports repository scripts or tests.
 

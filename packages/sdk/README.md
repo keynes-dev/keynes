@@ -16,8 +16,8 @@ local runtime, database connection, or Cloud transport.
 ## Allowed and public edges
 
 The future public edge is the package export surface generated or implemented
-from versioned contracts. Internally, the SDK may consume public contract
-artifacts and invoke only versioned database procedures or the contract-defined
+from approved contracts. Internally, the SDK may consume public contract
+artifacts and invoke only public database procedures or the contract-defined
 Cloud protocol.
 
 The SDK must not import `packages/cloud/`, private database storage, `scripts/`,
@@ -33,7 +33,7 @@ public API decision exposes them.
 
 Use TypeScript only. Keep tests beside the source they exercise. The FEAT-0001
 manifest is private and makes no npm publication, module-format, browser, or
-runtime-support promise. Generated types and validators begin with the executable authority stage and
+runtime-support promise. Generated types and validators begin with the executable database stage and
 must derive from contract-owned sources.
 
 ## Deferred work
