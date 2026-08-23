@@ -127,7 +127,7 @@ pnpm --filter @keynes/sdk test
 pnpm verify
 ```
 
-The retained FEAT-0002 run has 15 passing generator tests and 38 passing SDK tests. The acceptance record contains the exact PGlite package version, runtime `server_version`, contract digest, migration checksums, generated-file hashes, command results, and repository revision. It does not contain credentials or arbitrary command bodies.
+The checked-in tests, generated digests, and lockfile define the provider-free verification inputs. The [roadmap](../../roadmap.md) records the dated observed result. This guide does not preserve historical command output or test counts.
 
 ## Evidence limits
 

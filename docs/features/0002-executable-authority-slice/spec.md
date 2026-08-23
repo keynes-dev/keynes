@@ -163,13 +163,13 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 ### Measurable outcomes
 
 - **SC-001**: From a fresh local database, an application completes Resource definition, root allocation, exact child request, settlement, Budget read, and Budget history read through the generated client in one documented flow with no direct state edits.
-- **SC-002**: The retained provider-free acceptance corpus passes 100% of the valid, invalid, denial, settlement, replay, and rollback cases named in FR-025.
+- **SC-002**: The provider-free acceptance corpus passes 100% of the valid, invalid, denial, settlement, replay, and rollback cases named in FR-025.
 - **SC-003**: For 100% of mutating operations, retry after a lost committed response returns the original canonical result and produces zero duplicate Resource types, Budgets, reservations, usage records, or history entries.
 - **SC-004**: Failure at every declared pre-commit injection point leaves zero partial domain records, command results, or history entries.
 - **SC-005**: Three consecutive generations from unchanged inputs produce identical digests and zero repository diff. Every ordered contract operation resolves to exactly one installed operation and one passing generated client method.
-- **SC-006**: Across the retained sibling-request and nested-settlement corpus, 100% of committed states conserve Resource quantities, preserve unresolved usage, and isolate every known overage to the Budget that incurred it.
-- **SC-007**: After repository bootstrap, a contributor can run the documented provider-free lifecycle and inspect its retained results in under 10 minutes without credentials, a network service, or direct access to private database state.
-- **SC-008**: Acceptance reports cross-host, security, packaging, fault, footprint, latency, paid, and managed-provider evidence as `NOT RUN`; no provider-free pass is reported as proof for those lanes.
+- **SC-006**: Across the sibling-request and nested-settlement corpus, 100% of committed states conserve Resource quantities, preserve unresolved usage, and isolate every known overage to the Budget that incurred it.
+- **SC-007**: After repository bootstrap, a contributor can run the documented provider-free lifecycle and inspect its results in under 10 minutes without credentials, a network service, or direct access to private database state.
+- **SC-008**: Feature acceptance keeps cross-host, security, packaging, fault, footprint, latency, paid, and managed-provider evidence marked `NOT RUN`; no provider-free pass is reported as proof for those lanes.
 
 ## Assumptions
 

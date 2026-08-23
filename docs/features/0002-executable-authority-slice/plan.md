@@ -11,7 +11,7 @@ This feature proves one real generated-client-to-installed-SQL path. It does not
 
 ## Technical Context
 
-**Language/Version**: TypeScript 7.0.2 on Node.js 24.19.0; SQL and PL/pgSQL supported by pinned PGlite, with runtime `server_version` retained as evidence  
+**Language/Version**: TypeScript 7.0.2 on Node.js 24.19.0; SQL and PL/pgSQL provided by pinned PGlite
 **Primary Dependencies**: `@electric-sql/pglite@0.5.5` at runtime; `ajv@8.20.0`, `canonicalize@4.0.0`, `json-schema-to-typescript@15.0.4`, and `@types/node@24.13.3` at generation/build time  
 **Storage**: Private process-scoped in-memory PGlite database with numbered transactional SQL migrations  
 **Testing**: Vitest 4.1.11 for generator, generated-client, installed-database, replay, rollback, and lifecycle tests  
@@ -109,7 +109,7 @@ packages/sdk/src/
 3. **Grow one installed operation at a time**: Add `create_budget`, then `request`, then `settle`. For each increment, observe its generated-to-installed black-box test fail before adding storage or behavior.
 4. **Add the authoritative read and derived accounting**: Add `get_budget` with its Budget-lineage history, recursive accounting projections, arithmetic guards, and the remaining declared rollback checkpoints.
 5. **Complete the behavioral corpus**: Drive exact approval/denial, sibling serialized conservation, nested settlement, consumable/reusable returns, unresolved usage, overage isolation, conflict, replay, and rollback from red to green through the generated client.
-6. **Evidence and docs**: Run three clean generations, the full provider-free corpus, typecheck, formatting, lint, and repository verification. Retain versions, digests, hashes, results, the repository revision, and every `NOT RUN` lane in one `reports/feat-0002/acceptance.json` file.
+6. **Evidence and docs**: Run three clean generations, the full provider-free corpus, typecheck, formatting, lint, and repository verification. Keep digests and hashes with their owning generated artifacts. Reconcile the dated observed result and every `NOT RUN` lane in `docs/roadmap.md` without creating a standalone acceptance report.
 
 ## Verification Matrix
 

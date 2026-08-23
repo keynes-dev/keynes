@@ -5,7 +5,7 @@
 
 **Tests**: Start every behavioral change with a focused Vitest case. Run the case and record the expected failure before implementation. Use generation, type, format, or file-diff checks for mechanical outputs.
 
-**Evidence**: Retain one final provider-free record in `reports/feat-0002/acceptance.json`. Intermediate test output guides implementation but does not create a separate retained report.
+**Evidence**: Checked-in tests, generated digests, the lockfile, and the dated result in `docs/roadmap.md` record provider-free acceptance. Intermediate test output guides implementation but does not create a standalone report.
 
 ## Phase 1: Prove Resource definition
 
@@ -58,10 +58,10 @@
 
 ## Phase 6: Close generation and acceptance
 
-**Goal**: Prove that the one contract regenerates every used consumer and retain one honest acceptance record.
+**Goal**: Prove that the one contract regenerates every used consumer and reconcile one honest acceptance result.
 
 - [x] T021 Complete generator tests for unsupported keywords, duplicate targets, undeclared outputs, unstable enumerations, undeclared files, contract mismatch, migration drift, and installed-object mismatch. Run three clean generations in temporary directories, require byte-identical output and digests, and resolve every generated binding against a fresh installation.
-- [x] T022 Run `pnpm generate:check`, `pnpm test:budget`, `pnpm verify`, and the frozen-install check. Reconcile the quickstart, ownership READMEs, roadmap status, checklist, and this task list against observed results. Write one `reports/feat-0002/acceptance.json` with tool versions, the PGlite `server_version`, contract and migration digests, generated-file hashes, the repository revision, command results, and every lane that remains `NOT RUN`.
+- [x] T022 Run `pnpm generate:check`, `pnpm test:budget`, `pnpm verify`, and the frozen-install check. Reconcile the quickstart, ownership READMEs, roadmap status, checklist, and this task list against observed results. Record the dated provider-free result and every lane that remains `NOT RUN` in `docs/roadmap.md`.
 
 ## Execution rules
 
