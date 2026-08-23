@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { KeynesError, type KeynesClient } from "./generated/client.js";
+import type { KeynesClient, KeynesError } from "./generated/client.js";
 import type { PublishResourceCommand } from "./generated/types.js";
 import { openLocalKeynes } from "./private/local-keynes.js";
 
@@ -101,10 +101,7 @@ describe("Budget lifecycle", () => {
         { canonicalName: "model_tokens" },
       );
       await expectKeynesError(
-        unauthorized.publishResource({
-          ...command,
-          commandId: "10000000-0000-0000-0000-000000000023",
-        }),
+        unauthorized.publishResource(command),
         "unauthorized",
         {
           operation: "publishResource",
@@ -303,12 +300,9 @@ async function expectKeynesError(
   code: KeynesError["code"],
   details: Record<string, unknown>,
 ): Promise<void> {
-  try {
-    await operation;
-    expect.unreachable(`expected KeynesError ${code}`);
-  } catch (error: unknown) {
-    expect(error).toBeInstanceOf(KeynesError);
-    if (!(error instanceof KeynesError)) throw error;
-    expect(error).toMatchObject({ code, details });
-  }
+  await expect(operation).rejects.toMatchObject({
+    name: "KeynesError",
+    code,
+    details,
+  });
 }

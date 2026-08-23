@@ -3,83 +3,40 @@
 
 CREATE SCHEMA IF NOT EXISTS keynes;
 
-INSERT INTO keynes_internal.installed_contracts (contract_digest)
-VALUES ('0c6d72159f3de62cf86c9b53cf3718231b341674387f0beaf15cf217def8a9f6');
-
 CREATE OR REPLACE FUNCTION keynes.publish_resource_type(input jsonb)
 RETURNS jsonb
-LANGUAGE plpgsql
+LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, keynes_internal
 AS $$
-BEGIN
-  BEGIN
-    RETURN keynes_internal.apply_command('publishResource', input);
-  EXCEPTION
-    WHEN SQLSTATE 'K0001' THEN
-      RETURN jsonb_build_object(
-        'ok', false,
-        'error', SQLERRM::jsonb
-      );
-  END;
-END;
+  SELECT keynes_internal.apply_command('publishResource', input);
 $$;
 
 CREATE OR REPLACE FUNCTION keynes.create_budget(input jsonb)
 RETURNS jsonb
-LANGUAGE plpgsql
+LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, keynes_internal
 AS $$
-BEGIN
-  BEGIN
-    RETURN keynes_internal.apply_command('createBudget', input);
-  EXCEPTION
-    WHEN SQLSTATE 'K0001' THEN
-      RETURN jsonb_build_object(
-        'ok', false,
-        'error', SQLERRM::jsonb
-      );
-  END;
-END;
+  SELECT keynes_internal.apply_command('createBudget', input);
 $$;
 
 CREATE OR REPLACE FUNCTION keynes.request(input jsonb)
 RETURNS jsonb
-LANGUAGE plpgsql
+LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, keynes_internal
 AS $$
-BEGIN
-  BEGIN
-    RETURN keynes_internal.apply_command('requestBudget', input);
-  EXCEPTION
-    WHEN SQLSTATE 'K0001' THEN
-      RETURN jsonb_build_object(
-        'ok', false,
-        'error', SQLERRM::jsonb
-      );
-  END;
-END;
+  SELECT keynes_internal.apply_command('requestBudget', input);
 $$;
 
 CREATE OR REPLACE FUNCTION keynes.settle(input jsonb)
 RETURNS jsonb
-LANGUAGE plpgsql
+LANGUAGE sql
 SECURITY DEFINER
 SET search_path = pg_catalog, keynes_internal
 AS $$
-BEGIN
-  BEGIN
-    RETURN keynes_internal.apply_command('settleBudget', input);
-  EXCEPTION
-    WHEN SQLSTATE 'K0001' THEN
-      RETURN jsonb_build_object(
-        'ok', false,
-        'error', SQLERRM::jsonb
-      );
-  END;
-END;
+  SELECT keynes_internal.apply_command('settleBudget', input);
 $$;
 
 CREATE OR REPLACE FUNCTION keynes.get_budget(input jsonb)
@@ -89,14 +46,12 @@ SECURITY DEFINER
 SET search_path = pg_catalog, keynes_internal
 AS $$
 BEGIN
-  BEGIN
-    RETURN keynes_internal.get_budget(input);
+  RETURN keynes_internal.get_budget(input);
   EXCEPTION
     WHEN SQLSTATE 'K0001' THEN
       RETURN jsonb_build_object(
         'ok', false,
         'error', SQLERRM::jsonb
       );
-  END;
 END;
 $$;

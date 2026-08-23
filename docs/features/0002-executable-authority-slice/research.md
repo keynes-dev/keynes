@@ -57,7 +57,7 @@ Use separate identities for separate concerns:
 
 ## R6. Migration graph
 
-**Decision**: Use three ordered fresh-install migrations: hand-authored storage, hand-authored Budget behavior, then generated public wrappers and validators. `packages/database/migrations/manifest.json` is the sole hand-authored graph and order source. Generation reads it and emits an installation record with byte checksums, the contract digest where relevant, and expected installed objects. The local installer applies and records each migration transactionally and rejects mismatches.
+**Decision**: Use three ordered fresh-install migrations: hand-authored storage, hand-authored Budget behavior, then generated public wrappers and validators. `packages/database/migrations/manifest.json` is the sole hand-authored graph and order source. Generation reads it and emits an installation record with byte checksums, the contract digest, and expected target names. The local installer applies and records each migration transactionally, stores the digest on the contract-bearing migration row, verifies every target as `jsonb -> jsonb`, and rejects mismatches.
 
 **Rationale**: Storage and semantic procedures change for domain reasons; public generated boundaries change with the contract. Separating them keeps review and checksums meaningful without inventing a broad migration framework.
 

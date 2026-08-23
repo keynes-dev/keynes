@@ -15,19 +15,14 @@ import type {
   OperationName,
 } from "./types.js";
 import {
-  validatePublishResourceCommand,
   validatePublishResourceCommandIssues,
   validatePublishResourceResult,
-  validateCreateBudgetCommand,
   validateCreateBudgetCommandIssues,
   validateCreateBudgetResult,
-  validateRequestBudgetCommand,
   validateRequestBudgetCommandIssues,
   validateRequestBudgetResult,
-  validateSettleBudgetCommand,
   validateSettleBudgetCommandIssues,
   validateSettleBudgetResult,
-  validateGetBudgetQuery,
   validateGetBudgetQueryIssues,
   validateGetBudgetResult,
   validateErrorEnvelope,
@@ -137,11 +132,9 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async publishResource(
       input: PublishResourceCommand,
     ): Promise<PublishResourceResult> {
-      if (!validatePublishResourceCommand(input)) {
-        throw invalidCommand(
-          "publishResource",
-          validatePublishResourceCommandIssues(input),
-        );
+      const issues = validatePublishResourceCommandIssues(input);
+      if (issues.length > 0) {
+        throw invalidCommand("publishResource", issues);
       }
       return invoke({
         caller,
@@ -155,11 +148,9 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async createBudget(
       input: CreateBudgetCommand,
     ): Promise<CreateBudgetResult> {
-      if (!validateCreateBudgetCommand(input)) {
-        throw invalidCommand(
-          "createBudget",
-          validateCreateBudgetCommandIssues(input),
-        );
+      const issues = validateCreateBudgetCommandIssues(input);
+      if (issues.length > 0) {
+        throw invalidCommand("createBudget", issues);
       }
       return invoke({
         caller,
@@ -173,11 +164,9 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async requestBudget(
       input: RequestBudgetCommand,
     ): Promise<RequestBudgetResult> {
-      if (!validateRequestBudgetCommand(input)) {
-        throw invalidCommand(
-          "requestBudget",
-          validateRequestBudgetCommandIssues(input),
-        );
+      const issues = validateRequestBudgetCommandIssues(input);
+      if (issues.length > 0) {
+        throw invalidCommand("requestBudget", issues);
       }
       return invoke({
         caller,
@@ -191,11 +180,9 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async settleBudget(
       input: SettleBudgetCommand,
     ): Promise<SettleBudgetResult> {
-      if (!validateSettleBudgetCommand(input)) {
-        throw invalidCommand(
-          "settleBudget",
-          validateSettleBudgetCommandIssues(input),
-        );
+      const issues = validateSettleBudgetCommandIssues(input);
+      if (issues.length > 0) {
+        throw invalidCommand("settleBudget", issues);
       }
       return invoke({
         caller,
@@ -207,8 +194,9 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
       });
     },
     async getBudget(input: GetBudgetQuery): Promise<GetBudgetResult> {
-      if (!validateGetBudgetQuery(input)) {
-        throw invalidCommand("getBudget", validateGetBudgetQueryIssues(input));
+      const issues = validateGetBudgetQueryIssues(input);
+      if (issues.length > 0) {
+        throw invalidCommand("getBudget", issues);
       }
       return invoke({
         caller,

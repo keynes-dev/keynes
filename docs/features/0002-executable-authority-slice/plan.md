@@ -25,10 +25,10 @@ This feature proves one real generated-client-to-installed-SQL path. It does not
 
 ### Pre-design gate
 
-- **Singular authority — PASS**: `keynes_internal.apply_command` and its operation handlers are the only writers of Resource types, Budget lineage, allocations, usage, command results, and events. The generated client validates and transports data but cannot reproduce transitions. The SQL transaction preserves conservation, exact-envelope atomicity, monotone settlement, replay identity, unresolved usage, and isolated deficits.
+- **Singular authority — PASS**: `keynes_internal.apply_command` and its operation branches are the only writers of Resource types, Budget lineage, allocations, usage, command results, and events. The generated client validates and transports data but cannot reproduce transitions. The SQL transaction preserves conservation, exact-envelope atomicity, monotone settlement, replay identity, unresolved usage, and isolated deficits.
 - **Effect boundary — PASS**: This slice executes no application work. The application constructs requests, performs external work, observes usage, retries ambiguous calls, and chooses fallbacks after a denial. Keynes commits only Resource reservations and evidence.
 - **Policy and security — PASS with explicit qualification boundary**: Policy is absent. Publication, allocation, request, settlement, and read checks use private principal fixtures and database-owned authorization classes. Commands contain no caller-selected principal. Full roles, tenant isolation, secrets, and hostile-caller security remain `NOT RUN`.
-- **One cross-host contract — PASS for the declared host**: One contract generates the five public JSON procedures and binds each manifest entry to installed SQL and a generated test adapter. PGlite is the only acceptance host. Native PostgreSQL, cross-host comparison, packaging, and rolling migration compatibility remain `NOT RUN`.
+- **One cross-host contract — PASS for the declared host**: One contract generates the five public JSON procedures and binds each ordered operation to installed SQL and a generated client method. PGlite is the only acceptance host. Native PostgreSQL, cross-host comparison, packaging, and rolling migration compatibility remain `NOT RUN`.
 - **Evidence-first delivery — PASS**: Each behavior begins with a failing Vitest case for the expected missing or incorrect behavior. Deterministic generation, clean regeneration, real PGlite lifecycle, validation, denial, replay, and rollback form the provider-free lane. Native concurrency, security, fault campaigns beyond declared transaction checkpoints, benchmarks, paid services, and managed providers are separate `NOT RUN` lanes.
 
 ### Post-design re-check
@@ -68,8 +68,7 @@ packages/
 │   ├── contract.json
 │   ├── fixtures/
 │   └── generated/
-│       ├── contract-digest.json
-│       └── operations.json
+│       └── contract-digest.json
 ├── database/                          # Installed database SQL; not a workspace
 │   ├── migrations/
 │   │   ├── manifest.json              # Sole hand-authored migration graph
@@ -77,7 +76,7 @@ packages/
 │   │   ├── 0002-budget.sql
 │   │   └── 0003-public.generated.sql
 │   └── generated/
-│       └── installation-record.json   # Generated checksums and expected objects
+│       └── installation-record.json   # Generated checksums and expected targets
 └── sdk/
     └── src/
         ├── generated/
@@ -117,7 +116,7 @@ packages/sdk/src/
 | Evidence                    | Required result                                                         | Qualification limit                                   |
 | --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------- |
 | Generator unit tests        | Unsupported schemas fail; unchanged input is byte-identical             | Does not prove installed behavior                     |
-| Generated-client tests      | Every manifest entry validates and calls its named procedure            | Fake procedure callers test mapping only              |
+| Generated-client tests      | Every ordered operation validates and calls its named procedure         | Fake procedure callers test mapping only              |
 | PGlite lifecycle tests      | Five operations execute against a fresh database                        | Provider-free local host only                         |
 | Denial and arithmetic tests | Exact denial, no partial reservation, stable reasons, overflow rollback | Serialized local calls do not prove native contention |
 | Settlement tests            | Nested, missing, later-known, overage, consumable, reusable behavior    | No external usage observer is tested                  |

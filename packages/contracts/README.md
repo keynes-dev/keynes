@@ -5,11 +5,11 @@
 
 ## Responsibility
 
-`packages/contracts/` owns the ordered logical contract shared by the database and the TypeScript SDK. `contract.json`, `schema.json`, `fixtures/source.json`, and `fixtures/expectations.json` are the hand-authored inputs for FEAT-0002 generation.
+`packages/contracts/` owns the ordered logical contract shared by the database and the TypeScript SDK. `contract.json` and `schema.json` are the hand-authored generator inputs. `fixtures/source.json` and `fixtures/expectations.json` are direct test inputs.
 
 ## Allowed and public edges
 
-The contract source and canonical fixtures are the public inputs that the generator may consume. Generated operation metadata, canonical fixtures, and the contract digest are checked-in consumers under `generated/`.
+The contract source is the public generator input. Its checked-in consumer under `generated/` is the contract digest; the generated SDK and database consumers live with their owners.
 
 A consumer must not infer the contract from private database tables or SDK implementation details.
 
@@ -19,7 +19,7 @@ Generator intermediates and owner-local tests are private. Other workspaces must
 
 ## Source policy
 
-Author logical contract inputs here and review each change as a shared interface change. Run `pnpm generate` after an approved change. Generated TypeScript types, validators, PostgreSQL wrappers, metadata, digests, and fixtures derive from these inputs.
+Author logical contract inputs here and review each change as a shared interface change. Run `pnpm generate` after an approved change. Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata, and the digest derive from these inputs.
 
 ## Deferred work
 

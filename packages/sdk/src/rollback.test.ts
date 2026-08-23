@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { KeynesError } from "./generated/client.js";
+import type { KeynesError } from "./generated/client.js";
 import type {
   CreateBudgetCommand,
   PublishResourceCommand,
@@ -246,13 +246,9 @@ async function expectKeynesError(
   code: KeynesError["code"],
   details: Record<string, unknown>,
 ): Promise<void> {
-  let error: unknown;
-  try {
-    await operation;
-  } catch (caught: unknown) {
-    error = caught;
-  }
-  expect(error).toBeInstanceOf(KeynesError);
-  if (!(error instanceof KeynesError)) return;
-  expect(error).toMatchObject({ code, details });
+  await expect(operation).rejects.toMatchObject({
+    name: "KeynesError",
+    code,
+    details,
+  });
 }

@@ -1,7 +1,5 @@
 {
   "schema": "schema.json",
-  "fixtureSource": "fixtures/source.json",
-  "fixtureExpectations": "fixtures/expectations.json",
   "operations": [
     {
       "method": "publishResource",
@@ -46,8 +44,6 @@
   ],
   "outputs": [
     "packages/contracts/generated/contract-digest.json",
-    "packages/contracts/generated/fixtures.json",
-    "packages/contracts/generated/operations.json",
     "packages/database/generated/installation-record.json",
     "packages/database/migrations/0003-public.generated.sql",
     "packages/sdk/src/generated/client.ts",

@@ -3,13 +3,6 @@ CREATE SCHEMA IF NOT EXISTS keynes;
 
 REVOKE ALL ON SCHEMA keynes_internal FROM PUBLIC;
 
-CREATE TABLE keynes_internal.installed_contracts (
-  contract_digest text PRIMARY KEY,
-  installed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  CONSTRAINT installed_contract_digest_format
-    CHECK (contract_digest ~ '^[0-9a-f]{64}$')
-);
-
 CREATE TABLE keynes_internal.schema_migrations (
   migration_id text PRIMARY KEY,
   byte_checksum text NOT NULL,
@@ -53,7 +46,6 @@ CREATE TABLE keynes_internal.commands (
   body_digest text NOT NULL,
   principal_id uuid NOT NULL,
   result jsonb,
-  result_digest text,
   committed_at timestamptz,
   PRIMARY KEY (tenant_id, command_id),
   CONSTRAINT command_operation
@@ -71,13 +63,6 @@ CREATE TABLE keynes_internal.commands (
     CHECK (jsonb_typeof(canonical_body) = 'object'),
   CONSTRAINT command_body_digest_format
     CHECK (body_digest ~ '^command-body:[0-9a-f]{64}$'),
-  CONSTRAINT command_result_pair
-    CHECK ((result IS NULL) = (result_digest IS NULL)),
-  CONSTRAINT command_result_digest_format
-    CHECK (
-      result_digest IS NULL
-      OR result_digest ~ '^command-result:[0-9a-f]{64}$'
-    ),
   CONSTRAINT command_commit_pair
     CHECK ((result IS NULL) = (committed_at IS NULL))
 );
@@ -91,10 +76,8 @@ CREATE TABLE keynes_internal.resource_types (
   definition jsonb NOT NULL,
   definition_digest text NOT NULL,
   publisher_principal_id uuid NOT NULL,
-  publication_command_id uuid NOT NULL,
   PRIMARY KEY (tenant_id, resource_type_id),
   UNIQUE (tenant_id, canonical_name),
-  UNIQUE (tenant_id, publication_command_id),
   CONSTRAINT resource_type_name
     CHECK (canonical_name ~ '^[a-z][a-z0-9_]{0,62}$'),
   CONSTRAINT resource_type_unit
@@ -109,7 +92,7 @@ CREATE TABLE keynes_internal.resource_types (
     CHECK (jsonb_typeof(definition) = 'object'),
   CONSTRAINT resource_type_definition_digest_format
     CHECK (definition_digest ~ '^resource-definition:[0-9a-f]{64}$'),
-  FOREIGN KEY (tenant_id, publication_command_id)
+  FOREIGN KEY (tenant_id, resource_type_id)
     REFERENCES keynes_internal.commands (tenant_id, command_id)
 );
 
@@ -120,9 +103,7 @@ CREATE TABLE keynes_internal.budgets (
   root_budget_id uuid NOT NULL,
   depth bigint NOT NULL,
   lifecycle text NOT NULL,
-  created_command_id uuid NOT NULL,
   PRIMARY KEY (tenant_id, budget_id),
-  UNIQUE (tenant_id, created_command_id),
   CONSTRAINT budget_depth_safe
     CHECK (depth BETWEEN 0 AND 9007199254740991),
   CONSTRAINT budget_lifecycle
@@ -136,7 +117,7 @@ CREATE TABLE keynes_internal.budgets (
     REFERENCES keynes_internal.budgets (tenant_id, budget_id),
   FOREIGN KEY (tenant_id, root_budget_id)
     REFERENCES keynes_internal.budgets (tenant_id, budget_id),
-  FOREIGN KEY (tenant_id, created_command_id)
+  FOREIGN KEY (tenant_id, budget_id)
     REFERENCES keynes_internal.commands (tenant_id, command_id)
 );
 

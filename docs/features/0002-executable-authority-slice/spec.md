@@ -89,8 +89,8 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 
 **Acceptance scenarios**:
 
-1. **Given** the contract source, **When** generation runs, **Then** the consumer types, validators, SQL wrappers, operation manifest, migration metadata, digests, and fixtures identify the same source and semantic digest.
-2. **Given** a generated manifest entry, **When** the acceptance suite resolves it, **Then** it names one installed public operation and one generated test adapter that execute successfully.
+1. **Given** the contract source, **When** generation runs, **Then** the consumer types, validators, SQL wrappers, installation metadata, and digest identify the same source and semantic digest.
+2. **Given** an ordered contract operation, **When** the acceptance suite resolves its generated target, **Then** it names one installed public operation and one generated client method that execute successfully.
 3. **Given** unchanged source and generator inputs, **When** generation runs again, **Then** the repository has no generated diff.
 4. **Given** a proposed value family, wrapper, or operation target that the lifecycle does not use, **When** contract scope is reviewed, **Then** the proposal remains outside FEAT-0002.
 
@@ -113,9 +113,9 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 ### Functional requirements
 
 - **FR-001**: FEAT-0002 MUST define one contract for Resource publication, root allocation, exact parent-funded request, settlement, and `get_budget` with Budget history.
-- **FR-002**: The contract MUST generate the consumer data types, validators, public SQL wrappers, operation manifest, migration metadata, semantic digests, and canonical fixtures required to execute and test the complete lifecycle.
+- **FR-002**: The contract MUST generate the consumer data types, validators, public SQL wrappers, migration metadata, and semantic digest required to execute and test the complete lifecycle.
 - **FR-003**: Every generated consumer MUST identify the same contract source and semantic digest. A digest mismatch MUST block use of the generated consumer.
-- **FR-004**: Every operation manifest entry MUST resolve to one installed public database operation and one generated test adapter. FEAT-0002 MUST create no unused value family, wrapper, manifest entry, or operation target.
+- **FR-004**: Every ordered contract operation MUST resolve to one installed public database operation and one generated client method. FEAT-0002 MUST create no unused value family, wrapper, metadata copy, or operation target.
 - **FR-005**: Generation from unchanged inputs MUST be deterministic. A clean regeneration MUST produce no repository diff.
 - **FR-006**: Public commands, results, errors, history entries, and read projections MUST reject missing required fields, unknown fields, invalid tagged variants, non-normalized identifiers, and values outside their declared domains before mutation.
 - **FR-007**: Resource amounts MUST be non-negative integers no greater than `2^53 - 1`. Every arithmetic boundary MUST reject overflow without changing committed state.
@@ -156,7 +156,7 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 - **Request result**: A tagged approval or denial. An approval identifies one exact child Budget and Resource envelope. A denial contains stable reasons and no child.
 - **Settlement**: Monotone direct usage evidence for one Budget together with the lifecycle and accounting state that Keynes derives from it.
 - **Budget history entry**: The caller-facing form of ordered immutable evidence from a committed database operation. It reports a result but does not cause a transition. Private database storage may use an internal event record, but the public contract exposes only Budget history.
-- **Operation manifest**: The binding between each public operation, its command and result shapes, its permission, its replay behavior, its installed target, and its generated test adapter.
+- **Operation binding**: The contract entry that binds each public operation to its command and result shapes, permission, replay behavior, installed target, and generated client method.
 
 ## Success criteria _(mandatory)_
 
@@ -166,7 +166,7 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 - **SC-002**: The retained provider-free acceptance corpus passes 100% of the valid, invalid, denial, settlement, replay, and rollback cases named in FR-025.
 - **SC-003**: For 100% of mutating operations, retry after a lost committed response returns the original canonical result and produces zero duplicate Resource types, Budgets, reservations, usage records, or history entries.
 - **SC-004**: Failure at every declared pre-commit injection point leaves zero partial domain records, command results, or history entries.
-- **SC-005**: Three consecutive generations from unchanged inputs produce identical digests and zero repository diff. Every generated manifest entry resolves to exactly one installed operation and one passing generated test adapter.
+- **SC-005**: Three consecutive generations from unchanged inputs produce identical digests and zero repository diff. Every ordered contract operation resolves to exactly one installed operation and one passing generated client method.
 - **SC-006**: Across the retained sibling-request and nested-settlement corpus, 100% of committed states conserve Resource quantities, preserve unresolved usage, and isolate every known overage to the Budget that incurred it.
 - **SC-007**: After repository bootstrap, a contributor can run the documented provider-free lifecycle and inspect its retained results in under 10 minutes without credentials, a network service, or direct access to private database state.
 - **SC-008**: Acceptance reports cross-host, security, packaging, fault, footprint, latency, paid, and managed-provider evidence as `NOT RUN`; no provider-free pass is reported as proof for those lanes.

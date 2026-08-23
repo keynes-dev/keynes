@@ -17,17 +17,6 @@ All public objects reject unknown fields. Nullable direct usage means unknown; z
 
 ## Stored entities
 
-### Installed contract
-
-One row records the contract understood by the installed public functions.
-
-| Field             | Constraint                                                       |
-| ----------------- | ---------------------------------------------------------------- |
-| `contract_digest` | Primary key; domain-tagged contract digest                       |
-| `installed_at`    | Operational metadata; excluded from semantic results and digests |
-
-The generated client checks this value before its first operation. A mismatch blocks use.
-
 ### Schema migration
 
 The hand-authored `packages/database/migrations/manifest.json` is the only migration graph. The installer records one row per applied node.
@@ -39,7 +28,7 @@ The hand-authored `packages/database/migrations/manifest.json` is the only migra
 | `contract_digest` | Nullable; present when a generated public boundary is installed |
 | `applied_at`      | Operational metadata                                            |
 
-A known ID with a different checksum fails installation. FEAT-0002 qualifies fresh install only.
+A known ID with a different checksum fails installation. Exactly one manifest entry carries the installed contract digest; the installer verifies that ledger value before returning a client. FEAT-0002 qualifies fresh install only.
 
 ### Principal binding
 
@@ -55,31 +44,29 @@ The local harness supplies the tenant and principal through private transaction 
 
 ### Resource type
 
-| Field                    | Constraint                                         |
-| ------------------------ | -------------------------------------------------- |
-| `tenant_id`              | Part of primary key and name uniqueness            |
-| `resource_type_id`       | Part of primary key; equal to creation `commandId` |
-| `canonical_name`         | Unique within tenant                               |
-| `unit`                   | Immutable                                          |
-| `accounting_behavior`    | `consumable` or `reusable`                         |
-| `definition`             | Canonical logical definition                       |
-| `definition_digest`      | Digest of the database-normalized definition       |
-| `publisher_principal_id` | Evidence fact                                      |
-| `publication_command_id` | Unique foreign key to the committed command        |
+| Field                    | Constraint                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| `tenant_id`              | Part of primary key and name uniqueness                                                      |
+| `resource_type_id`       | Primary key component and foreign key to its creation command; equal to creation `commandId` |
+| `canonical_name`         | Unique within tenant                                                                         |
+| `unit`                   | Immutable                                                                                    |
+| `accounting_behavior`    | `consumable` or `reusable`                                                                   |
+| `definition`             | Canonical logical definition                                                                 |
+| `definition_digest`      | Digest of the database-normalized definition                                                 |
+| `publisher_principal_id` | Evidence fact                                                                                |
 
 Publication creates no quantity. Exact republication by canonical name returns the existing identity only when the full canonical definition matches; otherwise it returns `resource_type_conflict`.
 
 ### Budget
 
-| Field                | Constraint                                                                             |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `tenant_id`          | Part of primary key                                                                    |
-| `budget_id`          | Part of primary key; equal to creation `commandId`                                     |
-| `parent_budget_id`   | Null only for a root; same tenant                                                      |
-| `root_budget_id`     | Self for a root; inherited by descendants                                              |
-| `depth`              | Root is 0; child is parent depth plus 1                                                |
-| `lifecycle`          | Stored seal state: `active` or `settling`; `settled` is derived when blockers are gone |
-| `created_command_id` | Unique foreign key to the committed create/request command                             |
+| Field              | Constraint                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| `tenant_id`        | Part of primary key                                                                          |
+| `budget_id`        | Primary key component and foreign key to its creation command; equal to creation `commandId` |
+| `parent_budget_id` | Null only for a root; same tenant                                                            |
+| `root_budget_id`   | Self for a root; inherited by descendants                                                    |
+| `depth`            | Root is 0; child is parent depth plus 1                                                      |
+| `lifecycle`        | Stored seal state: `active` or `settling`; `settled` is derived when blockers are gone       |
 
 The first valid settlement changes stored lifecycle from `active` to `settling`. It never returns to `active`. A derived projection reports `settled` only when every direct usage value is known and every descendant is settled.
 
@@ -107,7 +94,6 @@ Settlement may omit an entry, leaving it unresolved. A later command may fill it
 | `body_digest`              | SHA-256 index and integrity value; equality also compares the stored body |
 | `principal_id`             | Initiating principal retained as evidence, not part of replay uniqueness  |
 | `result`                   | Canonical tagged result stored before commit                              |
-| `result_digest`            | Digest of the canonical result                                            |
 | `committed_at`             | Operational metadata excluded from result equality                        |
 
 An exact match returns `result` without another mutation or event. Any operation, target, or logical-body difference returns `command_conflict` and changes nothing.

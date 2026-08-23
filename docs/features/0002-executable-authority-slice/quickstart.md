@@ -23,7 +23,7 @@ pnpm generate
 pnpm generate:check
 ```
 
-`generate` reads the ordered contract source and the hand-authored migration graph. It emits TypeScript types, standalone validators, the concrete five-method client, public SQL wrappers, canonical fixtures, operation metadata, checksums, and distinct digest records. `generate:check` regenerates in a temporary directory and fails on a byte difference, an undeclared output, or a stale checked-in artifact.
+`generate` reads the ordered contract source and the hand-authored migration graph. It emits TypeScript types, standalone validators, the concrete five-method client, public SQL wrappers, migration checksums, expected target names, and the contract digest. Test fixtures remain direct hand-authored inputs. `generate:check` regenerates in a temporary directory and fails on a byte difference, an undeclared output, or a stale checked-in artifact.
 
 The retained determinism check runs three generations from unchanged inputs and requires identical contract digests plus zero generated-file differences.
 
@@ -115,7 +115,7 @@ The full SDK and generator suites cover these groups through installed public fu
 | Replay                 | lost-response simulation for all four mutations, exact stored result, no duplicate state or history entry, changed-body conflict across principals                              |
 | Rollback               | each declared private checkpoint leaves no partial base fact, result, or history entry visible through public reads                                                             |
 | Validation             | canonical issue order independent of object property insertion order                                                                                                            |
-| Generation             | every manifest binding resolves, three clean generations match, no undeclared output                                                                                            |
+| Generation             | every ordered operation resolves, three clean generations match, no undeclared output                                                                                           |
 
 ## Full repository verification
 
@@ -127,7 +127,7 @@ pnpm --filter @keynes/sdk test
 pnpm verify
 ```
 
-The retained FEAT-0002 run has 15 passing generator tests and 39 passing SDK tests. The acceptance record contains the exact PGlite package version, runtime `server_version`, contract digest, migration checksums, generated-file hashes, command results, and repository revision. It does not contain credentials or arbitrary command bodies.
+The retained FEAT-0002 run has 15 passing generator tests and 38 passing SDK tests. The acceptance record contains the exact PGlite package version, runtime `server_version`, contract digest, migration checksums, generated-file hashes, command results, and repository revision. It does not contain credentials or arbitrary command bodies.
 
 ## Evidence limits
 

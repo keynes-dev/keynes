@@ -55,17 +55,10 @@ interface InstallationMigration {
   readonly sha256: string;
 }
 
-interface ExpectedFunction {
-  readonly kind: "function";
-  readonly name: string;
-  readonly arguments: "jsonb";
-  readonly returns: "jsonb";
-}
-
 interface InstallationRecord {
   readonly contractDigest: string;
   readonly migrations: readonly InstallationMigration[];
-  readonly expectedObjects: readonly ExpectedFunction[];
+  readonly expectedTargets: readonly string[];
 }
 
 interface InstallationFixtures {
@@ -85,6 +78,16 @@ export async function installDatabase(
   ]);
   const manifest = parseMigrationManifest(manifestSource);
   const record = parseInstallationRecord(recordSource);
+  const contractMigrations = manifest.migrations.filter(
+    ({ contract }) => contract === true,
+  );
+  if (contractMigrations.length !== 1) {
+    throw new Error("Migration manifest must declare one contract migration");
+  }
+  const contractMigrationId = contractMigrations[0]?.id;
+  if (contractMigrationId === undefined) {
+    throw new Error("Migration manifest has no contract migration");
+  }
   const recordedMigrations = new Map(
     record.migrations.map((migration) => [migration.id, migration]),
   );
@@ -132,7 +135,7 @@ export async function installDatabase(
     );
   }
 
-  await verifyInstalledContract(database, record);
+  await verifyInstalledContract(database, contractMigrationId, record);
   await installFixtures(database, fixtures);
 }
 
@@ -186,18 +189,22 @@ async function findAppliedMigration(
 
 async function verifyInstalledContract(
   database: PGlite,
+  contractMigrationId: string,
   record: InstallationRecord,
 ): Promise<void> {
   const installed = await database.query<{ contract_digest: string }>(
-    "select contract_digest from keynes_internal.installed_contracts",
+    `select contract_digest
+       from keynes_internal.schema_migrations
+      where migration_id = $1`,
+    [contractMigrationId],
   );
   const installedDigest = installed.rows[0]?.contract_digest;
   if (installed.rows.length !== 1 || installedDigest !== CONTRACT_DIGEST) {
     throw contractMismatch(installedDigest ?? "missing");
   }
 
-  for (const expected of record.expectedObjects) {
-    const signature = `${expected.name}(${expected.arguments})`;
+  for (const target of record.expectedTargets) {
+    const signature = `${target}(jsonb)`;
     const result = await database.query<{
       exists: boolean;
       returns: string | null;
@@ -208,7 +215,7 @@ async function verifyInstalledContract(
       [signature],
     );
     const actual = result.rows[0];
-    if (actual?.exists !== true || actual.returns !== expected.returns) {
+    if (actual?.exists !== true || actual.returns !== "jsonb") {
       throw new Error(`Installed database object does not match ${signature}`);
     }
   }
@@ -263,7 +270,8 @@ function parseInstallationRecord(source: string): InstallationRecord {
     !isRecord(value) ||
     typeof value.contractDigest !== "string" ||
     !Array.isArray(value.migrations) ||
-    !Array.isArray(value.expectedObjects)
+    !Array.isArray(value.expectedTargets) ||
+    !value.expectedTargets.every((target) => typeof target === "string")
   ) {
     throw new Error("Invalid installation record");
   }
@@ -279,25 +287,11 @@ function parseInstallationRecord(source: string): InstallationRecord {
     }
     return { id: entry.id, path: entry.path, sha256: entry.sha256 };
   });
-  const expectedObjects = value.expectedObjects.map((entry: unknown) => {
-    if (
-      !isRecord(entry) ||
-      entry.kind !== "function" ||
-      typeof entry.name !== "string" ||
-      entry.arguments !== "jsonb" ||
-      entry.returns !== "jsonb"
-    ) {
-      throw new Error("Invalid expected database object record");
-    }
-    const expected: ExpectedFunction = {
-      kind: entry.kind,
-      name: entry.name,
-      arguments: entry.arguments,
-      returns: entry.returns,
-    };
-    return expected;
-  });
-  return { contractDigest: value.contractDigest, migrations, expectedObjects };
+  return {
+    contractDigest: value.contractDigest,
+    migrations,
+    expectedTargets: value.expectedTargets,
+  };
 }
 
 function resolveMigrationUrl(path: string): URL {

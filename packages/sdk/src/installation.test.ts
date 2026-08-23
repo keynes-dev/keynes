@@ -8,10 +8,6 @@ const INSTALLATION_RECORD_URL = new URL(
   "../../database/generated/installation-record.json",
   import.meta.url,
 );
-const OPERATIONS_URL = new URL(
-  "../../contracts/generated/operations.json",
-  import.meta.url,
-);
 
 const FIXTURES = {
   tenantId: "00000000-0000-4000-8000-000000000001",
@@ -43,19 +39,6 @@ async function readContractDigest(): Promise<string> {
     throw new Error("installation record has no contract digest");
   }
   return record.contractDigest;
-}
-
-async function readOperationTargets(): Promise<string[]> {
-  const manifest = await readJson(OPERATIONS_URL);
-  if (!isRecord(manifest) || !Array.isArray(manifest.operations)) {
-    throw new Error("operation manifest has no operations");
-  }
-  return manifest.operations.map((operation: unknown) => {
-    if (!isRecord(operation) || typeof operation.target !== "string") {
-      throw new Error("operation manifest entry has no target");
-    }
-    return operation.target;
-  });
 }
 
 afterEach(() => {
@@ -96,26 +79,6 @@ async function withFreshDatabase(
 }
 
 describe("generated installation record", () => {
-  it("resolves every generated binding against a fresh installation", async () => {
-    const targets = await readOperationTargets();
-    const { installDatabase } = await loadInstallerWith(
-      (_path, contents) => contents,
-    );
-
-    await withFreshDatabase(async (database) => {
-      await installDatabase(database, FIXTURES);
-
-      for (const target of targets) {
-        const signature = `${target}(jsonb)`;
-        const result = await database.query<{ exists: boolean }>(
-          "select to_regprocedure($1) is not null as exists",
-          [signature],
-        );
-        expect(result.rows[0]?.exists, signature).toBe(true);
-      }
-    });
-  });
-
   it("rejects a contract digest mismatch before installation", async () => {
     const contractDigest = await readContractDigest();
     const mismatchedDigest = "0".repeat(64);

@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { KeynesError } from "./generated/client.js";
 import type {
   CreateBudgetCommand,
   PublishResourceCommand,
@@ -474,15 +473,8 @@ async function expectCommandConflict(
   existingOperation: string,
   attemptedOperation: string,
 ): Promise<void> {
-  let error: unknown;
-  try {
-    await operation;
-  } catch (caught: unknown) {
-    error = caught;
-  }
-  expect(error).toBeInstanceOf(KeynesError);
-  if (!(error instanceof KeynesError)) return;
-  expect(error).toMatchObject({
+  await expect(operation).rejects.toMatchObject({
+    name: "KeynesError",
     code: "command_conflict",
     details: { commandId, existingOperation, attemptedOperation },
   });

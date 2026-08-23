@@ -48,17 +48,10 @@ export class PGliteOwner {
   }
 
   close(): Promise<void> {
-    if (this.#closePromise !== undefined) {
-      return this.#closePromise;
-    }
-
     this.#closing = true;
-    this.#closePromise = this.#tail.then(() => this.#database.close());
-    this.#tail = this.#closePromise.then(
-      () => undefined,
-      () => undefined,
-    );
-    return this.#closePromise;
+    return (this.#closePromise ??= this.#tail.then(() =>
+      this.#database.close(),
+    ));
   }
 }
 

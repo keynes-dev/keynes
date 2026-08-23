@@ -4,49 +4,24 @@
     {
       "id": "0001-storage",
       "path": "0001-storage.sql",
-      "sha256": "01852024ccc43cd499248e5f93141168df9e801565057cb16ec2b25d86464f07"
+      "sha256": "d818767dd6d49b8fef406164ee935fdf7ba7d4cbea04fe39768b6c4db0c42c2f"
     },
     {
       "id": "0002-budget",
       "path": "0002-budget.sql",
-      "sha256": "35fbf1a65a23a0dcf202fc001dd058777778305dc7f6b93fbac7472fb4060d95"
+      "sha256": "c8c927700b88f34739c66ff51045f9c15f164873ba461b85a8e6b4d43f8f12a1"
     },
     {
       "id": "0003-public",
       "path": "0003-public.generated.sql",
-      "sha256": "2b5216ad3fa6b8679101ef094a75cbbb0c12693babeacb3c6e6858f2c2811853"
+      "sha256": "7252e326a9668b04dffd999f6fbfd96d21b7c99236b33fd8e71ecf95b9628382"
     }
   ],
-  "expectedObjects": [
-    {
-      "kind": "function",
-      "name": "keynes.publish_resource_type",
-      "arguments": "jsonb",
-      "returns": "jsonb"
-    },
-    {
-      "kind": "function",
-      "name": "keynes.create_budget",
-      "arguments": "jsonb",
-      "returns": "jsonb"
-    },
-    {
-      "kind": "function",
-      "name": "keynes.request",
-      "arguments": "jsonb",
-      "returns": "jsonb"
-    },
-    {
-      "kind": "function",
-      "name": "keynes.settle",
-      "arguments": "jsonb",
-      "returns": "jsonb"
-    },
-    {
-      "kind": "function",
-      "name": "keynes.get_budget",
-      "arguments": "jsonb",
-      "returns": "jsonb"
-    }
+  "expectedTargets": [
+    "keynes.publish_resource_type",
+    "keynes.create_budget",
+    "keynes.request",
+    "keynes.settle",
+    "keynes.get_budget"
   ]
 }

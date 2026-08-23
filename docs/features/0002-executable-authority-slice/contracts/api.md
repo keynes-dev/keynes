@@ -20,7 +20,7 @@ interface KeynesClient {
 
 The concrete five-method implementation, types, validators, procedure names, and error mappings are generated. Caller input amounts remain ordinary `number` values and are checked at runtime. Validated identifiers may be branded in generated return types only when generated constructors provide the caller path.
 
-## Operation manifest
+## Ordered operations
 
 | Method            | Installed target               | Permission           | Replay   | Evidence                                                   |
 | ----------------- | ------------------------------ | -------------------- | -------- | ---------------------------------------------------------- |
@@ -271,7 +271,7 @@ The ordered source manifest is the only source for generated method names and in
 - standalone input and output validators;
 - one concrete method in `generated/client.ts`;
 - SQL input/output validation and the public wrapper;
-- a binding fixture naming the installed target and generated adapter;
+- an expected target name in the installation record;
 - the same contract digest.
 
 Generation fails on an unknown operation, duplicate installed target, undeclared output, unsupported schema keyword, unstable enumeration, or target outside the closed `keynes` allowlist.
