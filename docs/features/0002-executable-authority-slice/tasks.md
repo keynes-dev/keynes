@@ -11,14 +11,14 @@
 
 **Goal**: Make one generated `publishResource` call reach a freshly installed `keynes.publish_resource_type` function in PGlite.
 
-- [ ] T001 Pin PGlite and the build-time generator dependencies, then add `generate`, `generate:check`, and `test:budget` to the existing root and SDK manifests. Update `pnpm-lock.yaml` and confirm that a frozen install accepts it.
-- [ ] T002 Add the ordered JSON Schema contract, operation manifest, canonical fixtures, and failing generator tests in `packages/contracts/` and `scripts/generate-contracts.test.ts`. Cover closed objects, canonical UUIDs, safe integers, tagged results, deterministic ordering, and unsupported schema keywords.
-- [ ] T003 Write and run the first black-box publication test in `packages/sdk/src/budget-lifecycle.test.ts`. Call the generated client against a fresh PGlite installation and record the expected missing generated target or installed function failure.
-- [ ] T004 Implement the minimum deterministic generator in `scripts/generate-contracts.ts`. Emit TypeScript types, standalone validators, the five concrete client methods, public SQL wrappers, operation metadata, fixtures, digests, migration checksums, and declared-output checks without creating a generator module directory.
-- [ ] T005 Add the hand-authored migration manifest and the storage required for installed contracts, migration records, permissions, Resource types, Budgets, Budget Resource facts, command replay, and private history records in `packages/database/migrations/`.
-- [ ] T006 Implement the shared `keynes_internal.apply_command` path and Resource publication in the Budget migration. Cover validation, authorization, replay binding, exact republication, conflict, canonical results, history evidence, and transaction rollback.
-- [ ] T007 Implement the package-private migration installer, procedure caller, PGlite owner, fixture principal context, generated error mapping, and cleanup under `packages/sdk/src/private/`. Export only generated contract types, `KeynesClient`, and `KeynesError` from the SDK entry point.
-- [ ] T008 Run the publication test until first publication, exact republication, changed-definition conflict, permission denial, replay, rollback, and no-quantity assertions pass through installed public SQL.
+- [X] T001 Pin PGlite and the build-time generator dependencies, then add `generate`, `generate:check`, and `test:budget` to the existing root and SDK manifests. Update `pnpm-lock.yaml` and confirm that a frozen install accepts it.
+- [X] T002 Add the ordered JSON Schema contract, operation manifest, canonical fixtures, and failing generator tests in `packages/contracts/` and `scripts/generate-contracts.test.ts`. Cover closed objects, canonical UUIDs, safe integers, tagged results, deterministic ordering, and unsupported schema keywords.
+- [X] T003 Write and run the first black-box publication test in `packages/sdk/src/budget-lifecycle.test.ts`. Call the generated client against a fresh PGlite installation and record the expected missing generated target or installed function failure.
+- [X] T004 Implement the minimum deterministic generator in `scripts/generate-contracts.ts`. Emit TypeScript types, standalone validators, the five concrete client methods, public SQL wrappers, operation metadata, fixtures, digests, migration checksums, and declared-output checks without creating a generator module directory.
+- [X] T005 Add the hand-authored migration manifest and the storage required for installed contracts, migration records, permissions, Resource types, Budgets, Budget Resource facts, command replay, and private history records in `packages/database/migrations/`.
+- [X] T006 Implement the shared `keynes_internal.apply_command` path and Resource publication in the Budget migration. Cover validation, authorization, replay binding, exact republication, conflict, canonical results, history evidence, and transaction rollback.
+- [X] T007 Implement the package-private migration installer, procedure caller, PGlite owner, fixture principal context, generated error mapping, and cleanup under `packages/sdk/src/private/`. Export only generated contract types, `KeynesClient`, and `KeynesError` from the SDK entry point.
+- [X] T008 Run the publication test until first publication, exact republication, changed-definition conflict, permission denial, replay, rollback, and no-quantity assertions pass through installed public SQL.
 
 **Checkpoint**: One generated client method reaches one installed database operation. No other lifecycle behavior is claimed.
 

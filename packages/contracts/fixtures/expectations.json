@@ -1,0 +1,50 @@
+{
+  "operationMethods": [
+    "publishResource",
+    "createBudget",
+    "requestBudget",
+    "settleBudget",
+    "getBudget"
+  ],
+  "installedTargets": [
+    "keynes.publish_resource_type",
+    "keynes.create_budget",
+    "keynes.request",
+    "keynes.settle",
+    "keynes.get_budget"
+  ],
+  "canonicalResourceTypeIds": [
+    "10000000-0000-0000-0000-000000000001",
+    "10000000-0000-0000-0000-000000000002"
+  ],
+  "canonicalCreateRootResources": [
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+      "amount": 100
+    },
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+      "amount": 2
+    }
+  ],
+  "canonicalRequestChildResources": [
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+      "amount": 40
+    },
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+      "amount": 1
+    }
+  ],
+  "canonicalSettleChildUsage": [
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+      "amount": 25
+    },
+    {
+      "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+      "amount": null
+    }
+  ]
+}

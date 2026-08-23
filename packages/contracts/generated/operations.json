@@ -1,0 +1,45 @@
+{
+  "contractDigest": "0c6d72159f3de62cf86c9b53cf3718231b341674387f0beaf15cf217def8a9f6",
+  "operations": [
+    {
+      "method": "publishResource",
+      "target": "keynes.publish_resource_type",
+      "permission": "publish_resource",
+      "replay": true,
+      "input": "PublishResourceCommand",
+      "output": "PublishResourceResult"
+    },
+    {
+      "method": "createBudget",
+      "target": "keynes.create_budget",
+      "permission": "create_root_budget",
+      "replay": true,
+      "input": "CreateBudgetCommand",
+      "output": "CreateBudgetResult"
+    },
+    {
+      "method": "requestBudget",
+      "target": "keynes.request",
+      "permission": "request_budget",
+      "replay": true,
+      "input": "RequestBudgetCommand",
+      "output": "RequestBudgetResult"
+    },
+    {
+      "method": "settleBudget",
+      "target": "keynes.settle",
+      "permission": "settle_budget",
+      "replay": true,
+      "input": "SettleBudgetCommand",
+      "output": "SettleBudgetResult"
+    },
+    {
+      "method": "getBudget",
+      "target": "keynes.get_budget",
+      "permission": "read_budget",
+      "replay": false,
+      "input": "GetBudgetQuery",
+      "output": "GetBudgetResult"
+    }
+  ]
+}

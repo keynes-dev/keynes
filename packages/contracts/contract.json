@@ -1,0 +1,57 @@
+{
+  "schema": "schema.json",
+  "fixtureSource": "fixtures/source.json",
+  "fixtureExpectations": "fixtures/expectations.json",
+  "operations": [
+    {
+      "method": "publishResource",
+      "target": "keynes.publish_resource_type",
+      "permission": "publish_resource",
+      "replay": true,
+      "input": "PublishResourceCommand",
+      "output": "PublishResourceResult"
+    },
+    {
+      "method": "createBudget",
+      "target": "keynes.create_budget",
+      "permission": "create_root_budget",
+      "replay": true,
+      "input": "CreateBudgetCommand",
+      "output": "CreateBudgetResult"
+    },
+    {
+      "method": "requestBudget",
+      "target": "keynes.request",
+      "permission": "request_budget",
+      "replay": true,
+      "input": "RequestBudgetCommand",
+      "output": "RequestBudgetResult"
+    },
+    {
+      "method": "settleBudget",
+      "target": "keynes.settle",
+      "permission": "settle_budget",
+      "replay": true,
+      "input": "SettleBudgetCommand",
+      "output": "SettleBudgetResult"
+    },
+    {
+      "method": "getBudget",
+      "target": "keynes.get_budget",
+      "permission": "read_budget",
+      "replay": false,
+      "input": "GetBudgetQuery",
+      "output": "GetBudgetResult"
+    }
+  ],
+  "outputs": [
+    "packages/contracts/generated/contract-digest.json",
+    "packages/contracts/generated/fixtures.json",
+    "packages/contracts/generated/operations.json",
+    "packages/database/generated/installation-record.json",
+    "packages/database/migrations/0003-public.generated.sql",
+    "packages/sdk/src/generated/client.ts",
+    "packages/sdk/src/generated/types.ts",
+    "packages/sdk/src/generated/validators.ts"
+  ]
+}

@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "bootstrap": "pnpm install --frozen-lockfile",
+    "generate": "node scripts/generate-contracts.ts",
+    "generate:check": "node scripts/generate-contracts.ts --check",
     "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml packages scripts",
     "format:check": "pnpm format",
     "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json .oxlintrc.json .oxfmtrc.json .github/workflows/verify.yml packages scripts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "test:feature-identity": "node --test scripts/feature-identity.test.mjs",
+    "test:generator": "vitest run scripts/generate-contracts.test.ts",
+    "test:budget": "pnpm --filter @keynes/sdk test:budget",
     "check:feature-identity": "node scripts/feature-identity.mjs check-repository --json",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -18,10 +22,15 @@
     "verify": "pnpm test:feature-identity && pnpm check:feature-identity && turbo run quality typecheck test && pnpm check:deps"
   },
   "devDependencies": {
+    "@types/node": "24.13.3",
+    "ajv": "8.20.0",
+    "canonicalize": "4.0.0",
+    "json-schema-to-typescript": "15.0.4",
     "oxfmt": "0.64.0",
     "oxlint": "1.79.0",
     "turbo": "2.10.11",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
   },
   "engines": {
     "node": ">=24",

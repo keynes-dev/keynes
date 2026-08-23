@@ -6,6 +6,13 @@
 
 # Misc
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.log
+.env*
 
 # Dependencies
 node_modules/

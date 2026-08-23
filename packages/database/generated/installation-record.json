@@ -1,0 +1,52 @@
+{
+  "contractDigest": "0c6d72159f3de62cf86c9b53cf3718231b341674387f0beaf15cf217def8a9f6",
+  "migrations": [
+    {
+      "id": "0001-storage",
+      "path": "0001-storage.sql",
+      "sha256": "01852024ccc43cd499248e5f93141168df9e801565057cb16ec2b25d86464f07"
+    },
+    {
+      "id": "0002-budget",
+      "path": "0002-budget.sql",
+      "sha256": "5ed0ac7060e73673c112d261fcbd1dedf015c6ab0a742ac34fa4fc2b643a5b3d"
+    },
+    {
+      "id": "0003-public",
+      "path": "0003-public.generated.sql",
+      "sha256": "2b5216ad3fa6b8679101ef094a75cbbb0c12693babeacb3c6e6858f2c2811853"
+    }
+  ],
+  "expectedObjects": [
+    {
+      "kind": "function",
+      "name": "keynes.publish_resource_type",
+      "arguments": "jsonb",
+      "returns": "jsonb"
+    },
+    {
+      "kind": "function",
+      "name": "keynes.create_budget",
+      "arguments": "jsonb",
+      "returns": "jsonb"
+    },
+    {
+      "kind": "function",
+      "name": "keynes.request",
+      "arguments": "jsonb",
+      "returns": "jsonb"
+    },
+    {
+      "kind": "function",
+      "name": "keynes.settle",
+      "arguments": "jsonb",
+      "returns": "jsonb"
+    },
+    {
+      "kind": "function",
+      "name": "keynes.get_budget",
+      "arguments": "jsonb",
+      "returns": "jsonb"
+    }
+  ]
+}
