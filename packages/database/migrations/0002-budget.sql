@@ -591,6 +591,8 @@ DECLARE
   newly_known jsonb := '[]'::jsonb;
   unresolved jsonb;
   deficits jsonb;
+  denial_reasons jsonb;
+  available_amount numeric;
   domain_error_message text;
 BEGIN
   IF operation_name = 'publishResource' THEN
@@ -747,7 +749,12 @@ BEGIN
         );
       END IF;
       PERFORM 1 FROM keynes_internal.budget_resources AS locked
-      WHERE locked.tenant_id = tenant AND locked.budget_id = parent_id
+      WHERE locked.tenant_id = tenant
+        AND locked.budget_id = parent_id
+        AND locked.resource_type_id IN (
+          SELECT (requested->>'resourceTypeId')::uuid
+          FROM jsonb_array_elements(items) AS requested
+        )
       ORDER BY locked.resource_type_id FOR UPDATE;
       FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
         IF NOT EXISTS (
@@ -758,42 +765,63 @@ BEGIN
             'resource_type_not_found', jsonb_build_object('resourceTypeId', item->>'resourceTypeId')
           );
         END IF;
-        IF coalesce((SELECT (resource->>'available')::numeric
+      END LOOP;
+      denial_reasons := '[]'::jsonb;
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        SELECT coalesce((SELECT (resource->>'available')::numeric
           FROM jsonb_array_elements(
             keynes_internal.budget_projection(tenant, parent_id)->'resources'
           ) AS resource
           WHERE resource->'resourceType'->>'resourceTypeId' = item->>'resourceTypeId'), 0)
-          < (item->>'amount')::numeric THEN
-          RAISE EXCEPTION USING ERRCODE = '0A000',
-            MESSAGE = 'request denial is not implemented in this phase';
+        INTO available_amount;
+        IF available_amount < (item->>'amount')::numeric THEN
+          denial_reasons := denial_reasons || jsonb_build_array(jsonb_build_object(
+            'code', 'insufficient_available',
+            'resourceTypeId', item->>'resourceTypeId',
+            'requested', (item->>'amount')::numeric,
+            'available', available_amount
+          ));
         END IF;
       END LOOP;
-      INSERT INTO keynes_internal.budgets (
-        tenant_id, budget_id, parent_budget_id, root_budget_id,
-        depth, lifecycle, created_command_id
-      ) VALUES (
-        tenant, command_id, parent_id, budget.root_budget_id,
-        budget.depth + 1, 'active', command_id
-      );
-      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
-        INSERT INTO keynes_internal.budget_resources (
-          tenant_id, budget_id, resource_type_id, allocated_amount
-        ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
-      END LOOP;
-      PERFORM keynes_internal.checkpoint('after_domain_mutation');
-      PERFORM keynes_internal.append_history(
-        tenant, budget.root_budget_id, command_id, 'request_approved', command_id,
-        jsonb_build_object(
+      IF jsonb_array_length(denial_reasons) > 0 THEN
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(
+          tenant, budget.root_budget_id, command_id, 'request_denied', parent_id,
+          jsonb_build_object('parentBudgetId', parent_id::text, 'reasons', denial_reasons)
+        );
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object(
+          'kind', 'denied', 'commandId', command_id::text,
+          'parentBudgetId', parent_id::text, 'reasons', denial_reasons
+        );
+      ELSE
+        INSERT INTO keynes_internal.budgets (
+          tenant_id, budget_id, parent_budget_id, root_budget_id,
+          depth, lifecycle, created_command_id
+        ) VALUES (
+          tenant, command_id, parent_id, budget.root_budget_id,
+          budget.depth + 1, 'active', command_id
+        );
+        FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+          INSERT INTO keynes_internal.budget_resources (
+            tenant_id, budget_id, resource_type_id, allocated_amount
+          ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
+        END LOOP;
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(
+          tenant, budget.root_budget_id, command_id, 'request_approved', command_id,
+          jsonb_build_object(
+            'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
+            'resources', items
+          )
+        );
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object(
+          'kind', 'approved', 'commandId', command_id::text,
           'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
           'resources', items
-        )
-      );
-      PERFORM keynes_internal.checkpoint('after_history_insertion');
-      result := jsonb_build_object(
-        'kind', 'approved', 'commandId', command_id::text,
-        'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
-        'resources', items
-      );
+        );
+      END IF;
     ELSE
       SELECT * INTO budget FROM keynes_internal.budgets
       WHERE tenant_id = tenant AND budget_id = target_id FOR UPDATE;

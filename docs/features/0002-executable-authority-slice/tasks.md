@@ -39,8 +39,8 @@
 
 **Goal**: Deny an unfundable exact envelope without state drift and keep permission failures distinct from denials.
 
-- [ ] T015 Write and run failing cases for single-Resource denial, multi-Resource denial, serialized sibling conservation, malformed envelopes, unsupported funding fields, unpublished Resources, inactive parents, and independent request, settlement, and read permissions.
-- [ ] T016 Implement whole-envelope funding evaluation, canonical `insufficient_available` reasons, no partial reservation, denial history, and the missing validation and authorization branches until the focused and lifecycle suites pass.
+- [X] T015 Write and run failing cases for single-Resource denial, multi-Resource denial, serialized sibling conservation, malformed envelopes, unsupported funding fields, unpublished Resources, inactive parents, and independent request, settlement, and read permissions.
+- [X] T016 Implement whole-envelope funding evaluation, canonical `insufficient_available` reasons, no partial reservation, denial history, and the missing validation and authorization branches until the focused and lifecycle suites pass.
 
 ## Phase 4: Complete settlement accounting
 
