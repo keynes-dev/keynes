@@ -6,7 +6,7 @@
 
 ## Responsibility
 
-`docs/` owns Keynes product, architecture, sequencing, decisions, and future contributor guidance. Document ownership remains explicit: `product.md` owns the product thesis and commitments, `architecture.md` owns runtime semantics and boundaries, `roadmap.md` owns implementation order and evidence gates, and accepted ADRs record durable architectural decisions.
+`docs/` owns Keynes product, architecture, sequencing, research agenda, decisions, and future contributor guidance. Document ownership remains explicit: `product.md` owns the product thesis and commitments, `architecture.md` owns runtime semantics and boundaries, `roadmap.md` owns implementation order and evidence gates, [research.md](research.md) owns the proposed research program, and accepted ADRs record durable architectural decisions.
 
 `docs/features/` contains the specification, plan, tasks, and supporting design records for each numbered Spec Kit feature. `roadmap.md` groups those features into unnumbered stages with shared outcomes and exit gates. Keynes does not maintain a separate epic artifact or lifecycle.
 
