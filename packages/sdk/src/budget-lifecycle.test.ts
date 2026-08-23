@@ -172,6 +172,130 @@ describe("Budget lifecycle", () => {
       }
     },
   );
+
+  it("completes one funded child lifecycle and reads its root-lineage history", async () => {
+    const local = await openLocalKeynes();
+
+    try {
+      const client = local.clientFor("product-fixture");
+      const resource = await client.publishResource({
+        commandId: "10000000-0000-0000-0000-000000000101",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const root = await client.createBudget({
+        commandId: "20000000-0000-0000-0000-000000000101",
+        resources: [
+          {
+            resourceTypeId: resource.resourceType.resourceTypeId,
+            amount: 100,
+          },
+        ],
+      });
+      const request = await client.requestBudget({
+        commandId: "30000000-0000-0000-0000-000000000101",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          {
+            resourceTypeId: resource.resourceType.resourceTypeId,
+            amount: 40,
+          },
+        ],
+      });
+
+      expect(request.kind).toBe("approved");
+      if (request.kind !== "approved") {
+        throw new Error("the product fixture request must be funded");
+      }
+
+      const settlement = await client.settleBudget({
+        commandId: "40000000-0000-0000-0000-000000000101",
+        budgetId: request.childBudgetId,
+        usage: [
+          {
+            resourceTypeId: resource.resourceType.resourceTypeId,
+            amount: 25,
+          },
+        ],
+      });
+      expect(settlement.kind).toBe("settled");
+
+      const result = await client.getBudget({
+        budgetId: request.childBudgetId,
+      });
+
+      expect(result.budget).toEqual({
+        budgetId: request.childBudgetId,
+        parentBudgetId: root.budget.budgetId,
+        rootBudgetId: root.budget.budgetId,
+        depth: 1,
+        lifecycle: "settled",
+        resources: [
+          {
+            resourceType: resource.resourceType,
+            allocated: 40,
+            available: 15,
+            committed: 0,
+            directUsage: 25,
+            subtreeObservedUsage: 25,
+            unresolved: false,
+            deficit: 0,
+          },
+        ],
+      });
+      expect(result.history).toEqual({
+        rootBudgetId: root.budget.budgetId,
+        entries: [
+          {
+            kind: "budget_created",
+            entryId: expect.any(String),
+            sequence: 1,
+            commandId: root.budget.budgetId,
+            subjectBudgetId: root.budget.budgetId,
+            rootBudgetId: root.budget.budgetId,
+            resources: [
+              {
+                resourceTypeId: resource.resourceType.resourceTypeId,
+                amount: 100,
+              },
+            ],
+          },
+          {
+            kind: "request_approved",
+            entryId: expect.any(String),
+            sequence: 2,
+            commandId: request.commandId,
+            subjectBudgetId: request.childBudgetId,
+            parentBudgetId: root.budget.budgetId,
+            childBudgetId: request.childBudgetId,
+            resources: request.resources,
+          },
+          {
+            kind: "budget_settlement_recorded",
+            entryId: expect.any(String),
+            sequence: 3,
+            commandId: "40000000-0000-0000-0000-000000000101",
+            subjectBudgetId: request.childBudgetId,
+            budgetId: request.childBudgetId,
+            newlyKnown: [
+              {
+                resourceTypeId: resource.resourceType.resourceTypeId,
+                amount: 25,
+              },
+            ],
+            unresolvedResourceTypeIds: [],
+            lifecycle: "settled",
+            isolatedDeficits: [],
+          },
+        ],
+      });
+    } finally {
+      await local.close();
+    }
+  });
 });
 
 async function expectKeynesError(

@@ -26,12 +26,12 @@
 
 **Goal**: Publish a Resource type, allocate a root Budget, request one child, settle it, and read its projection and complete root-lineage history.
 
-- [ ] T009 Extend `packages/sdk/src/budget-lifecycle.test.ts` with root allocation, an exact funded request, known-usage settlement, combined `getBudget`, and ordered Budget history assertions. Run the suite and record the expected missing behavior before implementation.
-- [ ] T010 Implement authorized root allocation with published Resource validation, safe arithmetic, exact quantity creation, replay, and one root-lineage history entry.
-- [ ] T011 Implement exact parent-funded request with whole-envelope locking, atomic reservation, child creation, replay, and one approval history entry.
-- [ ] T012 Implement first settlement with monotone direct usage, Budget sealing, consumable accounting, replay, and one settlement history entry.
-- [ ] T013 Implement `keynes.get_budget(jsonb) -> jsonb` and the generated `getBudget` mapping. Return `{ budget, history }` from one transaction snapshot. Include the complete unpaginated history for the selected Budget's root lineage.
-- [ ] T014 Run the lifecycle suite until all five generated methods pass through a fresh installed database without direct private-table state edits.
+- [X] T009 Extend `packages/sdk/src/budget-lifecycle.test.ts` with root allocation, an exact funded request, known-usage settlement, combined `getBudget`, and ordered Budget history assertions. Run the suite and record the expected missing behavior before implementation.
+- [X] T010 Implement authorized root allocation with published Resource validation, safe arithmetic, exact quantity creation, replay, and one root-lineage history entry.
+- [X] T011 Implement exact parent-funded request with whole-envelope locking, atomic reservation, child creation, replay, and one approval history entry.
+- [X] T012 Implement first settlement with monotone direct usage, Budget sealing, consumable accounting, replay, and one settlement history entry.
+- [X] T013 Implement `keynes.get_budget(jsonb) -> jsonb` and the generated `getBudget` mapping. Return `{ budget, history }` from one transaction snapshot. Include the complete unpaginated history for the selected Budget's root lineage.
+- [X] T014 Run the lifecycle suite until all five generated methods pass through a fresh installed database without direct private-table state edits.
 
 **Checkpoint**: The smallest complete generated-client-to-installed-database lifecycle passes in PGlite. Native PostgreSQL and every other host remain `NOT RUN`.
 
