@@ -24,6 +24,7 @@ export type FixturePrincipal = keyof typeof FIXTURE_PRINCIPALS;
 
 export interface ClientFixtureOptions {
   readonly checkpoint?: RollbackCheckpoint;
+  readonly dropResponseAfterCommitOnce?: boolean;
 }
 
 export interface LocalKeynes {
@@ -55,6 +56,7 @@ export async function openLocalKeynes(): Promise<LocalKeynes> {
           tenantId: FIXTURE_TENANT_ID,
           principalId: FIXTURE_PRINCIPALS[fixture],
           checkpoint: options?.checkpoint,
+          dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
         }),
       );
     },

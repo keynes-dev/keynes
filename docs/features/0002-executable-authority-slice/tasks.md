@@ -53,8 +53,8 @@
 
 **Goal**: Recover committed results after a lost response and leave no partial state after declared pre-commit failures.
 
-- [ ] T019 Write and run failing replay and rollback cases for all four mutations. Cover exact retry, cross-principal retry, changed operation, changed target, changed body, and failures after command binding, base-fact mutation, result storage, and private history insertion.
-- [ ] T020 Complete canonical replay matching, stored-result recovery, command conflicts, the SDK `replayed` overlay, and the private transaction-local checkpoint seam until replay, rollback, and lifecycle suites pass.
+- [X] T019 Write and run failing replay and rollback cases for all four mutations. Cover exact retry, cross-principal retry, changed operation, changed target, changed body, and failures after command binding, base-fact mutation, result storage, and private history insertion.
+- [X] T020 Complete canonical replay matching, stored-result recovery, command conflicts, the SDK `replayed` overlay, and the private transaction-local checkpoint seam until replay, rollback, and lifecycle suites pass.
 
 ## Phase 6: Close generation and acceptance
 

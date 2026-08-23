@@ -21,6 +21,7 @@ export interface TransactionContext {
   readonly tenantId: string;
   readonly principalId: string;
   readonly checkpoint?: RollbackCheckpoint;
+  readonly dropResponseAfterCommitOnce?: boolean;
 }
 
 export class PGliteOwner {
@@ -64,10 +65,13 @@ export class PGliteOwner {
 export class PGliteProcedureCaller implements ProcedureCaller {
   readonly #owner: PGliteOwner;
   readonly #context: TransactionContext;
+  #dropResponseAfterCommitOnce: boolean;
 
   constructor(owner: PGliteOwner, context: TransactionContext) {
     this.#owner = owner;
     this.#context = context;
+    this.#dropResponseAfterCommitOnce =
+      context.dropResponseAfterCommitOnce ?? false;
   }
 
   call(target: InstalledTarget, input: unknown): Promise<unknown> {
@@ -76,8 +80,8 @@ export class PGliteProcedureCaller implements ProcedureCaller {
       return Promise.reject(new TypeError("Procedure input must be JSON"));
     }
 
-    return this.#owner.run((database) =>
-      database.transaction(async (transaction) => {
+    return this.#owner.run(async (database) => {
+      const wire = await database.transaction(async (transaction) => {
         await setTransactionContext(transaction, this.#context);
         const response = await transaction.query<{ response: unknown }>(
           TARGET_QUERIES[target],
@@ -91,8 +95,17 @@ export class PGliteProcedureCaller implements ProcedureCaller {
         }
 
         return parseDatabaseJson(response.rows[0]?.response);
-      }),
-    );
+      });
+
+      if (this.#dropResponseAfterCommitOnce) {
+        this.#dropResponseAfterCommitOnce = false;
+        throw new Error(
+          "Simulated lost response after committed procedure call",
+        );
+      }
+
+      return wire;
+    });
   }
 }
 
