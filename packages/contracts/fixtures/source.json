@@ -1,0 +1,73 @@
+{
+  "tenantId": "00000000-0000-0000-0000-000000000001",
+  "principals": {
+    "definer": "00000000-0000-0000-0000-000000000011",
+    "allocator": "00000000-0000-0000-0000-000000000012",
+    "requester": "00000000-0000-0000-0000-000000000013",
+    "settlement": "00000000-0000-0000-0000-000000000014",
+    "reader": "00000000-0000-0000-0000-000000000015",
+    "product": "00000000-0000-0000-0000-000000000016"
+  },
+  "commands": {
+    "defineConsumable": {
+      "commandId": "10000000-0000-0000-0000-000000000001",
+      "definition": {
+        "canonicalName": "model_tokens",
+        "unit": "token",
+        "accountingBehavior": "consumable"
+      }
+    },
+    "defineReusable": {
+      "commandId": "10000000-0000-0000-0000-000000000002",
+      "definition": {
+        "canonicalName": "worker_slots",
+        "unit": "slot",
+        "accountingBehavior": "reusable"
+      }
+    },
+    "createRoot": {
+      "commandId": "20000000-0000-0000-0000-000000000001",
+      "resources": [
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+          "amount": 2
+        },
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+          "amount": 100
+        }
+      ]
+    },
+    "requestChild": {
+      "commandId": "30000000-0000-0000-0000-000000000001",
+      "parentBudgetId": "20000000-0000-0000-0000-000000000001",
+      "resources": [
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+          "amount": 1
+        },
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+          "amount": 40
+        }
+      ]
+    },
+    "settleChild": {
+      "commandId": "40000000-0000-0000-0000-000000000001",
+      "budgetId": "30000000-0000-0000-0000-000000000001",
+      "usage": [
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+          "amount": null
+        },
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+          "amount": 25
+        }
+      ]
+    },
+    "getChild": {
+      "budgetId": "30000000-0000-0000-0000-000000000001"
+    }
+  }
+}

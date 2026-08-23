@@ -1,0 +1,711 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keynes.local/contracts/budget.json",
+  "title": "Keynes Budget contract",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*:[0-9a-f]{64}$"
+    },
+    "Amount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "ResourceAmount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceTypeId", "amount"],
+      "properties": {
+        "resourceTypeId": { "$ref": "#/$defs/Uuid" },
+        "amount": { "$ref": "#/$defs/Amount" }
+      }
+    },
+    "ResourceEnvelope": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ResourceAmount" }
+    },
+    "UsageAmount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceTypeId", "amount"],
+      "properties": {
+        "resourceTypeId": { "$ref": "#/$defs/Uuid" },
+        "amount": {
+          "oneOf": [{ "$ref": "#/$defs/Amount" }, { "type": "null" }]
+        }
+      }
+    },
+    "UsageEnvelope": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/UsageAmount" }
+    },
+    "ResourceDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonicalName", "unit", "accountingBehavior"],
+      "properties": {
+        "canonicalName": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$"
+        },
+        "accountingBehavior": {
+          "type": "string",
+          "enum": ["consumable", "reusable"]
+        }
+      }
+    },
+    "ResourceTypeProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resourceTypeId",
+        "canonicalName",
+        "unit",
+        "accountingBehavior",
+        "definitionDigest"
+      ],
+      "properties": {
+        "resourceTypeId": { "$ref": "#/$defs/Uuid" },
+        "canonicalName": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
+        },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "accountingBehavior": {
+          "type": "string",
+          "enum": ["consumable", "reusable"]
+        },
+        "definitionDigest": { "$ref": "#/$defs/Digest" }
+      }
+    },
+    "BudgetResourceProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resourceType",
+        "allocated",
+        "available",
+        "committed",
+        "directUsage",
+        "subtreeObservedUsage",
+        "unresolved",
+        "deficit"
+      ],
+      "properties": {
+        "resourceType": { "$ref": "#/$defs/ResourceTypeProjection" },
+        "allocated": { "$ref": "#/$defs/Amount" },
+        "available": { "$ref": "#/$defs/Amount" },
+        "committed": { "$ref": "#/$defs/Amount" },
+        "directUsage": {
+          "oneOf": [{ "$ref": "#/$defs/Amount" }, { "type": "null" }]
+        },
+        "subtreeObservedUsage": { "$ref": "#/$defs/Amount" },
+        "unresolved": { "type": "boolean" },
+        "deficit": { "$ref": "#/$defs/Amount" }
+      }
+    },
+    "BudgetProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "budgetId",
+        "parentBudgetId",
+        "rootBudgetId",
+        "depth",
+        "lifecycle",
+        "resources"
+      ],
+      "properties": {
+        "budgetId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": {
+          "oneOf": [{ "$ref": "#/$defs/Uuid" }, { "type": "null" }]
+        },
+        "rootBudgetId": { "$ref": "#/$defs/Uuid" },
+        "depth": { "$ref": "#/$defs/Amount" },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["active", "settling", "settled"]
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/BudgetResourceProjection" }
+        }
+      }
+    },
+    "RequestDenialReason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "resourceTypeId", "requested", "available"],
+      "properties": {
+        "code": { "const": "insufficient_available" },
+        "resourceTypeId": { "$ref": "#/$defs/Uuid" },
+        "requested": { "$ref": "#/$defs/Amount" },
+        "available": { "$ref": "#/$defs/Amount" }
+      }
+    },
+    "BudgetCreatedHistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entryId",
+        "sequence",
+        "commandId",
+        "subjectBudgetId",
+        "rootBudgetId",
+        "resources"
+      ],
+      "properties": {
+        "kind": { "const": "budget_created" },
+        "entryId": { "$ref": "#/$defs/Uuid" },
+        "sequence": { "$ref": "#/$defs/Amount" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "subjectBudgetId": { "$ref": "#/$defs/Uuid" },
+        "rootBudgetId": { "$ref": "#/$defs/Uuid" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+      }
+    },
+    "RequestApprovedHistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entryId",
+        "sequence",
+        "commandId",
+        "subjectBudgetId",
+        "parentBudgetId",
+        "childBudgetId",
+        "resources"
+      ],
+      "properties": {
+        "kind": { "const": "request_approved" },
+        "entryId": { "$ref": "#/$defs/Uuid" },
+        "sequence": { "$ref": "#/$defs/Amount" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "subjectBudgetId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": { "$ref": "#/$defs/Uuid" },
+        "childBudgetId": { "$ref": "#/$defs/Uuid" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+      }
+    },
+    "RequestDeniedHistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entryId",
+        "sequence",
+        "commandId",
+        "subjectBudgetId",
+        "parentBudgetId",
+        "reasons"
+      ],
+      "properties": {
+        "kind": { "const": "request_denied" },
+        "entryId": { "$ref": "#/$defs/Uuid" },
+        "sequence": { "$ref": "#/$defs/Amount" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "subjectBudgetId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": { "$ref": "#/$defs/Uuid" },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RequestDenialReason" }
+        }
+      }
+    },
+    "BudgetSettlementRecordedHistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entryId",
+        "sequence",
+        "commandId",
+        "subjectBudgetId",
+        "budgetId",
+        "newlyKnown",
+        "unresolvedResourceTypeIds",
+        "lifecycle",
+        "isolatedDeficits"
+      ],
+      "properties": {
+        "kind": { "const": "budget_settlement_recorded" },
+        "entryId": { "$ref": "#/$defs/Uuid" },
+        "sequence": { "$ref": "#/$defs/Amount" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "subjectBudgetId": { "$ref": "#/$defs/Uuid" },
+        "budgetId": { "$ref": "#/$defs/Uuid" },
+        "newlyKnown": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ResourceAmount" }
+        },
+        "unresolvedResourceTypeIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Uuid" }
+        },
+        "lifecycle": { "enum": ["settling", "settled"] },
+        "isolatedDeficits": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ResourceAmount" }
+        }
+      }
+    },
+    "BudgetHistoryEntry": {
+      "oneOf": [
+        { "$ref": "#/$defs/BudgetCreatedHistoryEntry" },
+        { "$ref": "#/$defs/RequestApprovedHistoryEntry" },
+        { "$ref": "#/$defs/RequestDeniedHistoryEntry" },
+        { "$ref": "#/$defs/BudgetSettlementRecordedHistoryEntry" }
+      ]
+    },
+    "BudgetHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootBudgetId", "entries"],
+      "properties": {
+        "rootBudgetId": { "$ref": "#/$defs/Uuid" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BudgetHistoryEntry" }
+        }
+      }
+    },
+    "DefineResourceTypeCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "definition"],
+      "properties": {
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "definition": { "$ref": "#/$defs/ResourceDefinition" }
+      }
+    },
+    "DefineResourceTypeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "resourceType", "definitionEvidence", "replayed"],
+      "properties": {
+        "kind": { "const": "defined" },
+        "resourceType": { "$ref": "#/$defs/ResourceTypeProjection" },
+        "definitionEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "commandId", "principalId", "definitionDigest"],
+          "properties": {
+            "kind": { "const": "resource_type_defined" },
+            "commandId": { "$ref": "#/$defs/Uuid" },
+            "principalId": { "$ref": "#/$defs/Uuid" },
+            "definitionDigest": { "$ref": "#/$defs/Digest" }
+          }
+        },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "CreateBudgetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "resources"],
+      "properties": {
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+      }
+    },
+    "CreateBudgetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "budget", "replayed"],
+      "properties": {
+        "kind": { "const": "created" },
+        "budget": { "$ref": "#/$defs/BudgetProjection" },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "RequestBudgetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "parentBudgetId", "resources"],
+      "properties": {
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": { "$ref": "#/$defs/Uuid" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+      }
+    },
+    "RequestApproved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "commandId",
+        "parentBudgetId",
+        "childBudgetId",
+        "resources",
+        "replayed"
+      ],
+      "properties": {
+        "kind": { "const": "approved" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": { "$ref": "#/$defs/Uuid" },
+        "childBudgetId": { "$ref": "#/$defs/Uuid" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "RequestDenied": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "commandId",
+        "parentBudgetId",
+        "reasons",
+        "replayed"
+      ],
+      "properties": {
+        "kind": { "const": "denied" },
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "parentBudgetId": { "$ref": "#/$defs/Uuid" },
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RequestDenialReason" }
+        },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "RequestBudgetResult": {
+      "oneOf": [
+        { "$ref": "#/$defs/RequestApproved" },
+        { "$ref": "#/$defs/RequestDenied" }
+      ]
+    },
+    "SettleBudgetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "budgetId", "usage"],
+      "properties": {
+        "commandId": { "$ref": "#/$defs/Uuid" },
+        "budgetId": { "$ref": "#/$defs/Uuid" },
+        "usage": { "$ref": "#/$defs/UsageEnvelope" }
+      }
+    },
+    "SettleBudgetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "budget",
+        "newlyKnown",
+        "unresolvedResourceTypeIds",
+        "replayed"
+      ],
+      "properties": {
+        "kind": { "enum": ["settling", "settled"] },
+        "budget": { "$ref": "#/$defs/BudgetProjection" },
+        "newlyKnown": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ResourceAmount" }
+        },
+        "unresolvedResourceTypeIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Uuid" }
+        },
+        "replayed": { "type": "boolean" }
+      }
+    },
+    "GetBudgetQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budgetId"],
+      "properties": {
+        "budgetId": { "$ref": "#/$defs/Uuid" }
+      }
+    },
+    "GetBudgetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["budget", "history"],
+      "properties": {
+        "budget": { "$ref": "#/$defs/BudgetProjection" },
+        "history": { "$ref": "#/$defs/BudgetHistory" }
+      }
+    },
+    "OperationName": {
+      "enum": [
+        "defineResource",
+        "createBudget",
+        "requestBudget",
+        "settleBudget",
+        "getBudget"
+      ]
+    },
+    "PermissionName": {
+      "enum": [
+        "define_resource_type",
+        "create_root_budget",
+        "request_budget",
+        "settle_budget",
+        "read_budget"
+      ]
+    },
+    "ValidationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "rule"],
+      "properties": {
+        "path": { "type": "string" },
+        "rule": { "type": "string" }
+      }
+    },
+    "ErrorEnvelope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "invalid_command" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["operation", "issues"],
+              "properties": {
+                "operation": { "$ref": "#/$defs/OperationName" },
+                "issues": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": { "$ref": "#/$defs/ValidationIssue" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "unauthorized" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["operation", "requiredPermission"],
+              "properties": {
+                "operation": { "$ref": "#/$defs/OperationName" },
+                "requiredPermission": { "$ref": "#/$defs/PermissionName" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "command_conflict" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "commandId",
+                "existingOperation",
+                "attemptedOperation"
+              ],
+              "properties": {
+                "commandId": { "$ref": "#/$defs/Uuid" },
+                "existingOperation": { "$ref": "#/$defs/OperationName" },
+                "attemptedOperation": { "$ref": "#/$defs/OperationName" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "resource_type_conflict" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "canonicalName",
+                "existingDefinitionDigest",
+                "attemptedDefinitionDigest"
+              ],
+              "properties": {
+                "canonicalName": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,62}$"
+                },
+                "existingDefinitionDigest": { "$ref": "#/$defs/Digest" },
+                "attemptedDefinitionDigest": { "$ref": "#/$defs/Digest" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "resource_type_not_found" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["resourceTypeId"],
+              "properties": {
+                "resourceTypeId": { "$ref": "#/$defs/Uuid" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "budget_not_found" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["budgetId"],
+              "properties": { "budgetId": { "$ref": "#/$defs/Uuid" } }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "budget_not_active" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["budgetId", "lifecycle"],
+              "properties": {
+                "budgetId": { "$ref": "#/$defs/Uuid" },
+                "lifecycle": {
+                  "enum": ["active", "settling", "settled"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "usage_conflict" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "budgetId",
+                "resourceTypeId",
+                "existing",
+                "attempted"
+              ],
+              "properties": {
+                "budgetId": { "$ref": "#/$defs/Uuid" },
+                "resourceTypeId": { "$ref": "#/$defs/Uuid" },
+                "existing": { "$ref": "#/$defs/Amount" },
+                "attempted": { "$ref": "#/$defs/Amount" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "arithmetic_error" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["operation", "resourceTypeId"],
+              "properties": {
+                "operation": { "$ref": "#/$defs/OperationName" },
+                "resourceTypeId": { "$ref": "#/$defs/Uuid" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "contract_mismatch" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["clientDigest", "installedDigest"],
+              "properties": {
+                "clientDigest": { "$ref": "#/$defs/Digest" },
+                "installedDigest": { "$ref": "#/$defs/Digest" }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code", "details"],
+          "properties": {
+            "kind": { "const": "error" },
+            "code": { "const": "installation_drift" },
+            "details": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["migrationId", "expectedChecksum", "actualChecksum"],
+              "properties": {
+                "migrationId": { "type": "string", "minLength": 1 },
+                "expectedChecksum": { "$ref": "#/$defs/Digest" },
+                "actualChecksum": { "$ref": "#/$defs/Digest" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

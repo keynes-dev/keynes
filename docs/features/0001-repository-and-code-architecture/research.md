@@ -12,7 +12,7 @@ This document records the architecture decisions approved for FEAT-0001. The fea
 
 ## D002 — Runtime topology to scaffold
 
-**Decision**: Reserve one PostgreSQL SQL/PL/pgSQL authority boundary, one TypeScript SDK with private local PGlite, and one private TypeScript Cloud service. TypeScript is the sole SDK and Cloud service language.
+**Decision**: Reserve one PostgreSQL SQL/PL/pgSQL database boundary, one TypeScript SDK with private local PGlite, and one private TypeScript Cloud service. TypeScript is the sole SDK and Cloud service language.
 
 **Rationale**: One application language minimizes the public and internal surface while preserving one future database implementation of Budget behavior.
 
@@ -24,7 +24,7 @@ This document records the architecture decisions approved for FEAT-0001. The fea
 
 **Rationale**: Each ownership area has a current purpose. One `packages/` namespace gives all product code a predictable home without making every source boundary a publishable or runnable package. Repository automation and documentation remain visibly separate.
 
-**Alternatives considered**: Flat root code areas, nesting only pnpm workspaces, `sdks/typescript/`, `services/cloud/`, `database/authority-core/`, `distribution/postgresql/`, dedicated code-generation and verification workspaces, and top-level test suites.
+**Alternatives considered**: Flat root code areas, nesting only pnpm workspaces, `sdks/typescript/`, `services/cloud/`, `database/core/`, `distribution/postgresql/`, dedicated code-generation and verification workspaces, and top-level test suites.
 
 ## D004 — Workspace orchestration and quality tools
 
@@ -54,7 +54,7 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D007 — Generation is deferred
 
-**Decision**: FEAT-0001 creates no generator, synthetic contract, generated output, digest format, or drift check. the executable authority stage introduces generation under `scripts/` when versioned contracts and database inputs exist.
+**Decision**: FEAT-0001 creates no generator, synthetic contract, generated output, digest format, or drift check. The executable database stage introduces generation under `scripts/` when contract and database inputs exist.
 
 **Rationale**: A generator without real inputs would test scaffolding rather than the contract system Keynes will actually ship.
 
@@ -78,7 +78,7 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D010 — Continuous integration and cache trust
 
-**Decision**: Use GitHub Actions with one fixed Linux x64 runner for pull requests and pushes. Pin third-party actions to full commit SHAs, grant read-only permissions by default, and do not use `pull_request_target` for untrusted code. CI may cache the pnpm download store from trusted refs but not Turborepo task outputs.
+**Decision**: Use GitHub Actions with one fixed Linux x64 runner for pull requests. Pin third-party actions to full commit SHAs, grant read-only permissions by default, and do not use `pull_request_target` for untrusted code. CI may cache the pnpm download store from trusted refs but not Turborepo task outputs.
 
 **Rationale**: This is the smallest provider-free CI path that mirrors local verification and avoids unsigned executable cache output becoming an input.
 

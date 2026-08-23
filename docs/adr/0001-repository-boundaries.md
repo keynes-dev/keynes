@@ -8,7 +8,7 @@
 
 ## Context and problem statement
 
-Keynes needs repository ownership and a repeatable engineering baseline before runtime work begins. The target architecture includes contracts, one PostgreSQL authority core, one TypeScript SDK with local PGlite support, and one private TypeScript Cloud service. Creating a package, distribution, or verification workspace for every future deliverable would add empty boundaries and could make unimplemented behavior appear qualified.
+Keynes needs repository ownership and a repeatable engineering baseline before runtime work begins. The target architecture includes contracts, one PostgreSQL database core, one TypeScript SDK with local PGlite support, and one private TypeScript Cloud service. Creating a package, distribution, or verification workspace for every future deliverable would add empty boundaries and could make unimplemented behavior appear qualified.
 
 FEAT-0001 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-host evidence.
 
@@ -24,7 +24,7 @@ FEAT-0001 must establish useful ownership without implementing Keynes behavior, 
 
 1. Use six lean ownership areas, nesting all four product-code areas under a non-owning `packages/` namespace.
 2. Nest only the SDK and Cloud workspaces under `packages/`, while keeping contracts and database sources at the root.
-3. Create nested authority-core, distribution, code-generation, verification, and test-lane packages immediately.
+3. Create nested database, distribution, code-generation, verification, and test-lane packages immediately.
 4. Keep all future sources in one undifferentiated root workspace.
 
 ## Decision outcome
@@ -37,20 +37,20 @@ Only `packages/sdk/` and `packages/cloud/` are pnpm workspaces. Their provisiona
 
 | Area | Responsibility | Allowed or public edge |
 | --- | --- | --- |
-| `packages/contracts/` | Versioned logical interfaces and canonical fixtures | Approved versioned contract sources and fixtures |
-| `packages/database/` | Authority SQL, migrations, private storage, and later PostgreSQL distribution | Versioned public procedures and contract-defined protocols |
+| `packages/contracts/` | Logical interfaces and canonical fixtures | Approved contract sources and fixtures |
+| `packages/database/` | Database SQL, migrations, private storage, and later PostgreSQL distribution | Public procedures and contract-defined protocols |
 | `packages/sdk/` | Public TypeScript SDK and private local PGlite adapter | Future package exports derived from shared contracts |
 | `packages/cloud/` | Private TypeScript Cloud service | Future contract-defined authenticated Cloud protocol |
 | `scripts/` | Later contract generation and repository automation not covered by native tools | Root contributor commands |
 | `docs/` | Product, architecture, roadmap, ADRs, and guides | Source-of-truth documents and accepted decisions |
 
-The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume public contract artifacts and invoke only versioned public database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
+The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume public contract artifacts and invoke only public database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
 
 ### Private internals and source policy
 
 Each area owns its internal representation. Database tables, locks, transaction mechanics, and operational overlays remain private to `packages/database/`. Local PGlite lifecycle and transport adapters remain private to `packages/sdk/`. Authentication, routing, pooling, retries, and recovery mechanics remain private to `packages/cloud/`. Future generator implementations remain private to `scripts/`.
 
-Logical contracts are authored and versioned under `packages/contracts/`. Authoritative SQL, PL/pgSQL, and the migration graph remain under `packages/database/`. TypeScript is the only SDK and Cloud service language. Generated outputs must derive from approved contract and database sources when the executable authority stage introduces generation.
+Logical contracts are authored under `packages/contracts/` and identified by their digests. Authoritative SQL, PL/pgSQL, and the migration graph remain under `packages/database/`. TypeScript is the only SDK and Cloud service language. Generated outputs must derive from approved contract and database sources when the executable database stage introduces generation.
 
 ## Consequences
 
@@ -71,7 +71,7 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 
 ### Six lean ownership areas under three root containers
 
-- Preserves explicit ownership and the future authority boundary with only two current workspaces.
+- Preserves explicit ownership and the future database boundary with only two current workspaces.
 - Groups all product code under one predictable namespace without adding a new behavioral boundary.
 - Keeps tests and automation close to their owner.
 - Leaves some areas source-only until their implementation stage begins.
@@ -90,12 +90,12 @@ Logical contracts are authored and versioned under `packages/contracts/`. Author
 ### One undifferentiated root workspace
 
 - Minimizes the initial directory count.
-- Obscures ownership of contracts, authority SQL, adapters, service code, and documentation.
+- Obscures ownership of contracts, database SQL, adapters, service code, and documentation.
 - Makes later extraction and dependency enforcement more disruptive.
 
 ## Deferred work
 
-the executable authority stage owns contract generation and generated-output drift checks. the PostgreSQL distribution stage owns PostgreSQL distribution packaging under `packages/database/`. the cross-host conformance stage owns a root cross-host conformance area after local PGlite, customer PostgreSQL, and managed Cloud are real. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
+The executable database stage owns contract generation and generated-output drift checks. The PostgreSQL distribution stage owns PostgreSQL distribution packaging under `packages/database/`. The cross-host conformance stage owns a root cross-host conformance area after local PGlite, customer PostgreSQL, and managed Cloud are real. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
 
 FEAT-0001 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
 

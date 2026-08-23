@@ -1,0 +1,27 @@
+{
+  "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+  "migrations": [
+    {
+      "id": "0001-storage",
+      "path": "0001-storage.sql",
+      "sha256": "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a"
+    },
+    {
+      "id": "0002-budget",
+      "path": "0002-budget.sql",
+      "sha256": "2582f7e1aa5a0d1698170737c67ff5f2a2ebbea20b5084087ff29a32a946e932"
+    },
+    {
+      "id": "0003-public",
+      "path": "0003-public.generated.sql",
+      "sha256": "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a"
+    }
+  ],
+  "expectedTargets": [
+    "keynes.define_resource_type",
+    "keynes.create_budget",
+    "keynes.request",
+    "keynes.settle",
+    "keynes.get_budget"
+  ]
+}

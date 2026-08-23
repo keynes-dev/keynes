@@ -16,13 +16,13 @@ After that baseline, Keynes follows one evidence path:
 
 ```text
 repository baseline
-  -> executable authority and platform gate
+  -> executable database and platform gate
   -> local workflow preview and product-value gate
   -> one selected durable-profile preview
-  -> explicit release contract and V1 qualification
+  -> explicit release contract and production qualification
 ```
 
-A preview can produce real integration evidence, but it claims only the hosts and capabilities that passed their gates. A preview is not V1 and does not claim production readiness. Each stage coordinates a delivery decision and its evidence. The code ownership boundaries in the architecture remain unchanged.
+A preview can produce real integration evidence, but it claims only the hosts and capabilities that passed their gates. A preview does not claim production readiness. Each stage coordinates a delivery decision and its evidence. The code ownership boundaries in the architecture remain unchanged.
 
 ## Repository baseline
 
@@ -66,7 +66,7 @@ docs/       # Product, architecture, roadmap, ADRs, and guides
 
 **Status:** **COMPLETE**
 
-**Deliverable:** Record the code architecture in repository-owned ADRs and boundary READMEs. `packages/contracts/` owns logical interface sources; `packages/database/` owns the future authority core and later PostgreSQL distribution; `packages/sdk/` owns the TypeScript call surface and private PGlite lifecycle; `packages/cloud/` owns managed transport and operations; `scripts/` owns repository automation; and `docs/` owns product, architecture, sequencing, and decisions. `packages/` is only a code namespace.
+**Deliverable:** Record the code architecture in repository-owned ADRs and boundary READMEs. `packages/contracts/` owns logical interface sources; `packages/database/` owns the future database core and later PostgreSQL distribution; `packages/sdk/` owns the TypeScript call surface and private PGlite lifecycle; `packages/cloud/` owns managed transport and operations; `scripts/` owns repository automation; and `docs/` owns product, architecture, sequencing, and decisions. `packages/` is only a code namespace.
 
 **Acceptance evidence:** An architecture review maps every deliverable component from `architecture.md` to exactly one primary code boundary, identifies its public entry points and private internals, and finds no unowned semantic responsibility or competing Budget implementation.
 
@@ -104,9 +104,9 @@ docs/       # Product, architecture, roadmap, ADRs, and guides
 
 **Exit gate:** A clean checkout bootstraps and type-checks every workspace, enforces the basic dependency rules, and passes Oxfmt, Oxlint, `tsc`, Vitest, and the same Turborepo aggregate locally and in CI. No Keynes functional behavior, generated contract system, PostgreSQL package, cross-host suite, or evidence-promotion system is present. **PASSED**. The local portion passed on August 21, 2026 with Node.js 24.19.0 and pnpm 11.21.0. The GitHub Actions portion passed for commit `c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232). The later move of all product-code boundaries under `packages/` passed frozen bootstrap and the full local baseline on August 21, 2026. CI for that uncommitted amendment is **NOT RUN**.
 
-## Executable authority and platform gate
+## Executable database and platform gate
 
-**Status:** **NOT RUN**
+**Status:** **IN PROGRESS**
 
 **Outcome:** Prove the smallest complete Budget lifecycle and the risky PostgreSQL and PGlite assumptions before packaging a public product.
 
@@ -116,13 +116,15 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 ### Features
 
-#### Executable authority slice
+#### [FEAT-0002: Executable Budget lifecycle](features/0002-executable-authority-slice/spec.md)
 
-**Status:** **NOT RUN**
+**Status:** **COMPLETE (PROVIDER-FREE)**
 
-**Deliverable:** Define and implement one complete authority slice for Resource publication, root allocation, exact parent-funded request, settlement, `get_budget`, and `list_events`. Versioned sources generate the TypeScript types and validators, PostgreSQL wrappers, procedure manifest, migration metadata, digests, and fixtures consumed by the real procedures. Every mutation uses the same transaction shell for validation, command replay, canonical results, transition evidence, and rollback.
+**Deliverable:** Define and implement one complete Budget lifecycle for Resource type definition, root allocation, exact parent-funded request, settlement, and `get_budget`. The read returns one Budget projection and its complete root-lineage history from the same transaction snapshot. One contract generates the TypeScript types and validators, PostgreSQL wrappers, migration metadata, expected target names, and digest consumed by the real procedures. Test fixtures remain direct inputs. Every mutation uses the same transaction path for validation, command replay, canonical results, transition evidence, and rollback.
 
-**Acceptance evidence:** Every generated consumer identifies the same source and semantic digest, and every manifest entry resolves to a real procedure and generated test adapter. A clean regeneration produces no diff. Valid and invalid fixtures cover safe integers, normalized identifiers, tagged results, unknown fields, and canonical encoding. Behavioral tests cover publication conflicts, allocation authorization, conservation, sibling requests, exact approval and denial, arithmetic limits, nested settlement, consumable depletion, reusable release, open descendants, missing usage, later resolution, overage, conflicting known usage, and rollback at every failure point. Retry-after-commit tests resolve a lost response for every mutating procedure. No unused value family, wrapper, or procedure target is created.
+**Acceptance evidence:** Every generated consumer identifies the same source and semantic digest, and every ordered operation resolves to a real procedure and generated client method. A clean regeneration produces no diff. Valid and invalid fixtures cover safe integers, normalized identifiers, tagged results, unknown fields, and canonical encoding. Behavioral tests cover definition conflicts, allocation authorization, conservation, sibling requests, exact approval and denial, arithmetic limits, nested settlement, consumable depletion, reusable release, open descendants, missing usage, later resolution, overage, conflicting known usage, and rollback at every failure point. Retry-after-commit tests resolve a lost response for every mutating procedure. No unused value family, wrapper, metadata copy, or procedure target is created.
+
+**Observed evidence:** On August 23, 2026, the generated five-method client completed the installed PGlite lifecycle. The retained provider-free suites passed 38 SDK tests and 15 generator tests. The database procedures own Budget semantics. Native PostgreSQL concurrency, roles, recovery, cross-host equivalence, packaging, Cloud, security, performance, paid services, and managed providers remain **NOT RUN**.
 
 #### Policy platform feasibility
 
@@ -138,9 +140,9 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 **Deliverable:** Run the same migrations, constraints, procedures, Policy environment, and canonical fixtures without semantic forks in private in-memory PGlite and native PostgreSQL. Build a non-released package artifact when a package measurement requires one.
 
-**Acceptance evidence:** Both engines produce the same canonical values, results, errors, events, reasons, and digests for the complete slice. Native PostgreSQL tests prove real concurrent requests, request-versus-settlement locking, migration behavior, and the minimum role isolation required by the Policy sandbox. Retained measurements identify the exact artifact, Node.js, PGlite, WebAssembly, operating system, and processor architecture. The feature specification declares maximum package size, loaded RSS, runtime creation time, first-request latency, and steady-state latency before measurements run.
+**Acceptance evidence:** Both engines produce the same canonical values, results, errors, history entries, reasons, and digests for the complete slice. Native PostgreSQL tests prove real concurrent requests, request-versus-settlement locking, migration behavior, and the minimum role isolation required by the Policy sandbox. Retained measurements identify the exact artifact, Node.js, PGlite, WebAssembly, operating system, and processor architecture. The feature specification declares maximum package size, loaded RSS, runtime creation time, first-request latency, and steady-state latency before measurements run.
 
-**Exit gate:** The authority core passes unchanged on PGlite and native PostgreSQL within the predeclared footprint and latency limits. The gate records separate authority-core and Policy decisions. An authority-core failure stops the PostgreSQL and PGlite design. A Policy failure stops Policy support. Keynes may continue as a scalar Budget product only after the product and architecture explicitly adopt that narrower scope. **NOT RUN**.
+**Exit gate:** The database core passes unchanged on PGlite and native PostgreSQL within the predeclared footprint and latency limits. The gate records separate database and Policy decisions. A database failure stops the PostgreSQL and PGlite design. A Policy failure stops Policy support. Keynes may continue as a scalar Budget product only after the product and architecture explicitly adopt that narrower scope. **NOT RUN**.
 
 ## Local workflow preview
 
@@ -148,7 +150,7 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 **Outcome:** Package the private local runtime and prove that one outside team keeps Keynes in a real workflow.
 
-**Dependencies:** Executable authority and platform gate.
+**Dependencies:** Executable database and platform gate.
 
 This stage is the first product-value gate. It does not create durable Budget identity, customer PostgreSQL support, Cloud support, or a production-readiness claim.
 
@@ -158,7 +160,7 @@ This stage is the first product-value gate. It does not create durable Budget id
 
 **Status:** **NOT RUN**
 
-**Deliverable:** `Keynes.local()` creates one private process-scoped PGlite authority, migrates it before use, and exposes Resource publication, root creation, `budget.request(...)`, settlement through authorized Budget handles, and evidence reads through the TypeScript SDK. It exposes no database handle, file path, caller-owned connection, network port, account, daemon, or native Keynes library. If the adopter needs Policy authoring, add only the versioned typed relational builder operations required for its declared rule.
+**Deliverable:** `Keynes.local()` creates one private process-scoped PGlite database, migrates it before use, and exposes Resource type definition, root creation, `budget.request(...)`, settlement through authorized Budget handles, and evidence reads through the TypeScript SDK. It exposes no database handle, file path, caller-owned connection, network port, account, daemon, or native Keynes library. If the adopter needs Policy authoring, add only the typed relational builder operations required for its declared rule.
 
 **Acceptance evidence:** Tests prove isolation between runtimes, deterministic mutation order, one command identity per public invocation, transparent retry without duplicate children, complete state loss at process exit, authorized-handle settlement, exact result narrowing, clean shutdown, and explicit failure after shutdown. Package inspection proves that supported bundlers load the pinned PGlite, WebAssembly, migration, contract, and generated assets. Any typed Policy operations reject unknown fields and invalid operations, embed compiler and source digests, emit canonical SQL, and match the equivalent raw SQL Policy. The public publication and activation path remains authoritative.
 
@@ -168,9 +170,9 @@ This stage is the first product-value gate. It does not create durable Budget id
 
 **Deliverable:** A team outside the implementation team integrates the released preview into one named workflow. Before the trial, record the workflow owner, the observation period or sample, required approval and denial cases, the usage source, the settlement completion rule, the evidence review task, the maximum integration burden, and the adopter's continuation criterion.
 
-**Acceptance evidence:** Retained runs show that the application requests an exact Resource envelope, responds to Keynes's authoritative result, owns any external effect, settles observed usage, and uses Keynes evidence in a real operating decision. The adopter confirms the predeclared continuation criterion. Record separate conclusions for authority-core value and Policy value so optional Policy value does not stand in for accounting value.
+**Acceptance evidence:** Retained runs show that the application requests an exact Resource envelope, responds to Keynes's authoritative result, owns any external effect, settles observed usage, and uses Keynes evidence in a real operating decision. The adopter confirms the predeclared continuation criterion. Record separate conclusions for accounting value and Policy value so optional Policy value does not stand in for accounting value.
 
-**Exit gate:** The local packaged artifact stays within the limits established by the executable authority and platform gate. The adopter keeps the integration under the predeclared criterion and demonstrates value from the request, settlement, and evidence loop. If this gate fails, do not start durable deployment work. **NOT RUN**.
+**Exit gate:** The local packaged artifact stays within the limits established by the executable database and platform gate. The adopter keeps the integration under the predeclared criterion and demonstrates value from the request, settlement, and evidence loop. If this gate fails, do not start durable deployment work. **NOT RUN**.
 
 ## Selected durable-profile preview
 
@@ -196,7 +198,7 @@ This stage implements either customer PostgreSQL or managed Cloud. It does not i
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Test the selected profile's distinct authority boundary before building its full package. The customer PostgreSQL branch tests bundle installation, principal and tenant role binding, caller-owned transactions, request plus application-row atomicity, drift, checkpoints, restore, and former-writer fencing. The managed Cloud branch tests authentication, tenant routing, one writable home per lineage, in-transaction epoch checks, stale-writer fencing, external checkpoints, restore into `recovery_required`, and unresolved evidence gaps.
+**Deliverable:** Test the selected profile's security and transaction boundary before building its full package. The customer PostgreSQL branch tests bundle installation, principal and tenant role binding, caller-owned transactions, request plus application-row atomicity, drift, checkpoints, restore, and former-writer fencing. The managed Cloud branch tests authentication, tenant routing, one writable home per lineage, in-transaction epoch checks, stale-writer fencing, external checkpoints, restore into `recovery_required`, and unresolved evidence gaps.
 
 **Acceptance evidence:** The selected branch passes its highest-risk security, transaction, and recovery cases with the adopter's environment or a faithful substitute. A failed case blocks profile packaging. The test does not defer an authority epoch, former-writer fence, fail-closed restore, external checkpoint, or unresolved-gap rule that protects durable authority.
 
@@ -204,21 +206,21 @@ This stage implements either customer PostgreSQL or managed Cloud. It does not i
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Package the shared authority core and generated interfaces for the selected durable profile. Customer PostgreSQL uses the signed migration bundle first. The SQL-only extension remains unimplemented unless the release contract later requires it. Managed Cloud starts with the smallest topology that satisfies the selected claim and keeps Budget transitions and Policy evaluation inside PostgreSQL.
+**Deliverable:** Package the shared database core and generated interfaces for the selected durable profile. Customer PostgreSQL uses the signed migration bundle first. The SQL-only extension remains unimplemented unless the release contract later requires it. Managed Cloud starts with the smallest topology that satisfies the selected claim and keeps Budget transitions and Policy evaluation inside PostgreSQL.
 
 **Acceptance evidence:** The selected profile passes the shared semantic corpus, its host-specific security and recovery suite, installation or deployment tests, lost-response replay, upgrade and rollback checks, and retained footprint and latency measurements. The same adopter completes the local workflow against the durable preview and chooses to keep it.
 
-**Exit gate:** One durable profile has retained semantic, security, recovery, packaging, performance, and adopter evidence for its bounded preview claim. The other profile and any untested packaging form remain **NOT RUN**. The preview does not claim V1 or general production readiness. **NOT RUN**.
+**Exit gate:** One durable profile has retained semantic, security, recovery, packaging, performance, and adopter evidence for its bounded preview claim. The other profile and any untested packaging form remain **NOT RUN**. The preview does not claim general production readiness. **NOT RUN**.
 
-## Release contract and V1
+## Release contract and production qualification
 
 **Status:** **NOT RUN**
 
-**Outcome:** Resolve the release scope explicitly, complete every required host and package, and qualify V1 without making claims broader than the evidence.
+**Outcome:** Resolve the release scope explicitly, complete every required host and package, and qualify the first production release without making claims broader than the evidence.
 
 **Dependencies:** Selected durable-profile preview.
 
-The current architecture requires local PGlite, bundle-installed customer PostgreSQL, extension-installed customer PostgreSQL, and managed Cloud to pass before a semantic change ships. A narrower V1 requires an accepted ADR that changes that rule. A roadmap edit or successful preview cannot change it by implication.
+The current architecture requires local PGlite, bundle-installed customer PostgreSQL, extension-installed customer PostgreSQL, and managed Cloud to pass before a semantic change ships. A narrower release requires an accepted ADR that changes that rule. A roadmap edit or successful preview cannot change it by implication.
 
 ### Features
 
@@ -226,15 +228,15 @@ The current architecture requires local PGlite, bundle-installed customer Postgr
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Accept an ADR that either retains the current all-host and all-package release contract or defines V1 conformance over an explicit claimed-host and claimed-package set. Reconcile the product, architecture, and roadmap with that decision before release implementation continues.
+**Deliverable:** Accept an ADR that either retains the current all-host and all-package release contract or defines release conformance over an explicit claimed-host and claimed-package set. Reconcile the product, architecture, and roadmap with that decision before release implementation continues.
 
-**Acceptance evidence:** The accepted documents agree on the supported hosts, packaging forms, product capabilities, trust boundaries, conformance matrix, compatibility promise, and meaning of V1. Every omitted profile or package is named as unsupported rather than left ambiguous.
+**Acceptance evidence:** The accepted documents agree on the supported hosts, packaging forms, product capabilities, trust boundaries, conformance matrix, compatibility promise, and meaning of a production release. Every omitted profile or package is named as unsupported rather than left ambiguous.
 
 #### Required host and package completion
 
 **Status:** **NOT RUN**
 
-**Deliverable:** Complete only the hosts and packaging forms required by the accepted release contract. If the current architecture remains unchanged, this includes local PGlite, the customer PostgreSQL bundle, the generated SQL-only extension, and managed Cloud. Every implementation calls the same authority core and generated public contract.
+**Deliverable:** Complete only the hosts and packaging forms required by the accepted release contract. If the current architecture remains unchanged, this includes local PGlite, the customer PostgreSQL bundle, the generated SQL-only extension, and managed Cloud. Every implementation calls the same database core and generated public contract.
 
 **Acceptance evidence:** Each required path passes installation or deployment, upgrade, drift, role and tenant isolation, transaction composition when applicable, replay, recovery, and compatibility checks. Object and semantic digests match. No host adapter contains alternate Budget accounting or Policy evaluation.
 
@@ -246,30 +248,30 @@ The current architecture requires local PGlite, bundle-installed customer Postgr
 
 **Acceptance evidence:** Builder-generated and raw SQL Policies pass the same database validation and produce canonical-equivalent results. Old and new supported clients preserve their declared meaning. Incompatible digests fail explicitly. Direct SQL and SDK callers observe the same committed results. Advisory explanations create no authority and cannot be used as approval.
 
-#### V1 release qualification
+#### Release qualification
 
 **Status:** **NOT RUN**
 
 **Deliverable:** Run the complete semantic, Policy-security, concurrency, recovery, compatibility, packaging, performance, and operational suites against every required host and package.
 
-**Acceptance evidence:** Retained runs cover canonical results and events, sandbox attacks, true concurrent callers, settlement contention, lost responses, stale writers, failover, point-in-time restore, unresolved evidence, migrations, package contents, memory, startup, latency, upgrades, backup restoration, artifact provenance, vulnerability response, incident handling, and support responsibilities for the exact release artifacts.
+**Acceptance evidence:** Retained runs cover canonical results and history entries, sandbox attacks, true concurrent callers, settlement contention, lost responses, stale writers, failover, point-in-time restore, unresolved evidence, migrations, package contents, memory, startup, latency, upgrades, backup restoration, artifact provenance, vulnerability response, incident handling, and support responsibilities for the exact release artifacts.
 
-**Exit gate:** V1 releases only when every host, package, capability, SDK, SQL interface, security boundary, and operational claim in the accepted release contract has retained evidence. No untested profile contributes to a release claim. **NOT RUN**.
+**Exit gate:** Keynes releases only when every host, package, capability, SDK, SQL interface, security boundary, and operational claim in the accepted release contract has retained evidence. No untested profile contributes to a release claim. **NOT RUN**.
 
 ## Conditional growth
 
-The items in this section are not scheduled stages. They do not block V1 only when the release contract decision omits them. Under the current architecture, the second durable profile and the SQL-only extension remain V1 requirements and move into required host and package completion. Move an item into a roadmap stage only after its entry evidence exists.
+The items in this section are not scheduled stages. They do not block release only when the release contract decision omits them. Under the current architecture, the second durable profile and the SQL-only extension remain release requirements and move into required host and package completion. Move an item into a roadmap stage only after its entry evidence exists.
 
-- **Second durable profile:** If the release contract decision permits a profile-scoped V1, add the unselected customer PostgreSQL or managed Cloud profile when a named adopter has a non-substitutable need. Apply the full host-specific semantic, security, recovery, packaging, and operational gates.
-- **Alternative PostgreSQL packaging:** If the release contract decision permits a package-scoped V1, add the SQL-only extension when customer distribution or policy requires extension lifecycle management. Generate it from the canonical migration graph and prove bundle equivalence.
+- **Second durable profile:** If the release contract decision permits a profile-scoped release, add the unselected customer PostgreSQL or managed Cloud profile when a named adopter has a non-substitutable need. Apply the full host-specific semantic, security, recovery, packaging, and operational gates.
+- **Alternative PostgreSQL packaging:** If the release contract decision permits a package-scoped release, add the SQL-only extension when customer distribution or policy requires extension lifecycle management. Generate it from the canonical migration graph and prove bundle equivalence.
 - **Operational and analysis tools:** Add broader diagnostics, BI and change-data-capture guidance, lineage movement, routing scale, or operational automation when repeated support or workload evidence identifies a specific need.
-- **Subtree issuance:** Add a separate versioned command only after an adopter needs authorized quantity creation within a child subtree. Prove authorization, conservation, settlement, replay, recovery, compatibility, and host conformance.
-- **Multi-source funding:** Start only after subtree issuance qualifies and an adopter needs ordered contributions from several Budgets in one authority database. Preserve one structural parent, require same-database atomicity, and reject cross-database composition.
+- **Subtree issuance:** Add a separate command only after an adopter needs authorized quantity creation within a child subtree. Prove authorization, conservation, settlement, replay, recovery, compatibility, and host conformance.
+- **Multi-source funding:** Start only after subtree issuance qualifies and an adopter needs ordered contributions from several Budgets in one Keynes database. Preserve one structural parent, require same-database atomicity, and reject cross-database composition.
 
 ## Roadmap rules
 
 - Keep `Budget` as the only public stateful governance object.
-- Keep Resource publication separate from quantity creation and root allocation.
+- Keep Resource type definition separate from quantity creation and root allocation.
 - Keep the default request exact, scalar, and entirely funded by its structural parent.
 - Use one generated semantic source for every contract consumed by an executable slice. Do not generate unused consumers or maintain handwritten alternatives.
 - Apply validation, replay, canonical results, transition evidence, and rollback to every mutating procedure in one transaction shell.
@@ -277,11 +279,11 @@ The items in this section are not scheduled stages. They do not block V1 only wh
 - Keep request context immutable, typed, application-asserted, recorded as evidence, and absent from child inheritance.
 - Keep application effects, provider retries, usage observation, outcomes, and fallback behavior outside Keynes.
 - Keep missing usage and overage visible through unresolved accounting and isolated deficits.
-- Treat PGlite, customer PostgreSQL, and managed Cloud as hosts of one PostgreSQL authority core, not independent semantic implementations.
+- Treat PGlite, customer PostgreSQL, and managed Cloud as hosts of one PostgreSQL database core, not independent semantic implementations.
 - Use native PostgreSQL for contention, roles, recovery, and deployment claims that PGlite cannot prove.
 - Attach Policy-security evidence to each implemented host. Do not require an unimplemented host to pass a gate.
 - Predeclare performance limits and adopter pass criteria before collecting the evidence used to advance the roadmap.
 - Keep preview, compatibility, security, performance, and production-readiness claims no broader than the retained evidence.
-- Introduce subtree issuance before multi-source funding. Introduce both through explicit versioned contracts.
+- Introduce subtree issuance before multi-source funding. Introduce both through explicit public contracts.
 - Mark a stage complete only when every feature and its exit gate pass with retained executable evidence.
 - Use dependency and evidence status instead of invented dates, staffing estimates, or unsupported readiness claims.

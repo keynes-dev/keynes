@@ -1,0 +1,17 @@
+{
+  "migrations": [
+    {
+      "id": "0001-storage",
+      "path": "0001-storage.sql"
+    },
+    {
+      "id": "0002-budget",
+      "path": "0002-budget.sql"
+    },
+    {
+      "id": "0003-public",
+      "path": "0003-public.generated.sql",
+      "contract": true
+    }
+  ]
+}

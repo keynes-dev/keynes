@@ -16,9 +16,9 @@ endpoint, authentication, provider integration, or Keynes behavior.
 
 ## Allowed and public edges
 
-The future external edge is the versioned Cloud protocol defined by shared
+The future external edge is the Cloud protocol defined by shared
 contracts. Within the repository, Cloud may consume public contract artifacts
-and invoke versioned public database procedures.
+and invoke public database procedures.
 
 Cloud must not import `packages/sdk/`, private database storage, `scripts/`, or
 another area's owner-local tests. Clients never receive database credentials or

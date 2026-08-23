@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:budget": "vitest run src/budget-lifecycle.test.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.5"
   },
   "devDependencies": {
     "vitest": "4.1.11"

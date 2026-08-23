@@ -6,7 +6,7 @@
 
 Agents make choices that affect cost, speed, quality, and risk. They decide how much to investigate, which tools to use, when to retry, and when to ask for help. Businesses need to give agents real operating authority without burying it in prompts or scattering limits through application code.
 
-Keynes makes that authority explicit. An application publishes the Resource types it governs. A Budget holds quantities of those Resources and the Policies that control how an agent may spend them. A team, workflow, or agent requests Resources from a Budget. Keynes either denies the request or reserves the Resources and returns a child Budget. The application does the work, then settles the Budget once it knows what was used.
+Keynes makes that authority explicit. An application defines the Resource types it governs. A Budget holds quantities of those Resources and the Policies that control how an agent may spend them. A team, workflow, or agent requests Resources from a Budget. Keynes either denies the request or reserves the Resources and returns a child Budget. The application does the work, then settles the Budget once it knows what was used.
 
 The product loop is simple:
 
@@ -16,7 +16,7 @@ Budget -> request -> child Budget -> settle -> evidence
 
 ## Budgets
 
-Before a Budget can hold a Resource, the application publishes an immutable Resource type. The type has a stable identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Publishing a type creates no quantity and grants no spending authority.
+Before a Budget can hold a Resource, the application defines an immutable Resource type. The type has a stable identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Defining a type creates no quantity and grants no spending authority.
 
 An authorized root allocation creates quantity for selected Resource types. A root holds only those allocations. It does not declare every type the application may use. By default, a Budget funds its own children. It can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
 
@@ -123,13 +123,13 @@ The application, or a future adapter, enforces external limits and validates usa
 
 ## One model, three deployments
 
-Keynes implements Budget authority once in a PostgreSQL authority core. The same versioned procedures, Policy environment, and evidence model run in all three deployment profiles. The TypeScript SDK and public SQL interface call that core. They do not reimplement Budget changes.
+Keynes implements Budget behavior once in a PostgreSQL database core. The same procedures, Policy environment, and evidence model run in all three deployment profiles. The TypeScript SDK and public SQL interface call that core. They do not reimplement Budget changes.
 
 **Local PGlite.** `Keynes.local()` starts a private, in-memory PGlite database inside the application process. It needs no Keynes account, network service, database installation, daemon, or platform-specific native library. Process exit discards every local Budget, descendant, command result, and event. Keynes does not support file-backed local persistence.
 
-**Customer PostgreSQL.** Keynes installs the same authority core in a customer-owned database. Applications can use the TypeScript SDK or the versioned `keynes_v1` SQL API. Non-TypeScript applications use the SQL API. This deployment keeps Budget data under customer control and lets an application commit an approved request with its own job or outbox row in one transaction. An approval inside that transaction remains provisional until commit and cannot authorize external work before then.
+**Customer PostgreSQL.** Keynes installs the same database core in a customer-owned database. Applications can use the TypeScript SDK or the public `keynes` SQL API. Non-TypeScript applications use the SQL API. This deployment keeps Budget data under customer control and lets an application commit an approved request with its own job or outbox row in one transaction. An approval inside that transaction remains provisional until commit and cannot authorize external work before then.
 
-**Keynes Cloud.** Keynes runs the authority core on managed PostgreSQL behind an authenticated service. Keynes owns tenant routing, upgrades, recovery, and high availability. Applications use the TypeScript SDK. Clients never receive database credentials or arbitrary SQL access. Cloud provides durable, remote Budget authority without customer-operated PostgreSQL.
+**Keynes Cloud.** Keynes runs the database core on managed PostgreSQL behind an authenticated service. Keynes owns tenant routing, upgrades, recovery, and high availability. Applications use the TypeScript SDK. Clients never receive database credentials or arbitrary SQL access. Cloud provides durable, remote Budget authority without customer-operated PostgreSQL.
 
 Customer PostgreSQL and Cloud persist Budget identities, command results, and evidence. They can reload an authorized Budget and resolve a lost response by replaying the same durable command identity. All three deployments keep the same Budget workflow. Their lifecycle, security, and operational responsibilities differ.
 
@@ -144,7 +144,7 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 ## Product commitments
 
 - Budget is the only public stateful governance object.
-- Resource types are immutable definitions published separately from quantity. Publication creates no authority.
+- Applications define immutable Resource types separately from quantity. Defining a type creates no authority.
 - An authorized root allocation creates quantity for selected Resource types. Ordinary requests cannot create quantity.
 - A request proposes exact Resource quantities and atomically creates one child Budget or returns a denial. By default, the structural parent funds the request.
 - Policies are optional Resource constraints evaluated by the database that holds the Budget.
@@ -154,7 +154,7 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - Keynes never changes a request or executes, tracks, or retries application work.
 - Every Budget settles direct usage. Keynes derives subtree accounting.
 - Missing usage and overage stay visible.
-- One PostgreSQL authority core defines Budget behavior in local PGlite, customer-owned PostgreSQL, and Keynes Cloud.
+- One PostgreSQL database core defines Budget behavior in local PGlite, customer-owned PostgreSQL, and Keynes Cloud.
 - TypeScript is the only supported SDK. Non-TypeScript applications use the public SQL interface in customer-owned PostgreSQL.
 - Local authority is private, process-scoped, daemon-free, and available only through the TypeScript SDK.
 - Customer PostgreSQL and Cloud provide durable, reloadable authority with explicit authorization and recovery responsibilities.
