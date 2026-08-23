@@ -78,7 +78,7 @@ Production workspaces do not import `scripts/`, owner-local tests, each other's 
 
 ## D010 — Continuous integration and cache trust
 
-**Decision**: Use GitHub Actions with one fixed Linux x64 runner for pull requests and pushes. Pin third-party actions to full commit SHAs, grant read-only permissions by default, and do not use `pull_request_target` for untrusted code. CI may cache the pnpm download store from trusted refs but not Turborepo task outputs.
+**Decision**: Use GitHub Actions with one fixed Linux x64 runner for pull requests. Pin third-party actions to full commit SHAs, grant read-only permissions by default, and do not use `pull_request_target` for untrusted code. CI may cache the pnpm download store from trusted refs but not Turborepo task outputs.
 
 **Rationale**: This is the smallest provider-free CI path that mirrors local verification and avoids unsigned executable cache output becoming an input.
 
