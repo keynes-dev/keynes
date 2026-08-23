@@ -106,7 +106,7 @@ docs/       # Product, architecture, roadmap, ADRs, and guides
 
 ## Executable database and platform gate
 
-**Status:** **NOT RUN**
+**Status:** **IN PROGRESS**
 
 **Outcome:** Prove the smallest complete Budget lifecycle and the risky PostgreSQL and PGlite assumptions before packaging a public product.
 
@@ -118,11 +118,13 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 #### [FEAT-0002: Executable Budget lifecycle](features/0002-executable-authority-slice/spec.md)
 
-**Status:** **NOT RUN**
+**Status:** **COMPLETE (PROVIDER-FREE)**
 
 **Deliverable:** Define and implement one complete Budget lifecycle for Resource publication, root allocation, exact parent-funded request, settlement, and `get_budget`. The read returns one Budget projection and its complete root-lineage history from the same transaction snapshot. One contract generates the TypeScript types and validators, PostgreSQL wrappers, procedure manifest, migration metadata, digests, and fixtures consumed by the real procedures. Every mutation uses the same transaction path for validation, command replay, canonical results, transition evidence, and rollback.
 
 **Acceptance evidence:** Every generated consumer identifies the same source and semantic digest, and every manifest entry resolves to a real procedure and generated test adapter. A clean regeneration produces no diff. Valid and invalid fixtures cover safe integers, normalized identifiers, tagged results, unknown fields, and canonical encoding. Behavioral tests cover publication conflicts, allocation authorization, conservation, sibling requests, exact approval and denial, arithmetic limits, nested settlement, consumable depletion, reusable release, open descendants, missing usage, later resolution, overage, conflicting known usage, and rollback at every failure point. Retry-after-commit tests resolve a lost response for every mutating procedure. No unused value family, wrapper, or procedure target is created.
+
+**Observed evidence:** On August 23, 2026, the generated five-method client completed the installed PGlite lifecycle. The retained provider-free suites passed 39 SDK tests and 15 generator tests. The database procedures own Budget semantics. Native PostgreSQL concurrency, roles, recovery, cross-host equivalence, packaging, Cloud, security, performance, paid services, and managed providers remain **NOT RUN**.
 
 #### Policy platform feasibility
 

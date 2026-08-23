@@ -59,6 +59,11 @@ function prepareContractRoot(
   const source = resolve(repositoryRoot, "packages/contracts");
   const destination = join(root, "packages/contracts");
   cpSync(source, destination, { recursive: true });
+  cpSync(
+    resolve(repositoryRoot, "packages/database/migrations"),
+    join(root, "packages/database/migrations"),
+    { recursive: true },
+  );
 
   if (mutate !== undefined) {
     const schemaPath = join(destination, "schema.json");
@@ -248,21 +253,57 @@ describe("contract generator", () => {
     const contractRoot = prepareContractRoot();
     const firstOutput = makeTemporaryDirectory();
     const secondOutput = makeTemporaryDirectory();
+    const thirdOutput = makeTemporaryDirectory();
 
     const first = runGenerator(contractRoot, firstOutput);
     const second = runGenerator(contractRoot, secondOutput);
+    const third = runGenerator(contractRoot, thirdOutput);
 
     expect(first.stderr).toBe("");
     expect(first.status).toBe(0);
     expect(second.stderr).toBe("");
     expect(second.status).toBe(0);
+    expect(third.stderr).toBe("");
+    expect(third.status).toBe(0);
     expect(listFiles(firstOutput).sort()).toEqual(contract.outputs);
     expect(listFiles(secondOutput).sort()).toEqual(contract.outputs);
+    expect(listFiles(thirdOutput).sort()).toEqual(contract.outputs);
     for (const output of contract.outputs) {
       expect(readFileSync(join(firstOutput, output))).toEqual(
         readFileSync(join(secondOutput, output)),
       );
+      expect(readFileSync(join(firstOutput, output))).toEqual(
+        readFileSync(join(thirdOutput, output)),
+      );
+      expect(readFileSync(join(firstOutput, output))).toEqual(
+        readFileSync(join(repositoryRoot, output)),
+      );
     }
+
+    const digestPath = "packages/contracts/generated/contract-digest.json";
+    const digests = [firstOutput, secondOutput, thirdOutput].map((root) =>
+      readFileSync(join(root, digestPath), "utf8"),
+    );
+    expect(new Set(digests).size).toBe(1);
+
+    const installationRecord: unknown = JSON.parse(
+      readFileSync(
+        join(
+          firstOutput,
+          "packages/database/generated/installation-record.json",
+        ),
+        "utf8",
+      ),
+    );
+    if (
+      typeof installationRecord !== "object" ||
+      installationRecord === null ||
+      !("migrations" in installationRecord) ||
+      !Array.isArray(installationRecord.migrations)
+    ) {
+      throw new Error("generated installation record has no migrations");
+    }
+    expect(installationRecord.migrations).toHaveLength(3);
   });
 
   it("rejects unsupported schema keywords", () => {
@@ -295,6 +336,38 @@ describe("contract generator", () => {
     );
   });
 
+  it("rejects permission metadata that differs from installed dispatch", () => {
+    const contractRoot = prepareContractRoot((files) => ({
+      ...files,
+      contract: files.contract.replace(
+        '"permission": "publish_resource"',
+        '"permission": "read_budget"',
+      ),
+    }));
+    const result = runGenerator(contractRoot, makeTemporaryDirectory());
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(
+      /operation metadata mismatch.*publishResource.*permission/i,
+    );
+  });
+
+  it("rejects replay metadata that differs from installed behavior", () => {
+    const contractRoot = prepareContractRoot((files) => ({
+      ...files,
+      contract: files.contract.replace(
+        '"permission": "read_budget",\n      "replay": false',
+        '"permission": "read_budget",\n      "replay": true',
+      ),
+    }));
+    const result = runGenerator(contractRoot, makeTemporaryDirectory());
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(
+      /operation metadata mismatch.*getBudget.*replay/i,
+    );
+  });
+
   it("rejects operation outputs absent from the schema", () => {
     const contractRoot = prepareContractRoot((files) => ({
       ...files,
@@ -307,5 +380,54 @@ describe("contract generator", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(/undeclared output.*UndeclaredBudgetResult/i);
+  });
+
+  it("rejects operation inputs absent from the schema", () => {
+    const contractRoot = prepareContractRoot((files) => ({
+      ...files,
+      contract: files.contract.replace(
+        '"input": "CreateBudgetCommand"',
+        '"input": "UndeclaredBudgetCommand"',
+      ),
+    }));
+    const result = runGenerator(contractRoot, makeTemporaryDirectory());
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/undeclared input.*UndeclaredBudgetCommand/i);
+  });
+
+  it("rejects duplicate enumeration members", () => {
+    const contractRoot = prepareContractRoot((files) => ({
+      ...files,
+      schema: files.schema.replace(
+        '"enum": ["consumable", "reusable"]',
+        '"enum": ["consumable", "consumable"]',
+      ),
+    }));
+    const result = runGenerator(contractRoot, makeTemporaryDirectory());
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/unstable enumeration/i);
+  });
+
+  it("rejects undeclared files in generated output directories", () => {
+    const contractRoot = prepareContractRoot();
+    const outputRoot = makeTemporaryDirectory();
+    const generatedDirectory = join(outputRoot, "packages/contracts/generated");
+    cpSync(
+      resolve(repositoryRoot, "packages/contracts/generated"),
+      generatedDirectory,
+      {
+        recursive: true,
+      },
+    );
+    writeFileSync(join(generatedDirectory, "undeclared.json"), "{}\n");
+
+    const result = runGenerator(contractRoot, outputRoot);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(
+      /undeclared generated files.*undeclared\.json/i,
+    );
   });
 });

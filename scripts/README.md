@@ -1,45 +1,33 @@
 # Repository scripts
 
 - **Owner:** `@shubsharan`
-- **Status:** Nonfunctional repository infrastructure
+- **Status:** Repository infrastructure and FEAT-0002 contract generation
 - **Package status:** Root-owned and non-publishable
-- **Functional status:** Repository engineering only in FEAT-0001
+- **Functional status:** FEAT-0002 generator implemented
 
 ## Responsibility
 
-`scripts/` owns repository automation that cannot be expressed by the native
-workspace tools. `feature-identity.mjs` owns the shared `FEAT-XXXX`, branch,
-and `docs/features/` identity used by Spec Kit. The repository baseline needs
-no duplicate dependency checker: pnpm owns
-workspace membership, declared dependencies, toolchain enforcement, and cycle
-rejection, while Turborepo validates package boundaries. The executable database stage may add
-contract generation here when real contract and database inputs exist.
+`scripts/` owns repository automation that the workspace tools do not express. `feature-identity.mjs` checks the shared `FEAT-XXXX`, branch, and `docs/features/` identity used by Spec Kit. `generate-contracts.ts` reads the FEAT-0002 contract and migration inputs, then writes only the declared generated consumers.
+
+pnpm owns workspace membership, declared dependencies, toolchain enforcement, and cycle rejection. Turborepo validates package boundaries.
 
 This area does not own Keynes runtime behavior.
 
 ## Allowed and public edges
 
-Root `package.json` commands are the contributor-facing edge. Later generators
-may read approved contract and database inputs under their owning stage.
+Root `package.json` commands are the contributor-facing edge. Use `pnpm generate` to update consumers, `pnpm generate:check` to check drift, and `pnpm test:generator` to run the 15 generator tests.
 
 Production workspaces must never import `scripts/`. The directory is not a pnpm
 workspace, published package, runtime dependency, or alternate authority.
 
 ## Private internals
 
-Future generator implementations and their owner-local tests remain private
-implementation details.
+Generator implementation details and owner-local tests remain private.
 
 ## Source policy
 
-Prefer pnpm and Turborepo configuration over custom code when they express the
-required repository rule directly. Future TypeScript scripts use Node 24 native
-execution in ESM mode with erasable syntax only, with focused tests beside any
-meaningful script logic.
+Prefer pnpm and Turborepo configuration when they express a repository rule directly. TypeScript scripts use Node 24 native execution in ESM mode with erasable syntax only. Keep focused tests beside meaningful script logic.
 
 ## Deferred work
 
-Contract generation, generated-output drift checks, distribution tooling,
-cross-host conformance, security, compatibility, packaging, fault, performance,
-and evidence-promotion systems belong to later roadmap stages. FEAT-0001 creates
-no placeholder implementation for them.
+The FEAT-0002 generator is not a runtime package or a second source of Budget semantics. Distribution tooling, cross-host conformance, security, compatibility, packaging, broad fault campaigns, performance, and evidence promotion remain `NOT RUN`.

@@ -281,6 +281,109 @@ describe("Budget settlement", () => {
     });
   });
 
+  it("settles a subset while keeping an omitted Resource unresolved", async () => {
+    const client = local.clientFor("product-fixture");
+    const first = await publishResource(client, {
+      commandId: "12000000-0000-0000-0000-000000000051",
+      canonicalName: "model_tokens",
+      accountingBehavior: "consumable",
+    });
+    const second = await publishResource(client, {
+      commandId: "12000000-0000-0000-0000-000000000052",
+      canonicalName: "storage_bytes",
+      accountingBehavior: "consumable",
+    });
+    const root = await client.createBudget({
+      commandId: "22000000-0000-0000-0000-000000000051",
+      resources: [
+        { resourceTypeId: first.resourceTypeId, amount: 10 },
+        { resourceTypeId: second.resourceTypeId, amount: 20 },
+      ],
+    });
+
+    const partial = await client.settleBudget({
+      commandId: "42000000-0000-0000-0000-000000000051",
+      budgetId: root.budget.budgetId,
+      usage: [{ resourceTypeId: second.resourceTypeId, amount: 4 }],
+    });
+    expect(partial).toMatchObject({
+      kind: "settling",
+      newlyKnown: [{ resourceTypeId: second.resourceTypeId, amount: 4 }],
+      unresolvedResourceTypeIds: [first.resourceTypeId],
+      budget: {
+        resources: [
+          { directUsage: null, unresolved: true },
+          { directUsage: 4, unresolved: false },
+        ],
+      },
+    });
+
+    const completed = await client.settleBudget({
+      commandId: "42000000-0000-0000-0000-000000000052",
+      budgetId: root.budget.budgetId,
+      usage: [{ resourceTypeId: first.resourceTypeId, amount: 3 }],
+    });
+    expect(completed).toMatchObject({
+      kind: "settled",
+      newlyKnown: [{ resourceTypeId: first.resourceTypeId, amount: 3 }],
+      unresolvedResourceTypeIds: [],
+      budget: {
+        lifecycle: "settled",
+        resources: [
+          { directUsage: 3, available: 7, unresolved: false },
+          { directUsage: 4, available: 16, unresolved: false },
+        ],
+      },
+    });
+    const read = await client.getBudget({ budgetId: root.budget.budgetId });
+    expect(read.budget).toEqual(completed.budget);
+    expect(read.history.entries.map((entry) => entry.kind)).toEqual([
+      "budget_created",
+      "budget_settlement_recorded",
+      "budget_settlement_recorded",
+    ]);
+  });
+
+  it("sorts multiple isolated deficits by Resource identity", async () => {
+    const client = local.clientFor("product-fixture");
+    const lower = await publishResource(client, {
+      commandId: "12000000-0000-0000-0000-000000000061",
+      canonicalName: "model_tokens",
+      accountingBehavior: "consumable",
+    });
+    const higher = await publishResource(client, {
+      commandId: "12000000-0000-0000-0000-000000000062",
+      canonicalName: "storage_bytes",
+      accountingBehavior: "consumable",
+    });
+    const root = await client.createBudget({
+      commandId: "22000000-0000-0000-0000-000000000061",
+      resources: [
+        { resourceTypeId: lower.resourceTypeId, amount: 5 },
+        { resourceTypeId: higher.resourceTypeId, amount: 7 },
+      ],
+    });
+
+    await client.settleBudget({
+      commandId: "42000000-0000-0000-0000-000000000061",
+      budgetId: root.budget.budgetId,
+      usage: [
+        { resourceTypeId: higher.resourceTypeId, amount: 10 },
+        { resourceTypeId: lower.resourceTypeId, amount: 9 },
+      ],
+    });
+
+    const read = await client.getBudget({ budgetId: root.budget.budgetId });
+    const settlementEntries = read.history.entries.filter(
+      (entry) => entry.kind === "budget_settlement_recorded",
+    );
+    expect(settlementEntries).toHaveLength(1);
+    expect(settlementEntries[0]?.isolatedDeficits).toEqual([
+      { resourceTypeId: lower.resourceTypeId, amount: 4 },
+      { resourceTypeId: higher.resourceTypeId, amount: 3 },
+    ]);
+  });
+
   it("rejects derived arithmetic overflow without committing settlement", async () => {
     const client = local.clientFor("product-fixture");
     const resource = await publishResource(client, {

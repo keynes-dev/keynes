@@ -157,7 +157,7 @@ interface SettleBudgetResult {
 }
 ```
 
-The usage array contains exactly the Budget's allocated Resource types. `null` explicitly preserves missing evidence. The first valid command seals the Budget against new children. Later commands may replace `null` with a known amount. A new command that repeats a known value commits a no-op settlement result and evidence; a changed known value throws `usage_conflict`. No command may return a known value to `null`.
+The usage array contains a non-empty, unique subset of the Budget's allocated Resource types. Omitted Resource types remain unresolved, and `null` explicitly preserves missing evidence for an included type. The first valid command seals the Budget against new children. Later commands may supply an omitted type or replace `null` with a known amount. A new command that repeats a known value commits a no-op settlement result and evidence; a changed known value throws `usage_conflict`. No command may return a known value to `null`.
 
 `settled` means all usage in the subtree is known and all descendants are settled. Otherwise the result is `settling`. Known overage is preserved in `subtreeObservedUsage` and creates an isolated deficit based on bounded child charges; it does not debit an ancestor or sibling.
 

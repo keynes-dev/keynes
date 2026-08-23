@@ -1,41 +1,28 @@
 # Database
 
 - **Owner:** `@shubsharan`
-- **Functional status:** Nonfunctional in FEAT-0001
+- **Functional status:** FEAT-0002 provider-free database authority implemented
 
 ## Responsibility
 
-`packages/database/` is the sole future owner of authoritative PostgreSQL SQL,
-PL/pgSQL, the migration graph, and private storage. It will also
-own the customer PostgreSQL distribution when that deliverable is implemented.
+`packages/database/` owns the authoritative PostgreSQL SQL, PL/pgSQL, migration graph, and private storage. FEAT-0002 installs the migration graph in a fresh in-memory PGlite database and exercises Resource publication, root allocation, Budget requests, settlement, and reads.
 
-FEAT-0001 creates no migration, procedure, table, Policy evaluator, or Budget
-transition.
+The database procedures own Budget validation, authorization, transitions, accounting, replay, history, and rollback. The SDK does not reproduce these semantics.
 
 ## Allowed and public edges
 
-The future public edge consists only of public database procedures
-and their contract-defined protocols. The SDK and Cloud service may invoke
-those edges when their owning stages implement them.
+The public database edge consists only of the five generated `keynes.*` procedures and their contract-defined JSON protocols. The private FEAT-0002 SDK adapter calls those procedures.
 
 No other area may use private database storage as an integration surface.
 
 ## Private internals
 
-Tables, indexes, private schemas, transaction mechanics, locks, migration
-internals, and host-specific operational overlays remain private to this
-boundary. They must not become SDK or Cloud semantics.
+Tables, indexes, private schemas, transaction mechanics, locks, and migration internals remain private to this boundary. Host-specific operational overlays must not become SDK or Cloud semantics.
 
 ## Source policy
 
-Keep hand-authored database SQL, PL/pgSQL, and the migration graph in this
-area. The database remains the authority for committed state. Adapters may
-translate lifecycle, authentication, and transport concerns, but they must not
-reimplement authoritative Budget behavior.
+Keep hand-authored database SQL, PL/pgSQL, and the migration graph in this area. Generate only the public wrappers and the installation record. Adapters may handle authentication and transport, but they must not reimplement Budget behavior.
 
 ## Deferred work
 
-Database implementation, PostgreSQL and PGlite version selection, migration
-qualification, Policy isolation, recovery evidence, and host conformance belong
-to later roadmap stages. the PostgreSQL distribution stage owns PostgreSQL distribution packaging. All of
-that work remains `NOT RUN` in FEAT-0001.
+FEAT-0002 qualifies only a fresh private PGlite installation. Native PostgreSQL concurrency, independent connections, roles, tenant isolation, recovery, customer packaging, cross-host equivalence, Cloud, security, performance, and Policy isolation remain `NOT RUN`.

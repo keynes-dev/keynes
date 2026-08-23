@@ -1,6 +1,6 @@
 # Quickstart: Provider-free Budget lifecycle
 
-**Status**: `PLANNED — NOT RUN`. These commands and imports are the implementation target for FEAT-0002. They are not evidence until the feature is implemented and the retained provider-free run passes.
+**Status**: `COMPLETE (PROVIDER-FREE)`. The commands below passed for FEAT-0002 on August 23, 2026. They exercise a private, process-scoped, in-memory PGlite database.
 
 ## Prerequisites
 
@@ -16,26 +16,26 @@ pnpm bootstrap
 
 ## Generate and check the contract
 
-The implementation adds these root commands:
+Generate the checked-in consumers, or check them without changing the worktree:
 
 ```sh
 pnpm generate
 pnpm generate:check
 ```
 
-`generate` reads the ordered contract source and hand-authored migration graph, then emits TypeScript types, standalone validators, the concrete five-method client, public SQL wrappers, canonical fixtures, operation metadata, checksums, and distinct digest records. `generate:check` regenerates in a temporary directory and fails on a byte difference, undeclared output, or stale checked-in artifact.
+`generate` reads the ordered contract source and the hand-authored migration graph. It emits TypeScript types, standalone validators, the concrete five-method client, public SQL wrappers, canonical fixtures, operation metadata, checksums, and distinct digest records. `generate:check` regenerates in a temporary directory and fails on a byte difference, an undeclared output, or a stale checked-in artifact.
 
 The retained determinism check runs three generations from unchanged inputs and requires identical contract digests plus zero generated-file differences.
 
 ## Run the real local lifecycle
 
-The implementation adds a focused provider-free command:
+Run the focused provider-free lifecycle:
 
 ```sh
 pnpm test:budget
 ```
 
-That command creates a fresh in-memory PGlite database, applies the hand-authored migration graph, verifies the installed contract digest, selects private permission fixtures, and drives the generated five-method client. It does not mock a public operation or edit a private table to create lifecycle state.
+The command creates a fresh in-memory PGlite database, applies the hand-authored migration graph, verifies the installed contract digest, selects private permission fixtures, and drives the generated five-method client. It does not mock a public operation or edit a private table to create lifecycle state.
 
 The documented acceptance flow is equivalent to:
 
@@ -102,32 +102,35 @@ try {
 
 `openLocalKeynes` and `clientFor` are private test APIs, not package-root exports. Product-facing local construction remains outside FEAT-0002.
 
-## Required provider-free cases
+## Provider-free coverage
 
-The focused command must pass all of these groups through installed public functions:
+The full SDK and generator suites cover these groups through installed public functions and generated consumers:
 
-| Group                  | Required observations                                                                                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publication            | first publish, exact republication, changed-definition conflict, no quantity                                                                                |
-| Permissions            | five independent permissions, including request-only and settlement-only principals                                                                         |
-| Allocation and request | safe arithmetic, exact approval, canonical denial, no partial envelope, sibling conservation under the serialized local queue                               |
-| Settlement             | nested open descendants, missing usage, later evidence, repeated known value, conflicting known value, consumable return, reusable return, isolated overage |
-| Replay                 | lost-response simulation for all four mutations, exact stored result, no duplicate state or history entry, changed-body conflict across principals          |
-| Rollback               | each declared private checkpoint leaves no partial base fact, result, or history entry visible through public reads                                         |
-| Generation             | every manifest binding resolves, three clean generations match, no undeclared output                                                                        |
+| Group                  | Required observations                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publication            | first publish, exact republication, changed-definition conflict, no quantity                                                                                                    |
+| Permissions            | five independent permissions, including request-only and settlement-only principals                                                                                             |
+| Allocation and request | safe arithmetic, exact approval, canonical denial, no partial envelope, sibling conservation under the serialized local queue                                                   |
+| Settlement             | nested open descendants, explicit or omitted unknown usage, later evidence, repeated known value, conflicting known value, consumable return, reusable return, isolated overage |
+| Replay                 | lost-response simulation for all four mutations, exact stored result, no duplicate state or history entry, changed-body conflict across principals                              |
+| Rollback               | each declared private checkpoint leaves no partial base fact, result, or history entry visible through public reads                                                             |
+| Validation             | canonical issue order independent of object property insertion order                                                                                                            |
+| Generation             | every manifest binding resolves, three clean generations match, no undeclared output                                                                                            |
 
 ## Full repository verification
 
-After focused acceptance passes, run:
+Run the generator tests, the full SDK suite, and the repository checks:
 
 ```sh
+pnpm test:generator
+pnpm --filter @keynes/sdk test
 pnpm verify
 ```
 
-The implementation must retain the exact PGlite package version, runtime `server_version`, contract digest, migration checksums, generated-file hashes, test result, and repository revision in an ordinary provider-free test artifact or CI log. It must not store credentials or arbitrary command bodies.
+The retained FEAT-0002 run has 15 passing generator tests and 39 passing SDK tests. The acceptance record contains the exact PGlite package version, runtime `server_version`, contract digest, migration checksums, generated-file hashes, command results, and repository revision. It does not contain credentials or arbitrary command bodies.
 
 ## Evidence limits
 
-A passing quickstart proves only the fresh local generated-client-to-installed-PGlite lifecycle, deterministic generation, serialized conservation, declared authorization branches, replay, and declared rollback checkpoints.
+A passing quickstart proves only the fresh local generated-client-to-installed-PGlite lifecycle, deterministic generation, serialized conservation, declared authorization branches, replay, and declared rollback checkpoints. Budget semantics remain in the database procedures. The generated client validates and transports commands and results.
 
-The report must state `NOT RUN` for native PostgreSQL concurrency, independent connections, roles, tenant isolation, hostile-caller security, customer installation, Cloud, cross-host equivalence, recovery, rolling upgrades, broad fault campaigns, package footprint, memory use, startup, latency, paid services, and managed providers.
+Native PostgreSQL concurrency, independent connections, roles, tenant isolation, hostile-caller security, customer installation, Cloud, cross-host equivalence, recovery, rolling upgrades, broad fault campaigns, package footprint, memory use, startup, latency, paid services, and managed providers remain `NOT RUN`.

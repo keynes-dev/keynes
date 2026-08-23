@@ -1161,9 +1161,15 @@ function validate(
 
 function validateDefinition(name: string, value: unknown): ValidationIssue[] {
   const definition = definitions[name];
-  return definition === undefined
-    ? issue("", "unknown-definition")
-    : validate(definition, value, "");
+  const issues =
+    definition === undefined
+      ? issue("", "unknown-definition")
+      : validate(definition, value, "");
+  return issues.sort(
+    (left, right) =>
+      left.path.localeCompare(right.path) ||
+      left.rule.localeCompare(right.rule),
+  );
 }
 
 export function validatePublishResourceCommand(

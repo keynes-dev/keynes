@@ -60,7 +60,7 @@
 
 **Goal**: Prove that the one contract regenerates every used consumer and retain one honest acceptance record.
 
-- [ ] T021 Complete generator tests for unsupported keywords, duplicate targets, undeclared outputs, unstable enumerations, undeclared files, contract mismatch, migration drift, and installed-object mismatch. Run three clean generations in temporary directories, require byte-identical output and digests, and resolve every generated binding against a fresh installation.
+- [X] T021 Complete generator tests for unsupported keywords, duplicate targets, undeclared outputs, unstable enumerations, undeclared files, contract mismatch, migration drift, and installed-object mismatch. Run three clean generations in temporary directories, require byte-identical output and digests, and resolve every generated binding against a fresh installation.
 - [ ] T022 Run `pnpm generate:check`, `pnpm test:budget`, `pnpm verify`, and the frozen-install check. Reconcile the quickstart, ownership READMEs, roadmap status, checklist, and this task list against observed results. Write one `reports/feat-0002/acceptance.json` with tool versions, the PGlite `server_version`, contract and migration digests, generated-file hashes, the repository revision, command results, and every lane that remains `NOT RUN`.
 
 ## Execution rules

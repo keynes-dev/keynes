@@ -913,10 +913,7 @@ BEGIN
           'budget_not_found', jsonb_build_object('budgetId', target_id::text)
         );
       END IF;
-      IF jsonb_array_length(items) <> (
-        SELECT count(*) FROM keynes_internal.budget_resources
-        WHERE tenant_id = tenant AND budget_id = target_id
-      ) OR EXISTS (
+      IF EXISTS (
         SELECT 1 FROM jsonb_array_elements(items) AS usage
         WHERE NOT EXISTS (
           SELECT 1 FROM keynes_internal.budget_resources AS fact
@@ -969,7 +966,7 @@ BEGIN
       SELECT coalesce(jsonb_agg(jsonb_build_object(
         'resourceTypeId', resource->'resourceType'->>'resourceTypeId',
         'amount', (resource->>'deficit')::numeric
-      )), '[]'::jsonb) INTO deficits
+      ) ORDER BY resource->'resourceType'->>'resourceTypeId'), '[]'::jsonb) INTO deficits
       FROM jsonb_array_elements(projection->'resources') AS resource
       WHERE (resource->>'deficit')::numeric > 0;
       PERFORM keynes_internal.append_history(
