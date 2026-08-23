@@ -281,6 +281,57 @@ describe("Budget settlement", () => {
     });
   });
 
+  it("bounds settled nested charges before returning them to an ancestor", async () => {
+    const client = local.clientFor("product-fixture");
+    const resource = await defineResource(client, {
+      commandId: "12000000-0000-0000-0000-000000000071",
+      canonicalName: "model_tokens",
+      accountingBehavior: "consumable",
+    });
+    const root = await client.createBudget({
+      commandId: "22000000-0000-0000-0000-000000000071",
+      resources: [{ resourceTypeId: resource.resourceTypeId, amount: 100 }],
+    });
+    const child = await requestApproved(client, {
+      commandId: "32000000-0000-0000-0000-000000000071",
+      parentBudgetId: root.budget.budgetId,
+      resources: [{ resourceTypeId: resource.resourceTypeId, amount: 40 }],
+    });
+    const grandchild = await requestApproved(client, {
+      commandId: "32000000-0000-0000-0000-000000000072",
+      parentBudgetId: child.childBudgetId,
+      resources: [{ resourceTypeId: resource.resourceTypeId, amount: 20 }],
+    });
+
+    await client.settleBudget({
+      commandId: "42000000-0000-0000-0000-000000000071",
+      budgetId: child.childBudgetId,
+      usage: [{ resourceTypeId: resource.resourceTypeId, amount: 0 }],
+    });
+    await client.settleBudget({
+      commandId: "42000000-0000-0000-0000-000000000072",
+      budgetId: grandchild.childBudgetId,
+      usage: [{ resourceTypeId: resource.resourceTypeId, amount: 60 }],
+    });
+
+    const settledChild = await client.getBudget({
+      budgetId: child.childBudgetId,
+    });
+    expect(settledChild.budget.resources[0]).toMatchObject({
+      committed: 20,
+      available: 20,
+      subtreeObservedUsage: 60,
+      deficit: 0,
+    });
+    const ancestor = await client.getBudget({ budgetId: root.budget.budgetId });
+    expect(ancestor.budget.resources[0]).toMatchObject({
+      committed: 20,
+      available: 80,
+      subtreeObservedUsage: 60,
+      deficit: 0,
+    });
+  });
+
   it("settles a subset while keeping an omitted Resource unresolved", async () => {
     const client = local.clientFor("product-fixture");
     const first = await defineResource(client, {

@@ -106,4 +106,18 @@ describe("generated client bindings", () => {
     expect(validateCreateBudgetCommandIssues(first)).toEqual(expected);
     expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
   });
+
+  it("rejects structurally duplicate resource entries regardless of property order", () => {
+    const resourceTypeId = "10000000-0000-0000-0000-000000000001";
+
+    expect(
+      validateCreateBudgetCommandIssues({
+        commandId: "20000000-0000-0000-0000-000000000001",
+        resources: [
+          { resourceTypeId, amount: 1 },
+          { amount: 1, resourceTypeId },
+        ],
+      }),
+    ).toEqual([{ path: "/resources", rule: "uniqueItems" }]);
+  });
 });

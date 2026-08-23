@@ -1058,7 +1058,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function sameJson(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (left === right) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length &&
+      left.every((item, index) => sameJson(item, right[index]))
+    );
+  }
+  if (!isRecord(left) || !isRecord(right)) return false;
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key, index) =>
+        key === rightKeys[index] && sameJson(left[key], right[key]),
+    )
+  );
 }
 
 function validate(
@@ -1113,8 +1129,11 @@ function validate(
     if (schema.minItems !== undefined && value.length < schema.minItems)
       issues.push(...issue(path, "minItems"));
     if (schema.uniqueItems === true) {
-      const encoded = value.map((item) => JSON.stringify(item));
-      if (new Set(encoded).size !== encoded.length)
+      if (
+        value.some((item, index) =>
+          value.slice(0, index).some((candidate) => sameJson(candidate, item)),
+        )
+      )
         issues.push(...issue(path, "uniqueItems"));
     }
     if (schema.items !== undefined)

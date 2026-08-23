@@ -174,6 +174,59 @@ AS $function$
   WHERE fact.resource_type_id = selected_resource;
 $function$;
 
+CREATE FUNCTION keynes_internal.budget_charge(
+  selected_tenant uuid,
+  selected_budget uuid,
+  selected_resource uuid
+) RETURNS numeric
+LANGUAGE plpgsql
+STABLE
+AS $function$
+DECLARE
+  budget_fact record;
+  child_fact record;
+  committed numeric := 0;
+BEGIN
+  SELECT holding.direct_usage_amount, resource.accounting_behavior
+  INTO budget_fact
+  FROM keynes_internal.budget_resources AS holding
+  JOIN keynes_internal.resource_types AS resource
+    USING (tenant_id, resource_type_id)
+  WHERE holding.tenant_id = selected_tenant
+    AND holding.budget_id = selected_budget
+    AND holding.resource_type_id = selected_resource;
+
+  FOR child_fact IN
+    SELECT child.budget_id, holding.allocated_amount
+    FROM keynes_internal.budgets AS child
+    JOIN keynes_internal.budget_resources AS holding
+      ON holding.tenant_id = child.tenant_id
+      AND holding.budget_id = child.budget_id
+    WHERE child.tenant_id = selected_tenant
+      AND child.parent_budget_id = selected_budget
+      AND holding.resource_type_id = selected_resource
+  LOOP
+    IF keynes_internal.budget_is_settled(selected_tenant, child_fact.budget_id) THEN
+      IF budget_fact.accounting_behavior = 'consumable' THEN
+        committed := committed + least(
+          child_fact.allocated_amount,
+          keynes_internal.budget_charge(
+            selected_tenant, child_fact.budget_id, selected_resource
+          )
+        );
+      END IF;
+    ELSE
+      committed := committed + child_fact.allocated_amount;
+    END IF;
+  END LOOP;
+
+  IF budget_fact.accounting_behavior = 'consumable' THEN
+    RETURN coalesce(budget_fact.direct_usage_amount, 0) + committed;
+  END IF;
+  RETURN committed;
+END;
+$function$;
+
 CREATE FUNCTION keynes_internal.assert_safe_accounting(
   selected_tenant uuid,
   changed_budget uuid,
@@ -252,7 +305,7 @@ BEGIN
       WHEN keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
         THEN least(
           child_fact.allocated_amount,
-          keynes_internal.subtree_observed(
+          keynes_internal.budget_charge(
             selected_tenant, child.budget_id, fact.resource_type_id
           )
         )
@@ -890,6 +943,7 @@ REVOKE ALL ON FUNCTION keynes_internal.canonical_envelope(text, jsonb, text, boo
 REVOKE ALL ON FUNCTION keynes_internal.event_uuid(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.budget_is_settled(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.subtree_observed(uuid, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.budget_charge(uuid, uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.assert_safe_accounting(uuid, uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.budget_projection(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.append_history(uuid, uuid, uuid, text, uuid, jsonb) FROM PUBLIC;

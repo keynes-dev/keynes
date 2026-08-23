@@ -3,43 +3,43 @@
   "evidenceClass": "provider-free",
   "outcome": "PASS",
   "toolchain": {
-    "node": "v25.9.0",
+    "node": "v26.5.0",
     "pnpm": "11.21.0",
     "pglitePackage": "0.5.5",
     "pgliteServerVersion": "18.3"
   },
   "contract": {
     "algorithm": "sha256",
-    "digest": "c07ebdaa6edb910216b5ed751addfe12a7743bb181f0e736a7e160c4186bd489"
+    "digest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
   },
   "migrations": [
     {
       "id": "0001-storage",
       "path": "packages/database/migrations/0001-storage.sql",
-      "sha256": "6f8929e5bbc411fae577fce8add9ffcece6dd3b4449ee78e96995a307c98584d"
+      "sha256": "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a"
     },
     {
       "id": "0002-budget",
       "path": "packages/database/migrations/0002-budget.sql",
-      "sha256": "f095b6736d71f4083741cb01d488ae3566154ab92b68b557495072d893d7862d"
+      "sha256": "2582f7e1aa5a0d1698170737c67ff5f2a2ebbea20b5084087ff29a32a946e932"
     },
     {
       "id": "0003-public",
       "path": "packages/database/migrations/0003-public.generated.sql",
-      "sha256": "bdca4f55e0915a4c05014d34169fbd0056a2ecb7eeedf7d121a42fbf0d72666c"
+      "sha256": "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a"
     }
   ],
   "generatedFiles": {
-    "packages/contracts/generated/contract-digest.json": "21d2aa00d2121a05fd6a9cbae2da76891642a03062ce5fa212965017cb953a92",
-    "packages/database/generated/installation-record.json": "803e5549208756596546b7d3e59556b92efb5ed2afc7c9a23ab1ded7aa4e026e",
-    "packages/database/migrations/0003-public.generated.sql": "bdca4f55e0915a4c05014d34169fbd0056a2ecb7eeedf7d121a42fbf0d72666c",
-    "packages/sdk/src/generated/client.ts": "b533196bdd2d284b7a3551a29afff8273f88034cb8d751b9caa497703117ee97",
-    "packages/sdk/src/generated/types.ts": "5d4ae173fbc074b7c2526a8ce550a721cbd1147ce7ea213869a3e0f4d598853e",
-    "packages/sdk/src/generated/validators.ts": "342bbd157fe91d086a6e899dc09e4922802a991a9ddd2881b79d8f66ade9aa8d"
+    "packages/contracts/generated/contract-digest.json": "8cc9a33143aded44cba12ffe9fb37e7b89f1240fe45d1a4605691ea88a9957b0",
+    "packages/database/generated/installation-record.json": "81d50d2359209f5ad5891c5e92976334f3609face33cd7c5489646a14dc4ad04",
+    "packages/database/migrations/0003-public.generated.sql": "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a",
+    "packages/sdk/src/generated/client.ts": "f208a849e9f91de01ebd3dd7b53e6edfb47b5a6914446e71c4a3b89dd98412ce",
+    "packages/sdk/src/generated/types.ts": "54cb0ae0dbb898069ee0f72879c65c93624de6adfc69a73a6a13b25bd00786ed",
+    "packages/sdk/src/generated/validators.ts": "9c3ef39c91c32036930821d526f3b43b85b121fcd9482577eaae33344df3c079"
   },
   "repository": {
-    "revision": "5ea378b7e95057d97f41e91dea818c100405ae58",
-    "worktreeDirty": false
+    "revision": "749b73c319b9c32280480a6b2dbae77c8b4b8248",
+    "worktreeDirty": true
   },
   "checks": [
     {
@@ -60,12 +60,12 @@
     {
       "command": "pnpm --filter @keynes/sdk test",
       "exitCode": 0,
-      "summary": "7 test files passed; 38 tests passed."
+      "summary": "7 test files passed; 40 tests passed."
     },
     {
       "command": "pnpm verify",
       "exitCode": 0,
-      "summary": "8 feature identity tests passed; 6 Turbo tasks passed; SDK passed 7 files and 38 tests; Cloud passed 1 file and 1 test; boundaries checked 16 files with 0 issues."
+      "summary": "8 feature identity tests passed; 6 Turbo tasks passed; SDK passed 7 files and 40 tests; Cloud passed 1 file and 1 test; boundaries checked 16 files with 0 issues."
     },
     {
       "command": "pnpm install --frozen-lockfile",
