@@ -43,13 +43,13 @@ The documented acceptance flow is equivalent to:
 const local = await openLocalKeynes();
 
 try {
-  const publisher = local.clientFor("publisher-fixture");
+  const definer = local.clientFor("definer-fixture");
   const allocator = local.clientFor("allocator-fixture");
   const requester = local.clientFor("requester-fixture");
   const settlement = local.clientFor("settlement-fixture");
   const reader = local.clientFor("reader-fixture");
 
-  const resource = await publisher.publishResource({
+  const resource = await definer.defineResourceType({
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
       canonicalName: "model_tokens",
@@ -108,7 +108,7 @@ The full SDK and generator suites cover these groups through installed public fu
 
 | Group                  | Required observations                                                                                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publication            | first publish, exact republication, changed-definition conflict, no quantity                                                                                                    |
+| Definition             | first definition, exact redefinition, changed-definition conflict, no quantity                                                                                                  |
 | Permissions            | five independent permissions, including request-only and settlement-only principals                                                                                             |
 | Allocation and request | safe arithmetic, exact approval, canonical denial, no partial envelope, sibling conservation under the serialized local queue                                                   |
 | Settlement             | nested open descendants, explicit or omitted unknown usage, later evidence, repeated known value, conflicting known value, consumable return, reusable return, isolated overage |

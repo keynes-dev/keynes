@@ -21,6 +21,7 @@ Sync Impact Report
   - ✅ aligned, no change: AGENTS.md
 - Follow-up TODOs: None
 -->
+
 # Keynes Constitution
 
 ## Core Principles
@@ -100,9 +101,8 @@ prevents planned behavior from being reported as delivered behavior.
 
 ## Product constraints
 
-- `Budget` MUST remain the only public stateful governance object. Resource
-  publication defines immutable types but creates no quantity or spending
-  authority.
+- `Budget` MUST remain the only public stateful governance object. Defining a
+  Resource type creates no quantity or spending authority.
 - An ordinary request MUST name one exact Resource envelope and be funded
   entirely by its structural parent. It MUST atomically return a denial or
   reserve Resources and create one child Budget.

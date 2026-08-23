@@ -34,28 +34,28 @@ A known ID with a different checksum fails installation. Exactly one manifest en
 
 Provider-free fixtures map a principal to independent authorization classes. This is an installed authorization check, not host security qualification.
 
-| Field          | Constraint                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------- |
-| `tenant_id`    | Part of primary key                                                                               |
-| `principal_id` | Part of primary key                                                                               |
-| `permission`   | One of `publish_resource`, `create_root_budget`, `request_budget`, `settle_budget`, `read_budget` |
+| Field          | Constraint                                                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------------- |
+| `tenant_id`    | Part of primary key                                                                                   |
+| `principal_id` | Part of primary key                                                                                   |
+| `permission`   | One of `define_resource_type`, `create_root_budget`, `request_budget`, `settle_budget`, `read_budget` |
 
 The local harness supplies the tenant and principal through private transaction context. Neither value appears in public command input. Tests include a principal for each individual class and a product fixture with the intended combined set.
 
 ### Resource type
 
-| Field                    | Constraint                                                                                   |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `tenant_id`              | Part of primary key and name uniqueness                                                      |
-| `resource_type_id`       | Primary key component and foreign key to its creation command; equal to creation `commandId` |
-| `canonical_name`         | Unique within tenant                                                                         |
-| `unit`                   | Immutable                                                                                    |
-| `accounting_behavior`    | `consumable` or `reusable`                                                                   |
-| `definition`             | Canonical logical definition                                                                 |
-| `definition_digest`      | Digest of the database-normalized definition                                                 |
-| `publisher_principal_id` | Evidence fact                                                                                |
+| Field                  | Constraint                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `tenant_id`            | Part of primary key and name uniqueness                                                      |
+| `resource_type_id`     | Primary key component and foreign key to its creation command; equal to creation `commandId` |
+| `canonical_name`       | Unique within tenant                                                                         |
+| `unit`                 | Immutable                                                                                    |
+| `accounting_behavior`  | `consumable` or `reusable`                                                                   |
+| `definition`           | Canonical logical definition                                                                 |
+| `definition_digest`    | Digest of the database-normalized definition                                                 |
+| `definer_principal_id` | Evidence fact                                                                                |
 
-Publication creates no quantity. Exact republication by canonical name returns the existing identity only when the full canonical definition matches; otherwise it returns `resource_type_conflict`.
+Definition creates no quantity. Exact redefinition by canonical name returns the existing identity only when the full canonical definition matches; otherwise it returns `resource_type_conflict`.
 
 ### Budget
 
@@ -100,7 +100,7 @@ An exact match returns `result` without another mutation or event. Any operation
 
 ### Budget history stream and entry
 
-`get_budget` returns the complete unpaginated history stream for the selected Budget's root lineage. Resource publication has no history stream; its result and command ledger retain publication evidence.
+`get_budget` returns the complete unpaginated history stream for the selected Budget's root lineage. Resource definition has no history stream; its result and command ledger retain definition evidence.
 
 The Budget history stream contains root allocation, child approval or denial, and settlement evidence for one root Budget lineage.
 
@@ -142,8 +142,8 @@ The public projection exposes `subtreeObservedUsage`, `unresolved`, `deficit`, `
 
 ```text
 Resource name absent
-  └─ publish_resource_type → immutable Resource type
-       ├─ exact republication → same identity, no new quantity
+  └─ define_resource_type → immutable Resource type
+       ├─ exact redefinition → same identity, no new quantity
        └─ changed definition → error, no mutation
 
 Budget active
@@ -169,7 +169,7 @@ Every mutation executes in one transaction:
 5. lock affected Budget ancestry root-to-leaf, then Resource or event-stream rows in canonical ID order;
 6. evaluate the operation and write base facts;
 7. store the canonical command result;
-8. store canonical evidence as a publication result or append a Budget-lineage event;
+8. store canonical evidence as a definition result or append a Budget-lineage event;
 9. return to the caller-owned transaction for commit.
 
 The lock order is the intended native PostgreSQL strategy. FEAT-0002 proves only that these statements execute in PGlite and that serialized local sibling cases conserve Resource quantities. Independent-connection correctness remains `NOT RUN`.

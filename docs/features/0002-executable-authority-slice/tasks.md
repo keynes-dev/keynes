@@ -7,27 +7,27 @@
 
 **Evidence**: Retain one final provider-free record in `reports/feat-0002/acceptance.json`. Intermediate test output guides implementation but does not create a separate retained report.
 
-## Phase 1: Prove Resource publication
+## Phase 1: Prove Resource definition
 
-**Goal**: Make one generated `publishResource` call reach a freshly installed `keynes.publish_resource_type` function in PGlite.
+**Goal**: Make one generated `defineResourceType` call reach a freshly installed `keynes.define_resource_type` function in PGlite.
 
 - [x] T001 Pin PGlite and the build-time generator dependencies, then add `generate`, `generate:check`, and `test:budget` to the existing root and SDK manifests. Update `pnpm-lock.yaml` and confirm that a frozen install accepts it.
 - [x] T002 Add the ordered JSON Schema contract, operation metadata, canonical test fixtures, and failing generator tests in `packages/contracts/` and `scripts/generate-contracts.test.ts`. Cover closed objects, canonical UUIDs, safe integers, tagged results, deterministic ordering, and unsupported schema keywords.
-- [x] T003 Write and run the first black-box publication test in `packages/sdk/src/budget-lifecycle.test.ts`. Call the generated client against a fresh PGlite installation and record the expected missing generated target or installed function failure.
+- [x] T003 Write and run the first black-box definition test in `packages/sdk/src/budget-lifecycle.test.ts`. Call the generated client against a fresh PGlite installation and record the expected missing generated target or installed function failure.
 - [x] T004 Implement the minimum deterministic generator in `scripts/generate-contracts.ts`. Emit TypeScript types, standalone validators, the five concrete client methods, public SQL wrappers, the contract digest, migration checksums, expected targets, and declared-output checks without creating a generator module directory.
 - [x] T005 Add the hand-authored migration manifest and the storage required for migration and contract records, permissions, Resource types, Budgets, Budget Resource facts, command replay, and private history records in `packages/database/migrations/`.
-- [x] T006 Implement the shared `keynes_internal.apply_command` path and Resource publication in the Budget migration. Cover validation, authorization, replay binding, exact republication, conflict, canonical results, history evidence, and transaction rollback.
+- [x] T006 Implement the shared `keynes_internal.apply_command` path and Resource definition in the Budget migration. Cover validation, authorization, replay binding, exact redefinition, conflict, canonical results, history evidence, and transaction rollback.
 - [x] T007 Implement the package-private migration installer, procedure caller, PGlite owner, fixture principal context, generated error mapping, and cleanup under `packages/sdk/src/private/`. Export only generated contract types, `KeynesClient`, and `KeynesError` from the SDK entry point.
-- [x] T008 Run the publication test until first publication, exact republication, changed-definition conflict, permission denial, replay, rollback, and no-quantity assertions pass through installed public SQL.
+- [x] T008 Run the definition test until first definition, exact redefinition, changed-definition conflict, permission denial, replay, rollback, and no-quantity assertions pass through installed public SQL.
 
 **Checkpoint**: One generated client method reaches one installed database operation. No other lifecycle behavior is claimed.
 
 ## Phase 2: Complete the happy-path lifecycle
 
-**Goal**: Publish a Resource type, allocate a root Budget, request one child, settle it, and read its projection and complete root-lineage history.
+**Goal**: Define a Resource type, allocate a root Budget, request one child, settle it, and read its projection and complete root-lineage history.
 
 - [x] T009 Extend `packages/sdk/src/budget-lifecycle.test.ts` with root allocation, an exact funded request, known-usage settlement, combined `getBudget`, and ordered Budget history assertions. Run the suite and record the expected missing behavior before implementation.
-- [x] T010 Implement authorized root allocation with published Resource validation, safe arithmetic, exact quantity creation, replay, and one root-lineage history entry.
+- [x] T010 Implement authorized root allocation with defined Resource validation, safe arithmetic, exact quantity creation, replay, and one root-lineage history entry.
 - [x] T011 Implement exact parent-funded request with whole-envelope locking, atomic reservation, child creation, replay, and one approval history entry.
 - [x] T012 Implement first settlement with monotone direct usage, Budget sealing, consumable accounting, replay, and one settlement history entry.
 - [x] T013 Implement `keynes.get_budget(jsonb) -> jsonb` and the generated `getBudget` mapping. Return `{ budget, history }` from one transaction snapshot. Include the complete unpaginated history for the selected Budget's root lineage.
@@ -39,7 +39,7 @@
 
 **Goal**: Deny an unfundable exact envelope without state drift and keep permission failures distinct from denials.
 
-- [x] T015 Write and run failing cases for single-Resource denial, multi-Resource denial, serialized sibling conservation, malformed envelopes, unsupported funding fields, unpublished Resources, inactive parents, and independent request, settlement, and read permissions.
+- [x] T015 Write and run failing cases for single-Resource denial, multi-Resource denial, serialized sibling conservation, malformed envelopes, unsupported funding fields, Resource types that have not been defined, inactive parents, and independent request, settlement, and read permissions.
 - [x] T016 Implement whole-envelope funding evaluation, canonical `insufficient_available` reasons, no partial reservation, denial history, and the missing validation and authorization branches until the focused and lifecycle suites pass.
 
 ## Phase 4: Complete settlement accounting

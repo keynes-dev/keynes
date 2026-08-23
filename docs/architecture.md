@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Keynes governs resource authority in a database. An application publishes immutable Resource types, then places quantities of those Resources in a Budget. One atomic request moves an exact Resource envelope into a child Budget. The application does the work and later settles the Budget with observed usage.
+Keynes governs resource authority in a database. An application defines immutable Resource types, then places quantities of those Resources in a Budget. One atomic request moves an exact Resource envelope into a child Budget. The application does the work and later settles the Budget with observed usage.
 
 The product loop is:
 
@@ -178,21 +178,21 @@ A Resource type is an immutable, tenant-scoped definition for a countable kind o
 
 Amounts are non-negative safe integers no greater than `2^53 - 1`, so every SDK and procedure boundary represents them exactly. Keynes rejects overflow at every arithmetic boundary.
 
-Publishing a Resource type creates no quantity or Budget authority. The definition cannot be edited after publication. A different unit or behavior requires a new Resource type with a new identity. Republishing the same name and definition is idempotent. Reusing the name with a different definition returns a conflict.
+Defining a Resource type creates no quantity or Budget authority. The Resource type cannot be edited after it is defined. A different unit or behavior requires a new Resource type with a new identity. Defining the same name and definition again is idempotent. Reusing the name with a different definition returns a conflict.
 
 ### Budget
 
 A Budget is the only public authority-bearing object. Its database state contains:
 
 - an opaque identifier and parent lineage;
-- allocations that reference published Resource types;
+- allocations that reference defined Resource types;
 - current holdings and commitments to children;
 - a local Policy set and Policy revision;
 - lifecycle and accounting revisions;
 - direct usage, derived subtree usage, and isolated deficits; and
 - immutable command results and transition evidence.
 
-An authorized root allocation creates a root Budget with quantities of selected published Resource types. Root allocation is the boundary at which quantity enters the Budget model. Resource publication and ordinary execution permission cannot create quantity. A root need not hold every type published for its tenant. Every other Budget is created by one approved request against its parent. Policies belong to one Budget and govern only that Budget's direct child requests. They are not inherited. Root creation can supply the root's local Policies, and a request can supply the complete local Policy set for the child it creates. Omitting child Policies is canonically identical to supplying an empty set.
+An authorized root allocation creates a root Budget with quantities of selected defined Resource types. Root allocation is the boundary at which quantity enters the Budget model. Resource type definition and ordinary execution permission cannot create quantity. A root need not hold every type defined for its tenant. Every other Budget is created by one approved request against its parent. Policies belong to one Budget and govern only that Budget's direct child requests. They are not inherited. Root creation can supply the root's local Policies, and a request can supply the complete local Policy set for the child it creates. Omitting child Policies is canonically identical to supplying an empty set.
 
 ### Request
 
@@ -200,7 +200,7 @@ A scalar request proposes one exact Resource envelope for one child Budget. The 
 
 The default command has no funding `source` and cannot issue quantity. Generated SDKs do not expose unsupported fields, and database validation rejects unknown source, funding-leg, or issuance input instead of inferring intent.
 
-Subtree issuance uses a separate database procedure and permission. It creates quantity for a published Resource type within one child subtree and never runs with ordinary request permission. Once issuance passes its release gates, multi-source funding retains one structural parent and adds ordered funding legs from authorized Budgets in the same Keynes database. Keynes rejects cross-database composition before mutation. Both extensions leave the scalar parent-funded request as the default SDK path.
+Subtree issuance uses a separate database procedure and permission. It creates quantity for a defined Resource type within one child subtree and never runs with ordinary request permission. Once issuance passes its release gates, multi-source funding retains one structural parent and adds ordered funding legs from authorized Budgets in the same Keynes database. Keynes rejects cross-database composition before mutation. Both extensions leave the scalar parent-funded request as the default SDK path.
 
 For a new command, the database procedure performs these operations in one transaction:
 
@@ -239,7 +239,7 @@ The public schema exposes these procedures in PGlite, customer PostgreSQL, and m
 
 | Procedure | Purpose |
 | --- | --- |
-| `keynes.publish_resource_type` | Publish one immutable Resource type without creating quantity |
+| `keynes.define_resource_type` | Define one immutable Resource type without creating quantity |
 | `keynes.create_budget` | Create an authorized root allocation |
 | `keynes.request` | Deny a request or create one child Budget atomically |
 | `keynes.settle` | Record monotone direct usage and derive settlement state |
@@ -257,7 +257,7 @@ SELECT keynes.settle($1::jsonb);
 
 These calls are commands, not queries over mutable application tables. The local SDK invokes them through its private PGlite handle. Customer applications may invoke them through the TypeScript SDK or directly through SQL. In Cloud, only the service execution role can invoke mutating procedures. No public role can write a base table or call an internal mutation function.
 
-`publish_resource_type` derives the tenant and publisher from the authorized principal, stores the immutable definition, and returns its stable identifier. `create_budget` separately verifies root-allocation permission before creating any quantity. `request` can only move quantity held by its target parent. Publication, root allocation, request, settlement, and read permissions are independent.
+`define_resource_type` derives the tenant and definer from the authorized principal, stores the immutable definition, and returns its stable identifier. `create_budget` separately verifies root-allocation permission before creating any quantity. `request` can only move quantity held by its target parent. Definition, root allocation, request, settlement, and read permissions are independent.
 
 `explain_request` evaluates validation, availability, and active Policy ceilings against one transaction snapshot. It returns the observed Budget and Policy revisions, ceilings, availability, and stable reasons. Its result is advisory: it reserves nothing, has no command identity, and cannot be supplied to `request` as proof. Only a committed `request` result creates authority.
 
@@ -289,7 +289,7 @@ The contract source contains:
 
 One generator produces TypeScript types, runtime validators, PostgreSQL validation, typed wrapper functions, SQL API documentation, and canonical conformance fixtures. Keynes-specific generator rules define safe integers, required field presence, tagged unions, normalized identifiers, canonical key ordering, and digest domain separation. A generated artifact is accepted only when its embedded contract digest matches the installed public schema.
 
-Application Resource names, units, and Policy context fields remain application-defined. Publishing a Resource type binds its name, unit, behavior, and stable identifier. SDK declarations preserve those names through generics or generated application types, so root allocations, requests, settlement usage, ceilings, evidence, and denial details do not fall back to untyped string maps. The database independently resolves the stable type identity and validates the same declared schemas at the authoritative boundary.
+Application Resource names, units, and Policy context fields remain application-defined. Defining a Resource type binds its name, unit, behavior, and stable identifier. SDK declarations preserve those names through generics or generated application types, so root allocations, requests, settlement usage, ceilings, evidence, and denial details do not fall back to untyped string maps. The database independently resolves the stable type identity and validates the same declared schemas at the authoritative boundary.
 
 ## Commit-bound transaction composition
 
@@ -409,12 +409,12 @@ Each Budget command procedure performs these operations:
 1. Resolve the tenant and target Budget from procedure inputs.
 2. Check the command identity and replay record.
 3. Lock the target Budget row with `SELECT ... FOR UPDATE`.
-4. Validate the expected revisions and published Resource type identities.
+4. Validate the expected revisions and defined Resource type identities.
 5. Evaluate active Policies against the command snapshot.
 6. Apply the transition and insert evidence.
 7. Store the canonical response before commit.
 
-The local adapter supplies one fixed internal tenant identity. Its private principal can publish Resource types, allocate roots, run Budget commands, and administer Policies because the application process is the local trust boundary. These capabilities are not exposed as database credentials. Because only one connection exists, the runtime mutex provides call ordering. The procedure's row locks, revision checks, constraints, and idempotency records remain present and execute unchanged. Local commands therefore run the same procedures as Cloud commands. This does not mean that single-connection PGlite reproduces native PostgreSQL contention.
+The local adapter supplies one fixed internal tenant identity. Its private principal can define Resource types, allocate roots, run Budget commands, and administer Policies because the application process is the local trust boundary. These capabilities are not exposed as database credentials. Because only one connection exists, the runtime mutex provides call ordering. The procedure's row locks, revision checks, constraints, and idempotency records remain present and execute unchanged. Local commands therefore run the same procedures as Cloud commands. This does not mean that single-connection PGlite reproduces native PostgreSQL contention.
 
 Public TypeScript methods remain asynchronous so local, customer PostgreSQL, and Cloud code use the same workflow. A dedicated worker can become a later performance option without changing the procedure interface or public contract.
 
@@ -426,8 +426,8 @@ The signed installer creates the private and public schemas, verifies the server
 - `keynes_requester` can request child Budgets.
 - `keynes_settler` can record settlement usage.
 - `keynes_reader` can query authorized public views and read procedures.
-- `keynes_resource_publisher` can publish immutable Resource types without allocating quantity or receiving Budget command privileges.
-- `keynes_root_allocator` can create roots and their initial quantities without receiving Resource publication or ordinary Budget command privileges.
+- `keynes_resource_definer` can define immutable Resource types without allocating quantity or receiving Budget command privileges.
+- `keynes_root_allocator` can create roots and their initial quantities without receiving Resource definition or ordinary Budget command privileges.
 - `keynes_policy_admin` can publish and activate Policies without receiving private table access.
 
 The names identify privilege classes. An installation assigns them to customer-owned login roles rather than using them as shared credentials. A private binding maps each login role to one Keynes principal and tenant. Procedures derive identity from that binding and reject caller-provided tenant selection. A multi-tenant installation creates distinct bound roles or a trusted security adapter owned by `keynes_owner`. An arbitrary session setting is never an identity source.
@@ -440,7 +440,7 @@ The installable profile supports one writable PostgreSQL authority per Budget li
 
 Each Cloud mutation invokes the same schema-qualified function inside one native PostgreSQL transaction. Authentication supplies the tenant identity and the router selects the fenced home database for the Budget lineage. Foreign keys, unique indexes, check constraints, revision predicates, and row locks defend the invariants under concurrent service instances. Lock order follows Budget ancestry, then identifier order, so settlement propagation cannot deadlock with child requests. The service retries serialization and deadlock errors only with the same idempotency key.
 
-Cloud routes Resource publication to one fenced tenant catalog home. Before a root is allocated or a lineage moves, its home database must contain the same immutable Resource type identity and definition digest. Cloud may copy that immutable definition between homes, but a missing or conflicting digest fails before the Budget mutation.
+Cloud routes Resource type definition to one fenced tenant catalog home. Before a root is allocated or a lineage moves, its home database must contain the same immutable Resource type identity and definition digest. Cloud may copy that immutable definition between homes, but a missing or conflicting digest fails before the Budget mutation.
 
 The database core owns all tables in `keynes_internal`. Keynes Cloud applies the shared migrations and then compatible operational overlays. Application and service roles receive `EXECUTE` on specific procedures, never direct table write privileges. Read procedures return tenant-scoped projections rather than base rows. An overlay may add roles, indexes, partitions, routing metadata, or outbox delivery state, but cannot replace a core relation, procedure, Policy view, canonical result, or invariant.
 
@@ -454,7 +454,7 @@ Every mutating command contains a command ID. The ledger binds it to:
 - canonical command digest; and
 - committed result.
 
-An exact retry returns the recorded result. An approved request returns the same child Budget and never reserves Resources twice. Replaying Resource publication returns the same immutable type. Reusing a command ID with a different target, kind, or body returns `command_conflict` and does not change state.
+An exact retry returns the recorded result. An approved request returns the same child Budget and never reserves Resources twice. Replaying a Resource type definition returns the same immutable type. Reusing a command ID with a different target, kind, or body returns `command_conflict` and does not change state.
 
 The local SDK creates an internal command ID for each public method invocation and reuses it only while retrying that invocation. Application developers do not manage local idempotency keys. Customer PostgreSQL and Cloud mutations are durable and can outlive a client process. Their TypeScript adapters require or persist a durable idempotency key whenever an operation may be retried across an invocation boundary. Direct SQL callers must persist and reuse the command ID from their own durable operation record. Incompatible key reuse returns `idempotency_conflict`.
 
@@ -466,7 +466,7 @@ PGlite, customer PostgreSQL, and managed PostgreSQL use the same private schema:
 
 | Relation | Responsibility |
 | --- | --- |
-| `resource_types` | Stable identity, tenant, canonical name, unit, behavior, definition digest, and publisher evidence |
+| `resource_types` | Stable identity, tenant, canonical name, unit, behavior, definition digest, and definer evidence |
 | `budgets` | Identity, lineage, lifecycle, Policy revision, and accounting revision |
 | `budget_resources` | Resource type identity, initial amount, availability, commitments, usage, and deficit |
 | `policies` | Immutable SQL, profile, source digest, validation metadata, and activation state |
@@ -490,7 +490,7 @@ import { Keynes } from "@keynes/sdk";
 
 const keynes = await Keynes.local();
 
-await keynes.publishResourceTypes({
+await keynes.defineResourceTypes({
   usdCents: { unit: "cent", behavior: "consumable" },
   searchQueries: { unit: "query", behavior: "consumable" },
 });
@@ -514,7 +514,7 @@ if (result.status === "approved") {
 }
 ```
 
-`publishResourceTypes(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected published types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
+`defineResourceTypes(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected defined types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
 
 The constructor selects the deployment without changing the Budget API:
 
@@ -578,11 +578,11 @@ Release qualification measures package download and installed size, loaded resid
 The Cloud service owns concerns that do not belong in a database function:
 
 - authentication and application identity;
-- Resource publication, root allocation, and Budget command authorization;
+- Resource type definition, root allocation, and Budget command authorization;
 - rate limits and request-size limits;
 - RPC version negotiation;
 - durable idempotency-key handling at the network boundary;
-- invocation of the shared Resource type publication procedure;
+- invocation of the shared Resource type definition procedure;
 - invocation of the shared Policy publication and activation procedures;
 - fenced home-database routing by Budget lineage;
 - connection pooling and safe transaction retries;
@@ -630,9 +630,9 @@ PGlite, customer PostgreSQL, and managed PostgreSQL execute one database impleme
 The same semantic fixtures run against a fresh PGlite runtime, customer PostgreSQL installed from the signed bundle, customer PostgreSQL installed from the generated extension, and the managed Cloud path. They cover at least:
 
 - approval and denial under availability and Policy ceilings;
-- idempotent Resource type publication and conflicting-definition rejection;
-- rejection of root allocations that reference unpublished Resource types;
-- roots holding a strict subset of their tenant's published Resource types;
+- idempotent Resource type definition and conflicting-definition rejection;
+- rejection of root allocations that reference Resource types that have not been defined;
+- roots holding a strict subset of their tenant's defined Resource types;
 - rejection of unsupported source, funding-leg, and issuance command shapes;
 - multiple matching Policies and stable reason ordering;
 - typed-builder and raw-SQL Policy canonical equivalence;
@@ -672,7 +672,7 @@ Subtree issuance and multi-source funding change the authority inputs and are th
 
 A procedure rejects command versions it cannot interpret. Migrations never rewrite immutable command bodies or history-entry meaning. If a derived projection changes, Keynes rebuilds it from authoritative rows and records the projection version separately.
 
-Published Resource type definitions are immutable contract data. Migrations may add projections or indexes around them, but cannot change an existing type's identity, canonical name, unit, behavior, or definition digest.
+Defined Resource types are immutable contract data. Migrations may add projections or indexes around them, but cannot change an existing type's identity, canonical name, unit, behavior, or definition digest.
 
 Policy candidates bind to the Policy view version, SQL profile version, validator version, compiler version when applicable, and source digest. A change to any of those inputs requires revalidation before activation.
 
@@ -682,7 +682,7 @@ The signed bundle is canonical. Generated extension control and update scripts m
 
 Local mode protects authority from accidental application access, malformed commands, unsafe Policy SQL, and concurrent calls inside one process. It does not defend against an application that can replace its PGlite or migration assets, modify WebAssembly memory, or instrument its own process.
 
-Customer PostgreSQL treats application roles and Policy source as untrusted. The installer revokes default public access, fixes object ownership and `search_path`, separates owner, requester, settler, reader, Resource publisher, root allocator, and Policy privileges, binds login roles to principals and tenants, and checks those bindings inside every public operation. `SECURITY DEFINER` functions use schema-qualified objects and the minimum owner privilege. Customer database administrators remain inside the installable trust boundary and can alter committed state.
+Customer PostgreSQL treats application roles and Policy source as untrusted. The installer revokes default public access, fixes object ownership and `search_path`, separates owner, requester, settler, reader, Resource definer, root allocator, and Policy privileges, binds login roles to principals and tenants, and checks those bindings inside every public operation. `SECURITY DEFINER` functions use schema-qualified objects and the minimum owner privilege. Customer database administrators remain inside the installable trust boundary and can alter committed state.
 
 Cloud treats clients and Policy source as untrusted. The RPC service enforces identity and tenant access, the router enforces the fenced lineage placement, PostgreSQL roles deny base-table access, procedures recheck tenant scope and authority epoch, and the Policy sandbox has no credentials or general database visibility. Keynes database administrators remain inside the managed Cloud trust boundary.
 
@@ -709,10 +709,10 @@ Keynes does not execute application work, retry providers, infer missing usage, 
 This target architecture remains unqualified until executable evidence establishes the following gates:
 
 1. Generate the Resource type and Budget schemas, public SQL API, JSON contracts, procedure manifest, TypeScript types, validators, wrappers, and fixtures; prove their contract and object digests agree.
-2. Run Resource publication, root allocation, request, and settlement through PGlite, customer PostgreSQL installed from the bundle, customer PostgreSQL installed from the extension, and managed Cloud; compare canonical results, history entries, errors, and digests.
+2. Run Resource type definition, root allocation, request, and settlement through PGlite, customer PostgreSQL installed from the bundle, customer PostgreSQL installed from the extension, and managed Cloud; compare canonical results, history entries, errors, and digests.
 3. Prove typed-builder and raw-SQL Policy publication through the same sandbox with deterministic allowlists, cost limits, dependency binding, and adversarial escape tests on every host.
 4. Prove SDK-owned and caller-owned transactions, pending Budget typing, request-plus-outbox atomicity, rollback at every boundary, and replay after a committed response is lost.
-5. Prove Resource publication, root allocation, request, settlement, read, and Policy permissions; tenant bindings; read-view isolation; private-schema denial; direct SQL compatibility; migration coexistence; bundle/extension equivalence; drift detection; and upgrade recovery.
+5. Prove Resource definition, root allocation, request, settlement, read, and Policy permissions; tenant bindings; read-view isolation; private-schema denial; direct SQL compatibility; migration coexistence; bundle/extension equivalence; drift detection; and upgrade recovery.
 6. Prove true concurrent reservations, lock ordering, hot-parent behavior, lineage placement, stale-writer fencing, replica read labeling, forced failover, point-in-time recovery, and unresolved evidence after data loss.
 7. Package and measure local PGlite, signed bundles, generated extensions, and the TypeScript SDK for the supported PostgreSQL, Node.js, operating-system, architecture, and managed-provider matrix.
 8. Qualify Cloud and customer operations for authentication, tenant isolation, idempotency, routing, backup, recovery, incident response, vulnerability response, rolling migration, and support without forking the database core.

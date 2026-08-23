@@ -388,7 +388,7 @@ DECLARE
   domain_error_message text;
 BEGIN
   permission_name := CASE operation_name
-    WHEN 'publishResource' THEN 'publish_resource'
+    WHEN 'defineResourceType' THEN 'define_resource_type'
     WHEN 'createBudget' THEN 'create_root_budget'
     WHEN 'requestBudget' THEN 'request_budget'
     WHEN 'settleBudget' THEN 'settle_budget'
@@ -399,7 +399,7 @@ BEGIN
       MESSAGE = format('operation %L is not implemented', operation_name);
   END IF;
   BEGIN
-    IF operation_name = 'publishResource' THEN
+    IF operation_name = 'defineResourceType' THEN
       IF input IS NULL OR jsonb_typeof(input) <> 'object' THEN
         PERFORM keynes_internal.invalid_command(operation_name, '$', 'type');
       END IF;
@@ -425,7 +425,7 @@ BEGIN
     END IF;
     command_id := (input->>'commandId')::uuid;
     CASE operation_name
-      WHEN 'publishResource' THEN
+      WHEN 'defineResourceType' THEN
         IF jsonb_typeof(input->'definition') <> 'object' THEN
           PERFORM keynes_internal.invalid_command(operation_name, '$.definition', 'type');
         END IF;
@@ -559,7 +559,7 @@ BEGIN
     );
     PERFORM keynes_internal.checkpoint('after_command_binding');
 
-    IF operation_name = 'publishResource' THEN
+    IF operation_name = 'defineResourceType' THEN
       definition_digest_value := 'resource-definition:' || encode(
         sha256(convert_to(canonical_definition::text, 'UTF8')), 'hex'
       );
@@ -584,7 +584,7 @@ BEGIN
         INSERT INTO keynes_internal.resource_types (
           tenant_id, resource_type_id, canonical_name, unit,
           accounting_behavior, definition, definition_digest,
-          publisher_principal_id
+          definer_principal_id
         ) VALUES (
           tenant, command_id, canonical_definition->>'canonicalName',
           canonical_definition->>'unit',
@@ -595,7 +595,7 @@ BEGIN
       END IF;
       PERFORM keynes_internal.checkpoint('after_domain_mutation');
       result := jsonb_build_object(
-        'kind', 'published',
+        'kind', 'defined',
         'resourceType', jsonb_build_object(
           'resourceTypeId', stored_resource.resource_type_id::text,
           'canonicalName', stored_resource.canonical_name,
@@ -603,10 +603,10 @@ BEGIN
           'accountingBehavior', stored_resource.accounting_behavior,
           'definitionDigest', stored_resource.definition_digest
         ),
-        'publicationEvidence', jsonb_build_object(
-          'kind', 'resource_type_published',
+        'definitionEvidence', jsonb_build_object(
+          'kind', 'resource_type_defined',
           'commandId', stored_resource.resource_type_id::text,
-          'principalId', stored_resource.publisher_principal_id::text,
+          'principalId', stored_resource.definer_principal_id::text,
           'definitionDigest', stored_resource.definition_digest
         )
       );

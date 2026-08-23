@@ -48,12 +48,12 @@ const DECLARED_OUTPUTS = [
 
 const ALLOWED_OPERATIONS = [
   {
-    method: "publishResource",
-    target: "keynes.publish_resource_type",
-    permission: "publish_resource",
+    method: "defineResourceType",
+    target: "keynes.define_resource_type",
+    permission: "define_resource_type",
     replay: true,
-    input: "PublishResourceCommand",
-    output: "PublishResourceResult",
+    input: "DefineResourceTypeCommand",
+    output: "DefineResourceTypeResult",
   },
   {
     method: "createBudget",

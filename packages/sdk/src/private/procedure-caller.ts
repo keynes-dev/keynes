@@ -3,8 +3,8 @@ import type { PGlite, Transaction } from "@electric-sql/pglite";
 import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
 
 const TARGET_QUERIES = {
-  "keynes.publish_resource_type":
-    "select keynes.publish_resource_type($1::jsonb) as response",
+  "keynes.define_resource_type":
+    "select keynes.define_resource_type($1::jsonb) as response",
   "keynes.create_budget": "select keynes.create_budget($1::jsonb) as response",
   "keynes.request": "select keynes.request($1::jsonb) as response",
   "keynes.settle": "select keynes.settle($1::jsonb) as response",

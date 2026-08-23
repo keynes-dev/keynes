@@ -120,14 +120,14 @@ describe("ordered contract source", () => {
   it("validates every canonical command fixture", () => {
     expect(
       validateDefinition(
-        "PublishResourceCommand",
-        fixtureSource.commands.publishConsumable,
+        "DefineResourceTypeCommand",
+        fixtureSource.commands.defineConsumable,
       ),
     ).toBe(true);
     expect(
       validateDefinition(
-        "PublishResourceCommand",
-        fixtureSource.commands.publishReusable,
+        "DefineResourceTypeCommand",
+        fixtureSource.commands.defineReusable,
       ),
     ).toBe(true);
     expect(
@@ -155,9 +155,9 @@ describe("ordered contract source", () => {
 
   it("closes command objects at every public boundary", () => {
     expect(
-      validateDefinition("PublishResourceCommand", {
-        ...fixtureSource.commands.publishConsumable,
-        principalId: fixtureSource.principals.publisher,
+      validateDefinition("DefineResourceTypeCommand", {
+        ...fixtureSource.commands.defineConsumable,
+        principalId: fixtureSource.principals.definer,
       }),
     ).toBe(false);
     expect(
@@ -325,14 +325,14 @@ describe("contract generator", () => {
       ...files,
       contract: files.contract.replace(
         "keynes.create_budget",
-        "keynes.publish_resource_type",
+        "keynes.define_resource_type",
       ),
     }));
     const result = runGenerator(contractRoot, makeTemporaryDirectory());
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(
-      /duplicate installed target.*keynes\.publish_resource_type/i,
+      /duplicate installed target.*keynes\.define_resource_type/i,
     );
   });
 
@@ -340,7 +340,7 @@ describe("contract generator", () => {
     const contractRoot = prepareContractRoot((files) => ({
       ...files,
       contract: files.contract.replace(
-        '"permission": "publish_resource"',
+        '"permission": "define_resource_type"',
         '"permission": "read_budget"',
       ),
     }));
@@ -348,7 +348,7 @@ describe("contract generator", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(
-      /operation metadata mismatch.*publishResource.*permission/i,
+      /operation metadata mismatch.*defineResourceType.*permission/i,
     );
   });
 

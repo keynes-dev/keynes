@@ -48,7 +48,7 @@ export type RequestBudgetResult = RequestApproved | RequestDenied;
  * via the `definition` "OperationName".
  */
 export type OperationName =
-  | "publishResource"
+  | "defineResourceType"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"
@@ -58,7 +58,7 @@ export type OperationName =
  * via the `definition` "PermissionName".
  */
 export type PermissionName =
-  | "publish_resource"
+  | "define_resource_type"
   | "create_root_budget"
   | "request_budget"
   | "settle_budget"
@@ -310,21 +310,21 @@ export interface BudgetHistory {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "PublishResourceCommand".
+ * via the `definition` "DefineResourceTypeCommand".
  */
-export interface PublishResourceCommand {
+export interface DefineResourceTypeCommand {
   commandId: Uuid;
   definition: ResourceDefinition;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "PublishResourceResult".
+ * via the `definition` "DefineResourceTypeResult".
  */
-export interface PublishResourceResult {
-  kind: "published";
+export interface DefineResourceTypeResult {
+  kind: "defined";
   resourceType: ResourceTypeProjection;
-  publicationEvidence: {
-    kind: "resource_type_published";
+  definitionEvidence: {
+    kind: "resource_type_defined";
     commandId: Uuid;
     principalId: Uuid;
     definitionDigest: Digest;

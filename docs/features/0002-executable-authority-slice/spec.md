@@ -14,7 +14,7 @@
 
 ### User story 1 - Complete one Budget lifecycle (Priority: P1)
 
-As an application developer, I can publish a Resource type, create an authorized root Budget, request one exact child Budget, settle its usage, and inspect the resulting Budget and evidence.
+As an application developer, I can define a Resource type, create an authorized root Budget, request one exact child Budget, settle its usage, and inspect the resulting Budget and evidence.
 
 **Why this priority**: This is the smallest complete Keynes product loop. It proves that the database contract governs real state rather than describing disconnected data shapes.
 
@@ -22,8 +22,8 @@ As an application developer, I can publish a Resource type, create an authorized
 
 **Acceptance scenarios**:
 
-1. **Given** an authorized publisher and a new Resource type definition, **When** the application publishes the definition, **Then** it receives one stable Resource type identity and no quantity is created.
-2. **Given** an authorized allocator and a published Resource type, **When** the application allocates a root Budget, **Then** the root holds exactly the authorized quantity.
+1. **Given** an authorized definer and a new Resource type definition, **When** the application defines the Resource type, **Then** it receives one stable identity and no quantity is created.
+2. **Given** an authorized allocator and a defined Resource type, **When** the application allocates a root Budget, **Then** the root holds exactly the authorized quantity.
 3. **Given** an active parent with enough available quantity, **When** the application requests an exact Resource envelope, **Then** Keynes reserves the full envelope and creates exactly one child Budget in the same commit.
 4. **Given** a child Budget with known direct usage, **When** the application settles the child, **Then** Keynes records the usage, derives the lifecycle and subtree accounting, and returns Resources according to the Resource accounting behavior.
 5. **Given** an authorized reader, **When** the application reads the Budget and its lineage evidence, **Then** the projections match the committed command results in stable order.
@@ -96,23 +96,23 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 
 ### Edge cases
 
-- A Resource type is republished with the same canonical definition or with a conflicting definition under the same canonical name.
+- A Resource type is redefined with the same canonical definition or with a conflicting definition under the same canonical name.
 - An amount is negative, fractional, above the safe-integer limit, or causes arithmetic overflow.
 - An identifier is not normalized, a required field is missing, an unknown field is present, or a tagged result has fields from another variant.
-- A root allocation references an unpublished Resource type or comes from a principal without permission to allocate a root Budget.
+- A root allocation references a Resource type that has not been defined or comes from a principal without permission to allocate a root Budget.
 - Sibling requests race for the same parent holdings, including the case where only one complete envelope can be funded.
 - A request attempts to name a funding source, funding leg, issuance instruction, or another unsupported funding path.
 - A parent starts settlement while descendants remain open, or a descendant settles after the parent entered `settling`.
 - A settlement omits usage, later resolves missing usage, reports overage, or contradicts known usage.
 - A transaction fails after each mutation step but before the command result and evidence commit.
-- A committed response is lost for Resource publication, root allocation, request, or settlement.
+- A committed response is lost for Resource definition, root allocation, request, or settlement.
 - An unauthorized reader requests a Budget or evidence outside its allowed scope.
 
 ## Requirements _(mandatory)_
 
 ### Functional requirements
 
-- **FR-001**: FEAT-0002 MUST define one contract for Resource publication, root allocation, exact parent-funded request, settlement, and `get_budget` with Budget history.
+- **FR-001**: FEAT-0002 MUST define one contract for Resource type definition, root allocation, exact parent-funded request, settlement, and `get_budget` with Budget history.
 - **FR-002**: The contract MUST generate the consumer data types, validators, public SQL wrappers, migration metadata, and semantic digest required to execute and test the complete lifecycle.
 - **FR-003**: Every generated consumer MUST identify the same contract source and semantic digest. A digest mismatch MUST block use of the generated consumer.
 - **FR-004**: Every ordered contract operation MUST resolve to one installed public database operation and one generated client method. FEAT-0002 MUST create no unused value family, wrapper, metadata copy, or operation target.
@@ -120,13 +120,13 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 - **FR-006**: Public commands, results, errors, history entries, and read projections MUST reject missing required fields, unknown fields, invalid tagged variants, non-normalized identifiers, and values outside their declared domains before mutation.
 - **FR-007**: Resource amounts MUST be non-negative integers no greater than `2^53 - 1`. Every arithmetic boundary MUST reject overflow without changing committed state.
 - **FR-008**: Canonical encoding MUST produce one stable representation and digest for each logical value regardless of input field order. Operational metadata MUST NOT change a logical result or semantic digest.
-- **FR-009**: Resource publication MUST create an immutable Resource type without creating quantity or a Budget. Exact republication MUST return the existing identity, while the same canonical name with a different definition MUST return a conflict.
-- **FR-010**: Root allocation MUST require its own permission, reference only published Resource types, and create exactly the approved quantities in one root Budget. Publication, root allocation, and ordinary requests MUST use distinct permissions.
+- **FR-009**: Resource definition MUST create an immutable Resource type without creating quantity or a Budget. Exact redefinition MUST return the existing identity, while the same canonical name with a different definition MUST return a conflict.
+- **FR-010**: Root allocation MUST require its own permission, reference only defined Resource types, and create exactly the approved quantities in one root Budget. Definition, root allocation, and ordinary requests MUST use distinct permissions.
 - **FR-011**: An ordinary request MUST name one exact Resource envelope and MUST draw the full envelope only from its structural parent. Unsupported issuance, funding-source, or funding-leg input MUST be rejected.
 - **FR-012**: If the parent can fund the full envelope, an ordinary request MUST reserve the exact amounts and create exactly one child Budget atomically. If the parent cannot fund the full envelope, Keynes MUST return a denial and reserve nothing.
 - **FR-013**: Concurrent sibling requests MUST serialize against the same parent so that every committed result preserves conservation and no Resource amount is reserved twice.
 - **FR-014**: Every mutating operation MUST accept one command identity. An exact retry MUST return the committed result without another mutation or history entry. Reuse with a different target, operation, or canonical body MUST return a conflict.
-- **FR-015**: Publication, allocation, request, and settlement MUST use one transaction behavior for validation, command replay, database mutation, canonical result storage, transition evidence, and rollback.
+- **FR-015**: Definition, allocation, request, and settlement MUST use one transaction behavior for validation, command replay, database mutation, canonical result storage, transition evidence, and rollback.
 - **FR-016**: A denied request MUST store a canonical result and canonical evidence without changing Resource holdings or creating a child. Validation, authorization, and command conflicts MUST remain errors rather than denials.
 - **FR-017**: Settlement MUST record one Budget's direct known usage and derive subtree usage from descendants. It MUST NOT copy descendant usage into an ancestor's direct usage.
 - **FR-018**: The first valid settlement MUST seal direct usage and reject new direct child requests. A Budget MUST remain `settling` while usage is unresolved or descendants are open, and MUST become `settled` only when every blocker resolves.
@@ -136,21 +136,21 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 - **FR-022**: `get_budget` MUST return one authorized canonical Budget projection with identity, lineage, lifecycle, allocations, availability, commitments, direct usage, derived subtree usage, unresolved usage, and isolated deficits when present.
 - **FR-023**: `get_budget` MUST return its Budget projection and complete authorized canonical history from one transaction snapshot. FEAT-0002 does not paginate this history. History entries MUST appear in stable lineage order, describe committed results, and never drive the transitions that they describe.
 - **FR-024**: A failure before commit at any declared transaction point MUST leave no partial domain state, command result, or history entry. A retry after a lost committed response MUST recover the original result for every mutating operation.
-- **FR-025**: Provider-free behavioral evidence MUST cover publication conflicts, allocation authorization, conservation, sibling requests, exact approval and denial, arithmetic limits, nested settlement, both Resource accounting behaviors, open descendants, missing usage, later resolution, overage, conflicting known usage, replay, and rollback.
+- **FR-025**: Provider-free behavioral evidence MUST cover definition conflicts, allocation authorization, conservation, sibling requests, exact approval and denial, arithmetic limits, nested settlement, both Resource accounting behaviors, open descendants, missing usage, later resolution, overage, conflicting known usage, replay, and rollback.
 - **FR-026**: FEAT-0002 MUST NOT add Policy publication, Policy activation, Policy evaluation, advisory request explanation, subtree issuance, multi-source funding, customer packaging, Cloud behavior, or a general contract catalog.
 - **FR-027**: FEAT-0002 MUST implement a real generated-client-to-installed-database lifecycle. Mocks, uninstalled wrappers, or fixtures that bypass the public operations MUST NOT satisfy acceptance.
 
 ### Constitutional requirements _(mandatory)_
 
-- **Authority and invariants**: The installed database is the sole authority for Resource publication, root quantity creation, Budget lineage, conservation, exact child reservation, settlement, replay, and evidence. Each mutation commits its canonical result and evidence atomically. No generated client or test adapter may reproduce a transition.
+- **Authority and invariants**: The installed database is the sole authority for Resource definition, root quantity creation, Budget lineage, conservation, exact child reservation, settlement, replay, and evidence. Each mutation commits its canonical result and evidence atomically. No generated client or test adapter may reproduce a transition.
 - **Application boundary**: FEAT-0002 performs no application effect. The application owns request construction, external execution, retries of external work, usage observation, outcomes, and fallback behavior. An approved child Budget authorizes only its exact Resource envelope.
-- **Policy and security**: Policy is out of scope and no Policy object or placeholder may enter this slice. The feature must prove separate publication, allocation, request, settlement, and read authorization classes. Full host role isolation, tenant-isolation qualification, and the Policy sandbox remain `NOT RUN` for their later roadmap features. Commands, fixtures, logs, and retained evidence must contain no secrets.
-- **Contracts and hosts**: The generated `KeynesClient` exposes `publishResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. These methods bind to `publish_resource_type`, `create_budget`, `request`, `settle`, and `get_budget` in the installed database. `get_budget` returns the Budget projection and its lineage history from one transaction snapshot. The contract preserves the architecture's data-only command and result boundary. This feature proves one real installed database lifecycle and the generated client that calls it. Cross-host equivalence, customer installation forms, managed service behavior, and host-specific qualification remain `NOT RUN` for later features in the roadmap stage.
+- **Policy and security**: Policy is out of scope and no Policy object or placeholder may enter this slice. The feature must prove separate definition, allocation, request, settlement, and read authorization classes. Full host role isolation, tenant-isolation qualification, and the Policy sandbox remain `NOT RUN` for their later roadmap features. Commands, fixtures, logs, and retained evidence must contain no secrets.
+- **Contracts and hosts**: The generated `KeynesClient` exposes `defineResourceType`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. These methods bind to `define_resource_type`, `create_budget`, `request`, `settle`, and `get_budget` in the installed database. `get_budget` returns the Budget projection and its lineage history from one transaction snapshot. The contract preserves the architecture's data-only command and result boundary. This feature proves one real installed database lifecycle and the generated client that calls it. Cross-host equivalence, customer installation forms, managed service behavior, and host-specific qualification remain `NOT RUN` for later features in the roadmap stage.
 - **Evidence classification**: Deterministic generation, validation, behavioral tests, replay tests, rollback tests, and the fresh local lifecycle are provider-free acceptance evidence. Native service concurrency, cross-host conformance, security qualification, fault campaigns, packaging measurements, footprint measurements, latency benchmarks, paid services, and managed-provider checks are separate lanes and remain `NOT RUN` unless a later plan declares and authorizes them.
 
 ### Key entities
 
-- **Resource type**: An immutable tenant-scoped definition with a stable identity, canonical name, unit, accounting behavior, definition digest, and publisher evidence. It creates no quantity.
+- **Resource type**: An immutable tenant-scoped definition with a stable identity, canonical name, unit, accounting behavior, definition digest, and definer evidence. It creates no quantity.
 - **Budget**: The only public authority-bearing object. It has a stable identity, one parent lineage except at a root, Resource allocations and commitments, lifecycle state, direct usage, derived subtree usage, unresolved usage, and isolated deficits.
 - **Command**: One mutation attempt identified by a stable command identity, operation, canonical target, canonical body digest, and committed result.
 - **Request result**: A tagged approval or denial. An approval identifies one exact child Budget and Resource envelope. A denial contains stable reasons and no child.
@@ -162,7 +162,7 @@ As a Keynes maintainer, I can regenerate every consumer required by this lifecyc
 
 ### Measurable outcomes
 
-- **SC-001**: From a fresh local database, an application completes Resource publication, root allocation, exact child request, settlement, Budget read, and Budget history read through the generated client in one documented flow with no direct state edits.
+- **SC-001**: From a fresh local database, an application completes Resource definition, root allocation, exact child request, settlement, Budget read, and Budget history read through the generated client in one documented flow with no direct state edits.
 - **SC-002**: The retained provider-free acceptance corpus passes 100% of the valid, invalid, denial, settlement, replay, and rollback cases named in FR-025.
 - **SC-003**: For 100% of mutating operations, retry after a lost committed response returns the original canonical result and produces zero duplicate Resource types, Budgets, reservations, usage records, or history entries.
 - **SC-004**: Failure at every declared pre-commit injection point leaves zero partial domain records, command results, or history entries.

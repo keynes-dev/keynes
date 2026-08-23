@@ -8,9 +8,9 @@ The procedure caller, PGlite handle, transaction, tenant, and principal are pack
 
 ```ts
 interface KeynesClient {
-  publishResource(
-    input: PublishResourceCommand,
-  ): Promise<PublishResourceResult>;
+  defineResourceType(
+    input: DefineResourceTypeCommand,
+  ): Promise<DefineResourceTypeResult>;
   createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
   requestBudget(input: RequestBudgetCommand): Promise<RequestBudgetResult>;
   settleBudget(input: SettleBudgetCommand): Promise<SettleBudgetResult>;
@@ -22,13 +22,13 @@ The concrete five-method implementation, types, validators, procedure names, and
 
 ## Ordered operations
 
-| Method            | Installed target               | Permission           | Replay   | Evidence                                                   |
-| ----------------- | ------------------------------ | -------------------- | -------- | ---------------------------------------------------------- |
-| `publishResource` | `keynes.publish_resource_type` | `publish_resource`   | Required | Publication evidence in stored result                      |
-| `createBudget`    | `keynes.create_budget`         | `create_root_budget` | Required | One root-lineage history entry                             |
-| `requestBudget`   | `keynes.request`               | `request_budget`     | Required | One approval or denial history entry                       |
-| `settleBudget`    | `keynes.settle`                | `settle_budget`      | Required | One settlement history entry, including exact no-op repeat |
-| `getBudget`       | `keynes.get_budget`            | `read_budget`        | N/A      | Reads one Budget and its complete root-lineage history     |
+| Method               | Installed target              | Permission             | Replay   | Evidence                                                   |
+| -------------------- | ----------------------------- | ---------------------- | -------- | ---------------------------------------------------------- |
+| `defineResourceType` | `keynes.define_resource_type` | `define_resource_type` | Required | Definition evidence in stored result                       |
+| `createBudget`       | `keynes.create_budget`        | `create_root_budget`   | Required | One root-lineage history entry                             |
+| `requestBudget`      | `keynes.request`              | `request_budget`       | Required | One approval or denial history entry                       |
+| `settleBudget`       | `keynes.settle`               | `settle_budget`        | Required | One settlement history entry, including exact no-op repeat |
+| `getBudget`          | `keynes.get_budget`           | `read_budget`          | N/A      | Reads one Budget and its complete root-lineage history     |
 
 The five permissions are independent. Provider-free fixtures prove both directions for request and settlement. Permission to request does not permit settlement, and permission to settle does not permit requests.
 
@@ -53,10 +53,10 @@ Resource envelopes are non-empty and unique by `resourceTypeId`. The database so
 
 ## Mutating operations
 
-### `publishResource`
+### `defineResourceType`
 
 ```ts
-interface PublishResourceCommand {
+interface DefineResourceTypeCommand {
   commandId: string;
   definition: {
     canonicalName: string;
@@ -65,11 +65,11 @@ interface PublishResourceCommand {
   };
 }
 
-interface PublishResourceResult {
-  kind: "published";
+interface DefineResourceTypeResult {
+  kind: "defined";
   resourceType: ResourceTypeProjection;
-  publicationEvidence: {
-    kind: "resource_type_published";
+  definitionEvidence: {
+    kind: "resource_type_defined";
     commandId: string;
     principalId: string;
     definitionDigest: string;
@@ -78,9 +78,9 @@ interface PublishResourceResult {
 }
 ```
 
-The first publication creates an immutable definition and no quantity. A later command with a different command ID and the exact canonical definition returns the same Resource type and original publication evidence with `replayed: false`; it creates no new public history family. A changed definition under the same canonical name throws `resource_type_conflict`. An exact retry of the same command returns the stored result with `replayed: true` at the SDK mapping layer.
+The first definition creates an immutable Resource type and no quantity. A later command with a different command ID and the exact canonical definition returns the same Resource type and original definition evidence with `replayed: false`; it creates no new public history family. A changed definition under the same canonical name throws `resource_type_conflict`. An exact retry of the same command returns the stored result with `replayed: true` at the SDK mapping layer.
 
-Publication evidence lives in the publication result and replay ledger. Budget history contains only Budget-lineage evidence, so FEAT-0002 creates no unreachable Resource history stream.
+Definition evidence lives in the definition result and replay ledger. Budget history contains only Budget-lineage evidence, so FEAT-0002 creates no unreachable Resource history stream.
 
 ### `createBudget`
 
@@ -97,7 +97,7 @@ interface CreateBudgetResult {
 }
 ```
 
-The command ID becomes the root Budget ID. Every Resource type must already exist. The allocation is authorized independently from publication and creates exactly the supplied quantities atomically.
+The command ID becomes the root Budget ID. Every Resource type must already exist. The allocation is authorized independently from definition and creates exactly the supplied quantities atomically.
 
 ### `requestBudget`
 
@@ -137,7 +137,7 @@ interface RequestDenialReason {
 
 The command ID becomes the child Budget ID only on approval. The request names no funding source. Its structural parent is the sole source. The procedure locks and evaluates the entire sorted envelope. If any amount is unavailable, it reserves nothing and returns all insufficient Resources sorted by `resourceTypeId`. A denial is a valid committed result and one lineage history entry, not an error.
 
-An inactive parent, unpublished Resource type, malformed envelope, unsupported field, arithmetic overflow, or failed authorization is an error rather than a denial.
+An inactive parent, a Resource type that has not been defined, a malformed envelope, an unsupported field, arithmetic overflow, or failed authorization is an error rather than a denial.
 
 ### `settleBudget`
 
@@ -239,7 +239,7 @@ Installed functions encode expected errors as a closed wire envelope. The genera
 | `invalid_command`         | `operation`, `issues[]` with stable path and rule                        | Any malformed input or unknown field       |
 | `unauthorized`            | `operation`, `requiredPermission`                                        | Any failed installed permission check      |
 | `command_conflict`        | `commandId`, `existingOperation`, `attemptedOperation`                   | Changed operation, target, or logical body |
-| `resource_type_conflict`  | `canonicalName`, `existingDefinitionDigest`, `attemptedDefinitionDigest` | Changed republication                      |
+| `resource_type_conflict`  | `canonicalName`, `existingDefinitionDigest`, `attemptedDefinitionDigest` | Changed redefinition                       |
 | `resource_type_not_found` | `resourceTypeId`                                                         | Allocation or request                      |
 | `budget_not_found`        | `budgetId`                                                               | Request, settle, reads                     |
 | `budget_not_active`       | `budgetId`, `lifecycle`                                                  | New request after settlement begins        |

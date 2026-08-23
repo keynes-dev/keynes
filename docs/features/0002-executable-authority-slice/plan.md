@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deliver the smallest complete Keynes lifecycle: publish one Resource type, create an authorized root Budget, request an exact child Budget, settle it, and read the Budget and its evidence. One JSON Schema 2020-12 contract generates TypeScript types, standalone validators, public SQL wrappers, operation metadata, fixtures, and distinct digests. A private serialized PGlite client installs those SQL artifacts and is the provider-free runtime subject. One PostgreSQL transaction path owns authorization, replay, locking, accounting, mutation, canonical results, evidence, and rollback.
+Deliver the smallest complete Keynes lifecycle: define one Resource type, create an authorized root Budget, request an exact child Budget, settle it, and read the Budget and its evidence. One JSON Schema 2020-12 contract generates TypeScript types, standalone validators, public SQL wrappers, operation metadata, fixtures, and distinct digests. A private serialized PGlite client installs those SQL artifacts and is the provider-free runtime subject. One PostgreSQL transaction path owns authorization, replay, locking, accounting, mutation, canonical results, evidence, and rollback.
 
 This feature proves one real generated-client-to-installed-SQL path. It does not qualify native PostgreSQL concurrency, cross-host equivalence, customer packaging, security isolation, Policy, Cloud, or performance.
 
@@ -27,7 +27,7 @@ This feature proves one real generated-client-to-installed-SQL path. It does not
 
 - **Singular authority — PASS**: `keynes_internal.apply_command` and its operation branches are the only writers of Resource types, Budget lineage, allocations, usage, command results, and events. The generated client validates and transports data but cannot reproduce transitions. The SQL transaction preserves conservation, exact-envelope atomicity, monotone settlement, replay identity, unresolved usage, and isolated deficits.
 - **Effect boundary — PASS**: This slice executes no application work. The application constructs requests, performs external work, observes usage, retries ambiguous calls, and chooses fallbacks after a denial. Keynes commits only Resource reservations and evidence.
-- **Policy and security — PASS with explicit qualification boundary**: Policy is absent. Publication, allocation, request, settlement, and read checks use private principal fixtures and database-owned authorization classes. Commands contain no caller-selected principal. Full roles, tenant isolation, secrets, and hostile-caller security remain `NOT RUN`.
+- **Policy and security — PASS with explicit qualification boundary**: Policy is absent. Definition, allocation, request, settlement, and read checks use private principal fixtures and database-owned authorization classes. Commands contain no caller-selected principal. Full roles, tenant isolation, secrets, and hostile-caller security remain `NOT RUN`.
 - **One cross-host contract — PASS for the declared host**: One contract generates the five public JSON procedures and binds each ordered operation to installed SQL and a generated client method. PGlite is the only acceptance host. Native PostgreSQL, cross-host comparison, packaging, and rolling migration compatibility remain `NOT RUN`.
 - **Evidence-first delivery — PASS**: Each behavior begins with a failing Vitest case for the expected missing or incorrect behavior. Deterministic generation, clean regeneration, real PGlite lifecycle, validation, denial, replay, and rollback form the provider-free lane. Native concurrency, security, fault campaigns beyond declared transaction checkpoints, benchmarks, paid services, and managed providers are separate `NOT RUN` lanes.
 
@@ -104,8 +104,8 @@ packages/sdk/src/
 
 ## Delivery Sequence
 
-1. **First real red slice**: Add the minimum ownership paths, pins, and root commands, then write one failing black-box `publish_resource_type` case through the generated client and a fresh PGlite installation. It must fail because the real generated target or installed function is absent.
-2. **Prove publication end to end**: Add only the ordered contract source, narrow generator output, hand-authored migration graph, private PGlite client, permission fixture, replay row, and installed SQL needed to pass publication, exact republication, conflict, permission, replay, and rollback.
+1. **First real red slice**: Add the minimum ownership paths, pins, and root commands, then write one failing black-box `define_resource_type` case through the generated client and a fresh PGlite installation. It must fail because the real generated target or installed function is absent.
+2. **Prove definition end to end**: Add only the ordered contract source, narrow generator output, hand-authored migration graph, private PGlite client, permission fixture, replay row, and installed SQL needed to pass definition, exact redefinition, conflict, permission, replay, and rollback.
 3. **Grow one installed operation at a time**: Add `create_budget`, then `request`, then `settle`. For each increment, observe its generated-to-installed black-box test fail before adding storage or behavior.
 4. **Add the authoritative read and derived accounting**: Add `get_budget` with its Budget-lineage history, recursive accounting projections, arithmetic guards, and the remaining declared rollback checkpoints.
 5. **Complete the behavioral corpus**: Drive exact approval/denial, sibling serialized conservation, nested settlement, consumable/reusable returns, unresolved usage, overage isolation, conflict, replay, and rollback from red to green through the generated client.

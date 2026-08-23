@@ -293,7 +293,7 @@
         }
       }
     },
-    "PublishResourceCommand": {
+    "DefineResourceTypeCommand": {
       "type": "object",
       "additionalProperties": false,
       "required": ["commandId", "definition"],
@@ -302,19 +302,19 @@
         "definition": { "$ref": "#/$defs/ResourceDefinition" }
       }
     },
-    "PublishResourceResult": {
+    "DefineResourceTypeResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "resourceType", "publicationEvidence", "replayed"],
+      "required": ["kind", "resourceType", "definitionEvidence", "replayed"],
       "properties": {
-        "kind": { "const": "published" },
+        "kind": { "const": "defined" },
         "resourceType": { "$ref": "#/$defs/ResourceTypeProjection" },
-        "publicationEvidence": {
+        "definitionEvidence": {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "commandId", "principalId", "definitionDigest"],
           "properties": {
-            "kind": { "const": "resource_type_published" },
+            "kind": { "const": "resource_type_defined" },
             "commandId": { "$ref": "#/$defs/Uuid" },
             "principalId": { "$ref": "#/$defs/Uuid" },
             "definitionDigest": { "$ref": "#/$defs/Digest" }
@@ -456,7 +456,7 @@
     },
     "OperationName": {
       "enum": [
-        "publishResource",
+        "defineResourceType",
         "createBudget",
         "requestBudget",
         "settleBudget",
@@ -465,7 +465,7 @@
     },
     "PermissionName": {
       "enum": [
-        "publish_resource",
+        "define_resource_type",
         "create_root_budget",
         "request_budget",
         "settle_budget",

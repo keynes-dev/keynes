@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { KeynesClient, KeynesError } from "./generated/client.js";
 import type {
-  PublishResourceResult,
+  DefineResourceTypeResult,
   RequestBudgetCommand,
 } from "./generated/types.js";
 import { openLocalKeynes, type LocalKeynes } from "./private/local-keynes.js";
@@ -20,7 +20,7 @@ describe("Budget request denial", () => {
 
   it("denies one unavailable Resource without changing the parent", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000001",
       "model_tokens",
@@ -70,12 +70,12 @@ describe("Budget request denial", () => {
 
   it("denies a multi-Resource envelope without reserving its fundable part", async () => {
     const client = local.clientFor("product-fixture");
-    const tokens = await publishResource(
+    const tokens = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000011",
       "model_tokens",
     );
-    const seats = await publishResource(
+    const seats = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000012",
       "reviewer_seats",
@@ -123,7 +123,7 @@ describe("Budget request denial", () => {
 
   it("serializes siblings so only one complete envelope is funded", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000021",
       "model_tokens",
@@ -162,7 +162,7 @@ describe("Budget request denial", () => {
 
   it("rejects malformed, duplicate, and caller-selected funding envelopes", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000031",
       "model_tokens",
@@ -194,9 +194,9 @@ describe("Budget request denial", () => {
     await expectInvalidRequest(client, callerFunded);
   });
 
-  it("rejects an unpublished Resource before evaluating funding", async () => {
+  it("rejects a Resource type that has not been defined before evaluating funding", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000041",
       "model_tokens",
@@ -205,22 +205,22 @@ describe("Budget request denial", () => {
       commandId: "21000000-0000-0000-0000-000000000041",
       resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
     });
-    const unpublishedId = "99000000-0000-0000-0000-000000000041";
+    const unknownResourceTypeId = "99000000-0000-0000-0000-000000000041";
 
     await expectKeynesError(
       client.requestBudget({
         commandId: "31000000-0000-0000-0000-000000000041",
         parentBudgetId: root.budget.budgetId,
-        resources: [{ resourceTypeId: unpublishedId, amount: 1 }],
+        resources: [{ resourceTypeId: unknownResourceTypeId, amount: 1 }],
       }),
       "resource_type_not_found",
-      { resourceTypeId: unpublishedId },
+      { resourceTypeId: unknownResourceTypeId },
     );
   });
 
   it("rejects a request after its parent becomes inactive", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       client,
       "11000000-0000-0000-0000-000000000051",
       "model_tokens",
@@ -248,7 +248,7 @@ describe("Budget request denial", () => {
 
   it("keeps request, settlement, and read permissions independent", async () => {
     const product = local.clientFor("product-fixture");
-    const resource = await publishResource(
+    const resource = await defineResourceType(
       product,
       "11000000-0000-0000-0000-000000000061",
       "model_tokens",
@@ -286,12 +286,12 @@ describe("Budget request denial", () => {
   });
 });
 
-async function publishResource(
+async function defineResourceType(
   client: KeynesClient,
   commandId: string,
   canonicalName: string,
-): Promise<PublishResourceResult["resourceType"]> {
-  const published = await client.publishResource({
+): Promise<DefineResourceTypeResult["resourceType"]> {
+  const defined = await client.defineResourceType({
     commandId,
     definition: {
       canonicalName,
@@ -299,7 +299,7 @@ async function publishResource(
       accountingBehavior: "consumable",
     },
   });
-  return published.resourceType;
+  return defined.resourceType;
 }
 
 async function expectInvalidRequest(

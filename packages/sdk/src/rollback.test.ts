@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { KeynesError } from "./generated/client.js";
 import type {
   CreateBudgetCommand,
-  PublishResourceCommand,
+  DefineResourceTypeCommand,
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
@@ -28,7 +28,7 @@ describe("command rollback", () => {
     await local.close();
   });
 
-  it("rolls back Resource publication checkpoints", async () => {
+  it("rolls back Resource definition checkpoints", async () => {
     for (const [checkpoint, suffix] of MUTATION_CHECKPOINTS) {
       if (checkpoint === "after_history_insertion") continue;
       const commandId = `14000000-0000-0000-0000-0000000000${suffix}`;
@@ -39,20 +39,20 @@ describe("command rollback", () => {
           unit: "unit",
           accountingBehavior: "consumable",
         },
-      } satisfies PublishResourceCommand;
+      } satisfies DefineResourceTypeCommand;
 
       await expect(
         local
-          .clientFor("publisher-fixture", { checkpoint })
-          .publishResource(command),
+          .clientFor("definer-fixture", { checkpoint })
+          .defineResourceType(command),
       ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
 
       const retry = await local
-        .clientFor("publisher-fixture")
-        .publishResource(command);
+        .clientFor("definer-fixture")
+        .defineResourceType(command);
       expect(retry).toMatchObject({
         resourceType: { resourceTypeId: commandId },
-        publicationEvidence: { commandId },
+        definitionEvidence: { commandId },
         replayed: false,
       });
     }
@@ -60,7 +60,7 @@ describe("command rollback", () => {
 
   it("rolls back root allocation facts, result, and history", async () => {
     const client = local.clientFor("product-fixture");
-    const published = await client.publishResource({
+    const defined = await client.defineResourceType({
       commandId: "14000000-0000-0000-0000-000000000011",
       definition: {
         canonicalName: "model_tokens",
@@ -74,7 +74,7 @@ describe("command rollback", () => {
       const command = {
         commandId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
         ],
       } satisfies CreateBudgetCommand;
 
@@ -104,7 +104,7 @@ describe("command rollback", () => {
 
   it("rolls back child reservation, result, and history", async () => {
     const client = local.clientFor("product-fixture");
-    const published = await client.publishResource({
+    const defined = await client.defineResourceType({
       commandId: "14000000-0000-0000-0000-000000000021",
       definition: {
         canonicalName: "model_tokens",
@@ -115,7 +115,7 @@ describe("command rollback", () => {
     const root = await client.createBudget({
       commandId: "24000000-0000-0000-0000-000000000021",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     });
 
@@ -128,7 +128,7 @@ describe("command rollback", () => {
         commandId,
         parentBudgetId: root.budget.budgetId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
         ],
       } satisfies RequestBudgetCommand;
 
@@ -168,7 +168,7 @@ describe("command rollback", () => {
 
   it("rolls back usage, result, and settlement history", async () => {
     const client = local.clientFor("product-fixture");
-    const published = await client.publishResource({
+    const defined = await client.defineResourceType({
       commandId: "14000000-0000-0000-0000-000000000031",
       definition: {
         canonicalName: "model_tokens",
@@ -179,7 +179,7 @@ describe("command rollback", () => {
     const root = await client.createBudget({
       commandId: "24000000-0000-0000-0000-000000000031",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     });
     const children: string[] = [];
@@ -188,7 +188,7 @@ describe("command rollback", () => {
         commandId: `34000000-0000-0000-0000-0000000001${suffix}`,
         parentBudgetId: root.budget.budgetId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
         ],
       });
       expect(request.kind).toBe("approved");
@@ -210,7 +210,7 @@ describe("command rollback", () => {
         commandId: `44000000-0000-0000-0000-0000000000${suffix}`,
         budgetId: childBudgetId,
         usage: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 5 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 5 },
         ],
       } satisfies SettleBudgetCommand;
 

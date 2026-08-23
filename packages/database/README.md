@@ -5,7 +5,7 @@
 
 ## Responsibility
 
-`packages/database/` owns the authoritative PostgreSQL SQL, PL/pgSQL, migration graph, and private storage. FEAT-0002 installs the migration graph in a fresh in-memory PGlite database and exercises Resource publication, root allocation, Budget requests, settlement, and reads.
+`packages/database/` owns the authoritative PostgreSQL SQL, PL/pgSQL, migration graph, and private storage. FEAT-0002 installs the migration graph in a fresh in-memory PGlite database and exercises Resource type definition, root allocation, Budget requests, settlement, and reads.
 
 The database procedures own Budget validation, authorization, transitions, accounting, replay, history, and rollback. The SDK does not reproduce these semantics.
 

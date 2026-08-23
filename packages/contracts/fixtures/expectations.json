@@ -1,13 +1,13 @@
 {
   "operationMethods": [
-    "publishResource",
+    "defineResourceType",
     "createBudget",
     "requestBudget",
     "settleBudget",
     "getBudget"
   ],
   "installedTargets": [
-    "keynes.publish_resource_type",
+    "keynes.define_resource_type",
     "keynes.create_budget",
     "keynes.request",
     "keynes.settle",

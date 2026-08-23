@@ -24,7 +24,7 @@ The contract digest identifies the exact logical contract. Folder names, filenam
 
 ## R3. Public and private interface
 
-**Decision**: Generate `publishResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget` on `KeynesClient` over a private `ProcedureCaller.call(procedure, input)` boundary. Each installed target uses `keynes.<operation>(jsonb) -> jsonb`. `getBudget` returns one Budget projection and the complete history for its root lineage from one database transaction snapshot. The public contract exposes Budget history. Private storage may use internal event records. The public client validates unknown input and output, checks the contract digest, and transports values. It never decides a Budget transition.
+**Decision**: Generate `defineResourceType`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget` on `KeynesClient` over a private `ProcedureCaller.call(procedure, input)` boundary. Each installed target uses `keynes.<operation>(jsonb) -> jsonb`. `getBudget` returns one Budget projection and the complete history for its root lineage from one database transaction snapshot. The public contract exposes Budget history. Private storage may use internal event records. The public client validates unknown input and output, checks the contract digest, and transports values. It never decides a Budget transition.
 
 **Rationale**: Named methods give callers discoverable, typed operations while one small procedure caller keeps host concerns below the contract. A real PGlite caller and a fake mapping-test caller share procedure shape, not Budget logic. The combined read keeps the Budget projection and its evidence on one snapshot. FEAT-0002 accepts an unpaginated history; a later feature adds pagination only when measured lineage size or adopter evidence requires it.
 
@@ -32,7 +32,7 @@ The contract digest identifies the exact logical contract. Folder names, filenam
 
 ## R4. Database transaction kernel and accounting
 
-**Decision**: Each mutating public wrapper delegates to `keynes_internal.apply_command`. It validates and normalizes, checks the current principal's permission, resolves replay, locks the affected parent or lineage rows, runs an operation handler, stores the canonical result and evidence, and returns. Budget mutations append lineage events. Publication retains its evidence in the stored publication result. The caller-owned database transaction commits or rolls back the entire action.
+**Decision**: Each mutating public wrapper delegates to `keynes_internal.apply_command`. It validates and normalizes, checks the current principal's permission, resolves replay, locks the affected parent or lineage rows, runs an operation handler, stores the canonical result and evidence, and returns. Budget mutations append lineage events. Resource definition retains its evidence in the stored definition result. The caller-owned database transaction commits or rolls back the entire action.
 
 Persist base facts only: allocations, direct usage observations, lineage, commands, and events. Derive availability, commitments, subtree observed usage, unresolved amounts, parent charge, and deficits recursively. An open consumable child commits its full allocation; when settled it charges only known use up to allocation and returns unused quantity. A reusable child commits its full allocation while active and returns it all when the subtree settles. Observed overage remains on the child as a deficit and is never charged upward.
 
@@ -65,7 +65,7 @@ Use separate identities for separate concerns:
 
 ## R7. Authorization and security seam
 
-**Decision**: Public commands never accept a principal or tenant override. Installed `SECURITY DEFINER` wrappers use a fixed safe `search_path` and resolve the effective fixture principal through private transaction context set only by the local client. Database permissions remain distinct: `publish_resource`, `create_root_budget`, `request_budget`, `settle_budget`, and `read_budget`.
+**Decision**: Public commands never accept a principal or tenant override. Installed `SECURITY DEFINER` wrappers use a fixed safe `search_path` and resolve the effective fixture principal through private transaction context set only by the local client. Database permissions remain distinct: `define_resource_type`, `create_root_budget`, `request_budget`, `settle_budget`, and `read_budget`.
 
 **Rationale**: PostgreSQL warns that `SECURITY DEFINER` functions need a trusted `search_path` and restricted execution privileges ([CREATE FUNCTION](https://www.postgresql.org/docs/current/sql-createfunction.html)). The private fixture seam proves authorization branches without pretending to provide hostile-host role isolation.
 

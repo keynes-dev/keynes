@@ -7,21 +7,21 @@ import {
 } from "./generated/client.js";
 import type {
   CreateBudgetCommand,
-  PublishResourceCommand,
+  DefineResourceTypeCommand,
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
 import { validateCreateBudgetCommandIssues } from "./generated/validators.js";
 
 const commands = {
-  publishResource: {
+  defineResourceType: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
       canonicalName: "model_tokens",
       unit: "token",
       accountingBehavior: "consumable",
     },
-  } satisfies PublishResourceCommand,
+  } satisfies DefineResourceTypeCommand,
   createBudget: {
     commandId: "20000000-0000-0000-0000-000000000001",
     resources: [
@@ -57,7 +57,7 @@ const commands = {
 };
 
 const EXPECTED_TARGETS = [
-  "keynes.publish_resource_type",
+  "keynes.define_resource_type",
   "keynes.create_budget",
   "keynes.request",
   "keynes.settle",
@@ -76,9 +76,9 @@ describe("generated client bindings", () => {
     };
     const client = createKeynesClient(caller);
 
-    await expect(client.publishResource(commands.publishResource)).rejects.toBe(
-      stop,
-    );
+    await expect(
+      client.defineResourceType(commands.defineResourceType),
+    ).rejects.toBe(stop);
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);
     await expect(client.requestBudget(commands.requestBudget)).rejects.toBe(
       stop,

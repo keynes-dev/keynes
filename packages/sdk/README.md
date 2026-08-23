@@ -6,7 +6,7 @@
 
 ## Responsibility
 
-`packages/sdk/` owns the generated TypeScript contract consumer and the private FEAT-0002 PGlite test lifecycle. The generated `KeynesClient` has five methods: `publishResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`.
+`packages/sdk/` owns the generated TypeScript contract consumer and the private FEAT-0002 PGlite test lifecycle. The generated `KeynesClient` has five methods: `defineResourceType`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`.
 
 The private adapter installs the database migrations, verifies the contract and installation records, binds a fixture principal, and calls only the generated public procedures.
 

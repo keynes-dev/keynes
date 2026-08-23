@@ -6,7 +6,7 @@
 
 Agents make choices that affect cost, speed, quality, and risk. They decide how much to investigate, which tools to use, when to retry, and when to ask for help. Businesses need to give agents real operating authority without burying it in prompts or scattering limits through application code.
 
-Keynes makes that authority explicit. An application publishes the Resource types it governs. A Budget holds quantities of those Resources and the Policies that control how an agent may spend them. A team, workflow, or agent requests Resources from a Budget. Keynes either denies the request or reserves the Resources and returns a child Budget. The application does the work, then settles the Budget once it knows what was used.
+Keynes makes that authority explicit. An application defines the Resource types it governs. A Budget holds quantities of those Resources and the Policies that control how an agent may spend them. A team, workflow, or agent requests Resources from a Budget. Keynes either denies the request or reserves the Resources and returns a child Budget. The application does the work, then settles the Budget once it knows what was used.
 
 The product loop is simple:
 
@@ -16,7 +16,7 @@ Budget -> request -> child Budget -> settle -> evidence
 
 ## Budgets
 
-Before a Budget can hold a Resource, the application publishes an immutable Resource type. The type has a stable identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Publishing a type creates no quantity and grants no spending authority.
+Before a Budget can hold a Resource, the application defines an immutable Resource type. The type has a stable identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Defining a type creates no quantity and grants no spending authority.
 
 An authorized root allocation creates quantity for selected Resource types. A root holds only those allocations. It does not declare every type the application may use. By default, a Budget funds its own children. It can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
 
@@ -144,7 +144,7 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 ## Product commitments
 
 - Budget is the only public stateful governance object.
-- Resource types are immutable definitions published separately from quantity. Publication creates no authority.
+- Applications define immutable Resource types separately from quantity. Defining a type creates no authority.
 - An authorized root allocation creates quantity for selected Resource types. Ordinary requests cannot create quantity.
 - A request proposes exact Resource quantities and atomically creates one child Budget or returns a denial. By default, the structural parent funds the request.
 - Policies are optional Resource constraints evaluated by the database that holds the Budget.

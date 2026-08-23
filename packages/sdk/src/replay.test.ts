@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type {
   CreateBudgetCommand,
-  PublishResourceCommand,
+  DefineResourceTypeCommand,
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
@@ -21,24 +21,24 @@ describe("command replay", () => {
 
   it("recovers all four canonical results across principals without duplicate history", async () => {
     const product = local.clientFor("product-fixture");
-    const publishCommand = {
+    const defineCommand = {
       commandId: "13000000-0000-0000-0000-000000000001",
       definition: {
         canonicalName: "model_tokens",
         unit: "token",
         accountingBehavior: "consumable",
       },
-    } satisfies PublishResourceCommand;
-    const published = await product.publishResource(publishCommand);
-    const publishedReplay = await local
-      .clientFor("publisher-fixture")
-      .publishResource(publishCommand);
-    expect(publishedReplay).toEqual({ ...published, replayed: true });
+    } satisfies DefineResourceTypeCommand;
+    const defined = await product.defineResourceType(defineCommand);
+    const definitionReplay = await local
+      .clientFor("definer-fixture")
+      .defineResourceType(defineCommand);
+    expect(definitionReplay).toEqual({ ...defined, replayed: true });
 
     const createCommand = {
       commandId: "23000000-0000-0000-0000-000000000001",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     } satisfies CreateBudgetCommand;
     const created = await product.createBudget(createCommand);
@@ -51,7 +51,7 @@ describe("command replay", () => {
       commandId: "33000000-0000-0000-0000-000000000001",
       parentBudgetId: created.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 40 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 40 },
       ],
     } satisfies RequestBudgetCommand;
     const requested = await product.requestBudget(requestCommand);
@@ -68,7 +68,7 @@ describe("command replay", () => {
       commandId: "43000000-0000-0000-0000-000000000001",
       budgetId: requested.childBudgetId,
       usage: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 25 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 25 },
       ],
     } satisfies SettleBudgetCommand;
     const settled = await product.settleBudget(settleCommand);
@@ -89,7 +89,7 @@ describe("command replay", () => {
     });
   });
 
-  it("recovers Resource publication after its committed response is lost", async () => {
+  it("recovers Resource definition after its committed response is lost", async () => {
     const command = {
       commandId: "13000000-0000-0000-0000-000000000041",
       definition: {
@@ -97,35 +97,35 @@ describe("command replay", () => {
         unit: "token",
         accountingBehavior: "consumable",
       },
-    } satisfies PublishResourceCommand;
+    } satisfies DefineResourceTypeCommand;
 
     await expect(
       local
         .clientFor("product-fixture", { dropResponseAfterCommitOnce: true })
-        .publishResource(command),
+        .defineResourceType(command),
     ).rejects.toThrow();
 
     const recovered = await local
-      .clientFor("publisher-fixture")
-      .publishResource(command);
+      .clientFor("definer-fixture")
+      .defineResourceType(command);
     expect(recovered).toMatchObject({
-      kind: "published",
+      kind: "defined",
       resourceType: {
         resourceTypeId: command.commandId,
         canonicalName: command.definition.canonicalName,
       },
-      publicationEvidence: { commandId: command.commandId },
+      definitionEvidence: { commandId: command.commandId },
       replayed: true,
     });
     const repeated = await local
-      .clientFor("publisher-fixture")
-      .publishResource(command);
+      .clientFor("definer-fixture")
+      .defineResourceType(command);
     expect(repeated).toEqual(recovered);
   });
 
   it("recovers root allocation after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const published = await product.publishResource({
+    const defined = await product.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000051",
       definition: {
         canonicalName: "model_tokens",
@@ -136,7 +136,7 @@ describe("command replay", () => {
     const command = {
       commandId: "23000000-0000-0000-0000-000000000051",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     } satisfies CreateBudgetCommand;
 
@@ -161,7 +161,7 @@ describe("command replay", () => {
 
   it("recovers an approved request after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const published = await product.publishResource({
+    const defined = await product.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000061",
       definition: {
         canonicalName: "model_tokens",
@@ -172,14 +172,14 @@ describe("command replay", () => {
     const root = await product.createBudget({
       commandId: "23000000-0000-0000-0000-000000000061",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     });
     const command = {
       commandId: "33000000-0000-0000-0000-000000000061",
       parentBudgetId: root.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 40 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 40 },
       ],
     } satisfies RequestBudgetCommand;
 
@@ -211,7 +211,7 @@ describe("command replay", () => {
 
   it("recovers settlement after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const published = await product.publishResource({
+    const defined = await product.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000071",
       definition: {
         canonicalName: "model_tokens",
@@ -222,14 +222,14 @@ describe("command replay", () => {
     const root = await product.createBudget({
       commandId: "23000000-0000-0000-0000-000000000071",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     });
     const request = await product.requestBudget({
       commandId: "33000000-0000-0000-0000-000000000071",
       parentBudgetId: root.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 40 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 40 },
       ],
     });
     expect(request.kind).toBe("approved");
@@ -240,7 +240,7 @@ describe("command replay", () => {
       commandId: "43000000-0000-0000-0000-000000000071",
       budgetId: request.childBudgetId,
       usage: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 25 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 25 },
       ],
     } satisfies SettleBudgetCommand;
 
@@ -257,7 +257,7 @@ describe("command replay", () => {
       kind: "settled",
       budget: { budgetId: request.childBudgetId },
       newlyKnown: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 25 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 25 },
       ],
       replayed: true,
     });
@@ -274,7 +274,7 @@ describe("command replay", () => {
 
   it("rejects changed bodies for each mutation, including across principals", async () => {
     const product = local.clientFor("product-fixture");
-    const published = await product.publishResource({
+    const defined = await product.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000011",
       definition: {
         canonicalName: "model_tokens",
@@ -283,7 +283,7 @@ describe("command replay", () => {
       },
     });
     await expectCommandConflict(
-      local.clientFor("publisher-fixture").publishResource({
+      local.clientFor("definer-fixture").defineResourceType({
         commandId: "13000000-0000-0000-0000-000000000011",
         definition: {
           canonicalName: "model_tokens",
@@ -292,21 +292,21 @@ describe("command replay", () => {
         },
       }),
       "13000000-0000-0000-0000-000000000011",
-      "publishResource",
-      "publishResource",
+      "defineResourceType",
+      "defineResourceType",
     );
 
     const root = await product.createBudget({
       commandId: "23000000-0000-0000-0000-000000000011",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 100 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
       ],
     });
     await expectCommandConflict(
       local.clientFor("allocator-fixture").createBudget({
         commandId: root.budget.budgetId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 99 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 99 },
         ],
       }),
       root.budget.budgetId,
@@ -318,7 +318,7 @@ describe("command replay", () => {
       commandId: "33000000-0000-0000-0000-000000000011",
       parentBudgetId: root.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 40 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 40 },
       ],
     });
     expect(request.kind).toBe("approved");
@@ -330,7 +330,7 @@ describe("command replay", () => {
         commandId: request.commandId,
         parentBudgetId: root.budget.budgetId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 39 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 39 },
         ],
       }),
       request.commandId,
@@ -342,7 +342,7 @@ describe("command replay", () => {
       commandId: "43000000-0000-0000-0000-000000000011",
       budgetId: request.childBudgetId,
       usage: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 25 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 25 },
       ],
     });
     await expectCommandConflict(
@@ -350,7 +350,7 @@ describe("command replay", () => {
         commandId: "43000000-0000-0000-0000-000000000011",
         budgetId: request.childBudgetId,
         usage: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 24 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 24 },
         ],
       }),
       "43000000-0000-0000-0000-000000000011",
@@ -366,7 +366,7 @@ describe("command replay", () => {
 
   it("rejects reuse by a different operation", async () => {
     const client = local.clientFor("product-fixture");
-    const published = await client.publishResource({
+    const defined = await client.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000021",
       definition: {
         canonicalName: "model_tokens",
@@ -377,7 +377,7 @@ describe("command replay", () => {
     const root = await client.createBudget({
       commandId: "23000000-0000-0000-0000-000000000021",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
       ],
     });
 
@@ -386,7 +386,7 @@ describe("command replay", () => {
         commandId: root.budget.budgetId,
         parentBudgetId: root.budget.budgetId,
         resources: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 1 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 1 },
         ],
       }),
       root.budget.budgetId,
@@ -403,7 +403,7 @@ describe("command replay", () => {
 
   it("rejects reuse against a different target", async () => {
     const client = local.clientFor("product-fixture");
-    const published = await client.publishResource({
+    const defined = await client.defineResourceType({
       commandId: "13000000-0000-0000-0000-000000000031",
       definition: {
         canonicalName: "model_tokens",
@@ -414,21 +414,21 @@ describe("command replay", () => {
     const root = await client.createBudget({
       commandId: "23000000-0000-0000-0000-000000000031",
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 20 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 20 },
       ],
     });
     const first = await client.requestBudget({
       commandId: "33000000-0000-0000-0000-000000000031",
       parentBudgetId: root.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
       ],
     });
     const second = await client.requestBudget({
       commandId: "33000000-0000-0000-0000-000000000032",
       parentBudgetId: root.budget.budgetId,
       resources: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 10 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
       ],
     });
     expect(first.kind).toBe("approved");
@@ -441,7 +441,7 @@ describe("command replay", () => {
       commandId,
       budgetId: first.childBudgetId,
       usage: [
-        { resourceTypeId: published.resourceType.resourceTypeId, amount: 5 },
+        { resourceTypeId: defined.resourceType.resourceTypeId, amount: 5 },
       ],
     });
 
@@ -450,7 +450,7 @@ describe("command replay", () => {
         commandId,
         budgetId: second.childBudgetId,
         usage: [
-          { resourceTypeId: published.resourceType.resourceTypeId, amount: 5 },
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 5 },
         ],
       }),
       commandId,

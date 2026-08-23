@@ -27,7 +27,7 @@ CREATE TABLE keynes_internal.principal_permissions (
   CONSTRAINT principal_permission_name
     CHECK (
       permission IN (
-        'publish_resource',
+        'define_resource_type',
         'create_root_budget',
         'request_budget',
         'settle_budget',
@@ -51,7 +51,7 @@ CREATE TABLE keynes_internal.commands (
   CONSTRAINT command_operation
     CHECK (
       operation IN (
-        'publishResource',
+        'defineResourceType',
         'createBudget',
         'requestBudget',
         'settleBudget'
@@ -75,7 +75,7 @@ CREATE TABLE keynes_internal.resource_types (
   accounting_behavior text NOT NULL,
   definition jsonb NOT NULL,
   definition_digest text NOT NULL,
-  publisher_principal_id uuid NOT NULL,
+  definer_principal_id uuid NOT NULL,
   PRIMARY KEY (tenant_id, resource_type_id),
   UNIQUE (tenant_id, canonical_name),
   CONSTRAINT resource_type_name

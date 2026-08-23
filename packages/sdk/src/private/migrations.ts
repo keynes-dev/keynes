@@ -14,13 +14,13 @@ const INSTALLATION_RECORD_URL = new URL(
 );
 
 const FIXTURE_PERMISSIONS = {
-  "publisher-fixture": ["publish_resource"],
+  "definer-fixture": ["define_resource_type"],
   "allocator-fixture": ["create_root_budget"],
   "requester-fixture": ["request_budget"],
   "settlement-fixture": ["settle_budget"],
   "reader-fixture": ["read_budget"],
   "product-fixture": [
-    "publish_resource",
+    "define_resource_type",
     "create_root_budget",
     "request_budget",
     "settle_budget",
@@ -30,7 +30,7 @@ const FIXTURE_PERMISSIONS = {
 } as const;
 
 const FIXTURE_NAMES = [
-  "publisher-fixture",
+  "definer-fixture",
   "allocator-fixture",
   "requester-fixture",
   "settlement-fixture",

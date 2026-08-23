@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { KeynesClient, KeynesError } from "./generated/client.js";
 import type {
-  PublishResourceCommand,
-  PublishResourceResult,
+  DefineResourceTypeCommand,
+  DefineResourceTypeResult,
   RequestApproved,
   RequestBudgetCommand,
 } from "./generated/types.js";
@@ -24,7 +24,7 @@ describe("Budget settlement", () => {
 
   it("keeps a sealed parent settling until its open descendant settles", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(client, {
+    const resource = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000001",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -115,7 +115,7 @@ describe("Budget settlement", () => {
 
   it("resolves missing usage and records an exact known repeat as a no-op", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(client, {
+    const resource = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000011",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -192,7 +192,7 @@ describe("Budget settlement", () => {
 
   it("returns a reusable child allocation in full after settlement", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(client, {
+    const resource = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000021",
       canonicalName: "reviewer_seats",
       accountingBehavior: "reusable",
@@ -229,7 +229,7 @@ describe("Budget settlement", () => {
 
   it("isolates child overage without charging its parent or sibling", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(client, {
+    const resource = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000031",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -283,12 +283,12 @@ describe("Budget settlement", () => {
 
   it("settles a subset while keeping an omitted Resource unresolved", async () => {
     const client = local.clientFor("product-fixture");
-    const first = await publishResource(client, {
+    const first = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000051",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
     });
-    const second = await publishResource(client, {
+    const second = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000052",
       canonicalName: "storage_bytes",
       accountingBehavior: "consumable",
@@ -346,12 +346,12 @@ describe("Budget settlement", () => {
 
   it("sorts multiple isolated deficits by Resource identity", async () => {
     const client = local.clientFor("product-fixture");
-    const lower = await publishResource(client, {
+    const lower = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000061",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
     });
-    const higher = await publishResource(client, {
+    const higher = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000062",
       canonicalName: "storage_bytes",
       accountingBehavior: "consumable",
@@ -386,7 +386,7 @@ describe("Budget settlement", () => {
 
   it("rejects derived arithmetic overflow without committing settlement", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await publishResource(client, {
+    const resource = await defineResourceType(client, {
       commandId: "12000000-0000-0000-0000-000000000041",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -443,17 +443,17 @@ describe("Budget settlement", () => {
   });
 });
 
-interface PublishFixture {
+interface DefinitionFixture {
   readonly commandId: string;
   readonly canonicalName: string;
-  readonly accountingBehavior: PublishResourceCommand["definition"]["accountingBehavior"];
+  readonly accountingBehavior: DefineResourceTypeCommand["definition"]["accountingBehavior"];
 }
 
-async function publishResource(
+async function defineResourceType(
   client: KeynesClient,
-  fixture: PublishFixture,
-): Promise<PublishResourceResult["resourceType"]> {
-  const published = await client.publishResource({
+  fixture: DefinitionFixture,
+): Promise<DefineResourceTypeResult["resourceType"]> {
+  const defined = await client.defineResourceType({
     commandId: fixture.commandId,
     definition: {
       canonicalName: fixture.canonicalName,
@@ -461,7 +461,7 @@ async function publishResource(
       accountingBehavior: fixture.accountingBehavior,
     },
   });
-  return published.resourceType;
+  return defined.resourceType;
 }
 
 async function requestApproved(

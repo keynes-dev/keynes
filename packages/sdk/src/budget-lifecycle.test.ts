@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import type { KeynesClient, KeynesError } from "./generated/client.js";
-import type { PublishResourceCommand } from "./generated/types.js";
+import type { DefineResourceTypeCommand } from "./generated/types.js";
 import { openLocalKeynes } from "./private/local-keynes.js";
 
 describe("Budget lifecycle", () => {
-  it("publishes a Resource type without creating Budget quantity", async () => {
+  it("defines a Resource type without creating Budget quantity", async () => {
     const local = await openLocalKeynes();
 
     try {
-      const publisher: KeynesClient = local.clientFor("publisher-fixture");
+      const definer: KeynesClient = local.clientFor("definer-fixture");
 
-      const result = await publisher.publishResource({
+      const result = await definer.defineResourceType({
         commandId: "10000000-0000-0000-0000-000000000001",
         definition: {
           canonicalName: "model_tokens",
@@ -21,14 +21,14 @@ describe("Budget lifecycle", () => {
       });
 
       expect(result).toMatchObject({
-        kind: "published",
+        kind: "defined",
         resourceType: {
           canonicalName: "model_tokens",
           unit: "token",
           accountingBehavior: "consumable",
         },
-        publicationEvidence: {
-          kind: "resource_type_published",
+        definitionEvidence: {
+          kind: "resource_type_defined",
           commandId: "10000000-0000-0000-0000-000000000001",
         },
         replayed: false,
@@ -41,11 +41,11 @@ describe("Budget lifecycle", () => {
     }
   });
 
-  it("preserves publication identity and distinguishes replay from republication", async () => {
+  it("preserves definition identity and distinguishes replay from redefinition", async () => {
     const local = await openLocalKeynes();
 
     try {
-      const publisher = local.clientFor("publisher-fixture");
+      const definer = local.clientFor("definer-fixture");
       const firstCommand = {
         commandId: "10000000-0000-0000-0000-000000000011",
         definition: {
@@ -53,19 +53,19 @@ describe("Budget lifecycle", () => {
           unit: "token",
           accountingBehavior: "consumable",
         },
-      } satisfies PublishResourceCommand;
-      const first = await publisher.publishResource(firstCommand);
+      } satisfies DefineResourceTypeCommand;
+      const first = await definer.defineResourceType(firstCommand);
 
-      const republication = await publisher.publishResource({
+      const redefinition = await definer.defineResourceType({
         ...firstCommand,
         commandId: "10000000-0000-0000-0000-000000000012",
       });
-      expect(republication).toEqual({
+      expect(redefinition).toEqual({
         ...first,
         replayed: false,
       });
 
-      const replay = await publisher.publishResource(firstCommand);
+      const replay = await definer.defineResourceType(firstCommand);
       expect(replay).toEqual({
         ...first,
         replayed: true,
@@ -75,11 +75,11 @@ describe("Budget lifecycle", () => {
     }
   });
 
-  it("returns canonical publication errors", async () => {
+  it("returns canonical Resource definition errors", async () => {
     const local = await openLocalKeynes();
 
     try {
-      const publisher = local.clientFor("publisher-fixture");
+      const definer = local.clientFor("definer-fixture");
       const unauthorized = local.clientFor("unauthorized-fixture");
       const command = {
         commandId: "10000000-0000-0000-0000-000000000021",
@@ -88,12 +88,12 @@ describe("Budget lifecycle", () => {
           unit: "token",
           accountingBehavior: "consumable",
         },
-      } satisfies PublishResourceCommand;
+      } satisfies DefineResourceTypeCommand;
 
-      await publisher.publishResource(command);
+      await definer.defineResourceType(command);
 
       await expectKeynesError(
-        publisher.publishResource({
+        definer.defineResourceType({
           commandId: "10000000-0000-0000-0000-000000000022",
           definition: { ...command.definition, unit: "credit" },
         }),
@@ -101,23 +101,23 @@ describe("Budget lifecycle", () => {
         { canonicalName: "model_tokens" },
       );
       await expectKeynesError(
-        unauthorized.publishResource(command),
+        unauthorized.defineResourceType(command),
         "unauthorized",
         {
-          operation: "publishResource",
-          requiredPermission: "publish_resource",
+          operation: "defineResourceType",
+          requiredPermission: "define_resource_type",
         },
       );
       await expectKeynesError(
-        publisher.publishResource({
+        definer.defineResourceType({
           ...command,
           definition: { ...command.definition, unit: "credit" },
         }),
         "command_conflict",
         {
           commandId: command.commandId,
-          existingOperation: "publishResource",
-          attemptedOperation: "publishResource",
+          existingOperation: "defineResourceType",
+          attemptedOperation: "defineResourceType",
         },
       );
     } finally {
@@ -142,24 +142,24 @@ describe("Budget lifecycle", () => {
             unit: "token",
             accountingBehavior: "consumable",
           },
-        } satisfies PublishResourceCommand;
+        } satisfies DefineResourceTypeCommand;
 
         await expect(
           local
-            .clientFor("publisher-fixture", { checkpoint })
-            .publishResource(command),
+            .clientFor("definer-fixture", { checkpoint })
+            .defineResourceType(command),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
 
         const retry = await local
-          .clientFor("publisher-fixture")
-          .publishResource(command);
+          .clientFor("definer-fixture")
+          .defineResourceType(command);
         expect(retry).toMatchObject({
-          kind: "published",
+          kind: "defined",
           resourceType: {
             resourceTypeId: commandId,
             canonicalName: command.definition.canonicalName,
           },
-          publicationEvidence: {
+          definitionEvidence: {
             commandId,
           },
           replayed: false,
@@ -175,7 +175,7 @@ describe("Budget lifecycle", () => {
 
     try {
       const client = local.clientFor("product-fixture");
-      const resource = await client.publishResource({
+      const resource = await client.defineResourceType({
         commandId: "10000000-0000-0000-0000-000000000101",
         definition: {
           canonicalName: "model_tokens",

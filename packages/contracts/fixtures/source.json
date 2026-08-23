@@ -1,7 +1,7 @@
 {
   "tenantId": "00000000-0000-0000-0000-000000000001",
   "principals": {
-    "publisher": "00000000-0000-0000-0000-000000000011",
+    "definer": "00000000-0000-0000-0000-000000000011",
     "allocator": "00000000-0000-0000-0000-000000000012",
     "requester": "00000000-0000-0000-0000-000000000013",
     "settlement": "00000000-0000-0000-0000-000000000014",
@@ -9,7 +9,7 @@
     "product": "00000000-0000-0000-0000-000000000016"
   },
   "commands": {
-    "publishConsumable": {
+    "defineConsumable": {
       "commandId": "10000000-0000-0000-0000-000000000001",
       "definition": {
         "canonicalName": "model_tokens",
@@ -17,7 +17,7 @@
         "accountingBehavior": "consumable"
       }
     },
-    "publishReusable": {
+    "defineReusable": {
       "commandId": "10000000-0000-0000-0000-000000000002",
       "definition": {
         "canonicalName": "worker_slots",

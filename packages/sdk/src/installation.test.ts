@@ -12,7 +12,7 @@ const INSTALLATION_RECORD_URL = new URL(
 const FIXTURES = {
   tenantId: "00000000-0000-4000-8000-000000000001",
   principals: {
-    "publisher-fixture": "00000000-0000-4000-8000-000000000101",
+    "definer-fixture": "00000000-0000-4000-8000-000000000101",
     "allocator-fixture": "00000000-0000-4000-8000-000000000102",
     "requester-fixture": "00000000-0000-4000-8000-000000000103",
     "settlement-fixture": "00000000-0000-4000-8000-000000000104",
@@ -115,11 +115,11 @@ describe("generated installation record", () => {
   });
 
   it("rejects an installed-object mismatch after fresh migration", async () => {
-    const missingTarget = "keynes.missing_publication_target";
+    const missingTarget = "keynes.missing_definition_target";
     const { installDatabase } = await loadInstallerWith((path, contents) => {
       if (!path.pathname.endsWith("installation-record.json")) return contents;
       if (typeof contents !== "string") throw new Error("record must be text");
-      return contents.replace("keynes.publish_resource_type", missingTarget);
+      return contents.replace("keynes.define_resource_type", missingTarget);
     });
 
     await withFreshDatabase(async (database) => {
