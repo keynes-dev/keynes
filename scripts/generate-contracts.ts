@@ -48,7 +48,7 @@ const DECLARED_OUTPUTS = [
 
 const ALLOWED_OPERATIONS = [
   {
-    method: "defineResourceType",
+    method: "defineResource",
     target: "keynes.define_resource_type",
     permission: "define_resource_type",
     replay: true,

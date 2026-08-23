@@ -348,7 +348,7 @@ describe("contract generator", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(
-      /operation metadata mismatch.*defineResourceType.*permission/i,
+      /operation metadata mismatch.*defineResource.*permission/i,
     );
   });
 

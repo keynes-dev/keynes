@@ -14,7 +14,7 @@ import type {
 import { validateCreateBudgetCommandIssues } from "./generated/validators.js";
 
 const commands = {
-  defineResourceType: {
+  defineResource: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
       canonicalName: "model_tokens",
@@ -76,9 +76,9 @@ describe("generated client bindings", () => {
     };
     const client = createKeynesClient(caller);
 
-    await expect(
-      client.defineResourceType(commands.defineResourceType),
-    ).rejects.toBe(stop);
+    await expect(client.defineResource(commands.defineResource)).rejects.toBe(
+      stop,
+    );
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);
     await expect(client.requestBudget(commands.requestBudget)).rejects.toBe(
       stop,

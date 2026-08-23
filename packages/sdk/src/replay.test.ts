@@ -29,10 +29,10 @@ describe("command replay", () => {
         accountingBehavior: "consumable",
       },
     } satisfies DefineResourceTypeCommand;
-    const defined = await product.defineResourceType(defineCommand);
+    const defined = await product.defineResource(defineCommand);
     const definitionReplay = await local
       .clientFor("definer-fixture")
-      .defineResourceType(defineCommand);
+      .defineResource(defineCommand);
     expect(definitionReplay).toEqual({ ...defined, replayed: true });
 
     const createCommand = {
@@ -102,12 +102,12 @@ describe("command replay", () => {
     await expect(
       local
         .clientFor("product-fixture", { dropResponseAfterCommitOnce: true })
-        .defineResourceType(command),
+        .defineResource(command),
     ).rejects.toThrow();
 
     const recovered = await local
       .clientFor("definer-fixture")
-      .defineResourceType(command);
+      .defineResource(command);
     expect(recovered).toMatchObject({
       kind: "defined",
       resourceType: {
@@ -119,13 +119,13 @@ describe("command replay", () => {
     });
     const repeated = await local
       .clientFor("definer-fixture")
-      .defineResourceType(command);
+      .defineResource(command);
     expect(repeated).toEqual(recovered);
   });
 
   it("recovers root allocation after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const defined = await product.defineResourceType({
+    const defined = await product.defineResource({
       commandId: "13000000-0000-0000-0000-000000000051",
       definition: {
         canonicalName: "model_tokens",
@@ -161,7 +161,7 @@ describe("command replay", () => {
 
   it("recovers an approved request after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const defined = await product.defineResourceType({
+    const defined = await product.defineResource({
       commandId: "13000000-0000-0000-0000-000000000061",
       definition: {
         canonicalName: "model_tokens",
@@ -211,7 +211,7 @@ describe("command replay", () => {
 
   it("recovers settlement after its committed response is lost", async () => {
     const product = local.clientFor("product-fixture");
-    const defined = await product.defineResourceType({
+    const defined = await product.defineResource({
       commandId: "13000000-0000-0000-0000-000000000071",
       definition: {
         canonicalName: "model_tokens",
@@ -274,7 +274,7 @@ describe("command replay", () => {
 
   it("rejects changed bodies for each mutation, including across principals", async () => {
     const product = local.clientFor("product-fixture");
-    const defined = await product.defineResourceType({
+    const defined = await product.defineResource({
       commandId: "13000000-0000-0000-0000-000000000011",
       definition: {
         canonicalName: "model_tokens",
@@ -283,7 +283,7 @@ describe("command replay", () => {
       },
     });
     await expectCommandConflict(
-      local.clientFor("definer-fixture").defineResourceType({
+      local.clientFor("definer-fixture").defineResource({
         commandId: "13000000-0000-0000-0000-000000000011",
         definition: {
           canonicalName: "model_tokens",
@@ -292,8 +292,8 @@ describe("command replay", () => {
         },
       }),
       "13000000-0000-0000-0000-000000000011",
-      "defineResourceType",
-      "defineResourceType",
+      "defineResource",
+      "defineResource",
     );
 
     const root = await product.createBudget({
@@ -366,7 +366,7 @@ describe("command replay", () => {
 
   it("rejects reuse by a different operation", async () => {
     const client = local.clientFor("product-fixture");
-    const defined = await client.defineResourceType({
+    const defined = await client.defineResource({
       commandId: "13000000-0000-0000-0000-000000000021",
       definition: {
         canonicalName: "model_tokens",
@@ -403,7 +403,7 @@ describe("command replay", () => {
 
   it("rejects reuse against a different target", async () => {
     const client = local.clientFor("product-fixture");
-    const defined = await client.defineResourceType({
+    const defined = await client.defineResource({
       commandId: "13000000-0000-0000-0000-000000000031",
       definition: {
         canonicalName: "model_tokens",

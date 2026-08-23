@@ -1,20 +1,20 @@
 {
-  "contractDigest": "c07ebdaa6edb910216b5ed751addfe12a7743bb181f0e736a7e160c4186bd489",
+  "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
   "migrations": [
     {
       "id": "0001-storage",
       "path": "0001-storage.sql",
-      "sha256": "6f8929e5bbc411fae577fce8add9ffcece6dd3b4449ee78e96995a307c98584d"
+      "sha256": "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a"
     },
     {
       "id": "0002-budget",
       "path": "0002-budget.sql",
-      "sha256": "f095b6736d71f4083741cb01d488ae3566154ab92b68b557495072d893d7862d"
+      "sha256": "ba0f1fe858e0dcd8984448766d3d4498204d191cb96b41df507d979cf0da2e8c"
     },
     {
       "id": "0003-public",
       "path": "0003-public.generated.sql",
-      "sha256": "bdca4f55e0915a4c05014d34169fbd0056a2ecb7eeedf7d121a42fbf0d72666c"
+      "sha256": "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a"
     }
   ],
   "expectedTargets": [

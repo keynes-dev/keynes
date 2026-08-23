@@ -20,7 +20,7 @@ describe("Budget request denial", () => {
 
   it("denies one unavailable Resource without changing the parent", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000001",
       "model_tokens",
@@ -70,12 +70,12 @@ describe("Budget request denial", () => {
 
   it("denies a multi-Resource envelope without reserving its fundable part", async () => {
     const client = local.clientFor("product-fixture");
-    const tokens = await defineResourceType(
+    const tokens = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000011",
       "model_tokens",
     );
-    const seats = await defineResourceType(
+    const seats = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000012",
       "reviewer_seats",
@@ -123,7 +123,7 @@ describe("Budget request denial", () => {
 
   it("serializes siblings so only one complete envelope is funded", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000021",
       "model_tokens",
@@ -162,7 +162,7 @@ describe("Budget request denial", () => {
 
   it("rejects malformed, duplicate, and caller-selected funding envelopes", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000031",
       "model_tokens",
@@ -196,7 +196,7 @@ describe("Budget request denial", () => {
 
   it("rejects a Resource type that has not been defined before evaluating funding", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000041",
       "model_tokens",
@@ -220,7 +220,7 @@ describe("Budget request denial", () => {
 
   it("rejects a request after its parent becomes inactive", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000051",
       "model_tokens",
@@ -248,7 +248,7 @@ describe("Budget request denial", () => {
 
   it("keeps request, settlement, and read permissions independent", async () => {
     const product = local.clientFor("product-fixture");
-    const resource = await defineResourceType(
+    const resource = await defineResource(
       product,
       "11000000-0000-0000-0000-000000000061",
       "model_tokens",
@@ -286,12 +286,12 @@ describe("Budget request denial", () => {
   });
 });
 
-async function defineResourceType(
+async function defineResource(
   client: KeynesClient,
   commandId: string,
   canonicalName: string,
 ): Promise<DefineResourceTypeResult["resourceType"]> {
-  const defined = await client.defineResourceType({
+  const defined = await client.defineResource({
     commandId,
     definition: {
       canonicalName,

@@ -49,7 +49,7 @@ try {
   const settlement = local.clientFor("settlement-fixture");
   const reader = local.clientFor("reader-fixture");
 
-  const resource = await definer.defineResourceType({
+  const resource = await definer.defineResource({
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
       canonicalName: "model_tokens",

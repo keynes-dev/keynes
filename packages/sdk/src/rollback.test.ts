@@ -44,12 +44,12 @@ describe("command rollback", () => {
       await expect(
         local
           .clientFor("definer-fixture", { checkpoint })
-          .defineResourceType(command),
+          .defineResource(command),
       ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
 
       const retry = await local
         .clientFor("definer-fixture")
-        .defineResourceType(command);
+        .defineResource(command);
       expect(retry).toMatchObject({
         resourceType: { resourceTypeId: commandId },
         definitionEvidence: { commandId },
@@ -60,7 +60,7 @@ describe("command rollback", () => {
 
   it("rolls back root allocation facts, result, and history", async () => {
     const client = local.clientFor("product-fixture");
-    const defined = await client.defineResourceType({
+    const defined = await client.defineResource({
       commandId: "14000000-0000-0000-0000-000000000011",
       definition: {
         canonicalName: "model_tokens",
@@ -104,7 +104,7 @@ describe("command rollback", () => {
 
   it("rolls back child reservation, result, and history", async () => {
     const client = local.clientFor("product-fixture");
-    const defined = await client.defineResourceType({
+    const defined = await client.defineResource({
       commandId: "14000000-0000-0000-0000-000000000021",
       definition: {
         canonicalName: "model_tokens",
@@ -168,7 +168,7 @@ describe("command rollback", () => {
 
   it("rolls back usage, result, and settlement history", async () => {
     const client = local.clientFor("product-fixture");
-    const defined = await client.defineResourceType({
+    const defined = await client.defineResource({
       commandId: "14000000-0000-0000-0000-000000000031",
       definition: {
         canonicalName: "model_tokens",

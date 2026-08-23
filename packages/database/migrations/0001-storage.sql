@@ -51,7 +51,7 @@ CREATE TABLE keynes_internal.commands (
   CONSTRAINT command_operation
     CHECK (
       operation IN (
-        'defineResourceType',
+        'defineResource',
         'createBudget',
         'requestBudget',
         'settleBudget'

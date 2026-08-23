@@ -708,7 +708,7 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   OperationName: {
     enum: [
-      "defineResourceType",
+      "defineResource",
       "createBudget",
       "requestBudget",
       "settleBudget",

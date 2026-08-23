@@ -8,7 +8,7 @@ The procedure caller, PGlite handle, transaction, tenant, and principal are pack
 
 ```ts
 interface KeynesClient {
-  defineResourceType(
+  defineResource(
     input: DefineResourceTypeCommand,
   ): Promise<DefineResourceTypeResult>;
   createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
@@ -22,13 +22,13 @@ The concrete five-method implementation, types, validators, procedure names, and
 
 ## Ordered operations
 
-| Method               | Installed target              | Permission             | Replay   | Evidence                                                   |
-| -------------------- | ----------------------------- | ---------------------- | -------- | ---------------------------------------------------------- |
-| `defineResourceType` | `keynes.define_resource_type` | `define_resource_type` | Required | Definition evidence in stored result                       |
-| `createBudget`       | `keynes.create_budget`        | `create_root_budget`   | Required | One root-lineage history entry                             |
-| `requestBudget`      | `keynes.request`              | `request_budget`       | Required | One approval or denial history entry                       |
-| `settleBudget`       | `keynes.settle`               | `settle_budget`        | Required | One settlement history entry, including exact no-op repeat |
-| `getBudget`          | `keynes.get_budget`           | `read_budget`          | N/A      | Reads one Budget and its complete root-lineage history     |
+| Method           | Installed target              | Permission             | Replay   | Evidence                                                   |
+| ---------------- | ----------------------------- | ---------------------- | -------- | ---------------------------------------------------------- |
+| `defineResource` | `keynes.define_resource_type` | `define_resource_type` | Required | Definition evidence in stored result                       |
+| `createBudget`   | `keynes.create_budget`        | `create_root_budget`   | Required | One root-lineage history entry                             |
+| `requestBudget`  | `keynes.request`              | `request_budget`       | Required | One approval or denial history entry                       |
+| `settleBudget`   | `keynes.settle`               | `settle_budget`        | Required | One settlement history entry, including exact no-op repeat |
+| `getBudget`      | `keynes.get_budget`           | `read_budget`          | N/A      | Reads one Budget and its complete root-lineage history     |
 
 The five permissions are independent. Provider-free fixtures prove both directions for request and settlement. Permission to request does not permit settlement, and permission to settle does not permit requests.
 
@@ -53,7 +53,7 @@ Resource envelopes are non-empty and unique by `resourceTypeId`. The database so
 
 ## Mutating operations
 
-### `defineResourceType`
+### `defineResource`
 
 ```ts
 interface DefineResourceTypeCommand {

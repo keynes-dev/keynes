@@ -456,7 +456,7 @@
     },
     "OperationName": {
       "enum": [
-        "defineResourceType",
+        "defineResource",
         "createBudget",
         "requestBudget",
         "settleBudget",

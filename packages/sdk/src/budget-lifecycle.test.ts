@@ -11,7 +11,7 @@ describe("Budget lifecycle", () => {
     try {
       const definer: KeynesClient = local.clientFor("definer-fixture");
 
-      const result = await definer.defineResourceType({
+      const result = await definer.defineResource({
         commandId: "10000000-0000-0000-0000-000000000001",
         definition: {
           canonicalName: "model_tokens",
@@ -54,9 +54,9 @@ describe("Budget lifecycle", () => {
           accountingBehavior: "consumable",
         },
       } satisfies DefineResourceTypeCommand;
-      const first = await definer.defineResourceType(firstCommand);
+      const first = await definer.defineResource(firstCommand);
 
-      const redefinition = await definer.defineResourceType({
+      const redefinition = await definer.defineResource({
         ...firstCommand,
         commandId: "10000000-0000-0000-0000-000000000012",
       });
@@ -65,7 +65,7 @@ describe("Budget lifecycle", () => {
         replayed: false,
       });
 
-      const replay = await definer.defineResourceType(firstCommand);
+      const replay = await definer.defineResource(firstCommand);
       expect(replay).toEqual({
         ...first,
         replayed: true,
@@ -90,10 +90,10 @@ describe("Budget lifecycle", () => {
         },
       } satisfies DefineResourceTypeCommand;
 
-      await definer.defineResourceType(command);
+      await definer.defineResource(command);
 
       await expectKeynesError(
-        definer.defineResourceType({
+        definer.defineResource({
           commandId: "10000000-0000-0000-0000-000000000022",
           definition: { ...command.definition, unit: "credit" },
         }),
@@ -101,23 +101,23 @@ describe("Budget lifecycle", () => {
         { canonicalName: "model_tokens" },
       );
       await expectKeynesError(
-        unauthorized.defineResourceType(command),
+        unauthorized.defineResource(command),
         "unauthorized",
         {
-          operation: "defineResourceType",
+          operation: "defineResource",
           requiredPermission: "define_resource_type",
         },
       );
       await expectKeynesError(
-        definer.defineResourceType({
+        definer.defineResource({
           ...command,
           definition: { ...command.definition, unit: "credit" },
         }),
         "command_conflict",
         {
           commandId: command.commandId,
-          existingOperation: "defineResourceType",
-          attemptedOperation: "defineResourceType",
+          existingOperation: "defineResource",
+          attemptedOperation: "defineResource",
         },
       );
     } finally {
@@ -147,12 +147,12 @@ describe("Budget lifecycle", () => {
         await expect(
           local
             .clientFor("definer-fixture", { checkpoint })
-            .defineResourceType(command),
+            .defineResource(command),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
 
         const retry = await local
           .clientFor("definer-fixture")
-          .defineResourceType(command);
+          .defineResource(command);
         expect(retry).toMatchObject({
           kind: "defined",
           resourceType: {
@@ -175,7 +175,7 @@ describe("Budget lifecycle", () => {
 
     try {
       const client = local.clientFor("product-fixture");
-      const resource = await client.defineResourceType({
+      const resource = await client.defineResource({
         commandId: "10000000-0000-0000-0000-000000000101",
         definition: {
           canonicalName: "model_tokens",

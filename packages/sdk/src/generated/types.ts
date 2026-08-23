@@ -48,7 +48,7 @@ export type RequestBudgetResult = RequestApproved | RequestDenied;
  * via the `definition` "OperationName".
  */
 export type OperationName =
-  | "defineResourceType"
+  | "defineResource"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"

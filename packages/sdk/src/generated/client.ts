@@ -30,7 +30,7 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "c07ebdaa6edb910216b5ed751addfe12a7743bb181f0e736a7e160c4186bd489";
+  "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
 
 export type InstalledTarget =
   | "keynes.define_resource_type"
@@ -44,7 +44,7 @@ export interface ProcedureCaller {
 }
 
 export interface KeynesClient {
-  defineResourceType(
+  defineResource(
     input: DefineResourceTypeCommand,
   ): Promise<DefineResourceTypeResult>;
   createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
@@ -129,17 +129,17 @@ async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
 
 export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
   return {
-    async defineResourceType(
+    async defineResource(
       input: DefineResourceTypeCommand,
     ): Promise<DefineResourceTypeResult> {
       const issues = validateDefineResourceTypeCommandIssues(input);
       if (issues.length > 0) {
-        throw invalidCommand("defineResourceType", issues);
+        throw invalidCommand("defineResource", issues);
       }
       return invoke({
         caller,
         target: "keynes.define_resource_type",
-        operation: "defineResourceType",
+        operation: "defineResource",
         input,
         validateOutput: validateDefineResourceTypeResult,
         replay: true,

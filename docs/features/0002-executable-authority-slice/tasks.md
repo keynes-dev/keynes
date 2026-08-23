@@ -9,7 +9,7 @@
 
 ## Phase 1: Prove Resource definition
 
-**Goal**: Make one generated `defineResourceType` call reach a freshly installed `keynes.define_resource_type` function in PGlite.
+**Goal**: Make one generated `defineResource` call reach a freshly installed `keynes.define_resource_type` function in PGlite.
 
 - [x] T001 Pin PGlite and the build-time generator dependencies, then add `generate`, `generate:check`, and `test:budget` to the existing root and SDK manifests. Update `pnpm-lock.yaml` and confirm that a frozen install accepts it.
 - [x] T002 Add the ordered JSON Schema contract, operation metadata, canonical test fixtures, and failing generator tests in `packages/contracts/` and `scripts/generate-contracts.test.ts`. Cover closed objects, canonical UUIDs, safe integers, tagged results, deterministic ordering, and unsupported schema keywords.

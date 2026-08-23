@@ -24,7 +24,7 @@ describe("Budget settlement", () => {
 
   it("keeps a sealed parent settling until its open descendant settles", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(client, {
+    const resource = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000001",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -115,7 +115,7 @@ describe("Budget settlement", () => {
 
   it("resolves missing usage and records an exact known repeat as a no-op", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(client, {
+    const resource = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000011",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -192,7 +192,7 @@ describe("Budget settlement", () => {
 
   it("returns a reusable child allocation in full after settlement", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(client, {
+    const resource = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000021",
       canonicalName: "reviewer_seats",
       accountingBehavior: "reusable",
@@ -229,7 +229,7 @@ describe("Budget settlement", () => {
 
   it("isolates child overage without charging its parent or sibling", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(client, {
+    const resource = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000031",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -283,12 +283,12 @@ describe("Budget settlement", () => {
 
   it("settles a subset while keeping an omitted Resource unresolved", async () => {
     const client = local.clientFor("product-fixture");
-    const first = await defineResourceType(client, {
+    const first = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000051",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
     });
-    const second = await defineResourceType(client, {
+    const second = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000052",
       canonicalName: "storage_bytes",
       accountingBehavior: "consumable",
@@ -346,12 +346,12 @@ describe("Budget settlement", () => {
 
   it("sorts multiple isolated deficits by Resource identity", async () => {
     const client = local.clientFor("product-fixture");
-    const lower = await defineResourceType(client, {
+    const lower = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000061",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
     });
-    const higher = await defineResourceType(client, {
+    const higher = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000062",
       canonicalName: "storage_bytes",
       accountingBehavior: "consumable",
@@ -386,7 +386,7 @@ describe("Budget settlement", () => {
 
   it("rejects derived arithmetic overflow without committing settlement", async () => {
     const client = local.clientFor("product-fixture");
-    const resource = await defineResourceType(client, {
+    const resource = await defineResource(client, {
       commandId: "12000000-0000-0000-0000-000000000041",
       canonicalName: "model_tokens",
       accountingBehavior: "consumable",
@@ -449,11 +449,11 @@ interface DefinitionFixture {
   readonly accountingBehavior: DefineResourceTypeCommand["definition"]["accountingBehavior"];
 }
 
-async function defineResourceType(
+async function defineResource(
   client: KeynesClient,
   fixture: DefinitionFixture,
 ): Promise<DefineResourceTypeResult["resourceType"]> {
-  const defined = await client.defineResourceType({
+  const defined = await client.defineResource({
     commandId: fixture.commandId,
     definition: {
       canonicalName: fixture.canonicalName,

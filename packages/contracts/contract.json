@@ -2,7 +2,7 @@
   "schema": "schema.json",
   "operations": [
     {
-      "method": "defineResourceType",
+      "method": "defineResource",
       "target": "keynes.define_resource_type",
       "permission": "define_resource_type",
       "replay": true,

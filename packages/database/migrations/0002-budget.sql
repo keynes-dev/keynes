@@ -388,7 +388,7 @@ DECLARE
   domain_error_message text;
 BEGIN
   permission_name := CASE operation_name
-    WHEN 'defineResourceType' THEN 'define_resource_type'
+    WHEN 'defineResource' THEN 'define_resource_type'
     WHEN 'createBudget' THEN 'create_root_budget'
     WHEN 'requestBudget' THEN 'request_budget'
     WHEN 'settleBudget' THEN 'settle_budget'
@@ -399,7 +399,7 @@ BEGIN
       MESSAGE = format('operation %L is not implemented', operation_name);
   END IF;
   BEGIN
-    IF operation_name = 'defineResourceType' THEN
+    IF operation_name = 'defineResource' THEN
       IF input IS NULL OR jsonb_typeof(input) <> 'object' THEN
         PERFORM keynes_internal.invalid_command(operation_name, '$', 'type');
       END IF;
@@ -425,7 +425,7 @@ BEGIN
     END IF;
     command_id := (input->>'commandId')::uuid;
     CASE operation_name
-      WHEN 'defineResourceType' THEN
+      WHEN 'defineResource' THEN
         IF jsonb_typeof(input->'definition') <> 'object' THEN
           PERFORM keynes_internal.invalid_command(operation_name, '$.definition', 'type');
         END IF;
@@ -559,7 +559,7 @@ BEGIN
     );
     PERFORM keynes_internal.checkpoint('after_command_binding');
 
-    IF operation_name = 'defineResourceType' THEN
+    IF operation_name = 'defineResource' THEN
       definition_digest_value := 'resource-definition:' || encode(
         sha256(convert_to(canonical_definition::text, 'UTF8')), 'hex'
       );

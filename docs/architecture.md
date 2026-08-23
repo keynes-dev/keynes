@@ -490,7 +490,7 @@ import { Keynes } from "@keynes/sdk";
 
 const keynes = await Keynes.local();
 
-await keynes.defineResourceTypes({
+await keynes.defineResources({
   usdCents: { unit: "cent", behavior: "consumable" },
   searchQueries: { unit: "query", behavior: "consumable" },
 });
@@ -514,7 +514,7 @@ if (result.status === "approved") {
 }
 ```
 
-`defineResourceTypes(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected defined types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
+`defineResources(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected defined types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
 
 The constructor selects the deployment without changing the Budget API:
 
