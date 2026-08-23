@@ -16,30 +16,29 @@
     {
       "id": "0001-storage",
       "path": "packages/database/migrations/0001-storage.sql",
-      "sha256": "01852024ccc43cd499248e5f93141168df9e801565057cb16ec2b25d86464f07"
+      "sha256": "d818767dd6d49b8fef406164ee935fdf7ba7d4cbea04fe39768b6c4db0c42c2f"
     },
     {
       "id": "0002-budget",
       "path": "packages/database/migrations/0002-budget.sql",
-      "sha256": "35fbf1a65a23a0dcf202fc001dd058777778305dc7f6b93fbac7472fb4060d95"
+      "sha256": "c8c927700b88f34739c66ff51045f9c15f164873ba461b85a8e6b4d43f8f12a1"
     },
     {
       "id": "0003-public",
       "path": "packages/database/migrations/0003-public.generated.sql",
-      "sha256": "2b5216ad3fa6b8679101ef094a75cbbb0c12693babeacb3c6e6858f2c2811853"
+      "sha256": "7252e326a9668b04dffd999f6fbfd96d21b7c99236b33fd8e71ecf95b9628382"
     }
   ],
   "generatedFiles": {
     "packages/contracts/generated/contract-digest.json": "e7d3613d15bb50c79accfb9d97a6a945aa91f9b276ae9f17de774a0398726563",
-    "packages/contracts/generated/fixtures.json": "9828331b1523c116c64ba9e6a5ce47c5e06fdad139815822bfec3a43a22d6afe",
-    "packages/contracts/generated/operations.json": "aa9cd0c02b90a6d6ff6ef2116cda4ffeff22df1a8dd70a897b2b8ff9eadc4697",
-    "packages/database/generated/installation-record.json": "daaf77a9582a7d20a8d0e9fd773a0a1399a7651233edce02dadb60c54a6c8926",
-    "packages/sdk/src/generated/client.ts": "90337753a51b7ebcef7b5be9056a4fe1b7cd0077948f5d27a81c125fd09f1a6e",
+    "packages/database/generated/installation-record.json": "8f27cf328a99a2333b2a25309a6b9ad7d2fe064c6da788ac05bbefc21a8183dc",
+    "packages/database/migrations/0003-public.generated.sql": "7252e326a9668b04dffd999f6fbfd96d21b7c99236b33fd8e71ecf95b9628382",
+    "packages/sdk/src/generated/client.ts": "01c4f5e32965b27c2a461e73e42fd529cab07f76b780ac5d863d09bf2dfdb86c",
     "packages/sdk/src/generated/types.ts": "001513bf3f875f5b8c47e8dc470b2e6e6780caa656497a64936d7ace54436bda",
-    "packages/sdk/src/generated/validators.ts": "35a0267a28580109ff2e30d515e11fcfaa06043a0401ca439d77b6a419be33cc"
+    "packages/sdk/src/generated/validators.ts": "532bf5a86b83241fe5949c3e430fd45ddc189bd1e0b62a5bde46fea98baa00e9"
   },
   "repository": {
-    "revision": "022fcfbe5c4bf7d9c3cc58d487bf3d93bed08c61",
+    "revision": "d0c0ea4147b50f88f281aee56507b9e22bc11d0d",
     "worktreeDirty": false
   },
   "checks": [
@@ -61,17 +60,17 @@
     {
       "command": "pnpm --filter @keynes/sdk test",
       "exitCode": 0,
-      "summary": "7 test files passed; 39 tests passed."
+      "summary": "7 test files passed; 38 tests passed."
     },
     {
       "command": "pnpm verify",
       "exitCode": 0,
-      "summary": "8 feature identity tests passed; 6 Turbo tasks passed; SDK passed 7 files and 39 tests; Cloud passed 1 file and 1 test; boundaries checked 16 files with 0 issues."
+      "summary": "8 feature identity tests passed; 6 Turbo tasks passed; SDK passed 7 files and 38 tests; Cloud passed 1 file and 1 test; boundaries checked 16 files with 0 issues."
     },
     {
       "command": "pnpm install --frozen-lockfile",
       "exitCode": 0,
-      "summary": "All 3 workspace projects were already up to date with pnpm 11.21.0."
+      "summary": "All 3 workspace projects were already up to date with pnpm 11.21.0; the command exited 0 after a non-blocking registry metadata fetch warning."
     }
   ],
   "qualified": [
