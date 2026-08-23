@@ -10,35 +10,35 @@
   },
   "contract": {
     "algorithm": "sha256",
-    "digest": "0c6d72159f3de62cf86c9b53cf3718231b341674387f0beaf15cf217def8a9f6"
+    "digest": "c07ebdaa6edb910216b5ed751addfe12a7743bb181f0e736a7e160c4186bd489"
   },
   "migrations": [
     {
       "id": "0001-storage",
       "path": "packages/database/migrations/0001-storage.sql",
-      "sha256": "d818767dd6d49b8fef406164ee935fdf7ba7d4cbea04fe39768b6c4db0c42c2f"
+      "sha256": "6f8929e5bbc411fae577fce8add9ffcece6dd3b4449ee78e96995a307c98584d"
     },
     {
       "id": "0002-budget",
       "path": "packages/database/migrations/0002-budget.sql",
-      "sha256": "c8c927700b88f34739c66ff51045f9c15f164873ba461b85a8e6b4d43f8f12a1"
+      "sha256": "f095b6736d71f4083741cb01d488ae3566154ab92b68b557495072d893d7862d"
     },
     {
       "id": "0003-public",
       "path": "packages/database/migrations/0003-public.generated.sql",
-      "sha256": "7252e326a9668b04dffd999f6fbfd96d21b7c99236b33fd8e71ecf95b9628382"
+      "sha256": "bdca4f55e0915a4c05014d34169fbd0056a2ecb7eeedf7d121a42fbf0d72666c"
     }
   ],
   "generatedFiles": {
-    "packages/contracts/generated/contract-digest.json": "e7d3613d15bb50c79accfb9d97a6a945aa91f9b276ae9f17de774a0398726563",
-    "packages/database/generated/installation-record.json": "8f27cf328a99a2333b2a25309a6b9ad7d2fe064c6da788ac05bbefc21a8183dc",
-    "packages/database/migrations/0003-public.generated.sql": "7252e326a9668b04dffd999f6fbfd96d21b7c99236b33fd8e71ecf95b9628382",
-    "packages/sdk/src/generated/client.ts": "01c4f5e32965b27c2a461e73e42fd529cab07f76b780ac5d863d09bf2dfdb86c",
-    "packages/sdk/src/generated/types.ts": "001513bf3f875f5b8c47e8dc470b2e6e6780caa656497a64936d7ace54436bda",
-    "packages/sdk/src/generated/validators.ts": "532bf5a86b83241fe5949c3e430fd45ddc189bd1e0b62a5bde46fea98baa00e9"
+    "packages/contracts/generated/contract-digest.json": "21d2aa00d2121a05fd6a9cbae2da76891642a03062ce5fa212965017cb953a92",
+    "packages/database/generated/installation-record.json": "803e5549208756596546b7d3e59556b92efb5ed2afc7c9a23ab1ded7aa4e026e",
+    "packages/database/migrations/0003-public.generated.sql": "bdca4f55e0915a4c05014d34169fbd0056a2ecb7eeedf7d121a42fbf0d72666c",
+    "packages/sdk/src/generated/client.ts": "b533196bdd2d284b7a3551a29afff8273f88034cb8d751b9caa497703117ee97",
+    "packages/sdk/src/generated/types.ts": "5d4ae173fbc074b7c2526a8ce550a721cbd1147ce7ea213869a3e0f4d598853e",
+    "packages/sdk/src/generated/validators.ts": "342bbd157fe91d086a6e899dc09e4922802a991a9ddd2881b79d8f66ade9aa8d"
   },
   "repository": {
-    "revision": "d0c0ea4147b50f88f281aee56507b9e22bc11d0d",
+    "revision": "5ea378b7e95057d97f41e91dea818c100405ae58",
     "worktreeDirty": false
   },
   "checks": [
