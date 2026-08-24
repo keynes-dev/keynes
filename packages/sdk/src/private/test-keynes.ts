@@ -46,9 +46,7 @@ export interface NativeTestKeynes extends LocalKeynes {
 }
 
 export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
-  const owner = await openPostgresOwner(
-    requiredPlatformContext().administratorUrl,
-  );
+  const owner = await openPostgresOwner(requirePlatformAdministratorUrl());
   return {
     clientFor(fixture, options) {
       return createKeynesClient(
@@ -258,12 +256,12 @@ interface PlatformContext {
   readonly administratorUrl: string;
 }
 
-function requiredPlatformContext(): PlatformContext {
+export function requirePlatformAdministratorUrl(): string {
   const source = process.env[PLATFORM_CONTEXT_ENV];
   if (source === undefined) {
     throw new Error("Native PostgreSQL tests require the platform runner");
   }
-  return parsePlatformContext(source);
+  return parsePlatformContext(source).administratorUrl;
 }
 
 function parsePlatformContext(source: string): PlatformContext {

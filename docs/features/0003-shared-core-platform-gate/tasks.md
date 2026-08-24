@@ -82,13 +82,13 @@
 
 ### Tests for user story 3
 
-- [ ] T018 [P] [US3] Refactor the existing installation assertions into one host-parameterized test body in `packages/sdk/src/installation.test.ts`, then add the PostgreSQL host and record the expected missing-host-path failure before implementation.
-- [ ] T019 [US3] Add failing atomic-rollback cases for `packages/database/migrations/0001-storage.sql`, `packages/database/migrations/0002-budget.sql`, and `packages/database/migrations/0003-public.generated.sql` to `packages/sdk/src/installation.test.ts`. Reuse `loadInstallerWith` to inject one failing statement and the matching mocked installation-record checksum. After each failure, require no migration record and no visible partial schema change.
+- [x] T018 [P] [US3] Refactor the existing installation assertions into one host-parameterized test body in `packages/sdk/src/installation.test.ts`, then add the PostgreSQL host and record the expected missing-host-path failure before implementation.
+- [x] T019 [US3] Add failing atomic-rollback cases for `packages/database/migrations/0001-storage.sql`, `packages/database/migrations/0002-budget.sql`, and `packages/database/migrations/0003-public.generated.sql` to `packages/sdk/src/installation.test.ts`. Reuse `loadInstallerWith` to inject one failing statement and the matching mocked installation-record checksum. After each failure, require no migration record and no visible partial schema change.
 
 ### Implementation for user story 3
 
-- [ ] T020 [US3] Add only the host factory and cleanup needed by the shared installation body to `packages/sdk/src/installation.test.ts`, using the existing private PostgreSQL opener from `packages/sdk/src/private/postgres-keynes.ts`. Do not add failure-injection hooks, predecessor releases, upgrade paths, or public migration APIs.
-- [ ] T021 [US3] Run `pnpm generate:check` and `pnpm verify` first. Then run the full installation body on both engines through `pnpm test:platform`. Stop on a fresh-install, exact-recheck, drift, target, rollback, generation, or provider-free difference.
+- [x] T020 [US3] Add only the host factory and cleanup needed by the shared installation body to `packages/sdk/src/installation.test.ts`, using the existing private PostgreSQL opener from `packages/sdk/src/private/postgres-keynes.ts`. Do not add failure-injection hooks, predecessor releases, upgrade paths, or public migration APIs.
+- [x] T021 [US3] Run `pnpm generate:check` and `pnpm verify` first. Then run the full installation body on both engines through `pnpm test:platform`. Stop on a fresh-install, exact-recheck, drift, target, rollback, generation, or provider-free difference.
 
 **Checkpoint**: User story 3 passes independently. The evidence covers only the current three-migration graph on PGlite 0.5.5 and PostgreSQL 18.6.
 
