@@ -10,6 +10,8 @@ docs/features/0001-repository-and-code-architecture/
 
 The roadmap groups features into unnumbered stages. A stage has no branch, template, or separate lifecycle. A standalone fix or refactor can use Spec Kit without belonging to a roadmap stage.
 
+The roadmap can name planned features before work starts. A planned feature has no ID, branch, or artifact directory. It becomes a Spec Kit feature only when the feature command allocates its identity. `.specify/feature.json` selects work for Spec Kit commands; it does not identify what comes next on the roadmap.
+
 Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each phase. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
 
 Do not create a pstack specification, plan, or task list when a Spec Kit artifact already owns that decision. This separation keeps one source of truth while still giving difficult work more scrutiny.

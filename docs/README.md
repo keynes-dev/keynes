@@ -10,6 +10,8 @@
 
 `docs/features/` contains the specification, plan, tasks, and supporting design records for each numbered Spec Kit feature. `roadmap.md` groups those features into unnumbered stages with shared outcomes and exit gates. Keynes does not maintain a separate epic artifact or lifecycle.
 
+The roadmap can name planned features before Spec Kit starts them. Planned features have no number, branch, or feature directory.
+
 Documentation describes the target system. It does not make unverified work implemented by describing it.
 
 ## Contributor workflow
