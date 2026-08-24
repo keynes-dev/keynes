@@ -77,13 +77,14 @@ describe("native PostgreSQL contention", () => {
         parentBudgetId: ROOT_BUDGET_ID,
         resources: [{ resourceTypeId, amount: 5 }],
       });
-
-      await keynes.requireBlockedBy(request.backendPid, settlement.backendPid);
-      await settlement.commit();
-      await expect(competing).rejects.toMatchObject({
+      const rejected = expect(competing).rejects.toMatchObject({
         code: "budget_not_active",
         details: { budgetId: ROOT_BUDGET_ID, lifecycle: "settling" },
       });
+
+      await keynes.requireBlockedBy(request.backendPid, settlement.backendPid);
+      await settlement.commit();
+      await rejected;
       await request.commit();
 
       const final = await keynes

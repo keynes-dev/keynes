@@ -1,6 +1,6 @@
 # Run the shared core platform gate
 
-**Status**: `NOT RUN`. FEAT-0003 has not implemented or executed the native lane.
+**Status**: `NOT RUN` for the current revision. The CI stabilization change has local evidence only.
 
 ## Run the provider-free checks
 

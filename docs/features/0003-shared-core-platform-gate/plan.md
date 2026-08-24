@@ -68,7 +68,7 @@ packages/sdk/src/
 ├── installation.test.ts
 ├── native-contention.native.test.ts
 └── existing FEAT-0002 test files
-.github/workflows/verify.yml
+.github/workflows/ci.yml
 ```
 
 `packages/database/migrations/0002-budget.sql` changes only if the concurrent replay test proves that the database leaks a uniqueness error.

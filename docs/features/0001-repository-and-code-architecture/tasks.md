@@ -117,7 +117,7 @@
 ### Implementation for User Story 5
 
 - [X] T024 [US5] Complete the ordered fail-closed `verify` command in `package.json` so format checking and linting cover the repository once, Turborepo type-checks and tests `packages/sdk/` and `packages/cloud/`, native dependency checks run, and every failure blocks the aggregate result
-- [X] T025 [US5] Add the `ubuntu-24.04` x64, full-SHA-pinned, least-privilege, credential-free frozen-install and `pnpm verify` workflow to `.github/workflows/verify.yml`
+- [X] T025 [US5] Add the `ubuntu-24.04` x64, full-SHA-pinned, least-privilege, credential-free frozen-install and `pnpm verify` workflow to `.github/workflows/ci.yml`
 - [X] T026 [US5] Use one temporary undeclared import to prove a native boundary failure propagates with a nonzero exit, remove the probe, then run the passing provider-free baseline and retain the exact command results in the task completion note
 
 **Checkpoint**: The quality and CI baseline deliverable and the local portion of the repository baseline exit gate are satisfied. GitHub-hosted execution remains distinguishable from local workflow inspection until the pushed workflow runs.
@@ -138,7 +138,7 @@
 
 **Purpose**: Complete the CI-dependent exit gate only after explicit user authorization for Git history and remote mutation.
 
-- [X] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/verify.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote FEAT-0001 from `CI NOT RUN` only if that exact run passes
+- [X] T030 [US5] After explicit user authorization, commit and push the completed feature so `.github/workflows/ci.yml` runs, then record the successful run URL and commit SHA in `docs/roadmap.md` and promote FEAT-0001 from `CI NOT RUN` only if that exact run passes
 
 ---
 

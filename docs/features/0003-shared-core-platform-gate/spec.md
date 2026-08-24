@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0003-shared-core-platform-gate`
 **Roadmap stage**: `Executable database and platform gate`
 **Created**: August 23, 2026
-**Status**: Draft
+**Status**: In progress
 
 ## User scenarios and testing
 
