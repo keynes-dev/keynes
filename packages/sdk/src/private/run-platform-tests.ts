@@ -15,6 +15,7 @@ const READINESS_TIMEOUT_MS = 30_000;
 const READINESS_INTERVAL_MS = 100;
 
 const PLATFORM_TEST_FILES = [
+  "src/native-contention.native.test.ts",
   "src/budget-lifecycle.test.ts",
   "src/replay.test.ts",
   "src/request-denial.test.ts",

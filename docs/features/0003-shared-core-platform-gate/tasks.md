@@ -60,15 +60,15 @@
 
 ### Tests for user story 2
 
-- [ ] T012 [P] [US2] Add a failing native contention harness and sibling-overcommit case in `packages/sdk/src/native-contention.native.test.ts`. Use distinct checked-out `pg` clients under `READ COMMITTED`, record both backend PIDs, prove the wait, release the blocker, and require that at most one sibling is funded.
-- [ ] T013 [US2] Add failing settlement-first and request-first cases in `packages/sdk/src/native-contention.native.test.ts`. Require the final Budget and history to match commit order and reject any request that commits after settlement seals the parent.
-- [ ] T014 [US2] Add a failing matching-command replay case in `packages/sdk/src/native-contention.native.test.ts`. Require the second call to wait and return the stored result instead of leaking a driver uniqueness error.
+- [x] T012 [P] [US2] Add a failing native contention harness and sibling-overcommit case in `packages/sdk/src/native-contention.native.test.ts`. Use distinct checked-out `pg` clients under `READ COMMITTED`, record both backend PIDs, prove the wait, release the blocker, and require that at most one sibling is funded.
+- [x] T013 [US2] Add failing settlement-first and request-first cases in `packages/sdk/src/native-contention.native.test.ts`. Require the final Budget and history to match commit order and reject any request that commits after settlement seals the parent.
+- [x] T014 [US2] Add a failing matching-command replay case in `packages/sdk/src/native-contention.native.test.ts`. Require the second call to wait and return the stored result instead of leaking a driver uniqueness error.
 
 ### Implementation for user story 2
 
-- [ ] T015 [US2] Add only the transaction-bound generated-client and blocking-observation helpers required by the contention cases to `packages/sdk/src/private/postgres-keynes.ts` and `packages/sdk/src/private/test-keynes.ts`. Use deadlines only to fail a hang, never to order the calls.
-- [ ] T016 [US2] If T014 exposes the select-then-insert replay race, fix it once in `packages/database/migrations/0002-budget.sql`, regenerate `packages/database/migrations/0003-public.generated.sql` and `packages/database/generated/installation-record.json`, and update the generated checksum. If T014 passes without a SQL change, record that result and leave the migrations untouched.
-- [ ] T017 [US2] Run `pnpm generate:check` and `pnpm verify` first. Then run all four cases in `packages/sdk/src/native-contention.native.test.ts` and the five paired behavioral files through `pnpm test:platform`. Stop on any wait, replay, rollback, request, settlement, generation, or provider-free regression.
+- [x] T015 [US2] Add only the transaction-bound generated-client and blocking-observation helpers required by the contention cases to `packages/sdk/src/private/postgres-keynes.ts` and `packages/sdk/src/private/test-keynes.ts`. Use deadlines only to fail a hang, never to order the calls.
+- [x] T016 [US2] If T014 exposes the select-then-insert replay race, fix it once in `packages/database/migrations/0002-budget.sql`, regenerate `packages/database/migrations/0003-public.generated.sql` and `packages/database/generated/installation-record.json`, and update the generated checksum. If T014 passes without a SQL change, record that result and leave the migrations untouched.
+- [x] T017 [US2] Run `pnpm generate:check` and `pnpm verify` first. Then run all four cases in `packages/sdk/src/native-contention.native.test.ts` and the five paired behavioral files through `pnpm test:platform`. Stop on any wait, replay, rollback, request, settlement, generation, or provider-free regression.
 
 **Checkpoint**: User story 2 passes independently on the owned PostgreSQL service. PGlite remains a regression baseline, not evidence of native locking.
 

@@ -5,6 +5,7 @@ import { expect } from "vitest";
 import {
   createKeynesClient,
   type InstalledTarget,
+  type KeynesClient,
   type ProcedureCaller,
 } from "../generated/client.js";
 import {
@@ -17,8 +18,14 @@ import {
   type KeynesCallerHost,
   type LocalKeynes,
 } from "./local-keynes.js";
-import { openInstalledPostgresDatabase } from "./postgres-keynes.js";
-import { createDatabaseProcedureCaller } from "./procedure-caller.js";
+import {
+  openInstalledPostgresDatabase,
+  type OwnedPostgresDatabase,
+} from "./postgres-keynes.js";
+import {
+  createDatabaseProcedureCaller,
+  createTransactionProcedureCaller,
+} from "./procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./run-platform-tests.js";
 
 export type {
@@ -26,6 +33,51 @@ export type {
   FixturePrincipal,
   LocalKeynes,
 } from "./local-keynes.js";
+
+export interface NativeAttempt {
+  readonly client: KeynesClient;
+  readonly backendPid: number;
+  commit(): Promise<void>;
+}
+
+export interface NativeTestKeynes extends LocalKeynes {
+  beginAttempt(fixture: FixturePrincipal): Promise<NativeAttempt>;
+  requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
+}
+
+export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
+  const owner = await openPostgresOwner(
+    requiredPlatformContext().administratorUrl,
+  );
+  return {
+    clientFor(fixture, options) {
+      return createKeynesClient(
+        createDatabaseProcedureCaller(owner.database, {
+          tenantId: FIXTURE_TENANT_ID,
+          principalId: FIXTURE_PRINCIPALS[fixture],
+          checkpoint: options?.checkpoint,
+          dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
+        }),
+      );
+    },
+    async beginAttempt(fixture) {
+      const transaction = await owner.beginTransaction();
+      return {
+        client: createKeynesClient(
+          createTransactionProcedureCaller(transaction.connection, {
+            tenantId: FIXTURE_TENANT_ID,
+            principalId: FIXTURE_PRINCIPALS[fixture],
+          }),
+        ),
+        backendPid: transaction.backendPid,
+        commit: () => transaction.commit(),
+      };
+    },
+    requireBlockedBy: (blockedPid, blockerPid) =>
+      owner.requireBlockedBy(blockedPid, blockerPid),
+    close: () => owner.close(),
+  };
+}
 
 interface PairedCallerInput {
   readonly caseName: () => string;
@@ -115,10 +167,7 @@ export async function openTestKeynes(): Promise<LocalKeynes> {
 async function openPostgresCallerHost(
   administratorUrl: string,
 ): Promise<KeynesCallerHost> {
-  const owner = await openInstalledPostgresDatabase(administratorUrl, {
-    tenantId: FIXTURE_TENANT_ID,
-    principals: FIXTURE_PRINCIPALS,
-  });
+  const owner = await openPostgresOwner(administratorUrl);
   return {
     callerFor(fixture, options) {
       return createDatabaseProcedureCaller(owner.database, {
@@ -130,6 +179,15 @@ async function openPostgresCallerHost(
     },
     close: () => owner.close(),
   };
+}
+
+function openPostgresOwner(
+  administratorUrl: string,
+): Promise<OwnedPostgresDatabase> {
+  return openInstalledPostgresDatabase(administratorUrl, {
+    tenantId: FIXTURE_TENANT_ID,
+    principals: FIXTURE_PRINCIPALS,
+  });
 }
 
 function pairedHost(
@@ -198,6 +256,14 @@ function pairedFailure(
 
 interface PlatformContext {
   readonly administratorUrl: string;
+}
+
+function requiredPlatformContext(): PlatformContext {
+  const source = process.env[PLATFORM_CONTEXT_ENV];
+  if (source === undefined) {
+    throw new Error("Native PostgreSQL tests require the platform runner");
+  }
+  return parsePlatformContext(source);
 }
 
 function parsePlatformContext(source: string): PlatformContext {

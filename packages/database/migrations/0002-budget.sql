@@ -587,10 +587,17 @@ BEGIN
     body_digest_value := 'command-body:' || encode(
       sha256(convert_to(body::text, 'UTF8')), 'hex'
     );
-    SELECT * INTO prior FROM keynes_internal.commands AS stored
-    WHERE stored.tenant_id = tenant
-      AND stored.command_id = apply_command.command_id FOR UPDATE;
-    IF FOUND THEN
+    INSERT INTO keynes_internal.commands (
+      tenant_id, command_id, operation, target_kind, target_id,
+      canonical_body, body_digest, principal_id
+    ) VALUES (
+      tenant, command_id, operation_name, target_kind, target_id,
+      body, body_digest_value, principal
+    ) ON CONFLICT ON CONSTRAINT commands_pkey DO NOTHING;
+    IF NOT FOUND THEN
+      SELECT * INTO prior FROM keynes_internal.commands AS stored
+      WHERE stored.tenant_id = tenant
+        AND stored.command_id = apply_command.command_id FOR UPDATE;
       IF prior.operation <> operation_name OR prior.target_kind <> target_kind
         OR prior.target_id <> target_id OR prior.canonical_body <> body
         OR prior.body_digest <> body_digest_value THEN
@@ -603,13 +610,6 @@ BEGIN
       END IF;
       RETURN jsonb_build_object('ok', true, 'result', prior.result, 'replayed', true);
     END IF;
-    INSERT INTO keynes_internal.commands (
-      tenant_id, command_id, operation, target_kind, target_id,
-      canonical_body, body_digest, principal_id
-    ) VALUES (
-      tenant, command_id, operation_name, target_kind, target_id,
-      body, body_digest_value, principal
-    );
     PERFORM keynes_internal.checkpoint('after_command_binding');
 
     IF operation_name = 'defineResource' THEN

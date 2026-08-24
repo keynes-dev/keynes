@@ -121,6 +121,26 @@ export function createDatabaseProcedureCaller(
   );
 }
 
+export function createTransactionProcedureCaller(
+  transaction: DatabaseConnection,
+  context: TransactionContext,
+): ProcedureCaller {
+  return {
+    call(target, input) {
+      const serializedInput = JSON.stringify(input);
+      if (serializedInput === undefined) {
+        return Promise.reject(new TypeError("Procedure input must be JSON"));
+      }
+      return callInstalledProcedure(
+        transaction,
+        context,
+        target,
+        serializedInput,
+      );
+    },
+  };
+}
+
 export async function callInstalledProcedure(
   transaction: DatabaseConnection,
   context: TransactionContext,

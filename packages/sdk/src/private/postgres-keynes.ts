@@ -83,6 +83,7 @@ export interface PostgresTransaction {
 export interface OwnedPostgresDatabase {
   readonly database: TransactionalDatabase;
   beginTransaction(): Promise<PostgresTransaction>;
+  requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -177,6 +178,24 @@ class PostgresDatabaseOwner implements OwnedPostgresDatabase {
       client.release();
       throw error;
     }
+  }
+
+  async requireBlockedBy(
+    blockedPid: number,
+    blockerPid: number,
+  ): Promise<void> {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const result = await this.database.query<{ readonly blocked: boolean }>(
+        "select $2::int = any(pg_blocking_pids($1::int)) as blocked",
+        [blockedPid, blockerPid],
+      );
+      if (result.rows[0]?.blocked === true) return;
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
+    }
+    throw new Error(
+      `PostgreSQL backend ${blockedPid} did not block behind ${blockerPid}`,
+    );
   }
 
   close(): Promise<void> {
