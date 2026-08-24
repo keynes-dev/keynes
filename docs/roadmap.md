@@ -126,7 +126,7 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 **Observed evidence:** On August 23, 2026, `pnpm test:generator` passed 15 tests, and `pnpm --filter @keynes/sdk test` passed 40 tests. `pnpm generate:check` found no generated drift, and `pnpm verify` passed all six repository tasks. The generated five-method client completed the installed PGlite lifecycle. The database procedures own Budget semantics. Native PostgreSQL concurrency, roles, recovery, cross-host equivalence, packaging, Cloud, security, performance, paid services, and managed providers remain **NOT RUN**.
 
-#### Shared core platform gate
+#### [FEAT-0003: Shared core platform gate](features/0003-shared-core-platform-gate/spec.md)
 
 **Status:** **NOT RUN**
 

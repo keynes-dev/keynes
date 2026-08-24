@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0002",
-  "slug": "executable-authority-slice",
-  "branch": "feat/0002-executable-authority-slice",
-  "feature_directory": "docs/features/0002-executable-authority-slice",
+  "feature_id": "FEAT-0003",
+  "slug": "shared-core-platform-gate",
+  "branch": "feat/0003-shared-core-platform-gate",
+  "feature_directory": "docs/features/0003-shared-core-platform-gate",
   "roadmap_stage": "Executable database and platform gate"
 }
