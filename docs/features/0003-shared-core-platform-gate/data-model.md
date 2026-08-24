@@ -10,7 +10,7 @@ Test-only values live for one process:
 | Case | Existing test name or native contention case name |
 | Observation | Returned JSON, a declared test-control failure, or an unexpected failure |
 | Backend PID | Native process ID used only to prove one transaction blocks another |
-| Run ID | Random UUID used only in the owned container name, label, and diagnostics |
+| Run ID | Random UUID used as the owned container name and diagnostic identity |
 | Image digest | Exact native image digest declared by the platform runner |
 
 A paired call passes when both engines return deeply equal JSON or the same declared test-control failure. Any skip, one-sided result, or unexpected failure fails the case.

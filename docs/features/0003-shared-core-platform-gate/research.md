@@ -18,7 +18,7 @@ Source: [node-postgres transactions](https://node-postgres.com/features/transact
 
 Run `postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941` through the Docker CLI. The multi-platform image digest was verified with `docker buildx imagetools inspect postgres:18.6` on August 23, 2026.
 
-The runner generates a unique name, label, password, and run ID. It uses `--rm`, no volume, and an ephemeral port bound only to `127.0.0.1`. A real `pg` connection checks readiness and `server_version_num`. The runner closes clients and stops the container in `finally`.
+The runner generates one random run ID and uses it as the container name and diagnostic identity. It also generates the password. It uses `--rm`, no volume, and an ephemeral port bound only to `127.0.0.1`. A real `pg` connection checks readiness and `server_version_num`. The runner closes clients and stops the container in `finally`.
 
 This small runner is required because the platform command must prove that its database is fresh, dedicated, local, disposable, and the declared image. A user-supplied URL cannot prove those facts and could point destructive tests at the wrong database. A Docker SDK, Compose file, or general container framework remains unnecessary for one image.
 
@@ -28,7 +28,7 @@ The current installer and procedure caller use only `query`, `exec`, and `transa
 
 ## Compare at the existing procedure boundary
 
-One paired `ProcedureCaller` invokes both installed procedures, awaits both calls, and compares the parsed JSON values before returning to the unchanged generated client. This reuses the existing fixtures and assertions while catching fields that a test does not name.
+One paired `ProcedureCaller` invokes both installed procedures, waits for both outcomes even when one fails, and compares the parsed JSON values before returning to the unchanged generated client. This reuses the existing fixtures and assertions while catching fields that a test does not name.
 
 Only the existing rollback checkpoint and simulated lost response may match as controlled failures. Driver failures never become domain results.
 

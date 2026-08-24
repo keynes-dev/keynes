@@ -4,9 +4,9 @@
 
 ## Summary
 
-Reuse the FEAT-0002 installer, generated client, migrations, fixtures, and five behavioral suites on PGlite and PostgreSQL 18.6. Add `pg` as a test dependency and extract only the small database operations that the existing PGlite code already uses. In the platform lane, one paired procedure caller compares both returned values before the generated client runs the existing assertion.
+Reuse the FEAT-0002 installer, generated client, migrations, fixtures, and five behavioral suites on PGlite and PostgreSQL 18.6. Add `pg` as a test dependency and extract only the small database operations that the existing PGlite code already uses. In the platform lane, one paired procedure caller compares both outcomes before the generated client runs the existing assertion.
 
-`pnpm test:platform` owns one disposable container through the Docker CLI. It runs `postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941`, binds an ephemeral port only to loopback, generates the credential, checks `server_version_num = 180006`, and removes the container after success or failure. No Docker SDK, Compose file, host registry, evidence store, customer installer, or user-supplied database URL is needed.
+`pnpm test:platform` owns one disposable container through the Docker CLI. It runs `postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941`, uses one random run ID as the container name and diagnostic identity, binds an ephemeral port only to loopback, generates the credential, checks `server_version_num = 180006`, and removes the container after success or failure. No Docker SDK, Compose file, host registry, evidence store, customer installer, or user-supplied database URL is needed.
 
 ## Technical context
 
@@ -33,11 +33,11 @@ Define one private structural type for `query`, `exec`, and `transaction`. Make 
 
 ### Reuse the existing corpus
 
-Keep the five FEAT-0002 test bodies and assertions. Their opener chooses PGlite in ordinary tests. In the platform lane, it opens both engines and gives the generated client a paired `ProcedureCaller`. The caller starts both calls, awaits both, compares returned JSON values exactly, and reports the case and host on a difference. It treats only the existing rollback checkpoint and simulated lost-response controls as matching failures.
+Keep the five FEAT-0002 test bodies and assertions. Their opener chooses PGlite in ordinary tests. In the platform lane, it opens both engines and gives the generated client a paired `ProcedureCaller`. The caller starts both calls, waits for both outcomes even when one fails, compares returned JSON values exactly, and reports the case and host on a difference. It treats only the existing rollback checkpoint and simulated lost-response controls as matching failures.
 
 ### Own one disposable PostgreSQL service
 
-The platform command starts the exact image with `docker run`. It uses a unique name, label, password, and run ID. It publishes no volume and binds an ephemeral port only to `127.0.0.1`. A bounded `pg` connection probe checks readiness and PostgreSQL 18.6. The runner passes the private connection URL only to its test child, closes every client, and stops the container in `finally`.
+The platform command starts the exact image with `docker run`. It uses one random run ID as the container name and diagnostic identity, plus a generated password. It publishes no volume and binds an ephemeral port only to `127.0.0.1`. A bounded `pg` connection probe checks readiness and PostgreSQL 18.6. The runner passes the private connection URL only to its test child, closes every client, and stops the container in `finally`.
 
 The command fails if the Docker CLI or daemon is unavailable. It never accepts an existing database or turns a missing native host into a skip.
 

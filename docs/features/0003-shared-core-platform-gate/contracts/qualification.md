@@ -8,7 +8,7 @@ The existing installer and installed-procedure caller share a private structural
 
 ## Paired calls
 
-The platform lane calls the same installed target on both engines, awaits both calls, and compares the parsed JSON values. It returns the shared value to the existing generated client only after equality succeeds.
+The platform lane calls the same installed target on both engines, waits for both outcomes even when one fails, and compares the parsed JSON values. It returns the shared value to the existing generated client only after equality succeeds.
 
 The paired caller reports the case, target, and host on failure. It never reports credentials, connection strings, driver internals, or private table contents.
 
@@ -22,6 +22,6 @@ Contention tests bind a generated client to one open `READ COMMITTED` transactio
 pnpm test:platform
 ```
 
-The command starts the exact declared image under a unique labeled name. It uses `--rm`, no volume, a generated credential, and a loopback-only ephemeral port. It passes the private URL only to its test child, checks PostgreSQL 18.6, and runs every required paired, migration, and contention case.
+The command starts the exact declared image and uses one random run ID as the container name and diagnostic identity. It uses `--rm`, no volume, a generated credential, and a loopback-only ephemeral port. It passes the private URL only to its test child, checks PostgreSQL 18.6, and runs every required paired, migration, and contention case.
 
 The runner closes clients and stops the container in `finally`. It fails when Docker or the native host is unavailable. It cannot accept a user-supplied database or fall back to PGlite.
