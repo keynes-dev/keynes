@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0003",
-  "slug": "shared-core-platform-gate",
-  "branch": "feat/0003-shared-core-platform-gate",
-  "feature_directory": "docs/features/0003-shared-core-platform-gate",
-  "roadmap_stage": "Executable database and platform gate"
+  "feature_id": "FEAT-0004",
+  "slug": "local-runtime-sdk",
+  "branch": "feat/0004-local-runtime-sdk",
+  "feature_directory": "docs/features/0004-local-runtime-sdk",
+  "roadmap_stage": "Local workflow preview"
 }
