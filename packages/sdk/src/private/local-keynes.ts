@@ -3,14 +3,14 @@ import { PGlite } from "@electric-sql/pglite";
 import { createKeynesClient, type KeynesClient } from "../generated/client.js";
 import { installDatabase } from "./migrations.js";
 import {
+  createPGliteProcedureCaller,
   PGliteOwner,
-  PGliteProcedureCaller,
   type RollbackCheckpoint,
 } from "./procedure-caller.js";
 
-const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
+export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
-const FIXTURE_PRINCIPALS = {
+export const FIXTURE_PRINCIPALS = {
   "definer-fixture": "00000000-0000-4000-8000-000000000101",
   "allocator-fixture": "00000000-0000-4000-8000-000000000102",
   "requester-fixture": "00000000-0000-4000-8000-000000000103",
@@ -52,7 +52,7 @@ export async function openLocalKeynes(): Promise<LocalKeynes> {
   return {
     clientFor(fixture, options) {
       return createKeynesClient(
-        new PGliteProcedureCaller(owner, {
+        createPGliteProcedureCaller(owner, {
           tenantId: FIXTURE_TENANT_ID,
           principalId: FIXTURE_PRINCIPALS[fixture],
           checkpoint: options?.checkpoint,
