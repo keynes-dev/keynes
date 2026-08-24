@@ -11,8 +11,8 @@
 
 **Purpose**: Add the native-only dependencies and commands without putting Docker in `pnpm verify`.
 
-- [ ] T001 Add `pg` and `@types/pg` to `packages/sdk/package.json`, update `pnpm-lock.yaml`, and prove that `pnpm install --frozen-lockfile` accepts the result.
-- [ ] T002 Add `test:platform` scripts to `package.json` and `packages/sdk/package.json`. Route the root command through `packages/sdk/src/private/run-platform-tests.ts`, and keep every ordinary `test` and `verify` script free of Docker.
+- [x] T001 Add `pg` and `@types/pg` to `packages/sdk/package.json`, update `pnpm-lock.yaml`, and prove that `pnpm install --frozen-lockfile` accepts the result.
+- [x] T002 Add `test:platform` scripts to `package.json` and `packages/sdk/package.json`. Route the root command through `packages/sdk/src/private/run-platform-tests.ts`, and keep every ordinary `test` and `verify` script free of Docker.
 
 **Checkpoint**: The manifests declare a native lane, but no existing test starts Docker.
 

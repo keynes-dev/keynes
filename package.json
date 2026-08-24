@@ -15,6 +15,7 @@
     "test:feature-identity": "node --test scripts/feature-identity.test.mjs",
     "test:generator": "vitest run scripts/generate-contracts.test.ts",
     "test:budget": "pnpm --filter @keynes/sdk test:budget",
+    "test:platform": "pnpm --filter @keynes/sdk test:platform",
     "check:feature-identity": "node scripts/feature-identity.mjs check-repository --json",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
