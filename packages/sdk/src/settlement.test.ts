@@ -7,7 +7,7 @@ import type {
   RequestApproved,
   RequestBudgetCommand,
 } from "./generated/types.js";
-import { openLocalKeynes, type LocalKeynes } from "./private/local-keynes.js";
+import { openTestKeynes, type LocalKeynes } from "./private/test-keynes.js";
 
 const MAX_SAFE_AMOUNT = 9_007_199_254_740_991;
 
@@ -15,7 +15,7 @@ describe("Budget settlement", () => {
   let local: LocalKeynes;
 
   beforeEach(async () => {
-    local = await openLocalKeynes();
+    local = await openTestKeynes();
   });
 
   afterEach(async () => {

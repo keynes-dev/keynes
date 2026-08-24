@@ -1,6 +1,7 @@
-import type { PGlite, Transaction } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 
 import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
+import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
 const TARGET_QUERIES = {
   "keynes.define_resource_type":
@@ -34,7 +35,9 @@ export class PGliteOwner {
     this.#database = database;
   }
 
-  run<T>(operation: (database: PGlite) => Promise<T>): Promise<T> {
+  run<T>(
+    operation: (database: TransactionalDatabase) => Promise<T>,
+  ): Promise<T> {
     if (this.#closing) {
       return Promise.reject(new Error("The local Keynes database is closed"));
     }
@@ -55,12 +58,18 @@ export class PGliteOwner {
   }
 }
 
-export class PGliteProcedureCaller implements ProcedureCaller {
-  readonly #owner: PGliteOwner;
+interface ProcedureDatabaseOwner {
+  run<Result>(
+    operation: (database: TransactionalDatabase) => Promise<Result>,
+  ): Promise<Result>;
+}
+
+class InstalledProcedureCaller implements ProcedureCaller {
+  readonly #owner: ProcedureDatabaseOwner;
   readonly #context: TransactionContext;
   #dropResponseAfterCommitOnce: boolean;
 
-  constructor(owner: PGliteOwner, context: TransactionContext) {
+  constructor(owner: ProcedureDatabaseOwner, context: TransactionContext) {
     this.#owner = owner;
     this.#context = context;
     this.#dropResponseAfterCommitOnce =
@@ -74,21 +83,14 @@ export class PGliteProcedureCaller implements ProcedureCaller {
     }
 
     return this.#owner.run(async (database) => {
-      const wire = await database.transaction(async (transaction) => {
-        await setTransactionContext(transaction, this.#context);
-        const response = await transaction.query<{ response: unknown }>(
-          TARGET_QUERIES[target],
-          [serializedInput],
-        );
-
-        if (response.rows.length !== 1) {
-          throw new Error(
-            `Installed procedure ${target} returned ${response.rows.length} rows`,
-          );
-        }
-
-        return parseDatabaseJson(response.rows[0]?.response);
-      });
+      const wire = await database.transaction((transaction) =>
+        callInstalledProcedure(
+          transaction,
+          this.#context,
+          target,
+          serializedInput,
+        ),
+      );
 
       if (this.#dropResponseAfterCommitOnce) {
         this.#dropResponseAfterCommitOnce = false;
@@ -102,8 +104,66 @@ export class PGliteProcedureCaller implements ProcedureCaller {
   }
 }
 
+export function createPGliteProcedureCaller(
+  owner: PGliteOwner,
+  context: TransactionContext,
+): ProcedureCaller {
+  return new InstalledProcedureCaller(owner, context);
+}
+
+export function createDatabaseProcedureCaller(
+  database: TransactionalDatabase,
+  context: TransactionContext,
+): ProcedureCaller {
+  return new InstalledProcedureCaller(
+    { run: (operation) => operation(database) },
+    context,
+  );
+}
+
+export function createTransactionProcedureCaller(
+  transaction: DatabaseConnection,
+  context: TransactionContext,
+): ProcedureCaller {
+  return {
+    call(target, input) {
+      const serializedInput = JSON.stringify(input);
+      if (serializedInput === undefined) {
+        return Promise.reject(new TypeError("Procedure input must be JSON"));
+      }
+      return callInstalledProcedure(
+        transaction,
+        context,
+        target,
+        serializedInput,
+      );
+    },
+  };
+}
+
+export async function callInstalledProcedure(
+  transaction: DatabaseConnection,
+  context: TransactionContext,
+  target: InstalledTarget,
+  serializedInput: string,
+): Promise<unknown> {
+  await setTransactionContext(transaction, context);
+  const response = await transaction.query<{ response: unknown }>(
+    TARGET_QUERIES[target],
+    [serializedInput],
+  );
+
+  if (response.rows.length !== 1) {
+    throw new Error(
+      `Installed procedure ${target} returned ${response.rows.length} rows`,
+    );
+  }
+
+  return parseDatabaseJson(response.rows[0]?.response);
+}
+
 async function setTransactionContext(
-  transaction: Transaction,
+  transaction: DatabaseConnection,
   context: TransactionContext,
 ): Promise<void> {
   await transaction.query(

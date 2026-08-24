@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { KeynesClient, KeynesError } from "./generated/client.js";
 import type { DefineResourceTypeCommand } from "./generated/types.js";
-import { openLocalKeynes } from "./private/local-keynes.js";
+import { openTestKeynes } from "./private/test-keynes.js";
 
 describe("Budget lifecycle", () => {
   it("defines a Resource type without creating Budget quantity", async () => {
-    const local = await openLocalKeynes();
+    const local = await openTestKeynes();
 
     try {
       const definer: KeynesClient = local.clientFor("definer-fixture");
@@ -42,7 +42,7 @@ describe("Budget lifecycle", () => {
   });
 
   it("preserves definition identity and distinguishes replay from redefinition", async () => {
-    const local = await openLocalKeynes();
+    const local = await openTestKeynes();
 
     try {
       const definer = local.clientFor("definer-fixture");
@@ -76,7 +76,7 @@ describe("Budget lifecycle", () => {
   });
 
   it("returns canonical Resource definition errors", async () => {
-    const local = await openLocalKeynes();
+    const local = await openTestKeynes();
 
     try {
       const definer = local.clientFor("definer-fixture");
@@ -132,7 +132,7 @@ describe("Budget lifecycle", () => {
   ] as const)(
     "rolls back %s before a clean retry",
     async (checkpoint, commandId) => {
-      const local = await openLocalKeynes();
+      const local = await openTestKeynes();
 
       try {
         const command = {
@@ -171,7 +171,7 @@ describe("Budget lifecycle", () => {
   );
 
   it("completes one funded child lifecycle and reads its root-lineage history", async () => {
-    const local = await openLocalKeynes();
+    const local = await openTestKeynes();
 
     try {
       const client = local.clientFor("product-fixture");

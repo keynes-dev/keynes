@@ -72,7 +72,7 @@ FEAT-0001 maintains no duplicate dependency parser, fixtures, or script tests.
 
 ## Continuous integration
 
-The workflow in `.github/workflows/verify.yml` runs the same required checks as `pnpm verify` from a clean checkout. It pins external actions and dependencies, uses least privilege, and makes lockfile changes or required-check failures visible. FEAT-0001 satisfied this requirement for commit `c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
+The workflow in `.github/workflows/ci.yml` runs the same required checks as `pnpm verify` from a clean checkout. It pins external actions and dependencies, uses least privilege, and makes lockfile changes or required-check failures visible. FEAT-0001 satisfied this requirement for commit `c1b61f37ced971b02ddc31b9ce8d171b09a5748b` in [Verify run 32539891232](https://github.com/shubsharan/keynes/actions/runs/32539891232).
 
 CI status and command output are sufficient proof for this repository baseline. The later all-code `packages/` amendment currently has local verification only; its next CI run remains `NOT RUN` until the change is committed and pushed. FEAT-0001 does not aggregate results into a separate schema, attempt directory, or promoted evidence tree.
 

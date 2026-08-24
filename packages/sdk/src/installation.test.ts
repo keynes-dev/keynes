@@ -1,12 +1,20 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { TransactionalDatabase } from "./private/database.js";
+import { openPostgresDatabase } from "./private/postgres-keynes.js";
+import { PLATFORM_CONTEXT_ENV } from "./private/run-platform-tests.js";
+import { requirePlatformAdministratorUrl } from "./private/test-keynes.js";
+
+const DATABASE_ROOT = new URL("../../database/", import.meta.url);
+const MIGRATIONS_ROOT = new URL("migrations/", DATABASE_ROOT);
 const INSTALLATION_RECORD_URL = new URL(
-  "../../database/generated/installation-record.json",
-  import.meta.url,
+  "generated/installation-record.json",
+  DATABASE_ROOT,
 );
 
 const FIXTURES = {
@@ -22,8 +30,37 @@ const FIXTURES = {
   },
 } as const;
 
+const MIGRATIONS = [
+  {
+    id: "0001-storage",
+    path: "0001-storage.sql",
+    tableName: "keynes_internal.commands",
+    procedureName: null,
+  },
+  {
+    id: "0002-budget",
+    path: "0002-budget.sql",
+    tableName: null,
+    procedureName: "keynes_internal.apply_command(text,jsonb)",
+  },
+  {
+    id: "0003-public",
+    path: "0003-public.generated.sql",
+    tableName: null,
+    procedureName: "keynes.define_resource_type(jsonb)",
+  },
+] as const;
+
 type FileContents = string | Buffer;
 type FileMutation = (path: URL, contents: FileContents) => FileContents;
+
+interface InstallationHost {
+  readonly name: string;
+  open(): Promise<{
+    readonly database: TransactionalDatabase;
+    close(): Promise<void>;
+  }>;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -68,17 +105,33 @@ async function loadInstallerWith(mutate: FileMutation) {
 }
 
 async function withFreshDatabase(
-  run: (database: PGlite) => Promise<void>,
+  host: InstallationHost,
+  run: (database: TransactionalDatabase) => Promise<void>,
 ): Promise<void> {
-  const database = await PGlite.create("memory://");
+  const opened = await host.open();
   try {
-    await run(database);
+    await run(opened.database);
   } finally {
-    await database.close();
+    await opened.close();
   }
 }
 
-describe("generated installation record", () => {
+describe.each(installationHosts())("$name installation", (host) => {
+  it("installs the current graph and rechecks it without changes", async () => {
+    const { installDatabase } = await import("./private/migrations.js");
+    await withFreshDatabase(host, async (database) => {
+      await installDatabase(database, FIXTURES);
+      const before = await installationState(database);
+      await installDatabase(database, FIXTURES);
+      expect(await installationState(database)).toEqual(before);
+      expect(before.migrations.rows).toEqual([
+        { migration_id: "0001-storage" },
+        { migration_id: "0002-budget" },
+        { migration_id: "0003-public" },
+      ]);
+    });
+  });
+
   it("rejects a contract digest mismatch before installation", async () => {
     const contractDigest = await readContractDigest();
     const mismatchedDigest = "0".repeat(64);
@@ -88,7 +141,7 @@ describe("generated installation record", () => {
       return contents.replace(contractDigest, mismatchedDigest);
     });
 
-    await withFreshDatabase(async (database) => {
+    await withFreshDatabase(host, async (database) => {
       await expect(installDatabase(database, FIXTURES)).rejects.toMatchObject({
         code: "contract_mismatch",
         details: {
@@ -106,7 +159,7 @@ describe("generated installation record", () => {
       return Buffer.concat([contents, Buffer.from("\n-- drift\n")]);
     });
 
-    await withFreshDatabase(async (database) => {
+    await withFreshDatabase(host, async (database) => {
       await expect(installDatabase(database, FIXTURES)).rejects.toMatchObject({
         code: "installation_drift",
         details: { migrationId: "0001-storage" },
@@ -122,10 +175,107 @@ describe("generated installation record", () => {
       return contents.replace("keynes.define_resource_type", missingTarget);
     });
 
-    await withFreshDatabase(async (database) => {
+    await withFreshDatabase(host, async (database) => {
       await expect(installDatabase(database, FIXTURES)).rejects.toThrow(
         `Installed database object does not match ${missingTarget}(jsonb)`,
       );
     });
   });
+
+  it.each(MIGRATIONS)(
+    "rolls back $id atomically when its final statement fails",
+    async (migration) => {
+      const { installDatabase } = await loadFailingInstaller(migration);
+      await withFreshDatabase(host, async (database) => {
+        await expect(installDatabase(database, FIXTURES)).rejects.toThrow();
+
+        const objects = await database.query<{
+          readonly migration_object_exists: boolean;
+          readonly probe_exists: boolean;
+          readonly ledger_exists: boolean;
+        }>(
+          `select
+             (to_regclass($1) is not null or to_regprocedure($2) is not null)
+               as migration_object_exists,
+             to_regclass('keynes_internal.rollback_probe') is not null as probe_exists,
+             to_regclass('keynes_internal.schema_migrations') is not null as ledger_exists`,
+          [migration.tableName, migration.procedureName],
+        );
+        expect(objects.rows[0]).toMatchObject({
+          migration_object_exists: false,
+          probe_exists: false,
+        });
+        if (objects.rows[0]?.ledger_exists === true) {
+          const record = await database.query<{ readonly recorded: boolean }>(
+            `select exists(
+               select 1 from keynes_internal.schema_migrations where migration_id = $1
+             ) as recorded`,
+            [migration.id],
+          );
+          expect(record.rows[0]?.recorded).toBe(false);
+        }
+      });
+    },
+  );
 });
+
+function installationHosts(): readonly InstallationHost[] {
+  const hosts: InstallationHost[] = [
+    {
+      name: "PGlite",
+      async open() {
+        const database = await PGlite.create("memory://");
+        return { database, close: () => database.close() };
+      },
+    },
+  ];
+  if (process.env[PLATFORM_CONTEXT_ENV] !== undefined) {
+    hosts.push({
+      name: "PostgreSQL",
+      async open() {
+        const owner = await openPostgresDatabase(
+          requirePlatformAdministratorUrl(),
+        );
+        return { database: owner.database, close: () => owner.close() };
+      },
+    });
+  }
+  return hosts;
+}
+
+async function installationState(database: TransactionalDatabase) {
+  const migrations = await database.query<{ readonly migration_id: string }>(
+    "select migration_id from keynes_internal.schema_migrations order by migration_id",
+  );
+  const permissions = await database.query<{ readonly state: unknown }>(
+    `select jsonb_build_object(
+       'permissionCount', count(*),
+       'principalCount', count(distinct principal_id)
+     ) as state from keynes_internal.principal_permissions`,
+  );
+  return { migrations, permissions };
+}
+
+async function loadFailingInstaller(migration: (typeof MIGRATIONS)[number]) {
+  const original = await readFile(new URL(migration.path, MIGRATIONS_ROOT));
+  const failing = Buffer.concat([
+    original,
+    Buffer.from(
+      "\nCREATE TABLE keynes_internal.rollback_probe (id integer);\n" +
+        "SELECT * FROM keynes_internal.deliberate_migration_failure;\n",
+    ),
+  ]);
+  const originalChecksum = createHash("sha256").update(original).digest("hex");
+  const failingChecksum = createHash("sha256").update(failing).digest("hex");
+
+  return loadInstallerWith((path, contents) => {
+    if (path.pathname.endsWith(migration.path)) {
+      return typeof contents === "string" ? failing.toString("utf8") : failing;
+    }
+    if (path.pathname.endsWith("installation-record.json")) {
+      if (typeof contents !== "string") throw new Error("record must be text");
+      return contents.replace(originalChecksum, failingChecksum);
+    }
+    return contents;
+  });
+}

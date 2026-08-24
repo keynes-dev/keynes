@@ -1,16 +1,20 @@
 import { PGlite } from "@electric-sql/pglite";
 
-import { createKeynesClient, type KeynesClient } from "../generated/client.js";
+import {
+  createKeynesClient,
+  type KeynesClient,
+  type ProcedureCaller,
+} from "../generated/client.js";
 import { installDatabase } from "./migrations.js";
 import {
+  createPGliteProcedureCaller,
   PGliteOwner,
-  PGliteProcedureCaller,
   type RollbackCheckpoint,
 } from "./procedure-caller.js";
 
-const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
+export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
-const FIXTURE_PRINCIPALS = {
+export const FIXTURE_PRINCIPALS = {
   "definer-fixture": "00000000-0000-4000-8000-000000000101",
   "allocator-fixture": "00000000-0000-4000-8000-000000000102",
   "requester-fixture": "00000000-0000-4000-8000-000000000103",
@@ -35,7 +39,15 @@ export interface LocalKeynes {
   close(): Promise<void>;
 }
 
-export async function openLocalKeynes(): Promise<LocalKeynes> {
+export interface KeynesCallerHost {
+  callerFor(
+    fixture: FixturePrincipal,
+    options?: ClientFixtureOptions,
+  ): ProcedureCaller;
+  close(): Promise<void>;
+}
+
+export async function openLocalKeynesCallerHost(): Promise<KeynesCallerHost> {
   const database = await PGlite.create("memory://");
   const owner = new PGliteOwner(database);
 
@@ -50,18 +62,25 @@ export async function openLocalKeynes(): Promise<LocalKeynes> {
   }
 
   return {
-    clientFor(fixture, options) {
-      return createKeynesClient(
-        new PGliteProcedureCaller(owner, {
-          tenantId: FIXTURE_TENANT_ID,
-          principalId: FIXTURE_PRINCIPALS[fixture],
-          checkpoint: options?.checkpoint,
-          dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
-        }),
-      );
+    callerFor(fixture, options) {
+      return createPGliteProcedureCaller(owner, {
+        tenantId: FIXTURE_TENANT_ID,
+        principalId: FIXTURE_PRINCIPALS[fixture],
+        checkpoint: options?.checkpoint,
+        dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
+      });
     },
     close() {
       return owner.close();
     },
+  };
+}
+
+export async function openLocalKeynes(): Promise<LocalKeynes> {
+  const host = await openLocalKeynesCallerHost();
+  return {
+    clientFor: (fixture, options) =>
+      createKeynesClient(host.callerFor(fixture, options)),
+    close: () => host.close(),
   };
 }

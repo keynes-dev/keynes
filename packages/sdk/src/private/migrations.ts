@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import type { PGlite, Transaction } from "@electric-sql/pglite";
-
 import { CONTRACT_DIGEST, KeynesError } from "../generated/client.js";
+import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
 const DATABASE_ROOT = new URL("../../../database/", import.meta.url);
 const MIGRATIONS_ROOT = new URL("migrations/", DATABASE_ROOT);
@@ -61,7 +60,7 @@ interface InstallationRecord {
   readonly expectedTargets: readonly string[];
 }
 
-interface InstallationFixtures {
+export interface InstallationFixtures {
   readonly tenantId: string;
   readonly principals: Readonly<
     Record<keyof typeof FIXTURE_PERMISSIONS, string>
@@ -69,7 +68,7 @@ interface InstallationFixtures {
 }
 
 export async function installDatabase(
-  database: PGlite,
+  database: TransactionalDatabase,
   fixtures: InstallationFixtures,
 ): Promise<void> {
   const [manifestSource, recordSource] = await Promise.all([
@@ -140,7 +139,7 @@ export async function installDatabase(
 }
 
 async function applyMigration(
-  database: PGlite,
+  database: TransactionalDatabase,
   manifest: MigrationManifestEntry,
   record: InstallationMigration,
   source: string,
@@ -175,7 +174,7 @@ async function applyMigration(
 }
 
 async function findAppliedMigration(
-  transaction: Transaction,
+  transaction: DatabaseConnection,
   migrationId: string,
 ): Promise<{ readonly byte_checksum: string } | undefined> {
   const result = await transaction.query<{ byte_checksum: string }>(
@@ -188,7 +187,7 @@ async function findAppliedMigration(
 }
 
 async function verifyInstalledContract(
-  database: PGlite,
+  database: DatabaseConnection,
   contractMigrationId: string,
   record: InstallationRecord,
 ): Promise<void> {
@@ -222,7 +221,7 @@ async function verifyInstalledContract(
 }
 
 async function installFixtures(
-  database: PGlite,
+  database: TransactionalDatabase,
   fixtures: InstallationFixtures,
 ): Promise<void> {
   await database.transaction(async (transaction) => {
