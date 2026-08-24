@@ -98,11 +98,11 @@
 
 **Purpose**: Put the provider-free and native lanes in CI, validate the operator path, and update durable status only from observed results.
 
-- [ ] T022 Add a `platform` job after the provider-free job in `.github/workflows/verify.yml`. Use the hosted Docker daemon, run `pnpm test:platform`, and configure no database service, persistent volume, or repository credential.
-- [ ] T023 [P] Validate the operator steps and stated failure behavior in `docs/features/0003-shared-core-platform-gate/quickstart.md` against the implemented root scripts. Keep every excluded lane marked `NOT RUN`.
-- [ ] T024 Run `pnpm test:feature-identity`, `pnpm check:feature-identity`, `pnpm generate:check`, `pnpm verify`, `pnpm test:platform`, and `git diff --check` on the final tree. Record exact failures and do not substitute one lane for another.
+- [x] T022 Add a `platform` job after the provider-free job in `.github/workflows/verify.yml`. Use the hosted Docker daemon, run `pnpm test:platform`, and configure no database service, persistent volume, or repository credential.
+- [x] T023 [P] Validate the operator steps and stated failure behavior in `docs/features/0003-shared-core-platform-gate/quickstart.md` against the implemented root scripts. Keep every excluded lane marked `NOT RUN`.
+- [x] T024 Run `pnpm test:feature-identity`, `pnpm check:feature-identity`, `pnpm generate:check`, `pnpm verify`, `pnpm test:platform`, and `git diff --check` on the final tree. Record exact failures and do not substitute one lane for another.
 - [ ] T025 After both CI jobs pass for the same commit, update `docs/roadmap.md`, `docs/features/0003-shared-core-platform-gate/spec.md`, `docs/features/0003-shared-core-platform-gate/quickstart.md`, and this task list with the observed result. Do not promote customer installation, other PostgreSQL releases, managed providers, Cloud, hostile roles, tenant isolation, Policy, recovery, compatibility, packaging, or performance.
-- [ ] T026 Reconcile `docs/features/0003-shared-core-platform-gate/checklists/requirements.md` with the implemented evidence and run the repository formatter on the edited code and workflow files. Leave feature documentation soft-wrapped.
+- [x] T026 Reconcile `docs/features/0003-shared-core-platform-gate/checklists/requirements.md` with the implemented evidence and run the repository formatter on the edited code and workflow files. Leave feature documentation soft-wrapped.
 
 **Checkpoint**: FEAT-0003 is complete only when both CI lanes pass for one commit and every durable artifact reports the same bounded claim.
 
