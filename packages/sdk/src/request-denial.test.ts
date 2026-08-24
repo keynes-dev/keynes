@@ -5,13 +5,13 @@ import type {
   DefineResourceTypeResult,
   RequestBudgetCommand,
 } from "./generated/types.js";
-import { openLocalKeynes, type LocalKeynes } from "./private/local-keynes.js";
+import { openTestKeynes, type LocalKeynes } from "./private/test-keynes.js";
 
 describe("Budget request denial", () => {
   let local: LocalKeynes;
 
   beforeEach(async () => {
-    local = await openLocalKeynes();
+    local = await openTestKeynes();
   });
 
   afterEach(async () => {

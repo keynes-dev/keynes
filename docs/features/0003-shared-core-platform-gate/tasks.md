@@ -39,14 +39,14 @@
 
 ### Tests for user story 1
 
-- [ ] T007 [US1] Add failing paired-caller tests for equal JSON, unequal JSON, one-sided failure, rollback checkpoints, simulated lost responses, and credential-free diagnostics in `packages/sdk/src/private/test-keynes.test.ts`. In the one-sided failure case, require the slower call to settle before the paired caller rejects.
+- [x] T007 [US1] Add failing paired-caller tests for equal JSON, unequal JSON, one-sided failure, rollback checkpoints, simulated lost responses, and credential-free diagnostics in `packages/sdk/src/private/test-keynes.test.ts`. In the one-sided failure case, require the slower call to settle before the paired caller rejects.
 
 ### Implementation for user story 1
 
-- [ ] T008 [US1] Implement the paired `ProcedureCaller` and the host-selecting test opener in `packages/sdk/src/private/test-keynes.ts`. Start both calls, wait for both outcomes even when one fails, compare parsed JSON before returning it to the generated client, and match only the two declared test controls.
-- [ ] T009 [US1] Replace only the opener in `packages/sdk/src/budget-lifecycle.test.ts`, `packages/sdk/src/replay.test.ts`, `packages/sdk/src/request-denial.test.ts`, `packages/sdk/src/rollback.test.ts`, and `packages/sdk/src/settlement.test.ts`. Keep every fixture, operation, and assertion unchanged.
-- [ ] T010 [US1] Configure the platform child in `packages/sdk/src/private/run-platform-tests.ts` to run the five behavioral files through the paired opener while ordinary Vitest runs use PGlite only. Stop at the first real host mismatch and identify the case, target, and host without exposing driver internals or credentials.
-- [ ] T011 [US1] Run `pnpm verify` and record the provider-free regression result. Then run `pnpm test:platform` and record the paired-corpus result without promoting native contention or migration claims.
+- [x] T008 [US1] Implement the paired `ProcedureCaller` and the host-selecting test opener in `packages/sdk/src/private/test-keynes.ts`. Start both calls, wait for both outcomes even when one fails, compare parsed JSON before returning it to the generated client, and match only the two declared test controls.
+- [x] T009 [US1] Replace only the opener in `packages/sdk/src/budget-lifecycle.test.ts`, `packages/sdk/src/replay.test.ts`, `packages/sdk/src/request-denial.test.ts`, `packages/sdk/src/rollback.test.ts`, and `packages/sdk/src/settlement.test.ts`. Keep every fixture, operation, and assertion unchanged.
+- [x] T010 [US1] Configure the platform child in `packages/sdk/src/private/run-platform-tests.ts` to run the five behavioral files through the paired opener while ordinary Vitest runs use PGlite only. Stop at the first real host mismatch and identify the case, target, and host without exposing driver internals or credentials.
+- [x] T011 [US1] Run `pnpm verify` and record the provider-free regression result. Then run `pnpm test:platform` and record the paired-corpus result without promoting native contention or migration claims.
 
 **Checkpoint**: User story 1 passes independently. The generated client observes equal public Budget behavior on PGlite 0.5.5 and PostgreSQL 18.6.
 
