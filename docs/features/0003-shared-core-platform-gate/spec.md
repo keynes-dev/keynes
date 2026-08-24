@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0003-shared-core-platform-gate`
 **Roadmap stage**: `Executable database and platform gate`
 **Created**: August 23, 2026
-**Status**: In progress
+**Status**: Complete
 
 ## User scenarios and testing
 
@@ -64,6 +64,12 @@ The installed procedures remain the only Budget authority. The application still
 - **SC-002**: Every declared native contention case shows a real wait and ends without a conservation, stale-decision, settlement-sealing, or replay violation.
 - **SC-003**: The current migration graph passes the declared installation cases on both engines.
 - **SC-004**: `pnpm verify` and `pnpm test:platform` pass for one revision before the roadmap gate changes to passed.
+
+## Observed evidence
+
+On August 23, 2026, the provider-free Verify job and the dependent Docker-backed Platform job passed for commit [`9bc3d56bfcf80519669375ecc7ad632262837dae`](https://github.com/shubsharan/keynes/commit/9bc3d56bfcf80519669375ecc7ad632262837dae) in [GitHub Actions run 32691897192](https://github.com/shubsharan/keynes/actions/runs/32691897192). The Platform job ran the complete paired FEAT-0002 corpus, four native contention cases, and the current three-migration installation graph on PGlite 0.5.5 and the pinned PostgreSQL 18.6 image.
+
+Customer installation, other PostgreSQL releases, managed providers, Cloud, hostile roles, tenant isolation, Policy, recovery, compatibility, packaging, and performance remain `NOT RUN`.
 
 ## Assumptions
 

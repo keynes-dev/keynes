@@ -106,7 +106,7 @@ docs/       # Product, architecture, roadmap, ADRs, and guides
 
 ## Executable database and platform gate
 
-**Status:** **IN PROGRESS**
+**Status:** **COMPLETE**
 
 **Outcome:** Prove the smallest complete Budget lifecycle and the risky PostgreSQL and PGlite assumptions before packaging a public product.
 
@@ -128,13 +128,15 @@ This stage is a feasibility gate. It builds only the contracts and generated art
 
 #### [FEAT-0003: Shared core platform gate](features/0003-shared-core-platform-gate/spec.md)
 
-**Status:** **NOT RUN**
+**Status:** **PASSED**
 
 **Deliverable:** Run the same migrations, constraints, procedures, and canonical fixtures without semantic forks in private in-memory PGlite and native PostgreSQL.
 
 **Acceptance evidence:** Both engines produce the same canonical values, results, errors, history entries, reasons, and digests for the complete Budget slice. Native PostgreSQL tests prove real concurrent requests, request-versus-settlement locking, and migration behavior.
 
-**Exit gate:** The Budget database core passes unchanged on PGlite and native PostgreSQL. A failure stops the shared PostgreSQL and PGlite design. **NOT RUN**.
+**Observed evidence:** On August 23, 2026, the provider-free Verify job and the dependent Docker-backed Platform job passed for commit [`9bc3d56bfcf80519669375ecc7ad632262837dae`](https://github.com/shubsharan/keynes/commit/9bc3d56bfcf80519669375ecc7ad632262837dae) in [GitHub Actions run 32691897192](https://github.com/shubsharan/keynes/actions/runs/32691897192). The Platform job ran the complete paired FEAT-0002 corpus, four native contention cases, and the current three-migration installation graph on PGlite 0.5.5 and the pinned PostgreSQL 18.6 image. Customer installation, other PostgreSQL releases, managed providers, Cloud, hostile roles, tenant isolation, Policy, recovery, compatibility, packaging, and performance remain **NOT RUN**.
+
+**Exit gate:** The Budget database core passes unchanged on PGlite and native PostgreSQL. A failure stops the shared PostgreSQL and PGlite design. **PASSED**.
 
 ## Local workflow preview
 

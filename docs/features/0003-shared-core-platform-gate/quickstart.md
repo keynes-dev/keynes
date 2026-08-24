@@ -1,6 +1,6 @@
 # Run the shared core platform gate
 
-**Status**: `NOT RUN` for the current revision. The CI stabilization change has local evidence only.
+**Status**: `PASSED` for commit [`9bc3d56bfcf80519669375ecc7ad632262837dae`](https://github.com/shubsharan/keynes/commit/9bc3d56bfcf80519669375ecc7ad632262837dae) in [GitHub Actions run 32691897192](https://github.com/shubsharan/keynes/actions/runs/32691897192).
 
 ## Run the provider-free checks
 
@@ -37,4 +37,4 @@ The runner generates a credential, publishes an ephemeral port only on `127.0.0.
 
 A pass covers the FEAT-0002 corpus, the declared native contention cases, and the current migration graph on PGlite 0.5.5 and PostgreSQL 18.6. Customer installation, other PostgreSQL releases, managed providers, Cloud, hostile roles, tenant isolation, Policy, recovery, compatibility, packaging, and performance remain `NOT RUN`.
 
-The roadmap gate passes only after `pnpm verify` and `pnpm test:platform` pass in CI for the same commit.
+The roadmap gate passed after `pnpm verify` and `pnpm test:platform` passed in CI for the same commit.
