@@ -11,7 +11,7 @@ This stage establishes the repository shape, ownership rules, engineering comman
 
 | Feature                                                                                    | Purpose                                                                                      | Depends on | Status   |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ---------- | -------- |
-| [Repository and code architecture](features/0001-repository-and-code-architecture/spec.md) | Establish ownership, workspace structure, dependency checks, and provider-free verification. | None       | Complete |
+| [0001 Repository and code architecture](features/0001-repository-and-code-architecture/spec.md) | Establish ownership, workspace structure, dependency checks, and provider-free verification. | None       | Complete |
 
 
 ## Executable database and platform gate
@@ -21,8 +21,8 @@ This stage proves the database-owned Budget lifecycle and runs the same core on 
 
 | Feature                                                                         | Purpose                                                                                                                                | Depends on                  | Status   |
 | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | -------- |
-| [Executable Budget lifecycle](features/0002-executable-authority-slice/spec.md) | Run Resource definition, root allocation, requests, settlement, and Budget history through generated clients and installed procedures. | Repository baseline         | Complete |
-| [Shared core platform gate](features/0003-shared-core-platform-gate/spec.md)    | Run the same migrations, procedures, fixtures, and contention cases on PGlite and PostgreSQL.                                          | Executable Budget lifecycle | Complete |
+| [0002 Executable Budget lifecycle](features/0002-executable-authority-slice/spec.md) | Run Resource definition, root allocation, requests, settlement, and Budget history through generated clients and installed procedures. | Repository baseline         | Complete |
+| [0003 Shared core platform gate](features/0003-shared-core-platform-gate/spec.md)    | Run the same migrations, procedures, fixtures, and contention cases on PGlite and PostgreSQL.                                          | Executable Budget lifecycle | Complete |
 
 
 ## Local workflow preview
