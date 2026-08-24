@@ -1,14 +1,14 @@
-name: CI
+name: Platform
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify
+  platform:
+    name: Platform
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -33,5 +33,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify
-        run: pnpm verify
+      - name: Test platform
+        run: pnpm test:platform

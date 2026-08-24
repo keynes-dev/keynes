@@ -12,7 +12,7 @@ Reuse the FEAT-0002 installer, generated client, migrations, fixtures, and five 
 
 **Runtime**: TypeScript 7.0.2 on the repository Node.js range; SQL on PGlite 0.5.5 and PostgreSQL 18.6
 **Dependencies**: Existing PGlite and Vitest packages; `pg` and its types as SDK development dependencies
-**Entry points**: `pnpm verify` for provider-free evidence; `pnpm test:platform` for native evidence
+**Entry points**: `pnpm verify` for automatic provider-free evidence; `pnpm test:platform` and the manual Platform workflow for native evidence
 **Scope**: The five public operations, the existing behavioral corpus, the three current migrations, and four native contention schedules
 
 ## Constitution check
@@ -68,7 +68,9 @@ packages/sdk/src/
 ├── installation.test.ts
 ├── native-contention.native.test.ts
 └── existing FEAT-0002 test files
-.github/workflows/ci.yml
+.github/workflows/
+├── ci.yml
+└── platform.yml
 ```
 
 `packages/database/migrations/0002-budget.sql` changes only if the concurrent replay test proves that the database leaks a uniqueness error.
@@ -83,4 +85,4 @@ packages/sdk/src/
 | `pnpm test:feature-identity` and `pnpm check:feature-identity` | Feature identity and artifacts agree |
 | `git diff --check` | Edited files contain no whitespace errors |
 
-The roadmap changes only after both CI jobs pass for the same commit. All excluded lanes remain `NOT RUN`.
+The roadmap changed only after the dependent Verify and Platform jobs passed for the same commit. After that acceptance run, `ci.yml` retained automatic provider-free verification and `platform.yml` retained manual native qualification. All excluded lanes remain `NOT RUN`.
