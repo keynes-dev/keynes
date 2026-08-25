@@ -6,10 +6,7 @@ import {
   type QueryablePool,
   type QueryablePoolClient,
 } from "./database.ts";
-import {
-  INSTALLATION_MIGRATIONS,
-  PROCEDURES,
-} from "./generated/procedures.ts";
+import { INSTALLATION_MIGRATIONS, PROCEDURES } from "./generated/procedures.ts";
 
 const identity = {
   tenantId: "00000000-0000-4000-8000-000000000001",
