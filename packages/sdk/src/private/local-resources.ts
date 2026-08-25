@@ -41,6 +41,9 @@ export class LocalResourceCatalog {
   prepareDefinitions(
     definitions: ResourceDefinitions,
   ): readonly PreparedResourceDefinition[] {
+    if (!isRecord(definitions)) {
+      throw invalidCommand("defineResource", "$.definitions", "type");
+    }
     const entries = Object.entries(definitions);
     if (entries.length === 0) {
       throw invalidCommand("defineResource", "$.definitions", "minProperties");
@@ -48,6 +51,9 @@ export class LocalResourceCatalog {
 
     const prepared = entries.map(([key, definition]) => {
       const canonicalName = canonicalResourceName(key);
+      if (!isRecord(definition)) {
+        throw invalidCommand("defineResource", `$.definitions.${key}`, "type");
+      }
       const unknownField = Object.keys(definition).find(
         (field) => field !== "unit" && field !== "accountingBehavior",
       );
@@ -198,6 +204,10 @@ function canonicalResourceName(key: string): string {
 
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function requireEnvelope<Item>(

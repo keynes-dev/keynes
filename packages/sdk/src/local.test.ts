@@ -158,6 +158,30 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it.each([
+    [null, "$.definitions"],
+    [{ workUnits: null }, "$.definitions.workUnits"],
+  ])(
+    "returns a stable error for malformed Resource definitions %#",
+    async (definitions, path) => {
+      const keynes = await Keynes.create({ mode: "local" });
+      try {
+        await expect(
+          Reflect.apply(keynes.defineResources, keynes, [definitions]),
+        ).rejects.toMatchObject({
+          name: "KeynesError",
+          code: "invalid_command",
+          details: {
+            operation: "defineResource",
+            issues: [{ path, rule: "type" }],
+          },
+        });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
   it("keeps the private Resource catalog detached from returned projections", async () => {
     const keynes = await Keynes.create({ mode: "local" });
     try {
