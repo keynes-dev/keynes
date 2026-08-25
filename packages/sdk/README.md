@@ -1,30 +1,52 @@
 # TypeScript SDK
 
-- **Owner:** `@shubsharan`
-- **Workspace:** Private, non-publishable `@keynes/sdk`
-- **Functional status:** FEAT-0004 source-workspace local facade implemented
+`@keynes/sdk` is a private, unpublished ESM package. It owns the public local facade, the generated TypeScript contract consumer, and the private PGlite lifecycle.
 
-## Responsibility
+## Install the private archive
 
-`packages/sdk/` owns the package-root local facade, generated TypeScript contract consumer, and private PGlite and PostgreSQL test lifecycles. The generated `KeynesClient` has five methods: `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`.
+Maintainers build and pack one archive from the repository:
 
-The private adapters install the database migrations, verify the contract and installation records, bind private principals, and call only the generated public procedures.
+```sh
+pnpm --filter @keynes/sdk build
+pnpm --filter @keynes/sdk pack --pack-destination <directory>
+```
 
-## Allowed and public edges
+Install the resulting `keynes-sdk-0.0.0.tgz` file as the only application dependency. The archive includes the compiled SDK and byte-identical copies of `packages/database/`. It remains private and has no registry publication command.
 
-The package root exports `Keynes`, `Budget`, the workflow input and result types, `KeynesSdkError`, `ResourceDefinitionError`, `KeynesClient`, `KeynesError`, and generated contract types. It does not export `createKeynesClient`, runtime openers, `clientFor`, fixture identities, procedure callers, or database handles.
+## Import the package root
 
-The SDK must not import `packages/cloud/`, private database storage, `scripts/`,
-or another area's owner-local tests.
+Applications import only `@keynes/sdk`:
 
-## Private internals
+```ts
+import { Keynes } from "@keynes/sdk";
 
-The PGlite lifecycle, procedure caller, migration loader, fixture principals, replay seams, rollback checkpoints, and owner-local tests remain private.
+const keynes = await Keynes.create({ mode: "local" });
+try {
+  await keynes.defineResources({
+    usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  });
+  const budget = await keynes.createBudget({ usdCents: 100 });
+  const request = await budget.request({ usdCents: 25 });
+  if (request.status === "approved") {
+    await request.budget.settle({ usdCents: 20 });
+  }
+} finally {
+  await keynes.close();
+}
+```
 
-## Source policy
+Deep imports, package metadata imports, database handles, paths, tenant identities, principal identities, replay controls, raw SQL, and qualification commands are private.
 
-Use TypeScript only. Keep tests beside the source they exercise. Generate the client, types, and validators from contract-owned inputs. The package remains private and makes no npm publication, module-format, browser, or runtime-support promise.
+## Runtime limits
 
-## Deferred work
+Local mode runs one private PGlite database for each `Keynes` instance. State belongs to that instance and does not survive process exit. Two instances do not share state.
 
-npm publication, customer PostgreSQL product mode, Cloud transport, packaging, security qualification, performance qualification, and manual native `pnpm test:platform` remain `NOT RUN` for this source-workspace feature.
+Call `close()` when the application finishes. Closing drains admitted work, rejects new work with `runtime_closed`, and returns the same promise on repeated calls.
+
+Local mode does not accept a database path, connection, extension, tenant, principal, or credential. It does not provide durable storage, a daemon, a socket server, or a public database interface.
+
+## Compatibility boundary
+
+The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
+
+The accepted six-environment qualification run, exact commit, archive digest, and reference measurements are recorded in the [repository roadmap](https://github.com/shubsharan/keynes/blob/main/docs/roadmap.md). The temporary ready-runtime RSS ceiling is 1 GiB. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) tracks the required reduction to 512 MiB p95 and the 384 MiB stretch target.

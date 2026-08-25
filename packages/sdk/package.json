@@ -2,8 +2,21 @@
   "name": "@keynes/sdk",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/src/index.d.ts",
+      "import": "./dist/sdk/src/index.js"
+    }
+  },
   "scripts": {
+    "build": "node ../../scripts/build-sdk-package.ts",
+    "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "vitest run --maxWorkers=1 --exclude \"**/*.native.test.ts\"",
     "test:budget": "vitest run src/budget-lifecycle.test.ts",
@@ -16,5 +29,8 @@
     "@types/pg": "8.23.1",
     "pg": "8.23.0",
     "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=24 <27"
   }
 }
