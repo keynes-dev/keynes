@@ -30,7 +30,7 @@ Keynes.create({ mode: "local" }) initializes privately
 - An operation that starts in `closing` or `closed` fails with `runtime_closed` before Resource lookup or generated validation.
 - A repeated `close()` returns the same promise and never closes PGlite twice.
 
-## Local Resource catalog
+## Resource catalog
 
 The catalog translates application Resource keys into generated Resource identities. It is transport state, not Resource authority.
 
@@ -46,7 +46,6 @@ The catalog translates application Resource keys into generated Resource identit
 ### Validation
 
 - `key` matches `^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$`.
-- The camel-to-snake mapping and its inverse reproduce the original key.
 - One runtime has at most one key and one canonical name for a Resource type.
 - Amount records are non-empty and contain only keys already present in the catalog.
 - Amounts are non-negative safe integers. Usage values are non-negative safe integers or `null`.
@@ -54,7 +53,7 @@ The catalog translates application Resource keys into generated Resource identit
 
 ### Definition sequence
 
-`defineResources()` validates every key before the first database call, sorts definitions by canonical name, and commits them one at a time. Exact definitions are idempotent. On failure, `ResourceDefinitionError.completed` identifies the committed prefix. No SDK action deletes or rolls back an immutable definition.
+`defineResources()` validates every key before the first database call, sorts definitions by canonical name, and commits them one at a time. Exact definitions are idempotent. On failure, `ResourceDefinitionError.definedResources` identifies the committed prefix. No SDK action deletes or rolls back an immutable definition.
 
 ## Budget handle
 
@@ -109,7 +108,7 @@ The application owns all work after approval. The result contains no executor, p
 
 The existing generated error remains authoritative for invalid commands, authorization, replay conflicts, Resource conflicts, missing Resources or Budgets, inactive Budgets, usage conflicts, arithmetic failures, contract mismatch, and installation drift.
 
-### `KeynesLocalError`
+### `KeynesSdkError`
 
 This SDK-only error has one stable `code` and structured details when needed:
 
@@ -119,9 +118,9 @@ This SDK-only error has one stable `code` and structured details when needed:
 | `runtime_closed`        | The operation began after close admission stopped                                                          |
 | `initialization_failed` | Runtime creation failed and cleanup completed or was attempted                                             |
 | `operation_interrupted` | A second confirmed committed response was lost                                                             |
-| `invalid_resource_name` | A public key violates the reversible name grammar                                                          |
+| `invalid_resource_name` | A public key violates the Resource-name grammar                                                            |
 | `resource_not_defined`  | A public amount or usage record names no Resource in this runtime                                          |
 
 ### `ResourceDefinitionError`
 
-This error reports `failed`, `completed`, and `cause` for a plural definition call that stopped after one or more independent commits. It does not imply that the completed definitions were rolled back.
+This error reports `failedResource`, `definedResources`, and `cause` for a plural definition call that stopped after one or more independent commits. It does not imply that the completed definitions were rolled back.

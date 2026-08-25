@@ -22,10 +22,8 @@ An authorized root allocation creates quantity for selected Resource types. A ro
 
 ```ts
 const result = await supportBudget.request({
-  resources: {
-    usdCents: 25,
-    searchQueries: 2,
-  },
+  usdCents: 25,
+  searchQueries: 2,
 });
 
 if (result.status === "approved") {
@@ -97,10 +95,8 @@ Every Budget settles its own direct usage:
 
 ```ts
 await childBudget.settle({
-  usage: {
-    usdCents: 19,
-    searchQueries: 2,
-  },
+  usdCents: 19,
+  searchQueries: 2,
 });
 ```
 

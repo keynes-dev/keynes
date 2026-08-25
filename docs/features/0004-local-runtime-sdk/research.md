@@ -10,7 +10,7 @@ This record resolves the technical choices for FEAT-0004. The feature adds the f
 
 **Alternatives considered**: `Keynes.local()` splits one deployment-selection operation into named constructors as more modes arrive. A nested shape such as `{ mode: { remote: apiKey } }` mixes the discriminator with host configuration and has no clean place for an endpoint or another credential form. Inferring a mode from environment variables can turn a broken durable configuration into ephemeral local state. Exporting `createKeynesClient` would require applications to supply a `ProcedureCaller` and command IDs. Adding a second hand-written client would duplicate generated bindings. Calling SQL from the facade would bypass the generated contract consumer.
 
-## R2. Use one reversible Resource-name mapping
+## R2. Use one deterministic Resource-name mapping
 
 **Decision**: Public local Resource keys use lower camel case and match `^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$`. The facade maps each key to the lower-snake canonical name accepted by the generated contract and keeps the returned Resource type ID in one private runtime catalog. The inverse mapping must reproduce the original key exactly.
 
@@ -28,7 +28,7 @@ This record resolves the technical choices for FEAT-0004. The feature adds the f
 
 ## R4. Generate one command ID per invocation and retry only confirmed response loss
 
-**Decision**: Use Node's built-in `randomUUID()` to construct the full generated command once before its first attempt. The private procedure caller uses an internal `CommittedResponseLostError` only when the transaction has committed but the response is deliberately discarded. The facade catches only that sentinel and retries once with the same command object. A second sentinel becomes `KeynesLocalError` with `code: "operation_interrupted"`. All other failures propagate without an automatic retry.
+**Decision**: Use Node's built-in `randomUUID()` to construct the full generated command once before its first attempt. The private procedure caller uses an internal `CommittedResponseLostError` only when the transaction has committed but the response is deliberately discarded. The facade catches only that sentinel and retries once with the same command object. A second sentinel becomes `KeynesSdkError` with `code: "operation_interrupted"`. All other failures propagate without an automatic retry.
 
 **Rationale**: The existing replay ledger makes an exact retry safe, and create command IDs are also the created Budget IDs. Rebuilding a command during retry could duplicate authority. PGlite runs inside the process, so the current code has no general transport boundary that can classify arbitrary failures as post-commit response loss. The narrow sentinel proves the required behavior without turning every database or WebAssembly error into a retry loop.
 
@@ -36,7 +36,7 @@ This record resolves the technical choices for FEAT-0004. The feature adds the f
 
 ## R5. Keep local errors separate from database errors
 
-**Decision**: Preserve generated `KeynesError` for canonical contract failures. Add `KeynesLocalError` for local facade concerns with stable codes `invalid_configuration`, `runtime_closed`, `initialization_failed`, `operation_interrupted`, `invalid_resource_name`, and `resource_not_defined`. Add `ResourceDefinitionError` for plural definition failure, including the failed key, the keys committed earlier in that call, and the original `KeynesError` cause.
+**Decision**: Preserve generated `KeynesError` for canonical contract failures. Add `KeynesSdkError` for facade concerns with stable codes `invalid_configuration`, `runtime_closed`, `initialization_failed`, `operation_interrupted`, `invalid_resource_name`, and `resource_not_defined`. Add `ResourceDefinitionError` for plural definition failure, including the failed key, the Resources committed earlier in that call, and the original `KeynesError` cause.
 
 **Rationale**: Closing and startup are not database transitions, so adding them to the generated `ErrorEnvelope` would change the cross-host contract for a local-only concern. A small separate union lets applications handle expected local failures without parsing PGlite text. It also keeps generated errors authoritative instead of reproducing their full code and details union by hand.
 
@@ -44,7 +44,7 @@ This record resolves the technical choices for FEAT-0004. The feature adds the f
 
 ## R6. Define Resources sequentially and report the committed prefix
 
-**Decision**: `defineResources()` validates all public names first, sorts entries by canonical name, and calls `defineResource` sequentially. Each definition gets its own SDK command ID and commit. On the first failure, `ResourceDefinitionError.completed` lists the keys committed earlier in the call. Repeating the original definition record is safe because exact definitions are idempotent.
+**Decision**: `defineResources()` validates all public names first, sorts entries by canonical name, and calls `defineResource` sequentially. Each definition gets its own SDK command ID and commit. On the first failure, `ResourceDefinitionError.definedResources` lists the Resources committed earlier in the call. Repeating the original definition record is safe because exact definitions are idempotent.
 
 **Rationale**: The installed contract exposes one definition per command and no plural transaction. Deterministic sequential execution gives partial completion one stable order and does not invent rollback. Pre-validating names prevents a local grammar error from appearing after database commits have started.
 

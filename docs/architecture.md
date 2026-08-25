@@ -1,6 +1,6 @@
 # Keynes database-native architecture
 
-> **Status:** This is the target design for the Keynes runtime and Policy system. None of it is implemented or qualified. The packages, security controls, and conformance evidence do not exist yet.
+> **Status:** The shared database core, generated TypeScript client, and source-workspace local PGlite facade are implemented. Packaging, the Policy system, customer PostgreSQL product mode, Cloud, security qualification, and release conformance remain target design unless a roadmap note records evidence.
 
 ## Purpose
 
@@ -491,26 +491,23 @@ import { Keynes } from "@keynes/sdk";
 const keynes = await Keynes.create({ mode: "local" });
 
 await keynes.defineResources({
-  usdCents: { unit: "cent", behavior: "consumable" },
-  searchQueries: { unit: "query", behavior: "consumable" },
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
 
 const root = await keynes.createBudget({
-  resources: {
-    usdCents: 1000,
-    searchQueries: 100,
-  },
+  usdCents: 1000,
+  searchQueries: 100,
 });
 
 const result = await root.request({
-  resources: { usdCents: 25, searchQueries: 2 },
+  usdCents: 25,
+  searchQueries: 2,
 });
 
 if (result.status === "approved") {
   await runWorkflow(result.budget);
-  await result.budget.settle({
-    usage: { usdCents: 19, searchQueries: 2 },
-  });
+  await result.budget.settle({ usdCents: 19, searchQueries: 2 });
 }
 ```
 

@@ -8,7 +8,7 @@ import type {
   SettleBudgetCommand,
 } from "./generated/types.js";
 import type { RollbackCheckpoint } from "./private/procedure-caller.js";
-import { openTestKeynes, type LocalKeynes } from "./private/test-keynes.js";
+import { openTestKeynes, type TestKeynes } from "./private/test-keynes.js";
 
 const MUTATION_CHECKPOINTS = [
   ["after_command_binding", "01"],
@@ -18,7 +18,7 @@ const MUTATION_CHECKPOINTS = [
 ] satisfies readonly (readonly [RollbackCheckpoint, string])[];
 
 describe("command rollback", () => {
-  let local: LocalKeynes;
+  let local: TestKeynes;
 
   beforeEach(async () => {
     local = await openTestKeynes();

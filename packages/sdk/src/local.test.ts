@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Keynes, KeynesLocalError, ResourceDefinitionError } from "./index.js";
+import { Keynes, KeynesSdkError, ResourceDefinitionError } from "./index.js";
 
 describe("local Keynes facade", () => {
   it("runs approval, denial, settlement, overage, and inspection through Budget handles", async () => {
@@ -83,8 +83,8 @@ describe("local Keynes facade", () => {
       await expect(conflict).rejects.toBeInstanceOf(ResourceDefinitionError);
       await expect(conflict).rejects.toMatchObject({
         code: "resource_definition_failed",
-        failed: "usdCents",
-        completed: [],
+        failedResource: "usdCents",
+        definedResources: [],
         cause: { name: "KeynesError", code: "resource_type_conflict" },
       });
     } finally {
@@ -101,14 +101,14 @@ describe("local Keynes facade", () => {
           invalid_name: { unit: "item", accountingBehavior: "reusable" },
         }),
       ).rejects.toMatchObject({
-        name: "KeynesLocalError",
+        name: "KeynesSdkError",
         code: "invalid_resource_name",
         details: { resource: "invalid_name" },
       });
 
       await expect(keynes.createBudget({ validName: 1 })).rejects.toMatchObject(
         {
-          name: "KeynesLocalError",
+          name: "KeynesSdkError",
           code: "resource_not_defined",
           details: { resource: "validName" },
         },
@@ -124,7 +124,7 @@ describe("local Keynes facade", () => {
           },
         }),
       ).rejects.toMatchObject({
-        name: "KeynesLocalError",
+        name: "KeynesSdkError",
         code: "invalid_resource_name",
         details: { resource: overlongName },
       });
@@ -217,7 +217,9 @@ describe("local Keynes facade", () => {
         tokens: { unit: "token", accountingBehavior: "consumable" },
       });
       const root = await keynes.createBudget({ workUnits: 5 });
-      const denied = await root.request({ workUnits: 1, tokens: 1 });
+      const denied: unknown = await Reflect.apply(root.request, root, [
+        { workUnits: 1, tokens: 1 },
+      ]);
       expect(denied).toMatchObject({
         status: "denied",
         reasons: [
@@ -253,7 +255,7 @@ describe("local Keynes facade", () => {
     ]) {
       await expect(
         Reflect.apply(Keynes.create, Keynes, [options]),
-      ).rejects.toBeInstanceOf(KeynesLocalError);
+      ).rejects.toBeInstanceOf(KeynesSdkError);
     }
   });
 });

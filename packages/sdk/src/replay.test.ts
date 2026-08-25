@@ -6,10 +6,10 @@ import type {
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
-import { openTestKeynes, type LocalKeynes } from "./private/test-keynes.js";
+import { openTestKeynes, type TestKeynes } from "./private/test-keynes.js";
 
 describe("command replay", () => {
-  let local: LocalKeynes;
+  let local: TestKeynes;
 
   beforeEach(async () => {
     local = await openTestKeynes();

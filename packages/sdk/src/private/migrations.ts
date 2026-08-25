@@ -61,10 +61,7 @@ export async function installDatabase(
   if (contractMigrations.length !== 1) {
     throw new Error("Migration manifest must declare one contract migration");
   }
-  const contractMigrationId = contractMigrations[0]?.id;
-  if (contractMigrationId === undefined) {
-    throw new Error("Migration manifest has no contract migration");
-  }
+  const contractMigrationId = contractMigrations[0].id;
   const recordedMigrations = new Map(
     record.migrations.map((migration) => [migration.id, migration]),
   );

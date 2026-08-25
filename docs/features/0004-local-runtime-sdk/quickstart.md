@@ -92,7 +92,7 @@ await keynes.close();
 await keynes.close();
 ```
 
-Repeated close calls share one result. Any later call through `keynes`, `root`, or a child handle fails with `KeynesLocalError` and `code: "runtime_closed"`.
+Repeated close calls share one result. Any later call through `keynes`, `root`, or a child handle fails with `KeynesSdkError` and `code: "runtime_closed"`.
 
 ## Run the provider-free checks
 

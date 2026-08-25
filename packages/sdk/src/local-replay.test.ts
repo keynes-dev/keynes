@@ -9,7 +9,7 @@ type MutationTarget =
   | "keynes.settle";
 
 afterEach(() => {
-  vi.doUnmock("./private/local-keynes.js");
+  vi.doUnmock("./private/local-runtime.js");
   vi.resetModules();
 });
 
@@ -80,7 +80,7 @@ describe("local facade committed-response replay", () => {
         }
 
         await expect(mutation).rejects.toMatchObject({
-          name: "KeynesLocalError",
+          name: "KeynesSdkError",
           code: "operation_interrupted",
         });
         expect(harness.captured).toHaveLength(2);
@@ -183,17 +183,20 @@ function defineWorkUnits(keynes: Keynes) {
 async function loadHarness(target: MutationTarget, losses: number) {
   vi.resetModules();
   const captured: unknown[] = [];
-  vi.doMock("./private/local-keynes.js", async () => {
+  vi.doMock("./private/local-runtime.js", async () => {
     const actual = await vi.importActual<
-      typeof import("./private/local-keynes.js")
-    >("./private/local-keynes.js");
+      typeof import("./private/local-runtime.js")
+    >("./private/local-runtime.js");
+    const fixtures = await vi.importActual<
+      typeof import("./private/test-keynes.js")
+    >("./private/test-keynes.js");
     const generated = await vi.importActual<
       typeof import("./generated/client.js")
     >("./generated/client.js");
     return {
       ...actual,
-      async openProductLocalKeynes() {
-        const host = await actual.openLocalKeynesCallerHost();
+      async openLocalRuntime() {
+        const host = await fixtures.openPGliteCallerHost();
         const normal = host.callerFor("product-fixture");
         const lossy = Array.from({ length: losses }, () =>
           host.callerFor("product-fixture", {

@@ -27,7 +27,7 @@ describe("local runtime lifecycle", () => {
     ]);
     await closing;
     await expect(root.inspect()).rejects.toMatchObject({
-      name: "KeynesLocalError",
+      name: "KeynesSdkError",
       code: "runtime_closed",
     });
   });
@@ -91,7 +91,7 @@ describe("local runtime lifecycle", () => {
 
     const { Keynes: FreshKeynes } = await import("./keynes.js");
     await expect(FreshKeynes.create({ mode: "local" })).rejects.toMatchObject({
-      name: "KeynesLocalError",
+      name: "KeynesSdkError",
       code: "initialization_failed",
       cause: startupFailure,
     });
@@ -118,7 +118,7 @@ describe("local runtime lifecycle", () => {
 
     const { Keynes: FreshKeynes } = await import("./keynes.js");
     await expect(FreshKeynes.create({ mode: "local" })).rejects.toMatchObject({
-      name: "KeynesLocalError",
+      name: "KeynesSdkError",
       code: "initialization_failed",
       cause: {
         name: "AggregateError",

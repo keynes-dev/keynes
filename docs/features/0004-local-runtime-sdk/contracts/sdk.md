@@ -13,13 +13,13 @@ import type {
 
 export type AccountingBehavior = "consumable" | "reusable";
 
-export interface LocalResourceDefinition {
+export interface ResourceConfig {
   readonly unit: string;
   readonly accountingBehavior: AccountingBehavior;
 }
 
-export type LocalResourceDefinitions = Readonly<
-  Record<string, LocalResourceDefinition>
+export type ResourceConfigs = Readonly<
+  Record<string, ResourceConfig>
 >;
 
 export type ResourceAmounts<Names extends string = string> = Readonly<
@@ -30,25 +30,19 @@ export type ResourceUsage<Names extends string = string> = Readonly<
   Partial<Record<Names, number | null>>
 >;
 
-export interface LocalRequestDenialReason<Name extends string = string> {
+export interface BudgetRequestDenialReason<Name extends string = string> {
   readonly code: "insufficient_available";
   readonly resource: Name;
   readonly requested: number;
   readonly available: number;
 }
 
-export interface LocalRequestApproved<Names extends string = string> {
-  readonly status: "approved";
-  readonly budget: Budget<Names>;
-}
-
-export interface LocalRequestDenied<Names extends string = string> {
-  readonly status: "denied";
-  readonly reasons: readonly LocalRequestDenialReason<Names>[];
-}
-
-export type LocalRequestResult<Names extends string = string> =
-  LocalRequestApproved<Names> | LocalRequestDenied<Names>;
+export type BudgetRequestResult<Names extends string = string> =
+  | { readonly status: "approved"; readonly budget: Budget<Names> }
+  | {
+      readonly status: "denied";
+      readonly reasons: readonly BudgetRequestDenialReason<Names>[];
+    };
 
 export interface KeynesCreateOptions {
   readonly mode: "local";
@@ -57,7 +51,7 @@ export interface KeynesCreateOptions {
 export class Keynes {
   static create(options: KeynesCreateOptions): Promise<Keynes>;
 
-  defineResources<const Definitions extends LocalResourceDefinitions>(
+  defineResources<const Definitions extends ResourceConfigs>(
     definitions: Definitions,
   ): Promise<readonly ResourceTypeProjection[]>;
 
@@ -70,15 +64,16 @@ export class Keynes {
 
 export class Budget<Names extends string = string> {
   request<const Resources extends ResourceAmounts<Names>>(
-    resources: Resources,
-  ): Promise<LocalRequestResult<Extract<keyof Resources, string>>>;
+    resources: Resources &
+      Readonly<Record<Exclude<keyof Resources, Names>, never>>,
+  ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>>>;
 
   settle(usage: ResourceUsage<Names>): Promise<SettleBudgetResult>;
 
   inspect(): Promise<GetBudgetResult>;
 }
 
-export type KeynesLocalErrorCode =
+export type KeynesSdkErrorCode =
   | "invalid_configuration"
   | "runtime_closed"
   | "initialization_failed"
@@ -86,7 +81,7 @@ export type KeynesLocalErrorCode =
   | "invalid_resource_name"
   | "resource_not_defined";
 
-export interface KeynesLocalErrorDetails {
+export interface KeynesSdkErrorDetails {
   readonly invalid_configuration: {
     readonly field: string;
     readonly reason: "missing" | "unknown" | "unsupported";
@@ -98,17 +93,17 @@ export interface KeynesLocalErrorDetails {
   readonly resource_not_defined: { readonly resource: string };
 }
 
-export class KeynesLocalError<
-  Code extends KeynesLocalErrorCode = KeynesLocalErrorCode,
+export class KeynesSdkError<
+  Code extends KeynesSdkErrorCode = KeynesSdkErrorCode,
 > extends Error {
   readonly code: Code;
-  readonly details: KeynesLocalErrorDetails[Code];
+  readonly details: KeynesSdkErrorDetails[Code];
 }
 
 export class ResourceDefinitionError extends Error {
   readonly code: "resource_definition_failed";
-  readonly failed: string;
-  readonly completed: readonly ResourceTypeProjection[];
+  readonly failedResource: string;
+  readonly definedResources: readonly ResourceTypeProjection[];
   override readonly cause: unknown;
 }
 ```
@@ -118,13 +113,13 @@ The exact implementation may derive helper types from generated types. It must p
 ## `Keynes.create()`
 
 - Accepts exactly `{ mode: "local" }` in FEAT-0004.
-- Rejects a missing or unknown mode, unknown fields, and durable-host configuration with `KeynesLocalError` and `code: "invalid_configuration"` before acquiring a runtime resource.
+- Rejects a missing or unknown mode, unknown fields, and durable-host configuration with `KeynesSdkError` and `code: "invalid_configuration"` before acquiring a runtime resource.
 - Creates one private in-memory PGlite database.
 - Installs and verifies the current migration graph and generated contract digest before returning.
 - Binds one fixed private tenant and one fixed private principal with the five current permissions.
 - Returns only after the runtime can accept calls.
 - Closes every acquired runtime resource if initialization fails.
-- Wraps startup failure as `KeynesLocalError` with `code: "initialization_failed"` and retains the original failure as `cause`.
+- Wraps startup failure as `KeynesSdkError` with `code: "initialization_failed"` and retains the original failure as `cause`.
 - Does not infer a mode from environment variables and does not export placeholder `cloud` or `postgres` variants.
 
 ## `defineResources()`
@@ -136,7 +131,7 @@ The exact implementation may derive helper types from generated types. It must p
 - Creates one private command ID for each definition.
 - Returns the database-owned `ResourceTypeProjection` values in canonical-name order.
 - Repeating exact definitions succeeds. A changed definition fails with the generated Resource conflict.
-- If an entry fails after earlier commits, throws `ResourceDefinitionError`. `completed` contains the committed prefix from this call.
+- If an entry fails after earlier commits, throws `ResourceDefinitionError`. `definedResources` contains the committed prefix from this call.
 
 ## `createBudget()`
 
@@ -148,7 +143,7 @@ The exact implementation may derive helper types from generated types. It must p
 
 ## `Budget.request()`
 
-- Requires a non-empty exact Resource amount record.
+- Requires a non-empty exact Resource amount record. TypeScript rejects keys outside the handle's Resource names, including on predeclared variables.
 - Uses the handle's private ID as the generated `parentBudgetId`.
 - Creates one generated `requestBudget` command with a private command ID.
 - Maps generated `kind: "approved"` to `status: "approved"` and returns one child handle.

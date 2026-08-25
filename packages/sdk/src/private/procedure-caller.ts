@@ -1,5 +1,3 @@
-import type { PGlite } from "@electric-sql/pglite";
-
 import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
@@ -32,40 +30,7 @@ export class CommittedResponseLostError extends Error {
   }
 }
 
-export class PGliteOwner {
-  readonly #database: PGlite;
-  #tail: Promise<void> = Promise.resolve();
-  #closing = false;
-  #closePromise: Promise<void> | undefined;
-
-  constructor(database: PGlite) {
-    this.#database = database;
-  }
-
-  run<T>(
-    operation: (database: TransactionalDatabase) => Promise<T>,
-  ): Promise<T> {
-    if (this.#closing) {
-      return Promise.reject(new Error("The local Keynes database is closed"));
-    }
-
-    const result = this.#tail.then(() => operation(this.#database));
-    this.#tail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
-
-  close(): Promise<void> {
-    this.#closing = true;
-    return (this.#closePromise ??= this.#tail.then(() =>
-      this.#database.close(),
-    ));
-  }
-}
-
-interface ProcedureDatabaseOwner {
+export interface ProcedureDatabaseOwner {
   run<Result>(
     operation: (database: TransactionalDatabase) => Promise<Result>,
   ): Promise<Result>;
@@ -109,8 +74,8 @@ class InstalledProcedureCaller implements ProcedureCaller {
   }
 }
 
-export function createPGliteProcedureCaller(
-  owner: PGliteOwner,
+export function createOwnedProcedureCaller(
+  owner: ProcedureDatabaseOwner,
   context: TransactionContext,
 ): ProcedureCaller {
   return new InstalledProcedureCaller(owner, context);
@@ -164,7 +129,8 @@ export async function callInstalledProcedure(
     );
   }
 
-  return parseDatabaseJson(response.rows[0]?.response);
+  const value = response.rows[0]?.response;
+  return typeof value === "string" ? JSON.parse(value) : value;
 }
 
 async function setTransactionContext(
@@ -178,13 +144,4 @@ async function setTransactionContext(
        set_config('keynes.test_checkpoint', $3, true)`,
     [context.tenantId, context.principalId, context.checkpoint ?? ""],
   );
-}
-
-function parseDatabaseJson(value: unknown): unknown {
-  if (typeof value !== "string") {
-    return value;
-  }
-
-  const parsed: unknown = JSON.parse(value);
-  return parsed;
 }

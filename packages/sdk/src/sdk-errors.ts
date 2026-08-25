@@ -1,6 +1,6 @@
 import type { ResourceTypeProjection } from "./generated/types.js";
 
-export type KeynesLocalErrorCode =
+export type KeynesSdkErrorCode =
   | "invalid_configuration"
   | "runtime_closed"
   | "initialization_failed"
@@ -8,7 +8,7 @@ export type KeynesLocalErrorCode =
   | "invalid_resource_name"
   | "resource_not_defined";
 
-export interface KeynesLocalErrorDetails {
+export interface KeynesSdkErrorDetails {
   readonly invalid_configuration: {
     readonly field: string;
     readonly reason: "missing" | "unknown" | "unsupported";
@@ -20,19 +20,19 @@ export interface KeynesLocalErrorDetails {
   readonly resource_not_defined: { readonly resource: string };
 }
 
-export class KeynesLocalError<
-  Code extends KeynesLocalErrorCode = KeynesLocalErrorCode,
+export class KeynesSdkError<
+  Code extends KeynesSdkErrorCode = KeynesSdkErrorCode,
 > extends Error {
   readonly code: Code;
-  readonly details: KeynesLocalErrorDetails[Code];
+  readonly details: KeynesSdkErrorDetails[Code];
 
   constructor(
     code: Code,
-    details: KeynesLocalErrorDetails[Code],
+    details: KeynesSdkErrorDetails[Code],
     options?: ErrorOptions,
   ) {
     super(code, options);
-    this.name = "KeynesLocalError";
+    this.name = "KeynesSdkError";
     this.code = code;
     this.details = details;
   }
@@ -40,19 +40,19 @@ export class KeynesLocalError<
 
 export class ResourceDefinitionError extends Error {
   readonly code = "resource_definition_failed";
-  readonly failed: string;
-  readonly completed: readonly ResourceTypeProjection[];
+  readonly failedResource: string;
+  readonly definedResources: readonly ResourceTypeProjection[];
   override readonly cause: unknown;
 
   constructor(
-    failed: string,
-    completed: readonly ResourceTypeProjection[],
+    failedResource: string,
+    definedResources: readonly ResourceTypeProjection[],
     cause: unknown,
   ) {
     super("resource_definition_failed", { cause });
     this.name = "ResourceDefinitionError";
-    this.failed = failed;
-    this.completed = completed;
+    this.failedResource = failedResource;
+    this.definedResources = definedResources;
     this.cause = cause;
   }
 }

@@ -6,17 +6,17 @@ import type {
   ResourceTypeProjection,
   UsageEnvelope,
 } from "../generated/types.js";
-import { KeynesLocalError } from "../local-errors.js";
+import { KeynesSdkError } from "../sdk-errors.js";
 
 const RESOURCE_NAME = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/;
 
-export interface PreparedResourceDefinition {
+interface PreparedResourceDefinition {
   readonly key: string;
   readonly canonicalName: string;
   readonly definition: ResourceDefinition;
 }
 
-export interface ResolvedResources<Name extends string> {
+interface ResolvedResources<Name extends string> {
   readonly envelope: ResourceEnvelope;
   keyFor(resourceTypeId: string): Name;
 }
@@ -35,7 +35,7 @@ interface CatalogResource {
   readonly resourceTypeId: string;
 }
 
-export class LocalResourceCatalog {
+export class ResourceCatalog {
   readonly #byKey = new Map<string, CatalogResource>();
 
   prepareDefinitions(
@@ -91,11 +91,10 @@ export class LocalResourceCatalog {
     });
   }
 
-  resources<const Input extends Readonly<Partial<Record<string, number>>>>(
-    input: Input,
+  resources<Name extends string>(
+    input: Readonly<Partial<Record<Name, number>>>,
     operation: "createBudget" | "requestBudget",
-  ): ResolvedResources<Extract<keyof Input, string>> {
-    type Name = Extract<keyof Input, string>;
+  ): ResolvedResources<Name> {
     const resolved: {
       readonly key: Name;
       readonly resourceTypeId: string;
@@ -157,7 +156,7 @@ export class LocalResourceCatalog {
   #resolve(key: string): CatalogResource {
     const resourceType = this.#byKey.get(key);
     if (resourceType === undefined) {
-      throw new KeynesLocalError("resource_not_defined", { resource: key });
+      throw new KeynesSdkError("resource_not_defined", { resource: key });
     }
     return resourceType;
   }
@@ -183,21 +182,14 @@ function requireUsage(value: unknown, path: string): number | null {
 
 function canonicalResourceName(key: string): string {
   if (!RESOURCE_NAME.test(key)) {
-    throw new KeynesLocalError("invalid_resource_name", { resource: key });
+    throw new KeynesSdkError("invalid_resource_name", { resource: key });
   }
   const canonicalName = key.replaceAll(
     /[A-Z]/g,
     (letter) => `_${letter.toLowerCase()}`,
   );
-  const roundTrip = canonicalName.replaceAll(
-    /_([a-z0-9])/g,
-    (_, character: string) => character.toUpperCase(),
-  );
-  if (roundTrip !== key) {
-    throw new KeynesLocalError("invalid_resource_name", { resource: key });
-  }
   if (canonicalName.length > 63) {
-    throw new KeynesLocalError("invalid_resource_name", { resource: key });
+    throw new KeynesSdkError("invalid_resource_name", { resource: key });
   }
   return canonicalName;
 }

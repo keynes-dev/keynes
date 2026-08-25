@@ -6,7 +6,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TransactionalDatabase } from "./private/database.js";
-import { openPostgresDatabase } from "./private/postgres-keynes.js";
+import { openPostgresDatabase } from "./private/postgres-database.js";
 import { PLATFORM_CONTEXT_ENV } from "./private/run-platform-tests.js";
 import { requirePlatformAdministratorUrl } from "./private/test-keynes.js";
 

@@ -8,33 +8,95 @@ import {
   type KeynesClient,
   type ProcedureCaller,
 } from "../generated/client.js";
-import {
-  FIXTURE_INSTALLATION,
-  FIXTURE_PRINCIPALS,
-  FIXTURE_TENANT_ID,
-  openLocalKeynes,
-  openLocalKeynesCallerHost,
-  type ClientFixtureOptions,
-  type FixturePrincipal,
-  type KeynesCallerHost,
-  type LocalKeynes,
-} from "./local-keynes.js";
+import type { DatabaseInstallation } from "./migrations.js";
+import { openInstalledPGliteDatabase } from "./pglite-database.js";
 import {
   openInstalledPostgresDatabase,
-  type OwnedPostgresDatabase,
-} from "./postgres-keynes.js";
+  type PostgresDatabase,
+} from "./postgres-database.js";
 import {
   CommittedResponseLostError,
   createDatabaseProcedureCaller,
+  createOwnedProcedureCaller,
   createTransactionProcedureCaller,
+  type RollbackCheckpoint,
 } from "./procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./run-platform-tests.js";
 
-export type {
-  ClientFixtureOptions,
-  FixturePrincipal,
-  LocalKeynes,
-} from "./local-keynes.js";
+export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
+
+export const FIXTURE_PRINCIPALS = {
+  "definer-fixture": "00000000-0000-4000-8000-000000000101",
+  "allocator-fixture": "00000000-0000-4000-8000-000000000102",
+  "requester-fixture": "00000000-0000-4000-8000-000000000103",
+  "settlement-fixture": "00000000-0000-4000-8000-000000000104",
+  "reader-fixture": "00000000-0000-4000-8000-000000000105",
+  "product-fixture": "00000000-0000-4000-8000-000000000106",
+  "unauthorized-fixture": "00000000-0000-4000-8000-000000000107",
+} as const;
+
+export type FixturePrincipal = keyof typeof FIXTURE_PRINCIPALS;
+
+export const FIXTURE_INSTALLATION = {
+  tenantId: FIXTURE_TENANT_ID,
+  principals: [
+    {
+      principalId: FIXTURE_PRINCIPALS["definer-fixture"],
+      permissions: ["define_resource_type"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["allocator-fixture"],
+      permissions: ["create_root_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["requester-fixture"],
+      permissions: ["request_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["settlement-fixture"],
+      permissions: ["settle_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["reader-fixture"],
+      permissions: ["read_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["product-fixture"],
+      permissions: [
+        "define_resource_type",
+        "create_root_budget",
+        "request_budget",
+        "settle_budget",
+        "read_budget",
+      ],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["unauthorized-fixture"],
+      permissions: [],
+    },
+  ],
+} as const satisfies DatabaseInstallation;
+
+export interface ClientFixtureOptions {
+  readonly checkpoint?: RollbackCheckpoint;
+  readonly dropResponseAfterCommitOnce?: boolean;
+}
+
+export interface TestKeynes {
+  clientFor(
+    fixture: FixturePrincipal,
+    options?: ClientFixtureOptions,
+  ): KeynesClient;
+  close(): Promise<void>;
+}
+
+export interface KeynesCallerHost {
+  callerFor(
+    fixture: FixturePrincipal,
+    options?: ClientFixtureOptions,
+  ): ProcedureCaller;
+  close(): Promise<void>;
+}
 
 export interface NativeAttempt {
   readonly client: KeynesClient;
@@ -42,7 +104,7 @@ export interface NativeAttempt {
   commit(): Promise<void>;
 }
 
-export interface NativeTestKeynes extends LocalKeynes {
+export interface NativeTestKeynes extends TestKeynes {
   beginAttempt(fixture: FixturePrincipal): Promise<NativeAttempt>;
   requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
 }
@@ -82,7 +144,7 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
 interface PairedCallerInput {
   readonly caseName: () => string;
   readonly pglite: ProcedureCaller;
-  readonly postgresql: ProcedureCaller;
+  readonly postgres: ProcedureCaller;
 }
 
 type DeclaredControl =
@@ -92,67 +154,67 @@ type DeclaredControl =
 export class PairedProcedureCaller implements ProcedureCaller {
   readonly #caseName: () => string;
   readonly #pglite: ProcedureCaller;
-  readonly #postgresql: ProcedureCaller;
+  readonly #postgres: ProcedureCaller;
 
   constructor(input: PairedCallerInput) {
     this.#caseName = input.caseName;
     this.#pglite = input.pglite;
-    this.#postgresql = input.postgresql;
+    this.#postgres = input.postgres;
   }
 
   async call(target: InstalledTarget, input: unknown): Promise<unknown> {
     const pgliteCall = Promise.resolve().then(() =>
       this.#pglite.call(target, input),
     );
-    const postgresqlCall = Promise.resolve().then(() =>
-      this.#postgresql.call(target, input),
+    const postgresCall = Promise.resolve().then(() =>
+      this.#postgres.call(target, input),
     );
-    const [pglite, postgresql] = await Promise.allSettled([
+    const [pglite, postgres] = await Promise.allSettled([
       pgliteCall,
-      postgresqlCall,
+      postgresCall,
     ]);
 
-    if (pglite.status === "fulfilled" && postgresql.status === "fulfilled") {
-      if (isDeepStrictEqual(pglite.value, postgresql.value)) {
+    if (pglite.status === "fulfilled" && postgres.status === "fulfilled") {
+      if (isDeepStrictEqual(pglite.value, postgres.value)) {
         return pglite.value;
       }
       throw pairedFailure(this.#caseName(), target, "both", "result-mismatch");
     }
 
-    if (pglite.status === "rejected" && postgresql.status === "rejected") {
+    if (pglite.status === "rejected" && postgres.status === "rejected") {
       const pgliteControl = declaredControl(pglite.reason);
-      const postgresqlControl = declaredControl(postgresql.reason);
+      const postgresControl = declaredControl(postgres.reason);
       if (
         pgliteControl !== undefined &&
-        isDeepStrictEqual(pgliteControl, postgresqlControl)
+        isDeepStrictEqual(pgliteControl, postgresControl)
       ) {
         throw controlError(pgliteControl);
       }
     }
 
     const host =
-      pglite.status === "rejected" && postgresql.status === "fulfilled"
+      pglite.status === "rejected" && postgres.status === "fulfilled"
         ? "pglite"
-        : pglite.status === "fulfilled" && postgresql.status === "rejected"
-          ? "postgresql"
+        : pglite.status === "fulfilled" && postgres.status === "rejected"
+          ? "postgres"
           : "both";
     throw pairedFailure(this.#caseName(), target, host, "unexpected-failure");
   }
 }
 
-export async function openTestKeynes(): Promise<LocalKeynes> {
+export async function openTestKeynes(): Promise<TestKeynes> {
   const source = process.env[PLATFORM_CONTEXT_ENV];
   if (source === undefined) {
-    return openLocalKeynes();
+    return openPGliteTestKeynes();
   }
 
   const context = parsePlatformContext(source);
   const opened = await Promise.allSettled([
-    openLocalKeynesCallerHost(),
+    openPGliteCallerHost(),
     openPostgresCallerHost(context.administratorUrl),
   ]);
-  const [pglite, postgresql] = opened;
-  if (pglite.status === "rejected" || postgresql.status === "rejected") {
+  const [pglite, postgres] = opened;
+  if (pglite.status === "rejected" || postgres.status === "rejected") {
     await Promise.allSettled(
       opened.flatMap((result) =>
         result.status === "fulfilled" ? [result.value.close()] : [],
@@ -161,7 +223,31 @@ export async function openTestKeynes(): Promise<LocalKeynes> {
     throw new Error("Platform test host failed during open");
   }
 
-  return pairedHost(pglite.value, postgresql.value);
+  return pairedHost(pglite.value, postgres.value);
+}
+
+export async function openPGliteCallerHost(): Promise<KeynesCallerHost> {
+  const owner = await openInstalledPGliteDatabase(FIXTURE_INSTALLATION);
+  return {
+    callerFor(fixture, options) {
+      return createOwnedProcedureCaller(owner, {
+        tenantId: FIXTURE_TENANT_ID,
+        principalId: FIXTURE_PRINCIPALS[fixture],
+        checkpoint: options?.checkpoint,
+        dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
+      });
+    },
+    close: () => owner.close(),
+  };
+}
+
+async function openPGliteTestKeynes(): Promise<TestKeynes> {
+  const host = await openPGliteCallerHost();
+  return {
+    clientFor: (fixture, options) =>
+      createKeynesClient(host.callerFor(fixture, options)),
+    close: () => host.close(),
+  };
 }
 
 async function openPostgresCallerHost(
@@ -183,28 +269,28 @@ async function openPostgresCallerHost(
 
 function openPostgresOwner(
   administratorUrl: string,
-): Promise<OwnedPostgresDatabase> {
+): Promise<PostgresDatabase> {
   return openInstalledPostgresDatabase(administratorUrl, FIXTURE_INSTALLATION);
 }
 
 function pairedHost(
   pglite: KeynesCallerHost,
-  postgresql: KeynesCallerHost,
-): LocalKeynes {
+  postgres: KeynesCallerHost,
+): TestKeynes {
   return {
     clientFor(fixture: FixturePrincipal, options?: ClientFixtureOptions) {
       return createKeynesClient(
         new PairedProcedureCaller({
           caseName: currentTestName,
           pglite: pglite.callerFor(fixture, options),
-          postgresql: postgresql.callerFor(fixture, options),
+          postgres: postgres.callerFor(fixture, options),
         }),
       );
     },
     async close() {
       const closed = await Promise.allSettled([
         pglite.close(),
-        postgresql.close(),
+        postgres.close(),
       ]);
       if (closed.some((result) => result.status === "rejected")) {
         throw new Error("Platform test host failed during cleanup");
@@ -241,7 +327,7 @@ function controlError(control: DeclaredControl): Error {
 function pairedFailure(
   caseName: string,
   target: InstalledTarget,
-  host: "pglite" | "postgresql" | "both",
+  host: "pglite" | "postgres" | "both",
   reason: "result-mismatch" | "unexpected-failure",
 ): Error {
   return new Error(

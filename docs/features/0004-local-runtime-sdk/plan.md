@@ -56,7 +56,7 @@ docs/features/0004-local-runtime-sdk/
 packages/sdk/src/
 ├── index.ts                         # Package-root facade and existing generated exports
 ├── keynes.ts                        # Keynes.create, Budget, input mapping, invocation IDs, and result mapping
-├── local-errors.ts                  # KeynesLocalError and ResourceDefinitionError
+├── sdk-errors.ts                    # KeynesSdkError and ResourceDefinitionError
 ├── local.test.ts                    # Public happy path, names, denial, settlement, and inspection
 ├── local-lifecycle.test.ts          # Startup cleanup, close admission, close repeat, and isolation
 ├── local-replay.test.ts             # SDK-owned command identity and committed-response replay
@@ -66,12 +66,15 @@ packages/sdk/src/
 │   ├── types.ts                     # Unchanged generated domain contract
 │   └── validators.ts                # Unchanged generated boundary validation
 └── private/
-    ├── local-keynes.ts              # Private PGlite creation and fixed local authority context
-    ├── local-resources.ts            # Reversible names and private Resource ID catalog
+    ├── local-runtime.ts             # Local deployment composition and fixed private authority context
+    ├── pglite-database.ts           # PGlite engine lifecycle and serialized database owner
+    ├── postgres-database.ts         # PostgreSQL engine lifecycle and native-test owner
+    ├── resource-catalog.ts          # Application names and private Resource ID catalog
+    ├── test-keynes.ts               # Fixture identities and paired PGlite/PostgreSQL hosts
     ├── migrations.ts                # Host-neutral principal permission installation
-    └── procedure-caller.ts          # Serialized owner and committed-response-loss sentinel
+    └── procedure-caller.ts          # Host-neutral installed calls and committed-response-loss sentinel
 ```
 
 The database migrations, contract schema, generator, and generated SDK files receive no semantic change. Tests may extend the existing private lost-response seam, but the seam stays absent from package-root exports.
 
-**Structure decision**: Keep the facade in the existing SDK workspace. `keynes.ts` owns the public `Keynes.create({ mode: "local" })` branch, lifecycle admission, Resource-name conversion, SDK-owned command construction, bounded replay, and Budget handles. `local-resources.ts` owns the only name-to-ID mapping. The generated client owns contract validation and operation binding. The installed database owns every transition. FEAT-0004 exports no placeholder `cloud` or `postgres` mode.
+**Structure decision**: Keep the facade in the existing SDK workspace. `keynes.ts` owns the public `Keynes.create({ mode: "local" })` branch, lifecycle admission, SDK-owned command construction, bounded replay, and Budget handles. `local-runtime.ts` composes the product deployment with PGlite and a fixed private authority context. `pglite-database.ts` and `postgres-database.ts` own their paired engine lifecycles. `resource-catalog.ts` owns the only name-to-ID mapping. The generated client owns contract validation and operation binding. The installed database owns every transition. FEAT-0004 exports no placeholder `cloud` or `postgres` mode.

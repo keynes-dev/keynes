@@ -23,7 +23,7 @@
 
 - [X] T002 Add an installation test that uses explicit principal permission records and observe the old fixture-only input fail in `packages/sdk/src/installation.test.ts`
 - [X] T003 Replace `InstallationFixtures` and `FIXTURE_PERMISSIONS` with host-neutral tenant and principal permission input while preserving installed authorization behavior in `packages/sdk/src/private/migrations.ts`
-- [X] T004 Adapt the existing multi-principal test host to build the new installation input without exporting product identities in `packages/sdk/src/private/local-keynes.ts`
+- [X] T004 Adapt the existing multi-principal test host to build the new installation input without exporting product identities in `packages/sdk/src/private/test-keynes.ts`
 - [X] T005 Run `pnpm --filter @keynes/sdk test -- src/installation.test.ts src/generated-client.test.ts` and confirm the installation and generated-client baselines pass through `packages/sdk/src/installation.test.ts` and `packages/sdk/src/generated-client.test.ts`
 
 **Checkpoint**: Product local mode can install one private authority context without fixture vocabulary in its production path.
@@ -43,8 +43,8 @@
 
 ### Implementation for user story 1
 
-- [X] T008 [P] [US1] Implement `KeynesLocalError` and `ResourceDefinitionError` with the contract codes, details, causes, and committed-prefix data in `packages/sdk/src/local-errors.ts`
-- [X] T009 [P] [US1] Implement reversible lower-camel to lower-snake mapping, complete pre-validation, deterministic definition ordering, private Resource identity lookup, and amount-envelope conversion in `packages/sdk/src/private/local-resources.ts`
+- [X] T008 [P] [US1] Implement `KeynesSdkError` and `ResourceDefinitionError` with the contract codes, details, causes, and committed-prefix data in `packages/sdk/src/sdk-errors.ts`
+- [X] T009 [P] [US1] Implement lower-camel to lower-snake mapping, complete pre-validation, deterministic definition ordering, private Resource identity lookup, and amount-envelope conversion in `packages/sdk/src/private/resource-catalog.ts`
 - [X] T010 [US1] Implement `Keynes.create`, `defineResources`, `createBudget`, and identity-only `Budget.request`, `Budget.settle`, and `Budget.inspect` over the generated `KeynesClient` in `packages/sdk/src/keynes.ts`
 - [X] T011 [US1] Export the accepted facade, workflow types, errors, and required generated domain types while keeping callers, hosts, identities, and PGlite private in `packages/sdk/src/index.ts`
 - [X] T012 [US1] Run `pnpm --filter @keynes/sdk test -- src/local.test.ts src/public-exports.test.ts` and confirm the complete public Budget loop and export boundary pass in `packages/sdk/src/local.test.ts` and `packages/sdk/src/public-exports.test.ts`
@@ -65,8 +65,8 @@
 
 ### Implementation for user story 2
 
-- [X] T014 [US2] Add the private product runtime factory with one in-memory PGlite owner, one fixed private tenant, one fixed private principal, five permissions, and cleanup on installation failure in `packages/sdk/src/private/local-keynes.ts`
-- [X] T015 [US2] Make owner admission and drain-and-close semantics explicit without exposing lifecycle or database controls in `packages/sdk/src/private/procedure-caller.ts`
+- [X] T014 [US2] Add the private product runtime factory with one in-memory PGlite owner, one fixed private tenant, one fixed private principal, five permissions, and cleanup on installation failure in `packages/sdk/src/private/local-runtime.ts` and `packages/sdk/src/private/pglite-database.ts`
+- [X] T015 [US2] Make PGlite owner admission and drain-and-close semantics explicit without exposing lifecycle or database controls in `packages/sdk/src/private/pglite-database.ts`
 - [X] T016 [US2] Enforce `open`, `closing`, and `closed` admission across `Keynes` and every `Budget` handle, and share one close promise in `packages/sdk/src/keynes.ts`
 - [X] T017 [US2] Run `pnpm --filter @keynes/sdk test -- src/local-lifecycle.test.ts` and confirm cleanup, serialization, close, and isolation pass in `packages/sdk/src/local-lifecycle.test.ts`
 
@@ -105,6 +105,20 @@
 
 ---
 
+## Phase 7: Review cleanup
+
+**Purpose**: Reconcile deployment and engine vocabulary, remove unnecessary ceremony, and tighten the package-root type boundary without changing database authority or replay safety.
+
+- [X] T026 Split product deployment composition into `packages/sdk/src/private/local-runtime.ts`, PGlite lifecycle into `packages/sdk/src/private/pglite-database.ts`, and PostgreSQL lifecycle into `packages/sdk/src/private/postgres-database.ts`; keep paired engine symbols and no runtime registry or compatibility aliases
+- [X] T027 Move fixture identities and paired host construction into `packages/sdk/src/private/test-keynes.ts`, move the PGlite owner out of `packages/sdk/src/private/procedure-caller.ts`, and preserve the host-neutral installed-call seam
+- [X] T028 Hard-rename the new public workflow types and errors to `ResourceConfig`, `ResourceConfigs`, `BudgetRequestResult`, `BudgetRequestDenialReason`, and `KeynesSdkError`; rename `ResourceDefinitionError` fields to `failedResource` and `definedResources`
+- [X] T029 Add exact-key `Budget.request` typing for literals and predeclared variables, plus a `Reflect.apply` runtime bypass test proving the database still decides Budget membership
+- [X] T030 Preserve the once-created command object and ID across one committed-response-loss retry, the `operation_interrupted` mapping after a second loss, and `packages/sdk/src/local-replay.test.ts`
+- [X] T031 Remove only the redundant name round-trip, impossible migration branch, one-use JSON parser helper, private helper exports, and trailing whitespace identified by the Ponytail review
+- [X] T032 Reconcile active FEAT-0004 docs and run SDK typecheck/tests, `pnpm generate:check`, `pnpm verify`, the Spec Kit prerequisite check, and `git diff --check`; keep manual native `pnpm test:platform` as `NOT RUN`
+
+---
+
 ## Dependencies and execution order
 
 ### Phase dependencies
@@ -115,6 +129,7 @@
 - User story 2 depends on T012. Its lifecycle test remains runnable without user story 3.
 - User story 3 depends on T012. It does not depend on user story 2 behavior beyond the shared open-runtime admission check.
 - Polish and cross-cutting verification depends on every story selected for delivery.
+- Review cleanup depends on the completed feature and preserves its public behavior, replay guarantees, and database authority.
 
 ### User story completion order
 
@@ -147,8 +162,8 @@ US2 + US3 -> Polish and cross-cutting verification
 Task T006: Add the public Budget-loop tests in packages/sdk/src/local.test.ts
 Task T007: Add the package-root export tests in packages/sdk/src/public-exports.test.ts
 
-Task T008: Implement local errors in packages/sdk/src/local-errors.ts
-Task T009: Implement the Resource catalog in packages/sdk/src/private/local-resources.ts
+Task T008: Implement SDK errors in packages/sdk/src/sdk-errors.ts
+Task T009: Implement the Resource catalog in packages/sdk/src/private/resource-catalog.ts
 ```
 
 ### User stories 2 and 3
@@ -171,6 +186,7 @@ Task T018: Add replay tests in packages/sdk/src/local-replay.test.ts
 1. Add user story 2 and rerun user story 1 plus lifecycle tests.
 2. Add user story 3 and rerun user story 1 plus replay tests.
 3. Complete T022 through T025 only after the selected stories pass.
+4. Complete T026 through T032 as the review-cleanup pass without expanding the feature scope.
 
 ## Notes
 

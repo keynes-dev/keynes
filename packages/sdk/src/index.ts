@@ -4,18 +4,16 @@ export type * from "./generated/types.js";
 export { Budget, Keynes } from "./keynes.js";
 export type {
   AccountingBehavior,
+  BudgetRequestDenialReason,
+  BudgetRequestResult,
   KeynesCreateOptions,
-  LocalRequestApproved,
-  LocalRequestDenialReason,
-  LocalRequestDenied,
-  LocalRequestResult,
-  LocalResourceDefinition,
-  LocalResourceDefinitions,
   ResourceAmounts,
+  ResourceConfig,
+  ResourceConfigs,
   ResourceUsage,
 } from "./keynes.js";
-export { KeynesLocalError, ResourceDefinitionError } from "./local-errors.js";
+export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 export type {
-  KeynesLocalErrorCode,
-  KeynesLocalErrorDetails,
-} from "./local-errors.js";
+  KeynesSdkErrorCode,
+  KeynesSdkErrorDetails,
+} from "./sdk-errors.js";
