@@ -22,9 +22,9 @@
 
 **Checkpoint**: The SDK builds from `packages/`, copied database files match `packages/database/`, and package contents are deterministic before story work begins.
 
-- [ ] T003 Add failing package-layout tests for compiled JavaScript, declarations, copied database paths and bytes, required metadata, allowed files, and forbidden source, test, fixture, qualification, credential, native-binary, and unrelated-workspace paths in `packages/sdk/src/package-qualification.test.ts`.
-- [ ] T004 Implement `packages/sdk/tsconfig.build.json`, `scripts/build-sdk-package.ts`, and `packages/sdk/package.json` build, files, export, and pack settings so TypeScript emits under `packages/sdk/dist/sdk/src/` and `node:fs.cp` copies `packages/database/` to `packages/sdk/dist/database/`.
-- [ ] T005 Run the package-layout tests, compare every copied database file with its canonical source, run the existing installation suites, and confirm repeated builds leave the same package file list in `packages/sdk/src/package-qualification.test.ts`.
+- [X] T003 Add failing package-layout tests for compiled JavaScript, declarations, copied database paths and bytes, required metadata, allowed files, and forbidden source, test, fixture, qualification, credential, native-binary, and unrelated-workspace paths in `packages/sdk/src/package-qualification.test.ts`.
+- [X] T004 Implement `packages/sdk/tsconfig.build.json`, `scripts/build-sdk-package.ts`, and `packages/sdk/package.json` build, files, export, and pack settings so TypeScript emits under `packages/sdk/dist/sdk/src/` and `node:fs.cp` copies `packages/database/` to `packages/sdk/dist/database/`.
+- [X] T005 Run the package-layout tests, compare every copied database file with its canonical source, run the existing installation suites, and confirm repeated builds leave the same package file list in `packages/sdk/src/package-qualification.test.ts`.
 
 ---
 
