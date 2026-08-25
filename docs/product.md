@@ -22,10 +22,8 @@ An authorized root allocation creates quantity for selected Resource types. A ro
 
 ```ts
 const result = await supportBudget.request({
-  resources: {
-    usdCents: 25,
-    searchQueries: 2,
-  },
+  usdCents: 25,
+  searchQueries: 2,
 });
 
 if (result.status === "approved") {
@@ -97,10 +95,8 @@ Every Budget settles its own direct usage:
 
 ```ts
 await childBudget.settle({
-  usage: {
-    usdCents: 19,
-    searchQueries: 2,
-  },
+  usdCents: 19,
+  searchQueries: 2,
 });
 ```
 
@@ -123,9 +119,9 @@ The application, or a future adapter, enforces external limits and validates usa
 
 ## One model, three deployments
 
-Keynes implements Budget behavior once in a PostgreSQL database core. The same procedures, Policy environment, and evidence model run in all three deployment profiles. The TypeScript SDK and public SQL interface call that core. They do not reimplement Budget changes.
+Keynes implements Budget behavior once in a PostgreSQL database core. The same database RPC functions, Policy environment, and evidence model run in all three deployment profiles. The TypeScript SDK and public SQL interface call that core. They do not reimplement Budget changes.
 
-**Local PGlite.** `Keynes.local()` starts a private, in-memory PGlite database inside the application process. It needs no Keynes account, network service, database installation, daemon, or platform-specific native library. Process exit discards every local Budget, descendant, command result, and event. Keynes does not support file-backed local persistence.
+**Local PGlite.** `Keynes.create({ mode: "local" })` starts a private, in-memory PGlite database inside the application process. It needs no Keynes account, network service, database installation, daemon, or platform-specific native library. Process exit discards every local Budget, descendant, command result, and event. Keynes does not support file-backed local persistence.
 
 **Customer PostgreSQL.** Keynes installs the same database core in a customer-owned database. Applications can use the TypeScript SDK or the public `keynes` SQL API. Non-TypeScript applications use the SQL API. This deployment keeps Budget data under customer control and lets an application commit an approved request with its own job or outbox row in one transaction. An approval inside that transaction remains provisional until commit and cannot authorize external work before then.
 

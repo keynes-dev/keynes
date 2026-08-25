@@ -1,6 +1,6 @@
 # Keynes database-native architecture
 
-> **Status:** This is the target design for the Keynes runtime and Policy system. None of it is implemented or qualified. The packages, security controls, and conformance evidence do not exist yet.
+> **Status:** The shared database core, generated TypeScript client, and source-workspace local PGlite facade are implemented. Packaging, the Policy system, customer PostgreSQL product mode, Cloud, security qualification, and release conformance remain target design unless a roadmap note records evidence.
 
 ## Purpose
 
@@ -61,7 +61,7 @@ private PGlite instance
 one private in-memory PostgreSQL data directory
 ```
 
-Each `Keynes.local()` runtime owns one private [PGlite](https://pglite.dev/docs/about/) instance backed by an in-memory data directory. PGlite runs PostgreSQL in WebAssembly inside the application process. It does not start a daemon, open a network port, or require a separate database installation. The TypeScript SDK calls the same named PostgreSQL procedures as Cloud. It does not construct transitions from application-side reads and writes.
+Each `Keynes.create({ mode: "local" })` runtime owns one private [PGlite](https://pglite.dev/docs/about/) instance backed by an in-memory data directory. PGlite runs PostgreSQL in WebAssembly inside the application process. It does not start a daemon, open a network port, or require a separate database installation. The TypeScript SDK calls the same named database RPC functions as Cloud. It does not construct transitions from application-side reads and writes.
 
 Local state lasts for the life of the process. Process exit discards the database, Budget identities, descendants, command history, and evidence. Keynes does not support a file-backed local deployment. Internal tests and diagnostic tools may use a file, but that use has no compatibility, recovery, or production support commitment.
 
@@ -131,15 +131,15 @@ All three hosts run migrations from one database migration graph. Local mode sup
 
 ## Components and responsibilities
 
-| Component | Implementation | Responsibility |
-| --- | --- | --- |
-| Database core | PostgreSQL SQL, PL/pgSQL, and one migration graph | Procedures, Policy isolation, transactions, private schema, and evidence |
-| Local runtime adapter | TypeScript and PGlite | Private in-memory lifecycle, serialized access, migration startup, and result translation |
-| Customer PostgreSQL distribution | Signed migration bundle and generated SQL-only extension | Installation, public SQL API, roles, upgrades, drift checks, and transaction composition |
-| Cloud service | TypeScript and managed PostgreSQL | Authenticated RPC, lineage routing, pooling, retries, recovery fencing, operational overlays, and result translation |
-| TypeScript SDK | TypeScript over PGlite, PostgreSQL executors, and the Cloud protocol | Typed Budget API, local lifecycle, durable transaction adapters, and Cloud transport |
-| Contract source | JSON Schema 2020-12 and a procedure manifest | SDK types, validators, PostgreSQL wrappers, documentation, and fixtures |
-| Contract fixtures | Versioned canonical JSON and SQL | Shared semantics, packaging equivalence, and runtime compatibility evidence |
+| Component                        | Implementation                                                       | Responsibility                                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Database core                    | PostgreSQL SQL, PL/pgSQL, and one migration graph                    | Database RPC functions, Policy isolation, transactions, private schema, and evidence                                 |
+| Local runtime adapter            | TypeScript and PGlite                                                | Private in-memory lifecycle, serialized access, migration startup, and result translation                            |
+| Customer PostgreSQL distribution | Signed migration bundle and generated SQL-only extension             | Installation, public SQL API, roles, upgrades, drift checks, and transaction composition                             |
+| Cloud service                    | TypeScript and managed PostgreSQL                                    | Authenticated RPC, lineage routing, pooling, retries, recovery fencing, operational overlays, and result translation |
+| TypeScript SDK                   | TypeScript over PGlite, PostgreSQL executors, and the Cloud protocol | Typed Budget API, local lifecycle, durable transaction adapters, and Cloud transport                                 |
+| Contract source                  | JSON Schema 2020-12 and a procedure manifest                         | SDK types, validators, PostgreSQL wrappers, documentation, and fixtures                                              |
+| Contract fixtures                | Versioned canonical JSON and SQL                                     | Shared semantics, packaging equivalence, and runtime compatibility evidence                                          |
 
 PostgreSQL SQL and PL/pgSQL implement authority transitions once. Generated migrations install the relations, constraints, functions, Policy views, public API, and canonical result shapes in every host. The local adapter, customer SDK, and Cloud service contain no second Budget implementation.
 
@@ -233,20 +233,20 @@ Missing usage never becomes zero. Known use above the Budget's allocation create
 The database core separates public database objects from its private storage:
 
 - `keynes_internal` owns base tables, unversioned implementation functions, Policy execution state, and migration metadata. Only the extension or bundle owner can access it directly.
-- `keynes` owns the public procedures and read views. A later breaking contract adds a separate SQL namespace only when incompatible callers must coexist.
+- `keynes` owns the public database RPC functions and read views. A later breaking contract adds a separate SQL namespace only when incompatible callers must coexist.
 
-The public schema exposes these procedures in PGlite, customer PostgreSQL, and managed PostgreSQL:
+The public schema exposes these functions in PGlite, customer PostgreSQL, and managed PostgreSQL:
 
-| Procedure | Purpose |
-| --- | --- |
-| `keynes.define_resource_type` | Define one immutable Resource type without creating quantity |
-| `keynes.create_budget` | Create an authorized root allocation |
-| `keynes.request` | Deny a request or create one child Budget atomically |
-| `keynes.settle` | Record monotone direct usage and derive settlement state |
-| `keynes.get_budget` | Read one authorized Budget projection and its complete root-lineage history from one snapshot |
-| `keynes.publish_policy` | Validate and store an immutable Policy candidate |
-| `keynes.activate_policy` | Atomically activate a candidate against an expected revision |
-| `keynes.explain_request` | Explain a hypothetical request against one observed revision without creating authority |
+| Function                      | Purpose                                                                                       |
+| ----------------------------- | --------------------------------------------------------------------------------------------- |
+| `keynes.define_resource_type` | Define one immutable Resource type without creating quantity                                  |
+| `keynes.create_budget`        | Create an authorized root allocation                                                          |
+| `keynes.request`              | Deny a request or create one child Budget atomically                                          |
+| `keynes.settle`               | Record monotone direct usage and derive settlement state                                      |
+| `keynes.get_budget`           | Read one authorized Budget projection and its complete root-lineage history from one snapshot |
+| `keynes.publish_policy`       | Validate and store an immutable Policy candidate                                              |
+| `keynes.activate_policy`      | Atomically activate a candidate against an expected revision                                  |
+| `keynes.explain_request`      | Explain a hypothetical request against one observed revision without creating authority       |
 
 Every host invokes the same functions with the same `jsonb` inputs and outputs:
 
@@ -255,7 +255,7 @@ SELECT keynes.request($1::jsonb);
 SELECT keynes.settle($1::jsonb);
 ```
 
-These calls are commands, not queries over mutable application tables. The local SDK invokes them through its private PGlite handle. Customer applications may invoke them through the TypeScript SDK or directly through SQL. In Cloud, only the service execution role can invoke mutating procedures. No public role can write a base table or call an internal mutation function.
+These calls are database RPCs, not queries over mutable application tables. The local SDK invokes them through its private PGlite handle. Customer applications may invoke them through the TypeScript SDK or directly through SQL. In Cloud, only the service execution role can invoke mutating functions. No public role can write a base table or call an internal mutation function.
 
 `define_resource_type` derives the tenant and definer from the authorized principal, stores the immutable definition, and returns its stable identifier. `create_budget` separately verifies root-allocation permission before creating any quantity. `request` can only move quantity held by its target parent. Definition, root allocation, request, settlement, and read permissions are independent.
 
@@ -488,46 +488,47 @@ The TypeScript SDK uses one workflow in every host: create a Budget, request a c
 ```ts
 import { Keynes } from "@keynes/sdk";
 
-const keynes = await Keynes.local();
+const keynes = await Keynes.create({ mode: "local" });
 
 await keynes.defineResources({
-  usdCents: { unit: "cent", behavior: "consumable" },
-  searchQueries: { unit: "query", behavior: "consumable" },
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
 
 const root = await keynes.createBudget({
-  resources: {
-    usdCents: 1000,
-    searchQueries: 100,
-  },
+  usdCents: 1000,
+  searchQueries: 100,
 });
 
 const result = await root.request({
-  resources: { usdCents: 25, searchQueries: 2 },
+  usdCents: 25,
+  searchQueries: 2,
 });
 
 if (result.status === "approved") {
   await runWorkflow(result.budget);
-  await result.budget.settle({
-    usage: { usdCents: 19, searchQueries: 2 },
-  });
+  await result.budget.settle({ usdCents: 19, searchQueries: 2 });
 }
 ```
 
 `defineResources(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected defined types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
 
-The constructor selects the deployment without changing the Budget API:
+The `mode` discriminant selects the deployment without changing the Budget API:
 
 ```ts
-const local = await Keynes.local();
-const postgres = Keynes.postgres({ executor: applicationDatabase });
-const cloud = Keynes.cloud({
+const local = await Keynes.create({ mode: "local" });
+const postgres = await Keynes.create({
+  mode: "postgres",
+  executor: applicationDatabase,
+});
+const cloud = await Keynes.create({
+  mode: "cloud",
   endpoint: process.env.KEYNES_ENDPOINT!,
-  credential: await loadKeynesCredential(),
+  apiKey: process.env.KEYNES_API_KEY!,
 });
 ```
 
-`Keynes.local()` accepts no database path, caller-owned connection, persistence option, or extension option. It creates a private in-memory PGlite runtime. `Keynes.postgres(...)` binds the generated adapter to a qualified PostgreSQL executor and verifies the installed contract digest before returning a Budget. `Keynes.cloud(...)` sends the same commands to the Keynes RPC service. Local and Cloud constructors expose no SQL, transactions, connection pools, extensions, or database credentials.
+Local mode accepts no database path, caller-owned connection, persistence option, or extension option. It creates a private in-memory PGlite runtime. PostgreSQL mode binds the generated adapter to a qualified executor and verifies the installed contract digest before returning a runtime. Cloud mode sends the same commands to the Keynes RPC service. Local and Cloud modes expose no SQL, transactions, connection pools, extensions, or database credentials. Keynes never infers a mode from present or missing credentials, and it never falls back from a configured durable mode to local state.
 
 Customer PostgreSQL supports commit-bound composition:
 

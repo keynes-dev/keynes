@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
 import { PairedProcedureCaller } from "./test-keynes.js";
+import { CommittedResponseLostError } from "./procedure-caller.js";
 
 const TARGET: InstalledTarget = "keynes.request";
 
@@ -11,12 +12,12 @@ function caller(call: () => Promise<unknown>): ProcedureCaller {
 
 function paired(
   pglite: ProcedureCaller,
-  postgresql: ProcedureCaller,
+  postgres: ProcedureCaller,
 ): ProcedureCaller {
   return new PairedProcedureCaller({
     caseName: () => "paired caller case",
     pglite,
-    postgresql,
+    postgres,
   });
 }
 
@@ -45,15 +46,15 @@ describe("paired procedure caller", () => {
   });
 
   it("waits for the slower host before reporting a one-sided failure", async () => {
-    let resolvePostgresql: ((value: unknown) => void) | undefined;
-    const postgresqlResult = new Promise<unknown>((resolveResult) => {
-      resolvePostgresql = resolveResult;
+    let resolvePostgres: ((value: unknown) => void) | undefined;
+    const postgresResult = new Promise<unknown>((resolveResult) => {
+      resolvePostgres = resolveResult;
     });
     const call = paired(
       caller(async () => {
         throw new Error("pglite failed");
       }),
-      caller(() => postgresqlResult),
+      caller(() => postgresResult),
     ).call(TARGET, {});
     let settled = false;
     void call.then(
@@ -67,7 +68,7 @@ describe("paired procedure caller", () => {
 
     await Promise.resolve();
     expect(settled).toBe(false);
-    resolvePostgresql?.({ ok: true });
+    resolvePostgres?.({ ok: true });
 
     await expect(call).rejects.toThrow(
       "Paired call failed: case=paired caller case; target=keynes.request; host=pglite; reason=unexpected-failure",
@@ -90,19 +91,16 @@ describe("paired procedure caller", () => {
   });
 
   it("preserves matching simulated lost-response controls", async () => {
-    const lostResponse =
-      "Simulated lost response after committed procedure call";
-
     await expect(
       paired(
         caller(async () => {
-          throw new Error(lostResponse);
+          throw new CommittedResponseLostError();
         }),
         caller(async () => {
-          throw new Error(lostResponse);
+          throw new CommittedResponseLostError();
         }),
       ).call(TARGET, {}),
-    ).rejects.toThrow(lostResponse);
+    ).rejects.toBeInstanceOf(CommittedResponseLostError);
   });
 
   it("does not retain credentials or driver diagnostics", async () => {
@@ -123,7 +121,7 @@ describe("paired procedure caller", () => {
     }
 
     expect(String(failure)).toBe(
-      "Error: Paired call failed: case=paired caller case; target=keynes.request; host=postgresql; reason=unexpected-failure",
+      "Error: Paired call failed: case=paired caller case; target=keynes.request; host=postgres; reason=unexpected-failure",
     );
     expect(String(failure)).not.toContain("private-password");
     expect(String(failure)).not.toContain("driver failed");

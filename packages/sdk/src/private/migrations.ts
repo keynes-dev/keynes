@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { CONTRACT_DIGEST, KeynesError } from "../generated/client.js";
+import type { PermissionName } from "../generated/types.js";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
 const DATABASE_ROOT = new URL("../../../database/", import.meta.url);
@@ -11,32 +12,6 @@ const INSTALLATION_RECORD_URL = new URL(
   "generated/installation-record.json",
   DATABASE_ROOT,
 );
-
-const FIXTURE_PERMISSIONS = {
-  "definer-fixture": ["define_resource_type"],
-  "allocator-fixture": ["create_root_budget"],
-  "requester-fixture": ["request_budget"],
-  "settlement-fixture": ["settle_budget"],
-  "reader-fixture": ["read_budget"],
-  "product-fixture": [
-    "define_resource_type",
-    "create_root_budget",
-    "request_budget",
-    "settle_budget",
-    "read_budget",
-  ],
-  "unauthorized-fixture": [],
-} as const;
-
-const FIXTURE_NAMES = [
-  "definer-fixture",
-  "allocator-fixture",
-  "requester-fixture",
-  "settlement-fixture",
-  "reader-fixture",
-  "product-fixture",
-  "unauthorized-fixture",
-] as const satisfies readonly (keyof typeof FIXTURE_PERMISSIONS)[];
 
 interface MigrationManifestEntry {
   readonly id: string;
@@ -60,16 +35,19 @@ interface InstallationRecord {
   readonly expectedTargets: readonly string[];
 }
 
-export interface InstallationFixtures {
+export interface PrincipalPermissions {
+  readonly principalId: string;
+  readonly permissions: readonly PermissionName[];
+}
+
+export interface DatabaseInstallation {
   readonly tenantId: string;
-  readonly principals: Readonly<
-    Record<keyof typeof FIXTURE_PERMISSIONS, string>
-  >;
+  readonly principals: readonly PrincipalPermissions[];
 }
 
 export async function installDatabase(
   database: TransactionalDatabase,
-  fixtures: InstallationFixtures,
+  installation: DatabaseInstallation,
 ): Promise<void> {
   const [manifestSource, recordSource] = await Promise.all([
     readFile(MANIFEST_URL, "utf8"),
@@ -83,10 +61,7 @@ export async function installDatabase(
   if (contractMigrations.length !== 1) {
     throw new Error("Migration manifest must declare one contract migration");
   }
-  const contractMigrationId = contractMigrations[0]?.id;
-  if (contractMigrationId === undefined) {
-    throw new Error("Migration manifest has no contract migration");
-  }
+  const contractMigrationId = contractMigrations[0].id;
   const recordedMigrations = new Map(
     record.migrations.map((migration) => [migration.id, migration]),
   );
@@ -135,7 +110,7 @@ export async function installDatabase(
   }
 
   await verifyInstalledContract(database, contractMigrationId, record);
-  await installFixtures(database, fixtures);
+  await installPrincipalPermissions(database, installation);
 }
 
 async function applyMigration(
@@ -220,19 +195,19 @@ async function verifyInstalledContract(
   }
 }
 
-async function installFixtures(
+async function installPrincipalPermissions(
   database: TransactionalDatabase,
-  fixtures: InstallationFixtures,
+  installation: DatabaseInstallation,
 ): Promise<void> {
   await database.transaction(async (transaction) => {
-    for (const fixtureName of FIXTURE_NAMES) {
-      for (const permission of FIXTURE_PERMISSIONS[fixtureName]) {
+    for (const principal of installation.principals) {
+      for (const permission of principal.permissions) {
         await transaction.query(
           `insert into keynes_internal.principal_permissions
              (tenant_id, principal_id, permission)
            values ($1, $2, $3)
            on conflict do nothing`,
-          [fixtures.tenantId, fixtures.principals[fixtureName], permission],
+          [installation.tenantId, principal.principalId, permission],
         );
       }
     }

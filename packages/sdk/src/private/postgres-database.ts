@@ -7,7 +7,7 @@ import type {
   QueryRows,
   TransactionalDatabase,
 } from "./database.js";
-import { installDatabase, type InstallationFixtures } from "./migrations.js";
+import { installDatabase, type DatabaseInstallation } from "./migrations.js";
 
 interface Queryable {
   query<Row extends QueryResultRow>(
@@ -16,7 +16,7 @@ interface Queryable {
   ): Promise<{ readonly rows: Row[] }>;
 }
 
-class PgConnection implements DatabaseConnection {
+class PostgresConnection implements DatabaseConnection {
   readonly #queryable: Queryable;
 
   constructor(queryable: Queryable) {
@@ -39,7 +39,10 @@ class PgConnection implements DatabaseConnection {
   }
 }
 
-class PgDatabase extends PgConnection implements TransactionalDatabase {
+class PostgresPoolDatabase
+  extends PostgresConnection
+  implements TransactionalDatabase
+{
   readonly #pool: Pool;
 
   constructor(pool: Pool) {
@@ -53,7 +56,7 @@ class PgDatabase extends PgConnection implements TransactionalDatabase {
     const client = await this.#pool.connect();
     try {
       await client.query("begin");
-      const result = await operation(new PgConnection(client));
+      const result = await operation(new PostgresConnection(client));
       await client.query("commit");
       return result;
     } catch (error: unknown) {
@@ -80,13 +83,6 @@ export interface PostgresTransaction {
   close(): Promise<void>;
 }
 
-export interface OwnedPostgresDatabase {
-  readonly database: TransactionalDatabase;
-  beginTransaction(): Promise<PostgresTransaction>;
-  requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
-  close(): Promise<void>;
-}
-
 type TransactionState = "open" | "committed" | "rolled-back";
 
 class OwnedTransaction implements PostgresTransaction {
@@ -102,7 +98,7 @@ class OwnedTransaction implements PostgresTransaction {
     onClose: (transaction: OwnedTransaction) => void,
   ) {
     this.#client = client;
-    this.connection = new PgConnection(client);
+    this.connection = new PostgresConnection(client);
     this.backendPid = backendPid;
     this.#onClose = onClose;
   }
@@ -139,7 +135,7 @@ class OwnedTransaction implements PostgresTransaction {
   }
 }
 
-class PostgresDatabaseOwner implements OwnedPostgresDatabase {
+export class PostgresDatabase {
   readonly database: TransactionalDatabase;
   readonly #pool: Pool;
   readonly #administratorUrl: string;
@@ -149,7 +145,7 @@ class PostgresDatabaseOwner implements OwnedPostgresDatabase {
 
   constructor(pool: Pool, administratorUrl: string, databaseName: string) {
     this.#pool = pool;
-    this.database = new PgDatabase(pool);
+    this.database = new PostgresPoolDatabase(pool);
     this.#administratorUrl = administratorUrl;
     this.#databaseName = databaseName;
   }
@@ -235,7 +231,7 @@ class PostgresDatabaseOwner implements OwnedPostgresDatabase {
 
 export async function openPostgresDatabase(
   administratorUrl: string,
-): Promise<OwnedPostgresDatabase> {
+): Promise<PostgresDatabase> {
   const databaseName = `keynes_test_${randomUUID().replaceAll("-", "")}`;
   const administrator = new Client({ connectionString: administratorUrl });
   try {
@@ -248,16 +244,16 @@ export async function openPostgresDatabase(
   const databaseUrl = new URL(administratorUrl);
   databaseUrl.pathname = `/${databaseName}`;
   const pool = new Pool({ connectionString: databaseUrl.toString() });
-  return new PostgresDatabaseOwner(pool, administratorUrl, databaseName);
+  return new PostgresDatabase(pool, administratorUrl, databaseName);
 }
 
 export async function openInstalledPostgresDatabase(
   administratorUrl: string,
-  fixtures: InstallationFixtures,
-): Promise<OwnedPostgresDatabase> {
+  installation: DatabaseInstallation,
+): Promise<PostgresDatabase> {
   const database = await openPostgresDatabase(administratorUrl);
   try {
-    await installDatabase(database.database, fixtures);
+    await installDatabase(database.database, installation);
     return database;
   } catch (error: unknown) {
     await database.close();

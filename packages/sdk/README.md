@@ -2,17 +2,17 @@
 
 - **Owner:** `@shubsharan`
 - **Workspace:** Private, non-publishable `@keynes/sdk`
-- **Functional status:** FEAT-0002 provider-free SDK implemented
+- **Functional status:** FEAT-0004 source-workspace local facade implemented
 
 ## Responsibility
 
-`packages/sdk/` owns the generated TypeScript contract consumer and the private FEAT-0002 PGlite test lifecycle. The generated `KeynesClient` has five methods: `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`.
+`packages/sdk/` owns the package-root local facade, generated TypeScript contract consumer, and private PGlite and PostgreSQL test lifecycles. The generated `KeynesClient` has five methods: `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`.
 
-The private adapter installs the database migrations, verifies the contract and installation records, binds a fixture principal, and calls only the generated public procedures.
+The private adapters install the database migrations, verify the contract and installation records, bind private principals, and call only the generated public procedures.
 
 ## Allowed and public edges
 
-The package root exports `KeynesClient`, `KeynesError`, and generated contract types. It does not export `createKeynesClient`, `openLocalKeynes`, `clientFor`, a PGlite handle, or a product-facing local constructor.
+The package root exports `Keynes`, `Budget`, the workflow input and result types, `KeynesSdkError`, `ResourceDefinitionError`, `KeynesClient`, `KeynesError`, and generated contract types. It does not export `createKeynesClient`, runtime openers, `clientFor`, fixture identities, procedure callers, or database handles.
 
 The SDK must not import `packages/cloud/`, private database storage, `scripts/`,
 or another area's owner-local tests.
@@ -27,4 +27,4 @@ Use TypeScript only. Keep tests beside the source they exercise. Generate the cl
 
 ## Deferred work
 
-Product-facing `Keynes.local()`, npm publication, customer PostgreSQL, Cloud transport, cross-host conformance, packaging, security qualification, and performance qualification remain `NOT RUN`.
+npm publication, customer PostgreSQL product mode, Cloud transport, packaging, security qualification, performance qualification, and manual native `pnpm test:platform` remain `NOT RUN` for this source-workspace feature.
