@@ -334,7 +334,40 @@ describe("contract generator", () => {
 
     expect(source).toContain("export const CONTRACT_DIGEST");
     expect(source).toContain(JSON.stringify(digest.digest));
+    expect(source).toContain("export const INSTALLATION_MIGRATIONS = [");
     expect(source).toContain("export const PROCEDURES = {");
+
+    const installationRecord: unknown = JSON.parse(
+      readFileSync(
+        join(
+          outputRoot,
+          "packages/database/generated/installation-record.json",
+        ),
+        "utf8",
+      ),
+    );
+    if (
+      typeof installationRecord !== "object" ||
+      installationRecord === null ||
+      !("migrations" in installationRecord) ||
+      !Array.isArray(installationRecord.migrations)
+    ) {
+      throw new Error("generated installation record has no migrations");
+    }
+    for (const migration of installationRecord.migrations) {
+      if (
+        typeof migration !== "object" ||
+        migration === null ||
+        !("id" in migration) ||
+        typeof migration.id !== "string" ||
+        !("sha256" in migration) ||
+        typeof migration.sha256 !== "string"
+      ) {
+        throw new Error("generated installation migration is invalid");
+      }
+      expect(source).toContain(`id: ${JSON.stringify(migration.id)}`);
+      expect(source).toContain(JSON.stringify(migration.sha256));
+    }
 
     let previousOperationIndex = -1;
     for (const operation of contract.operations) {

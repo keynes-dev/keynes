@@ -11,10 +11,12 @@ import { CONTRACT_DIGEST, PROCEDURES } from "../generated/procedures.ts";
 import {
   CONTROLLED_IDENTITIES,
   dropNativeAcceptanceDatabase,
+  installNativeAcceptanceSchema,
   provisionNativeAcceptanceDatabase,
   type NativeDatabaseProvision,
 } from "./installation.ts";
 import {
+  NATIVE_ACCEPTANCE_SCENARIOS,
   runNativeAcceptanceScenarios,
   type ControlledPrincipal,
   type NativeAcceptanceHarness,
@@ -260,7 +262,10 @@ export async function runNativeAcceptance(
     totals: {
       passed: scenarios.length - failed,
       failed,
-      skipped: 0,
+      skipped: Math.max(
+        0,
+        Object.keys(NATIVE_ACCEPTANCE_SCENARIOS).length - scenarios.length,
+      ),
     },
     exclusions: {
       managedProvider: "NOT RUN",
@@ -357,7 +362,7 @@ async function expectStartupRefusal(
   serviceRole: string,
   servicePassword: string,
   registryPath: string,
-  kind: "empty" | "incompatible",
+  kind: "empty" | "incompatible" | "checksum" | "unhardened",
 ): Promise<void> {
   const name = `keynes_refusal_${randomUUID().replaceAll("-", "")}`;
   const administrator = new Client({ connectionString: administratorUrl });
@@ -369,7 +374,25 @@ async function expectStartupRefusal(
   }
 
   const ownerUrl = selectDatabase(administratorUrl, name);
-  if (kind === "incompatible") {
+  if (kind === "checksum" || kind === "unhardened") {
+    await installNativeAcceptanceSchema(ownerUrl, serviceRole, {
+      revokePublicExecution: kind !== "unhardened",
+    });
+    if (kind === "checksum") {
+      const owner = new Client({ connectionString: ownerUrl });
+      await owner.connect();
+      try {
+        await owner.query(
+          `update keynes_internal.schema_migrations
+              set byte_checksum = $1
+            where migration_id = '0001-storage'`,
+          ["f".repeat(64)],
+        );
+      } finally {
+        await owner.end();
+      }
+    }
+  } else if (kind === "incompatible") {
     const owner = new Client({ connectionString: ownerUrl });
     await owner.connect();
     try {

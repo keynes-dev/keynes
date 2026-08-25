@@ -3,6 +3,28 @@
 export const CONTRACT_DIGEST =
   "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
 
+export const INSTALLATION_MIGRATIONS = [
+  {
+    id: "0001-storage",
+    byteChecksum:
+      "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a",
+    contractDigest: null,
+  },
+  {
+    id: "0002-budget",
+    byteChecksum:
+      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+    contractDigest: null,
+  },
+  {
+    id: "0003-public",
+    byteChecksum:
+      "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a",
+    contractDigest:
+      "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+  },
+] as const;
+
 export const PROCEDURES = {
   defineResource: {
     target: "keynes.define_resource_type",

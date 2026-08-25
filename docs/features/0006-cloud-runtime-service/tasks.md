@@ -72,10 +72,8 @@
 
 - [X] T018 [US1] Run `pnpm --filter @keynes/cloud test`, `pnpm --filter @keynes/cloud typecheck`, `pnpm test:generator`, `pnpm generate:check`, and `pnpm check:deps`; require the focused unit, type, generator, and dependency checks to pass after T010-T017.
 - [X] T019 [US1] Run `pnpm test:platform` to requalify the unchanged shared core on PGlite and native PostgreSQL, then run `pnpm verify`; report Cloud service, managed provider, response-loss process, and security evidence as `NOT RUN` for these commands rather than inferring it from repository passes.
-- [X] T020 [US1] Run `pnpm test:cloud -- --output <new-record.json>` against the exact branch revision; require every scenario in T008 to pass and preserve the non-overwriting JSON record with commit, clean-worktree state, contract digest, environment, exact image, results, and exclusions.
-- [X] T021 [US1] Inspect the T020 record and service output for bearer tokens, token digests, passwords, database URLs, command bodies, SQL, stack traces, tenant/principal leakage, or unrestricted environments; fail acceptance if any secret or protected value appears.
-
-**Accepted native evidence**: `artifacts/cloud/feat-0006-cf64cae.json` records commit `cf64cae229182ad955e0a0ee3b73ce0ace4b867b` with a clean worktree, eight passing scenarios, no failures or skips, and the explicit `NOT RUN` exclusions. The retained record and captured service output contain none of the prohibited values listed in T021.
+- [ ] T020 [US1] Run `pnpm test:cloud -- --output <new-record.json>` against the exact branch revision; require every scenario in T008 to pass and preserve the non-overwriting JSON record with commit, clean-worktree state, contract digest, environment, exact image, results, and exclusions.
+- [ ] T021 [US1] Inspect the T020 record and service output for bearer tokens, token digests, passwords, database URLs, command bodies, SQL, stack traces, tenant/principal leakage, or unrestricted environments; fail acceptance if any secret or protected value appears.
 
 **Checkpoint**: User Story 1 is independently functional and evidenced through the actual service and native PostgreSQL. No public Cloud or production claim is implied.
 

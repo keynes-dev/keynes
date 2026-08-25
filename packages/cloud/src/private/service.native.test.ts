@@ -72,6 +72,18 @@ export type ControlledPrincipal =
   | "tenant-a-unauthorized"
   | "tenant-b-product";
 
+export const NATIVE_ACCEPTANCE_SCENARIOS = {
+  twoTenantLifecycle: "two-tenant-lifecycle",
+  permissionIsolation: "permission-isolation",
+  serviceAndClientRestart: "service-and-client-restart",
+  committedResponseLoss: "committed-response-loss",
+  concurrentReplayAndConflict: "concurrent-replay-and-conflict",
+  crossTenantOperationIsolation: "cross-tenant-operation-isolation",
+  databaseUnavailable: "database-unavailable",
+  limitedRoleDenial: "limited-role-denial",
+  startupRefusal: "startup-refusal",
+} as const;
+
 export interface NativeRpcResponse {
   readonly status: number;
   readonly body: unknown;
@@ -93,7 +105,9 @@ export interface NativeAcceptanceHarness {
   pauseDatabase(): Promise<void>;
   resumeDatabase(): Promise<void>;
   queryAsService(statement: string): Promise<void>;
-  expectStartupRefusal(kind: "empty" | "incompatible"): Promise<void>;
+  expectStartupRefusal(
+    kind: "empty" | "incompatible" | "checksum" | "unhardened",
+  ): Promise<void>;
   scenario(
     name: string,
     assertion: string,
@@ -169,9 +183,16 @@ export async function runNativeAcceptanceScenarios(
       amount: resource.amount === 40 ? 10 : resource.amount,
     })),
   };
+  const tenantBSettlement = {
+    ...fixture.commands.settleChild,
+    usage: fixture.commands.settleChild.usage.map((resource) => ({
+      ...resource,
+      amount: resource.amount === 25 ? 7 : resource.amount,
+    })),
+  };
 
   await harness.scenario(
-    "two-tenant-lifecycle",
+    NATIVE_ACCEPTANCE_SCENARIOS.twoTenantLifecycle,
     "Both tenants complete the five-operation lifecycle with overlapping identifiers and distinct state.",
     async () => {
       await defineResources(client, "tenant-a-product");
@@ -198,6 +219,13 @@ export async function runNativeAcceptanceScenarios(
       );
       requireSuccess(
         await client.call(
+          "tenant-b-product",
+          "settleBudget",
+          tenantBSettlement,
+        ),
+      );
+      requireSuccess(
+        await client.call(
           "tenant-a-product",
           "settleBudget",
           fixture.commands.settleChild,
@@ -219,14 +247,14 @@ export async function runNativeAcceptanceScenarios(
         ),
       );
       assert.notDeepEqual(tenantA.budget, tenantB.budget);
-      assert.ok(historyEntries(tenantA).length > 0);
-      assert.ok(historyEntries(tenantB).length > 0);
+      assert.equal(historyEntries(tenantA).length, 3);
+      assert.equal(historyEntries(tenantB).length, 3);
     },
   );
 
   await harness.scenario(
-    "permission-and-known-id-isolation",
-    "Unauthorized principals and known cross-tenant identifiers reveal no protected state and cause no mutation.",
+    NATIVE_ACCEPTANCE_SCENARIOS.permissionIsolation,
+    "An unauthorized principal reveals no protected state and causes no mutation.",
     async () => {
       requireAuthorityError(
         await client.call(
@@ -257,7 +285,7 @@ export async function runNativeAcceptanceScenarios(
   );
 
   await harness.scenario(
-    "service-and-client-restart",
+    NATIVE_ACCEPTANCE_SCENARIOS.serviceAndClientRestart,
     "A new service process and a new HTTP client reload committed Budget state from PostgreSQL.",
     async () => {
       await harness.restartService();
@@ -274,7 +302,7 @@ export async function runNativeAcceptanceScenarios(
   );
 
   await harness.scenario(
-    "committed-response-loss",
+    NATIVE_ACCEPTANCE_SCENARIOS.committedResponseLoss,
     "A lost post-commit response is recovered by an exact retry after service restart without duplicate history.",
     async () => {
       const lostCommand = {
@@ -313,7 +341,7 @@ export async function runNativeAcceptanceScenarios(
   );
 
   await harness.scenario(
-    "concurrent-replay-and-conflict",
+    NATIVE_ACCEPTANCE_SCENARIOS.concurrentReplayAndConflict,
     "Concurrent exact retries share one result, while changed target, operation, or body conflicts without another transition.",
     async () => {
       const command = {
@@ -357,18 +385,104 @@ export async function runNativeAcceptanceScenarios(
         }),
         "command_conflict",
       );
+      const settlement = {
+        ...fixture.commands.settleChild,
+        commandId: "40000000-0000-4000-8000-000000000002",
+        budgetId: "30000000-0000-4000-8000-000000000002",
+        usage: fixture.commands.settleChild.usage.map((resource) => ({
+          ...resource,
+          amount: resource.amount === 25 ? 3 : resource.amount,
+        })),
+      };
+      requireSuccess(
+        await client.call("tenant-a-product", "settleBudget", settlement),
+      );
       requireAuthorityError(
-        await client.call("tenant-a-product", "requestBudget", {
-          ...command,
-          parentBudgetId: fixture.commands.requestChild.commandId,
+        await client.call("tenant-a-product", "settleBudget", {
+          ...settlement,
+          budgetId: command.commandId,
         }),
         "command_conflict",
       );
+      const unchanged = requireSuccess(
+        await client.call("tenant-a-product", "getBudget", {
+          budgetId: fixture.commands.createRoot.commandId,
+        }),
+      );
+      assert.equal(historyEntries(unchanged).length, 6);
     },
   );
 
   await harness.scenario(
-    "database-unavailable",
+    NATIVE_ACCEPTANCE_SCENARIOS.crossTenantOperationIsolation,
+    "A tenant cannot read or mutate an A-only Budget, and the same command UUID starts a distinct tenant-scoped operation rather than replaying A.",
+    async () => {
+      const tenantAOnly = {
+        ...fixture.commands.requestChild,
+        commandId: "30000000-0000-4000-8000-000000000004",
+        resources: fixture.commands.requestChild.resources.map((resource) => ({
+          ...resource,
+          amount: resource.amount === 40 ? 2 : resource.amount,
+        })),
+      };
+      const tenantAResponse = await client.call(
+        "tenant-a-product",
+        "requestBudget",
+        tenantAOnly,
+      );
+      requireSuccess(tenantAResponse);
+      assert.ok(isRecord(tenantAResponse.body));
+      assert.equal(tenantAResponse.body.replayed, false);
+
+      requireAuthorityError(
+        await client.call("tenant-b-product", "getBudget", {
+          budgetId: tenantAOnly.commandId,
+        }),
+        "budget_not_found",
+      );
+      requireAuthorityError(
+        await client.call("tenant-b-product", "settleBudget", {
+          commandId: "40000000-0000-4000-8000-000000000004",
+          budgetId: tenantAOnly.commandId,
+          usage: fixture.commands.settleChild.usage,
+        }),
+        "budget_not_found",
+      );
+
+      const tenantBFirst = await client.call(
+        "tenant-b-product",
+        "requestBudget",
+        tenantAOnly,
+      );
+      requireSuccess(tenantBFirst);
+      assert.ok(isRecord(tenantBFirst.body));
+      assert.equal(tenantBFirst.body.replayed, false);
+      const tenantBReplay = await client.call(
+        "tenant-b-product",
+        "requestBudget",
+        tenantAOnly,
+      );
+      requireSuccess(tenantBReplay);
+      assert.ok(isRecord(tenantBReplay.body));
+      assert.equal(tenantBReplay.body.replayed, true);
+
+      const tenantARoot = requireSuccess(
+        await client.call("tenant-a-product", "getBudget", {
+          budgetId: fixture.commands.createRoot.commandId,
+        }),
+      );
+      const tenantBRootResult = requireSuccess(
+        await client.call("tenant-b-product", "getBudget", {
+          budgetId: fixture.commands.createRoot.commandId,
+        }),
+      );
+      assert.equal(historyEntries(tenantARoot).length, 7);
+      assert.equal(historyEntries(tenantBRootResult).length, 4);
+    },
+  );
+
+  await harness.scenario(
+    NATIVE_ACCEPTANCE_SCENARIOS.databaseUnavailable,
     "A paused PostgreSQL authority returns one sanitized 503 and never falls back to local state.",
     async () => {
       await harness.pauseDatabase();
@@ -388,11 +502,18 @@ export async function runNativeAcceptanceScenarios(
       } finally {
         await harness.resumeDatabase();
       }
+      requireSuccess(
+        await client.call(
+          "tenant-a-product",
+          "getBudget",
+          fixture.commands.getChild,
+        ),
+      );
     },
   );
 
   await harness.scenario(
-    "limited-role-denial",
+    NATIVE_ACCEPTANCE_SCENARIOS.limitedRoleDenial,
     "The service role cannot read or write private Budget authority tables.",
     async () => {
       await assert.rejects(
@@ -407,11 +528,13 @@ export async function runNativeAcceptanceScenarios(
   );
 
   await harness.scenario(
-    "startup-refusal",
-    "Empty and incompatible databases fail before the service advertises readiness.",
+    NATIVE_ACCEPTANCE_SCENARIOS.startupRefusal,
+    "Empty, incompatible, checksum-drifted, and publicly executable databases fail before readiness.",
     async () => {
       await harness.expectStartupRefusal("empty");
       await harness.expectStartupRefusal("incompatible");
+      await harness.expectStartupRefusal("checksum");
+      await harness.expectStartupRefusal("unhardened");
     },
   );
 }

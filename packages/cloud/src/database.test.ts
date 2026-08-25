@@ -6,7 +6,10 @@ import {
   type QueryablePool,
   type QueryablePoolClient,
 } from "./database.ts";
-import { CONTRACT_DIGEST, PROCEDURES } from "./generated/procedures.ts";
+import {
+  INSTALLATION_MIGRATIONS,
+  PROCEDURES,
+} from "./generated/procedures.ts";
 
 const identity = {
   tenantId: "00000000-0000-4000-8000-000000000001",
@@ -22,6 +25,14 @@ function result<Row>(rows: readonly Row[]): { readonly rows: readonly Row[] } {
   return { rows };
 }
 
+function installedMigrationRows(): readonly Record<string, unknown>[] {
+  return INSTALLATION_MIGRATIONS.map((migration) => ({
+    migration_id: migration.id,
+    byte_checksum: migration.byteChecksum,
+    contract_digest: migration.contractDigest,
+  }));
+}
+
 function verifiedPool(
   options: {
     readonly invoke?: (
@@ -35,10 +46,12 @@ function verifiedPool(
   readonly poolQueries: RecordedQuery[];
   readonly clientQueries: RecordedQuery[];
   readonly releases: { count: number };
+  readonly releaseErrors: (Error | boolean | undefined)[];
 } {
   const poolQueries: RecordedQuery[] = [];
   const clientQueries: RecordedQuery[] = [];
   const releases = { count: 0 };
+  const releaseErrors: (Error | boolean | undefined)[] = [];
   const client: QueryablePoolClient = {
     async query(statement, parameters) {
       clientQueries.push({ statement, parameters });
@@ -50,18 +63,26 @@ function verifiedPool(
       }
       return result([]);
     },
-    release() {
+    release(error) {
       releases.count += 1;
+      releaseErrors.push(error);
     },
   };
   const pool: QueryablePool = {
     async query(statement, parameters) {
       poolQueries.push({ statement, parameters });
       if (statement.includes("schema_migrations")) {
-        return result([{ contract_digest: CONTRACT_DIGEST }]);
+        return result(installedMigrationRows());
       }
       if (statement.includes("to_regprocedure")) {
-        return result([{ exists: true, returns: "jsonb", can_execute: true }]);
+        return result([
+          {
+            exists: true,
+            returns: "jsonb",
+            can_execute: true,
+            public_execute: false,
+          },
+        ]);
       }
       throw new Error(`unexpected startup query: ${statement}`);
     },
@@ -70,7 +91,14 @@ function verifiedPool(
     },
     async end() {},
   };
-  return { pool, client, poolQueries, clientQueries, releases };
+  return {
+    pool,
+    client,
+    poolQueries,
+    clientQueries,
+    releases,
+    releaseErrors,
+  };
 }
 
 describe("PostgreSQL Cloud authority", () => {
@@ -95,7 +123,12 @@ describe("PostgreSQL Cloud authority", () => {
 
   it.each([
     ["missing", []],
-    ["incompatible", [{ contract_digest: "f".repeat(64) }]],
+    [
+      "incompatible",
+      installedMigrationRows().map((row, index) =>
+        index === 2 ? { ...row, contract_digest: "f".repeat(64) } : row,
+      ),
+    ],
   ])("rejects a %s installed contract", async (_name, digestRows) => {
     const fake = verifiedPool();
     const pool: QueryablePool = {
@@ -111,6 +144,23 @@ describe("PostgreSQL Cloud authority", () => {
     );
   });
 
+  it("rejects an installed migration checksum mismatch", async () => {
+    const fake = verifiedPool();
+    const rows = installedMigrationRows().map((row, index) =>
+      index === 0 ? { ...row, byte_checksum: "f".repeat(64) } : row,
+    );
+
+    await expect(
+      openPostgresAuthority({
+        ...fake.pool,
+        async query(statement, parameters) {
+          if (statement.includes("schema_migrations")) return result(rows);
+          return fake.pool.query(statement, parameters);
+        },
+      }),
+    ).rejects.toThrow(/installed contract/i);
+  });
+
   it("rejects a missing or incompatible procedure signature", async () => {
     const fake = verifiedPool();
     let signatureChecks = 0;
@@ -124,6 +174,30 @@ describe("PostgreSQL Cloud authority", () => {
               exists: signatureChecks !== 2,
               returns: signatureChecks === 3 ? "text" : "jsonb",
               can_execute: true,
+            },
+          ]);
+        }
+        return fake.pool.query(statement, parameters);
+      },
+    };
+
+    await expect(openPostgresAuthority(pool)).rejects.toThrow(
+      /installed procedure/i,
+    );
+  });
+
+  it("rejects a procedure executable by PUBLIC", async () => {
+    const fake = verifiedPool();
+    const pool: QueryablePool = {
+      ...fake.pool,
+      async query(statement, parameters) {
+        if (statement.includes("to_regprocedure")) {
+          return result([
+            {
+              exists: true,
+              returns: "jsonb",
+              can_execute: true,
+              public_execute: true,
             },
           ]);
         }
@@ -170,7 +244,7 @@ describe("PostgreSQL Cloud authority", () => {
     expect(fake.releases.count).toBe(1);
   });
 
-  it("rolls back, releases, and never retries a failed call", async () => {
+  it("destroys an unavailable connection and never retries a failed call", async () => {
     const unavailable = Object.assign(new Error("socket closed: password"), {
       code: "ECONNRESET",
     });
@@ -187,11 +261,12 @@ describe("PostgreSQL Cloud authority", () => {
       authority.invoke({ identity, operation: "createBudget", input: {} }),
     ).rejects.toBeInstanceOf(DatabaseUnavailableError);
     expect(calls).toBe(1);
-    expect(fake.clientQueries.at(-1)).toEqual({
+    expect(fake.clientQueries).not.toContainEqual({
       statement: "rollback",
       parameters: undefined,
     });
     expect(fake.releases.count).toBe(1);
+    expect(fake.releaseErrors[0]).toBe(unavailable);
   });
 
   it("classifies the pg query timeout used for a paused authority", async () => {
@@ -206,18 +281,21 @@ describe("PostgreSQL Cloud authority", () => {
       authority.invoke({ identity, operation: "getBudget", input: {} }),
     ).rejects.toBeInstanceOf(DatabaseUnavailableError);
     expect(fake.releases.count).toBe(1);
+    expect(fake.releaseErrors[0]).toBeInstanceOf(Error);
   });
 
   it("preserves unavailable classification when rollback also times out", async () => {
+    const procedureFailure = new Error("procedure failed");
+    const rollbackTimeout = new Error("Query read timeout");
     const fake = verifiedPool({
       async invoke() {
-        throw new Error("Query read timeout");
+        throw procedureFailure;
       },
     });
     const client: QueryablePoolClient = {
       ...fake.client,
       async query(statement, parameters) {
-        if (statement === "rollback") throw new Error("Query read timeout");
+        if (statement === "rollback") throw rollbackTimeout;
         return fake.client.query(statement, parameters);
       },
     };
@@ -232,6 +310,7 @@ describe("PostgreSQL Cloud authority", () => {
       authority.invoke({ identity, operation: "getBudget", input: {} }),
     ).rejects.toBeInstanceOf(DatabaseUnavailableError);
     expect(fake.releases.count).toBe(1);
+    expect(fake.releaseErrors[0]).toBe(rollbackTimeout);
   });
 
   it("rolls back and releases on invalid result row cardinality", async () => {
@@ -273,6 +352,7 @@ describe("PostgreSQL Cloud authority", () => {
       authority.invoke({ identity, operation: "settleBudget", input: {} }),
     ).rejects.toBeInstanceOf(AggregateError);
     expect(fake.releases.count).toBe(1);
+    expect(fake.releaseErrors[0]).toBeInstanceOf(Error);
   });
 
   it("does not query private Budget authority tables", async () => {

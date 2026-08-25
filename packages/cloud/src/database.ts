@@ -2,7 +2,7 @@ import { Pool } from "pg";
 
 import type { AuthenticatedIdentity } from "./authentication.ts";
 import {
-  CONTRACT_DIGEST,
+  INSTALLATION_MIGRATIONS,
   type OperationName,
   PROCEDURES,
 } from "./generated/procedures.ts";
@@ -13,7 +13,7 @@ export interface QueryRows {
 
 export interface QueryablePoolClient {
   query(statement: string, parameters?: readonly unknown[]): Promise<QueryRows>;
-  release(): void;
+  release(error?: Error | boolean): void;
 }
 
 export interface QueryablePool {
@@ -72,18 +72,23 @@ export async function openPostgresAuthority(
 }
 
 async function verifyInstalledContract(pool: QueryablePool): Promise<void> {
-  const digestResult = await pool.query(
-    `select contract_digest
+  const migrationResult = await pool.query(
+    `select migration_id, byte_checksum, contract_digest
        from keynes_internal.schema_migrations
-      where contract_digest is not null
       order by migration_id`,
   );
-  const digestRow = requireRecord(digestResult.rows[0]);
-  if (
-    digestResult.rows.length !== 1 ||
-    digestRow?.contract_digest !== CONTRACT_DIGEST
-  ) {
+  if (migrationResult.rows.length !== INSTALLATION_MIGRATIONS.length) {
     throw new Error("Installed contract does not match Cloud contract");
+  }
+  for (const [index, expected] of INSTALLATION_MIGRATIONS.entries()) {
+    const installed = requireRecord(migrationResult.rows[index]);
+    if (
+      installed?.migration_id !== expected.id ||
+      installed.byte_checksum !== expected.byteChecksum ||
+      installed.contract_digest !== expected.contractDigest
+    ) {
+      throw new Error("Installed contract does not match Cloud contract");
+    }
   }
 
   for (const procedure of Object.values(PROCEDURES)) {
@@ -92,7 +97,17 @@ async function verifyInstalledContract(pool: QueryablePool): Promise<void> {
       `select
          to_regprocedure($1) is not null as exists,
          pg_get_function_result(to_regprocedure($1)::oid) as returns,
-         has_function_privilege(current_user, $1, 'EXECUTE') as can_execute`,
+         has_function_privilege(current_user, $1, 'EXECUTE') as can_execute,
+         exists (
+           select 1
+             from pg_proc as candidate
+             cross join lateral aclexplode(
+               coalesce(candidate.proacl, acldefault('f', candidate.proowner))
+             ) as privilege
+            where candidate.oid = to_regprocedure($1)
+              and privilege.grantee = 0
+              and privilege.privilege_type = 'EXECUTE'
+         ) as public_execute`,
       [signature],
     );
     const row = requireRecord(signatureResult.rows[0]);
@@ -100,7 +115,8 @@ async function verifyInstalledContract(pool: QueryablePool): Promise<void> {
       signatureResult.rows.length !== 1 ||
       row?.exists !== true ||
       row.returns !== "jsonb" ||
-      row.can_execute !== true
+      row.can_execute !== true ||
+      row.public_execute !== false
     ) {
       throw new Error(`Installed procedure does not match ${signature}`);
     }
@@ -112,6 +128,7 @@ async function invoke(
   invocation: AuthorityInvocation,
 ): Promise<unknown> {
   let client: QueryablePoolClient;
+  let releaseError: Error | boolean | undefined;
   try {
     client = await pool.connect();
   } catch (error: unknown) {
@@ -150,9 +167,15 @@ async function invoke(
     await client.query("commit");
     return response;
   } catch (error: unknown) {
+    const classified = classifyUnavailable(error);
+    if (classified instanceof DatabaseUnavailableError) {
+      releaseError = releasableError(error);
+      throw classified;
+    }
     try {
       await client.query("rollback");
     } catch (rollbackError: unknown) {
+      releaseError = releasableError(rollbackError);
       const aggregate = new AggregateError(
         [error, rollbackError],
         "PostgreSQL transaction and rollback failed",
@@ -165,10 +188,14 @@ async function invoke(
       }
       throw aggregate;
     }
-    throw classifyUnavailable(error);
+    throw classified;
   } finally {
-    client.release();
+    client.release(releaseError);
   }
+}
+
+function releasableError(error: unknown): Error | boolean {
+  return error instanceof Error ? error : true;
 }
 
 function requireRecord(value: unknown): Record<string, unknown> | undefined {
