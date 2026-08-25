@@ -44,7 +44,7 @@
 - [X] T008 [US1] Implement `scripts/qualify-local-preview.ts` to validate one explicit archive, install it outside the repository without workspace linking, compile and execute `packages/sdk/qualification/consumer.mts`, measure the production dependency tree, and release temporary resources.
 - [X] T009 [US1] Wire explicit build, pack, and `test:package -- --archive <path>` commands into `package.json` and `packages/sdk/package.json` without implicit repacking or registry publication.
 - [X] T010 [US1] Run the package qualification against one archive, confirm the archive is at most 512 KiB and the production install is at most 35 MiB, and keep results `NOT RUN` in `docs/features/0005-local-preview-qualification/quickstart.md` unless the commands actually pass.
-  - Local package acceptance passed on Darwin arm64 with Node.js 26.5.0: SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe971764a7d609940c2cf1b690`, 28,400 compressed bytes, and 25,577,410 production bytes. The Linux reference measurement and hosted matrix remain `NOT RUN`.
+  - Local package acceptance passed on Darwin arm64 with Node.js 26.5.0: SHA-256 `2e01a7c323e3b1fd6d45a72f9fefc7096bdbbab648e8efa2b69005bebb49d23e`, 28,847 compressed bytes, and 25,577,997 production bytes. The Linux reference measurement and hosted matrix remain `NOT RUN`.
 
 **Checkpoint**: User Story 1 is independently usable from the exact archive through the package root.
 
@@ -109,9 +109,10 @@
 
 ## Phase 7: Polish and cross-cutting verification
 
-- [ ] T025 [P] Document the private local archive, package-root imports, supported ESM matrix, process-local limits, and non-publication boundary in `packages/sdk/README.md`.
-- [ ] T026 [P] Reconcile runnable commands, exact-archive reuse, fixed measurement fields, cleanup expectations, and `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/quickstart.md`.
-- [ ] T027 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, `pnpm test:package -- --archive <path>`, `pnpm verify`, `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, and `git diff --check`; reconcile every task and evidence claim in `docs/features/0005-local-preview-qualification/tasks.md`.
+- [X] T025 [P] Document the private local archive, package-root imports, supported ESM matrix, process-local limits, and non-publication boundary in `packages/sdk/README.md`.
+- [X] T026 [P] Reconcile runnable commands, exact-archive reuse, fixed measurement fields, cleanup expectations, and `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/quickstart.md`.
+- [X] T027 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, `pnpm test:package -- --archive <path>`, `pnpm verify`, `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, and `git diff --check`; reconcile every task and evidence claim in `docs/features/0005-local-preview-qualification/tasks.md`.
+  - Final local acceptance passed all named commands. The SDK suite passed 89 tests in 15 files, and `pnpm verify` passed all six Turbo tasks and dependency boundaries. T023 and T024 remain gated on an authorized hosted run for the final commit.
 
 ---
 

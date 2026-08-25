@@ -2,7 +2,7 @@
 
 **Status**: Local package acceptance passed on Darwin arm64 with Node.js 26.5.0. The Linux reference measurement and hosted matrix remain `NOT RUN`.
 
-The local run used archive SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe971764a7d609940c2cf1b690`. The archive was 28,400 bytes, and its production installation was 25,577,410 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
+The final local run used archive SHA-256 `2e01a7c323e3b1fd6d45a72f9fefc7096bdbbab648e8efa2b69005bebb49d23e`. The archive was 28,847 bytes, and its production installation was 25,577,997 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
 
 The same archive passed the installed Budget loop, two-runtime isolation, repeated closure, post-close rejection, and fresh-process state-loss checks. The unchanged source lifecycle and committed-response replay files passed 15 tests against the production source graph. Replay controls remain private and were not added to the archive.
 
@@ -30,16 +30,18 @@ package_dir="$(mktemp -d)"
 pnpm generate:check
 pnpm --filter @keynes/sdk build
 pnpm --filter @keynes/sdk pack --pack-destination "$package_dir"
+archive="$package_dir/keynes-sdk-0.0.0.tgz"
+sha256sum "$archive"
 ```
 
-Use the one archive in `$package_dir` for every later command. Repacking creates a different qualification subject.
+Use `$archive` for every later command. Repacking creates a different qualification subject.
 
 ## Run provider-free acceptance
 
 Run the archive-content and clean-consumer suite:
 
 ```sh
-pnpm test:package -- --archive "$package_dir/keynes-sdk-0.0.0.tgz"
+pnpm test:package -- --archive "$archive"
 pnpm verify
 ```
 
@@ -51,11 +53,15 @@ The benchmark is an explicit qualification lane. Write one new record:
 
 ```sh
 pnpm qualify:local -- \
-  --archive "$package_dir/keynes-sdk-0.0.0.tgz" \
+  --archive "$archive" \
   --output "$package_dir/local-preview-qualification.json"
 ```
 
 Check that the command reports the archive digest, exact environment, sample counts, p95 values, and limits, then exits successfully. A local pass applies only to that named environment.
+
+The JSON record has fixed `archive`, `environment`, `method`, `samples`, `observed`, and `limits` objects. The controller retains all 30 RSS, cold-create, and first-request samples in collection order. It also retains all 100 steady-request samples after 10 excluded warmups. Each `observed` value contains only `count` and nearest-rank `p95`.
+
+The command refuses to overwrite the output path. It removes the external installation and waits for every child process before it exits. Keep `$package_dir` until you have retained the archive and JSON record, then remove it.
 
 ## Run the support matrix
 
@@ -72,3 +78,5 @@ The workflow must use one archive digest for all six Node.js and host combinatio
 Provider-free acceptance proves the packed ESM facade, copied database files, clean Linux installation, Budget-loop behavior, and declared lifecycle cases. The manual workflow can add the declared Node.js, operating-system, architecture, size, memory, startup, and latency evidence.
 
 Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, Cloud, Policy, hostile-process security, recovery, upgrades, registry publication, paid providers, production workloads, and adopter use remain `NOT RUN`.
+
+The hosted six-environment matrix and Linux x64 Node.js 24 measurement also remain `NOT RUN` until one manual workflow passes for the exact commit and archive digest.
