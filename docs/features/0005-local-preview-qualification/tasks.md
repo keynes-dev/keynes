@@ -79,14 +79,15 @@
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add failing controller tests for required and unknown arguments, output overwrite refusal, archive and environment identity, finite non-negative raw samples, minimum counts, fixed observation keys, nearest-rank p95, unchanged sample retention, limits, and nonzero limit failures in `scripts/measure-local-preview.test.ts`.
-- [ ] T017 [P] [US3] Add failing worker tests for empty-process RSS, ready-runtime RSS, cold creation, first funded request, warm-up exclusion, steady requests, explicit close, and one structured message per process in `packages/sdk/qualification/measure-worker.test.mjs`.
+- [X] T016 [P] [US3] Add failing controller tests for required and unknown arguments, output overwrite refusal, archive and environment identity, finite non-negative raw samples, minimum counts, fixed observation keys, nearest-rank p95, unchanged sample retention, limits, and nonzero limit failures in `scripts/measure-local-preview.test.ts`.
+- [X] T017 [P] [US3] Add failing worker tests for empty-process RSS, ready-runtime RSS, cold creation, first funded request, warm-up exclusion, steady requests, explicit close, and one structured message per process in `packages/sdk/qualification/measure-worker.test.mjs`.
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Implement the installed-package worker with `performance.now()`, `process.memoryUsage.rss()`, fixed Resource and Budget fixtures, explicit close, and structured stdout in `packages/sdk/qualification/measure-worker.mjs`.
-- [ ] T019 [US3] Implement `scripts/measure-local-preview.ts` to control fresh processes, retain ordered raw samples, compute only fixed count and nearest-rank p95 observations, write one new JSON record, and exit nonzero for invalid input or exceeded limits.
-- [ ] T020 [US3] Wire `pnpm qualify:local -- --archive <path> --output <record.json>`, run a controlled low-limit failure, and run the real Linux x64 Node.js 24 measurement only when that reference environment is available; preserve `NOT RUN` otherwise in `docs/features/0005-local-preview-qualification/quickstart.md`.
+- [X] T018 [US3] Implement the installed-package worker with `performance.now()`, `process.memoryUsage.rss()`, fixed Resource and Budget fixtures, explicit close, and structured stdout in `packages/sdk/qualification/measure-worker.mjs`.
+- [X] T019 [US3] Implement `scripts/measure-local-preview.ts` to control fresh processes, retain ordered raw samples, compute only fixed count and nearest-rank p95 observations, write one new JSON record, and exit nonzero for invalid input or exceeded limits.
+- [X] T020 [US3] Wire `pnpm qualify:local -- --archive <path> --output <record.json>`, run a controlled low-limit failure, and run the real Linux x64 Node.js 24 measurement only when that reference environment is available; preserve `NOT RUN` otherwise in `docs/features/0005-local-preview-qualification/quickstart.md`.
+  - The controlled cold-create limit failure passed. The Linux x64 Node.js 24 reference measurement remains `NOT RUN`; the available host is Darwin arm64 with Node.js 26.5.0.
 
 **Checkpoint**: User Story 3 produces a reviewable record without claiming other hosts or a hosted pass.
 

@@ -6,6 +6,8 @@ The local run used archive SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe9717
 
 The same archive passed the installed Budget loop, two-runtime isolation, repeated closure, post-close rejection, and fresh-process state-loss checks. The unchanged source lifecycle and committed-response replay files passed 15 tests against the production source graph. Replay controls remain private and were not added to the archive.
 
+The measurement controller and worker checks passed, including a controlled cold-create limit failure. No retained performance record was produced because the required Linux x64 Node.js 24 reference environment was unavailable. Memory and latency remain `NOT RUN`.
+
 ## Prerequisites
 
 - a clean checkout of `feat/0005-local-preview-qualification`

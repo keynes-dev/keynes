@@ -82,6 +82,20 @@ interface ArchiveEntry {
   readonly body: Buffer;
 }
 
+export interface ArchiveInspection {
+  readonly sha256: string;
+  readonly compressedBytes: number;
+  readonly packageVersion: string;
+  readonly pgliteVersion: "0.5.5";
+  readonly contractDigest: string;
+}
+
+export interface ExternalConsumer {
+  readonly root: string;
+  readonly productionBytes: number;
+  readonly close: () => Promise<void>;
+}
+
 export function parseArguments(
   args: readonly string[],
 ): QualificationArguments {
@@ -150,14 +164,47 @@ export async function qualifyArchive(
     productionBytes: 0,
   });
 
-  await mkdir(tmpdir(), { recursive: true });
-  const consumerRoot = await mkdtemp(
-    resolve(tmpdir(), "keynes-local-preview-"),
+  const external = await installExternalConsumer(
+    args.archivePath,
+    archive.compressedBytes,
   );
-  assertOutsideRepository(repositoryRoot, consumerRoot);
   try {
-    await cp(qualificationRoot, consumerRoot, { recursive: true });
-    const pgliteArchive = resolve(consumerRoot, "pglite-0.5.5.tgz");
+    const consumer = resolve(external.root, "build/consumer.mjs");
+    run(process.execPath, [consumer, "budget-loop"], external.root);
+    run(process.execPath, [consumer, "isolation"], external.root);
+    run(process.execPath, [consumer, "closure"], external.root);
+    const processState = parseProcessState(
+      run(process.execPath, [consumer, "write-then-exit"], external.root),
+    );
+    run(
+      process.execPath,
+      [consumer, "read-after-restart", processState.resourceTypeId],
+      external.root,
+    );
+
+    return {
+      archivePath: args.archivePath,
+      archiveSha256: archive.sha256,
+      compressedBytes: archive.compressedBytes,
+      productionBytes: external.productionBytes,
+      packageVersion: archive.packageVersion,
+      checks: ["budget-loop", "isolation", "closure", "process-loss"],
+    };
+  } finally {
+    await external.close();
+  }
+}
+
+export async function installExternalConsumer(
+  archivePath: string,
+  compressedBytes: number,
+): Promise<ExternalConsumer> {
+  await mkdir(tmpdir(), { recursive: true });
+  const root = await mkdtemp(resolve(tmpdir(), "keynes-local-preview-"));
+  assertOutsideRepository(repositoryRoot, root);
+  try {
+    await cp(qualificationRoot, root, { recursive: true });
+    const pgliteArchive = resolve(root, "pglite-0.5.5.tgz");
     run(
       pnpm,
       ["pack", "--out", pgliteArchive],
@@ -169,83 +216,52 @@ export async function qualifyArchive(
       ),
     );
     await writeFile(
-      resolve(consumerRoot, "package.json"),
+      resolve(root, "package.json"),
       `${JSON.stringify(
         {
           private: true,
           type: "module",
-          dependencies: {
-            "@keynes/sdk": pathToFileURL(args.archivePath).href,
-          },
+          dependencies: { "@keynes/sdk": pathToFileURL(archivePath).href },
         },
         null,
         2,
       )}\n`,
     );
     await writeFile(
-      resolve(consumerRoot, "pnpm-workspace.yaml"),
+      resolve(root, "pnpm-workspace.yaml"),
       `packages:\n  - .\noverrides:\n  "@electric-sql/pglite": ${JSON.stringify(pathToFileURL(pgliteArchive).href)}\n`,
     );
+    run(pnpm, ["install", "--prod", "--offline", "--ignore-scripts"], root);
 
-    run(
-      pnpm,
-      ["install", "--prod", "--offline", "--ignore-scripts"],
-      consumerRoot,
-    );
     const installedPackage = await realpath(
-      resolve(consumerRoot, "node_modules/@keynes/sdk"),
+      resolve(root, "node_modules/@keynes/sdk"),
     );
     assertOutsideRepository(repositoryRoot, installedPackage);
-    assertWithin(await realpath(consumerRoot), installedPackage);
-
-    const productionBytes = await directoryBytes(
-      resolve(consumerRoot, "node_modules"),
-    );
-    validateSizes({
-      compressedBytes: archive.compressedBytes,
-      productionBytes,
-    });
+    assertWithin(await realpath(root), installedPackage);
+    const productionBytes = await directoryBytes(resolve(root, "node_modules"));
+    validateSizes({ compressedBytes, productionBytes });
 
     run(
       process.execPath,
       [
         resolve(repositoryRoot, "node_modules/typescript/bin/tsc"),
         "--project",
-        resolve(consumerRoot, "tsconfig.json"),
+        resolve(root, "tsconfig.json"),
       ],
-      consumerRoot,
+      root,
     );
-    const consumer = resolve(consumerRoot, "build/consumer.mjs");
-    run(process.execPath, [consumer, "budget-loop"], consumerRoot);
-    run(process.execPath, [consumer, "isolation"], consumerRoot);
-    run(process.execPath, [consumer, "closure"], consumerRoot);
-    const processState = parseProcessState(
-      run(process.execPath, [consumer, "write-then-exit"], consumerRoot),
-    );
-    run(
-      process.execPath,
-      [consumer, "read-after-restart", processState.resourceTypeId],
-      consumerRoot,
-    );
-
     return {
-      archivePath: args.archivePath,
-      archiveSha256: archive.sha256,
-      compressedBytes: archive.compressedBytes,
+      root,
       productionBytes,
-      packageVersion: archive.packageVersion,
-      checks: ["budget-loop", "isolation", "closure", "process-loss"],
+      close: () => rm(root, { recursive: true, force: true }),
     };
-  } finally {
-    await rm(consumerRoot, { recursive: true, force: true });
+  } catch (error: unknown) {
+    await rm(root, { recursive: true, force: true });
+    throw error;
   }
 }
 
-async function inspectArchive(path: string): Promise<{
-  readonly sha256: string;
-  readonly compressedBytes: number;
-  readonly packageVersion: string;
-}> {
+export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const archiveStat = await stat(path);
   if (!archiveStat.isFile()) throw new Error(`Archive is not a file: ${path}`);
   const bytes = await readFile(path);
@@ -267,11 +283,24 @@ async function inspectArchive(path: string): Promise<{
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
   }
+  const installationRecord = entries.find(
+    (entry) =>
+      entry.path === "package/dist/database/generated/installation-record.json",
+  );
+  if (installationRecord === undefined) {
+    throw new Error("Archive installation record is missing");
+  }
+  const record: unknown = JSON.parse(installationRecord.body.toString("utf8"));
+  if (!isRecord(record) || typeof record.contractDigest !== "string") {
+    throw new Error("Archive installation record is invalid");
+  }
 
   return {
     sha256: createHash("sha256").update(bytes).digest("hex"),
     compressedBytes: archiveStat.size,
     packageVersion: value.version,
+    pgliteVersion: "0.5.5",
+    contractDigest: record.contractDigest,
   };
 }
 
