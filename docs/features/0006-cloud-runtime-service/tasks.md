@@ -17,8 +17,8 @@
 
 **Purpose**: Turn the private Cloud shell into a Node.js and PostgreSQL service workspace without implementing service behavior.
 
-- [ ] T001 Update `packages/cloud/package.json`, `packages/cloud/tsconfig.json`, `package.json`, and `pnpm-lock.yaml` for Node.js 24-26, runtime `pg@8.23.0`, development `@types/pg@8.23.1`, Cloud unit tests, the excluded native suite, and the root `pnpm test:cloud` command; add no framework or SDK dependency.
-- [ ] T002 [P] Update `packages/cloud/README.md` to describe the FEAT-0006 private service boundary, generated procedure manifest, preinstalled-database requirement, limited execution role, test-only controlled authentication, explicit deferrals, and the prohibition on SDK imports or private authority writes.
+- [X] T001 Update `packages/cloud/package.json`, `packages/cloud/tsconfig.json`, `package.json`, and `pnpm-lock.yaml` for Node.js 24-26, runtime `pg@8.23.0`, development `@types/pg@8.23.1`, Cloud unit tests, the excluded native suite, and the root `pnpm test:cloud` command; add no framework or SDK dependency.
+- [X] T002 [P] Update `packages/cloud/README.md` to describe the FEAT-0006 private service boundary, generated procedure manifest, preinstalled-database requirement, limited execution role, test-only controlled authentication, explicit deferrals, and the prohibition on SDK imports or private authority writes.
 
 **Checkpoint**: The workspace can declare and type-check the planned dependencies, but it still exposes no Cloud behavior.
 

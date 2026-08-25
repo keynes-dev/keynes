@@ -2,42 +2,32 @@
 
 - **Owner:** `@shubsharan`
 - **Workspace:** Private, non-publishable `@keynes/cloud`
-- **Functional status:** Nonfunctional in FEAT-0001
+- **Feature:** `FEAT-0006`
 
 ## Responsibility
 
-`packages/cloud/` owns the future private TypeScript service for Keynes Cloud.
-That service will own authentication, tenant and Budget authorization, routing,
-pooling, retries, recovery fencing, and translation between the public protocol
-and authoritative PostgreSQL procedures.
+`packages/cloud/` owns the private TypeScript service used to exercise Keynes Cloud. The service authenticates a controlled bearer token, binds each request to one tenant and principal, invokes one allowlisted PostgreSQL procedure, and returns the authoritative wire response.
 
-FEAT-0001 creates only a private workspace shell. It implements no service,
-endpoint, authentication, provider integration, or Keynes behavior.
+PostgreSQL remains the only Budget authority. Cloud does not validate Budget commands, decide permissions, implement Resource accounting, store replay results, or write Budget history.
 
-## Allowed and public edges
+## Procedure edge
 
-The future external edge is the Cloud protocol defined by shared
-contracts. Within the repository, Cloud may consume public contract artifacts
-and invoke public database procedures.
+`packages/cloud/src/generated/procedures.ts` is generated from `packages/contracts/contract.json`. It contains the shared contract digest and the five static parameterized procedure statements. Run `pnpm generate` to update it and `pnpm generate:check` to detect drift.
 
-Cloud must not import `packages/sdk/`, private database storage, `scripts/`, or
-another area's owner-local tests. Clients never receive database credentials or
-use arbitrary SQL through Cloud.
+Cloud does not import `packages/sdk/`, parse repository contract files at runtime, or construct procedure SQL from request data.
 
-## Private internals
+## Database boundary
 
-Authentication, tenant routing, connection management, retry and recovery
-mechanics, operational overlays, and service-local tests remain private. None of
-these concerns may redefine Budget transitions or Policy evaluation.
+The service requires a preinstalled PostgreSQL database. Startup verifies the installed contract and procedure signatures before the service listens.
 
-## Source policy
+The runtime database role can read the installation ledger and execute the five generated procedures. It cannot read or write private Resource, Budget, command, or history tables. A separate owner connection installs migrations and test fixtures for native acceptance, then closes before service traffic starts.
 
-Use TypeScript only. Keep service tests beside the source they exercise. The
-FEAT-0001 manifest is private and makes no deployment, availability, provider,
-protocol-compatibility, or publication claim.
+## Authentication
 
-## Deferred work
+FEAT-0006 uses controlled test identities. Startup configuration stores only SHA-256 bearer-token digests bound to one tenant and principal. The service never accepts tenant, principal, database, SQL, retry, or fault controls from an HTTP request.
 
-Cloud runtime behavior, managed infrastructure, credentials, security testing,
-recovery testing, operational qualification, and public protocol support belong
-to later roadmap stages and remain `NOT RUN`.
+## Scope
+
+FEAT-0006 proves the private service, one PostgreSQL authority home, tenant isolation, restart durability, and exact replay after committed-response loss. The service has no framework, SDK dependency, response cache, automatic retry, routing layer, authority movement, or recovery manager.
+
+Managed deployment, external identity integration, TLS and live exposure, the public Cloud SDK and protocol, Policy, backups, failover, multi-region behavior, performance, security qualification, and production readiness remain `NOT RUN`.
