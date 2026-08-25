@@ -100,10 +100,11 @@
 - [X] T021 Add `.github/workflows/local-preview.yml` with `workflow_dispatch`, read-only permissions, pinned actions, timeouts, one Linux x64 Node.js 24 archive build, digest-preserving artifact transfer, six consumer jobs, one reference measurement, and retained archive and JSON artifacts.
 - [X] T022 Validate `.github/workflows/local-preview.yml` locally where possible and confirm every job consumes the same archive SHA-256 without publishing or using provider credentials.
   - Local validation passed YAML parsing, formatting, 13 full-SHA action pins, the declared 3-by-2 matrix, forbidden credential/publication checks, and both archive digest commands. `actionlint` remains `NOT RUN`. Hosted run `32851452990` passed the build and all six digest-checking consumer jobs without publication or provider credentials.
-- [ ] T023 After explicit authorization, dispatch the manual workflow for the exact commit, wait for every required job, and record the run URL, commit, archive digest, limits, and excluded lanes only if all jobs pass in `docs/roadmap.md`.
+- [X] T023 After explicit authorization, dispatch the manual workflow for the exact commit, wait for every required job, and record the run URL, commit, archive digest, limits, and excluded lanes only if all jobs pass in `docs/roadmap.md`.
   - Authorized run `32851452990` completed for exact commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. The build and all six consumer jobs passed, but the reference measurement failed the RSS ceiling. No accepted evidence was added to `docs/roadmap.md`.
-- [ ] T024 Change FEAT-0005 to `Complete` in `docs/roadmap.md` only after `pnpm verify` and the full manual workflow pass for the same commit; otherwise leave the roadmap status unchanged.
-  - `pnpm verify` passed on exact commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8`, but hosted run `32851452990` failed its reference measurement. The roadmap remains `Not started`.
+  - Authorized run `32882262030` passed for exact commit `7231d0a461d20c73b85a767376653d824be7e514` and archive SHA-256 `d5b85d4bcf3df7896d599254d138a487a3784c4a6cb10da77e3af7ee9b3e9e46`. The build, all six consumer jobs, and the Linux reference measurement passed. Ready RSS, cold creation, first request, and steady request p95 values were 768,188,416 bytes, 2,585.030 milliseconds, 22.832 milliseconds, and 9.953 milliseconds against limits of 1,073,741,824 bytes, 3,000 milliseconds, 250 milliseconds, and 100 milliseconds.
+- [X] T024 Change FEAT-0005 to `Complete` in `docs/roadmap.md` only after `pnpm verify` and the full manual workflow pass for the same commit; otherwise leave the roadmap status unchanged.
+  - `pnpm verify` and hosted run `32882262030` passed for exact commit `7231d0a461d20c73b85a767376653d824be7e514`. The roadmap is `Complete`; its evidence note retains the temporary RSS ceiling and all excluded lanes.
 
 **Checkpoint**: The roadmap claim matches executed hosted evidence and no broader support claim is implied.
 
@@ -114,7 +115,7 @@
 - [X] T025 [P] Document the private local archive, package-root imports, supported ESM matrix, process-local limits, and non-publication boundary in `packages/sdk/README.md`.
 - [X] T026 [P] Reconcile runnable commands, exact-archive reuse, fixed measurement fields, cleanup expectations, and `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/quickstart.md`.
 - [X] T027 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, `pnpm test:package -- --archive <path>`, `pnpm verify`, `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, and `git diff --check`; reconcile every task and evidence claim in `docs/features/0005-local-preview-qualification/tasks.md`.
-  - Final local acceptance passed all named commands. The SDK suite passed 89 tests in 15 files, and `pnpm verify` passed all six Turbo tasks and dependency boundaries. T023 and T024 remain incomplete because the authorized hosted run failed the reference RSS ceiling.
+  - Final local acceptance passed all named commands. The SDK suite passed 89 tests in 15 files, and `pnpm verify` passed all six Turbo tasks and dependency boundaries. The later authorized hosted run passed T023 and T024 for the exact qualified commit.
 
 ---
 

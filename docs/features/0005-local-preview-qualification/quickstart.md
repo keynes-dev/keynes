@@ -1,6 +1,6 @@
 # Qualify the local preview
 
-**Status**: Local package acceptance passed on Darwin arm64 with Node.js 26.5.0. The final hosted attempt passed all six consumer jobs but failed the Linux reference RSS limit, so FEAT-0005 is not qualified.
+**Status**: Qualified for the declared local-preview ESM matrix and temporary Linux reference limits.
 
 The final local run used archive SHA-256 `2e01a7c323e3b1fd6d45a72f9fefc7096bdbbab648e8efa2b69005bebb49d23e`. The archive was 28,847 bytes, and its production installation was 25,577,997 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
 
@@ -8,7 +8,9 @@ The same archive passed the installed Budget loop, two-runtime isolation, repeat
 
 The measurement controller and worker checks passed, including a controlled cold-create limit failure. [Hosted run 32851452990](https://github.com/shubsharan/keynes/actions/runs/32851452990) retained a Linux x64 Node.js 24 record for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. Ready-runtime RSS p95 was 774,340,608 bytes against the then-current 201,326,592-byte limit. Cold creation, first request, and steady request p95 values passed at 2,550.779, 18.773, and 9.469 milliseconds. The failed RSS check makes that attempt ineligible as accepted evidence.
 
-The ready-runtime RSS ceiling is now temporarily 1 GiB for the local preview. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) records the required 512 MiB p95 reduction, the 384 MiB stretch target, and the investigation into a lean PGlite build. A new exact-commit hosted run is still required; the earlier failed attempt is not reclassified.
+The ready-runtime RSS ceiling is temporarily 1 GiB for the local preview. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) records the required 512 MiB p95 reduction, the 384 MiB stretch target, and the investigation into a lean PGlite build. The earlier failed attempt is not reclassified.
+
+[Hosted run 32882262030](https://github.com/shubsharan/keynes/actions/runs/32882262030) passed for exact commit `7231d0a461d20c73b85a767376653d824be7e514` and archive SHA-256 `d5b85d4bcf3df7896d599254d138a487a3784c4a6cb10da77e3af7ee9b3e9e46`. All six clean consumers passed. The Linux x64 Node.js 24 record measured ready RSS, cold creation, first request, and steady request p95 values of 768,188,416 bytes, 2,585.030 milliseconds, 22.832 milliseconds, and 9.953 milliseconds. The archive was 28,871 bytes and the production installation was 25,576,425 bytes.
 
 ## Prerequisites
 
