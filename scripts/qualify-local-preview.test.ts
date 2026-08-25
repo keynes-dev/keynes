@@ -1,14 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gzipSync, gunzipSync } from "node:zlib";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   assertOutsideRepository,
+  inspectArchive,
   parseArguments,
   validatePackageFilePaths,
   validateSizes,
@@ -78,6 +80,22 @@ describe("local preview qualification runner", () => {
         resolve(repositoryRoot, "packages/sdk"),
       ),
     ).toThrow("workspace");
+  });
+
+  it("rejects packaged database bytes that differ from the canonical tree", async () => {
+    const archive = gunzipSync(await readFile(archivePath));
+    const canonical = await readFile(
+      resolve(repositoryRoot, "packages/database/README.md"),
+    );
+    const offset = archive.indexOf(canonical);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    archive.writeUInt8(archive.readUInt8(offset) ^ 1, offset);
+
+    const tamperedPath = resolve(suiteRoot, "tampered-sdk.tgz");
+    await writeFile(tamperedPath, gzipSync(archive));
+    await expect(inspectArchive(tamperedPath)).rejects.toThrow(
+      "differs from canonical source",
+    );
   });
 
   it("retains the exact archive identity, installs externally, and cleans up", async () => {

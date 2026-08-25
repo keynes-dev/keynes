@@ -268,6 +268,21 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const bytes = await readFile(path);
   const entries = readTar(gunzipSync(bytes));
   validatePackageFilePaths(entries.map((entry) => entry.path));
+  for (const path of databaseFiles) {
+    const entry = entries.find(
+      (candidate) => candidate.path === `package/dist/database/${path}`,
+    );
+    if (
+      entry === undefined ||
+      !entry.body.equals(
+        await readFile(resolve(repositoryRoot, "packages/database", path)),
+      )
+    ) {
+      throw new Error(
+        `Archive database file differs from canonical source: ${path}`,
+      );
+    }
+  }
 
   const manifest = entries.find(
     (entry) => entry.path === "package/package.json",
