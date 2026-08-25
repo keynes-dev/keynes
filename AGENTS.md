@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/0004-local-runtime-sdk/plan.md`.
+`docs/features/0005-local-preview-qualification/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow
