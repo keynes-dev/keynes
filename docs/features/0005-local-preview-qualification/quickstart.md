@@ -1,6 +1,8 @@
 # Qualify the local preview
 
-**Status**: `PLANNED; NOT RUN`. These commands describe FEAT-0005 acceptance. They do not record a passing archive, matrix, or benchmark.
+**Status**: Local package acceptance passed on Darwin arm64 with Node.js 26.5.0. The Linux reference measurement and hosted matrix remain `NOT RUN`.
+
+The local run used archive SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe971764a7d609940c2cf1b690`. The archive was 28,400 bytes, and its production installation was 25,577,410 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
 
 ## Prerequisites
 

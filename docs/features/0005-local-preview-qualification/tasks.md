@@ -36,14 +36,15 @@
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Add one failing ESM consumer that imports only `@keynes/sdk`, exercises the complete typed Resource and Budget loop, and makes deep or private imports fail compilation in `packages/sdk/qualification/consumer.mts` and `packages/sdk/qualification/tsconfig.json`.
-- [ ] T007 [P] [US1] Add failing runner tests for required and unknown arguments, explicit archive identity, SHA-256 retention, file allowlists, compressed and production size limits, external temporary installation, workspace-link rejection, and cleanup in `scripts/qualify-local-preview.test.ts`.
+- [X] T006 [P] [US1] Add one failing ESM consumer that imports only `@keynes/sdk`, exercises the complete typed Resource and Budget loop, and makes deep or private imports fail compilation in `packages/sdk/qualification/consumer.mts` and `packages/sdk/qualification/tsconfig.json`.
+- [X] T007 [P] [US1] Add failing runner tests for required and unknown arguments, explicit archive identity, SHA-256 retention, file allowlists, compressed and production size limits, external temporary installation, workspace-link rejection, and cleanup in `scripts/qualify-local-preview.test.ts`.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implement `scripts/qualify-local-preview.ts` to validate one explicit archive, install it outside the repository without workspace linking, compile and execute `packages/sdk/qualification/consumer.mts`, measure the production dependency tree, and release temporary resources.
-- [ ] T009 [US1] Wire explicit build, pack, and `test:package -- --archive <path>` commands into `package.json` and `packages/sdk/package.json` without implicit repacking or registry publication.
-- [ ] T010 [US1] Run the package qualification against one archive, confirm the archive is at most 512 KiB and the production install is at most 35 MiB, and keep results `NOT RUN` in `docs/features/0005-local-preview-qualification/quickstart.md` unless the commands actually pass.
+- [X] T008 [US1] Implement `scripts/qualify-local-preview.ts` to validate one explicit archive, install it outside the repository without workspace linking, compile and execute `packages/sdk/qualification/consumer.mts`, measure the production dependency tree, and release temporary resources.
+- [X] T009 [US1] Wire explicit build, pack, and `test:package -- --archive <path>` commands into `package.json` and `packages/sdk/package.json` without implicit repacking or registry publication.
+- [X] T010 [US1] Run the package qualification against one archive, confirm the archive is at most 512 KiB and the production install is at most 35 MiB, and keep results `NOT RUN` in `docs/features/0005-local-preview-qualification/quickstart.md` unless the commands actually pass.
+  - Local package acceptance passed on Darwin arm64 with Node.js 26.5.0: SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe971764a7d609940c2cf1b690`, 28,400 compressed bytes, and 25,577,410 production bytes. The Linux reference measurement and hosted matrix remain `NOT RUN`.
 
 **Checkpoint**: User Story 1 is independently usable from the exact archive through the package root.
 
