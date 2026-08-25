@@ -42,6 +42,8 @@ This record resolves the technical choices needed to plan FEAT-0005. It qualifie
 
 **Alternatives considered**: In-process cold loops reuse loaded code. Heap-only measurements omit WebAssembly and native allocations. A benchmark dependency adds a framework for four direct measurements. Dropping outliers after the run makes the evidence impossible to audit.
 
+The initial hosted attempt measured 774,340,608 bytes p95 against the original 192 MiB ceiling. The preview ceiling was temporarily raised to 1 GiB so qualification can proceed without presenting the current footprint as the desired result. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns profiling and the decision between upstream work, a reproducible Keynes-specific PGlite build, and a maintained fork; its required target is 512 MiB p95 and its stretch target is 384 MiB p95.
+
 ## R6. Evidence retention
 
 **Decision**: Write one fixed-shape JSON measurement record and one workflow summary for each manual attempt, upload the archive and record as workflow artifacts, and add the accepted run URL plus its evidence boundary to `docs/roadmap.md`. Keep thresholds in checked-in tests and scripts. Do not add a schema version, generic summary map, redundant status field, checked-in feature report, or evidence service.

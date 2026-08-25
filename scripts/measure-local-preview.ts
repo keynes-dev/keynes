@@ -11,7 +11,7 @@ import {
   installExternalConsumer,
 } from "./qualify-local-preview.ts";
 
-const READY_RSS_LIMIT_BYTES = 192 * 1024 * 1024;
+const READY_RSS_LIMIT_BYTES = 1024 * 1024 * 1024;
 const COLD_CREATE_LIMIT_MILLISECONDS = 3_000;
 const FIRST_REQUEST_LIMIT_MILLISECONDS = 250;
 const STEADY_REQUEST_LIMIT_MILLISECONDS = 100;

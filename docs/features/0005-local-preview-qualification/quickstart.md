@@ -6,7 +6,9 @@ The final local run used archive SHA-256 `2e01a7c323e3b1fd6d45a72f9fefc7096bdbba
 
 The same archive passed the installed Budget loop, two-runtime isolation, repeated closure, post-close rejection, and fresh-process state-loss checks. The unchanged source lifecycle and committed-response replay files passed 15 tests against the production source graph. Replay controls remain private and were not added to the archive.
 
-The measurement controller and worker checks passed, including a controlled cold-create limit failure. [Hosted run 32851452990](https://github.com/shubsharan/keynes/actions/runs/32851452990) retained a Linux x64 Node.js 24 record for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. Ready-runtime RSS p95 was 774,340,608 bytes against a 201,326,592-byte limit. Cold creation, first request, and steady request p95 values passed at 2,550.779, 18.773, and 9.469 milliseconds. The failed RSS check makes the whole attempt ineligible as accepted evidence.
+The measurement controller and worker checks passed, including a controlled cold-create limit failure. [Hosted run 32851452990](https://github.com/shubsharan/keynes/actions/runs/32851452990) retained a Linux x64 Node.js 24 record for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. Ready-runtime RSS p95 was 774,340,608 bytes against the then-current 201,326,592-byte limit. Cold creation, first request, and steady request p95 values passed at 2,550.779, 18.773, and 9.469 milliseconds. The failed RSS check makes that attempt ineligible as accepted evidence.
+
+The ready-runtime RSS ceiling is now temporarily 1 GiB for the local preview. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) records the required 512 MiB p95 reduction, the 384 MiB stretch target, and the investigation into a lean PGlite build. A new exact-commit hosted run is still required; the earlier failed attempt is not reclassified.
 
 ## Prerequisites
 

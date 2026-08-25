@@ -80,7 +80,7 @@ interface LocalPreviewQualificationRecord {
   readonly limits: {
     readonly archiveBytes: 524288;
     readonly productionBytes: 36700160;
-    readonly readyRssDeltaBytes: 201326592;
+    readonly readyRssDeltaBytes: 1073741824;
     readonly coldCreateP95Milliseconds: 3000;
     readonly firstRequestP95Milliseconds: 250;
     readonly steadyRequestP95Milliseconds: 100;

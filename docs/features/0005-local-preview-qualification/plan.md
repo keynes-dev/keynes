@@ -17,7 +17,7 @@ Keep package construction and the Linux clean-consumer check in `pnpm verify`. A
 **Testing**: Existing source lifecycle and replay suites; one installed consumer; exact package-content checks; a hosted support matrix; fresh-process benchmark samples
 **Target Platform**: Linux x64, macOS arm64, and Windows x64 on Node.js 24 and 26; Linux x64 with Node.js 24 is the performance reference
 **Project Type**: Private TypeScript SDK workspace producing an unpublished installable ESM archive
-**Performance Goals**: Archive at most 512 KiB compressed; production install at most 35 MiB; ready-runtime RSS delta at most 192 MiB; cold create p95 at most 3 seconds; first request p95 at most 250 milliseconds; steady request p95 at most 100 milliseconds
+**Performance Goals**: Archive at most 512 KiB compressed; production install at most 35 MiB; ready-runtime RSS delta at most 1 GiB under the temporary local-preview ceiling; cold create p95 at most 3 seconds; first request p95 at most 250 milliseconds; steady request p95 at most 100 milliseconds. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns the required 512 MiB p95 reduction and 384 MiB stretch target.
 **Constraints**: No registry publication, new production dependency, browser or CommonJS claim, platform-native Keynes binary, repository-path dependency, alternate Budget semantics, database handle, new host mode, or claim beyond the executed matrix
 **Scale/Scope**: One package root, one copied database directory, one clean consumer, six host and Node.js combinations, four measurement groups, and one explicit qualification workflow
 

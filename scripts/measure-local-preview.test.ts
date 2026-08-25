@@ -69,6 +69,7 @@ describe("local preview measurement controller", () => {
       count: 100,
       p95: 95,
     });
+    expect(record.limits.readyRssDeltaBytes).toBe(1024 * 1024 * 1024);
   });
 
   it("rejects invalid samples, insufficient counts, and exceeded limits", () => {

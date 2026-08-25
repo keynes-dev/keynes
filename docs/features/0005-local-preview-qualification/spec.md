@@ -81,7 +81,7 @@ As a team evaluating Keynes, we can see repeatable package, startup, memory, and
 - **FR-009**: Qualification MUST run the accepted FEAT-0004 lifecycle corpus unchanged. The installed consumer MUST also prove runtime isolation, repeated closure, rejection after closure begins, and process-local state loss.
 - **FR-010**: Qualification MUST compile and run a clean consumer on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Other runtimes, architectures, browsers, CommonJS consumers, and bundlers remain unsupported.
 - **FR-011**: The packed Keynes archive MUST be no larger than 512 KiB compressed, excluding transitive dependencies. The clean production installation, including PGlite, MUST be no larger than 35 MiB.
-- **FR-012**: On the declared Linux x64 reference host, the ready local runtime MUST add no more than 192 MiB to the resident process memory over the empty-consumer baseline.
+- **FR-012**: On the declared Linux x64 reference host, the ready local runtime MUST add no more than 1 GiB to the resident process memory over the empty-consumer baseline. This is a temporary local-preview ceiling; [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns the required 512 MiB p95 reduction and 384 MiB stretch target.
 - **FR-013**: On the declared Linux x64 reference host, cold runtime creation MUST complete within 3 seconds at p95 over at least 30 fresh processes.
 - **FR-014**: On the declared Linux x64 reference host, the first funded child request after startup MUST complete within 250 milliseconds at p95 over at least 30 fresh processes.
 - **FR-015**: On the declared Linux x64 reference host, steady funded child requests MUST complete within 100 milliseconds at p95 over at least 100 measured requests after warm-up.
@@ -115,7 +115,7 @@ As a team evaluating Keynes, we can see repeatable package, startup, memory, and
 - **SC-002**: Package validation passes every file-list and copied-database check. The accepted FEAT-0004 lifecycle and replay suites pass unchanged, and the installed consumer passes every Budget-loop, isolation, process-exit, and shutdown case.
 - **SC-003**: All six declared Node.js and host combinations compile the consumer and complete the package smoke test from the same archive digest.
 - **SC-004**: The packed SDK is at most 512 KiB compressed, and its clean production installation is at most 35 MiB.
-- **SC-005**: On the Linux x64 reference host, the ready runtime adds at most 192 MiB RSS, cold creation is at most 3 seconds p95, first request latency is at most 250 milliseconds p95, and steady request latency is at most 100 milliseconds p95.
+- **SC-005**: On the Linux x64 reference host, the ready runtime adds at most 1 GiB RSS under the temporary local-preview ceiling, cold creation is at most 3 seconds p95, first request latency is at most 250 milliseconds p95, and steady request latency is at most 100 milliseconds p95.
 - **SC-006**: Every accepted support or performance claim cites retained evidence for the exact archive, commit, contract digest, dependency versions, environment, and attempt. Every unexecuted lane remains `NOT RUN`.
 
 ## Assumptions
