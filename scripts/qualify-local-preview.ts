@@ -204,6 +204,7 @@ export async function installExternalConsumer(
   assertOutsideRepository(repositoryRoot, root);
   try {
     await cp(qualificationRoot, root, { recursive: true });
+    await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
     const pgliteArchive = resolve(root, "pglite-0.5.5.tgz");
     run(
       pnpm,
@@ -221,7 +222,7 @@ export async function installExternalConsumer(
         {
           private: true,
           type: "module",
-          dependencies: { "@keynes/sdk": pathToFileURL(archivePath).href },
+          dependencies: { "@keynes/sdk": "file:./keynes-sdk.tgz" },
         },
         null,
         2,
@@ -229,7 +230,7 @@ export async function installExternalConsumer(
     );
     await writeFile(
       resolve(root, "pnpm-workspace.yaml"),
-      `packages:\n  - .\noverrides:\n  "@electric-sql/pglite": ${JSON.stringify(pathToFileURL(pgliteArchive).href)}\n`,
+      `packages:\n  - .\noverrides:\n  "@electric-sql/pglite": file:./pglite-0.5.5.tgz\n`,
     );
     run(pnpm, ["install", "--prod", "--offline", "--ignore-scripts"], root);
 
