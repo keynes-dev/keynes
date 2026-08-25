@@ -28,9 +28,9 @@
 
 **Purpose**: Give Cloud an exhaustive contract-derived procedure edge before hand-written service code exists.
 
-- [ ] T003 Add focused assertions to `scripts/generate-contracts.test.ts` for the declared `packages/cloud/src/generated/procedures.ts` output, ordered operation names, shared contract digest, static parameterized statements, permissions, replay flags, deterministic generation, and undeclared-file drift; run `pnpm test:generator` and record that it fails because the Cloud output is absent.
-- [ ] T004 Extend `scripts/generate-contracts.ts` to render and track `packages/cloud/src/generated/procedures.ts` from `packages/contracts/contract.json`, including the contract digest and exhaustive operation metadata, without emitting SDK types, validators, or error classes into Cloud.
-- [ ] T005 Run `pnpm generate`, inspect `packages/cloud/src/generated/procedures.ts`, then run `pnpm test:generator` and `pnpm generate:check`; require all generated checks to pass with no hand-edited output.
+- [X] T003 Add focused assertions to `scripts/generate-contracts.test.ts` for the declared `packages/cloud/src/generated/procedures.ts` output, ordered operation names, shared contract digest, static parameterized statements, permissions, replay flags, deterministic generation, and undeclared-file drift; run `pnpm test:generator` and record that it fails because the Cloud output is absent.
+- [X] T004 Extend `scripts/generate-contracts.ts` to render and track `packages/cloud/src/generated/procedures.ts` from `packages/contracts/contract.json`, including the contract digest and exhaustive operation metadata, without emitting SDK types, validators, or error classes into Cloud.
+- [X] T005 Run `pnpm generate`, inspect `packages/cloud/src/generated/procedures.ts`, then run `pnpm test:generator` and `pnpm generate:check`; require all generated checks to pass with no hand-edited output.
 
 **Checkpoint**: Cloud can select only the five contract-defined database procedures without importing `packages/sdk/` or reading contract source at runtime.
 

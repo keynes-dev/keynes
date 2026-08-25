@@ -3,6 +3,7 @@
 import {
   cpSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -22,6 +23,7 @@ import schema from "../packages/contracts/schema.json" with { type: "json" };
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const generatorPath = resolve(import.meta.dirname, "generate-contracts.ts");
+const cloudProceduresPath = "packages/cloud/src/generated/procedures.ts";
 const temporaryDirectories: string[] = [];
 
 function makeTemporaryDirectory(): string {
@@ -115,6 +117,7 @@ describe("ordered contract source", () => {
       expectations.installedTargets,
     );
     expect(contract.outputs).toEqual([...contract.outputs].sort());
+    expect(contract.outputs).toContain(cloudProceduresPath);
   });
 
   it("validates every canonical command fixture", () => {
@@ -306,6 +309,53 @@ describe("contract generator", () => {
     expect(installationRecord.migrations).toHaveLength(3);
   });
 
+  it("emits the ordered Cloud procedure manifest", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const result = runGenerator(prepareContractRoot(), outputRoot);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const source = readFileSync(join(outputRoot, cloudProceduresPath), "utf8");
+    const digest: unknown = JSON.parse(
+      readFileSync(
+        join(outputRoot, "packages/contracts/generated/contract-digest.json"),
+        "utf8",
+      ),
+    );
+    if (
+      typeof digest !== "object" ||
+      digest === null ||
+      !("digest" in digest) ||
+      typeof digest.digest !== "string"
+    ) {
+      throw new Error("generated contract digest is invalid");
+    }
+
+    expect(source).toContain("export const CONTRACT_DIGEST");
+    expect(source).toContain(JSON.stringify(digest.digest));
+    expect(source).toContain("export const PROCEDURES = {");
+
+    let previousOperationIndex = -1;
+    for (const operation of contract.operations) {
+      const operationIndex = source.indexOf(`${operation.method}: {`);
+      expect(operationIndex).toBeGreaterThan(previousOperationIndex);
+      previousOperationIndex = operationIndex;
+      expect(source).toContain(`target: ${JSON.stringify(operation.target)}`);
+      expect(source).toContain(
+        `statement: ${JSON.stringify(`select ${operation.target}($1::jsonb) as response`)}`,
+      );
+      expect(source).toContain(
+        `permission: ${JSON.stringify(operation.permission)}`,
+      );
+      expect(source).toContain(`replay: ${String(operation.replay)}`);
+    }
+
+    expect(source).not.toContain("packages/sdk");
+    expect(source).not.toContain("Validator");
+    expect(source).not.toContain("Error extends");
+  });
+
   it("rejects unsupported schema keywords", () => {
     const contractRoot = prepareContractRoot((files) => ({
       ...files,
@@ -410,24 +460,19 @@ describe("contract generator", () => {
     expect(result.stderr).toMatch(/unstable enumeration/i);
   });
 
-  it("rejects undeclared files in generated output directories", () => {
+  it.each([
+    ["packages/contracts/generated", "undeclared.json", "{}\n"],
+    ["packages/cloud/src/generated", "undeclared.ts", "export {};\n"],
+  ])("rejects undeclared files in %s", (directory, file, source) => {
     const contractRoot = prepareContractRoot();
     const outputRoot = makeTemporaryDirectory();
-    const generatedDirectory = join(outputRoot, "packages/contracts/generated");
-    cpSync(
-      resolve(repositoryRoot, "packages/contracts/generated"),
-      generatedDirectory,
-      {
-        recursive: true,
-      },
-    );
-    writeFileSync(join(generatedDirectory, "undeclared.json"), "{}\n");
+    const generatedDirectory = join(outputRoot, directory);
+    mkdirSync(generatedDirectory, { recursive: true });
+    writeFileSync(join(generatedDirectory, file), source);
 
     const result = runGenerator(contractRoot, outputRoot);
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toMatch(
-      /undeclared generated files.*undeclared\.json/i,
-    );
+    expect(result.stderr).toContain(file);
   });
 });
