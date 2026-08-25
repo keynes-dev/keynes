@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
 import { PairedProcedureCaller } from "./test-keynes.js";
+import { CommittedResponseLostError } from "./procedure-caller.js";
 
 const TARGET: InstalledTarget = "keynes.request";
 
@@ -90,19 +91,16 @@ describe("paired procedure caller", () => {
   });
 
   it("preserves matching simulated lost-response controls", async () => {
-    const lostResponse =
-      "Simulated lost response after committed procedure call";
-
     await expect(
       paired(
         caller(async () => {
-          throw new Error(lostResponse);
+          throw new CommittedResponseLostError();
         }),
         caller(async () => {
-          throw new Error(lostResponse);
+          throw new CommittedResponseLostError();
         }),
       ).call(TARGET, {}),
-    ).rejects.toThrow(lostResponse);
+    ).rejects.toBeInstanceOf(CommittedResponseLostError);
   });
 
   it("does not retain credentials or driver diagnostics", async () => {

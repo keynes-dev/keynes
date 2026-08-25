@@ -60,13 +60,12 @@ The catalog translates application Resource keys into generated Resource identit
 
 A `Budget` is an opaque capability tied to one local runtime.
 
-| Field           | Meaning                                                                       |
-| --------------- | ----------------------------------------------------------------------------- |
-| `runtime`       | Private reference to the owning local runtime                                 |
-| `budgetId`      | Private stable ID returned by the database                                    |
-| `resourceNames` | Type-level and runtime set of application keys accepted by convenience inputs |
+| Field      | Meaning                                       |
+| ---------- | --------------------------------------------- |
+| `runtime`  | Private reference to the owning local runtime |
+| `budgetId` | Private stable ID returned by the database    |
 
-The handle contains no cached allocation, availability, lifecycle, usage, deficit, or history. `inspect()` reads the generated `GetBudgetResult` for the private ID. `request()` passes the private ID as the generated parent. An approval creates a new handle for the committed child ID. `settle()` passes the private ID as the generated settlement target.
+The `Names` type parameter constrains convenience inputs at compile time. The handle contains no cached Resource membership, allocation, availability, lifecycle, usage, deficit, or history. `inspect()` reads the generated `GetBudgetResult` for the private ID. `request()` passes the private ID as the generated parent. An approval creates a new handle for the committed child ID. `settle()` passes the private ID as the generated settlement target. The installed procedures remain authoritative for Budget membership and canonical denials or validation failures.
 
 Closing the owning runtime invalidates every handle from that runtime. Handles from another runtime remain usable.
 

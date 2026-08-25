@@ -17,17 +17,18 @@ const INSTALLATION_RECORD_URL = new URL(
   DATABASE_ROOT,
 );
 
-const FIXTURES = {
-  tenantId: "00000000-0000-4000-8000-000000000001",
-  principals: {
-    "definer-fixture": "00000000-0000-4000-8000-000000000101",
-    "allocator-fixture": "00000000-0000-4000-8000-000000000102",
-    "requester-fixture": "00000000-0000-4000-8000-000000000103",
-    "settlement-fixture": "00000000-0000-4000-8000-000000000104",
-    "reader-fixture": "00000000-0000-4000-8000-000000000105",
-    "product-fixture": "00000000-0000-4000-8000-000000000106",
-    "unauthorized-fixture": "00000000-0000-4000-8000-000000000107",
-  },
+const EXPLICIT_INSTALLATION = {
+  tenantId: "00000000-0000-4000-8000-000000000011",
+  principals: [
+    {
+      principalId: "00000000-0000-4000-8000-000000000111",
+      permissions: ["define_resource_type", "read_budget"],
+    },
+    {
+      principalId: "00000000-0000-4000-8000-000000000112",
+      permissions: ["request_budget"],
+    },
+  ],
 } as const;
 
 const MIGRATIONS = [
@@ -117,12 +118,41 @@ async function withFreshDatabase(
 }
 
 describe.each(installationHosts())("$name installation", (host) => {
+  it("installs explicit principal permission records", async () => {
+    const { installDatabase } = await import("./private/migrations.js");
+    await withFreshDatabase(host, async (database) => {
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      const permissions = await database.query<{
+        readonly principal_id: string;
+        readonly permission: string;
+      }>(
+        `select principal_id::text, permission
+           from keynes_internal.principal_permissions
+          order by principal_id, permission`,
+      );
+      expect(permissions.rows).toEqual([
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
+          permission: "define_resource_type",
+        },
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
+          permission: "read_budget",
+        },
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[1].principalId,
+          permission: "request_budget",
+        },
+      ]);
+    });
+  });
+
   it("installs the current graph and rechecks it without changes", async () => {
     const { installDatabase } = await import("./private/migrations.js");
     await withFreshDatabase(host, async (database) => {
-      await installDatabase(database, FIXTURES);
+      await installDatabase(database, EXPLICIT_INSTALLATION);
       const before = await installationState(database);
-      await installDatabase(database, FIXTURES);
+      await installDatabase(database, EXPLICIT_INSTALLATION);
       expect(await installationState(database)).toEqual(before);
       expect(before.migrations.rows).toEqual([
         { migration_id: "0001-storage" },
@@ -142,7 +172,9 @@ describe.each(installationHosts())("$name installation", (host) => {
     });
 
     await withFreshDatabase(host, async (database) => {
-      await expect(installDatabase(database, FIXTURES)).rejects.toMatchObject({
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toMatchObject({
         code: "contract_mismatch",
         details: {
           clientDigest: contractDigest,
@@ -160,7 +192,9 @@ describe.each(installationHosts())("$name installation", (host) => {
     });
 
     await withFreshDatabase(host, async (database) => {
-      await expect(installDatabase(database, FIXTURES)).rejects.toMatchObject({
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toMatchObject({
         code: "installation_drift",
         details: { migrationId: "0001-storage" },
       });
@@ -176,7 +210,9 @@ describe.each(installationHosts())("$name installation", (host) => {
     });
 
     await withFreshDatabase(host, async (database) => {
-      await expect(installDatabase(database, FIXTURES)).rejects.toThrow(
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toThrow(
         `Installed database object does not match ${missingTarget}(jsonb)`,
       );
     });
@@ -187,7 +223,9 @@ describe.each(installationHosts())("$name installation", (host) => {
     async (migration) => {
       const { installDatabase } = await loadFailingInstaller(migration);
       await withFreshDatabase(host, async (database) => {
-        await expect(installDatabase(database, FIXTURES)).rejects.toThrow();
+        await expect(
+          installDatabase(database, EXPLICIT_INSTALLATION),
+        ).rejects.toThrow();
 
         const objects = await database.query<{
           readonly migration_object_exists: boolean;

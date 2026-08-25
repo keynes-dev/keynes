@@ -7,7 +7,7 @@ import type {
   QueryRows,
   TransactionalDatabase,
 } from "./database.js";
-import { installDatabase, type InstallationFixtures } from "./migrations.js";
+import { installDatabase, type DatabaseInstallation } from "./migrations.js";
 
 interface Queryable {
   query<Row extends QueryResultRow>(
@@ -253,11 +253,11 @@ export async function openPostgresDatabase(
 
 export async function openInstalledPostgresDatabase(
   administratorUrl: string,
-  fixtures: InstallationFixtures,
+  installation: DatabaseInstallation,
 ): Promise<OwnedPostgresDatabase> {
   const database = await openPostgresDatabase(administratorUrl);
   try {
-    await installDatabase(database.database, fixtures);
+    await installDatabase(database.database, installation);
     return database;
   } catch (error: unknown) {
     await database.close();

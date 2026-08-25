@@ -11,7 +11,7 @@
 
 **Purpose**: Confirm the active feature and the unchanged repository baseline before implementation.
 
-- [ ] T001 Run `pnpm check:feature-identity` and `pnpm --filter @keynes/sdk test` against `docs/features/0004-local-runtime-sdk/plan.md` and record any pre-existing failure before changing `packages/sdk/`
+- [X] T001 Run `pnpm check:feature-identity` and `pnpm --filter @keynes/sdk test` against `docs/features/0004-local-runtime-sdk/plan.md` and record any pre-existing failure before changing `packages/sdk/`
 
 ---
 
@@ -21,10 +21,10 @@
 
 **Critical**: Complete this phase before any user story. It changes the private installation seam used by every local runtime.
 
-- [ ] T002 Add an installation test that uses explicit principal permission records and observe the old fixture-only input fail in `packages/sdk/src/installation.test.ts`
-- [ ] T003 Replace `InstallationFixtures` and `FIXTURE_PERMISSIONS` with host-neutral tenant and principal permission input while preserving installed authorization behavior in `packages/sdk/src/private/migrations.ts`
-- [ ] T004 Adapt the existing multi-principal test host to build the new installation input without exporting product identities in `packages/sdk/src/private/local-keynes.ts`
-- [ ] T005 Run `pnpm --filter @keynes/sdk test -- src/installation.test.ts src/generated-client.test.ts` and confirm the installation and generated-client baselines pass through `packages/sdk/src/installation.test.ts` and `packages/sdk/src/generated-client.test.ts`
+- [X] T002 Add an installation test that uses explicit principal permission records and observe the old fixture-only input fail in `packages/sdk/src/installation.test.ts`
+- [X] T003 Replace `InstallationFixtures` and `FIXTURE_PERMISSIONS` with host-neutral tenant and principal permission input while preserving installed authorization behavior in `packages/sdk/src/private/migrations.ts`
+- [X] T004 Adapt the existing multi-principal test host to build the new installation input without exporting product identities in `packages/sdk/src/private/local-keynes.ts`
+- [X] T005 Run `pnpm --filter @keynes/sdk test -- src/installation.test.ts src/generated-client.test.ts` and confirm the installation and generated-client baselines pass through `packages/sdk/src/installation.test.ts` and `packages/sdk/src/generated-client.test.ts`
 
 **Checkpoint**: Product local mode can install one private authority context without fixture vocabulary in its production path.
 
@@ -38,16 +38,16 @@
 
 ### Failing tests for user story 1
 
-- [ ] T006 [P] [US1] Add the public happy path, denial, settlement, unresolved usage, overage, idempotent definition, conflicting definition, Resource mapping, and typed input-error cases; run the file and observe failure because the facade does not exist in `packages/sdk/src/local.test.ts`
-- [ ] T007 [P] [US1] Add compile-time package-root imports and runtime negative-export assertions; run the file and observe failure because public facade exports are missing in `packages/sdk/src/public-exports.test.ts`
+- [X] T006 [P] [US1] Add the public happy path, denial, settlement, unresolved usage, overage, idempotent definition, conflicting definition, Resource mapping, and typed input-error cases; run the file and observe failure because the facade does not exist in `packages/sdk/src/local.test.ts`
+- [X] T007 [P] [US1] Add compile-time package-root imports and runtime negative-export assertions; run the file and observe failure because public facade exports are missing in `packages/sdk/src/public-exports.test.ts`
 
 ### Implementation for user story 1
 
-- [ ] T008 [P] [US1] Implement `KeynesLocalError` and `ResourceDefinitionError` with the contract codes, details, causes, and committed-prefix data in `packages/sdk/src/local-errors.ts`
-- [ ] T009 [P] [US1] Implement reversible lower-camel to lower-snake mapping, complete pre-validation, deterministic definition ordering, private Resource identity lookup, and amount-envelope conversion in `packages/sdk/src/private/local-resources.ts`
-- [ ] T010 [US1] Implement `Keynes.create`, `defineResources`, `createBudget`, and identity-only `Budget.request`, `Budget.settle`, and `Budget.inspect` over the generated `KeynesClient` in `packages/sdk/src/keynes.ts`
-- [ ] T011 [US1] Export the accepted facade, workflow types, errors, and required generated domain types while keeping callers, hosts, identities, and PGlite private in `packages/sdk/src/index.ts`
-- [ ] T012 [US1] Run `pnpm --filter @keynes/sdk test -- src/local.test.ts src/public-exports.test.ts` and confirm the complete public Budget loop and export boundary pass in `packages/sdk/src/local.test.ts` and `packages/sdk/src/public-exports.test.ts`
+- [X] T008 [P] [US1] Implement `KeynesLocalError` and `ResourceDefinitionError` with the contract codes, details, causes, and committed-prefix data in `packages/sdk/src/local-errors.ts`
+- [X] T009 [P] [US1] Implement reversible lower-camel to lower-snake mapping, complete pre-validation, deterministic definition ordering, private Resource identity lookup, and amount-envelope conversion in `packages/sdk/src/private/local-resources.ts`
+- [X] T010 [US1] Implement `Keynes.create`, `defineResources`, `createBudget`, and identity-only `Budget.request`, `Budget.settle`, and `Budget.inspect` over the generated `KeynesClient` in `packages/sdk/src/keynes.ts`
+- [X] T011 [US1] Export the accepted facade, workflow types, errors, and required generated domain types while keeping callers, hosts, identities, and PGlite private in `packages/sdk/src/index.ts`
+- [X] T012 [US1] Run `pnpm --filter @keynes/sdk test -- src/local.test.ts src/public-exports.test.ts` and confirm the complete public Budget loop and export boundary pass in `packages/sdk/src/local.test.ts` and `packages/sdk/src/public-exports.test.ts`
 
 **Checkpoint**: User story 1 is a complete source-workspace product loop and the MVP.
 
@@ -61,14 +61,14 @@
 
 ### Failing tests for user story 2
 
-- [ ] T013 [US2] Add initialization cleanup, serial admission, close admission, repeated close, post-close handle, and two-runtime isolation cases; run the file and observe the lifecycle and isolation cases fail in `packages/sdk/src/local-lifecycle.test.ts`
+- [X] T013 [US2] Add initialization cleanup, serial admission, close admission, repeated close, post-close handle, and two-runtime isolation cases in `packages/sdk/src/local-lifecycle.test.ts`; the first dedicated run passed because T010 already required the shared admission and close boundary
 
 ### Implementation for user story 2
 
-- [ ] T014 [US2] Add the private product runtime factory with one in-memory PGlite owner, one fixed private tenant, one fixed private principal, five permissions, and cleanup on installation failure in `packages/sdk/src/private/local-keynes.ts`
-- [ ] T015 [US2] Make owner admission and drain-and-close semantics explicit without exposing lifecycle or database controls in `packages/sdk/src/private/procedure-caller.ts`
-- [ ] T016 [US2] Enforce `open`, `closing`, and `closed` admission across `Keynes` and every `Budget` handle, and share one close promise in `packages/sdk/src/keynes.ts`
-- [ ] T017 [US2] Run `pnpm --filter @keynes/sdk test -- src/local-lifecycle.test.ts` and confirm cleanup, serialization, close, and isolation pass in `packages/sdk/src/local-lifecycle.test.ts`
+- [X] T014 [US2] Add the private product runtime factory with one in-memory PGlite owner, one fixed private tenant, one fixed private principal, five permissions, and cleanup on installation failure in `packages/sdk/src/private/local-keynes.ts`
+- [X] T015 [US2] Make owner admission and drain-and-close semantics explicit without exposing lifecycle or database controls in `packages/sdk/src/private/procedure-caller.ts`
+- [X] T016 [US2] Enforce `open`, `closing`, and `closed` admission across `Keynes` and every `Budget` handle, and share one close promise in `packages/sdk/src/keynes.ts`
+- [X] T017 [US2] Run `pnpm --filter @keynes/sdk test -- src/local-lifecycle.test.ts` and confirm cleanup, serialization, close, and isolation pass in `packages/sdk/src/local-lifecycle.test.ts`
 
 **Checkpoint**: User story 2 is independently testable through public objects and exposes no host resource.
 
@@ -82,13 +82,13 @@
 
 ### Failing tests for user story 3
 
-- [ ] T018 [US3] Add committed-response-loss replay, second-loss interruption, no-retry domain failure, and distinct-call identity cases; run the file and observe failure because the facade has no bounded replay path in `packages/sdk/src/local-replay.test.ts`
+- [X] T018 [US3] Add committed-response-loss replay, second-loss interruption, no-retry domain failure, and distinct-call identity cases; run the file and observe failure because the facade has no bounded replay path in `packages/sdk/src/local-replay.test.ts`
 
 ### Implementation for user story 3
 
-- [ ] T019 [US3] Replace the generic lost-response test error with a private `CommittedResponseLostError` and keep the fault control absent from package-root exports in `packages/sdk/src/private/procedure-caller.ts`
-- [ ] T020 [US3] Create each generated mutation command once with Node `randomUUID()`, retry only `CommittedResponseLostError` once with the same object, and map a second sentinel to `operation_interrupted` in `packages/sdk/src/keynes.ts`
-- [ ] T021 [US3] Run `pnpm --filter @keynes/sdk test -- src/local-replay.test.ts src/replay.test.ts` and confirm facade replay behavior and the existing database replay contract pass in `packages/sdk/src/local-replay.test.ts` and `packages/sdk/src/replay.test.ts`
+- [X] T019 [US3] Replace the generic lost-response test error with a private `CommittedResponseLostError` and keep the fault control absent from package-root exports in `packages/sdk/src/private/procedure-caller.ts`
+- [X] T020 [US3] Create each generated mutation command once with Node `randomUUID()`, retry only `CommittedResponseLostError` once with the same object, and map a second sentinel to `operation_interrupted` in `packages/sdk/src/keynes.ts`
+- [X] T021 [US3] Run `pnpm --filter @keynes/sdk test -- src/local-replay.test.ts src/replay.test.ts` and confirm facade replay behavior and the existing database replay contract pass in `packages/sdk/src/local-replay.test.ts` and `packages/sdk/src/replay.test.ts`
 
 **Checkpoint**: All three user stories pass independently through the public facade.
 
@@ -98,10 +98,10 @@
 
 **Purpose**: Reconcile the tutorial, unchanged generated boundary, repository checks, and feature state without claiming later qualification work.
 
-- [ ] T022 [P] Execute every code block in the source-workspace acceptance flow through public exports and correct only mismatches found in `docs/features/0004-local-runtime-sdk/quickstart.md`
-- [ ] T023 [P] Run `pnpm generate:check` and verify that no semantic changes appear under `packages/sdk/src/generated/`, `packages/database/`, or `packages/contracts/`
-- [ ] T024 Run `pnpm --filter @keynes/sdk test`, `pnpm verify`, and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; after all pass, record the exact commands, provider-free scope, and later lanes as `NOT RUN` in `docs/roadmap.md`
-- [ ] T025 Run `git diff --check` and inspect the final diff against `docs/features/0004-local-runtime-sdk/spec.md`, `docs/features/0004-local-runtime-sdk/contracts/sdk.md`, and the private-export list in `packages/sdk/src/public-exports.test.ts`
+- [X] T022 [P] Execute every code block in the source-workspace acceptance flow through public exports and correct only mismatches found in `docs/features/0004-local-runtime-sdk/quickstart.md`
+- [X] T023 [P] Run `pnpm generate:check` and verify that no semantic changes appear under `packages/sdk/src/generated/`, `packages/database/`, or `packages/contracts/`
+- [X] T024 Run `pnpm --filter @keynes/sdk test`, `pnpm verify`, and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; after all pass, record the exact commands, provider-free scope, and later lanes as `NOT RUN` in `docs/roadmap.md`
+- [X] T025 Run `git diff --check` and inspect the final diff against `docs/features/0004-local-runtime-sdk/spec.md`, `docs/features/0004-local-runtime-sdk/contracts/sdk.md`, and the private-export list in `packages/sdk/src/public-exports.test.ts`
 
 ---
 

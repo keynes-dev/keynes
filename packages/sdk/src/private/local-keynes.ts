@@ -5,7 +5,7 @@ import {
   type KeynesClient,
   type ProcedureCaller,
 } from "../generated/client.js";
-import { installDatabase } from "./migrations.js";
+import { installDatabase, type DatabaseInstallation } from "./migrations.js";
 import {
   createPGliteProcedureCaller,
   PGliteOwner,
@@ -25,6 +25,46 @@ export const FIXTURE_PRINCIPALS = {
 } as const;
 
 export type FixturePrincipal = keyof typeof FIXTURE_PRINCIPALS;
+
+export const FIXTURE_INSTALLATION = {
+  tenantId: FIXTURE_TENANT_ID,
+  principals: [
+    {
+      principalId: FIXTURE_PRINCIPALS["definer-fixture"],
+      permissions: ["define_resource_type"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["allocator-fixture"],
+      permissions: ["create_root_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["requester-fixture"],
+      permissions: ["request_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["settlement-fixture"],
+      permissions: ["settle_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["reader-fixture"],
+      permissions: ["read_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["product-fixture"],
+      permissions: [
+        "define_resource_type",
+        "create_root_budget",
+        "request_budget",
+        "settle_budget",
+        "read_budget",
+      ],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["unauthorized-fixture"],
+      permissions: [],
+    },
+  ],
+} as const satisfies DatabaseInstallation;
 
 export interface ClientFixtureOptions {
   readonly checkpoint?: RollbackCheckpoint;
@@ -47,19 +87,31 @@ export interface KeynesCallerHost {
   close(): Promise<void>;
 }
 
-export async function openLocalKeynesCallerHost(): Promise<KeynesCallerHost> {
-  const database = await PGlite.create("memory://");
-  const owner = new PGliteOwner(database);
+export interface ProductLocalKeynes {
+  readonly client: KeynesClient;
+  close(): Promise<void>;
+}
 
-  try {
-    await installDatabase(database, {
-      tenantId: FIXTURE_TENANT_ID,
-      principals: FIXTURE_PRINCIPALS,
-    });
-  } catch (error: unknown) {
-    await owner.close();
-    throw error;
-  }
+const PRODUCT_TENANT_ID = "00000000-0000-4000-8000-000000000002";
+const PRODUCT_PRINCIPAL_ID = "00000000-0000-4000-8000-000000000201";
+const PRODUCT_INSTALLATION = {
+  tenantId: PRODUCT_TENANT_ID,
+  principals: [
+    {
+      principalId: PRODUCT_PRINCIPAL_ID,
+      permissions: [
+        "define_resource_type",
+        "create_root_budget",
+        "request_budget",
+        "settle_budget",
+        "read_budget",
+      ],
+    },
+  ],
+} as const satisfies DatabaseInstallation;
+
+export async function openLocalKeynesCallerHost(): Promise<KeynesCallerHost> {
+  const owner = await openPGliteOwner(FIXTURE_INSTALLATION);
 
   return {
     callerFor(fixture, options) {
@@ -76,6 +128,19 @@ export async function openLocalKeynesCallerHost(): Promise<KeynesCallerHost> {
   };
 }
 
+export async function openProductLocalKeynes(): Promise<ProductLocalKeynes> {
+  const owner = await openPGliteOwner(PRODUCT_INSTALLATION);
+  return {
+    client: createKeynesClient(
+      createPGliteProcedureCaller(owner, {
+        tenantId: PRODUCT_TENANT_ID,
+        principalId: PRODUCT_PRINCIPAL_ID,
+      }),
+    ),
+    close: () => owner.close(),
+  };
+}
+
 export async function openLocalKeynes(): Promise<LocalKeynes> {
   const host = await openLocalKeynesCallerHost();
   return {
@@ -83,4 +148,26 @@ export async function openLocalKeynes(): Promise<LocalKeynes> {
       createKeynesClient(host.callerFor(fixture, options)),
     close: () => host.close(),
   };
+}
+
+async function openPGliteOwner(
+  installation: DatabaseInstallation,
+): Promise<PGliteOwner> {
+  const database = await PGlite.create("memory://");
+  const owner = new PGliteOwner(database);
+  try {
+    await installDatabase(database, installation);
+    return owner;
+  } catch (error: unknown) {
+    try {
+      await owner.close();
+    } catch (cleanupFailure: unknown) {
+      throw new AggregateError(
+        [error, cleanupFailure],
+        "Local Keynes initialization and cleanup failed",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }

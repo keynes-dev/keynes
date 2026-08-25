@@ -9,6 +9,7 @@ import {
   type ProcedureCaller,
 } from "../generated/client.js";
 import {
+  FIXTURE_INSTALLATION,
   FIXTURE_PRINCIPALS,
   FIXTURE_TENANT_ID,
   openLocalKeynes,
@@ -23,6 +24,7 @@ import {
   type OwnedPostgresDatabase,
 } from "./postgres-keynes.js";
 import {
+  CommittedResponseLostError,
   createDatabaseProcedureCaller,
   createTransactionProcedureCaller,
 } from "./procedure-caller.js";
@@ -182,10 +184,7 @@ async function openPostgresCallerHost(
 function openPostgresOwner(
   administratorUrl: string,
 ): Promise<OwnedPostgresDatabase> {
-  return openInstalledPostgresDatabase(administratorUrl, {
-    tenantId: FIXTURE_TENANT_ID,
-    principals: FIXTURE_PRINCIPALS,
-  });
+  return openInstalledPostgresDatabase(administratorUrl, FIXTURE_INSTALLATION);
 }
 
 function pairedHost(
@@ -219,12 +218,10 @@ function currentTestName(): string {
 }
 
 function declaredControl(error: unknown): DeclaredControl | undefined {
-  if (!(error instanceof Error)) return undefined;
-  if (
-    error.message === "Simulated lost response after committed procedure call"
-  ) {
+  if (error instanceof CommittedResponseLostError) {
     return { kind: "lost-response" };
   }
+  if (!(error instanceof Error)) return undefined;
 
   const rollback =
     /^private rollback checkpoint: (after_(?:command_binding|domain_mutation|result_storage|history_insertion))$/.exec(
@@ -237,7 +234,7 @@ function declaredControl(error: unknown): DeclaredControl | undefined {
 
 function controlError(control: DeclaredControl): Error {
   return control.kind === "lost-response"
-    ? new Error("Simulated lost response after committed procedure call")
+    ? new CommittedResponseLostError()
     : new Error(`private rollback checkpoint: ${control.checkpoint}`);
 }
 

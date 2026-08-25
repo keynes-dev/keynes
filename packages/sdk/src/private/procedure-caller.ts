@@ -25,6 +25,13 @@ export interface TransactionContext {
   readonly dropResponseAfterCommitOnce?: boolean;
 }
 
+export class CommittedResponseLostError extends Error {
+  constructor() {
+    super("Simulated lost response after committed procedure call");
+    this.name = "CommittedResponseLostError";
+  }
+}
+
 export class PGliteOwner {
   readonly #database: PGlite;
   #tail: Promise<void> = Promise.resolve();
@@ -94,9 +101,7 @@ class InstalledProcedureCaller implements ProcedureCaller {
 
       if (this.#dropResponseAfterCommitOnce) {
         this.#dropResponseAfterCommitOnce = false;
-        throw new Error(
-          "Simulated lost response after committed procedure call",
-        );
+        throw new CommittedResponseLostError();
       }
 
       return wire;
