@@ -59,6 +59,7 @@ interface LocalPreviewQualificationRecord {
     readonly runnerName: string;
   };
   readonly method: {
+    readonly coldWarmup: number;
     readonly coldProcesses: number;
     readonly firstRequestProcesses: number;
     readonly steadyWarmup: number;

@@ -15,6 +15,7 @@ const READY_RSS_LIMIT_BYTES = 1024 * 1024 * 1024;
 const COLD_CREATE_LIMIT_MILLISECONDS = 3_000;
 const FIRST_REQUEST_LIMIT_MILLISECONDS = 250;
 const STEADY_REQUEST_LIMIT_MILLISECONDS = 100;
+const COLD_WARMUP_PROCESSES = 3;
 
 export interface MeasurementArguments {
   readonly archivePath: string;
@@ -39,6 +40,7 @@ export interface QualificationRecordInput {
     readonly runnerName: string;
   };
   readonly method: {
+    readonly coldWarmup: number;
     readonly coldProcesses: number;
     readonly firstRequestProcesses: number;
     readonly steadyWarmup: number;
@@ -208,6 +210,9 @@ async function measure(
   );
   try {
     const worker = resolve(external.root, "measure-worker.mjs");
+    for (let index = 0; index < COLD_WARMUP_PROCESSES; index += 1) {
+      runColdWorker(worker, external.root);
+    }
     const readyRssDeltaBytes: number[] = [];
     const coldCreateMilliseconds: number[] = [];
     const firstRequestMilliseconds: number[] = [];
@@ -236,6 +241,7 @@ async function measure(
         runnerName: process.env.RUNNER_NAME ?? "local",
       },
       method: {
+        coldWarmup: COLD_WARMUP_PROCESSES,
         coldProcesses: 30,
         firstRequestProcesses: 30,
         steadyWarmup: 10,

@@ -36,11 +36,11 @@ This record resolves the technical choices needed to plan FEAT-0005. It qualifie
 
 ## R5. Measurement method
 
-**Decision**: Use fresh Node.js child processes for cold creation and first-request samples, `performance.now()` for elapsed time, and `process.memoryUsage.rss()` for resident memory. Use one ready runtime for warm steady requests, retain all samples, and compute the nearest-rank p95 required by the acceptance limits.
+**Decision**: Use fresh Node.js child processes for cold creation and first-request samples, `performance.now()` for elapsed time, and `process.memoryUsage.rss()` for resident memory. Exclude three fresh-process warmups before collecting the 30 cold samples so host and file-cache initialization does not become application latency. Use one ready runtime for warm steady requests, retain all measured samples, and compute the nearest-rank p95 required by the acceptance limits.
 
 **Rationale**: Node.js documents RSS as the process's resident memory and provides a direct `memoryUsage.rss()` reading ([Node.js process memory](https://nodejs.org/api/process.html#processmemoryusagerss)). Fresh processes isolate cold initialization from module and WebAssembly reuse. Fixed fixtures and a stated percentile rule make threshold failures reproducible enough for one named reference runner.
 
-**Alternatives considered**: In-process cold loops reuse loaded code. Heap-only measurements omit WebAssembly and native allocations. A benchmark dependency adds a framework for four direct measurements. Dropping outliers after the run makes the evidence impossible to audit.
+**Alternatives considered**: In-process cold loops reuse loaded code. Heap-only measurements omit WebAssembly and native allocations. A benchmark dependency adds a framework for four direct measurements. Dropping outliers after the run makes the evidence impossible to audit. Post-hoc retries select favorable evidence; a fixed pre-sampling warmup is declared before collection and applies identically to every run.
 
 The initial hosted attempt measured 774,340,608 bytes p95 against the original 192 MiB ceiling. The preview ceiling was temporarily raised to 1 GiB so qualification can proceed without presenting the current footprint as the desired result. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns profiling and the decision between upstream work, a reproducible Keynes-specific PGlite build, and a maintained fork; its required target is 512 MiB p95 and its stretch target is 384 MiB p95.
 

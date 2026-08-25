@@ -59,6 +59,7 @@ describe("local preview measurement controller", () => {
     expect(record.archive).toEqual(input.archive);
     expect(record.environment).toEqual(input.environment);
     expect(record.samples).toEqual(input.samples);
+    expect(record.method).toMatchObject({ coldWarmup: 3 });
     expect(Object.keys(record.observed).sort()).toEqual([
       "coldCreateMilliseconds",
       "firstRequestMilliseconds",
@@ -123,6 +124,7 @@ function validRecordInput(): QualificationRecordInput {
       runnerName: "test",
     },
     method: {
+      coldWarmup: 3,
       coldProcesses: 30,
       firstRequestProcesses: 30,
       steadyWarmup: 10,

@@ -63,7 +63,7 @@ pnpm qualify:local -- \
 
 Check that the command reports the archive digest, exact environment, sample counts, p95 values, and limits, then exits successfully. A local pass applies only to that named environment.
 
-The JSON record has fixed `archive`, `environment`, `method`, `samples`, `observed`, and `limits` objects. The controller retains all 30 RSS, cold-create, and first-request samples in collection order. It also retains all 100 steady-request samples after 10 excluded warmups. Each `observed` value contains only `count` and nearest-rank `p95`.
+The JSON record has fixed `archive`, `environment`, `method`, `samples`, `observed`, and `limits` objects. The controller excludes three cold-process warmups that populate host and file caches, then retains all 30 RSS, cold-create, and first-request samples in collection order. It also retains all 100 steady-request samples after 10 excluded warmups. Each `observed` value contains only `count` and nearest-rank `p95`.
 
 The command refuses to overwrite the output path. It removes the external installation and waits for every child process before it exits. Keep `$package_dir` until you have retained the archive and JSON record, then remove it.
 
