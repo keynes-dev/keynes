@@ -10,7 +10,7 @@ The measurement controller and worker checks passed, including a controlled cold
 
 The ready-runtime RSS ceiling is temporarily 1 GiB for the local preview. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) records the required 512 MiB p95 reduction, the 384 MiB stretch target, and the investigation into a lean PGlite build. The earlier failed attempt is not reclassified.
 
-[Hosted run 32882262030](https://github.com/shubsharan/keynes/actions/runs/32882262030) passed for exact commit `7231d0a461d20c73b85a767376653d824be7e514` and archive SHA-256 `d5b85d4bcf3df7896d599254d138a487a3784c4a6cb10da77e3af7ee9b3e9e46`. All six clean consumers passed. The Linux x64 Node.js 24 record measured ready RSS, cold creation, first request, and steady request p95 values of 768,188,416 bytes, 2,585.030 milliseconds, 22.832 milliseconds, and 9.953 milliseconds. The archive was 28,871 bytes and the production installation was 25,576,425 bytes.
+[Hosted run 32886316983](https://github.com/shubsharan/keynes/actions/runs/32886316983) passed for exact commit `714268c950e2f243755725bbe248add88977f6d5` and archive SHA-256 `86c099f7ea666edd58c3947199651aad07e2563621d23e01d619ab3efd098b84`. All six clean consumers passed. The Linux x64 Node.js 24 record measured ready RSS, cold creation, first request, and steady request p95 values of 771,928,064 bytes, 2,576.488 milliseconds, 22.174 milliseconds, and 9.847 milliseconds. The archive was 28,943 bytes and the production installation was 25,576,559 bytes.
 
 ## Prerequisites
 
