@@ -43,7 +43,6 @@ interface ScenarioResult {
 }
 
 interface RunningServiceChild {
-  readonly child: ChildProcess;
   readonly origin: string;
   terminate(): Promise<void>;
 }
@@ -167,7 +166,7 @@ export async function runNativeAcceptance(
       },
       async expectStartupRefusal(kind) {
         await expectStartupRefusal(
-          provision?.administratorUrl ?? administratorUrl,
+          administratorUrl,
           serviceRole,
           servicePassword,
           registryPath,
@@ -342,7 +341,6 @@ function startServiceChild(
       settled = true;
       clearTimeout(timeout);
       resolveChild({
-        child,
         origin: message.origin,
         terminate: () => terminateChild(child),
       });
@@ -470,19 +468,14 @@ async function callService(
 
 async function terminateChild(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return;
-  const exited = new Promise<void>((resolveExit) => {
-    child.once("exit", () => resolveExit());
+  await new Promise<void>((resolveExit) => {
+    const timeout = setTimeout(() => child.kill("SIGKILL"), 5_000);
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolveExit();
+    });
+    child.kill("SIGTERM");
   });
-  child.kill("SIGTERM");
-  await Promise.race([
-    exited,
-    new Promise<void>((resolveTimeout) =>
-      setTimeout(() => {
-        child.kill("SIGKILL");
-        resolveTimeout();
-      }, 5_000),
-    ),
-  ]);
 }
 
 async function waitForPostgres(connectionUrl: string): Promise<string> {

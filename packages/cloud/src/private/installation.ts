@@ -62,7 +62,6 @@ export interface NativeDatabaseProvision {
 }
 
 export interface ProvisionedNativeDatabase {
-  readonly ownerUrl: string;
   readonly serviceUrl: string;
 }
 
@@ -110,7 +109,6 @@ export async function provisionNativeAcceptanceDatabase(
   }
 
   return {
-    ownerUrl,
     serviceUrl: selectRole(
       ownerUrl,
       provision.serviceRole,
