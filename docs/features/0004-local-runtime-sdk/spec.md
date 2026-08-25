@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0004-local-runtime-sdk`
 **Roadmap stage**: `Local workflow preview`
 **Created**: August 23, 2026
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Local runtime and SDK from docs/roadmap.md"
 
 ## User scenarios and testing
