@@ -72,8 +72,10 @@
 
 - [X] T018 [US1] Run `pnpm --filter @keynes/cloud test`, `pnpm --filter @keynes/cloud typecheck`, `pnpm test:generator`, `pnpm generate:check`, and `pnpm check:deps`; require the focused unit, type, generator, and dependency checks to pass after T010-T017.
 - [X] T019 [US1] Run `pnpm test:platform` to requalify the unchanged shared core on PGlite and native PostgreSQL, then run `pnpm verify`; report Cloud service, managed provider, response-loss process, and security evidence as `NOT RUN` for these commands rather than inferring it from repository passes.
-- [ ] T020 [US1] Run `pnpm test:cloud -- --output <new-record.json>` against the exact branch revision; require every scenario in T008 to pass and preserve the non-overwriting JSON record with commit, clean-worktree state, contract digest, environment, exact image, results, and exclusions.
-- [ ] T021 [US1] Inspect the T020 record and service output for bearer tokens, token digests, passwords, database URLs, command bodies, SQL, stack traces, tenant/principal leakage, or unrestricted environments; fail acceptance if any secret or protected value appears.
+- [X] T020 [US1] Run `pnpm test:cloud -- --output <new-record.json>` against the exact branch revision; require every scenario in T008 to pass and preserve the non-overwriting JSON record with commit, clean-worktree state, contract digest, environment, exact image, results, and exclusions.
+- [X] T021 [US1] Inspect the T020 record and service output for bearer tokens, token digests, passwords, database URLs, command bodies, SQL, stack traces, tenant/principal leakage, or unrestricted environments; fail acceptance if any secret or protected value appears.
+
+**Accepted native evidence**: `artifacts/cloud/feat-0006-1fa83d1.json` records commit `1fa83d1adf3e5c37adaaccdb4afdb7c037b6fb1a` with a clean worktree, nine passing scenarios, no failures or skips, and explicit `NOT RUN` exclusions. The retained record and captured service output contain none of the prohibited values listed in T021.
 
 **Checkpoint**: User Story 1 is independently functional and evidenced through the actual service and native PostgreSQL. No public Cloud or production claim is implied.
 
@@ -83,10 +85,10 @@
 
 **Purpose**: Reconcile durable documentation with exact executed evidence and leave one unambiguous next action.
 
-- [ ] T022 [P] Validate every command, path, failure boundary, and `NOT RUN` statement in `docs/features/0006-cloud-runtime-service/quickstart.md` against the implemented service and T018-T021 outputs; update only documented facts that differ from the executed artifact.
-- [ ] T023 Re-run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, `git diff --check`, the documentation link scan, and the FEAT-0006 requirement-to-task coverage scan; resolve every missing requirement, malformed checklist item, stale placeholder, or broken local link in `docs/features/0006-cloud-runtime-service/`.
-- [ ] T024 Update `docs/roadmap.md` only after T018-T021 pass for the same revision: mark FEAT-0006 complete, record the exact revision, contract digest, native record path, executed scenarios, and explicit `NOT RUN` lanes, identify the smallest missing capability blocking a usable Cloud preview, and promote exactly one unnumbered next candidate without assigning a feature identity.
-- [ ] T025 Run `pnpm verify` after the final documentation and roadmap edits, confirm `git diff --check`, and report separately the exact provider-free checks that passed, the retained native Cloud record, and every managed, paid, live, Policy, security, recovery, benchmark, and production lane that remains `NOT RUN`.
+- [X] T022 [P] Validate every command, path, failure boundary, and `NOT RUN` statement in `docs/features/0006-cloud-runtime-service/quickstart.md` against the implemented service and T018-T021 outputs; update only documented facts that differ from the executed artifact.
+- [X] T023 Re-run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, `git diff --check`, the documentation link scan, and the FEAT-0006 requirement-to-task coverage scan; resolve every missing requirement, malformed checklist item, stale placeholder, or broken local link in `docs/features/0006-cloud-runtime-service/`.
+- [X] T024 Update `docs/roadmap.md` only after T018-T021 pass for the same revision: mark FEAT-0006 complete, record the exact revision, contract digest, native record path, executed scenarios, and explicit `NOT RUN` lanes, identify the smallest missing capability blocking a usable Cloud preview, and promote exactly one unnumbered next candidate without assigning a feature identity.
+- [X] T025 Run `pnpm verify` after the final documentation and roadmap edits, confirm `git diff --check`, and report separately the exact provider-free checks that passed, the retained native Cloud record, and every managed, paid, live, Policy, security, recovery, benchmark, and production lane that remains `NOT RUN`.
 
 ---
 

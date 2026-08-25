@@ -1,6 +1,6 @@
 # Quickstart: Cloud runtime and service
 
-This quickstart is the implementation and acceptance sequence for FEAT-0006. The service does not exist until the tasks in [tasks.md](tasks.md) are complete.
+This quickstart records the implementation and acceptance sequence for FEAT-0006. See [tasks.md](tasks.md) for the executed task evidence.
 
 ## Prerequisites
 
@@ -44,17 +44,17 @@ Choose a new output path. The command refuses to overwrite an existing record.
 pnpm test:cloud -- --output artifacts/cloud/feat-0006-local.json
 ```
 
-The runner uses the exact pinned PostgreSQL image, an ephemeral loopback port, controlled test identities, and an actual Cloud child process. It must complete:
+The runner uses the exact pinned PostgreSQL image, an ephemeral loopback port, controlled test identities, and an actual Cloud child process. The accepted run is retained at `artifacts/cloud/feat-0006-1fa83d1.json`. It completes:
 
-1. startup contract and procedure verification;
+1. startup contract, migration checksum, procedure signature, execution-role, and public-execution verification;
 2. the remote Resource definition, root Budget, request, settlement, read, and history loop for two tenants;
-3. known-identifier cross-tenant read, mutation, and replay denial;
+3. known-identifier cross-tenant read and mutation denial plus tenant-scoped command reuse without cross-tenant replay;
 4. database permission denial without state change;
 5. ordinary client and service restart with PostgreSQL retained;
 6. committed-response loss, service exit, restart, and exact replay;
 7. concurrent exact retry and same-tenant conflicting command reuse;
 8. explicit database-unavailable behavior with no local fallback; and
-9. refusal to listen against an empty or incompatible database.
+9. refusal to listen against an empty, incompatible, checksum-drifted, or publicly executable database.
 
 The command removes its container and temporary credentials on success or failure. The selected JSON record remains for review.
 
