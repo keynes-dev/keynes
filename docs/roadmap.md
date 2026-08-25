@@ -40,12 +40,13 @@ On August 25, 2026, [FEAT-0005 hosted run 32886316983](https://github.com/shubsh
 
 This stage builds and qualifies Keynes Cloud as the durable, hosted product runtime.
 
-| Feature                      | Purpose                                                                                                                                                                               | Depends on                  | Status      |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- |
-| Cloud architecture gate      | Test the highest-risk tenant isolation, routing, fencing, checkpoint, and recovery assumptions before implementation.                                                                 | Local preview qualification | Not started |
-| Cloud runtime and service    | Run the shared database core behind the authenticated Keynes Cloud service without moving Budget or Policy authority into the service.                                                 | Cloud architecture gate     | Not started |
-| Policy and public interfaces | Complete raw-SQL and typed Policy authoring, publication and activation, sandboxing, stable reads and errors, the SDK, the Cloud protocol, compatibility behavior, and explanations. | Cloud runtime and service   | Not started |
-| Cloud preview qualification  | Pass semantic, Policy security, recovery, deployment, replay, upgrade, rollback, footprint, and latency checks for the hosted runtime.                                                | Policy and public interfaces | Not started |
+| Feature                      | Purpose                                                                                                                                                                            | Depends on                   | Status      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ----------- |
+| [0006 Cloud runtime and service](features/0006-cloud-runtime-service/spec.md) | Run the complete remote Budget loop through one authenticated service and one PostgreSQL database. Prove tenant isolation and exact replay after restart. | Local preview qualification  | In progress |
+| Policy and public interfaces | Complete raw-SQL and typed Policy authoring, publication and activation, sandboxing, stable reads and errors, the SDK, the Cloud protocol, compatibility behavior, and explanations. | Cloud runtime and service    | Not started |
+| Cloud preview qualification  | Pass semantic, Policy security, recovery, deployment, replay, upgrade, rollback, footprint, and latency checks for the hosted runtime.                                             | Policy and public interfaces | Not started |
+
+When the active Cloud feature is accepted, update this stage from its executed evidence and promote exactly one next candidate. Split a candidate only when the implementation exposes an independently testable boundary. Assign no feature identity until Spec Kit starts that work.
 
 ## Production release
 
@@ -62,6 +63,6 @@ This stage contains optional product capabilities. Product direction can promote
 
 | Feature                        | Purpose                                                                                                                                                            | Depends on                                  | Status      |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- | ----------- |
-| Operational and analysis tools | Add diagnostics, analysis, routing, or operational tools required by the supported product.                                                                         | Cloud runtime and service       | Not started |
+| Operational and analysis tools | Add diagnostics or analysis required by the supported product.                                                                                                      | Cloud runtime and service       | Not started |
 | Subtree issuance               | Allow authorized Resource creation within a child subtree while preserving conservation, settlement, replay, recovery, compatibility, and runtime conformance.     | Production qualification        | Not started |
 | Multi-source funding           | Allow ordered contributions from several Budgets in one database while preserving one structural parent and atomicity. Cross-database composition remains invalid. | Subtree issuance                | Not started |
