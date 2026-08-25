@@ -97,8 +97,9 @@
 
 **Purpose**: Qualify the same archive on the declared six-environment matrix after explicit authorization.
 
-- [ ] T021 Add `.github/workflows/local-preview.yml` with `workflow_dispatch`, read-only permissions, pinned actions, timeouts, one Linux x64 Node.js 24 archive build, digest-preserving artifact transfer, six consumer jobs, one reference measurement, and retained archive and JSON artifacts.
-- [ ] T022 Validate `.github/workflows/local-preview.yml` locally where possible and confirm every job consumes the same archive SHA-256 without publishing or using provider credentials.
+- [X] T021 Add `.github/workflows/local-preview.yml` with `workflow_dispatch`, read-only permissions, pinned actions, timeouts, one Linux x64 Node.js 24 archive build, digest-preserving artifact transfer, six consumer jobs, one reference measurement, and retained archive and JSON artifacts.
+- [X] T022 Validate `.github/workflows/local-preview.yml` locally where possible and confirm every job consumes the same archive SHA-256 without publishing or using provider credentials.
+  - Local validation passed YAML parsing, formatting, 13 full-SHA action pins, the declared 3-by-2 matrix, forbidden credential/publication checks, and both archive digest commands. `actionlint` and hosted execution remain `NOT RUN`.
 - [ ] T023 After explicit authorization, dispatch the manual workflow for the exact commit, wait for every required job, and record the run URL, commit, archive digest, limits, and excluded lanes only if all jobs pass in `docs/roadmap.md`.
 - [ ] T024 Change FEAT-0005 to `Complete` in `docs/roadmap.md` only after `pnpm verify` and the full manual workflow pass for the same commit; otherwise leave the roadmap status unchanged.
 
