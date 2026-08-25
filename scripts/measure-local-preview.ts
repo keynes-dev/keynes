@@ -9,7 +9,7 @@ import {
   PRODUCTION_LIMIT_BYTES,
   inspectArchive,
   installExternalConsumer,
-} from "./qualify-local-preview.js";
+} from "./qualify-local-preview.ts";
 
 const READY_RSS_LIMIT_BYTES = 192 * 1024 * 1024;
 const COLD_CREATE_LIMIT_MILLISECONDS = 3_000;

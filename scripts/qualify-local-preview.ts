@@ -385,6 +385,7 @@ function run(command: string, args: readonly string[], cwd: string): string {
     encoding: "utf8",
     env: { ...process.env, CI: "true" },
     maxBuffer: 10 * 1024 * 1024,
+    shell: process.platform === "win32",
     timeout: 60_000,
   });
   if (result.error !== undefined) throw result.error;
