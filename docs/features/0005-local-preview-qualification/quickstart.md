@@ -1,12 +1,12 @@
 # Qualify the local preview
 
-**Status**: Local package acceptance passed on Darwin arm64 with Node.js 26.5.0. The Linux reference measurement and hosted matrix remain `NOT RUN`.
+**Status**: Local package acceptance passed on Darwin arm64 with Node.js 26.5.0. The final hosted attempt passed all six consumer jobs but failed the Linux reference RSS limit, so FEAT-0005 is not qualified.
 
 The final local run used archive SHA-256 `2e01a7c323e3b1fd6d45a72f9fefc7096bdbbab648e8efa2b69005bebb49d23e`. The archive was 28,847 bytes, and its production installation was 25,577,997 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
 
 The same archive passed the installed Budget loop, two-runtime isolation, repeated closure, post-close rejection, and fresh-process state-loss checks. The unchanged source lifecycle and committed-response replay files passed 15 tests against the production source graph. Replay controls remain private and were not added to the archive.
 
-The measurement controller and worker checks passed, including a controlled cold-create limit failure. No retained performance record was produced because the required Linux x64 Node.js 24 reference environment was unavailable. Memory and latency remain `NOT RUN`.
+The measurement controller and worker checks passed, including a controlled cold-create limit failure. [Hosted run 32851452990](https://github.com/shubsharan/keynes/actions/runs/32851452990) retained a Linux x64 Node.js 24 record for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. Ready-runtime RSS p95 was 774,340,608 bytes against a 201,326,592-byte limit. Cold creation, first request, and steady request p95 values passed at 2,550.779, 18.773, and 9.469 milliseconds. The failed RSS check makes the whole attempt ineligible as accepted evidence.
 
 ## Prerequisites
 
@@ -79,4 +79,4 @@ Provider-free acceptance proves the packed ESM facade, copied database files, cl
 
 Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, Cloud, Policy, hostile-process security, recovery, upgrades, registry publication, paid providers, production workloads, and adopter use remain `NOT RUN`.
 
-The hosted six-environment matrix and Linux x64 Node.js 24 measurement also remain `NOT RUN` until one manual workflow passes for the exact commit and archive digest.
+The hosted lanes were executed for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8`. All six consumer jobs passed from one archive digest, but the Linux x64 Node.js 24 measurement failed its RSS ceiling. Neither the matrix nor the performance target is qualified until one complete manual workflow passes for the exact commit and archive digest.

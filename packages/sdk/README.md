@@ -49,4 +49,4 @@ Local mode does not accept a database path, connection, extension, tenant, princ
 
 The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
 
-The six-environment target becomes qualified only after `.github/workflows/local-preview.yml` passes for one commit and one archive digest. Until then, the hosted matrix and Linux x64 Node.js 24 performance limits remain `NOT RUN`.
+The six-environment target becomes qualified only after `.github/workflows/local-preview.yml` passes for one commit and one archive digest. The latest attempt passed all six consumer jobs but failed the Linux x64 Node.js 24 RSS ceiling, so neither target is qualified.

@@ -87,7 +87,7 @@
 - [X] T018 [US3] Implement the installed-package worker with `performance.now()`, `process.memoryUsage.rss()`, fixed Resource and Budget fixtures, explicit close, and structured stdout in `packages/sdk/qualification/measure-worker.mjs`.
 - [X] T019 [US3] Implement `scripts/measure-local-preview.ts` to control fresh processes, retain ordered raw samples, compute only fixed count and nearest-rank p95 observations, write one new JSON record, and exit nonzero for invalid input or exceeded limits.
 - [X] T020 [US3] Wire `pnpm qualify:local -- --archive <path> --output <record.json>`, run a controlled low-limit failure, and run the real Linux x64 Node.js 24 measurement only when that reference environment is available; preserve `NOT RUN` otherwise in `docs/features/0005-local-preview-qualification/quickstart.md`.
-  - The controlled cold-create limit failure passed. The Linux x64 Node.js 24 reference measurement remains `NOT RUN`; the available host is Darwin arm64 with Node.js 26.5.0.
+  - The controlled cold-create limit failure passed. Hosted run `32851452990` retained a Linux x64 Node.js 24 record for commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8`: ready RSS p95 was 774,340,608 bytes against 201,326,592; cold creation was 2,550.779 milliseconds against 3,000; first request was 18.773 milliseconds against 250; and steady request was 9.469 milliseconds against 100. The RSS failure makes the attempt ineligible as accepted evidence.
 
 **Checkpoint**: User Story 3 produces a reviewable record without claiming other hosts or a hosted pass.
 
@@ -99,9 +99,11 @@
 
 - [X] T021 Add `.github/workflows/local-preview.yml` with `workflow_dispatch`, read-only permissions, pinned actions, timeouts, one Linux x64 Node.js 24 archive build, digest-preserving artifact transfer, six consumer jobs, one reference measurement, and retained archive and JSON artifacts.
 - [X] T022 Validate `.github/workflows/local-preview.yml` locally where possible and confirm every job consumes the same archive SHA-256 without publishing or using provider credentials.
-  - Local validation passed YAML parsing, formatting, 13 full-SHA action pins, the declared 3-by-2 matrix, forbidden credential/publication checks, and both archive digest commands. `actionlint` and hosted execution remain `NOT RUN`.
+  - Local validation passed YAML parsing, formatting, 13 full-SHA action pins, the declared 3-by-2 matrix, forbidden credential/publication checks, and both archive digest commands. `actionlint` remains `NOT RUN`. Hosted run `32851452990` passed the build and all six digest-checking consumer jobs without publication or provider credentials.
 - [ ] T023 After explicit authorization, dispatch the manual workflow for the exact commit, wait for every required job, and record the run URL, commit, archive digest, limits, and excluded lanes only if all jobs pass in `docs/roadmap.md`.
+  - Authorized run `32851452990` completed for exact commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8` and archive SHA-256 `c3858fb712dcf4479b06b44f36f04c264af4b7320128dfe391eba91ee5aa5aed`. The build and all six consumer jobs passed, but the reference measurement failed the RSS ceiling. No accepted evidence was added to `docs/roadmap.md`.
 - [ ] T024 Change FEAT-0005 to `Complete` in `docs/roadmap.md` only after `pnpm verify` and the full manual workflow pass for the same commit; otherwise leave the roadmap status unchanged.
+  - `pnpm verify` passed on exact commit `209620f3e2b5804a5517ce6d7f3bd9239d485fc8`, but hosted run `32851452990` failed its reference measurement. The roadmap remains `Not started`.
 
 **Checkpoint**: The roadmap claim matches executed hosted evidence and no broader support claim is implied.
 
@@ -112,7 +114,7 @@
 - [X] T025 [P] Document the private local archive, package-root imports, supported ESM matrix, process-local limits, and non-publication boundary in `packages/sdk/README.md`.
 - [X] T026 [P] Reconcile runnable commands, exact-archive reuse, fixed measurement fields, cleanup expectations, and `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/quickstart.md`.
 - [X] T027 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, `pnpm test:package -- --archive <path>`, `pnpm verify`, `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`, and `git diff --check`; reconcile every task and evidence claim in `docs/features/0005-local-preview-qualification/tasks.md`.
-  - Final local acceptance passed all named commands. The SDK suite passed 89 tests in 15 files, and `pnpm verify` passed all six Turbo tasks and dependency boundaries. T023 and T024 remain gated on an authorized hosted run for the final commit.
+  - Final local acceptance passed all named commands. The SDK suite passed 89 tests in 15 files, and `pnpm verify` passed all six Turbo tasks and dependency boundaries. T023 and T024 remain incomplete because the authorized hosted run failed the reference RSS ceiling.
 
 ---
 
