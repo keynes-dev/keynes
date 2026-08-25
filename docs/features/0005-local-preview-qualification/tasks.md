@@ -9,8 +9,10 @@
 
 **Purpose**: Confirm the feature identity and preserve an honest baseline before implementation.
 
-- [ ] T001 Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` and reconcile any identity or artifact mismatch in `.specify/feature.json` and `docs/features/0005-local-preview-qualification/`.
-- [ ] T002 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, and `pnpm verify`; record only completed baseline results and any `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/tasks.md`.
+- [X] T001 Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` and reconcile any identity or artifact mismatch in `.specify/feature.json` and `docs/features/0005-local-preview-qualification/`.
+- [X] T002 Run `pnpm generate:check`, `pnpm --filter @keynes/sdk test`, and `pnpm verify`; record only completed baseline results and any `NOT RUN` lanes in `docs/features/0005-local-preview-qualification/tasks.md`.
+  - Baseline: `pnpm generate:check` passed; `pnpm --filter @keynes/sdk test` passed 84 tests in 13 files; `pnpm verify` passed all six Turbo tasks and dependency-boundary checks.
+  - `NOT RUN`: package archive qualification, reference measurements, and the six-environment hosted matrix. These lanes do not exist until their later phases are implemented.
 
 ---
 
