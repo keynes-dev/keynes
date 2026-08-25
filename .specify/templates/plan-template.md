@@ -40,9 +40,9 @@
 - **Policy and security**: Describe Policy inputs, accessible views and
   functions, failure behavior, authorization, tenant isolation, and secret
   handling when Policy or durable authority is in scope.
-- **One cross-host contract**: Identify public procedure, schema, SDK,
-  migration, and compatibility changes. Define the shared conformance evidence
-  required for each affected host.
+- **One cross-runtime contract**: Identify database procedure, schema, SDK,
+  Cloud protocol, migration, and compatibility changes. Define the shared
+  conformance evidence required for each affected runtime.
 - **Evidence-first delivery**: Name the behavioral tests that will be observed
   failing before implementation, the deterministic provider-free verification
   lane, and any separately authorized live, paid, fault, or benchmark lane.

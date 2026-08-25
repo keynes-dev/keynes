@@ -3,6 +3,7 @@
 - **Date:** 2026-08-21
 - **Status:** Accepted
 - **Amended:** 2026-08-21 - group all product code under `packages/`
+- **Amended:** 2026-08-25 - remove the customer-owned PostgreSQL distribution requirement
 - **Decider:** `@shubsharan`
 - **Tags:** repository, ownership, TypeScript, monorepo
 
@@ -10,7 +11,7 @@
 
 Keynes needs repository ownership and a repeatable engineering baseline before runtime work begins. The target architecture includes contracts, one PostgreSQL database core, one TypeScript SDK with local PGlite support, and one private TypeScript Cloud service. Creating a package, distribution, or verification workspace for every future deliverable would add empty boundaries and could make unimplemented behavior appear qualified.
 
-FEAT-0001 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-host evidence.
+FEAT-0001 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-runtime evidence.
 
 ## Decision drivers
 
@@ -38,13 +39,13 @@ Only `packages/sdk/` and `packages/cloud/` are pnpm workspaces. Their provisiona
 | Area | Responsibility | Allowed or public edge |
 | --- | --- | --- |
 | `packages/contracts/` | Logical interfaces and canonical fixtures | Approved contract sources and fixtures |
-| `packages/database/` | Database SQL, migrations, private storage, and later PostgreSQL distribution | Public procedures and contract-defined protocols |
+| `packages/database/` | Database SQL, migrations, private storage, and runtime installation assets | Database procedures and contract-defined protocols |
 | `packages/sdk/` | Public TypeScript SDK and private local PGlite adapter | Future package exports derived from shared contracts |
 | `packages/cloud/` | Private TypeScript Cloud service | Future contract-defined authenticated Cloud protocol |
 | `scripts/` | Later contract generation and repository automation not covered by native tools | Root contributor commands |
 | `docs/` | Product, architecture, roadmap, ADRs, and guides | Source-of-truth documents and accepted decisions |
 
-The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume public contract artifacts and invoke only public database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
+The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume contract artifacts and invoke only contract-defined database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
 
 ### Private internals and source policy
 
@@ -65,7 +66,7 @@ Logical contracts are authored under `packages/contracts/` and identified by the
 
 - Some ownership areas contain only documentation until their implementation stage begins.
 - Root-owned checks enforce the initial dependency graph without a dedicated architecture-analysis package.
-- Publication, database packaging, and host qualification require later decisions and cannot be inferred from the initial tree.
+- Publication, Cloud packaging, and runtime qualification require later decisions and cannot be inferred from the initial tree.
 
 ## Pros and cons of the options
 
@@ -95,7 +96,7 @@ Logical contracts are authored under `packages/contracts/` and identified by the
 
 ## Deferred work
 
-The executable database stage owns contract generation and generated-output drift checks. The PostgreSQL distribution stage owns PostgreSQL distribution packaging under `packages/database/`. The cross-host conformance stage owns a root cross-host conformance area after local PGlite, customer PostgreSQL, and managed Cloud are real. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
+The executable database stage owns contract generation and generated-output drift checks. Cloud implementation owns managed PostgreSQL installation under `packages/database/` and `packages/cloud/`. Cross-runtime conformance appears after local PGlite and managed Cloud are real. Customer-owned PostgreSQL distribution is not a product requirement. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
 
 FEAT-0001 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
 

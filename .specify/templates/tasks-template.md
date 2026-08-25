@@ -45,7 +45,7 @@ the tasks MUST state why no behavioral test applies.
 
   Each behavioral story MUST order its acceptance, contract, integration, or
   unit tests before implementation and include retained provider-free evidence.
-  Add security, recovery, migration, compatibility, cross-host conformance,
+  Add security, recovery, migration, compatibility, cross-runtime conformance,
   fault, performance, or separately authorized live tasks when the plan puts
   those qualities in scope.
 

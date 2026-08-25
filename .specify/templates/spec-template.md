@@ -110,8 +110,9 @@ rationale:
   fallback behavior.
 - **Policy and security**: Define Policy visibility and fail-closed behavior,
   authorization boundaries, tenant isolation, and secret handling when relevant.
-- **Contracts and hosts**: Identify public schema, procedure, SDK, migration,
-  compatibility, and cross-host conformance implications.
+- **Contracts and runtimes**: Identify database schema, procedure, SDK, Cloud
+  protocol, migration, compatibility, and cross-runtime conformance
+  implications.
 - **Evidence classification**: State which acceptance evidence is provider-free
   and which evidence is live, paid, externally mutating, fault-based, or
   benchmark-based and therefore requires a separate lane or authorization.

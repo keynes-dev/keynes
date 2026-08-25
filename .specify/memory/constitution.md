@@ -1,23 +1,23 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 2.0.0
+- Version change: 2.0.0 -> 3.0.0
 - Modified principles:
-  - I. Singular Budget Authority: require one named procedure without a version label
-  - IV. One Contract Across Hosts: use contract digests now and add compatibility namespaces only when incompatible contracts coexist
+  - IV. One Contract Across Hosts -> IV. One Contract Across Runtimes: remove customer PostgreSQL and public SQL as product requirements
 - Modified sections:
-  - Product and Authority Constraints -> Product constraints
+  - Product constraints: require only local PGlite and Keynes Cloud as product runtimes
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ validated, no change: .specify/templates/plan-template.md
+  - ✅ updated: .specify/templates/plan-template.md
   - ✅ updated: .specify/templates/spec-template.md
-  - ✅ validated, no change: .specify/templates/tasks-template.md
+  - ✅ updated: .specify/templates/tasks-template.md
   - ✅ validated, no change: .specify/templates/checklist-template.md
   - ✅ validated, no command templates present: .specify/templates/commands/*.md
 - Runtime guidance reviewed:
   - ✅ updated: docs/product.md
   - ✅ updated: docs/architecture.md
   - ✅ updated: docs/roadmap.md
+  - ✅ updated: docs/adr/0001-repository-boundaries.md
   - ✅ aligned, no change: AGENTS.md
 - Follow-up TODOs: None
 -->
@@ -64,21 +64,21 @@ Policy context MUST be application-asserted, canonically recorded, and free of
 secrets.
 
 This rule makes Policy expressive enough for business constraints while keeping
-the database boundary auditable and safe to execute in every supported host.
+the database boundary auditable and safe to execute in both runtimes.
 
-### IV. One Contract Across Hosts
+### IV. One Contract Across Runtimes
 
-Local PGlite, customer PostgreSQL, and Keynes Cloud MUST run one database core:
-the same migration graph, public procedures, Policy environment, canonical
-errors, and evidence model. Adapters may differ in lifecycle,
-authentication, routing, concurrency controls, and operations, but MUST NOT
-redefine Budget behavior. Public SQL and generated SDK contracts MUST derive
-from shared sources and identify the exact contract digest. Compatibility
-namespaces MUST be introduced only when incompatible contracts must coexist.
-A host is supported only after the shared conformance corpus proves equivalent
-semantic results for that host. Subtree issuance, multi-source funding, or any
-new Resource path MUST use a separate public contract and pass its own
-authorization, conservation, recovery, and conformance gates before release.
+Local PGlite and Keynes Cloud MUST run one database core: the same migration
+graph, database procedures, Policy environment, canonical errors, and evidence
+model. Adapters may differ in lifecycle, authentication, routing, concurrency
+controls, and operations, but MUST NOT redefine Budget behavior. The generated
+SDK and Cloud protocol MUST derive from shared contract sources and identify the
+exact contract digest. Compatibility namespaces MUST be introduced only when
+incompatible contracts must coexist. A runtime is supported only after the
+shared conformance corpus proves equivalent semantic results for that runtime.
+Subtree issuance, multi-source funding, or any new Resource path MUST use a
+separate contract and pass its own authorization, conservation, recovery, and
+conformance gates before release.
 
 This rule prevents convenient entry points from becoming competing Keynes
 implementations.
@@ -116,6 +116,13 @@ prevents planned behavior from being reported as delivered behavior.
   serialization, explicit error families, and idempotent command replay.
 - Secrets MUST NOT appear in Policy context, committed fixtures, generated
   artifacts, logs, prompts, or retained evidence.
+- The product MUST support exactly two runtimes: private process-scoped local
+  PGlite through the TypeScript SDK, and managed Keynes Cloud through the
+  authenticated TypeScript SDK. Customer-hosted Cloud, customer-owned
+  PostgreSQL, direct public SQL integration, database embedding, customer
+  installation extensions, and caller-owned transaction composition require a
+  separate product and architecture decision plus a later constitutional
+  amendment.
 - `docs/product.md` owns the product thesis and commitments;
   `docs/architecture.md` owns runtime semantics and boundaries; and
   `docs/roadmap.md` owns implementation order and evidence gates. Feature
@@ -129,7 +136,7 @@ prevents planned behavior from being reported as delivered behavior.
   constitutional concern MUST be marked `N/A` with a concrete rationale.
 - Every implementation plan MUST pass the Constitution Check before research and
   again after design. It MUST identify the singular authority, application-owned
-  effects, Policy and security boundary, cross-host contract impact, and exact
+  effects, Policy and security boundary, cross-runtime contract impact, and exact
   verification lanes for the feature.
 - Every task list for a behavioral change MUST order failing behavioral tests
   before the corresponding implementation. Documentation-only, generated-output,
@@ -164,9 +171,9 @@ approved amendment.
 
 Every feature plan and review MUST verify constitutional compliance. Reviewers
 MUST reject unexplained violations, alternate semantic authorities, hidden
-external effects, fail-open Policy behavior, unsupported cross-host parity, and
+external effects, fail-open Policy behavior, unsupported runtime parity, and
 claims that exceed retained evidence. Governance review does not replace
 technical judgment: every rule and exception MUST be justified by the concrete
 correctness, security, operability, or product risk it controls.
 
-**Version**: 2.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-22
+**Version**: 3.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-25

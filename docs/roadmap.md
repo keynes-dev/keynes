@@ -2,6 +2,8 @@
 
 This roadmap groups completed features and planned feature candidates into unnumbered stages. A planned candidate has no feature ID or artifacts until Spec Kit starts it. Spec Kit may split a candidate, combine adjacent candidates, or refine its boundary.
 
+This roadmap tracks product construction and qualification. User research, adopter trials, and validation in external teams' systems are outside its delivery gates. Product direction can use that information when available, but its absence does not block a feature.
+
 The [product](product.md) owns product semantics. The [architecture](architecture.md) owns runtime boundaries and release invariants. The [workflow](workflow.md) and [ADR 0002](adr/0002-feature-identity-and-roadmap-stages.md) define feature identity and delivery. Each feature table is the only source for delivery state.
 
 ## Repository baseline
@@ -23,47 +25,43 @@ This stage proves the database-owned Budget lifecycle and runs the same core on 
 
 ## Local workflow preview
 
-This stage turns the database core into an installable local product and tests whether it provides value in an outside team's workflow.
+This stage turns the database core into an installable local product and qualifies it in the declared supported environments.
 
 | Feature                                                               | Purpose                                                                                                                                                                                      | Depends on                  | Status      |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- |
 | [0004 Local runtime and SDK](features/0004-local-runtime-sdk/spec.md) | Add `Keynes.create({ mode: "local" })` with a private process-scoped PGlite runtime and the complete TypeScript Budget loop. Expose no database handle, daemon, account, or network service. | Shared core platform gate   | Complete    |
 | [0005 Local preview qualification](features/0005-local-preview-qualification/spec.md) | Prove runtime isolation, replay safety, shutdown behavior, packaged asset loading, supported build environments, package size, memory, startup, and latency.                     | Local runtime and SDK       | Complete    |
-| Adopter workflow evidence                                             | Have one outside team use approval, denial, usage, settlement, and evidence review in a named workflow. Record whether the team keeps the integration.                                       | Local preview qualification | Not started |
 
-On August 24, 2026, FEAT-0004 passed `pnpm --filter @keynes/sdk test`, `pnpm generate:check`, `pnpm verify`, and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`. These provider-free checks cover the source-workspace TypeScript facade, its private in-memory PGlite runtime, and the unchanged generated contract boundary. Emitted-package assets, package installation, supported environment qualification, package size, startup, memory, latency, shutdown qualification, native PostgreSQL facade behavior, managed providers, paid services, fault campaigns, and adopter use remain `NOT RUN`.
+On August 24, 2026, FEAT-0004 passed `pnpm --filter @keynes/sdk test`, `pnpm generate:check`, `pnpm verify`, and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`. These provider-free checks cover the source-workspace TypeScript facade, its private in-memory PGlite runtime, and the unchanged generated contract boundary. Emitted-package assets, package installation, supported environment qualification, package size, startup, memory, latency, shutdown qualification, managed providers, paid services, and fault campaigns remain `NOT RUN`.
 
-On August 25, 2026, [FEAT-0005 hosted run 32886316983](https://github.com/shubsharan/keynes/actions/runs/32886316983) passed for exact commit `714268c950e2f243755725bbe248add88977f6d5` and archive SHA-256 `86c099f7ea666edd58c3947199651aad07e2563621d23e01d619ab3efd098b84`. The same 28,943-byte archive and 25,576,559-byte production install passed clean-consumer qualification on Node.js 24 and 26 across Linux x64, macOS arm64, and Windows x64. On the Linux x64 Node.js 24 reference runner, ready-runtime RSS p95 was 771,928,064 bytes against the temporary 1 GiB ceiling; cold creation, first request, and steady request p95 values were 2,576.488, 22.174, and 9.847 milliseconds. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns reducing RSS to 512 MiB p95, with 384 MiB as the stretch target. Registry publication, browsers, bundlers, CommonJS, Bun, Deno, other architectures, native PostgreSQL facade qualification, Cloud, managed providers, security, recovery, production suitability, paid services, fault campaigns beyond the declared lifecycle cases, and adopter use remain `NOT RUN`.
+On August 25, 2026, [FEAT-0005 hosted run 32886316983](https://github.com/shubsharan/keynes/actions/runs/32886316983) passed for exact commit `714268c950e2f243755725bbe248add88977f6d5` and archive SHA-256 `86c099f7ea666edd58c3947199651aad07e2563621d23e01d619ab3efd098b84`. The same 28,943-byte archive and 25,576,559-byte production install passed clean-consumer qualification on Node.js 24 and 26 across Linux x64, macOS arm64, and Windows x64. On the Linux x64 Node.js 24 reference runner, ready-runtime RSS p95 was 771,928,064 bytes against the temporary 1 GiB ceiling; cold creation, first request, and steady request p95 values were 2,576.488, 22.174, and 9.847 milliseconds. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns reducing RSS to 512 MiB p95, with 384 MiB as the stretch target. Registry publication, browsers, bundlers, CommonJS, Bun, Deno, other architectures, Cloud, managed providers, security, recovery, production suitability, paid services, and fault campaigns beyond the declared lifecycle cases remain `NOT RUN`.
 
-## Selected durable-profile preview
+## Hosted Cloud preview
 
-This stage uses adopter evidence to select and qualify either customer PostgreSQL or managed Cloud for the validated workflow.
+This stage builds and qualifies Keynes Cloud as the durable, hosted product runtime.
 
-| Feature                         | Purpose                                                                                                                                                                  | Depends on                      | Status      |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------- |
-| Durable profile selection       | Choose customer PostgreSQL or managed Cloud from the adopter's durability need, trust boundary, transaction requirements, and support constraints.                       | Adopter workflow evidence       | Not started |
-| Selected profile feasibility    | Test the selected profile's highest-risk security, transaction, fencing, checkpoint, and recovery assumptions before packaging it.                                       | Durable profile selection       | Not started |
-| Selected profile implementation | Package the shared database core for the selected profile without moving Budget or Policy authority into an adapter.                                                     | Selected profile feasibility    | Not started |
-| Durable preview qualification   | Pass semantic, security, recovery, installation or deployment, replay, upgrade, rollback, footprint, and latency checks. Confirm that the adopter keeps the integration. | Selected profile implementation | Not started |
+| Feature                      | Purpose                                                                                                                                                                               | Depends on                  | Status      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- |
+| Cloud architecture gate      | Test the highest-risk tenant isolation, routing, fencing, checkpoint, and recovery assumptions before implementation.                                                                 | Local preview qualification | Not started |
+| Cloud runtime and service    | Run the shared database core behind the authenticated Keynes Cloud service without moving Budget or Policy authority into the service.                                                 | Cloud architecture gate     | Not started |
+| Policy and public interfaces | Complete raw-SQL and typed Policy authoring, publication and activation, sandboxing, stable reads and errors, the SDK, the Cloud protocol, compatibility behavior, and explanations. | Cloud runtime and service   | Not started |
+| Cloud preview qualification  | Pass semantic, Policy security, recovery, deployment, replay, upgrade, rollback, footprint, and latency checks for the hosted runtime.                                                | Policy and public interfaces | Not started |
 
 ## Production release
 
-This stage decides the supported release set and qualifies every host, package, capability, and interface included in it.
+This stage completes the local and Cloud product contract and qualifies both runtimes for release.
 
-| Feature                       | Purpose                                                                                                                                                                                | Depends on                                | Status      |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----------- |
-| Release contract decision     | Accept an ADR that retains the current all-host contract or defines a narrower supported host and package set.                                                                         | Durable preview qualification             | Not started |
-| Remaining deployment profile  | Implement and qualify the unselected customer PostgreSQL or managed Cloud profile if the accepted release contract includes it.                                                        | Release contract decision                 | Not started |
-| SQL-only PostgreSQL extension | Generate the extension from the migration graph and prove equivalence with bundle installation if the accepted release contract includes it.                                           | Release contract decision                 | Not started |
-| Policy and public interfaces  | Complete raw-SQL and typed Policy authoring, publication and activation, sandboxing, stable reads and errors, the SDK, compatibility behavior, and any accepted advisory explanations. | Release contract decision                 | Not started |
-| Production qualification      | Run the complete cross-host semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.                                 | All work required by the release contract | Not started |
+| Feature                  | Purpose                                                                                                                                                    | Depends on                  | Status      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- |
+| Release contract         | Define supported local and Cloud versions, capabilities, interfaces, and compatibility windows.                                                          | Cloud preview qualification | Not started |
+| Production qualification | Run the complete cross-runtime semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites. | Release contract            | Not started |
 
 ## Conditional growth
 
-This stage contains feature candidates that enter the delivery sequence only when adopter or operating evidence establishes a need.
+This stage contains optional product capabilities. Product direction can promote a candidate into the delivery sequence without an adopter trial or external validation gate.
 
 | Feature                        | Purpose                                                                                                                                                            | Depends on                                  | Status      |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- | ----------- |
-| Operational and analysis tools | Add a specific diagnostic, analysis, routing, or operational tool when repeated use identifies the need.                                                           | Usage evidence                              | Not started |
-| Subtree issuance               | Allow authorized Resource creation within a child subtree while preserving conservation, settlement, replay, recovery, compatibility, and host conformance.        | Adopter need                                | Not started |
-| Multi-source funding           | Allow ordered contributions from several Budgets in one database while preserving one structural parent and atomicity. Cross-database composition remains invalid. | Qualified subtree issuance and adopter need | Not started |
+| Operational and analysis tools | Add diagnostics, analysis, routing, or operational tools required by the supported product.                                                                         | Cloud runtime and service       | Not started |
+| Subtree issuance               | Allow authorized Resource creation within a child subtree while preserving conservation, settlement, replay, recovery, compatibility, and runtime conformance.     | Production qualification        | Not started |
+| Multi-source funding           | Allow ordered contributions from several Budgets in one database while preserving one structural parent and atomicity. Cross-database composition remains invalid. | Subtree issuance                | Not started |
