@@ -58,14 +58,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] Add failing qualification assertions for installed two-runtime isolation, repeated close, post-close rejection, fresh-process state loss, and child-process cleanup in `scripts/qualify-local-preview.test.ts`.
-- [ ] T012 [P] [US2] Add failing package-root export assertions for PGlite, copied database files, procedure callers, fixtures, replay controls, tenant and principal identities, paths, raw SQL, and qualification commands in `packages/sdk/src/public-exports.test.ts`.
+- [X] T011 [P] [US2] Add failing qualification assertions for installed two-runtime isolation, repeated close, post-close rejection, fresh-process state loss, and child-process cleanup in `scripts/qualify-local-preview.test.ts`.
+- [X] T012 [P] [US2] Add failing package-root export assertions for PGlite, copied database files, procedure callers, fixtures, replay controls, tenant and principal identities, paths, raw SQL, and qualification commands in `packages/sdk/src/public-exports.test.ts`.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Extend `packages/sdk/qualification/consumer.mts` with public isolation, repeated-close, post-close, write-then-exit, and read-after-restart modes, and have `scripts/qualify-local-preview.ts` invoke those modes in fresh processes.
-- [ ] T014 [US2] Run `packages/sdk/src/local-lifecycle.test.ts` and `packages/sdk/src/local-replay.test.ts` unchanged against the production source graph; do not add emitted duplicates or move replay controls into production modules.
-- [ ] T015 [US2] Run the source suites and installed consumer against the same archive digest, verify child-process and temporary-directory cleanup, and reconcile the evidence boundary in `docs/features/0005-local-preview-qualification/quickstart.md`.
+- [X] T013 [US2] Extend `packages/sdk/qualification/consumer.mts` with public isolation, repeated-close, post-close, write-then-exit, and read-after-restart modes, and have `scripts/qualify-local-preview.ts` invoke those modes in fresh processes.
+- [X] T014 [US2] Run `packages/sdk/src/local-lifecycle.test.ts` and `packages/sdk/src/local-replay.test.ts` unchanged against the production source graph; do not add emitted duplicates or move replay controls into production modules.
+- [X] T015 [US2] Run the source suites and installed consumer against the same archive digest, verify child-process and temporary-directory cleanup, and reconcile the evidence boundary in `docs/features/0005-local-preview-qualification/quickstart.md`.
 
 **Checkpoint**: User Stories 1 and 2 pass independently, and qualification has not expanded the public API or production seams.
 

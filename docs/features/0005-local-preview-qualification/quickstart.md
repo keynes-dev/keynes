@@ -4,6 +4,8 @@
 
 The local run used archive SHA-256 `c804a41d08d57c7611359ada6fc1b9e0fbb15bbe971764a7d609940c2cf1b690`. The archive was 28,400 bytes, and its production installation was 25,577,410 bytes. This run does not qualify the declared hosted matrix or reference performance limits.
 
+The same archive passed the installed Budget loop, two-runtime isolation, repeated closure, post-close rejection, and fresh-process state-loss checks. The unchanged source lifecycle and committed-response replay files passed 15 tests against the production source graph. Replay controls remain private and were not added to the archive.
+
 ## Prerequisites
 
 - a clean checkout of `feat/0005-local-preview-qualification`

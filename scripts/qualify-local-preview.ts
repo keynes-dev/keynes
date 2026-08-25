@@ -69,6 +69,12 @@ export interface QualificationResult {
   readonly compressedBytes: number;
   readonly productionBytes: number;
   readonly packageVersion: string;
+  readonly checks: readonly [
+    "budget-loop",
+    "isolation",
+    "closure",
+    "process-loss",
+  ];
 }
 
 interface ArchiveEntry {
@@ -209,9 +215,16 @@ export async function qualifyArchive(
       ],
       consumerRoot,
     );
+    const consumer = resolve(consumerRoot, "build/consumer.mjs");
+    run(process.execPath, [consumer, "budget-loop"], consumerRoot);
+    run(process.execPath, [consumer, "isolation"], consumerRoot);
+    run(process.execPath, [consumer, "closure"], consumerRoot);
+    const processState = parseProcessState(
+      run(process.execPath, [consumer, "write-then-exit"], consumerRoot),
+    );
     run(
       process.execPath,
-      [resolve(consumerRoot, "build/consumer.mjs")],
+      [consumer, "read-after-restart", processState.resourceTypeId],
       consumerRoot,
     );
 
@@ -221,6 +234,7 @@ export async function qualifyArchive(
       compressedBytes: archive.compressedBytes,
       productionBytes,
       packageVersion: archive.packageVersion,
+      checks: ["budget-loop", "isolation", "closure", "process-loss"],
     };
   } finally {
     await rm(consumerRoot, { recursive: true, force: true });
@@ -318,7 +332,25 @@ async function directoryBytes(root: string): Promise<number> {
   return bytes;
 }
 
-function run(command: string, args: readonly string[], cwd: string): void {
+function parseProcessState(source: string): {
+  readonly resourceTypeId: string;
+  readonly budgetId: string;
+} {
+  const value: unknown = JSON.parse(source);
+  if (
+    !isRecord(value) ||
+    typeof value.resourceTypeId !== "string" ||
+    typeof value.budgetId !== "string"
+  ) {
+    throw new Error("write-then-exit returned invalid process state");
+  }
+  return {
+    resourceTypeId: value.resourceTypeId,
+    budgetId: value.budgetId,
+  };
+}
+
+function run(command: string, args: readonly string[], cwd: string): string {
   const result = spawnSync(command, [...args], {
     cwd,
     encoding: "utf8",
@@ -332,6 +364,7 @@ function run(command: string, args: readonly string[], cwd: string): void {
       `${command} ${args.join(" ")} failed\n${result.stderr || result.stdout}`,
     );
   }
+  return result.stdout;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

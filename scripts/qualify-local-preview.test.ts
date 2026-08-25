@@ -107,6 +107,7 @@ describe("local preview qualification runner", () => {
         .digest("hex"),
       compressedBytes: expect.any(Number),
       productionBytes: expect.any(Number),
+      checks: ["budget-loop", "isolation", "closure", "process-loss"],
     });
     expect(await readdir(consumerRoot)).toEqual([]);
   }, 30_000);
