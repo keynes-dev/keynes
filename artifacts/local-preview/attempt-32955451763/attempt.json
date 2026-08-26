@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-preview-hosted-attempt",
+  "accepted": false,
+  "workflow": {
+    "runId": 32955451763,
+    "url": "https://github.com/shubsharan/keynes/actions/runs/32955451763",
+    "commit": "590fcdc882398c6a8f2e2ff51b0138d8e125bc17",
+    "conclusion": "failure"
+  },
+  "archive": {
+    "sha256": "a577f153215ff134b31dfbfde4d62938df36885da0d65476ceb2f05d0615c53f",
+    "compressedBytes": 23334,
+    "productionBytesOnReferenceHost": 128719,
+    "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
+  },
+  "consumers": [
+    {
+      "host": "ubuntu-24.04 x64",
+      "node": "24",
+      "conclusion": "success"
+    },
+    {
+      "host": "ubuntu-24.04 x64",
+      "node": "26",
+      "conclusion": "success"
+    },
+    {
+      "host": "macos-15 arm64",
+      "node": "24",
+      "conclusion": "success"
+    },
+    {
+      "host": "macos-15 arm64",
+      "node": "26",
+      "conclusion": "success"
+    },
+    {
+      "host": "windows-2025 x64",
+      "node": "24",
+      "conclusion": "failure",
+      "reason": "archive license bytes used LF while the checkout license used CRLF"
+    },
+    {
+      "host": "windows-2025 x64",
+      "node": "26",
+      "conclusion": "failure",
+      "reason": "archive license bytes used LF while the checkout license used CRLF"
+    }
+  ],
+  "measurementArtifact": {
+    "artifactId": 9601813466,
+    "name": "local-preview-measurement",
+    "serviceDigest": "sha256:75355ad9b7217476f8f85a71a7016d32bfa323fd3a76c3614a78b40dcebccb77",
+    "recordPath": "local-preview-qualification.json",
+    "recordSha256": "e5af1677670a5098d3a15cd1215d3d3867037ea57b258f59970a7b91b05ed111",
+    "environment": {
+      "host": "ubuntu-24.04 x64",
+      "nodeVersion": "v24.19.0",
+      "runtimeEngine": "node:sqlite",
+      "sqliteVersion": "3.53.3",
+      "runnerName": "GitHub Actions 1000000312"
+    },
+    "observedP95": {
+      "readyRssDeltaBytes": 8695808,
+      "coldCreateMilliseconds": 1.115352999999999,
+      "firstRequestMilliseconds": 0.784474000000003,
+      "steadyRequestMilliseconds": 2.85128499999999,
+      "shutdownMilliseconds": 0.1356230000000025
+    },
+    "declaredLimitsPassed": true
+  },
+  "failure": {
+    "stage": "windows clean-consumer qualification",
+    "message": "Archive license differs from the repository license",
+    "disposition": "non-passing evidence retained; line-ending regression added before a new workflow dispatch"
+  }
+}

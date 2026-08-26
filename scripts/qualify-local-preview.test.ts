@@ -6,7 +6,15 @@ import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
   assertOutsideRepository,
@@ -48,6 +56,11 @@ beforeAll(async () => {
 afterAll(async () => {
   if (suiteRoot !== undefined)
     await rm(suiteRoot, { recursive: true, force: true });
+});
+
+afterEach(() => {
+  vi.doUnmock("node:fs/promises");
+  vi.resetModules();
 });
 
 describe("local preview qualification runner", () => {
@@ -161,6 +174,34 @@ describe("local preview qualification runner", () => {
     await expect(inspectArchive(tamperedPath)).rejects.toThrow(
       "differs from the repository license",
     );
+  });
+
+  it("accepts equivalent repository license text with CRLF line endings", async () => {
+    const licensePath = resolve(repositoryRoot, "LICENSE");
+    const licenseSource = await readFile(licensePath, "utf8");
+    const crlfLicense = Buffer.from(
+      licenseSource.replaceAll("\r\n", "\n").replaceAll("\n", "\r\n"),
+    );
+    vi.doMock("node:fs/promises", async () => {
+      const actual =
+        await vi.importActual<typeof import("node:fs/promises")>(
+          "node:fs/promises",
+        );
+      return {
+        ...actual,
+        async readFile(path: string) {
+          if (path === licensePath) return crlfLicense;
+          return actual.readFile(path);
+        },
+      };
+    });
+    vi.resetModules();
+    const { inspectArchive: inspectWithCrlfLicense } =
+      await import("./qualify-local-preview.js");
+
+    await expect(inspectWithCrlfLicense(archivePath)).resolves.toMatchObject({
+      contractDigest: CONTRACT_DIGEST,
+    });
   });
 
   it("retains the exact archive identity, installs externally, and cleans up", async () => {

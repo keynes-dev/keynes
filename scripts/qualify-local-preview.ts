@@ -241,9 +241,11 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const entries = readTar(gunzipSync(bytes));
   validatePackageFilePaths(entries.map((entry) => entry.path));
   const license = entries.find((entry) => entry.path === "package/LICENSE");
+  const repositoryLicense = await readFile(resolve(repositoryRoot, "LICENSE"));
   if (
     license === undefined ||
-    !license.body.equals(await readFile(resolve(repositoryRoot, "LICENSE")))
+    normalizeLineEndings(license.body) !==
+      normalizeLineEndings(repositoryLicense)
   ) {
     throw new Error("Archive license differs from the repository license");
   }
@@ -322,6 +324,10 @@ function readTar(bytes: Buffer): ArchiveEntry[] {
 function readTarText(bytes: Buffer): string {
   const end = bytes.indexOf(0);
   return bytes.subarray(0, end === -1 ? bytes.length : end).toString("utf8");
+}
+
+function normalizeLineEndings(bytes: Buffer): string {
+  return bytes.toString("utf8").replaceAll("\r\n", "\n");
 }
 
 function assertWithin(root: string, candidate: string): void {
