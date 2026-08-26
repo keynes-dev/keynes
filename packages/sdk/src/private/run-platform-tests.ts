@@ -175,7 +175,14 @@ export async function runPlatformTests(
     throw platformFailure(runId, "cleanup");
   }
   if (recordWorkspace !== undefined) {
-    await writeAcceptanceRecord(recordWorkspace, runId);
+    try {
+      await writeAcceptanceRecord(recordWorkspace, runId);
+    } finally {
+      await rm(dirname(recordWorkspace.reportPath), {
+        recursive: true,
+        force: true,
+      });
+    }
   }
 }
 

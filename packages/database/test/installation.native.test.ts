@@ -207,6 +207,7 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       });
 
       await expect(install(target)).rejects.toThrow();
+      querySpy.mockRestore();
       expect(await schemasExist(target)).toBe(false);
     });
   },
