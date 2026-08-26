@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { KeynesError } from "./generated/client.js";
 import type {
@@ -7,7 +9,7 @@ import type {
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
-import type { RollbackCheckpoint } from "./private/procedure-caller.js";
+import type { RollbackCheckpoint } from "./private/test-controls.js";
 import { openTestKeynes, type TestKeynes } from "./private/test-keynes.js";
 
 const MUTATION_CHECKPOINTS = [
@@ -68,6 +70,7 @@ describe("command rollback", () => {
         accountingBehavior: "consumable",
       },
     });
+    const transaction = vi.spyOn(DatabaseSync.prototype, "exec");
 
     for (const [checkpoint, suffix] of MUTATION_CHECKPOINTS) {
       const commandId = `24000000-0000-0000-0000-0000000000${suffix}`;
@@ -77,6 +80,7 @@ describe("command rollback", () => {
           { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
         ],
       } satisfies CreateBudgetCommand;
+      transaction.mockClear();
 
       await expect(
         local
@@ -88,6 +92,10 @@ describe("command rollback", () => {
         "budget_not_found",
         { budgetId: commandId },
       );
+      expect(transaction.mock.calls.map(([sql]) => sql)).toEqual([
+        "BEGIN IMMEDIATE",
+        "ROLLBACK",
+      ]);
 
       const retry = await local
         .clientFor("allocator-fixture")

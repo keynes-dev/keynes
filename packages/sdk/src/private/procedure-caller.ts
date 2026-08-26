@@ -2,6 +2,10 @@ import type { CommandExecutor } from "../generated/client.js";
 import type { OperationName } from "../generated/types.js";
 import { validateOperationInputIssues } from "../generated/validators.js";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
+import {
+  CommittedResponseLostError,
+  type RollbackCheckpoint,
+} from "./test-controls.js";
 
 const INSTALLED_TARGETS = {
   defineResource: "keynes.define_resource_type",
@@ -11,24 +15,11 @@ const INSTALLED_TARGETS = {
   getBudget: "keynes.get_budget",
 } as const satisfies Record<OperationName, string>;
 
-export type RollbackCheckpoint =
-  | "after_command_binding"
-  | "after_domain_mutation"
-  | "after_result_storage"
-  | "after_history_insertion";
-
 export interface TransactionContext {
   readonly tenantId: string;
   readonly principalId: string;
   readonly checkpoint?: RollbackCheckpoint;
   readonly dropResponseAfterCommitOnce?: boolean;
-}
-
-export class CommittedResponseLostError extends Error {
-  constructor() {
-    super("Simulated lost response after committed procedure call");
-    this.name = "CommittedResponseLostError";
-  }
 }
 
 export interface ProcedureDatabaseOwner {

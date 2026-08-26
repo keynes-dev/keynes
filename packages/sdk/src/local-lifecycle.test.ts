@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Keynes } from "./index.js";
 
 afterEach(() => {
+  vi.doUnmock("./private/local-runtime.js");
   vi.doUnmock("./private/sqlite-command-executor.js");
   vi.resetModules();
 });
@@ -47,6 +48,54 @@ describe("local runtime lifecycle", () => {
       code: "runtime_closed",
     });
     await firstClose;
+  });
+
+  it("drains an admitted domain error and inspection before closing", async () => {
+    const keynes = await Keynes.create();
+    await keynes.defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const root = await keynes.createBudget({ workUnits: 10 });
+    await root.settle({ workUnits: 1 });
+
+    const domainError = root.settle({ workUnits: 2 });
+    const inspection = root.inspect();
+    const closing = keynes.close();
+
+    await expect(domainError).rejects.toMatchObject({
+      name: "KeynesError",
+      code: "usage_conflict",
+    });
+    await expect(inspection).resolves.toMatchObject({
+      budget: {
+        lifecycle: "settled",
+        resources: [{ directUsage: 1 }],
+      },
+    });
+    await expect(closing).resolves.toBeUndefined();
+  });
+
+  it("shares one failed close result and remains closed", async () => {
+    const closeFailure = new Error("close failed");
+    vi.doMock("./private/local-runtime.js", () => ({
+      openLocalRuntime: vi.fn(async () => ({
+        client: {},
+        close: vi.fn(async () => {
+          throw closeFailure;
+        }),
+      })),
+    }));
+
+    const { Keynes: FreshKeynes } = await import("./keynes.js");
+    const keynes = await FreshKeynes.create();
+    const firstClose = keynes.close();
+
+    expect(keynes.close()).toBe(firstClose);
+    await expect(firstClose).rejects.toBe(closeFailure);
+    await expect(keynes.createBudget({ workUnits: 1 })).rejects.toMatchObject({
+      name: "KeynesSdkError",
+      code: "runtime_closed",
+    });
   });
 
   it("keeps two local runtimes isolated", async () => {

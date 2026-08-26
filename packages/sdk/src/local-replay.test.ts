@@ -1,19 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { OperationName } from "./generated/types.js";
 import type { Keynes } from "./keynes.js";
 
-type MutationTarget =
-  | "keynes.define_resource_type"
-  | "keynes.create_budget"
-  | "keynes.request"
-  | "keynes.settle";
-
-const TARGET_OPERATIONS = {
-  "keynes.define_resource_type": "defineResource",
-  "keynes.create_budget": "createBudget",
-  "keynes.request": "requestBudget",
-  "keynes.settle": "settleBudget",
-} as const;
+type MutationOperation = Exclude<OperationName, "getBudget">;
 
 afterEach(() => {
   vi.doUnmock("./private/local-runtime.js");
@@ -22,17 +12,17 @@ afterEach(() => {
 
 describe("local facade committed-response replay", () => {
   it.each([
-    "keynes.define_resource_type",
-    "keynes.create_budget",
-    "keynes.request",
-    "keynes.settle",
+    "defineResource",
+    "createBudget",
+    "requestBudget",
+    "settleBudget",
   ] as const)(
-    "replays one lost %s response with the same command",
-    async (target) => {
-      const harness = await loadHarness(target, 1);
+    "replays one lost %s response with the exact command object",
+    async (operation) => {
+      const harness = await loadHarness(operation, 1);
       const keynes = await harness.Keynes.create();
       try {
-        await exerciseMutation(keynes, target);
+        await exerciseMutation(keynes, operation);
         expect(harness.captured).toHaveLength(2);
         expect(harness.captured[1]).toBe(harness.captured[0]);
       } finally {
@@ -42,7 +32,7 @@ describe("local facade committed-response replay", () => {
   );
 
   it("maps a second lost response to operation_interrupted", async () => {
-    const harness = await loadHarness("keynes.define_resource_type", 2);
+    const harness = await loadHarness("defineResource", 2);
     const keynes = await harness.Keynes.create();
     try {
       await expect(defineWorkUnits(keynes)).rejects.toMatchObject({
@@ -57,7 +47,7 @@ describe("local facade committed-response replay", () => {
   });
 
   it("does not retry a generated domain failure", async () => {
-    const harness = await loadHarness("keynes.define_resource_type", 0);
+    const harness = await loadHarness("defineResource", 0);
     const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
@@ -77,7 +67,7 @@ describe("local facade committed-response replay", () => {
   });
 
   it("creates a distinct command identity for each public call", async () => {
-    const harness = await loadHarness("keynes.create_budget", 0);
+    const harness = await loadHarness("createBudget", 0);
     const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
@@ -95,9 +85,9 @@ describe("local facade committed-response replay", () => {
 
 async function exerciseMutation(
   keynes: Keynes,
-  target: MutationTarget,
+  operation: MutationOperation,
 ): Promise<void> {
-  if (target === "keynes.define_resource_type") {
+  if (operation === "defineResource") {
     const definitions = await defineWorkUnits(keynes);
     expect(definitions).toHaveLength(1);
     return;
@@ -105,7 +95,7 @@ async function exerciseMutation(
 
   await defineWorkUnits(keynes);
   const root = await keynes.createBudget({ workUnits: 10 });
-  if (target === "keynes.create_budget") {
+  if (operation === "createBudget") {
     const inspection = await root.inspect();
     expect(
       inspection.history.entries.filter(
@@ -119,7 +109,7 @@ async function exerciseMutation(
   expect(request.status).toBe("approved");
   if (request.status !== "approved")
     throw new Error("expected approved request");
-  if (target === "keynes.request") {
+  if (operation === "requestBudget") {
     const inspection = await root.inspect();
     expect(
       inspection.history.entries.filter(
@@ -144,7 +134,7 @@ function defineWorkUnits(keynes: Keynes) {
   });
 }
 
-async function loadHarness(target: MutationTarget, losses: number) {
+async function loadHarness(operation: MutationOperation, losses: number) {
   vi.resetModules();
   const captured: unknown[] = [];
   vi.doMock("./private/local-runtime.js", async () => {
@@ -160,8 +150,7 @@ async function loadHarness(target: MutationTarget, losses: number) {
     return {
       ...actual,
       async openLocalRuntime() {
-        const selectedOperation = TARGET_OPERATIONS[target];
-        const host = await fixtures.openPGliteCallerHost();
+        const host = await fixtures.openSqliteCallerHost();
         const normal = host.callerFor("product-fixture");
         const lossy = Array.from({ length: losses }, () =>
           host.callerFor("product-fixture", {
@@ -171,7 +160,7 @@ async function loadHarness(target: MutationTarget, losses: number) {
         return {
           client: generated.createKeynesClient({
             execute(calledOperation, input) {
-              if (calledOperation !== selectedOperation)
+              if (calledOperation !== operation)
                 return normal.execute(calledOperation, input);
               captured.push(input);
               return (lossy.shift() ?? normal).execute(calledOperation, input);

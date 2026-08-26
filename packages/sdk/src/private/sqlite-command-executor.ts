@@ -22,11 +22,11 @@ import type {
 } from "../generated/types.js";
 import { validateOperationInputIssues } from "../generated/validators.js";
 import type { DatabaseInstallation } from "./migrations.js";
+import type { TransactionContext } from "./procedure-caller.js";
 import {
   CommittedResponseLostError,
   type RollbackCheckpoint,
-  type TransactionContext,
-} from "./procedure-caller.js";
+} from "./test-controls.js";
 
 const MAX_SAFE_AMOUNT = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -50,8 +50,11 @@ CREATE TABLE commands (
   tenant_id TEXT NOT NULL,
   command_id TEXT NOT NULL,
   operation TEXT NOT NULL,
+  target_kind TEXT NOT NULL,
   target_id TEXT NOT NULL,
   body_json TEXT NOT NULL,
+  body_digest TEXT NOT NULL,
+  principal_id TEXT NOT NULL,
   result_json TEXT,
   PRIMARY KEY (tenant_id, command_id)
 );
@@ -161,15 +164,16 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
     try {
       this.#requireOpen();
-      this.#requirePermission(context, operation);
       if (operation === "getBudget") {
+        this.#requirePermission(context, operation);
         const result = this.#getBudget(context, input as GetBudgetQuery);
         return Promise.resolve({ ok: true, result, replayed: false });
       }
 
-      this.#database.exec("BEGIN");
+      this.#database.exec("BEGIN IMMEDIATE");
       let applied: { readonly result: unknown; readonly replayed: boolean };
       try {
+        this.#requirePermission(context, operation);
         applied = this.#applyMutation(context, operation, input);
         this.#database.exec("COMMIT");
       } catch (error) {
@@ -233,8 +237,10 @@ export class SqliteCommandExecutor implements CommandExecutor {
       const existing = asRow(prior);
       if (
         existing.operation !== operation ||
+        existing.target_kind !== canonical.targetKind ||
         existing.target_id !== canonical.targetId ||
-        existing.body_json !== canonical.bodyJson
+        existing.body_json !== canonical.bodyJson ||
+        existing.body_digest !== canonical.bodyDigest
       ) {
         fail({
           kind: "error",
@@ -256,8 +262,11 @@ export class SqliteCommandExecutor implements CommandExecutor {
       context.tenantId,
       commandId,
       operation,
+      canonical.targetKind,
       canonical.targetId,
       canonical.bodyJson,
+      canonical.bodyDigest,
+      context.principalId,
     );
     checkpoint(context.checkpoint, "after_command_binding");
 
@@ -269,13 +278,14 @@ export class SqliteCommandExecutor implements CommandExecutor {
           : operation === "requestBudget"
             ? this.#requestBudget(context, input as RequestBudgetCommand)
             : this.#settleBudget(context, input as SettleBudgetCommand);
-    checkpoint(context.checkpoint, "after_domain_mutation");
-    checkpoint(context.checkpoint, "after_history_insertion");
-    this.#statements.storeResult.run(
+    const stored = this.#statements.storeResult.run(
       JSON.stringify(result),
       context.tenantId,
       commandId,
     );
+    if (stored.changes !== 1 && stored.changes !== 1n) {
+      throw new Error("SQLite failed to store command result");
+    }
     checkpoint(context.checkpoint, "after_result_storage");
     return { result, replayed: false };
   }
@@ -327,6 +337,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
         definerPrincipalId: context.principalId,
       };
     }
+    checkpoint(context.checkpoint, "after_domain_mutation");
     return {
       kind: "defined",
       resourceType: resourceProjection(resource),
@@ -355,6 +366,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       "active",
     );
     this.#insertHoldings(context.tenantId, command.commandId, resources);
+    checkpoint(context.checkpoint, "after_domain_mutation");
     this.#appendHistory(context.tenantId, command.commandId, {
       kind: "budget_created",
       entryId: eventId(context.tenantId, command.commandId, "budget_created"),
@@ -364,6 +376,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       rootBudgetId: command.commandId,
       resources,
     });
+    checkpoint(context.checkpoint, "after_history_insertion");
     return {
       kind: "created",
       budget: this.#projectBudget(context.tenantId, command.commandId),
@@ -416,6 +429,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
     });
 
     if (reasons.length > 0) {
+      checkpoint(context.checkpoint, "after_domain_mutation");
       this.#appendHistory(context.tenantId, parent.rootBudgetId, {
         kind: "request_denied",
         entryId: eventId(context.tenantId, command.commandId, "request_denied"),
@@ -425,6 +439,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
         parentBudgetId: command.parentBudgetId,
         reasons: asNonEmpty(reasons),
       });
+      checkpoint(context.checkpoint, "after_history_insertion");
       return {
         kind: "denied",
         commandId: command.commandId,
@@ -443,6 +458,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       "active",
     );
     this.#insertHoldings(context.tenantId, command.commandId, resources);
+    checkpoint(context.checkpoint, "after_domain_mutation");
     this.#appendHistory(context.tenantId, parent.rootBudgetId, {
       kind: "request_approved",
       entryId: eventId(context.tenantId, command.commandId, "request_approved"),
@@ -453,6 +469,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       childBudgetId: command.commandId,
       resources,
     });
+    checkpoint(context.checkpoint, "after_history_insertion");
     return {
       kind: "approved",
       commandId: command.commandId,
@@ -543,6 +560,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
             ]
           : [],
     );
+    checkpoint(context.checkpoint, "after_domain_mutation");
     this.#appendHistory(context.tenantId, budget.rootBudgetId, {
       kind: "budget_settlement_recorded",
       entryId: eventId(
@@ -559,6 +577,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       lifecycle: projection.lifecycle === "settled" ? "settled" : "settling",
       isolatedDeficits,
     });
+    checkpoint(context.checkpoint, "after_history_insertion");
     return {
       kind: projection.lifecycle === "settled" ? "settled" : "settling",
       budget: projection,
@@ -890,10 +909,10 @@ function prepareStatements(database: DatabaseSync) {
       "SELECT 1 AS allowed FROM permissions WHERE tenant_id = ? AND principal_id = ? AND permission = ?",
     ),
     command: prepareRead(
-      "SELECT operation, target_id, body_json, result_json FROM commands WHERE tenant_id = ? AND command_id = ?",
+      "SELECT operation, target_kind, target_id, body_json, body_digest, result_json FROM commands WHERE tenant_id = ? AND command_id = ?",
     ),
     insertCommand: database.prepare(
-      "INSERT INTO commands (tenant_id, command_id, operation, target_id, body_json) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO commands (tenant_id, command_id, operation, target_kind, target_id, body_json, body_digest, principal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     ),
     storeResult: database.prepare(
       "UPDATE commands SET result_json = ? WHERE tenant_id = ? AND command_id = ?",
@@ -946,44 +965,61 @@ function prepareStatements(database: DatabaseSync) {
 function canonicalCommand(
   operation: Exclude<OperationName, "getBudget">,
   input: unknown,
-): { commandId: string; targetId: string; bodyJson: string } {
+): {
+  commandId: string;
+  targetKind: "resource_type" | "budget";
+  targetId: string;
+  bodyJson: string;
+  bodyDigest: string;
+} {
+  let commandId: string;
+  let targetKind: "resource_type" | "budget";
+  let targetId: string;
+  let body: unknown;
   if (operation === "defineResource") {
     const command = input as DefineResourceTypeCommand;
-    return {
-      commandId: command.commandId,
-      targetId: command.commandId,
-      bodyJson: JSON.stringify({ definition: command.definition }),
+    commandId = command.commandId;
+    targetKind = "resource_type";
+    targetId = command.commandId;
+    body = {
+      definition: {
+        canonicalName: command.definition.canonicalName,
+        unit: command.definition.unit,
+        accountingBehavior: command.definition.accountingBehavior,
+      },
     };
-  }
-  if (operation === "createBudget") {
+  } else if (operation === "createBudget") {
     const command = input as CreateBudgetCommand;
-    return {
-      commandId: command.commandId,
-      targetId: command.commandId,
-      bodyJson: JSON.stringify({
-        resources: canonicalAmounts(command.resources),
-      }),
-    };
-  }
-  if (operation === "requestBudget") {
+    commandId = command.commandId;
+    targetKind = "budget";
+    targetId = command.commandId;
+    body = { resources: canonicalAmounts(command.resources) };
+  } else if (operation === "requestBudget") {
     const command = input as RequestBudgetCommand;
-    return {
-      commandId: command.commandId,
-      targetId: command.commandId,
-      bodyJson: JSON.stringify({
-        parentBudgetId: command.parentBudgetId,
-        resources: canonicalAmounts(command.resources),
-      }),
+    commandId = command.commandId;
+    targetKind = "budget";
+    targetId = command.commandId;
+    body = {
+      parentBudgetId: command.parentBudgetId,
+      resources: canonicalAmounts(command.resources),
     };
-  }
-  const command = input as SettleBudgetCommand;
-  return {
-    commandId: command.commandId,
-    targetId: command.budgetId,
-    bodyJson: JSON.stringify({
+  } else {
+    const command = input as SettleBudgetCommand;
+    commandId = command.commandId;
+    targetKind = "budget";
+    targetId = command.budgetId;
+    body = {
       budgetId: command.budgetId,
       usage: canonicalAmounts(command.usage),
-    }),
+    };
+  }
+  const bodyJson = canonicalJson(body);
+  return {
+    commandId,
+    targetKind,
+    targetId,
+    bodyJson,
+    bodyDigest: digest("command-body", JSON.parse(bodyJson)),
   };
 }
 
@@ -994,6 +1030,20 @@ function canonicalAmounts<Value extends ResourceAmount | UsageAmount>(
     [...resources].sort((left, right) =>
       left.resourceTypeId.localeCompare(right.resourceTypeId),
     ),
+  );
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalJsonValue(value));
+}
+
+function canonicalJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalJsonValue(value[key])]),
   );
 }
 

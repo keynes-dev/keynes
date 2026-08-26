@@ -121,43 +121,60 @@ describe("Budget request denial", () => {
     ]);
   });
 
-  it("serializes siblings so only one complete envelope is funded", async () => {
+  it("conserves 100 sibling overlaps through public serialization, not multi-connection contention", async () => {
     const client = local.clientFor("product-fixture");
     const resource = await defineResource(
       client,
       "11000000-0000-0000-0000-000000000021",
       "model_tokens",
     );
-    const root = await client.createBudget({
-      commandId: "21000000-0000-0000-0000-000000000021",
-      resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
-    });
     const requesterA = local.clientFor("requester-fixture");
     const requesterB = local.clientFor("requester-fixture");
 
-    const requests = await Promise.all([
-      requesterA.requestBudget({
-        commandId: "31000000-0000-0000-0000-000000000021",
-        parentBudgetId: root.budget.budgetId,
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 7 }],
-      }),
-      requesterB.requestBudget({
-        commandId: "31000000-0000-0000-0000-000000000022",
-        parentBudgetId: root.budget.budgetId,
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 7 }],
-      }),
-    ]);
+    for (let attempt = 1; attempt <= 100; attempt += 1) {
+      const root = await client.createBudget({
+        commandId: attemptCommandId("21", attempt),
+        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+      });
+      const requests = await Promise.all([
+        requesterA.requestBudget({
+          commandId: attemptCommandId("31", attempt),
+          parentBudgetId: root.budget.budgetId,
+          resources: [{ resourceTypeId: resource.resourceTypeId, amount: 7 }],
+        }),
+        requesterB.requestBudget({
+          commandId: attemptCommandId("32", attempt),
+          parentBudgetId: root.budget.budgetId,
+          resources: [{ resourceTypeId: resource.resourceTypeId, amount: 7 }],
+        }),
+      ]);
 
-    expect(requests.map((request) => request.kind)).toEqual([
-      "approved",
-      "denied",
-    ]);
-    const parent = await client.getBudget({ budgetId: root.budget.budgetId });
-    expect(parent.budget.resources[0]).toMatchObject({
-      allocated: 10,
-      available: 3,
-      committed: 7,
-    });
+      expect(requests.map((request) => request.kind).sort()).toEqual([
+        "approved",
+        "denied",
+      ]);
+      const denied = requests.find((request) => request.kind === "denied");
+      if (denied === undefined) {
+        throw new Error(`attempt ${attempt} did not return a denial`);
+      }
+
+      const parent = await client.getBudget({ budgetId: root.budget.budgetId });
+      expect(parent.budget.resources[0]).toMatchObject({
+        allocated: 10,
+        available: 3,
+        committed: 7,
+      });
+      expect(parent.history.entries.map((entry) => entry.kind)).toEqual([
+        "budget_created",
+        "request_approved",
+        "request_denied",
+      ]);
+      await expectKeynesError(
+        client.getBudget({ budgetId: denied.commandId }),
+        "budget_not_found",
+        { budgetId: denied.commandId },
+      );
+    }
   });
 
   it("rejects malformed, duplicate, and caller-selected funding envelopes", async () => {
@@ -300,6 +317,10 @@ async function defineResource(
     },
   });
   return defined.resourceType;
+}
+
+function attemptCommandId(prefix: "21" | "31" | "32", attempt: number): string {
+  return `${prefix}000000-0000-0000-0000-${attempt.toString().padStart(12, "0")}`;
 }
 
 async function expectInvalidRequest(

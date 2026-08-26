@@ -7,13 +7,13 @@ import type {
   QueryRows,
   TransactionalDatabase,
 } from "./database.js";
-import { PairedProcedureCaller } from "./test-keynes.js";
+import { PairedCommandExecutor } from "./test-keynes.js";
 import {
-  CommittedResponseLostError,
   createDatabaseProcedureCaller,
   createOwnedProcedureCaller,
   createTransactionProcedureCaller,
 } from "./procedure-caller.js";
+import { CommittedResponseLostError } from "./test-controls.js";
 
 const OPERATION: OperationName = "requestBudget";
 
@@ -21,13 +21,13 @@ function executor(execute: () => Promise<unknown>): CommandExecutor {
   return { execute };
 }
 
-function paired(
-  pglite: CommandExecutor,
+function pairedExecutor(
+  sqlite: CommandExecutor,
   postgres: CommandExecutor,
 ): CommandExecutor {
-  return new PairedProcedureCaller({
-    caseName: () => "paired caller case",
-    pglite,
+  return new PairedCommandExecutor({
+    caseName: () => "paired executor case",
+    sqlite,
     postgres,
   });
 }
@@ -246,13 +246,13 @@ describe("PostgreSQL command executor", () => {
   });
 });
 
-describe("paired procedure caller", () => {
-  it("returns deeply equal public JSON", async () => {
+describe("paired command executor", () => {
+  it("returns exact matching SQLite and PostgreSQL public JSON", async () => {
     const left = { ok: true, result: { values: [1, 2, 3] } };
     const right = { ok: true, result: { values: [1, 2, 3] } };
 
     await expect(
-      paired(
+      pairedExecutor(
         executor(async () => left),
         executor(async () => right),
       ).execute(OPERATION, {}),
@@ -261,12 +261,12 @@ describe("paired procedure caller", () => {
 
   it("rejects unequal public JSON with a sanitized case and target", async () => {
     await expect(
-      paired(
+      pairedExecutor(
         executor(async () => ({ ok: true, result: { amount: 1 } })),
         executor(async () => ({ ok: true, result: { amount: 2 } })),
       ).execute(OPERATION, {}),
     ).rejects.toThrow(
-      "Paired call failed: case=paired caller case; operation=requestBudget; host=both; reason=result-mismatch",
+      "Paired command failed: case=paired executor case; operation=requestBudget; host=both; reason=result-mismatch",
     );
   });
 
@@ -275,9 +275,9 @@ describe("paired procedure caller", () => {
     const postgresResult = new Promise<unknown>((resolveResult) => {
       resolvePostgres = resolveResult;
     });
-    const call = paired(
+    const call = pairedExecutor(
       executor(async () => {
-        throw new Error("pglite failed");
+        throw new Error("sqlite failed");
       }),
       executor(() => postgresResult),
     ).execute(OPERATION, {});
@@ -296,7 +296,7 @@ describe("paired procedure caller", () => {
     resolvePostgres?.({ ok: true });
 
     await expect(call).rejects.toThrow(
-      "Paired call failed: case=paired caller case; operation=requestBudget; host=pglite; reason=unexpected-failure",
+      "Paired command failed: case=paired executor case; operation=requestBudget; host=sqlite; reason=unexpected-failure",
     );
   });
 
@@ -304,7 +304,7 @@ describe("paired procedure caller", () => {
     const checkpoint = "private rollback checkpoint: after_domain_mutation";
 
     await expect(
-      paired(
+      pairedExecutor(
         executor(async () => {
           throw new Error(checkpoint);
         }),
@@ -317,7 +317,7 @@ describe("paired procedure caller", () => {
 
   it("preserves matching simulated lost-response controls", async () => {
     await expect(
-      paired(
+      pairedExecutor(
         executor(async () => {
           throw new CommittedResponseLostError();
         }),
@@ -331,7 +331,7 @@ describe("paired procedure caller", () => {
   it("does not retain credentials or driver diagnostics", async () => {
     const credential =
       "postgresql://postgres:private-password@127.0.0.1/postgres";
-    const call = paired(
+    const call = pairedExecutor(
       executor(async () => ({ ok: true })),
       executor(async () => {
         throw new Error(`driver failed for ${credential}`);
@@ -346,7 +346,7 @@ describe("paired procedure caller", () => {
     }
 
     expect(String(failure)).toBe(
-      "Error: Paired call failed: case=paired caller case; operation=requestBudget; host=postgres; reason=unexpected-failure",
+      "Error: Paired command failed: case=paired executor case; operation=requestBudget; host=postgres; reason=unexpected-failure",
     );
     expect(String(failure)).not.toContain("private-password");
     expect(String(failure)).not.toContain("driver failed");

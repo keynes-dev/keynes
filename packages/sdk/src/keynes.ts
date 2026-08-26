@@ -12,8 +12,8 @@ import type {
 } from "./generated/types.js";
 import { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 import { openLocalRuntime } from "./private/local-runtime.js";
-import { CommittedResponseLostError } from "./private/procedure-caller.js";
 import { ResourceCatalog } from "./private/resource-catalog.js";
+import { CommittedResponseLostError } from "./private/test-controls.js";
 
 export type AccountingBehavior = "consumable" | "reusable";
 
