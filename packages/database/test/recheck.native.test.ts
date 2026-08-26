@@ -6,8 +6,41 @@ import { install, recheckInstallation } from "../src/install.ts";
 import type { InstallationConfig } from "../src/profile.ts";
 import { Client } from "pg";
 import installationRecord from "../generated/installation-record.json" with { type: "json" };
-import fixtureSource from "../../../packages/contracts/fixtures/source.json" with { type: "json" };
-import { PLATFORM_CONTEXT_ENV } from "../../../packages/sdk/src/private/run-platform-tests.js";
+const PLATFORM_CONTEXT_ENV = "KEYNES_PLATFORM_CONTEXT";
+
+const fixtureSource = {
+  commands: {
+    defineConsumable: {
+      commandId: "10000000-0000-0000-0000-000000000001",
+      definition: {
+        canonicalName: "model_tokens",
+        unit: "token",
+        accountingBehavior: "consumable",
+      },
+    },
+    createRoot: {
+      commandId: "20000000-0000-0000-0000-000000000001",
+      resources: [
+        { resourceTypeId: "10000000-0000-0000-0000-000000000001", amount: 100 },
+      ],
+    },
+    requestChild: {
+      commandId: "30000000-0000-0000-0000-000000000001",
+      parentBudgetId: "20000000-0000-0000-0000-000000000001",
+      resources: [
+        { resourceTypeId: "10000000-0000-0000-0000-000000000001", amount: 40 },
+      ],
+    },
+    settleChild: {
+      commandId: "40000000-0000-0000-0000-000000000001",
+      budgetId: "30000000-0000-0000-0000-000000000001",
+      usage: [
+        { resourceTypeId: "10000000-0000-0000-0000-000000000001", amount: 25 },
+      ],
+    },
+    getChild: { budgetId: "30000000-0000-0000-0000-000000000001" },
+  },
+};
 
 const tenantId = "00000000-0000-4000-8000-000000000001";
 const principalId = "00000000-0000-4000-8000-000000000101";
