@@ -1,4 +1,8 @@
+#!/usr/bin/env node
+
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { parseInstallationConfig } from "./config.ts";
 import { InstallationError, install } from "./install.ts";
 
@@ -57,4 +61,10 @@ function fail(code: string, check: string): void {
   process.exitCode = 1;
 }
 
-if (process.argv[1]?.endsWith("/cli.js")) void main();
+const invokedPath = process.argv[1];
+if (
+  invokedPath !== undefined &&
+  realpathSync(invokedPath) === realpathSync(fileURLToPath(import.meta.url))
+) {
+  void main();
+}

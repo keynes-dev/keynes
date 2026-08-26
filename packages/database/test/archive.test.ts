@@ -126,6 +126,45 @@ describe("@keynes/postgresql archive", () => {
     expect(entry("package/LICENSE").body).toEqual(
       await readFile(join(repositoryRoot, "LICENSE")),
     );
+
+    const extractedRoot = await mkdtemp(
+      join(tmpdir(), "keynes-postgresql-cli-"),
+    );
+    try {
+      const extracted = spawnSync(
+        "tar",
+        ["-xzf", archivePath, "-C", extractedRoot],
+        { encoding: "utf8" },
+      );
+      if (extracted.status !== 0) {
+        throw new Error(`${extracted.stdout}\n${extracted.stderr}`);
+      }
+
+      await symlink(
+        join(databaseRoot, "node_modules"),
+        join(extractedRoot, "package/node_modules"),
+      );
+      const executable = join(extractedRoot, "keynes-postgresql");
+      await symlink(join(extractedRoot, "package/dist/cli.js"), executable);
+      const invoked = spawnSync(executable, [], { encoding: "utf8" });
+
+      expect(invoked.error).toBeUndefined();
+      expect(invoked.status).toBe(1);
+      const output: unknown = JSON.parse(invoked.stdout);
+      expect(output).toEqual({
+        ok: false,
+        error: {
+          kind: "postgresql_installation_error",
+          code: "invalid_arguments",
+          check: "config-path",
+        },
+      });
+      expect(invoked.stderr).toBe(
+        "keynes-postgresql installation failed: config-path\n",
+      );
+    } finally {
+      await rm(extractedRoot, { recursive: true, force: true });
+    }
   });
 
   it("contains no credentials or SDK-owned SQL", () => {
