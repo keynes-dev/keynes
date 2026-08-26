@@ -348,7 +348,7 @@ function parseArguments(arguments_: readonly string[]): PlatformRunOptions {
     throw new Error("--output requires a path");
   if (arguments_.indexOf("--output", outputIndex + 1) !== -1)
     throw new Error("--output may be provided only once");
-  return { outputPath: resolve(outputPath) };
+  return { outputPath: resolve(REPOSITORY_ROOT, outputPath) };
 }
 
 async function waitForPostgres(
@@ -486,7 +486,7 @@ function spawnTestChild(
   environment: NodeJS.ProcessEnv,
 ): RunningTestChild {
   const child = spawn("pnpm", arguments_, {
-    env: environment,
+    env: { ...process.env, ...environment },
     stdio: "inherit",
   });
   let completed = false;
