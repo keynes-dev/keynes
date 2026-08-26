@@ -21,8 +21,6 @@ const expectedFiles = [
   "package/dist/config.js",
   "package/dist/install.d.ts",
   "package/dist/install.js",
-  "package/dist/profile.d.ts",
-  "package/dist/profile.js",
   "package/dist/private/run-installation.d.ts",
   "package/dist/private/run-installation.js",
   "package/generated/installation-record.json",

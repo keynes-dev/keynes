@@ -59,14 +59,19 @@ describe("@keynes/postgresql CLI contract", () => {
   it("accepts exactly one readable configuration path", async () => {
     const configPath = await writeConfig();
 
-    expect(runCli([])).toMatchFailure("invalid_arguments", "config-path");
-    expect(
+    expectFailure(runCli([]), "invalid_arguments", "config-path");
+    expectFailure(
       runCli(["install", "--config", configPath, "--config", configPath]),
-    ).toMatchFailure("invalid_arguments", "config-path");
-    expect(
+      "invalid_arguments",
+      "config-path",
+    );
+    expectFailure(
       runCli(["install", "--config", join(testRoot, "missing.json")]),
-    ).toMatchFailure("invalid_config", "config-file");
-    expect(runCli(["install", "--config", configPath])).toMatchFailure(
+      "invalid_config",
+      "config-file",
+    );
+    expectFailure(
+      runCli(["install", "--config", configPath]),
       "database_unavailable",
       "connection",
     );
@@ -82,10 +87,7 @@ describe("@keynes/postgresql CLI contract", () => {
       ["install", "--config", configPath, "--sql", "custom.sql"],
       ["install", "--config", configPath, "--profile", "postgresql-17"],
     ]) {
-      expect(runCli(arguments_)).toMatchFailure(
-        "invalid_arguments",
-        "arguments",
-      );
+      expectFailure(runCli(arguments_), "invalid_arguments", "arguments");
     }
   });
 
@@ -113,11 +115,9 @@ describe("@keynes/postgresql CLI contract", () => {
       JSON.stringify({ ...config, profile: "other" }),
     );
 
-    expect(runCli(["unknown"])).toMatchFailure(
-      "invalid_arguments",
-      "arguments",
-    );
-    expect(runCli(["install", "--config", invalidPath])).toMatchFailure(
+    expectFailure(runCli(["unknown"]), "invalid_arguments", "arguments");
+    expectFailure(
+      runCli(["install", "--config", invalidPath]),
       "invalid_config",
       "config",
     );
@@ -200,28 +200,4 @@ function expectFailure(
       check,
     },
   });
-}
-
-expect.extend({
-  toMatchFailure(
-    result: CommandResult,
-    code: FailureResult["error"]["code"],
-    check: string,
-  ) {
-    try {
-      expectFailure(result, code, check);
-      return { pass: true, message: () => "expected a classified CLI failure" };
-    } catch (error) {
-      return {
-        pass: false,
-        message: () => String(error),
-      };
-    }
-  },
-});
-
-declare module "vitest" {
-  interface Assertion<T> {
-    toMatchFailure(code: FailureResult["error"]["code"], check: string): T;
-  }
 }

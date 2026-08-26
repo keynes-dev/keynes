@@ -282,6 +282,19 @@ async function writeAcceptanceRecord(
   ) {
     throw new Error("Vitest did not produce a passing report");
   }
+  const installationRecord = JSON.parse(
+    await readFile(
+      join(
+        REPOSITORY_ROOT,
+        "packages/database/generated/installation-record.json",
+      ),
+      "utf8",
+    ),
+  ) as {
+    readonly profileId: string;
+    readonly contractDigest: string;
+    readonly migrations: unknown;
+  };
   const record = {
     schemaVersion: ACCEPTANCE_SCHEMA,
     revision: { commit: workspace.revision },
@@ -292,18 +305,9 @@ async function writeAcceptanceRecord(
     profile: {
       postgresImage: POSTGRES_IMAGE,
       postgresServerVersionNum: EXPECTED_SERVER_VERSION,
-      profileId: "embedded-postgresql-18.6-preview",
-      contractDigest:
-        "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
-      migrations: JSON.parse(
-        await readFile(
-          join(
-            REPOSITORY_ROOT,
-            "packages/database/generated/installation-record.json",
-          ),
-          "utf8",
-        ),
-      ).migrations,
+      profileId: installationRecord.profileId,
+      contractDigest: installationRecord.contractDigest,
+      migrations: installationRecord.migrations,
     },
     roles: {
       owner: {

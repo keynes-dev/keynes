@@ -1,4 +1,9 @@
-import type { InstallationConfig } from "./profile.ts";
+export type InstallationConfig = {
+  readonly ownerRole: string;
+  readonly applicationRole: string;
+  readonly tenantId: string;
+  readonly principalId: string;
+};
 
 const CONFIG_KEYS = [
   "ownerRole",

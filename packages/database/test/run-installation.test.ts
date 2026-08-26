@@ -2,20 +2,9 @@ import { createHash } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  loadInstallationAssets,
-  runInstallation,
-} from "../src/private/run-installation.ts";
-
-interface QueryResult {
-  readonly rows: readonly Record<string, unknown>[];
-}
-
-interface InstallationTransaction {
-  readonly query: (sql: string) => Promise<QueryResult>;
-}
+import { loadInstallationAssets } from "../src/private/run-installation.ts";
 
 const temporaryDirectories: string[] = [];
 
@@ -75,52 +64,6 @@ describe("canonical PostgreSQL installation runner", () => {
         migrationsDirectory: directory,
       }),
     ).rejects.toThrow(/checksum/i);
-  });
-
-  it("executes every migration on the one caller-supplied transaction", async () => {
-    const query = vi
-      .fn<(sql: string) => Promise<QueryResult>>()
-      .mockResolvedValue({
-        rows: [],
-      });
-    const transaction: InstallationTransaction = { query };
-    const assets = [
-      { id: "0001-first", path: "0001-first.sql", sql: "FIRST;" },
-      { id: "0002-second", path: "0002-second.sql", sql: "SECOND;" },
-    ] as const;
-
-    await runInstallation({ assets, transaction });
-
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(
-      query.mock.instances.every((instance) => instance === transaction),
-    ).toBe(true);
-    expect(query.mock.calls.map(([sql]) => sql)).toEqual(["FIRST;", "SECOND;"]);
-  });
-
-  it("propagates a migration failure without hiding the caller error", async () => {
-    const failure = new Error("migration failed");
-    const transaction: InstallationTransaction = {
-      query: vi
-        .fn<(sql: string) => Promise<QueryResult>>()
-        .mockResolvedValueOnce({ rows: [] })
-        .mockRejectedValueOnce(failure),
-    };
-
-    await expect(
-      runInstallation({
-        assets: [
-          { id: "0001-first", path: "0001-first.sql", sql: "FIRST;" },
-          { id: "0002-second", path: "0002-second.sql", sql: "SECOND;" },
-        ],
-        transaction,
-      }),
-    ).rejects.toBe(failure);
-  });
-
-  it("has no repair or resume execution path", () => {
-    expect(Object.keys(runInstallation).sort()).toEqual([]);
-    expect(runInstallation.toString()).not.toMatch(/repair|resume/i);
   });
 });
 

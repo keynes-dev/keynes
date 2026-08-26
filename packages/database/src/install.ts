@@ -2,11 +2,8 @@ import { Client } from "pg";
 
 import installationRecord from "../generated/installation-record.json" with { type: "json" };
 import { parseInstallationConfig } from "./config.ts";
-import {
-  loadInstallationAssets,
-  runInstallation,
-} from "./private/run-installation.ts";
-import type { InstallationConfig } from "./profile.ts";
+import { loadInstallationAssets } from "./private/run-installation.ts";
+import type { InstallationConfig } from "./config.ts";
 
 const MIGRATIONS_ROOT = new URL("../migrations/", import.meta.url);
 
@@ -73,7 +70,7 @@ export async function install(input: {
         onChecksumMismatch: (id) =>
           new InstallationError("incompatible_target", `migration:${id}`),
       });
-      await runInstallation({ assets, transaction: client });
+      for (const asset of assets) await client.query(asset.sql);
       await recordInstallation(client, config);
       await client.query(
         `grant usage on schema keynes to ${identifier(config.applicationRole)}`,

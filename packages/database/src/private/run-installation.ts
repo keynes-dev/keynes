@@ -15,10 +15,6 @@ export interface InstallationAssets {
   readonly sql: string;
 }
 
-export interface InstallationTransaction {
-  query(sql: string): Promise<unknown>;
-}
-
 export interface LoadInstallationAssetsOptions {
   readonly installationRecord: {
     readonly migrations: readonly InstallationMigration[];
@@ -66,16 +62,4 @@ export async function loadInstallationAssets({
       return { ...migration, sql: bytes.toString("utf8") };
     }),
   );
-}
-
-export async function runInstallation({
-  assets,
-  transaction,
-}: {
-  readonly assets: readonly Pick<InstallationAssets, "id" | "path" | "sql">[];
-  readonly transaction: InstallationTransaction;
-}): Promise<void> {
-  for (const asset of assets) {
-    await transaction.query(asset.sql);
-  }
 }

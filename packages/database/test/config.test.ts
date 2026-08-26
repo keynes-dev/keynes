@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { parseInstallationConfig } from "../src/config.ts";
-import { SUPPORTED_PERMISSIONS, SUPPORTED_PROFILE } from "../src/profile.ts";
 
 const CONFIG = {
   ownerRole: "keynes_owner",
@@ -28,12 +27,6 @@ describe("PostgreSQL installation configuration", () => {
         profileId: "embedded-postgresql-18.6-preview",
       }),
     ).toThrow();
-    expect(() =>
-      parseInstallationConfig({
-        ...CONFIG,
-        permissions: [...SUPPORTED_PERMISSIONS],
-      }),
-    ).toThrow();
   });
 
   it("requires canonical UUIDs and distinct prepared role names", () => {
@@ -57,19 +50,7 @@ describe("PostgreSQL installation configuration", () => {
     ).toThrow();
   });
 
-  it("exposes only the fixed supported PostgreSQL profile", () => {
-    expect(SUPPORTED_PROFILE).toMatchObject({
-      profileId: "embedded-postgresql-18.6-preview",
-      serverVersionNum: "180006",
-    });
-    expect(SUPPORTED_PERMISSIONS).toEqual([
-      "define_resource_type",
-      "create_root_budget",
-      "request_budget",
-      "settle_budget",
-      "read_budget",
-    ]);
-
+  it("rejects unsupported configuration fields", () => {
     expect(() =>
       parseInstallationConfig({
         ...CONFIG,
