@@ -56,10 +56,6 @@ export interface ProvisionedNativeDatabase {
   readonly serviceUrl: string;
 }
 
-export interface NativeSchemaOptions {
-  readonly revokePublicExecution?: boolean;
-}
-
 export async function provisionNativeAcceptanceDatabase(
   provision: NativeDatabaseProvision,
 ): Promise<ProvisionedNativeDatabase> {
@@ -107,18 +103,13 @@ export async function provisionNativeAcceptanceDatabase(
 export async function installNativeAcceptanceSchema(
   ownerUrl: string,
   serviceRole: string,
-  options: NativeSchemaOptions = {},
 ): Promise<void> {
   const owner = new Client({ connectionString: ownerUrl });
   await owner.connect();
   try {
     await installCanonicalMigrations(owner);
     await installControlledPermissions(owner);
-    await configureRuntimeRole(
-      owner,
-      serviceRole,
-      options.revokePublicExecution !== false,
-    );
+    await configureRuntimeRole(owner, serviceRole);
   } finally {
     await owner.end();
   }
@@ -225,16 +216,13 @@ async function installControlledPermissions(client: Client): Promise<void> {
 async function configureRuntimeRole(
   client: Client,
   serviceRole: string,
-  revokePublicExecution: boolean,
 ): Promise<void> {
   const role = quoteIdentifier(serviceRole);
   await client.query("revoke all on schema keynes from public");
-  if (revokePublicExecution) {
-    for (const procedure of Object.values(PROCEDURES)) {
-      await client.query(
-        `revoke all on function ${procedure.target}(jsonb) from public`,
-      );
-    }
+  for (const procedure of Object.values(PROCEDURES)) {
+    await client.query(
+      `revoke all on function ${procedure.target}(jsonb) from public`,
+    );
   }
   await client.query(`grant usage on schema keynes to ${role}`);
   await client.query(`grant usage on schema keynes_internal to ${role}`);
