@@ -79,17 +79,19 @@ describe("local preview measurement controller", () => {
     expect(Object.keys(record.samples).sort()).toEqual([
       "coldCreateMilliseconds",
       "firstRequestMilliseconds",
-      "readyRssDeltaBytes",
+      "readyRssBytes",
       "shutdownMilliseconds",
       "steadyRequestMilliseconds",
     ]);
     expect(Object.keys(record.observed).sort()).toEqual([
       "coldCreateMilliseconds",
       "firstRequestMilliseconds",
-      "readyRssDeltaBytes",
+      "readyRssBytes",
       "shutdownMilliseconds",
       "steadyRequestMilliseconds",
     ]);
+    expect(record.samples).not.toHaveProperty("readyRssDeltaBytes");
+    expect(record.observed).not.toHaveProperty("readyRssDeltaBytes");
     expect(record.observed.steadyRequestMilliseconds).toEqual({
       count: 100,
       p95: 95,
@@ -139,13 +141,11 @@ describe("local preview measurement controller", () => {
       ...input,
       samples: {
         ...input.samples,
-        readyRssDeltaBytes: Array(30).fill(512 * 1024 * 1024),
+        readyRssBytes: Array(30).fill(512 * 1024 * 1024),
       },
     });
-    expect(equalReadyRss.limits.readyRssDeltaBytes).toBe(512 * 1024 * 1024);
-    expect(() => assertWithinLimits(equalReadyRss)).toThrow(
-      "readyRssDeltaBytes",
-    );
+    expect(equalReadyRss.limits.readyRssBytes).toBe(512 * 1024 * 1024);
+    expect(() => assertWithinLimits(equalReadyRss)).toThrow("readyRssBytes");
 
     const inclusiveCeilings = createQualificationRecord({
       ...input,
@@ -156,7 +156,7 @@ describe("local preview measurement controller", () => {
       },
       samples: {
         ...input.samples,
-        readyRssDeltaBytes: Array(30).fill(512 * 1024 * 1024 - 1),
+        readyRssBytes: Array(30).fill(512 * 1024 * 1024 - 1),
         coldCreateMilliseconds: Array(30).fill(3_000),
         firstRequestMilliseconds: Array(30).fill(250),
         steadyRequestMilliseconds: Array(100).fill(100),
@@ -194,7 +194,7 @@ function validRecordInput() {
       percentile: "nearest-rank",
     },
     samples: {
-      readyRssDeltaBytes: Array.from({ length: 30 }, (_, index) => index + 1),
+      readyRssBytes: Array.from({ length: 30 }, (_, index) => index + 1),
       coldCreateMilliseconds: Array.from(
         { length: 30 },
         (_, index) => index + 1,

@@ -29,14 +29,14 @@ describe("local preview measurement worker", () => {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
-      emptyRssBytes: expect.any(Number),
       readyRssBytes: expect.any(Number),
-      readyRssDeltaBytes: expect.any(Number),
       coldCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),
       shutdownMilliseconds: expect.any(Number),
       closed: true,
     });
+    expect(output).not.toHaveProperty("emptyRssBytes");
+    expect(output).not.toHaveProperty("readyRssDeltaBytes");
     for (const value of Object.values(output)) {
       if (typeof value === "number") {
         expect(Number.isFinite(value)).toBe(true);

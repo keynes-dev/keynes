@@ -6,14 +6,13 @@ else if (mode === "steady") await runSteady();
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runColdFirst() {
-  const emptyRssBytes = process.memoryUsage.rss();
-  const sqliteVersion = installedSqliteVersion();
   const { Keynes } = await import("@keynes/sdk");
   const createStarted = performance.now();
   const keynes = await Keynes.create();
   const coldCreateMilliseconds = performance.now() - createStarted;
-  const readyRssBytes = process.memoryUsage.rss();
   try {
+    const readyRssBytes = process.memoryUsage.rss();
+    const sqliteVersion = installedSqliteVersion();
     await keynes.defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     });
@@ -32,9 +31,7 @@ async function runColdFirst() {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion,
-      emptyRssBytes,
       readyRssBytes,
-      readyRssDeltaBytes: readyRssBytes - emptyRssBytes,
       coldCreateMilliseconds,
       firstRequestMilliseconds,
       shutdownMilliseconds,

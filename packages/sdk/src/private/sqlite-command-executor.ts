@@ -512,7 +512,19 @@ export class SqliteCommandExecutor implements CommandExecutor {
           },
         });
       }
-      if (item.amount === null) continue;
+      if (item.amount === null) {
+        if (holding.directUsage !== null) {
+          fail({
+            kind: "error",
+            code: "invalid_command",
+            details: {
+              operation: "settleBudget",
+              issues: [{ path: "$.usage[].amount", rule: "monotone" }],
+            },
+          });
+        }
+        continue;
+      }
       const attempted = BigInt(item.amount);
       if (holding.directUsage !== null && holding.directUsage !== attempted) {
         fail({

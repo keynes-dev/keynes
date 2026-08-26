@@ -49,7 +49,7 @@ export interface QualificationRecordInput {
     readonly percentile: "nearest-rank";
   };
   readonly samples: {
-    readonly readyRssDeltaBytes: readonly number[];
+    readonly readyRssBytes: readonly number[];
     readonly coldCreateMilliseconds: readonly number[];
     readonly firstRequestMilliseconds: readonly number[];
     readonly steadyRequestMilliseconds: readonly number[];
@@ -115,7 +115,7 @@ export function nearestRankPercentile(
 }
 
 export function createQualificationRecord(input: QualificationRecordInput) {
-  validateSamples(input.samples.readyRssDeltaBytes, 30, "readyRssDeltaBytes");
+  validateSamples(input.samples.readyRssBytes, 30, "readyRssBytes");
   validateSamples(
     input.samples.coldCreateMilliseconds,
     30,
@@ -138,7 +138,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
   );
 
   const samples = {
-    readyRssDeltaBytes: [...input.samples.readyRssDeltaBytes],
+    readyRssBytes: [...input.samples.readyRssBytes],
     coldCreateMilliseconds: [...input.samples.coldCreateMilliseconds],
     firstRequestMilliseconds: [...input.samples.firstRequestMilliseconds],
     steadyRequestMilliseconds: [...input.samples.steadyRequestMilliseconds],
@@ -156,7 +156,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     method: { ...input.method },
     samples,
     observed: {
-      readyRssDeltaBytes: observation(samples.readyRssDeltaBytes),
+      readyRssBytes: observation(samples.readyRssBytes),
       coldCreateMilliseconds: observation(samples.coldCreateMilliseconds),
       firstRequestMilliseconds: observation(samples.firstRequestMilliseconds),
       steadyRequestMilliseconds: observation(samples.steadyRequestMilliseconds),
@@ -165,7 +165,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     limits: {
       archiveBytes: ARCHIVE_LIMIT_BYTES,
       productionBytes: PRODUCTION_LIMIT_BYTES,
-      readyRssDeltaBytes: READY_RSS_LIMIT_BYTES,
+      readyRssBytes: READY_RSS_LIMIT_BYTES,
       coldCreateP95Milliseconds: COLD_CREATE_LIMIT_MILLISECONDS,
       firstRequestP95Milliseconds: FIRST_REQUEST_LIMIT_MILLISECONDS,
       steadyRequestP95Milliseconds: STEADY_REQUEST_LIMIT_MILLISECONDS,
@@ -207,11 +207,9 @@ export function assertWithinLimits(
     if (actual > limit)
       throw new Error(`${name} exceeded limit ${limit}: ${actual}`);
   }
-  if (
-    record.observed.readyRssDeltaBytes.p95 >= record.limits.readyRssDeltaBytes
-  ) {
+  if (record.observed.readyRssBytes.p95 >= record.limits.readyRssBytes) {
     throw new Error(
-      `readyRssDeltaBytes must be below ${record.limits.readyRssDeltaBytes}: ${record.observed.readyRssDeltaBytes.p95}`,
+      `readyRssBytes must be below ${record.limits.readyRssBytes}: ${record.observed.readyRssBytes.p95}`,
     );
   }
 }
@@ -230,7 +228,7 @@ async function measure(
     for (let index = 0; index < COLD_WARMUP_PROCESSES; index += 1) {
       runColdWorker(worker, external.root);
     }
-    const readyRssDeltaBytes: number[] = [];
+    const readyRssBytes: number[] = [];
     const coldCreateMilliseconds: number[] = [];
     const firstRequestMilliseconds: number[] = [];
     const shutdownMilliseconds: number[] = [];
@@ -239,7 +237,7 @@ async function measure(
       const result = runColdWorker(worker, external.root);
       runtimeIdentity ??= result.runtimeIdentity;
       assertSameRuntimeIdentity(runtimeIdentity, result.runtimeIdentity);
-      readyRssDeltaBytes.push(result.readyRssDeltaBytes);
+      readyRssBytes.push(result.readyRssBytes);
       coldCreateMilliseconds.push(result.coldCreateMilliseconds);
       firstRequestMilliseconds.push(result.firstRequestMilliseconds);
       shutdownMilliseconds.push(result.shutdownMilliseconds);
@@ -275,7 +273,7 @@ async function measure(
         percentile: "nearest-rank",
       },
       samples: {
-        readyRssDeltaBytes,
+        readyRssBytes,
         coldCreateMilliseconds,
         firstRequestMilliseconds,
         steadyRequestMilliseconds,
@@ -313,7 +311,7 @@ function runColdWorker(
   path: string,
   cwd: string,
 ): {
-  readonly readyRssDeltaBytes: number;
+  readonly readyRssBytes: number;
   readonly coldCreateMilliseconds: number;
   readonly firstRequestMilliseconds: number;
   readonly shutdownMilliseconds: number;
@@ -322,7 +320,7 @@ function runColdWorker(
   const value = workerOutput(path, "cold-first", cwd);
   if (
     value.kind !== "cold-first" ||
-    !isFiniteNonNegative(value.readyRssDeltaBytes) ||
+    !isFiniteNonNegative(value.readyRssBytes) ||
     !isFiniteNonNegative(value.coldCreateMilliseconds) ||
     !isFiniteNonNegative(value.firstRequestMilliseconds) ||
     !isFiniteNonNegative(value.shutdownMilliseconds) ||
@@ -334,7 +332,7 @@ function runColdWorker(
     throw new Error("Cold measurement worker returned invalid output");
   }
   return {
-    readyRssDeltaBytes: value.readyRssDeltaBytes,
+    readyRssBytes: value.readyRssBytes,
     coldCreateMilliseconds: value.coldCreateMilliseconds,
     firstRequestMilliseconds: value.firstRequestMilliseconds,
     shutdownMilliseconds: value.shutdownMilliseconds,
