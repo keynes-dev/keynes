@@ -89,11 +89,15 @@ Do not delegate requirements, Budget design decisions, or final acceptance. Thos
 
 ## Keep evidence honest
 
-During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the Cloud and SDK tests that do not start PGlite.
+During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the provider-free Cloud and SDK unit tests.
 
-Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and adds the current PGlite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
+Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and the SQLite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
 
-Label unavailable provider, conformance, security, packaging, compatibility, performance, and live-runtime evidence as `NOT RUN`. A passing type check does not prove runtime behavior. A local pass does not prove continuous integration passed for the same commit.
+Source gates do not qualify a packed SDK. Build one self-contained archive, run `pnpm test:package` against that exact archive, and retain its SHA-256 and local qualification result. The archive must contain no production dependency, PGlite path, or copied `dist/database` asset.
+
+Dispatch `.github/workflows/local-preview.yml` only for the exact accepted commit. The manual workflow reuses one archive digest on Ubuntu 24.04 x64, macOS 15 arm64, and Windows 2025 x64 with Node.js 24 and 26. Node.js 25 is unsupported. Retain the workflow URL, all six consumer outcomes, and the `local-preview-measurement` artifact identity. The measurement record includes the archive and contract digests, exact Node.js and SQLite versions, exact archive and production-install byte counts, raw runtime samples, nearest-rank p95 values, and ready RSS strictly below 512 MiB.
+
+Label unavailable provider, conformance, security, packaging, compatibility, performance, and live-runtime evidence as `NOT RUN`. A passing type check does not prove runtime behavior. A local archive pass does not prove six-environment compatibility or the reference measurement. A local pass does not prove continuous integration passed for the same commit.
 
 ## Local skill bundle
 

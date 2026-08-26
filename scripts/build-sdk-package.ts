@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,9 +16,3 @@ const tsc = spawnSync(
 );
 if (tsc.error !== undefined) throw tsc.error;
 if (tsc.status !== 0) process.exit(tsc.status ?? 1);
-
-await cp(
-  resolve(repositoryRoot, "packages/database"),
-  resolve(distRoot, "database"),
-  { recursive: true },
-);

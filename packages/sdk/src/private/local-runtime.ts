@@ -1,5 +1,4 @@
 import { createKeynesClient, type KeynesClient } from "../generated/client.js";
-import type { DatabaseInstallation } from "./migrations.js";
 import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
 
 export interface LocalRuntime {
@@ -23,7 +22,7 @@ const PRODUCT_INSTALLATION = {
       ],
     },
   ],
-} as const satisfies DatabaseInstallation;
+} as const;
 
 export async function openLocalRuntime(): Promise<LocalRuntime> {
   const executor = openSqliteCommandExecutor(PRODUCT_INSTALLATION, {

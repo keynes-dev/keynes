@@ -15,6 +15,7 @@ import {
   validatePackageFilePaths,
   validateSizes,
 } from "./qualify-local-preview.js";
+import { CONTRACT_DIGEST } from "../packages/sdk/src/generated/client.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const runnerPath = resolve(repositoryRoot, "scripts/qualify-local-preview.ts");
@@ -25,6 +26,7 @@ let suiteRoot: string;
 let archivePath: string;
 let firstBuild: Map<string, Buffer>;
 let secondBuild: Map<string, Buffer>;
+let archiveEntries: Map<string, Buffer>;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-package-test-"));
@@ -40,6 +42,7 @@ beforeAll(async () => {
     suiteRoot,
   ]);
   archivePath = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
+  archiveEntries = readArchiveEntries(await readFile(archivePath));
 });
 
 afterAll(async () => {
@@ -65,13 +68,17 @@ describe("local preview qualification runner", () => {
     ).toThrow("once");
   });
 
-  it("rejects files outside the package allowlist", () => {
+  it("rejects PGlite and copied database files", () => {
     expect(() =>
       validatePackageFilePaths([
-        "package/package.json",
-        "package/src/private/database.ts",
+        "package/dist/sdk/src/private/pglite-database.js",
       ]),
-    ).toThrow("package/src/private/database.ts");
+    ).toThrow("package/dist/sdk/src/private/pglite-database.js");
+    expect(() =>
+      validatePackageFilePaths([
+        "package/dist/database/migrations/0001-storage.sql",
+      ]),
+    ).toThrow("package/dist/database/migrations/0001-storage.sql");
   });
 
   it("enforces compressed and production size limits", () => {
@@ -92,20 +99,54 @@ describe("local preview qualification runner", () => {
     ).toThrow("workspace");
   });
 
-  it("rejects packaged database bytes that differ from the canonical tree", async () => {
-    const archive = gunzipSync(await readFile(archivePath));
-    const canonical = await readFile(
-      resolve(repositoryRoot, "packages/database/README.md"),
+  it("packs the exact supported Node lines with no production dependency", () => {
+    const manifestBytes = archiveEntries.get("package/package.json");
+    expect(manifestBytes).toBeDefined();
+    const manifest: unknown = JSON.parse(
+      manifestBytes?.toString("utf8") ?? "null",
     );
-    const offset = archive.indexOf(canonical);
-    expect(offset).toBeGreaterThanOrEqual(0);
-    archive.writeUInt8(archive.readUInt8(offset) ^ 1, offset);
+    expect(manifest).toMatchObject({
+      name: "@keynes/sdk",
+      license: "Apache-2.0",
+      engines: { node: ">=24 <25 || >=26 <27" },
+    });
+    if (!isRecord(manifest)) throw new Error("package manifest is invalid");
+    expect(
+      manifest.dependencies === undefined ||
+        (isRecord(manifest.dependencies) &&
+          Object.keys(manifest.dependencies).length === 0),
+    ).toBe(true);
+  });
 
-    const tamperedPath = resolve(suiteRoot, "tampered-sdk.tgz");
-    await writeFile(tamperedPath, gzipSync(archive));
-    await expect(inspectArchive(tamperedPath)).rejects.toThrow(
-      "differs from canonical source",
-    );
+  it("contains no PGlite or copied database archive path", () => {
+    const paths = [...archiveEntries.keys()];
+    expect(paths.filter((path) => /pglite/i.test(path))).toEqual([]);
+    expect(
+      paths.filter((path) => path.startsWith("package/dist/database/")),
+    ).toEqual([]);
+  });
+
+  it("reads the contract digest from the packaged generated client", async () => {
+    const client = archiveEntries
+      .get("package/dist/sdk/src/generated/client.js")
+      ?.toString("utf8");
+    expect(client).toBeDefined();
+    const packagedDigest = client?.match(
+      /export const CONTRACT_DIGEST\s*=\s*"([a-f0-9]{64})"/,
+    )?.[1];
+    expect(packagedDigest).toBe(CONTRACT_DIGEST);
+
+    const inspection = await inspectArchive(archivePath);
+    expect(inspection.contractDigest).toBe(CONTRACT_DIGEST);
+    expect(inspection).not.toHaveProperty("pgliteVersion");
+  });
+
+  it("rejects archive paths outside the public package tree", () => {
+    expect(() =>
+      validatePackageFilePaths([
+        "package/dist/sdk/src/private/postgres-database.js",
+      ]),
+    ).toThrow("package/dist/sdk/src/private/postgres-database.js");
   });
 
   it("rejects packaged license text that differs from the repository license", async () => {
@@ -179,4 +220,32 @@ async function walk(root: string): Promise<string[]> {
     else if (entry.isFile()) paths.push(path);
   }
   return paths;
+}
+
+function readArchiveEntries(bytes: Buffer): Map<string, Buffer> {
+  const archive = gunzipSync(bytes);
+  const entries = new Map<string, Buffer>();
+  for (let offset = 0; offset + 512 <= archive.length;) {
+    const header = archive.subarray(offset, offset + 512);
+    if (header.every((byte) => byte === 0)) break;
+    const name = readTarText(header.subarray(0, 100));
+    const prefix = readTarText(header.subarray(345, 500));
+    const path = prefix === "" ? name : `${prefix}/${name}`;
+    const sizeText = readTarText(header.subarray(124, 136)).trim();
+    const size = sizeText === "" ? 0 : Number.parseInt(sizeText, 8);
+    const bodyStart = offset + 512;
+    const bodyEnd = bodyStart + size;
+    entries.set(path, archive.subarray(bodyStart, bodyEnd));
+    offset = bodyStart + Math.ceil(size / 512) * 512;
+  }
+  return entries;
+}
+
+function readTarText(bytes: Buffer): string {
+  const end = bytes.indexOf(0);
+  return bytes.subarray(0, end === -1 ? bytes.length : end).toString("utf8");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

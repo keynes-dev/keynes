@@ -11,7 +11,7 @@ import {
   installExternalConsumer,
 } from "./qualify-local-preview.ts";
 
-const READY_RSS_LIMIT_BYTES = 1024 * 1024 * 1024;
+const READY_RSS_LIMIT_BYTES = 512 * 1024 * 1024;
 const COLD_CREATE_LIMIT_MILLISECONDS = 3_000;
 const FIRST_REQUEST_LIMIT_MILLISECONDS = 250;
 const STEADY_REQUEST_LIMIT_MILLISECONDS = 100;
@@ -28,7 +28,6 @@ export interface QualificationRecordInput {
     readonly compressedBytes: number;
     readonly productionBytes: number;
     readonly packageVersion: string;
-    readonly pgliteVersion: "0.5.5";
     readonly contractDigest: string;
   };
   readonly environment: {
@@ -37,6 +36,8 @@ export interface QualificationRecordInput {
     readonly release: string;
     readonly architecture: string;
     readonly nodeVersion: string;
+    readonly runtimeEngine: "node:sqlite";
+    readonly sqliteVersion: string;
     readonly runnerName: string;
   };
   readonly method: {
@@ -52,6 +53,7 @@ export interface QualificationRecordInput {
     readonly coldCreateMilliseconds: readonly number[];
     readonly firstRequestMilliseconds: readonly number[];
     readonly steadyRequestMilliseconds: readonly number[];
+    readonly shutdownMilliseconds: readonly number[];
   };
 }
 
@@ -129,15 +131,27 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     100,
     "steadyRequestMilliseconds",
   );
+  validateSamples(
+    input.samples.shutdownMilliseconds,
+    30,
+    "shutdownMilliseconds",
+  );
 
   const samples = {
     readyRssDeltaBytes: [...input.samples.readyRssDeltaBytes],
     coldCreateMilliseconds: [...input.samples.coldCreateMilliseconds],
     firstRequestMilliseconds: [...input.samples.firstRequestMilliseconds],
     steadyRequestMilliseconds: [...input.samples.steadyRequestMilliseconds],
+    shutdownMilliseconds: [...input.samples.shutdownMilliseconds],
   };
   return {
-    archive: { ...input.archive },
+    archive: {
+      sha256: input.archive.sha256,
+      compressedBytes: input.archive.compressedBytes,
+      productionBytes: input.archive.productionBytes,
+      packageVersion: input.archive.packageVersion,
+      contractDigest: input.archive.contractDigest,
+    },
     environment: { ...input.environment },
     method: { ...input.method },
     samples,
@@ -146,6 +160,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
       coldCreateMilliseconds: observation(samples.coldCreateMilliseconds),
       firstRequestMilliseconds: observation(samples.firstRequestMilliseconds),
       steadyRequestMilliseconds: observation(samples.steadyRequestMilliseconds),
+      shutdownMilliseconds: observation(samples.shutdownMilliseconds),
     },
     limits: {
       archiveBytes: ARCHIVE_LIMIT_BYTES,
@@ -161,7 +176,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
 export function assertWithinLimits(
   record: LocalPreviewQualificationRecord,
 ): void {
-  const checks = [
+  const inclusiveChecks = [
     [
       "archiveBytes",
       record.archive.compressedBytes,
@@ -171,11 +186,6 @@ export function assertWithinLimits(
       "productionBytes",
       record.archive.productionBytes,
       record.limits.productionBytes,
-    ],
-    [
-      "readyRssDeltaBytes",
-      record.observed.readyRssDeltaBytes.p95,
-      record.limits.readyRssDeltaBytes,
     ],
     [
       "coldCreateMilliseconds",
@@ -193,9 +203,16 @@ export function assertWithinLimits(
       record.limits.steadyRequestP95Milliseconds,
     ],
   ] as const;
-  for (const [name, actual, limit] of checks) {
+  for (const [name, actual, limit] of inclusiveChecks) {
     if (actual > limit)
       throw new Error(`${name} exceeded limit ${limit}: ${actual}`);
+  }
+  if (
+    record.observed.readyRssDeltaBytes.p95 >= record.limits.readyRssDeltaBytes
+  ) {
+    throw new Error(
+      `readyRssDeltaBytes must be below ${record.limits.readyRssDeltaBytes}: ${record.observed.readyRssDeltaBytes.p95}`,
+    );
   }
 }
 
@@ -216,11 +233,19 @@ async function measure(
     const readyRssDeltaBytes: number[] = [];
     const coldCreateMilliseconds: number[] = [];
     const firstRequestMilliseconds: number[] = [];
+    const shutdownMilliseconds: number[] = [];
+    let runtimeIdentity: RuntimeIdentity | undefined;
     for (let index = 0; index < 30; index += 1) {
       const result = runColdWorker(worker, external.root);
+      runtimeIdentity ??= result.runtimeIdentity;
+      assertSameRuntimeIdentity(runtimeIdentity, result.runtimeIdentity);
       readyRssDeltaBytes.push(result.readyRssDeltaBytes);
       coldCreateMilliseconds.push(result.coldCreateMilliseconds);
       firstRequestMilliseconds.push(result.firstRequestMilliseconds);
+      shutdownMilliseconds.push(result.shutdownMilliseconds);
+    }
+    if (runtimeIdentity === undefined) {
+      throw new Error("Cold measurement produced no runtime identity");
     }
     const steadyRequestMilliseconds = runSteadyWorker(worker, external.root);
     const record = createQualificationRecord({
@@ -229,7 +254,6 @@ async function measure(
         compressedBytes: archive.compressedBytes,
         productionBytes: external.productionBytes,
         packageVersion: archive.packageVersion,
-        pgliteVersion: archive.pgliteVersion,
         contractDigest: archive.contractDigest,
       },
       environment: {
@@ -237,7 +261,9 @@ async function measure(
         os: platform(),
         release: release(),
         architecture: arch(),
-        nodeVersion: process.version,
+        nodeVersion: runtimeIdentity.nodeVersion,
+        runtimeEngine: runtimeIdentity.runtimeEngine,
+        sqliteVersion: runtimeIdentity.sqliteVersion,
         runnerName: process.env.RUNNER_NAME ?? "local",
       },
       method: {
@@ -253,6 +279,7 @@ async function measure(
         coldCreateMilliseconds,
         firstRequestMilliseconds,
         steadyRequestMilliseconds,
+        shutdownMilliseconds,
       },
     });
     await writeFile(args.outputPath, `${JSON.stringify(record, null, 2)}\n`, {
@@ -289,6 +316,8 @@ function runColdWorker(
   readonly readyRssDeltaBytes: number;
   readonly coldCreateMilliseconds: number;
   readonly firstRequestMilliseconds: number;
+  readonly shutdownMilliseconds: number;
+  readonly runtimeIdentity: RuntimeIdentity;
 } {
   const value = workerOutput(path, "cold-first", cwd);
   if (
@@ -296,6 +325,10 @@ function runColdWorker(
     !isFiniteNonNegative(value.readyRssDeltaBytes) ||
     !isFiniteNonNegative(value.coldCreateMilliseconds) ||
     !isFiniteNonNegative(value.firstRequestMilliseconds) ||
+    !isFiniteNonNegative(value.shutdownMilliseconds) ||
+    value.runtimeEngine !== "node:sqlite" ||
+    typeof value.nodeVersion !== "string" ||
+    typeof value.sqliteVersion !== "string" ||
     value.closed !== true
   ) {
     throw new Error("Cold measurement worker returned invalid output");
@@ -304,7 +337,32 @@ function runColdWorker(
     readyRssDeltaBytes: value.readyRssDeltaBytes,
     coldCreateMilliseconds: value.coldCreateMilliseconds,
     firstRequestMilliseconds: value.firstRequestMilliseconds,
+    shutdownMilliseconds: value.shutdownMilliseconds,
+    runtimeIdentity: {
+      runtimeEngine: value.runtimeEngine,
+      nodeVersion: value.nodeVersion,
+      sqliteVersion: value.sqliteVersion,
+    },
   };
+}
+
+interface RuntimeIdentity {
+  readonly runtimeEngine: "node:sqlite";
+  readonly nodeVersion: string;
+  readonly sqliteVersion: string;
+}
+
+function assertSameRuntimeIdentity(
+  expected: RuntimeIdentity,
+  actual: RuntimeIdentity,
+): void {
+  if (
+    actual.runtimeEngine !== expected.runtimeEngine ||
+    actual.nodeVersion !== expected.nodeVersion ||
+    actual.sqliteVersion !== expected.sqliteVersion
+  ) {
+    throw new Error("Cold measurement workers reported different runtimes");
+  }
 }
 
 function runSteadyWorker(path: string, cwd: string): number[] {

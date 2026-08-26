@@ -21,14 +21,29 @@ import type {
   UsageAmount,
 } from "../generated/types.js";
 import { validateOperationInputIssues } from "../generated/validators.js";
-import type { DatabaseInstallation } from "./migrations.js";
-import type { TransactionContext } from "./procedure-caller.js";
 import {
   CommittedResponseLostError,
   type RollbackCheckpoint,
 } from "./test-controls.js";
 
 const MAX_SAFE_AMOUNT = BigInt(Number.MAX_SAFE_INTEGER);
+
+interface SqlitePrincipalPermissions {
+  readonly principalId: string;
+  readonly permissions: readonly PermissionName[];
+}
+
+interface SqliteInstallation {
+  readonly tenantId: string;
+  readonly principals: readonly SqlitePrincipalPermissions[];
+}
+
+interface SqliteTransactionContext {
+  readonly tenantId: string;
+  readonly principalId: string;
+  readonly checkpoint?: RollbackCheckpoint;
+  readonly dropResponseAfterCommitOnce?: boolean;
+}
 
 const REQUIRED_PERMISSIONS = {
   defineResource: "define_resource_type",
@@ -128,11 +143,11 @@ class DomainFailure extends Error {
 
 export class SqliteCommandExecutor implements CommandExecutor {
   readonly #database: DatabaseSync;
-  readonly #context: TransactionContext;
+  readonly #context: SqliteTransactionContext;
   readonly #statements: ReturnType<typeof prepareStatements>;
   #closed = false;
 
-  constructor(database: DatabaseSync, context: TransactionContext) {
+  constructor(database: DatabaseSync, context: SqliteTransactionContext) {
     this.#database = database;
     this.#context = context;
     this.#statements = prepareStatements(database);
@@ -143,7 +158,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   executeFor(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     operation: OperationName,
     input: unknown,
   ): Promise<unknown> {
@@ -207,7 +222,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #requirePermission(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     operation: OperationName,
   ): void {
     const requiredPermission = REQUIRED_PERMISSIONS[operation];
@@ -226,7 +241,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #applyMutation(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     operation: Exclude<OperationName, "getBudget">,
     input: unknown,
   ): { readonly result: unknown; readonly replayed: boolean } {
@@ -291,7 +306,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #defineResource(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     command: DefineResourceTypeCommand,
   ): unknown {
     const definition = command.definition;
@@ -352,7 +367,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #createBudget(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     command: CreateBudgetCommand,
   ): unknown {
     const resources = canonicalAmounts(command.resources);
@@ -385,7 +400,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #requestBudget(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     command: RequestBudgetCommand,
   ): unknown {
     const parent = this.#requireBudget(
@@ -481,7 +496,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #settleBudget(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     command: SettleBudgetCommand,
   ): unknown {
     const budget = this.#requireBudget(context.tenantId, command.budgetId);
@@ -588,7 +603,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #getBudget(
-    context: TransactionContext,
+    context: SqliteTransactionContext,
     query: GetBudgetQuery,
   ): GetBudgetResult {
     const budget = this.#requireBudget(context.tenantId, query.budgetId);
@@ -869,8 +884,8 @@ export class SqliteCommandExecutor implements CommandExecutor {
 }
 
 export function openSqliteCommandExecutor(
-  installation: DatabaseInstallation,
-  context: TransactionContext,
+  installation: SqliteInstallation,
+  context: SqliteTransactionContext,
 ): SqliteCommandExecutor {
   const database = new DatabaseSync(":memory:", { allowExtension: false });
   try {
