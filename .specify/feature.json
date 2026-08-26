@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0005",
-  "slug": "local-preview-qualification",
-  "branch": "feat/0005-local-preview-qualification",
-  "feature_directory": "docs/features/0005-local-preview-qualification",
-  "roadmap_stage": "Local workflow preview"
+  "feature_id": "FEAT-0006",
+  "slug": "cloud-runtime-service",
+  "branch": "feat/0006-cloud-runtime-service",
+  "feature_directory": "docs/features/0006-cloud-runtime-service",
+  "roadmap_stage": "Hosted Cloud preview"
 }

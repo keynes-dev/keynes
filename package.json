@@ -21,6 +21,7 @@
     "qualify:local": "node scripts/measure-local-preview.ts",
     "test:budget": "pnpm --filter @keynes/sdk test:budget",
     "test:platform": "pnpm --filter @keynes/sdk test:platform",
+    "test:cloud": "node packages/cloud/src/private/run-native-acceptance.ts",
     "check:feature-identity": "node scripts/feature-identity.mjs check-repository --json",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

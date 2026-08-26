@@ -43,6 +43,7 @@
     }
   ],
   "outputs": [
+    "packages/cloud/src/generated/procedures.ts",
     "packages/contracts/generated/contract-digest.json",
     "packages/database/generated/installation-record.json",
     "packages/database/migrations/0003-public.generated.sql",

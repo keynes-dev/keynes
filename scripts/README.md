@@ -15,7 +15,7 @@ This area does not own Keynes runtime behavior.
 
 ## Allowed and public edges
 
-Root `package.json` commands are the contributor-facing edge. Use `pnpm generate` to update consumers, `pnpm generate:check` to check drift, and `pnpm test:generator` to run the 15 generator tests.
+Root `package.json` commands are the contributor-facing edge. Use `pnpm generate` to update consumers, `pnpm generate:check` to check drift, and `pnpm test:generator` to run the focused generator tests.
 
 Production workspaces must never import `scripts/`. The directory is not a pnpm
 workspace, published package, runtime dependency, or alternate authority.
