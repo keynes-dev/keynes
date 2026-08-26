@@ -310,11 +310,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
     command: DefineResourceTypeCommand,
   ): unknown {
     const definition = command.definition;
-    const definitionDigest = digest("resource-definition", {
-      canonicalName: definition.canonicalName,
-      unit: definition.unit,
-      accountingBehavior: definition.accountingBehavior,
-    });
+    const definitionDigest = resourceDefinitionDigest(definition);
     const existing = this.#statements.resourceByName.get(
       context.tenantId,
       definition.canonicalName,
@@ -362,7 +358,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
         principalId: resource.definerPrincipalId,
         definitionDigest: resource.definitionDigest,
       },
-      replayed: false,
     };
   }
 
@@ -395,7 +390,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
     return {
       kind: "created",
       budget: this.#projectBudget(context.tenantId, command.commandId),
-      replayed: false,
     };
   }
 
@@ -460,7 +454,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
         commandId: command.commandId,
         parentBudgetId: command.parentBudgetId,
         reasons,
-        replayed: false,
       };
     }
 
@@ -491,7 +484,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parentBudgetId: command.parentBudgetId,
       childBudgetId: command.commandId,
       resources,
-      replayed: false,
     };
   }
 
@@ -598,7 +590,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
       budget: projection,
       newlyKnown,
       unresolvedResourceTypeIds,
-      replayed: false,
     };
   }
 
@@ -1098,7 +1089,18 @@ function checkpoint(
 }
 
 function digest(prefix: string, value: unknown): string {
-  return `${prefix}:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+  return digestText(prefix, JSON.stringify(value));
+}
+
+function resourceDefinitionDigest(
+  definition: DefineResourceTypeCommand["definition"],
+): string {
+  const jsonbText = `{"unit": ${JSON.stringify(definition.unit)}, "canonicalName": ${JSON.stringify(definition.canonicalName)}, "accountingBehavior": ${JSON.stringify(definition.accountingBehavior)}}`;
+  return digestText("resource-definition", jsonbText);
+}
+
+function digestText(prefix: string, value: string): string {
+  return `${prefix}:${createHash("sha256").update(value).digest("hex")}`;
 }
 
 function eventId(tenantId: string, commandId: string, kind: string): string {

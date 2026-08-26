@@ -164,6 +164,56 @@ describe("SQLite command executor", () => {
     }
   });
 
+  it("matches the PostgreSQL jsonb Resource definition digest", async () => {
+    const executor = await openExecutor();
+    const client = createKeynesClient(executor);
+
+    try {
+      const resource = await client.defineResource({
+        commandId: "10000000-0000-0000-0000-000000000020",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+
+      expect(resource.resourceType.definitionDigest).toBe(
+        "resource-definition:0f517e18c6dc1dc3d3c3bfa35d755800e627bf016de8cb42aac710631cff47db",
+      );
+      expect(resource.definitionEvidence.definitionDigest).toBe(
+        resource.resourceType.definitionDigest,
+      );
+    } finally {
+      executor.close();
+    }
+  });
+
+  it("keeps mutation replay state on the wire envelope", async () => {
+    const executor = await openExecutor();
+
+    try {
+      const wire = await executor.execute("defineResource", {
+        commandId: "10000000-0000-0000-0000-000000000021",
+        definition: {
+          canonicalName: "wire_units",
+          unit: "unit",
+          accountingBehavior: "consumable",
+        },
+      });
+
+      expect(wire).toEqual(
+        expect.objectContaining({
+          ok: true,
+          replayed: false,
+          result: expect.not.objectContaining({ replayed: expect.anything() }),
+        }),
+      );
+    } finally {
+      executor.close();
+    }
+  });
+
   it.each(ROLLBACK_CHECKPOINTS)(
     "rolls back the immediate transaction after %s",
     async (checkpoint, suffix) => {

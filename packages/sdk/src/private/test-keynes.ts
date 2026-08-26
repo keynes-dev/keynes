@@ -303,15 +303,26 @@ function pairedHost(
   sqlite: KeynesCallerHost,
   postgres: KeynesCallerHost,
 ): TestKeynes {
+  let admittedOperations = Promise.resolve();
   return {
     clientFor(fixture: FixturePrincipal, options?: ClientFixtureOptions) {
-      return createKeynesClient(
-        new PairedCommandExecutor({
-          caseName: currentTestName,
-          sqlite: sqlite.callerFor(fixture, options),
-          postgres: postgres.callerFor(fixture, options),
-        }),
-      );
+      const paired = new PairedCommandExecutor({
+        caseName: currentTestName,
+        sqlite: sqlite.callerFor(fixture, options),
+        postgres: postgres.callerFor(fixture, options),
+      });
+      return createKeynesClient({
+        execute(operation, input) {
+          const result = admittedOperations.then(() =>
+            paired.execute(operation, input),
+          );
+          admittedOperations = result.then(
+            () => undefined,
+            () => undefined,
+          );
+          return result;
+        },
+      });
     },
     async close() {
       const closed = await Promise.allSettled([
