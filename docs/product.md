@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Packaged local mode currently runs on private, in-memory PGlite. FEAT-0006 also implements a private loopback service over native PostgreSQL. Replacing PGlite with an in-memory TypeScript ledger is planned, not implemented. PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current evidence from the target design.
+> **Status:** Packaged local mode currently runs on private, in-memory PGlite. FEAT-0006 also implements a private loopback service over native PostgreSQL. Replacing PGlite with an in-memory SQLite runtime is planned, not implemented. PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current evidence from the target design.
 
 ## Thesis
 
@@ -89,13 +89,13 @@ The application, or a future adapter, enforces external limits and validates usa
 
 ## One product across local and PostgreSQL deployments
 
-Keynes exposes one Budget workflow through the TypeScript SDK. The local ledger and PostgreSQL implement that behavior separately. Shared black-box tests keep the customer-visible commands, results, errors, replay behavior, accounting rules, and evidence format aligned.
+Keynes exposes one Budget workflow through the TypeScript SDK. The local SQLite runtime and PostgreSQL implement that behavior separately. Shared black-box tests keep the customer-visible commands, results, errors, replay behavior, accounting rules, and evidence format aligned.
 
 ```text
 Shared Budget behavior
 |
 +-- Local runtime
-|   `-- In-memory TypeScript ledger
+|   `-- In-memory SQLite
 |
 `-- PostgreSQL runtime
     +-- Installed in the application's database
@@ -103,11 +103,11 @@ Shared Budget behavior
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. Keynes never copies a live Budget between deployments, writes it to two places, guesses the deployment from credentials, or falls back to local state.
+Each Budget is stored in one place. `Keynes.create()` selects the process-local SQLite runtime. A future `Keynes.create({ apiKey })` overload will select remote discovery; the service will resolve whether that key reaches Keynes Cloud or a self-hosted deployment. Supplying an empty or invalid remote configuration never falls back to local state.
 
 ### Local mode
 
-Local mode runs inside one Node.js process through `Keynes.create({ mode: "local" })`. It needs no account, service, database installation, daemon, or network. The planned in-memory ledger keeps private process-owned state and loses every Resource, Budget, command result, permission, and history entry when the process exits.
+Local mode runs inside one Node.js process through `Keynes.create()`. It needs no account, API key, service, database installation, daemon, or network. The planned runtime uses Node's built-in `node:sqlite` with a private in-memory database and loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
 
 PGlite is still the current local implementation. The next implementation feature must replace it without changing the public Budget API or behavior and must requalify package size, install size, supported environments, memory, startup, request latency, and shutdown.
 
@@ -115,7 +115,7 @@ Local mode is for evaluation, tests, local development, short-lived workflows, a
 
 ### Embedded PostgreSQL
 
-An application installs Keynes migrations and procedures into its own PostgreSQL database. The application may call Keynes through the TypeScript SDK or a supported SQL interface. This is the only deployment where a Keynes decision and an application row can commit or roll back in the same caller-owned PostgreSQL transaction.
+An application installs Keynes migrations and procedures into its own PostgreSQL database. Its existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
 
 Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. Installation and transaction integration are planned and unproved.
 
@@ -164,11 +164,11 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - Every Budget settles direct usage. Keynes derives subtree accounting.
 - Missing usage and overage stay visible.
 - Each Budget has one storage location and one committed history.
-- The local ledger and PostgreSQL implement the same Budget behavior through separate code and shared black-box tests.
+- The local SQLite runtime and PostgreSQL implement the same Budget behavior through separate code and shared black-box tests.
 - PostgreSQL is the only durable database implementation.
 - Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
 - TypeScript is the only supported SDK.
-- Deployment is explicit. Keynes never infers it from credentials or silently falls back to local state.
+- Constructor shape selects access: zero arguments means local SQLite; an API-key configuration means remote discovery. Keynes never treats a missing or invalid API key in a supplied configuration as local.
 - Supporting another durable database requires a later constitution and product decision.
 - Keynes will qualify subtree issuance before same-database multi-source funding. Both use explicit contracts and preserve the parent-funded default.
 - Product direction can promote optional capabilities without making external adoption evidence a delivery gate.

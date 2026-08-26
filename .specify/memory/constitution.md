@@ -6,7 +6,7 @@ Sync Impact Report
   - III. Narrow, Fail-Closed Resource Policy -> III. Restricted, fail-closed Policies
   - IV. One Contract Across Runtimes -> IV. Consistent behavior across deployments
 - Modified sections:
-  - Product constraints: replace permanent PGlite and managed-Cloud-only constraints with an in-memory local ledger and PostgreSQL durable deployments
+  - Product constraints: replace permanent PGlite and managed-Cloud-only constraints with an in-memory local SQLite runtime and PostgreSQL durable deployments
   - Delivery and Evidence Gates: require shared behavior tests and deployment-specific qualification
   - Governance: require a constitutional amendment before another durable database implementation
 - Added sections: None
@@ -23,7 +23,7 @@ Sync Impact Report
   - updated: docs/architecture.md
   - updated: docs/roadmap.md
   - updated with supersession note only: docs/adr/0001-repository-boundaries.md
-  - added: docs/adr/0003-local-ledger-and-postgresql.md
+  - added: docs/adr/0003-sqlite-and-postgresql.md
   - added: docs/adr/0004-apache-2-open-core.md
   - aligned: docs/workflow.md
   - aligned: AGENTS.md
@@ -36,8 +36,8 @@ Sync Impact Report
 
 ### I. One source of truth per Budget
 
-Each Budget MUST be stored and changed in exactly one place. The in-memory
-ledger MUST own the committed state and state transitions for a local Budget.
+Each Budget MUST be stored and changed in exactly one place. The process-local
+SQLite runtime MUST own the committed state and state transitions for a local Budget.
 The `keynes.*` PostgreSQL procedures MUST own the committed state and state
 transitions for a durable Budget. SDKs, services, and integrations MUST NOT
 reproduce those transitions outside the selected implementation or write its
@@ -46,9 +46,10 @@ private state directly.
 A command MUST publish one complete result atomically or change no state.
 Resource conservation, availability, settlement, exact replay, conflicting
 command reuse, missing usage, overage, and unresolved work MUST retain one
-unambiguous meaning. Keynes MUST NOT copy a live Budget between deployments,
-write it to two places, infer its deployment from credentials, or fall back to
-another store.
+unambiguous meaning. Keynes MUST NOT copy a live Budget between deployments or
+write it to two places. Zero constructor arguments MUST select local SQLite. A
+supplied API-key configuration MUST select remote discovery, and invalid remote
+credentials MUST NOT fall back to another store.
 
 ### II. Application-owned effects
 
@@ -87,7 +88,7 @@ be free of secrets.
 
 ### IV. Consistent behavior across deployments
 
-The in-memory ledger and PostgreSQL MUST implement the same Budget commands,
+The in-memory SQLite runtime and PostgreSQL MUST implement the same Budget commands,
 results, errors, replay behavior, accounting rules, and evidence format. The
 generated TypeScript client MUST depend on a deployment-neutral command
 boundary. Local lifecycle code, PostgreSQL procedure clients, and remote
@@ -96,7 +97,7 @@ concurrency controls, recovery, and operations, but they MUST NOT change the
 public meaning of a Budget command.
 
 Every shared Budget example MUST run as a black-box comparison against the
-in-memory ledger and native PostgreSQL. Results, errors, replay flags, history,
+in-memory SQLite runtime and native PostgreSQL. Results, errors, replay flags, history,
 and final Budget state MUST agree. Separate suites MUST cover local lifecycle
 and memory, PostgreSQL concurrency and transactions, remote authentication and
 tenant isolation, recovery, packaging, and managed operations. A pass in one

@@ -24,7 +24,7 @@ switch (mode) {
 }
 
 async function runBudgetLoop(): Promise<void> {
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   try {
     const resources = await keynes.defineResources({
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -79,8 +79,8 @@ async function runBudgetLoop(): Promise<void> {
 }
 
 async function runIsolation(): Promise<void> {
-  const left = await Keynes.create({ mode: "local" });
-  const right = await Keynes.create({ mode: "local" });
+  const left = await Keynes.create();
+  const right = await Keynes.create();
   try {
     await Promise.all([
       left.defineResources({
@@ -104,7 +104,7 @@ async function runIsolation(): Promise<void> {
 }
 
 async function runClosure(): Promise<void> {
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   await keynes.defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
@@ -119,7 +119,7 @@ async function runClosure(): Promise<void> {
 }
 
 async function writeThenExit(): Promise<void> {
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   const [resource] = await keynes.defineResources({
     processMemory: { unit: "item", accountingBehavior: "consumable" },
   });
@@ -140,7 +140,7 @@ async function readAfterRestart(
       "read-after-restart requires the previous Resource type ID",
     );
   }
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   try {
     const [resource] = await keynes.defineResources({
       processMemory: { unit: "item", accountingBehavior: "consumable" },

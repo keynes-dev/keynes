@@ -20,7 +20,7 @@ Applications import only `@keynes/sdk`:
 ```ts
 import { Keynes } from "@keynes/sdk";
 
-const keynes = await Keynes.create({ mode: "local" });
+const keynes = await Keynes.create();
 try {
   await keynes.defineResources({
     usdCents: { unit: "cent", accountingBehavior: "consumable" },

@@ -10,7 +10,6 @@ import {
   type BudgetRequestDenialReason,
   type BudgetRequestResult,
   type GetBudgetResult,
-  type KeynesCreateOptions,
   type ResourceAmounts,
   type ResourceConfig,
   type ResourceConfigs,
@@ -51,9 +50,6 @@ describe("package-root exports", () => {
       "ResourceDefinitionError",
     ]);
 
-    expectTypeOf<KeynesCreateOptions>().toEqualTypeOf<{
-      readonly mode: "local";
-    }>();
     expectTypeOf<AccountingBehavior>().toEqualTypeOf<
       "consumable" | "reusable"
     >();
@@ -105,5 +101,17 @@ describe("package-root exports", () => {
     }
 
     expectTypeOf(checkRequestTypes).toBeFunction();
+  });
+
+  it("exposes only the zero-argument local constructor", () => {
+    function checkCreateTypes() {
+      void Keynes.create();
+      // @ts-expect-error Remote API-key discovery is not implemented yet.
+      void Keynes.create({ apiKey: "keynes_test" });
+      // @ts-expect-error Explicit undefined is not the zero-argument call shape.
+      void Keynes.create(undefined);
+    }
+
+    expectTypeOf(checkCreateTypes).toBeFunction();
   });
 });

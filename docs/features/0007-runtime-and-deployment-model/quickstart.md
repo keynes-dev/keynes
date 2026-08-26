@@ -62,4 +62,4 @@ Review every match in context. Historical statements in completed feature docume
 
 ## Evidence boundary
 
-These checks prove only that the repository, governing documents, templates, package metadata, and current provider-free test suite agree. The in-memory ledger, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, compatibility qualification, new performance measurements, and production support remain `NOT RUN`.
+These checks prove the zero-argument facade against the current PGlite engine and packed consumers, plus agreement among the repository, governing documents, templates, package metadata, and provider-free test suite. The future SQLite engine, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, compatibility qualification, new performance measurements, and production support remain `NOT RUN`.

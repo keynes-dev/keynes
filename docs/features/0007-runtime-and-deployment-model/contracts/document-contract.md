@@ -15,18 +15,19 @@
 
 All governing documents must agree that:
 
-1. Local mode is process-scoped and will use `InMemoryLedger`, but PGlite remains the current implementation until the next feature ships.
+1. Local mode is selected by `Keynes.create()` and will use `SqliteCommandExecutor`, but PGlite remains the current engine until the next feature ships.
 2. PostgreSQL is the only durable database implementation.
-3. Embedded, self-hosted, and managed Cloud are operating models over the PostgreSQL implementation.
-4. Each Budget is stored in one place with no live copying, dual writes, inferred deployment, or fallback.
-5. The local ledger and PostgreSQL must expose the same Budget behavior through one command contract.
+3. Embedded SQL, self-hosted remote service, and managed Cloud are access and operating models over the PostgreSQL implementation.
+4. Each Budget is stored in one place. Zero arguments select local SQLite; a future API-key configuration selects remote discovery; invalid remote configuration never falls back locally.
+5. The local SQLite runtime and PostgreSQL must expose the same Budget behavior through one command contract.
 6. Policies use one restricted PostgreSQL-style query format over Keynes-provided request, Budget, and context inputs.
 7. Applications own business-data reads and external work.
 8. Evidence proves only the deployment, environment, artifact, and revision actually tested.
+9. Embedded PostgreSQL transactions belong to application database code; optional generated bindings do not own transaction lifecycle.
 
 ## Current-state language
 
-Current-state banners must say that PGlite local mode and the private PostgreSQL service exist. They must not say that the in-memory ledger, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, or production support has been implemented or proved.
+Current-state banners must say that PGlite local mode and the private PostgreSQL service exist. They must not say that the in-memory SQLite runtime, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, or production support has been implemented or proved.
 
 ## Change control
 

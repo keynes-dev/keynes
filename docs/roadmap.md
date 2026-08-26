@@ -36,7 +36,7 @@ On August 24, 2026, FEAT-0004 passed `pnpm --filter @keynes/sdk test`, `pnpm gen
 
 On August 25, 2026, [FEAT-0005 hosted run 32886316983](https://github.com/shubsharan/keynes/actions/runs/32886316983) passed for exact commit `714268c950e2f243755725bbe248add88977f6d5` and archive SHA-256 `86c099f7ea666edd58c3947199651aad07e2563621d23e01d619ab3efd098b84`. The same 28,943-byte archive and 25,576,559-byte production install passed clean-consumer qualification on Node.js 24 and 26 across Linux x64, macOS arm64, and Windows x64. On the Linux x64 Node.js 24 reference runner, ready-runtime RSS p95 was 771,928,064 bytes against the temporary 1 GiB ceiling; cold creation, first request, and steady request p95 values were 2,576.488, 22.174, and 9.847 milliseconds. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) owns reducing RSS to 512 MiB p95, with 384 MiB as the stretch target. Registry publication, browsers, bundlers, CommonJS, Bun, Deno, other architectures, Cloud, managed providers, security, recovery, production suitability, paid services, and fault campaigns beyond the declared lifecycle cases remain `NOT RUN`.
 
-FEAT-0003 through FEAT-0005 tested PGlite. Those runs remain valid evidence for the code and packages they exercised. They do not test the future in-memory ledger and must not be used to qualify it.
+FEAT-0003 through FEAT-0005 tested PGlite. Those runs remain valid evidence for the code and packages they exercised. They do not test the future SQLite runtime and must not be used to qualify it.
 
 ## Private remote service foundation
 
@@ -52,13 +52,13 @@ This evidence covers only the private loopback service and provider-free Postgre
 
 ## Runtime and deployment model
 
-This standalone documentation feature records the move to a local in-memory ledger, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It does not replace PGlite or implement a new deployment.
+This feature records the move to a local in-memory SQLite runtime, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It also simplifies the current local facade to `Keynes.create()`; it does not replace PGlite or implement remote discovery.
 
 | Feature                                                                                 | Purpose                                                                                                                             | Depends on                | Status   |
 | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | -------- |
 | [0007 Runtime and deployment model](features/0007-runtime-and-deployment-model/spec.md) | Align governance, product, architecture, roadmap, templates, and license metadata around the approved runtime and deployment model. | Cloud runtime and service | Complete |
 
-On August 25, 2026, FEAT-0007 passed its feature-identity, prerequisite, formatting, repository, stale-claim, historical-artifact, and whitespace checks in the feature worktree. Those checks prove repository and documentation agreement only. They do not prove the in-memory ledger, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, or production support.
+On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, prerequisite, formatting, repository, unit, pull-request, package-qualification, stale-claim, historical-artifact, and whitespace checks in the feature worktree. Those checks prove the zero-argument facade against the current PGlite engine, its packed consumers, and repository agreement. They do not prove the future SQLite engine, PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security, or production support.
 
 ## Implementation sequence
 
@@ -66,8 +66,8 @@ The sequence below has one promoted next candidate. Later candidates remain unnu
 
 | Order | Feature candidate                               | Purpose                                                                                                                                              | Depends on                                      | Status      |
 | ----- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- |
-| 1     | In-memory local runtime                         | Replace PGlite with a private process-owned TypeScript ledger while preserving the complete public Budget API and behavior.                          | Runtime and deployment model                    | Next        |
-| 2     | PostgreSQL transaction integration              | Install the current migrations and let the TypeScript SDK use a caller-owned transaction for atomic Budget and application writes.                   | In-memory local runtime                         | Not started |
+| 1     | SQLite local runtime                            | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.           | Runtime and deployment model                    | Next        |
+| 2     | PostgreSQL transaction integration              | Install the current migrations and prove caller-owned database code can compose supported `keynes.*` calls with application writes atomically.       | SQLite local runtime                            | Not started |
 | 3     | PostgreSQL installation and support             | Define supported installation, roles, compatibility, upgrades, drift checks, and a supported SQL boundary for durable deployments.                   | PostgreSQL transaction integration              | Not started |
 | 4     | Policies that work in local mode and PostgreSQL | Implement one restricted query format, typed builder, parser, local evaluator, PostgreSQL evaluator, and comparison suite.                           | PostgreSQL installation and support             | Not started |
 | 5     | Remote SDK and public service                   | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback. | Policies that work in local mode and PostgreSQL | Not started |
@@ -76,21 +76,21 @@ The sequence below has one promoted next candidate. Later candidates remain unnu
 | 8     | Release support                                 | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.               | Managed Cloud                                   | Not started |
 | 9     | Production testing                              | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.   | Release support                                 | Not started |
 
-`In-memory local runtime` is the only `Next` item. It has no feature identity until Spec Kit starts it.
+`SQLite local runtime` is the only `Next` item. It has no feature identity until Spec Kit starts it.
 
-### In-memory local runtime
+### SQLite local runtime
 
 Keep this public API unchanged:
 
 ```ts
-const keynes = await Keynes.create({ mode: "local" });
+const keynes = await Keynes.create();
 ```
 
 The feature must preserve `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior. It must:
 
-- implement the five current operations in `InMemoryLedger`;
+- implement the five current operations in `SqliteCommandExecutor` over a private `node:sqlite` in-memory database;
 - run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against it;
-- compare the ledger with native PostgreSQL through the platform test;
+- compare SQLite with native PostgreSQL through the platform test;
 - prove a failed command changes no state;
 - prove concurrent sibling requests cannot overspend a parent Budget;
 - prove exact replay and conflicting command reuse;
@@ -109,7 +109,8 @@ Policy, persistence, browser support, security review, and production support re
 Install the existing migrations into one clean PostgreSQL database and prove:
 
 - an application role can call only supported Keynes functions;
-- the TypeScript SDK can use a caller-owned `pg` transaction;
+- caller-owned database code can call the supported SQL boundary inside its existing transaction;
+- optional generated TypeScript bindings do not own transaction lifecycle;
 - a Budget request and an application outbox row commit or roll back together;
 - application code cannot use a pending Budget before commit;
 - replay after commit returns the original result without creating another Budget; and

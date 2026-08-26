@@ -3,7 +3,7 @@
 **Input**: Design documents from `/docs/features/0007-runtime-and-deployment-model/`
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/document-contract.md`, `quickstart.md`
 
-**Tests**: This feature changes governance, documentation, templates, package metadata, and verification ownership. It changes no runtime behavior. The default gate checks generated-contract drift and behavior, while the explicit Local Preview lane checks package construction, packed license text, external installation, and measurements.
+**Tests**: This feature changes governance, documentation, templates, package metadata, verification ownership, and the public constructor call shape. The default gate checks generated-contract drift and behavior, while the explicit Local Preview lane checks package construction, packed license text, external installation, and measurements.
 
 ## Phase 1: Setup
 
@@ -28,7 +28,7 @@
 - [x] T008 Update `.specify/memory/constitution.md` from 3.0.0 to 4.0.0 with one source of truth per Budget, consistent behavior across deployments, PostgreSQL-only durability, restricted Policy queries, application-owned effects, and exact-revision evidence
 - [x] T009 [P] Update `.specify/templates/spec-template.md`, `.specify/templates/plan-template.md`, and `.specify/templates/tasks-template.md` to ask about deployment, Budget behavior, shared tests, deployment-specific tests, Policy context and query support, and untested claims
 - [x] T010 [P] Add the narrow supersession note to `docs/adr/0001-repository-boundaries.md` without changing its historical reasoning
-- [x] T011 [P] Record the local-ledger and PostgreSQL decision, two-implementation cost, black-box comparison tests, retained service basis, and rejected generic adapter in `docs/adr/0003-local-ledger-and-postgresql.md`
+- [x] T011 [P] Record the local SQLite and PostgreSQL decision, two-implementation cost, black-box comparison tests, retained service basis, and rejected generic adapter in `docs/adr/0003-sqlite-and-postgresql.md`
 - [x] T012 [P] Record the Apache-2.0 open-core decision and commercial boundary without prices or future package promises in `docs/adr/0004-apache-2-open-core.md`
 
 **Checkpoint**: Constitution, templates, and ADRs establish the approved vocabulary and decision boundaries.
@@ -50,11 +50,11 @@
 
 ## Phase 4: User Story 2 - Implement the same Budget behavior twice (Priority: P2)
 
-**Goal**: Define the command boundary, local ledger semantics, PostgreSQL responsibilities, and comparison evidence for two implementations.
+**Goal**: Define the command boundary, local SQLite runtime semantics, PostgreSQL responsibilities, and comparison evidence for two implementations.
 
 **Independent test**: An engineer can trace one SDK command to each executor and list both shared and deployment-specific tests.
 
-- [x] T015 [US2] Define `CommandExecutor`, `InMemoryLedger`, `PostgresProcedureClient`, and `RemoteClient`, plus local copy-before-publish, replay, serialization, isolation, and close behavior in `docs/architecture.md`
+- [x] T015 [US2] Define `CommandExecutor`, `SqliteCommandExecutor`, `PostgresProcedureClient`, and `RemoteClient`, plus local SQLite transactions, replay, serialization, isolation, and close behavior in `docs/architecture.md`
 - [x] T016 [US2] Define durable procedure ownership, embedded transactions, service responsibilities, comparison tests, and deployment-specific evidence limits in `docs/architecture.md`
 
 **Checkpoint**: The architecture describes two concrete implementations without adding a generic storage interface.
@@ -119,6 +119,20 @@
 
 ---
 
+## Phase 9: Runtime and access amendment
+
+**Purpose**: Name the actual runtimes, remove the public local mode flag, and keep embedded transaction ownership in application database code.
+
+- [x] T037 Replace the planned hand-written local ledger with a private in-memory `node:sqlite` runtime across the governing documents, ADR-0003, and FEAT-0007 artifacts
+- [x] T038 Add constructor coverage for `Keynes.create()` and runtime rejection of `undefined`, empty objects, API-key objects, and the removed local mode option
+- [x] T039 Implement the zero-argument current facade, remove `KeynesCreateOptions`, and update package consumers without adding the future API-key overload
+- [x] T040 Document future API-key remote discovery and caller-owned embedded SQL transactions without adding an embedded facade mode or SDK-owned transaction surface
+- [x] T041 Run focused SDK tests, `pnpm check:repo`, `pnpm test:unit`, `pnpm test:pr`, `pnpm test:qualification`, the documentation format check, and `git diff --check`
+
+**Checkpoint**: Runtime, access path, deployment profile, and transaction ownership are distinct concepts, and the executable facade matches the current local call shape.
+
+---
+
 ## Dependencies and execution order
 
 - Phase 1 establishes the feature identity and inputs.
@@ -127,6 +141,7 @@
 - Phase 6 depends on the final product and architecture boundaries.
 - Phase 7 is sequential and completes the original feature acceptance.
 - Phase 8 follows the repository-wide test audit and rechecks acceptance after changing verification ownership.
+- Phase 9 amends the accepted model and rechecks the complete feature after the constructor and runtime decisions changed.
 
 ## Parallel opportunities
 
@@ -137,6 +152,6 @@
 ## Scope controls
 
 - Do not remove PGlite, migrations, native tests, the Cloud package, or FEAT-0006 code.
-- Do not add a local ledger, PostgreSQL installer, public service, Policy evaluator, self-hosted package, managed Cloud behavior, or another database adapter.
+- Do not add a local SQLite runtime, PostgreSQL installer, public service, Policy evaluator, self-hosted package, managed Cloud behavior, or another database adapter.
 - Do not modify completed feature documents or retained evidence.
 - Do not claim that provider-free documentation and repository checks prove future runtime, security, recovery, managed, benchmark, or production behavior.

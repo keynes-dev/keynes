@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, and FEAT-0006 private loopback service exist. The in-memory ledger is the planned replacement for PGlite and is not implemented. PostgreSQL installation, caller-owned transaction integration, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, and FEAT-0006 private loopback service exist. The in-memory SQLite runtime is the planned replacement for PGlite and is not implemented. PostgreSQL installation, caller-owned transaction integration, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ The product has one set of Budget rules and two implementations:
 Shared Budget behavior
 |
 +-- Local runtime
-|   `-- In-memory TypeScript ledger
+|   `-- In-memory SQLite
 |
 `-- PostgreSQL runtime
     +-- Installed in the application's database
@@ -24,13 +24,13 @@ Shared Budget behavior
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. Keynes never copies a live Budget between deployments, writes it to two places, guesses the deployment from credentials, or falls back to local state.
+Each Budget is stored in one place. Constructor shape selects the access path: zero arguments selects local SQLite, while a future API-key configuration selects remote discovery. Missing or invalid credentials in a supplied remote configuration never fall back to local state.
 
 ## Design principles
 
-1. One in-memory ledger owns each local Budget. One PostgreSQL database owns each durable Budget.
+1. One in-memory SQLite runtime owns each local Budget. One PostgreSQL database owns each durable Budget.
 2. Every command publishes one complete state change and result or changes no state.
-3. The local ledger and PostgreSQL expose the same commands, results, errors, replay behavior, accounting rules, and evidence format.
+3. The local SQLite runtime and PostgreSQL expose the same commands, results, errors, replay behavior, accounting rules, and evidence format.
 4. Application code owns external work, retries, observation, outcomes, fallback behavior, and the business facts supplied to Policies.
 5. Policies are restricted queries over Keynes-provided inputs. They cannot read application tables.
 6. PostgreSQL is the only durable database implementation.
@@ -49,7 +49,7 @@ TypeScript application
         v
      Keynes SDK
         |
-        +-- InMemoryLedger
+        +-- SqliteCommandExecutor
         |
         +-- PostgresProcedureClient
         |
@@ -66,7 +66,7 @@ interface CommandExecutor {
 
 `OperationName` covers the generated operations `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. Generated validators continue to check command inputs and results. The generated `KeynesClient` depends on `CommandExecutor`, not on PostgreSQL procedure names.
 
-- `InMemoryLedger` executes the commands against process-owned state.
+- `SqliteCommandExecutor` executes the commands against process-owned state.
 - `PostgresProcedureClient` maps the commands to the existing `keynes.*` procedures.
 - `RemoteClient` sends the same commands to the Keynes service.
 
@@ -76,33 +76,19 @@ This is a command boundary, not a general storage adapter. It does not expose qu
 
 Today the generated client depends on the private `ProcedureCaller` interface. Local mode uses it to call the `keynes.*` procedures in PGlite, and platform tests use it with native PostgreSQL. FEAT-0006 implements the same private RPC contract over its loopback service.
 
-The in-memory local runtime feature replaces the local `ProcedureCaller` path with `InMemoryLedger` and changes the generated client boundary to `CommandExecutor`. This documentation feature does not make that code change.
+The SQLite runtime feature replaces the local `ProcedureCaller` path with `SqliteCommandExecutor` and changes the generated client boundary to `CommandExecutor`. FEAT-0007 changes only the facade call shape to `Keynes.create()`; it does not replace PGlite.
 
 ## Local implementation
 
-`Keynes.create({ mode: "local" })` remains the public entry point. The planned `InMemoryLedger` has no account, database, daemon, worker process, or network service.
+`Keynes.create()` is the public local entry point. The planned `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
-The ledger stores these values in private maps:
-
-| Map             | Contents                                                                           |
-| --------------- | ---------------------------------------------------------------------------------- |
-| Resources       | Immutable Resource identity, name, unit, and accounting behavior                   |
-| Budgets         | Identity, parent, lifecycle, direct holdings, availability, usage, and deficits    |
-| Command results | Operation, canonical input digest, result, replay flag data, and conflict evidence |
-| Permissions     | The process-local capabilities used by the generated command contract              |
-| History         | Ordered immutable entries produced by successful commands and recorded denials     |
-
-These maps are implementation details. The SDK does not return them or expose a handle.
+The runtime stores Resources, Budgets, command results, permissions, and history in a private SQLite schema. The SDK owns schema initialization, never returns the connection, and exposes neither tables nor arbitrary SQL. `:memory:` is an implementation detail, not a persistence option or general database adapter.
 
 ### Atomic commands
 
-The ledger applies each command to a copy of the current state. It publishes the new state only after validation, Policy evaluation when available, accounting changes, result construction, and history construction all succeed. If any step fails, the original state remains current.
-
-The ledger returns copies of results and inspection values so callers cannot mutate stored state. It serializes commands in call order. This preserves deterministic local behavior and prevents concurrent sibling requests from reading the same parent availability and overspending it.
-
-The implementation should copy only the state needed for one command. If it starts recreating database indexes, query planning, persistence, or multi-process coordination, the design must be reconsidered.
+The executor applies each command in one SQLite transaction. Validation, Policy evaluation when available, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
 
 ### Replay and conflicts
 
@@ -112,7 +98,7 @@ Two independent SDK method calls remain two commands even when their input bodie
 
 ### Lifecycle and isolation
 
-All public methods remain asynchronous. Once `close()` begins, new Keynes and Budget work fails with `runtime_closed`. Work admitted before close drains in call order. Repeated close calls return the same promise. When draining finishes, the runtime releases its maps and becomes closed.
+All public methods remain asynchronous. Once `close()` begins, new Keynes and Budget work fails with `runtime_closed`. Work admitted before close drains in call order. Repeated close calls return the same promise. When draining finishes, the runtime closes its SQLite connection and becomes closed.
 
 Separate local runtimes share no state. Process exit discards every Resource, Budget, command result, permission, and history entry.
 
@@ -128,13 +114,13 @@ Local mode provides:
 
 ### Local replacement evidence
 
-The in-memory implementation feature must run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against `InMemoryLedger`. It must also prove:
+The SQLite implementation feature must run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against `SqliteCommandExecutor`. It must also prove:
 
 - a failed command changes no state;
 - concurrent sibling requests cannot overspend a parent Budget;
 - exact command replay returns the original result;
 - conflicting command reuse changes no state;
-- returned values cannot mutate ledger state; and
+- returned values cannot mutate SQLite state; and
 - close rejects new work while draining admitted work.
 
 That feature removes `@electric-sql/pglite`, the PGlite adapter, local migration startup, and migrations copied into the SDK package. It keeps the PostgreSQL migrations, native tests, Cloud package, and FEAT-0006 service. It must requalify Node.js 24 and 26 on Linux, macOS, and Windows and remeasure package size, install size, ready memory, startup, request latency, and shutdown. Ready memory must be below the existing 512 MiB target.
@@ -159,9 +145,9 @@ The five current procedures are:
 
 ### Embedded PostgreSQL
 
-An embedded application installs the existing migrations into its PostgreSQL database and calls supported functions through the TypeScript SDK or a supported SQL interface. The application owns database operations, roles, upgrades, backup, recovery, and incident response.
+An embedded application installs the existing migrations into its PostgreSQL database and calls supported `keynes.*` functions from its existing database code. The application owns the transaction, database operations, roles, upgrades, backup, recovery, and incident response.
 
-The defining advantage is transaction composition. A caller-owned `pg` transaction can read application facts, pass a fixed context to Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Application code cannot use a pending child Budget before commit.
+The defining advantage is transaction composition. Caller-owned database code can read application facts, call Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Keynes does not introduce a parent transaction API.
 
 Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
 
@@ -169,7 +155,7 @@ The PostgreSQL transaction integration feature must prove:
 
 - one clean database can install the exact migrations;
 - an application role can call only supported Keynes functions;
-- the TypeScript SDK can use a caller-owned `pg` transaction;
+- caller-owned database code can invoke the supported SQL boundary inside its existing transaction;
 - a Budget request and application outbox row commit or roll back together;
 - application code cannot use a pending Budget before commit;
 - replay after commit returns the original result without creating another Budget; and
@@ -282,7 +268,7 @@ The TypeScript builder is the normal authoring path. It knows the available Reso
 
 Advanced users may submit raw SQL within the same subset. Builder output and raw SQL pass through the same parser, validator, canonicalization, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
 
-`InMemoryLedger` evaluates the parsed query in TypeScript against immutable command inputs. PostgreSQL validates the source and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access.
+`SqliteCommandExecutor` evaluates the parsed query in TypeScript against immutable command inputs. PostgreSQL validates the source and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access.
 
 If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid source, unsupported syntax, nondeterminism, invalid context, resource limits, or invalid results fail the command.
 
@@ -307,7 +293,7 @@ The public local API remains:
 ```ts
 import { Keynes } from "@keynes/sdk";
 
-const keynes = await Keynes.create({ mode: "local" });
+const keynes = await Keynes.create();
 
 await keynes.defineResources({
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -332,25 +318,25 @@ if (result.status === "approved") {
 await keynes.close();
 ```
 
-The in-memory replacement preserves `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior.
+The SQLite replacement preserves `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior.
 
-Future embedded and remote configuration is explicit. Keynes does not infer a deployment from credentials, a connection string, or their absence. This architecture does not select final connection option names.
+The facade has two intended call shapes: `Keynes.create()` selects local SQLite, and future `Keynes.create({ apiKey })` selects remote discovery. The remote service resolves Cloud versus self-hosted deployment metadata. `Keynes.create(undefined)`, `Keynes.create({})`, and `Keynes.create({ apiKey: undefined })` are invalid rather than local fallbacks. Embedded PostgreSQL is not a facade mode; application database code calls the supported SQL boundary inside its own transaction.
 
 ## Generated contracts and compatibility
 
 The contract sources define operation names, command and result schemas, error families, history entries, canonical JSON, and digest rules. Generation produces TypeScript types and validators plus PostgreSQL-facing procedure metadata. A client or installation must reject an incompatible contract digest before use.
 
-The local implementation may use TypeScript structures while PostgreSQL uses relations, constraints, and functions. Those internal representations do not need to match. Public command meaning and canonical evidence must match.
+The local implementation uses private SQLite tables while PostgreSQL uses its own relations, constraints, and functions. Those internal representations do not need to match. Public command meaning and canonical evidence must match.
 
 PostgreSQL uses one ordered migration graph for durable deployments. Installation records the schema and contract digest. Additive changes may preserve one procedure namespace when old callers retain their exact meaning. A breaking input, result, error, or transaction contract needs an explicit compatibility decision. Migrations never rewrite immutable command bodies or history meaning.
 
-Local mode has no migration graph. Removing copied migrations from the SDK package must not remove the canonical PostgreSQL migrations or the artifacts needed to install and verify durable deployments.
+Local mode has no public migration graph. The SDK initializes its private SQLite schema internally. Removing copied PostgreSQL migrations from the SDK package must not remove the canonical PostgreSQL migrations or the artifacts needed to install and verify durable deployments.
 
 ## Testing model
 
 ### Shared Budget behavior
 
-Run the same Budget examples directly against `InMemoryLedger` and native PostgreSQL. Compare:
+Run the same Budget examples directly against `SqliteCommandExecutor` and native PostgreSQL. Compare:
 
 - approved and denied results;
 - structured errors and details;
@@ -371,11 +357,11 @@ The shared suite includes lifecycle, availability, denial, consumable depletion,
 - **Self-hosted**: packaging, configuration, upgrades, backup and restoration, monitoring, recovery runbooks, and customer-operated failure handling.
 - **Managed Cloud**: provider deployment, high availability, recovery, failover, capacity, incident response, vulnerability response, compliance controls, support, and production operations.
 
-A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the future in-memory ledger. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
+A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the future in-memory SQLite runtime. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
 
 ## Packaging and installation
 
-The future local SDK package contains TypeScript code for the facade, generated client and validators, and `InMemoryLedger`. It must not contain PGlite, a WebAssembly PostgreSQL build, local migrations, a database data directory, a native Keynes library, a sidecar, or a daemon.
+The future local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It must not contain PGlite, a WebAssembly PostgreSQL build, local migrations, a database data directory, a native Keynes library, a sidecar, or a daemon.
 
 Durable installation uses the canonical PostgreSQL migrations and verifies its contract digest and owned objects before use. The installation design must define supported PostgreSQL versions, required privileges, compatible upgrade windows, drift detection, and failure behavior. None of those are proved by this documentation feature.
 
@@ -383,7 +369,7 @@ The self-hosted and Cloud service use the same service code. Packaging and opera
 
 ## Security and recovery boundaries
 
-Local mode protects state from accidental mutation through private maps, input validation, copied returns, serialized commands, and fail-closed Policy evaluation. It does not defend against code that can inspect or modify its own process.
+Local mode protects state from accidental mutation through a private SQLite connection, input validation, detached returns, serialized commands, and fail-closed Policy evaluation. It does not defend against code that can inspect or modify its own process.
 
 Embedded PostgreSQL uses database roles and supported functions to prevent application roles from writing private Keynes state. The application database operator is inside the deployment's trust boundary.
 
@@ -409,7 +395,7 @@ Keynes does not execute application work, retry providers, infer missing usage, 
 
 No deployment may claim compatibility, security, recovery, footprint, performance, or production readiness until evidence from the exact tested revision establishes the applicable gates:
 
-1. Compare all shared Budget behavior against the in-memory ledger and native PostgreSQL.
+1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
 2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown after removing PGlite.
 3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
 4. Compare builder and raw-SQL Policy behavior through the local and PostgreSQL evaluators, including context and replay.

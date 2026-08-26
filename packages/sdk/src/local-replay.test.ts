@@ -23,7 +23,7 @@ describe("local facade committed-response replay", () => {
     "replays one lost %s response with the same command",
     async (target) => {
       const harness = await loadHarness(target, 1);
-      const keynes = await harness.Keynes.create({ mode: "local" });
+      const keynes = await harness.Keynes.create();
       try {
         await exerciseMutation(keynes, target);
         expect(harness.captured).toHaveLength(2);
@@ -36,7 +36,7 @@ describe("local facade committed-response replay", () => {
 
   it("maps a second lost response to operation_interrupted", async () => {
     const harness = await loadHarness("keynes.define_resource_type", 2);
-    const keynes = await harness.Keynes.create({ mode: "local" });
+    const keynes = await harness.Keynes.create();
     try {
       await expect(defineWorkUnits(keynes)).rejects.toMatchObject({
         name: "KeynesSdkError",
@@ -51,7 +51,7 @@ describe("local facade committed-response replay", () => {
 
   it("does not retry a generated domain failure", async () => {
     const harness = await loadHarness("keynes.define_resource_type", 0);
-    const keynes = await harness.Keynes.create({ mode: "local" });
+    const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
       const before = harness.captured.length;
@@ -71,7 +71,7 @@ describe("local facade committed-response replay", () => {
 
   it("creates a distinct command identity for each public call", async () => {
     const harness = await loadHarness("keynes.create_budget", 0);
-    const keynes = await harness.Keynes.create({ mode: "local" });
+    const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
       await keynes.createBudget({ workUnits: 10 });

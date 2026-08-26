@@ -1,6 +1,6 @@
 # ADR-0001: Adopt lean repository boundaries
 
-> **Superseded in part by [ADR-0003](0003-local-ledger-and-postgresql.md):** ADR-0003 replaces the permanent PGlite and managed-Cloud-only runtime direction. This record retains the historical reasoning and repository-boundary decision made at the time.
+> **Superseded in part by [ADR-0003](0003-sqlite-and-postgresql.md):** ADR-0003 replaces the permanent PGlite and managed-Cloud-only runtime direction. This record retains the historical reasoning and repository-boundary decision made at the time.
 
 - **Date:** 2026-08-21
 - **Status:** Accepted
