@@ -17,10 +17,12 @@
 
 **Purpose**: Establish the `@keynes/postgresql` workspace and deterministic archive boundary without changing runtime behavior.
 
-- [ ] T001 Create the `@keynes/postgresql` workspace, TypeScript build entry, CLI bin declaration, dependency boundary, and root workspace wiring in `packages/database/package.json`, `packages/database/tsconfig.json`, `pnpm-workspace.yaml`, `package.json`, and `pnpm-lock.yaml`
-- [ ] T002 Add the deterministic package-build entry point and archive allowlist for compiled CLI code, migrations, generated identity, README, and license in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
-- [ ] T003 [P] Document package ownership, command names, connection environment, credential-redaction rule, and preview support limits in `packages/database/README.md`
-- [ ] T004 Run the workspace build and pack-list checks against `packages/database/package.json`; fix only setup or package-wiring failures and record that Budget behavior and native PostgreSQL remain `NOT RUN` in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [X] T001 Create the `@keynes/postgresql` workspace, TypeScript build entry, CLI bin declaration, dependency boundary, and root workspace wiring in `packages/database/package.json`, `packages/database/tsconfig.json`, `pnpm-workspace.yaml`, `package.json`, and `pnpm-lock.yaml`
+- [X] T002 Add the deterministic package-build entry point and archive allowlist for compiled CLI code, migrations, generated identity, README, and license in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
+- [X] T003 [P] Document package ownership, command names, connection environment, credential-redaction rule, and preview support limits in `packages/database/README.md`
+- [X] T004 Run the workspace build and pack-list checks against `packages/database/package.json`; fix only setup or package-wiring failures and record that Budget behavior and native PostgreSQL remain `NOT RUN` in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+
+Phase 1 evidence: `CI=true pnpm --filter @keynes/postgresql build`, `pnpm format:check`, and a packed archive listing passed. Budget behavior, native PostgreSQL, installer behavior, and transaction integration remain `NOT RUN`.
 
 **Checkpoint**: The new workspace builds and exposes a deterministic package boundary, but no installer or transaction claim is accepted.
 
