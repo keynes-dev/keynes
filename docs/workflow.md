@@ -21,12 +21,20 @@ Do not create a pstack specification, plan, or task list when a Spec Kit artifac
 Use Spec Kit when work changes product behavior, architecture, public contracts, roadmap scope, or acceptance evidence. A complete feature normally moves through this sequence:
 
 1. Use `$speckit-constitution` when the work changes a governing principle.
-2. Use `$speckit-specify` to define user outcomes, requirements, scope, and success criteria.
+2. Use `$speckit-specify` to explain the feature story and define user outcomes, requirements, scope, and success criteria.
 3. Use `$speckit-clarify` when material product or scope questions remain.
 4. Use `$speckit-plan` to decide the technical design and verification approach.
 5. Use `$speckit-tasks` to create the dependency-ordered implementation sequence.
 6. Use `$speckit-implement` to execute and update the approved tasks.
 7. Use `$speckit-analyze` and `$speckit-checklist` to check artifact consistency and acceptance coverage.
+
+## Keep the feature story in the specification
+
+Every feature specification starts with a `Feature story` section. It explains the problem, why the feature exists now, what changes for users, what must stay true, what the feature excludes, and where it leads next. Write it in product language before the user scenarios and numbered requirements.
+
+The feature story explains intent. Numbered requirements and success criteria define acceptance. The story must not introduce a requirement, implementation decision, or evidence claim that the rest of the specification does not support.
+
+`$speckit-clarify` updates the story when an answer changes the problem, user outcome, compatibility promise, scope boundary, or roadmap relationship. `$speckit-plan` owns implementation choices and technical tradeoffs; do not copy those decisions into the story. `$speckit-analyze` checks the story against the specification, plan, and tasks for contradictions and stale claims.
 
 A narrow repair, explanation, or documentation change may not need a new feature artifact. Before starting one, identify the active Spec Kit feature and state why the work fits it or why no feature artifact is needed. Do not use that exception to hide a requirement or architecture change.
 
