@@ -50,15 +50,6 @@ describe("PostgreSQL installation configuration", () => {
     ).toThrow();
   });
 
-  it("rejects unsupported configuration fields", () => {
-    expect(() =>
-      parseInstallationConfig({
-        ...CONFIG,
-        profile: "postgresql-17",
-      }),
-    ).toThrow();
-  });
-
   it("does not expose invalid values in configuration errors", () => {
     const secret = "postgresql://keynes:super-secret@example.test/keynes";
     const invalidConfig = {

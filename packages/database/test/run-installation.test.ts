@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadInstallationAssets } from "../src/private/run-installation.ts";
@@ -40,7 +41,7 @@ describe("canonical PostgreSQL installation runner", () => {
           },
         ],
       },
-      migrationsDirectory: directory,
+      migrationsDirectory: pathToFileURL(`${directory}${sep}`),
     });
 
     expect(assets.map(({ id }) => id)).toEqual(["0001-first", "0002-second"]);
@@ -61,7 +62,7 @@ describe("canonical PostgreSQL installation runner", () => {
             },
           ],
         },
-        migrationsDirectory: directory,
+        migrationsDirectory: pathToFileURL(`${directory}${sep}`),
       }),
     ).rejects.toThrow(/checksum/i);
   });

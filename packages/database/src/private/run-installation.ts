@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { isAbsolute, resolve, relative } from "node:path";
 
 export interface InstallationMigration {
   readonly id: string;
@@ -19,7 +18,7 @@ export interface LoadInstallationAssetsOptions {
   readonly installationRecord: {
     readonly migrations: readonly InstallationMigration[];
   };
-  readonly migrationsDirectory: string | URL;
+  readonly migrationsDirectory: URL;
   readonly onChecksumMismatch?: (
     migrationId: string,
     expectedChecksum: string,
@@ -34,24 +33,12 @@ export async function loadInstallationAssets({
 }: LoadInstallationAssetsOptions): Promise<readonly InstallationAssets[]> {
   return Promise.all(
     installationRecord.migrations.map(async (migration) => {
-      if (
-        !/^\d{4}-[a-z0-9-]+(?:\.generated)?\.sql$/u.test(migration.path) ||
-        isAbsolute(migration.path)
-      ) {
+      if (!/^\d{4}-[a-z0-9-]+(?:\.generated)?\.sql$/u.test(migration.path)) {
         throw new Error(`invalid migration path: ${migration.id}`);
       }
-      const path =
-        migrationsDirectory instanceof URL
-          ? new URL(migration.path, migrationsDirectory)
-          : resolve(migrationsDirectory, migration.path);
-      if (
-        typeof migrationsDirectory === "string" &&
-        typeof path === "string" &&
-        relative(migrationsDirectory, path).startsWith("..")
-      ) {
-        throw new Error(`invalid migration path: ${migration.id}`);
-      }
-      const bytes = await readFile(path);
+      const bytes = await readFile(
+        new URL(migration.path, migrationsDirectory),
+      );
       const actual = createHash("sha256").update(bytes).digest("hex");
       if (actual !== migration.sha256) {
         throw (

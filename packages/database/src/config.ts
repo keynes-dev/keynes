@@ -25,17 +25,11 @@ function invalid(field: string): never {
 
 export function parseInstallationConfig(value: unknown): InstallationConfig {
   if (!isRecord(value)) invalid("object");
-  const keys = Object.keys(value).sort();
-  const expected = [...CONFIG_KEYS].sort();
   if (
-    keys.length !== expected.length ||
-    keys.some((key, index) => key !== expected[index])
+    Object.keys(value).length !== CONFIG_KEYS.length ||
+    CONFIG_KEYS.some((key) => typeof value[key] !== "string")
   ) {
     invalid("keys");
-  }
-
-  for (const key of CONFIG_KEYS) {
-    if (typeof value[key] !== "string") invalid(key);
   }
   const config = value as InstallationConfig;
   if (!ROLE.test(config.ownerRole) || !ROLE.test(config.applicationRole))
