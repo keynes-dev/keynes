@@ -217,11 +217,15 @@ async function prepareAcceptanceRecord(
       throw error;
   }
 
-  const status = await runtime.run("git", ["status", "--porcelain"], {});
+  const status = await runtime.run(
+    "git",
+    ["status", "--porcelain"],
+    process.env,
+  );
   if (status.stdout.trim() !== "")
     throw new Error("Acceptance record requires a clean worktree");
   const revision = (
-    await runtime.run("git", ["rev-parse", "HEAD"], {})
+    await runtime.run("git", ["rev-parse", "HEAD"], process.env)
   ).stdout.trim();
   if (!/^[0-9a-f]{40}$/.test(revision))
     throw new Error("Git did not return an exact revision");
@@ -231,7 +235,7 @@ async function prepareAcceptanceRecord(
     await runtime.run(
       "pnpm",
       ["--filter", POSTGRES_PACKAGE, "pack", "--pack-destination", workspace],
-      {},
+      process.env,
     );
     const archiveName = (await readdir(workspace)).find((name) =>
       name.endsWith(".tgz"),
