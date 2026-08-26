@@ -74,6 +74,11 @@ The command refuses:
 - any incompatible Keynes state, including partial state; or
 - migration, contract, object, owner, function, bootstrap, or ACL mismatch.
 
+The error includes a stable category and, when available, a check name such as
+`server-version`, `owner-role`, `migration:0002-budget`, or
+`bootstrap-permissions`. Use that check to diagnose the target. The installer
+does not print raw SQL errors or credentials.
+
 It does not repair or resume a failed or existing target. Recreate a clean database for this preview.
 
 ## Recheck the exact installation
@@ -85,7 +90,7 @@ pnpm --filter @keynes/postgresql exec keynes-postgresql \
   install --config /tmp/keynes-postgresql.json
 ```
 
-The exact path runs in a read-only transaction and returns `outcome: "already-installed"`. It checks the server version, migrations, required objects, owners, functions, bootstrap permissions, and ACLs without changing database state.
+The exact path runs the installation checks in a read-only transaction and returns `outcome: "already-installed"`. It checks the server version, migration IDs and checksums, contract digest, required objects, owners, function signatures and properties, bootstrap permissions, and schema and function ACLs. It does not run migrations or repair grants.
 
 The application role cannot run this recheck or read `keynes_internal.schema_migrations`. It can use only the five public functions.
 
@@ -215,6 +220,6 @@ The native runner owns one disposable loopback PostgreSQL 18.6 container and ref
 
 ## Evidence limits
 
-This flow proves the packed installer, exact profile, database-object least privilege, caller-owned transaction composition, PostgreSQL visibility, replay, conflict, contention, and shared SQLite/PostgreSQL Budget meaning on one provider-free PostgreSQL 18.6 image.
+This flow documents the packed installer, exact profile, database-object least privilege, caller-owned transaction composition, PostgreSQL visibility, replay, conflict, contention, and shared SQLite/PostgreSQL Budget meaning on one provider-free PostgreSQL 18.6 image. Run `pnpm test:pr` and `pnpm test:platform` to establish those claims for a clean revision.
 
 Other PostgreSQL versions, managed providers, upgrades, downgrades, rolling deployment, extension packaging, backup, recovery, failover, hostile-role security qualification, fault campaigns, benchmarks, self-hosting, managed Cloud, and production readiness remain `NOT RUN`.

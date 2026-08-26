@@ -6,6 +6,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RECORD_PATH: artifacts/platform/feat-0009-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json
+
 jobs:
   platform:
     name: Platform
@@ -34,4 +37,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test platform
-        run: pnpm test:platform
+        run: pnpm test:platform -- --output "${{ env.RECORD_PATH }}"
+
+      - name: Retain platform acceptance record
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: platform-acceptance-record
+          path: ${{ env.RECORD_PATH }}
+          if-no-files-found: error
+          retention-days: 14

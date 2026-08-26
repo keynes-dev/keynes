@@ -22,9 +22,10 @@ keynes-postgresql install --config <path>
 ```
 
 The command accepts exactly one readable JSON configuration file containing
-`ownerRole`, `applicationRole`, `tenantId`, and `principalId`. It supports only
-an absent target (fresh install) or an already exact target (read-only
-recheck). It never creates or alters PostgreSQL roles or databases.
+`ownerRole`, `applicationRole`, `tenantId`, and `principalId`. The roles and
+database must already exist. The command supports only an absent target (fresh
+install) or an already exact target (read-only recheck). It never creates or
+alters PostgreSQL roles or databases.
 
 ## Connection environment
 
@@ -45,8 +46,11 @@ The operator must already be able to connect and assume a pre-existing
 - `keynes.get_budget(jsonb)`
 
 Applications call these functions through one checked-out client and own
-`BEGIN`, `COMMIT`, and `ROLLBACK`. Keynes does not acquire connections, manage
-the surrounding transaction, retry it, or read application tables.
+`BEGIN`, `COMMIT`, and `ROLLBACK`. The application sets the installed tenant
+and principal with transaction-local settings. The preview trusts that
+assertion from the application role. It is not end-user authentication and
+does not qualify hostile-role isolation. Keynes does not acquire connections,
+manage the surrounding transaction, retry it, or read application tables.
 
 ## Credential redaction
 
@@ -68,3 +72,9 @@ upgrades, downgrades, rolling deployment, uninstall, extension packaging,
 backup, recovery, failover, self-hosting, managed Cloud, hostile-role
 security qualification, performance qualification, or production readiness.
 Those lanes remain `NOT RUN`.
+
+Installation failures use stable categories such as `unsupported_postgresql`,
+`missing_role`, `insufficient_privilege`, `incompatible_target`, and
+`database_unavailable`. The optional `check` identifies the failed profile
+fact. An incompatible target includes partial installation and drift. The
+installer does not repair it, resume it, or expose raw database errors.

@@ -1,3 +1,7 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -25,6 +29,8 @@ interface FakeRuntime {
 function fakeRuntime(options?: {
   readonly dockerFailure?: Error;
   readonly childFailure?: Error;
+  readonly gitStatus?: string;
+  readonly vitestReport?: Record<string, unknown>;
   readonly probe?: (attempt: number) => Promise<string>;
 }): FakeRuntime {
   const commands: RecordedCommand[] = [];
@@ -50,6 +56,22 @@ function fakeRuntime(options?: {
           arguments: arguments_,
           environment,
         });
+        if (executable === "git" && arguments_[0] === "status") {
+          return { stdout: options?.gitStatus ?? "" };
+        }
+        if (executable === "git" && arguments_[0] === "rev-parse") {
+          return { stdout: "0123456789abcdef0123456789abcdef01234567\n" };
+        }
+        if (executable === "pnpm" && arguments_[0] === "--filter") {
+          const destination =
+            arguments_[arguments_.indexOf("--pack-destination") + 1];
+          if (destination !== undefined) {
+            await writeFile(
+              join(destination, "keynes-postgresql-0.0.0.tgz"),
+              "archive",
+            );
+          }
+        }
         if (options?.dockerFailure !== undefined) {
           throw options.dockerFailure;
         }
@@ -66,6 +88,23 @@ function fakeRuntime(options?: {
         });
         return {
           async wait() {
+            const reportPath = environment.KEYNES_PLATFORM_REPORT_PATH;
+            if (reportPath !== undefined) {
+              await writeFile(
+                reportPath,
+                JSON.stringify(
+                  options?.vitestReport ?? {
+                    numFailedTests: 0,
+                    numPendingTests: 0,
+                    numTodoTests: 0,
+                    numPassedTests: 1,
+                    testResults: [
+                      { name: "required-scenario", status: "passed" },
+                    ],
+                  },
+                ),
+              );
+            }
             if (options?.childFailure !== undefined) {
               throw options.childFailure;
             }
@@ -85,6 +124,14 @@ function fakeRuntime(options?: {
 }
 
 describe("platform test runner", () => {
+  async function temporaryOutputPath(): Promise<{
+    readonly directory: string;
+    readonly path: string;
+  }> {
+    const directory = await mkdtemp(join(tmpdir(), "keynes-platform-test-"));
+    return { directory, path: join(directory, "acceptance.json") };
+  }
+
   it("owns the exact loopback-only container and removes it after success", async () => {
     const fake = fakeRuntime();
 
@@ -212,5 +259,145 @@ describe("platform test runner", () => {
     ).rejects.toThrow("Platform database context must be runner-owned");
 
     expect(fake.commands).toEqual([]);
+  });
+
+  it("writes a passing acceptance record for --output", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime();
+
+    try {
+      await runPlatformTests(fake.runtime, {}, { outputPath: output.path });
+
+      const record: unknown = JSON.parse(await readFile(output.path, "utf8"));
+      expect(record).toMatchObject({
+        schemaVersion: "keynes.postgresql-acceptance/v1",
+        revision: { commit: expect.any(String) },
+        distribution: {
+          package: "@keynes/postgresql",
+          version: expect.any(String),
+          archiveSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+          installationRecordSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+        profile: {
+          postgresImage: POSTGRES_IMAGE,
+          postgresServerVersionNum: "180006",
+          profileId: "embedded-postgresql-18.6-preview",
+          contractDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+          migrations: expect.any(Array),
+        },
+        roles: expect.any(Object),
+        tests: {
+          numFailedTests: 0,
+          numPendingTests: 0,
+          testResults: expect.any(Array),
+        },
+        exclusions: {
+          otherPostgresqlVersions: "NOT RUN",
+          managedProvider: "NOT RUN",
+          upgradeDowngrade: "NOT RUN",
+          rollingDeployment: "NOT RUN",
+          extensionPackaging: "NOT RUN",
+          backupRecovery: "NOT RUN",
+          failover: "NOT RUN",
+          securityQualification: "NOT RUN",
+          faultCampaign: "NOT RUN",
+          benchmark: "NOT RUN",
+          selfHosted: "NOT RUN",
+          managedCloud: "NOT RUN",
+          productionReadiness: "NOT RUN",
+        },
+      });
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses an existing --output path before starting Docker", async () => {
+    const output = await temporaryOutputPath();
+    await writeFile(output.path, "existing\n");
+    const fake = fakeRuntime();
+
+    try {
+      await expect(
+        runPlatformTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("Acceptance record already exists");
+      expect(fake.commands).toEqual([]);
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("requires a clean revision before starting Docker", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({ gitStatus: " M packages/sdk/src/index.ts\n" });
+
+    try {
+      await expect(
+        runPlatformTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("clean worktree");
+      expect(fake.commands[0]).toMatchObject({
+        executable: "git",
+        arguments: ["status", "--porcelain"],
+      });
+      expect(
+        fake.commands.some(({ executable }) => executable === "docker"),
+      ).toBe(false);
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a record with failed, skipped, or renamed required scenarios", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({
+      vitestReport: {
+        numFailedTests: 1,
+        numPendingTests: 1,
+        numTodoTests: 0,
+        numPassedTests: 0,
+        testResults: [],
+      },
+    });
+
+    try {
+      await expect(
+        runPlatformTests(
+          fake.runtime,
+          {},
+          {
+            outputPath: output.path,
+          },
+        ),
+      ).rejects.toThrow("Vitest did not produce a passing report");
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not retain credentials or private authority data in the record", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({
+      vitestReport: {
+        numFailedTests: 0,
+        numPendingTests: 0,
+        numTodoTests: 0,
+        numPassedTests: 1,
+        testResults: [{ name: "required-scenario", status: "passed" }],
+      },
+    });
+
+    try {
+      await runPlatformTests(fake.runtime, {}, { outputPath: output.path });
+
+      const record = await readFile(output.path, "utf8");
+      expect(record).not.toContain(PASSWORD);
+      expect(record).not.toContain("postgresql://");
+      expect(record).not.toContain("keynes_internal");
+      expect(record).not.toContain("tenant-a");
+      expect(record).not.toContain("principal");
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
   });
 });

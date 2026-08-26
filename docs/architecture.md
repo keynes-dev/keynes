@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, and FEAT-0006 private loopback service exist. The in-memory SQLite runtime is the planned replacement for PGlite and is not implemented. PostgreSQL installation, caller-owned transaction integration, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, FEAT-0006 private loopback service, and FEAT-0009 PostgreSQL distribution code exist. The in-memory SQLite runtime is the planned replacement for PGlite and is not implemented. Native acceptance, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -145,9 +145,11 @@ The five current procedures are:
 
 ### Embedded PostgreSQL
 
-An embedded application installs the existing migrations into its PostgreSQL database and calls supported `keynes.*` functions from its existing database code. The application owns the transaction, database operations, roles, upgrades, backup, recovery, and incident response.
+An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
 
-The defining advantage is transaction composition. Caller-owned database code can read application facts, call Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Keynes does not introduce a parent transaction API.
+An embedded application calls supported `keynes.*` functions from its existing database code. The application owns the connection, transaction, roles, upgrades, backup, recovery, and incident response.
+
+The defining advantage is transaction composition. Caller-owned database code can read application facts, call Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Keynes does not acquire a connection, begin or end the transaction, retry it, or introduce a parent transaction API.
 
 Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
 
@@ -162,6 +164,8 @@ The PostgreSQL transaction integration feature must prove:
 - an incompatible or modified installation fails before use.
 
 That evidence does not establish broad provider support, recovery support, extension packaging, or production readiness.
+
+The application role sets `keynes.tenant_id` and `keynes.principal_id` with transaction-local settings. The one-role and one-principal preview trusts those values from application code. They identify the installed authority principal. They are not end-user authentication, and hostile-role security qualification remains `NOT RUN`.
 
 ### Self-hosted Keynes
 
@@ -363,7 +367,9 @@ A pass in one category does not prove another. PGlite evidence from FEAT-0003 th
 
 The future local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It must not contain PGlite, a WebAssembly PostgreSQL build, local migrations, a database data directory, a native Keynes library, a sidecar, or a daemon.
 
-Durable installation uses the canonical PostgreSQL migrations and verifies its contract digest and owned objects before use. The installation design must define supported PostgreSQL versions, required privileges, compatible upgrade windows, drift detection, and failure behavior. None of those are proved by this documentation feature.
+Durable installation uses the canonical PostgreSQL migrations and generated installation record. The installer verifies the server version, migration IDs and checksums, contract digest, object inventory, ownership, function properties, bootstrap permissions, and ACLs. Exact recheck is read-only and makes no migration, grant, revoke, or repair change. An incompatible target fails with a stable category and check name. The installer does not support upgrades, downgrades, rolling deployment, uninstall, or extension packaging.
+
+Native acceptance, other PostgreSQL releases, provider qualification, backup, recovery, failover, self-hosting, managed Cloud, hostile-role security qualification, performance qualification, and production support remain `NOT RUN`.
 
 The self-hosted and Cloud service use the same service code. Packaging and operating ownership differ. A customer-operated container and a Keynes-operated deployment require separate release and support evidence even when the image contents match.
 

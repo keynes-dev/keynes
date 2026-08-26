@@ -1,7 +1,16 @@
 import { spawn } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import {
+  access,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { Client } from "pg";
 
@@ -13,6 +22,7 @@ export const PLATFORM_CONTEXT_ENV = "KEYNES_PLATFORM_CONTEXT";
 const EXPECTED_SERVER_VERSION = "180006";
 const READINESS_TIMEOUT_MS = 30_000;
 const READINESS_INTERVAL_MS = 100;
+const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
 const PLATFORM_TEST_FILES = [
   "src/native-contention.native.test.ts",
@@ -27,6 +37,31 @@ const PLATFORM_TEST_FILES = [
   "../database/test/recheck.native.test.ts",
   "../database/test/archive.test.ts",
 ] as const;
+
+const PLATFORM_REPORT_ENV = "KEYNES_PLATFORM_REPORT_PATH";
+const POSTGRES_PACKAGE = "@keynes/postgresql";
+const POSTGRES_PACKAGE_VERSION = "0.0.0";
+const ACCEPTANCE_SCHEMA = "keynes.postgresql-acceptance/v1";
+
+const EXCLUSIONS = {
+  otherPostgresqlVersions: "NOT RUN",
+  managedProvider: "NOT RUN",
+  upgradeDowngrade: "NOT RUN",
+  rollingDeployment: "NOT RUN",
+  extensionPackaging: "NOT RUN",
+  backupRecovery: "NOT RUN",
+  failover: "NOT RUN",
+  securityQualification: "NOT RUN",
+  faultCampaign: "NOT RUN",
+  benchmark: "NOT RUN",
+  selfHosted: "NOT RUN",
+  managedCloud: "NOT RUN",
+  productionReadiness: "NOT RUN",
+} as const;
+
+export interface PlatformRunOptions {
+  readonly outputPath?: string;
+}
 
 export interface RunningTestChild {
   wait(): Promise<void>;
@@ -50,6 +85,7 @@ export interface PlatformRuntime {
 export async function runPlatformTests(
   runtime: PlatformRuntime = productionRuntime,
   environment: NodeJS.ProcessEnv = process.env,
+  options: PlatformRunOptions = {},
 ): Promise<void> {
   if (environment[PLATFORM_CONTEXT_ENV] !== undefined) {
     throw new Error("Platform database context must be runner-owned");
@@ -57,6 +93,11 @@ export async function runPlatformTests(
 
   const runId = runtime.randomUUID();
   const password = runtime.randomPassword();
+  const outputPath = options.outputPath;
+  const recordWorkspace =
+    outputPath === undefined
+      ? undefined
+      : await prepareAcceptanceRecord(runtime, outputPath);
   let containerStarted = false;
   let child: RunningTestChild | undefined;
   let failure: unknown;
@@ -102,6 +143,9 @@ export async function runPlatformTests(
         runId,
         administratorUrl: connectionUrl,
       }),
+      ...(recordWorkspace === undefined
+        ? {}
+        : { [PLATFORM_REPORT_ENV]: recordWorkspace.reportPath }),
     });
     await stage(runId, "tests", () => child?.wait() ?? Promise.resolve());
   } catch (error: unknown) {
@@ -130,6 +174,183 @@ export async function runPlatformTests(
   if (cleanupFailed) {
     throw platformFailure(runId, "cleanup");
   }
+  if (recordWorkspace !== undefined) {
+    try {
+      await writeAcceptanceRecord(recordWorkspace, runId);
+    } catch (error) {
+      throw error;
+    } finally {
+      await rm(dirname(recordWorkspace.reportPath), {
+        recursive: true,
+        force: true,
+      });
+    }
+  }
+}
+
+interface AcceptanceWorkspace {
+  readonly outputPath: string;
+  readonly reportPath: string;
+  readonly revision: string;
+  readonly distribution: {
+    readonly version: string;
+    readonly archiveSha256: string;
+    readonly installationRecordSha256: string;
+  };
+}
+
+async function prepareAcceptanceRecord(
+  runtime: PlatformRuntime,
+  outputPath: string,
+): Promise<AcceptanceWorkspace> {
+  try {
+    await access(outputPath);
+  } catch {
+    // The final write uses wx as well. This check gives a stable early failure.
+  }
+  try {
+    await access(outputPath);
+    throw new Error("Acceptance record already exists");
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      error.message === "Acceptance record already exists"
+    )
+      throw error;
+  }
+
+  const status = await runtime.run("git", ["status", "--porcelain"], {});
+  if (status.stdout.trim() !== "")
+    throw new Error("Acceptance record requires a clean worktree");
+  const revision = (
+    await runtime.run("git", ["rev-parse", "HEAD"], {})
+  ).stdout.trim();
+  if (!/^[0-9a-f]{40}$/.test(revision))
+    throw new Error("Git did not return an exact revision");
+
+  const workspace = await mkdtemp(join(tmpdir(), "keynes-platform-"));
+  try {
+    await runtime.run(
+      "pnpm",
+      ["--filter", POSTGRES_PACKAGE, "pack", "--pack-destination", workspace],
+      {},
+    );
+    const archiveName = (await readdir(workspace)).find((name) =>
+      name.endsWith(".tgz"),
+    );
+    if (archiveName === undefined)
+      throw new Error("PostgreSQL archive was not created");
+    const archive = await readFile(join(workspace, archiveName));
+    const installationRecord = await readFile(
+      join(
+        REPOSITORY_ROOT,
+        "packages/database/generated/installation-record.json",
+      ),
+    );
+    const reportPath = join(workspace, "vitest.json");
+    return {
+      outputPath,
+      reportPath,
+      revision,
+      distribution: {
+        version: POSTGRES_PACKAGE_VERSION,
+        archiveSha256: sha256(archive),
+        installationRecordSha256: sha256(installationRecord),
+      },
+    };
+  } catch (error: unknown) {
+    await rm(workspace, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function writeAcceptanceRecord(
+  workspace: AcceptanceWorkspace,
+  runId: string,
+): Promise<void> {
+  const report = JSON.parse(
+    await readFile(workspace.reportPath, "utf8"),
+  ) as Record<string, unknown>;
+  if (
+    report.numFailedTests !== 0 ||
+    report.numPendingTests !== 0 ||
+    report.numTodoTests !== 0 ||
+    typeof report.numPassedTests !== "number" ||
+    report.numPassedTests < 1
+  ) {
+    throw new Error("Vitest did not produce a passing report");
+  }
+  const record = {
+    schemaVersion: ACCEPTANCE_SCHEMA,
+    revision: { commit: workspace.revision },
+    distribution: {
+      package: POSTGRES_PACKAGE,
+      ...workspace.distribution,
+    },
+    profile: {
+      postgresImage: POSTGRES_IMAGE,
+      postgresServerVersionNum: EXPECTED_SERVER_VERSION,
+      profileId: "embedded-postgresql-18.6-preview",
+      contractDigest:
+        "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+      migrations: JSON.parse(
+        await readFile(
+          join(
+            REPOSITORY_ROOT,
+            "packages/database/generated/installation-record.json",
+          ),
+          "utf8",
+        ),
+      ).migrations,
+    },
+    roles: {
+      owner: {
+        name: "keynes_owner",
+        privileges: ["NOLOGIN", "database CREATE"],
+      },
+      application: {
+        name: "keynes_app",
+        grants: [
+          "USAGE ON SCHEMA keynes",
+          "EXECUTE ON keynes.define_resource_type(jsonb)",
+          "EXECUTE ON keynes.create_budget(jsonb)",
+          "EXECUTE ON keynes.request(jsonb)",
+          "EXECUTE ON keynes.settle(jsonb)",
+          "EXECUTE ON keynes.get_budget(jsonb)",
+        ],
+      },
+      privateAccessDenials: [
+        "private schema access",
+        "PUBLIC function execution",
+      ],
+    },
+    tests: report,
+    exclusions: EXCLUSIONS,
+    runId,
+  };
+  await writeFile(
+    workspace.outputPath,
+    `${JSON.stringify(record, null, 2)}\n`,
+    {
+      encoding: "utf8",
+      flag: "wx",
+    },
+  );
+}
+
+function sha256(value: Buffer): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function parseArguments(arguments_: readonly string[]): PlatformRunOptions {
+  const outputIndex = arguments_.indexOf("--output");
+  if (outputIndex === -1) return {};
+  const outputPath = arguments_[outputIndex + 1];
+  if (outputPath === undefined || outputPath.startsWith("--"))
+    throw new Error("--output requires a path");
+  if (arguments_.indexOf("--output", outputIndex + 1) !== -1)
+    throw new Error("--output may be provided only once");
+  return { outputPath: resolve(outputPath) };
 }
 
 async function waitForPostgres(
@@ -199,7 +420,22 @@ const productionRuntime: PlatformRuntime = {
         "vitest",
         "run",
         "--passWithNoTests=false",
-        ...PLATFORM_TEST_FILES,
+        ...(environment[PLATFORM_REPORT_ENV] === undefined
+          ? []
+          : ["--root=.."]),
+        ...(environment[PLATFORM_REPORT_ENV] === undefined
+          ? []
+          : [
+              "--reporter=json",
+              `--outputFile=${environment[PLATFORM_REPORT_ENV]}`,
+            ]),
+        ...PLATFORM_TEST_FILES.map((file) =>
+          environment[PLATFORM_REPORT_ENV] === undefined
+            ? file
+            : file.startsWith("../database/")
+              ? file.slice(3)
+              : `sdk/${file}`,
+        ),
       ],
       environment,
     ),
@@ -287,7 +523,11 @@ if (
   executedPath !== undefined &&
   import.meta.url === pathToFileURL(resolve(executedPath)).href
 ) {
-  void runPlatformTests().catch((error: unknown) => {
+  void runPlatformTests(
+    productionRuntime,
+    process.env,
+    parseArguments(process.argv.slice(2)),
+  ).catch((error: unknown) => {
     process.stderr.write(`${String(error)}\n`);
     process.exitCode = 1;
   });
