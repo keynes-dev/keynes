@@ -177,11 +177,6 @@ export async function runPlatformTests(
   if (recordWorkspace !== undefined) {
     try {
       await writeAcceptanceRecord(recordWorkspace, runId);
-    } finally {
-      await rm(dirname(recordWorkspace.reportPath), {
-        recursive: true,
-        force: true,
-      });
     }
   }
 }
