@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0008",
-  "slug": "sqlite-local-runtime",
-  "branch": "feat/0008-sqlite-local-runtime",
-  "feature_directory": "docs/features/0008-sqlite-local-runtime",
+  "feature_id": "FEAT-0009",
+  "slug": "postgresql-transaction-integration",
+  "branch": "feat/0009-postgresql-transaction-integration",
+  "feature_directory": "docs/features/0009-postgresql-transaction-integration",
   "roadmap_stage": "Implementation sequence"
 }
