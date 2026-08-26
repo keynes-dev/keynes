@@ -23,6 +23,9 @@ const PLATFORM_TEST_FILES = [
   "src/request-denial.test.ts",
   "src/rollback.test.ts",
   "src/settlement.test.ts",
+  "../database/test/installation.native.test.ts",
+  "../database/test/recheck.native.test.ts",
+  "../database/test/archive.test.ts",
 ] as const;
 
 export interface RunningTestChild {

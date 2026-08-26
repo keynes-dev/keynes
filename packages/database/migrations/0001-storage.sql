@@ -1,5 +1,5 @@
-CREATE SCHEMA IF NOT EXISTS keynes_internal;
-CREATE SCHEMA IF NOT EXISTS keynes;
+CREATE SCHEMA keynes_internal;
+CREATE SCHEMA keynes;
 
 REVOKE ALL ON SCHEMA keynes_internal FROM PUBLIC;
 
@@ -17,6 +17,22 @@ CREATE TABLE keynes_internal.schema_migrations (
       contract_digest IS NULL
       OR contract_digest ~ '^[0-9a-f]{64}$'
     )
+);
+
+CREATE TABLE keynes_internal.installation_identity (
+  singleton boolean PRIMARY KEY CHECK (singleton),
+  profile_id text NOT NULL,
+  server_version_num text NOT NULL,
+  contract_digest text NOT NULL CHECK (contract_digest ~ '^[0-9a-f]{64}$'),
+  migration_set_digest text NOT NULL CHECK (migration_set_digest ~ '^[0-9a-f]{64}$'),
+  owner_role name NOT NULL,
+  application_role name NOT NULL,
+  tenant_id uuid NOT NULL,
+  principal_id uuid NOT NULL
+);
+
+CREATE TABLE keynes_internal.installation_objects (
+  object_name text PRIMARY KEY
 );
 
 CREATE TABLE keynes_internal.principal_permissions (

@@ -19,12 +19,12 @@
     ]
   },
   "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
-  "migrationSetDigest": "c64345c723237d0d6f615c3c7ccdf45ef5532a48e7937d375f43baad0c25a66a",
+  "migrationSetDigest": "6fd0dc840de51fdce3c75c7e89d4c02870a2ad295e454fc7e9c211415234cca3",
   "migrations": [
     {
       "id": "0001-storage",
       "path": "0001-storage.sql",
-      "sha256": "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a"
+      "sha256": "ba9780a7e8c5254551b26277878273e5b62774905ac822fb3a187299bd729307"
     },
     {
       "id": "0002-budget",
@@ -49,6 +49,8 @@
     "schema:keynes_internal",
     "schema:keynes",
     "table:keynes_internal.schema_migrations",
+    "table:keynes_internal.installation_identity",
+    "table:keynes_internal.installation_objects",
     "table:keynes_internal.principal_permissions",
     "table:keynes_internal.commands",
     "table:keynes_internal.resource_types",
@@ -56,24 +58,24 @@
     "table:keynes_internal.budget_resources",
     "table:keynes_internal.budget_history_streams",
     "table:keynes_internal.budget_history_entries",
-    "function:keynes_internal.raise_domain_error(text,jsonb)",
-    "function:keynes_internal.checkpoint(text)",
-    "function:keynes_internal.invalid_command(text,text,text)",
-    "function:keynes_internal.canonical_envelope(text,jsonb,text,boolean)",
-    "function:keynes_internal.event_uuid(text)",
-    "function:keynes_internal.budget_is_settled(uuid,uuid)",
-    "function:keynes_internal.subtree_observed(uuid,uuid,uuid)",
-    "function:keynes_internal.budget_charge(uuid,uuid,uuid)",
-    "function:keynes_internal.assert_safe_accounting(uuid,uuid,text)",
-    "function:keynes_internal.budget_projection(uuid,uuid)",
-    "function:keynes_internal.append_history(uuid,uuid,uuid,text,uuid,jsonb)",
-    "function:keynes_internal.apply_command(text,jsonb)",
-    "function:keynes_internal.get_budget(jsonb)",
-    "function:keynes.define_resource_type(jsonb)",
-    "function:keynes.create_budget(jsonb)",
-    "function:keynes.request(jsonb)",
-    "function:keynes.settle(jsonb)",
-    "function:keynes.get_budget(jsonb)"
+    "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
+    "function:keynes_internal.checkpoint(checkpoint_name text)",
+    "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
+    "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
+    "function:keynes_internal.event_uuid(seed text)",
+    "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.subtree_observed(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+    "function:keynes_internal.budget_charge(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+    "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
+    "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
+    "function:keynes_internal.apply_command(operation_name text,input jsonb)",
+    "function:keynes_internal.get_budget(input jsonb)",
+    "function:keynes.define_resource_type(input jsonb)",
+    "function:keynes.create_budget(input jsonb)",
+    "function:keynes.request(input jsonb)",
+    "function:keynes.settle(input jsonb)",
+    "function:keynes.get_budget(input jsonb)"
   ],
   "functions": [
     {

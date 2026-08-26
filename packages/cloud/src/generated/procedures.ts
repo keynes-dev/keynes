@@ -7,7 +7,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0001-storage",
     byteChecksum:
-      "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a",
+      "ba9780a7e8c5254551b26277878273e5b62774905ac822fb3a187299bd729307",
     contractDigest: null,
   },
   {

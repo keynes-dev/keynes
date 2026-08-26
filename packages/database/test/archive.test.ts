@@ -1,15 +1,17 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(
   fileURLToPath(new URL("../../..", import.meta.url)),
 );
 const databaseRoot = join(repositoryRoot, "packages/database");
+const sdkRoot = join(repositoryRoot, "packages/sdk");
 const expectedFiles = [
   "package/LICENSE",
   "package/README.md",
@@ -17,6 +19,8 @@ const expectedFiles = [
   "package/dist/cli.js",
   "package/dist/config.d.ts",
   "package/dist/config.js",
+  "package/dist/install.d.ts",
+  "package/dist/install.js",
   "package/dist/profile.d.ts",
   "package/dist/profile.js",
   "package/dist/private/run-installation.d.ts",
@@ -43,6 +47,8 @@ interface ArchiveEntry {
 describe("@keynes/postgresql archive", () => {
   let archiveRoot: string;
   let entries: readonly ArchiveEntry[];
+  let archivePath: string;
+  let sdkEntries: readonly ArchiveEntry[];
 
   beforeAll(async () => {
     archiveRoot = await mkdtemp(join(tmpdir(), "keynes-postgresql-archive-"));
@@ -54,8 +60,20 @@ describe("@keynes/postgresql archive", () => {
     if (result.status !== 0) {
       throw new Error(`${result.stdout}\n${result.stderr}`);
     }
-    const archivePath = join(archiveRoot, "keynes-postgresql-0.0.0.tgz");
+    archivePath = join(archiveRoot, "keynes-postgresql-0.0.0.tgz");
     entries = readTar(gunzipSync(await readFile(archivePath)));
+
+    const sdkPack = spawnSync(
+      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+      ["pack", "--pack-destination", archiveRoot],
+      { cwd: sdkRoot, encoding: "utf8" },
+    );
+    if (sdkPack.status !== 0) {
+      throw new Error(`${sdkPack.stdout}\n${sdkPack.stderr}`);
+    }
+    sdkEntries = readTar(
+      gunzipSync(await readFile(join(archiveRoot, "keynes-sdk-0.0.0.tgz"))),
+    );
   });
 
   afterAll(async () => {
@@ -129,12 +147,186 @@ describe("@keynes/postgresql archive", () => {
     expect(content).not.toContain("@keynes/sdk");
   });
 
+  it.skipIf(process.env.KEYNES_PLATFORM_CONTEXT === undefined)(
+    "installs fresh and exact targets from the packed artifact",
+    async () => {
+      const context = parsePlatformContext(process.env.KEYNES_PLATFORM_CONTEXT);
+      const target = await createTarget(context.administratorUrl);
+      const extractedRoot = await mkdtemp(
+        join(tmpdir(), "keynes-postgresql-packed-"),
+      );
+      try {
+        const packageRoot = join(extractedRoot, "package");
+        const extracted = spawnSync(
+          "tar",
+          ["-xzf", archivePath, "-C", extractedRoot],
+          { encoding: "utf8" },
+        );
+        if (extracted.status !== 0) {
+          throw new Error(`${extracted.stdout}\n${extracted.stderr}`);
+        }
+        await symlink(
+          join(databaseRoot, "node_modules"),
+          join(packageRoot, "node_modules"),
+        );
+
+        const configPath = join(extractedRoot, "installation.json");
+        await writeFile(
+          configPath,
+          `${JSON.stringify(
+            {
+              ownerRole: target.ownerRole,
+              applicationRole: target.applicationRole,
+              tenantId: "00000000-0000-4000-8000-000000000001",
+              principalId: "00000000-0000-4000-8000-000000000101",
+            },
+            null,
+            2,
+          )}\n`,
+        );
+
+        const environment = postgresEnvironment(target.databaseUrl);
+        const fresh = runPackedInstall(packageRoot, configPath, environment);
+        expect(fresh).toMatchObject({ ok: true, outcome: "installed" });
+
+        const exact = runPackedInstall(packageRoot, configPath, environment);
+        expect(exact).toMatchObject({
+          ok: true,
+          outcome: "already-installed",
+        });
+      } finally {
+        await rm(extractedRoot, { recursive: true, force: true });
+        await target.close();
+      }
+    },
+  );
+
+  it("keeps PostgreSQL migrations out of the packed SDK archive", () => {
+    expect(
+      sdkEntries.some(
+        ({ path }) =>
+          path.includes("migrations/") ||
+          path.includes("database/") ||
+          path.endsWith("installation-record.json"),
+      ),
+    ).toBe(false);
+    expect(
+      Buffer.concat(sdkEntries.map(({ body }) => body)).toString("utf8"),
+    ).not.toContain("0001-storage.sql");
+  });
+
   function entry(path: string): ArchiveEntry {
     const found = entries.find((candidate) => candidate.path === path);
     if (found === undefined) throw new Error(`Missing archive entry ${path}`);
     return found;
   }
 });
+
+interface PlatformContext {
+  readonly administratorUrl: string;
+}
+
+interface InstallationTarget {
+  readonly applicationRole: string;
+  readonly databaseUrl: string;
+  readonly ownerRole: string;
+  readonly close: () => Promise<void>;
+}
+
+function parsePlatformContext(source: string): PlatformContext {
+  const value: unknown = JSON.parse(source);
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    typeof value.administratorUrl !== "string"
+  ) {
+    throw new Error("invalid platform context");
+  }
+  return { administratorUrl: value.administratorUrl };
+}
+
+async function createTarget(
+  administratorUrl: string,
+): Promise<InstallationTarget> {
+  const { Client } = await import("pg");
+  const ownerRole = `keynes_t033_owner_${randomUUID().replaceAll("-", "")}`;
+  const applicationRole = `keynes_t033_app_${randomUUID().replaceAll("-", "")}`;
+  const databaseName = `keynes_t033_${randomUUID().replaceAll("-", "")}`;
+  const applicationPassword = randomUUID();
+  const administrator = new Client({ connectionString: administratorUrl });
+  await administrator.connect();
+  try {
+    await administrator.query(`create role ${identifier(ownerRole)} nologin`);
+    await administrator.query(
+      `create role ${identifier(applicationRole)} login password '${applicationPassword}'`,
+    );
+    await administrator.query(`create database ${identifier(databaseName)}`);
+    await administrator.query(
+      `grant ${identifier(ownerRole)} to ${identifier(
+        new URL(administratorUrl).username,
+      )}`,
+    );
+    await administrator.query(
+      `grant create on database ${identifier(databaseName)} to ${identifier(
+        ownerRole,
+      )}`,
+    );
+  } finally {
+    await administrator.end();
+  }
+
+  const databaseUrl = new URL(administratorUrl);
+  databaseUrl.pathname = `/${databaseName}`;
+  return {
+    applicationRole,
+    databaseUrl: databaseUrl.toString(),
+    ownerRole,
+    async close() {
+      const cleanup = new Client({ connectionString: administratorUrl });
+      await cleanup.connect();
+      try {
+        await cleanup.query(`drop database ${identifier(databaseName)}`);
+        await cleanup.query(`drop role ${identifier(applicationRole)}`);
+        await cleanup.query(`drop role ${identifier(ownerRole)}`);
+      } finally {
+        await cleanup.end();
+      }
+    },
+  };
+}
+
+function postgresEnvironment(databaseUrl: string): NodeJS.ProcessEnv {
+  const url = new URL(databaseUrl);
+  return {
+    ...process.env,
+    PGHOST: url.hostname,
+    PGPORT: url.port || "5432",
+    PGDATABASE: decodeURIComponent(url.pathname.slice(1)),
+    PGUSER: decodeURIComponent(url.username),
+    PGPASSWORD: decodeURIComponent(url.password),
+  };
+}
+
+function runPackedInstall(
+  packageRoot: string,
+  configPath: string,
+  environment: NodeJS.ProcessEnv,
+): unknown {
+  const result = spawnSync(
+    process.execPath,
+    [join(packageRoot, "dist/cli.js"), "install", "--config", configPath],
+    { env: environment, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(`${result.stdout}\n${result.stderr}`);
+  }
+  return JSON.parse(result.stdout) as unknown;
+}
+
+function identifier(value: string): string {
+  return `"${value.replaceAll('"', '""')}"`;
+}
 
 function readTar(bytes: Buffer): ArchiveEntry[] {
   const result: ArchiveEntry[] = [];
