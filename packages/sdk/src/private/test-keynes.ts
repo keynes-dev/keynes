@@ -112,6 +112,7 @@ export interface NativeTestKeynes extends TestKeynes {
 
 export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
   const owner = await openPostgresOwner(requirePlatformAdministratorUrl());
+  const application = await owner.createApplicationRole();
   return {
     clientFor(fixture, options) {
       return createKeynesClient(
@@ -124,7 +125,10 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
       );
     },
     async beginAttempt(fixture) {
-      const transaction = await owner.beginTransaction();
+      const transaction = await owner.beginTransactionAs(
+        application.role,
+        application.password,
+      );
       return {
         client: createKeynesClient(
           createTransactionProcedureCaller(transaction.connection, {

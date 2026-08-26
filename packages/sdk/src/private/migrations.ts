@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+
+import { loadInstallationAssets } from "@keynes/postgresql/private/run-installation";
 
 import { CONTRACT_DIGEST, KeynesError } from "../generated/client.js";
 import type { PermissionName } from "../generated/types.js";
@@ -78,27 +79,25 @@ export async function installDatabase(
     throw new Error("Installation record contains an undeclared migration");
   }
 
-  const migrations = await Promise.all(
-    manifest.migrations.map(async (migration) => {
-      const recorded = recordedMigrations.get(migration.id);
-      if (recorded === undefined || recorded.path !== migration.path) {
-        throw new Error(
-          `Installation record does not match migration ${migration.id}`,
-        );
-      }
-
-      const sourceBytes = await readFile(resolveMigrationUrl(migration.path));
-      const actualChecksum = sha256(sourceBytes);
-      if (actualChecksum !== recorded.sha256) {
-        throw installationDrift(migration.id, recorded.sha256, actualChecksum);
-      }
-      return {
-        manifest: migration,
-        record: recorded,
-        source: sourceBytes.toString("utf8"),
-      };
-    }),
-  );
+  const assets = await loadInstallationAssets({
+    installationRecord: record,
+    migrationsDirectory: MIGRATIONS_ROOT,
+    onChecksumMismatch: installationDrift,
+  });
+  const migrations = assets.map((asset) => {
+    const manifestEntry = manifest.migrations.find(({ id }) => id === asset.id);
+    const record = recordedMigrations.get(asset.id);
+    if (
+      manifestEntry === undefined ||
+      record === undefined ||
+      record.path !== asset.path
+    ) {
+      throw new Error(
+        `Installation record does not match migration ${asset.id}`,
+      );
+    }
+    return { manifest: manifestEntry, record, source: asset.sql };
+  });
 
   for (const migration of migrations) {
     await applyMigration(
@@ -266,17 +265,6 @@ function parseInstallationRecord(source: string): InstallationRecord {
     migrations,
     expectedTargets: value.expectedTargets,
   };
-}
-
-function resolveMigrationUrl(path: string): URL {
-  if (!/^\d{4}-[a-z0-9-]+(?:\.generated)?\.sql$/.test(path)) {
-    throw new Error(`Invalid migration path ${path}`);
-  }
-  return new URL(path, MIGRATIONS_ROOT);
-}
-
-function sha256(source: Uint8Array): string {
-  return createHash("sha256").update(source).digest("hex");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

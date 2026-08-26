@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/0008-sqlite-local-runtime/plan.md`.
+`docs/features/0009-postgresql-transaction-integration/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow

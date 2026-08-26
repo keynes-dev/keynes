@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Packaged local mode currently runs on private, in-memory PGlite. FEAT-0006 also implements a private loopback service over native PostgreSQL. Replacing PGlite with an in-memory SQLite runtime is planned, not implemented. PostgreSQL installation, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current evidence from the target design.
+> **Status:** Packaged local mode currently runs on private, in-memory PGlite. FEAT-0006 also implements a private loopback service over native PostgreSQL. Replacing PGlite with an in-memory SQLite runtime is planned, not implemented. FEAT-0009 defines the packaged PostgreSQL installer and caller-owned SQL transaction contract. Native acceptance, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current evidence from the target design.
 
 ## Thesis
 
@@ -115,9 +115,11 @@ Local mode is for evaluation, tests, local development, short-lived workflows, a
 
 ### Embedded PostgreSQL
 
-An application installs Keynes migrations and procedures into its own PostgreSQL database. Its existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
+The `@keynes/postgresql` package installs the canonical migrations and procedures into an adopter-owned PostgreSQL 18.6 database. The adopter prepares the `NOLOGIN` owner role, application role, and bootstrap tenant and principal before installation. The installer accepts only a clean target or an exact target. It reports a stable diagnosis for an unsupported server, missing role, insufficient privilege, incompatible state, or unavailable database. It does not repair, upgrade, downgrade, or uninstall a target.
 
-Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. Installation and transaction integration are planned and unproved.
+The application's existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, acquire a connection, retry, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
+
+Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. Native acceptance and production support remain `NOT RUN`.
 
 ### Self-hosted Keynes
 

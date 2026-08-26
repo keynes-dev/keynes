@@ -383,22 +383,26 @@ async function expectStartupRefusal(
 
   const ownerUrl = selectDatabase(administratorUrl, name);
   if (kind === "checksum" || kind === "unhardened") {
-    await installNativeAcceptanceSchema(ownerUrl, serviceRole, {
-      revokePublicExecution: kind !== "unhardened",
-    });
-    if (kind === "checksum") {
-      const owner = new Client({ connectionString: ownerUrl });
-      await owner.connect();
-      try {
+    await installNativeAcceptanceSchema(ownerUrl, serviceRole);
+    const owner = new Client({ connectionString: ownerUrl });
+    await owner.connect();
+    try {
+      if (kind === "checksum") {
         await owner.query(
           `update keynes_internal.schema_migrations
               set byte_checksum = $1
             where migration_id = '0001-storage'`,
           ["f".repeat(64)],
         );
-      } finally {
-        await owner.end();
+      } else {
+        for (const procedure of Object.values(PROCEDURES)) {
+          await owner.query(
+            `grant execute on function ${procedure.target}(jsonb) to public`,
+          );
+        }
       }
+    } finally {
+      await owner.end();
     }
   } else if (kind === "incompatible") {
     const owner = new Client({ connectionString: ownerUrl });

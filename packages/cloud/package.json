@@ -9,6 +9,7 @@
     "test": "vitest run --exclude \"**/*.native.test.ts\""
   },
   "dependencies": {
+    "@keynes/postgresql": "workspace:*",
     "pg": "8.23.0"
   },
   "devDependencies": {

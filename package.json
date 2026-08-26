@@ -19,6 +19,8 @@
     "test:qualification": "vitest run scripts/qualify-local-preview.test.ts scripts/measure-local-preview.test.ts packages/sdk/qualification/measure-worker.test.mjs --maxWorkers=1",
     "build:package": "pnpm --filter @keynes/sdk build",
     "pack:package": "pnpm --filter @keynes/sdk pack",
+    "build:postgresql": "pnpm --filter @keynes/postgresql build",
+    "pack:postgresql": "pnpm --filter @keynes/postgresql pack",
     "test:package": "node scripts/qualify-local-preview.ts",
     "qualify:local": "node scripts/measure-local-preview.ts",
     "test:budget": "pnpm --filter @keynes/sdk test:budget",

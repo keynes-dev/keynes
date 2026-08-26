@@ -16,11 +16,17 @@
     "//#format:fix": {
       "cache": false
     },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
     "typecheck": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     },
     "test": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["^build"]
     }
   }
 }

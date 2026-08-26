@@ -2,6 +2,7 @@
 -- Contract SHA-256: 0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6
 
 CREATE SCHEMA IF NOT EXISTS keynes;
+REVOKE ALL ON SCHEMA keynes FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION keynes.define_resource_type(input jsonb)
 RETURNS jsonb
@@ -55,3 +56,9 @@ BEGIN
       );
 END;
 $$;
+
+REVOKE ALL ON FUNCTION keynes.define_resource_type(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes.create_budget(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes.request(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes.settle(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes.get_budget(jsonb) FROM PUBLIC;

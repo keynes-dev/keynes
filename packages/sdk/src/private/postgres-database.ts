@@ -140,14 +140,23 @@ export class PostgresDatabase {
   readonly #pool: Pool;
   readonly #administratorUrl: string;
   readonly #databaseName: string;
+  readonly #databaseUrl: string;
+  readonly #applicationPools = new Set<Pool>();
+  readonly #createdRoles: string[] = [];
   readonly #transactions = new Set<OwnedTransaction>();
   #closePromise: Promise<void> | undefined;
 
-  constructor(pool: Pool, administratorUrl: string, databaseName: string) {
+  constructor(
+    pool: Pool,
+    administratorUrl: string,
+    databaseName: string,
+    databaseUrl: string,
+  ) {
     this.#pool = pool;
     this.database = new PostgresPoolDatabase(pool);
     this.#administratorUrl = administratorUrl;
     this.#databaseName = databaseName;
+    this.#databaseUrl = databaseUrl;
   }
 
   async beginTransaction(): Promise<PostgresTransaction> {
@@ -155,7 +164,54 @@ export class PostgresDatabase {
       throw new Error("The PostgreSQL test database is closing");
     }
 
-    const client = await this.#pool.connect();
+    return this.#beginTransaction(this.#pool);
+  }
+
+  async createApplicationRole(): Promise<{
+    readonly role: string;
+    readonly password: string;
+  }> {
+    const role = `keynes_app_${randomUUID().replaceAll("-", "")}`;
+    const password = randomUUID();
+    await this.database.exec(
+      `create role "${role}" login password '${password}'`,
+    );
+    await this.database.exec(`grant usage on schema keynes to "${role}"`);
+    for (const functionName of [
+      "define_resource_type",
+      "create_budget",
+      "request",
+      "settle",
+      "get_budget",
+    ]) {
+      await this.database.exec(
+        `grant execute on function keynes.${functionName}(jsonb) to "${role}"`,
+      );
+    }
+    this.#createdRoles.push(role);
+    return { role, password };
+  }
+
+  async beginTransactionAs(
+    role: string,
+    password: string,
+  ): Promise<PostgresTransaction> {
+    const url = new URL(this.#databaseUrl);
+    url.username = role;
+    url.password = password;
+    const pool = new Pool({ connectionString: url.toString() });
+    this.#applicationPools.add(pool);
+    try {
+      return await this.#beginTransaction(pool);
+    } catch (error: unknown) {
+      this.#applicationPools.delete(pool);
+      await pool.end();
+      throw error;
+    }
+  }
+
+  async #beginTransaction(pool: Pool): Promise<PostgresTransaction> {
+    const client = await pool.connect();
     try {
       await client.query("begin isolation level read committed");
       const result = await client.query<{ readonly backend_pid: number }>(
@@ -207,6 +263,7 @@ export class PostgresDatabase {
       .map((result) => result.reason);
 
     await this.#pool.end();
+    await Promise.all([...this.#applicationPools].map((pool) => pool.end()));
 
     const administrator = new Client({
       connectionString: this.#administratorUrl,
@@ -216,6 +273,9 @@ export class PostgresDatabase {
       await administrator.query(
         `drop database if exists ${this.#databaseName} with (force)`,
       );
+      for (const role of this.#createdRoles) {
+        await administrator.query(`drop role if exists "${role}"`);
+      }
     } finally {
       await administrator.end();
     }
@@ -244,7 +304,12 @@ export async function openPostgresDatabase(
   const databaseUrl = new URL(administratorUrl);
   databaseUrl.pathname = `/${databaseName}`;
   const pool = new Pool({ connectionString: databaseUrl.toString() });
-  return new PostgresDatabase(pool, administratorUrl, databaseName);
+  return new PostgresDatabase(
+    pool,
+    administratorUrl,
+    databaseName,
+    databaseUrl.toString(),
+  );
 }
 
 export async function openInstalledPostgresDatabase(

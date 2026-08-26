@@ -1,10 +1,30 @@
 {
+  "profileId": "embedded-postgresql-18.6-preview",
+  "serverVersionNum": "180006",
+  "support": {
+    "install": true,
+    "exactRecheck": true,
+    "deferred": [
+      "upgrades",
+      "downgrades",
+      "rolling-deployment",
+      "uninstall",
+      "backup",
+      "recovery",
+      "failover",
+      "managed-providers",
+      "security-qualification",
+      "performance-qualification",
+      "production-readiness"
+    ]
+  },
   "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+  "migrationSetDigest": "e1f8c069ffdce5dca0192582a70003f5202147a09be23db4f3ca4825ed577b5b",
   "migrations": [
     {
       "id": "0001-storage",
       "path": "0001-storage.sql",
-      "sha256": "168fedaf4f058c1ec9b1cfedd2e59a4fb8973117c1514405c6e14c66a5fa597a"
+      "sha256": "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd"
     },
     {
       "id": "0002-budget",
@@ -14,7 +34,8 @@
     {
       "id": "0003-public",
       "path": "0003-public.generated.sql",
-      "sha256": "64f3bb556de1fb723131bb56fdb8eea012bf74a5020463bf06aabadf02885b4a"
+      "sha256": "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+      "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
     }
   ],
   "expectedTargets": [
@@ -23,5 +44,88 @@
     "keynes.request",
     "keynes.settle",
     "keynes.get_budget"
+  ],
+  "expectedObjects": [
+    "schema:keynes_internal",
+    "schema:keynes",
+    "table:keynes_internal.schema_migrations",
+    "table:keynes_internal.installation_identity",
+    "table:keynes_internal.principal_permissions",
+    "table:keynes_internal.commands",
+    "table:keynes_internal.resource_types",
+    "table:keynes_internal.budgets",
+    "table:keynes_internal.budget_resources",
+    "table:keynes_internal.budget_history_streams",
+    "table:keynes_internal.budget_history_entries",
+    "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
+    "function:keynes_internal.checkpoint(checkpoint_name text)",
+    "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
+    "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
+    "function:keynes_internal.event_uuid(seed text)",
+    "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.subtree_observed(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+    "function:keynes_internal.budget_charge(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+    "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
+    "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
+    "function:keynes_internal.apply_command(operation_name text,input jsonb)",
+    "function:keynes_internal.get_budget(input jsonb)",
+    "function:keynes.define_resource_type(input jsonb)",
+    "function:keynes.create_budget(input jsonb)",
+    "function:keynes.request(input jsonb)",
+    "function:keynes.settle(input jsonb)",
+    "function:keynes.get_budget(input jsonb)"
+  ],
+  "functions": [
+    {
+      "operation": "defineResource",
+      "permission": "define_resource_type",
+      "target": "keynes.define_resource_type",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "sql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal"]
+    },
+    {
+      "operation": "createBudget",
+      "permission": "create_root_budget",
+      "target": "keynes.create_budget",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "sql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal"]
+    },
+    {
+      "operation": "requestBudget",
+      "permission": "request_budget",
+      "target": "keynes.request",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "sql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal"]
+    },
+    {
+      "operation": "settleBudget",
+      "permission": "settle_budget",
+      "target": "keynes.settle",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "sql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal"]
+    },
+    {
+      "operation": "getBudget",
+      "permission": "read_budget",
+      "target": "keynes.get_budget",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "plpgsql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal"]
+    }
   ]
 }

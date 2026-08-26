@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import { createHash } from "node:crypto";
 import {
   cpSync,
   mkdtempSync,
@@ -27,6 +28,89 @@ const cloudProceduresPath = "packages/cloud/src/generated/procedures.ts";
 const sdkClientPath = "packages/sdk/src/generated/client.ts";
 const sdkValidatorsPath = "packages/sdk/src/generated/validators.ts";
 const temporaryDirectories: string[] = [];
+
+const expectedPostgresqlFunctions = [
+  {
+    operation: "defineResource",
+    permission: "define_resource_type",
+    target: "keynes.define_resource_type",
+    argumentType: "jsonb",
+    returnType: "jsonb",
+    language: "sql",
+    securityDefiner: true,
+    searchPath: ["pg_catalog", "keynes_internal"],
+  },
+  {
+    operation: "createBudget",
+    permission: "create_root_budget",
+    target: "keynes.create_budget",
+    argumentType: "jsonb",
+    returnType: "jsonb",
+    language: "sql",
+    securityDefiner: true,
+    searchPath: ["pg_catalog", "keynes_internal"],
+  },
+  {
+    operation: "requestBudget",
+    permission: "request_budget",
+    target: "keynes.request",
+    argumentType: "jsonb",
+    returnType: "jsonb",
+    language: "sql",
+    securityDefiner: true,
+    searchPath: ["pg_catalog", "keynes_internal"],
+  },
+  {
+    operation: "settleBudget",
+    permission: "settle_budget",
+    target: "keynes.settle",
+    argumentType: "jsonb",
+    returnType: "jsonb",
+    language: "sql",
+    securityDefiner: true,
+    searchPath: ["pg_catalog", "keynes_internal"],
+  },
+  {
+    operation: "getBudget",
+    permission: "read_budget",
+    target: "keynes.get_budget",
+    argumentType: "jsonb",
+    returnType: "jsonb",
+    language: "plpgsql",
+    securityDefiner: true,
+    searchPath: ["pg_catalog", "keynes_internal"],
+  },
+] as const;
+
+const expectedPostgresqlObjects = [
+  "schema:keynes_internal",
+  "schema:keynes",
+  "table:keynes_internal.schema_migrations",
+  "table:keynes_internal.installation_identity",
+  "table:keynes_internal.principal_permissions",
+  "table:keynes_internal.commands",
+  "table:keynes_internal.resource_types",
+  "table:keynes_internal.budgets",
+  "table:keynes_internal.budget_resources",
+  "table:keynes_internal.budget_history_streams",
+  "table:keynes_internal.budget_history_entries",
+  "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
+  "function:keynes_internal.checkpoint(checkpoint_name text)",
+  "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
+  "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
+  "function:keynes_internal.event_uuid(seed text)",
+  "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",
+  "function:keynes_internal.subtree_observed(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+  "function:keynes_internal.budget_charge(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+  "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
+  "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
+  "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
+  "function:keynes_internal.apply_command(operation_name text,input jsonb)",
+  "function:keynes_internal.get_budget(input jsonb)",
+  ...expectedPostgresqlFunctions.map(
+    ({ target }) => `function:${target}(input jsonb)`,
+  ),
+] as const;
 
 function makeTemporaryDirectory(): string {
   const directory = mkdtempSync(join(tmpdir(), "keynes-contracts-"));
@@ -254,6 +338,127 @@ describe("ordered contract source", () => {
 });
 
 describe("contract generator", () => {
+  it("emits the fixed PostgreSQL 18.6 installation profile", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const result = runGenerator(prepareContractRoot(), outputRoot);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const installationRecord: unknown = JSON.parse(
+      readFileSync(
+        join(
+          outputRoot,
+          "packages/database/generated/installation-record.json",
+        ),
+        "utf8",
+      ),
+    );
+
+    expect(installationRecord).toMatchObject({
+      profileId: "embedded-postgresql-18.6-preview",
+      serverVersionNum: "180006",
+      expectedObjects: expectedPostgresqlObjects,
+      functions: expectedPostgresqlFunctions,
+      support: {
+        install: true,
+        exactRecheck: true,
+      },
+    });
+  });
+
+  it("emits ordered migration checksums and fixed function metadata", () => {
+    const contractRoot = prepareContractRoot();
+    const outputRoot = makeTemporaryDirectory();
+    const result = runGenerator(contractRoot, outputRoot);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const installationRecord: unknown = JSON.parse(
+      readFileSync(
+        join(
+          outputRoot,
+          "packages/database/generated/installation-record.json",
+        ),
+        "utf8",
+      ),
+    );
+    expect(installationRecord).toMatchObject({
+      migrations: [
+        {
+          id: "0001-storage",
+          path: "0001-storage.sql",
+          sha256: createHash("sha256")
+            .update(
+              readFileSync(
+                join(
+                  contractRoot,
+                  "packages/database/migrations/0001-storage.sql",
+                ),
+              ),
+            )
+            .digest("hex"),
+        },
+        {
+          id: "0002-budget",
+          path: "0002-budget.sql",
+          sha256: createHash("sha256")
+            .update(
+              readFileSync(
+                join(
+                  contractRoot,
+                  "packages/database/migrations/0002-budget.sql",
+                ),
+              ),
+            )
+            .digest("hex"),
+        },
+        {
+          id: "0003-public",
+          path: "0003-public.generated.sql",
+          contractDigest: expect.any(String),
+          sha256: createHash("sha256")
+            .update(
+              readFileSync(
+                join(
+                  outputRoot,
+                  "packages/database/migrations/0003-public.generated.sql",
+                ),
+              ),
+            )
+            .digest("hex"),
+        },
+      ],
+      functions: expectedPostgresqlFunctions,
+    });
+  });
+
+  it("revokes PUBLIC execution in the generated installation transaction", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const result = runGenerator(prepareContractRoot(), outputRoot);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const source = readFileSync(
+      join(
+        outputRoot,
+        "packages/database/migrations/0003-public.generated.sql",
+      ),
+      "utf8",
+    );
+    expect(source).toContain("REVOKE ALL ON SCHEMA keynes FROM PUBLIC;");
+    for (const { target } of expectedPostgresqlFunctions) {
+      const functionDeclaration = `CREATE OR REPLACE FUNCTION ${target}(input jsonb)`;
+      const publicRevoke = `REVOKE ALL ON FUNCTION ${target}(jsonb) FROM PUBLIC;`;
+      expect(source).toContain(publicRevoke);
+      expect(source.indexOf(publicRevoke)).toBeGreaterThan(
+        source.indexOf(functionDeclaration),
+      );
+    }
+  });
+
   it("emits only declared deterministic outputs with byte-identical ordering", () => {
     const contractRoot = prepareContractRoot();
     const firstOutput = makeTemporaryDirectory();

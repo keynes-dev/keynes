@@ -62,19 +62,18 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 
 ## Implementation sequence
 
-| Order | Feature candidate                                                  | Purpose                                                                                                                                              | Depends on                                      | Status      |
-| ----- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- |
-| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md) | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.           | Runtime and deployment model                    | Complete    |
-| 2     | PostgreSQL transaction integration                                 | Install the current migrations and prove caller-owned database code can compose supported `keynes.*` calls with application writes atomically.       | SQLite local runtime                            | Next        |
-| 3     | PostgreSQL installation and support                                | Define supported installation, roles, compatibility, upgrades, drift checks, and a supported SQL boundary for durable deployments.                   | PostgreSQL transaction integration              | Not started |
-| 4     | Policies that work in local mode and PostgreSQL                    | Implement one restricted query format, typed builder, parser, local evaluator, PostgreSQL evaluator, and comparison suite.                           | PostgreSQL installation and support             | Not started |
-| 5     | Remote SDK and public service                                      | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback. | Policies that work in local mode and PostgreSQL | Not started |
-| 6     | Self-hosted deployment                                             | Package and qualify the Keynes service and PostgreSQL runtime for customer operation.                                                                | Remote SDK and public service                   | Not started |
-| 7     | Managed Cloud                                                      | Operate the same service and PostgreSQL runtime with Keynes-owned hosting, upgrades, recovery, administration, and support.                          | Self-hosted deployment                          | Not started |
-| 8     | Release support                                                    | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.               | Managed Cloud                                   | Not started |
-| 9     | Production testing                                                 | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.   | Release support                                 | Not started |
+| Order | Feature candidate                                                                              | Purpose                                                                                                                                                           | Depends on                                      | Status      |
+| ----- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- |
+| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md)                             | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.                        | Runtime and deployment model                    | Complete    |
+| 2     | [PostgreSQL transaction integration](features/0009-postgresql-transaction-integration/spec.md) | Install and qualify one supported embedded PostgreSQL profile with exact recheck, incompatible-target rejection, and caller-owned atomic application composition. | SQLite local runtime                            | Complete    |
+| 3     | Policies that work in local mode and PostgreSQL                                                | Implement one restricted query format, typed builder, parser, local evaluator, PostgreSQL evaluator, and comparison suite.                                        | PostgreSQL transaction integration              | Not started |
+| 4     | Remote SDK and public service                                                                  | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback.              | Policies that work in local mode and PostgreSQL | Not started |
+| 5     | Self-hosted deployment                                                                         | Package and qualify the Keynes service and PostgreSQL runtime for customer operation.                                                                             | Remote SDK and public service                   | Not started |
+| 6     | Managed Cloud                                                                                  | Operate the same service and PostgreSQL runtime with Keynes-owned hosting, upgrades, recovery, administration, and support.                                       | Self-hosted deployment                          | Not started |
+| 7     | Release support                                                                                | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.                            | Managed Cloud                                   | Not started |
+| 8     | Production testing                                                                             | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.                | Release support                                 | Not started |
 
-`PostgreSQL transaction integration` is the sole unnumbered `Next` item and has no feature identity until Spec Kit starts it. Later candidates remain unnumbered and `Not started`.
+`PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes. Later candidates remain unnumbered and `Not started`.
 
 ### SQLite local runtime
 
@@ -106,17 +105,19 @@ Policy, persistence, browsers, bundlers, CommonJS, Node.js 25, Bun, Deno, custom
 
 ### PostgreSQL transaction integration
 
-Install the existing migrations into one clean PostgreSQL database and prove:
+Combine transaction integration and installation support into one embedded preview. Declare PostgreSQL 18.6 as the sole supported profile, install the canonical migrations into one clean database, and prove:
 
+- the installer privileges, application-role grants, supported functions, contract identity, migration identities, and support limits are explicit;
+- clean installation and exact recheck succeed without changing state;
 - an application role can call only supported Keynes functions;
 - caller-owned database code can call the supported SQL boundary inside its existing transaction;
 - optional generated TypeScript bindings do not own transaction lifecycle;
 - a Budget request and an application outbox row commit or roll back together;
 - application code cannot use a pending Budget before commit;
 - replay after commit returns the original result without creating another Budget; and
-- an incompatible or modified installation fails before use.
+- an unsupported release, insufficient privilege, or incompatible target fails without leaving a usable authority; incompatible targets include partial, modified, or contract-mismatched state.
 
-This feature does not claim broad provider support, recovery support, extension packaging, or production readiness.
+This feature supports fresh installation and exact recheck only. Keynes has no released predecessor, so upgrades, downgrades, rolling deployment, broad provider support, recovery support, extension packaging, and production readiness remain out of scope.
 
 ### Policies that work in local mode and PostgreSQL
 
