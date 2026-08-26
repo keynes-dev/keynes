@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { install, recheckInstallation } from "../src/install.ts";
-import type { InstallationConfig } from "../src/profile.ts";
+import type { InstallationConfig } from "../src/config.ts";
 import { Client } from "pg";
 import installationRecord from "../generated/installation-record.json" with { type: "json" };
 const PLATFORM_CONTEXT_ENV = "KEYNES_PLATFORM_CONTEXT";
@@ -95,7 +95,9 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       await client.connect();
       try {
         const before = await installationState(client);
+        const querySpy = vi.spyOn(client, "query");
         await recheckInstallation({ client, config });
+        expect(querySpy).toHaveBeenCalledWith("begin transaction read only");
         expect(await installationState(client)).toEqual(before);
       } finally {
         await client.end();

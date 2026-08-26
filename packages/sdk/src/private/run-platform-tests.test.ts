@@ -9,6 +9,7 @@ import {
   runPlatformTests,
   type PlatformRuntime,
 } from "./run-platform-tests.js";
+import { REQUIRED_PLATFORM_SCENARIOS } from "./platform-scenarios.js";
 
 const RUN_ID = "f0e1d2c3-b4a5-4678-9012-3456789abcde";
 const PASSWORD = "generated-test-password";
@@ -30,6 +31,8 @@ function fakeRuntime(options?: {
   readonly dockerFailure?: Error;
   readonly childFailure?: Error;
   readonly gitStatus?: string;
+  readonly gitStatuses?: readonly string[];
+  readonly revisions?: readonly string[];
   readonly vitestReport?: Record<string, unknown>;
   readonly probe?: (attempt: number) => Promise<string>;
 }): FakeRuntime {
@@ -38,6 +41,8 @@ function fakeRuntime(options?: {
   const childTerminations = { count: 0 };
   let clock = 1_000;
   let probeAttempt = 0;
+  let statusAttempt = 0;
+  let revisionAttempt = 0;
 
   return {
     commands,
@@ -57,10 +62,17 @@ function fakeRuntime(options?: {
           environment,
         });
         if (executable === "git" && arguments_[0] === "status") {
-          return { stdout: options?.gitStatus ?? "" };
+          const stdout =
+            options?.gitStatuses?.[statusAttempt] ?? options?.gitStatus ?? "";
+          statusAttempt += 1;
+          return { stdout };
         }
         if (executable === "git" && arguments_[0] === "rev-parse") {
-          return { stdout: "0123456789abcdef0123456789abcdef01234567\n" };
+          const stdout =
+            options?.revisions?.[revisionAttempt] ??
+            "0123456789abcdef0123456789abcdef01234567\n";
+          revisionAttempt += 1;
+          return { stdout };
         }
         if (executable === "pnpm" && arguments_[0] === "--filter") {
           const destination =
@@ -92,17 +104,7 @@ function fakeRuntime(options?: {
             if (reportPath !== undefined) {
               await writeFile(
                 reportPath,
-                JSON.stringify(
-                  options?.vitestReport ?? {
-                    numFailedTests: 0,
-                    numPendingTests: 0,
-                    numTodoTests: 0,
-                    numPassedTests: 1,
-                    testResults: [
-                      { name: "required-scenario", status: "passed" },
-                    ],
-                  },
-                ),
+                JSON.stringify(options?.vitestReport ?? passingVitestReport()),
               );
             }
             if (options?.childFailure !== undefined) {
@@ -375,7 +377,7 @@ describe("platform test runner", () => {
     }
   });
 
-  it("does not retain credentials or private authority data in the record", async () => {
+  it("rejects a passing report that omits the fixed scenario inventory", async () => {
     const output = await temporaryOutputPath();
     const fake = fakeRuntime({
       vitestReport: {
@@ -383,9 +385,59 @@ describe("platform test runner", () => {
         numPendingTests: 0,
         numTodoTests: 0,
         numPassedTests: 1,
-        testResults: [{ name: "required-scenario", status: "passed" }],
+        testResults: [
+          {
+            name: "/repository/packages/sdk/src/installation.test.ts",
+            status: "passed",
+            assertionResults: [
+              { fullName: "renamed-required-scenario", status: "passed" },
+            ],
+          },
+        ],
       },
     });
+
+    try {
+      await expect(
+        runPlatformTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("required platform scenario");
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects prohibited content in an otherwise passing report", async () => {
+    const output = await temporaryOutputPath();
+    const report = passingVitestReport();
+    const [first, ...rest] = report.testResults;
+    if (first === undefined) throw new Error("missing platform scenario");
+    const fake = fakeRuntime({
+      vitestReport: {
+        ...report,
+        testResults: [
+          {
+            ...first,
+            name: `password=acceptance-secret/${first.name}`,
+          },
+          ...rest,
+        ],
+      },
+    });
+
+    try {
+      await expect(
+        runPlatformTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("prohibited content");
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not retain credentials or private authority data in the record", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime();
 
     try {
       await runPlatformTests(fake.runtime, {}, { outputPath: output.path });
@@ -395,9 +447,61 @@ describe("platform test runner", () => {
       expect(record).not.toContain("postgresql://");
       expect(record).not.toContain("keynes_internal");
       expect(record).not.toContain("tenant-a");
-      expect(record).not.toContain("principal");
+      expect(record).not.toContain('"principalId"');
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses publication when the source changes during qualification", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({
+      gitStatuses: ["", " M packages/database/src/install.ts\n"],
+    });
+
+    try {
+      await expect(
+        runPlatformTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("source changed during qualification");
+      await expect(readFile(output.path)).rejects.toThrow();
     } finally {
       await rm(output.directory, { recursive: true, force: true });
     }
   });
 });
+
+function passingVitestReport(): {
+  readonly numFailedTests: 0;
+  readonly numPendingTests: 0;
+  readonly numTodoTests: 0;
+  readonly numPassedTests: number;
+  readonly testResults: readonly {
+    readonly name: string;
+    readonly status: "passed";
+    readonly assertionResults: readonly {
+      readonly fullName: string;
+      readonly status: "passed";
+    }[];
+  }[];
+} {
+  const testResults = Object.entries(REQUIRED_PLATFORM_SCENARIOS).map(
+    ([file, names]) => ({
+      name: `/repository/packages/${file}`,
+      status: "passed" as const,
+      assertionResults: names.map((fullName) => ({
+        fullName,
+        status: "passed" as const,
+      })),
+    }),
+  );
+  return {
+    numFailedTests: 0,
+    numPendingTests: 0,
+    numTodoTests: 0,
+    numPassedTests: testResults.reduce(
+      (total, result) => total + result.assertionResults.length,
+      0,
+    ),
+    testResults,
+  };
+}

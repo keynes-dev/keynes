@@ -19,12 +19,12 @@
     ]
   },
   "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
-  "migrationSetDigest": "6fd0dc840de51fdce3c75c7e89d4c02870a2ad295e454fc7e9c211415234cca3",
+  "migrationSetDigest": "e1f8c069ffdce5dca0192582a70003f5202147a09be23db4f3ca4825ed577b5b",
   "migrations": [
     {
       "id": "0001-storage",
       "path": "0001-storage.sql",
-      "sha256": "ba9780a7e8c5254551b26277878273e5b62774905ac822fb3a187299bd729307"
+      "sha256": "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd"
     },
     {
       "id": "0002-budget",
@@ -50,7 +50,6 @@
     "schema:keynes",
     "table:keynes_internal.schema_migrations",
     "table:keynes_internal.installation_identity",
-    "table:keynes_internal.installation_objects",
     "table:keynes_internal.principal_permissions",
     "table:keynes_internal.commands",
     "table:keynes_internal.resource_types",

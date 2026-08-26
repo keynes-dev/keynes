@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0009-postgresql-transaction-integration`
 **Roadmap stage**: `Implementation sequence`
 **Created**: August 26, 2026
-**Status**: Draft
+**Status**: In review
 **Input**: User description: "Combine PostgreSQL transaction integration with PostgreSQL installation and support."
 
 ## Feature story

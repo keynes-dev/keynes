@@ -87,7 +87,6 @@ const expectedPostgresqlObjects = [
   "schema:keynes",
   "table:keynes_internal.schema_migrations",
   "table:keynes_internal.installation_identity",
-  "table:keynes_internal.installation_objects",
   "table:keynes_internal.principal_permissions",
   "table:keynes_internal.commands",
   "table:keynes_internal.resource_types",

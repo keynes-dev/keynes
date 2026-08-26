@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createKeynesClient, KeynesError } from "./generated/client.js";
 import type { RequestBudgetCommand } from "./generated/types.js";
 import { openInstalledPostgresDatabase } from "./private/postgres-database.js";
-import {
-  createDatabaseProcedureCaller,
-  createTransactionProcedureCaller,
-} from "./private/procedure-caller.js";
+import type { PostgresTransaction } from "./private/postgres-database.js";
+import type { TransactionalDatabase } from "./private/database.js";
+import { createTransactionProcedureCaller } from "./private/procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./private/run-platform-tests.js";
 import {
   FIXTURE_INSTALLATION,
@@ -19,10 +18,16 @@ const ROOT_BUDGET_ID = "21000000-0000-4000-8000-000000000001";
 const REQUEST_COMMAND_ID = "31000000-0000-4000-8000-000000000001";
 const OUTBOX_ID = "41000000-0000-4000-8000-000000000001";
 
+interface EmbeddedFixture {
+  readonly database: TransactionalDatabase;
+  beginTransaction(): Promise<PostgresTransaction>;
+  close(): Promise<void>;
+}
+
 describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
   "embedded PostgreSQL caller-owned transactions",
   () => {
-    let database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>;
+    let database: EmbeddedFixture;
 
     afterEach(async () => {
       await database?.close();
@@ -276,8 +281,10 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       if (approved.kind !== "approved") return;
       await transaction.commit();
 
+      const replayTransaction = await database.beginTransaction();
       const replay =
-        await createDatabaseClient(database).requestBudget(command);
+        await createTransactionClient(replayTransaction).requestBudget(command);
+      await replayTransaction.commit();
 
       expect(replay).toEqual({ ...approved, replayed: true });
       expect(await readState(database, approved.childBudgetId)).toEqual({
@@ -301,8 +308,9 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
         ...request(resourceTypeId, budgetId),
         resources: [{ resourceTypeId, amount: 2 }],
       };
+      const conflictTransaction = await database.beginTransaction();
       await expect(
-        createDatabaseClient(database).requestBudget(conflicting),
+        createTransactionClient(conflictTransaction).requestBudget(conflicting),
       ).rejects.toMatchObject({
         name: "KeynesError",
         code: "command_conflict",
@@ -312,6 +320,7 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
           attemptedOperation: "requestBudget",
         },
       });
+      await conflictTransaction.rollback();
       expect(await readState(database, approved.childBudgetId)).toEqual({
         budget: true,
         outbox: false,
@@ -320,15 +329,7 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
   },
 );
 
-function createTransactionClient(
-  transaction: Awaited<
-    ReturnType<
-      Awaited<
-        ReturnType<typeof openInstalledPostgresDatabase>
-      >["beginTransaction"]
-    >
-  >,
-) {
+function createTransactionClient(transaction: PostgresTransaction) {
   return createKeynesClient(
     createTransactionProcedureCaller(transaction.connection, {
       tenantId: FIXTURE_TENANT_ID,
@@ -337,34 +338,32 @@ function createTransactionClient(
   );
 }
 
-function createDatabaseClient(
-  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
-) {
-  return createKeynesClient(
-    createDatabaseProcedureCaller(database.database, {
-      tenantId: FIXTURE_TENANT_ID,
-      principalId: FIXTURE_PRINCIPALS["product-fixture"],
-    }),
-  );
-}
-
-async function openFixture() {
-  const database = await openInstalledPostgresDatabase(
+async function openFixture(): Promise<EmbeddedFixture> {
+  const owner = await openInstalledPostgresDatabase(
     requirePlatformAdministratorUrl(),
     FIXTURE_INSTALLATION,
   );
-  await database.database.exec(
+  await owner.database.exec(
     `create table application_outbox (
        outbox_id uuid primary key,
        command_id uuid not null unique,
        child_budget_id uuid not null
      )`,
   );
-  return database;
+  const application = await owner.createApplicationRole();
+  await owner.database.exec(
+    `grant select, insert on application_outbox to "${application.role}"`,
+  );
+  return {
+    database: owner.database,
+    beginTransaction: () =>
+      owner.beginTransactionAs(application.role, application.password),
+    close: () => owner.close(),
+  };
 }
 
 async function seedRoot(
-  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
+  database: EmbeddedFixture,
 ): Promise<{ resourceTypeId: string; budgetId: string }> {
   const transaction = await database.beginTransaction();
   try {
@@ -406,7 +405,7 @@ function request(
 }
 
 async function readState(
-  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
+  database: EmbeddedFixture,
   childBudgetId: string,
 ): Promise<{ budget: boolean; outbox: boolean }> {
   const result = await database.database.query<{
@@ -424,9 +423,9 @@ async function readState(
 }
 
 async function insertOutbox(
-  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
+  database: EmbeddedFixture,
   childBudgetId: string,
-  transaction?: Awaited<ReturnType<typeof database.beginTransaction>>,
+  transaction?: PostgresTransaction,
 ): Promise<void> {
   const connection = transaction?.connection ?? database.database;
   await connection.query(

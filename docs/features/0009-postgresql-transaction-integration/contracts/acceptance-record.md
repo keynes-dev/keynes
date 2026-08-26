@@ -6,9 +6,11 @@
 
 - The runner refuses an existing output path.
 - It requires a clean worktree before the native run starts.
+- It rechecks the same commit and clean worktree immediately before publication.
 - It writes the record only after every required test and cleanup pass.
 - Record-write or cleanup failure makes the attempt fail.
 - Missing, failed, renamed, or skipped required scenarios make the attempt fail and produce no record.
+- Prohibited credential, URL, private-authority, or UUID-shaped content makes publication fail.
 - A failed attempt retains workflow logs, not acceptance evidence.
 
 ## Schema
@@ -40,7 +42,7 @@ interface PostgreSqlAcceptanceRecord {
 
 `MigrationIdentity` contains only ID, relative path, checksum, and optional contract digest. `RoleEvidence` records the owner and application role names, the required owner privileges, the five application grants, and the private-access denials. It contains no role passwords or private ACL rows.
 
-`VitestJsonReport` is the JSON emitted by Vitest's built-in JSON reporter for the passing native run. The runner does not define another scenario result format. Test names are the scenario identifiers, and Vitest supplies suite and test totals plus each test status.
+`VitestJsonReport` is the JSON emitted by Vitest's built-in JSON reporter for the passing native run. The runner does not define another scenario result format. The checked-in exact file-and-test-name inventory is authoritative: every listed assertion must pass once, with no missing, renamed, duplicated, or additional file result.
 
 The runner writes only a passing report, so retained Vitest output contains no failure messages or stack traces. Test titles and file paths must not contain credentials, tenant IDs, principal IDs, command bodies, application payloads, SQL text, or private authority data.
 

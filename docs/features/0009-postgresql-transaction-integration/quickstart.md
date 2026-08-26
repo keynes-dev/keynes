@@ -76,7 +76,7 @@ The command refuses:
 
 The error includes a stable category and, when available, a check name such as
 `server-version`, `owner-role`, `migration:0002-budget`, or
-`bootstrap-permissions`. Use that check to diagnose the target. The installer
+`function:keynes.request(input jsonb)`. Use that check to diagnose the target. The installer
 does not print raw SQL errors or credentials.
 
 It does not repair or resume a failed or existing target. Recreate a clean database for this preview.
@@ -213,7 +213,7 @@ Use a new output path for every attempt:
 ```sh
 CI=true pnpm test:pr
 CI=true pnpm test:platform -- --output \
-  artifacts/postgresql/feat-0009-local.json
+  artifacts/platform/feat-0009-local.json
 ```
 
 The native runner owns one disposable loopback PostgreSQL 18.6 container and refuses to overwrite the record. It writes the Vitest JSON report and provenance envelope only after every fixed scenario and cleanup pass. The record must use the same clean commit as `pnpm test:pr`.

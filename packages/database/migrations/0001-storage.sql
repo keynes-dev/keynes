@@ -31,10 +31,6 @@ CREATE TABLE keynes_internal.installation_identity (
   principal_id uuid NOT NULL
 );
 
-CREATE TABLE keynes_internal.installation_objects (
-  object_name text PRIMARY KEY
-);
-
 CREATE TABLE keynes_internal.principal_permissions (
   tenant_id uuid NOT NULL,
   principal_id uuid NOT NULL,

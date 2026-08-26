@@ -118,6 +118,7 @@ The operator and prepared roles must establish these facts before installation:
 - the operator can connect and `SET ROLE` to `ownerRole`;
 - `ownerRole` is `NOLOGIN` and has `CREATE` on the target database;
 - `applicationRole` exists and can connect for normal application use; and
+- `applicationRole` is a login role without inherited owner authority; and
 - the installation command needs no `SUPERUSER`, `CREATEDB`, `CREATEROLE`, replication, or row-security bypass privilege.
 
 The completed installation establishes:

@@ -143,6 +143,73 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       expect(await schemasExist(target)).toBe(false);
     });
 
+    it("rejects role login and database privilege contract violations", async () => {
+      const cases = [
+        {
+          check: "owner-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.ownerRole)} login`,
+            ),
+        },
+        {
+          check: "owner-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `revoke create on database ${identifier(target.databaseName)} from ${identifier(target.ownerRole)}`,
+            ),
+        },
+        {
+          check: "application-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.applicationRole)} nologin`,
+            ),
+        },
+        {
+          check: "application-role",
+          mutate: async (target: Target) => {
+            await target.administrator.query(
+              `revoke connect on database ${identifier(target.databaseName)} from public`,
+            );
+            await target.administrator.query(
+              `revoke connect on database ${identifier(target.databaseName)} from ${identifier(target.applicationRole)}`,
+            );
+          },
+        },
+        {
+          check: "application-private-authority",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.applicationRole)} superuser`,
+            ),
+        },
+      ] as const;
+
+      for (const candidate of cases) {
+        const target = await openTarget();
+        await candidate.mutate(target);
+        await expect(install(target)).rejects.toMatchObject<InstallationError>({
+          code: "insufficient_privilege",
+          check: candidate.check,
+        });
+        expect(await schemasExist(target)).toBe(false);
+      }
+    });
+
+    it("rejects an application role with inherited owner authority", async () => {
+      const target = await openTarget();
+      await target.administrator.query(
+        `grant ${identifier(target.ownerRole)} to ${identifier(target.applicationRole)}`,
+      );
+
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        code: "insufficient_privilege",
+        check: "application-private-authority",
+      });
+      expect(await schemasExist(target)).toBe(false);
+    });
+
     it("rejects an incompatible partial target without repairing it", async () => {
       const target = await openTarget();
       await query(target, "create schema keynes");
@@ -152,6 +219,21 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       });
       expect(await schemasExist(target)).toBe(true);
       expect(await privateSchemaExists(target)).toBe(false);
+    });
+
+    it("classifies two empty Keynes schemas as incompatible live state", async () => {
+      const target = await openTarget();
+      await query(
+        target,
+        "create schema keynes; create schema keynes_internal",
+      );
+
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        code: "incompatible_target",
+        check: "object-inventory",
+      });
+      expect(await schemasExist(target)).toBe(true);
+      expect(await privateSchemaExists(target)).toBe(true);
     });
 
     it("rejects a migration-byte mismatch without changing the target", async () => {
@@ -175,6 +257,22 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       );
     });
 
+    it("rejects a migration contract-digest mismatch", async () => {
+      const target = await openTarget();
+      await install(target);
+      await query(
+        target,
+        `update keynes_internal.schema_migrations
+         set contract_digest = repeat('0', 64)
+         where migration_id = '0003-public'`,
+      );
+
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        code: "incompatible_target",
+        check: "migration:0003-public",
+      });
+    });
+
     it("rejects a contract mismatch without changing the target", async () => {
       const target = await openTarget();
       await install(target);
@@ -193,21 +291,128 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       expect(await installationSnapshot(target)).toEqual(before);
     });
 
+    it("rejects a changed live function body during exact recheck", async () => {
+      const target = await openTarget();
+      await install(target);
+      await query(
+        target,
+        `create or replace function keynes.request(input jsonb)
+         returns jsonb
+         language sql
+         security definer
+         set search_path = pg_catalog, keynes_internal
+         as $$ select '{}'::jsonb $$`,
+      );
+
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        code: "incompatible_target",
+        check: "function:keynes.request(input jsonb)",
+      });
+    });
+
+    it("rejects changed live function security properties", async () => {
+      const target = await openTarget();
+      await install(target);
+      await query(
+        target,
+        "alter function keynes.request(jsonb) security invoker",
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "function:keynes.request(input jsonb)",
+      });
+
+      await query(
+        target,
+        `alter function keynes.request(jsonb) security definer;
+         alter function keynes.request(jsonb) reset all`,
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "function:keynes.request(input jsonb)",
+      });
+    });
+
+    it("rejects live object, permission, ownership, and ACL drift", async () => {
+      const target = await openTarget();
+      await install(target);
+
+      await query(target, "create view keynes.unexpected as select 1 as value");
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "object-inventory",
+      });
+      await query(target, "drop view keynes.unexpected");
+
+      await query(
+        target,
+        `delete from keynes_internal.principal_permissions
+          where tenant_id = $1 and principal_id = $2 and permission = 'read_budget'`,
+        [TENANT_ID, PRINCIPAL_ID],
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "bootstrap-permissions",
+      });
+      await query(
+        target,
+        `insert into keynes_internal.principal_permissions
+          (tenant_id, principal_id, permission)
+         values ($1, $2, 'read_budget')`,
+        [TENANT_ID, PRINCIPAL_ID],
+      );
+
+      await query(
+        target,
+        `alter function keynes.request(jsonb) owner to ${identifier(target.operatorRole)}`,
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "object-owners",
+      });
+      await query(
+        target,
+        `alter function keynes.request(jsonb) owner to ${identifier(target.ownerRole)}`,
+      );
+
+      await query(
+        target,
+        `grant usage on schema keynes_internal to ${identifier(target.applicationRole)}`,
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "access-boundary",
+      });
+      await query(
+        target,
+        `revoke usage on schema keynes_internal from ${identifier(target.applicationRole)}`,
+      );
+      await query(
+        target,
+        "grant execute on function keynes_internal.get_budget(jsonb) to public",
+      );
+      await expect(install(target)).rejects.toMatchObject<InstallationError>({
+        check: "access-boundary",
+      });
+    });
+
     it("rolls back every migration after an injected failure", async () => {
       const target = await openTarget();
       const failure = new Error("injected migration failure");
+      let injectionReached = false;
       const originalQuery = Client.prototype.query;
       const querySpy = vi.spyOn(Client.prototype, "query");
-      querySpy.mockImplementation(async (...args) => {
+      querySpy.mockImplementation(async function (...args) {
         const statement = args[0];
-        if (typeof statement === "string" && statement.includes("0002")) {
+        if (
+          typeof statement === "string" &&
+          statement.includes(
+            "CREATE FUNCTION keynes_internal.raise_domain_error",
+          )
+        ) {
+          injectionReached = true;
           throw failure;
         }
         return await originalQuery.apply(this, args);
       });
 
-      await expect(install(target)).rejects.toThrow();
+      await expect(install(target)).rejects.toBe(failure);
       querySpy.mockRestore();
+      expect(injectionReached).toBe(true);
       expect(await schemasExist(target)).toBe(false);
     });
   },
@@ -280,9 +485,9 @@ async function closeTarget(target: Target): Promise<void> {
       `drop database if exists ${identifier(target.databaseName)} with (force)`,
     );
     for (const role of [
-      target.ownerRole,
       target.applicationRole,
       target.operatorRole,
+      target.ownerRole,
     ]) {
       await target.administrator.query(
         `drop role if exists ${identifier(role)}`,

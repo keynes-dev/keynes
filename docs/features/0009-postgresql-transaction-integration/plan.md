@@ -69,7 +69,6 @@ packages/
 │   │   ├── cli.ts
 │   │   ├── config.ts
 │   │   ├── install.ts
-│   │   ├── profile.ts
 │   │   └── private/
 │   │       └── run-installation.ts
 │   └── test/
@@ -81,6 +80,7 @@ packages/
 │       ├── postgresql-embedded.native.test.ts
 │       ├── native-contention.native.test.ts
 │       └── private/
+│           ├── platform-scenarios.ts
 │           ├── run-platform-tests.ts
 │           └── test-keynes.ts
 └── cloud/

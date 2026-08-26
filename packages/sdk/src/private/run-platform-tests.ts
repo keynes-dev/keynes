@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
-  access,
   mkdtemp,
   readFile,
   readdir,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,6 +13,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { Client } from "pg";
+
+import { REQUIRED_PLATFORM_SCENARIOS } from "./platform-scenarios.ts";
 
 export const POSTGRES_IMAGE =
   "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941";
@@ -168,22 +170,21 @@ export async function runPlatformTests(
     }
   }
 
-  if (failure !== undefined) {
-    throw failure;
-  }
-  if (cleanupFailed) {
-    throw platformFailure(runId, "cleanup");
-  }
   if (recordWorkspace !== undefined) {
     try {
-      await writeAcceptanceRecord(recordWorkspace, runId);
+      if (failure !== undefined) throw failure;
+      if (cleanupFailed) throw platformFailure(runId, "cleanup");
+      await writeAcceptanceRecord(runtime, recordWorkspace);
     } finally {
       await rm(dirname(recordWorkspace.reportPath), {
         recursive: true,
         force: true,
       });
     }
+    return;
   }
+  if (failure !== undefined) throw failure;
+  if (cleanupFailed) throw platformFailure(runId, "cleanup");
 }
 
 interface AcceptanceWorkspace {
@@ -202,21 +203,20 @@ async function prepareAcceptanceRecord(
   outputPath: string,
 ): Promise<AcceptanceWorkspace> {
   try {
-    await access(outputPath);
-  } catch {
-    // The final write uses wx as well. This check gives a stable early failure.
-  }
-  try {
-    await access(outputPath);
-    throw new Error("Acceptance record already exists");
+    await stat(outputPath);
   } catch (error: unknown) {
-    if (
-      error instanceof Error &&
-      error.message === "Acceptance record already exists"
-    )
-      throw error;
+    if (isRecord(error) && error.code === "ENOENT") {
+      return prepareAcceptanceWorkspace(runtime, outputPath);
+    }
+    throw error;
   }
+  throw new Error("Acceptance record already exists");
+}
 
+async function prepareAcceptanceWorkspace(
+  runtime: PlatformRuntime,
+  outputPath: string,
+): Promise<AcceptanceWorkspace> {
   const status = await runtime.run(
     "git",
     ["status", "--porcelain"],
@@ -267,21 +267,13 @@ async function prepareAcceptanceRecord(
 }
 
 async function writeAcceptanceRecord(
+  runtime: PlatformRuntime,
   workspace: AcceptanceWorkspace,
-  runId: string,
 ): Promise<void> {
-  const report = JSON.parse(
+  const report: unknown = JSON.parse(
     await readFile(workspace.reportPath, "utf8"),
-  ) as Record<string, unknown>;
-  if (
-    report.numFailedTests !== 0 ||
-    report.numPendingTests !== 0 ||
-    report.numTodoTests !== 0 ||
-    typeof report.numPassedTests !== "number" ||
-    report.numPassedTests < 1
-  ) {
-    throw new Error("Vitest did not produce a passing report");
-  }
+  );
+  validatePlatformReport(report);
   const installationRecord = JSON.parse(
     await readFile(
       join(
@@ -332,15 +324,138 @@ async function writeAcceptanceRecord(
     },
     tests: report,
     exclusions: EXCLUSIONS,
-    runId,
   };
-  await writeFile(
-    workspace.outputPath,
-    `${JSON.stringify(record, null, 2)}\n`,
-    {
-      encoding: "utf8",
-      flag: "wx",
-    },
+  const serialized = `${JSON.stringify(record, null, 2)}\n`;
+  if (containsProhibitedContent(serialized)) {
+    throw new Error("Acceptance record contains prohibited content");
+  }
+  await verifyAcceptanceRevision(runtime, workspace.revision);
+  await writeFile(workspace.outputPath, serialized, {
+    encoding: "utf8",
+    flag: "wx",
+  });
+}
+
+interface VitestAssertion {
+  readonly fullName: string;
+  readonly status: string;
+}
+
+interface VitestFileResult {
+  readonly name: string;
+  readonly status: string;
+  readonly assertionResults: readonly VitestAssertion[];
+}
+
+interface VitestReport {
+  readonly numFailedTests: number;
+  readonly numPendingTests: number;
+  readonly numTodoTests: number;
+  readonly numPassedTests: number;
+  readonly testResults: readonly VitestFileResult[];
+  readonly [key: string]: unknown;
+}
+
+function validatePlatformReport(value: unknown): asserts value is VitestReport {
+  if (!isRecord(value)) {
+    throw new Error("Vitest did not produce a passing report");
+  }
+  if (
+    value.numFailedTests !== 0 ||
+    value.numPendingTests !== 0 ||
+    value.numTodoTests !== 0 ||
+    typeof value.numPassedTests !== "number" ||
+    !Array.isArray(value.testResults)
+  ) {
+    throw new Error("Vitest did not produce a passing report");
+  }
+
+  const remaining = new Map<string, readonly string[]>(
+    Object.entries(REQUIRED_PLATFORM_SCENARIOS),
+  );
+  let passed = 0;
+  for (const candidate of value.testResults) {
+    if (!isRecord(candidate) || typeof candidate.name !== "string") {
+      throw new Error("Vitest did not produce a passing report");
+    }
+    const normalizedName = candidate.name.replaceAll("\\", "/");
+    const file = [...remaining.keys()].find((suffix) =>
+      normalizedName.endsWith(`/packages/${suffix}`),
+    );
+    if (
+      file === undefined ||
+      candidate.status !== "passed" ||
+      !Array.isArray(candidate.assertionResults)
+    ) {
+      throw new Error("Vitest report omitted a required platform scenario");
+    }
+    const assertions = candidate.assertionResults;
+    if (
+      !assertions.every(
+        (assertion): assertion is Record<string, unknown> =>
+          isRecord(assertion) &&
+          typeof assertion.fullName === "string" &&
+          assertion.status === "passed",
+      )
+    ) {
+      throw new Error("Vitest report omitted a required platform scenario");
+    }
+    const actualNames = assertions
+      .map(({ fullName }) => fullName as string)
+      .sort();
+    const expectedNames = [...(remaining.get(file) ?? [])].sort();
+    if (!sameStrings(actualNames, expectedNames)) {
+      throw new Error("Vitest report omitted a required platform scenario");
+    }
+    passed += assertions.length;
+    remaining.delete(file);
+  }
+  if (remaining.size !== 0 || value.numPassedTests !== passed) {
+    throw new Error("Vitest report omitted a required platform scenario");
+  }
+}
+
+async function verifyAcceptanceRevision(
+  runtime: PlatformRuntime,
+  expectedRevision: string,
+): Promise<void> {
+  const status = await runtime.run(
+    "git",
+    ["status", "--porcelain"],
+    process.env,
+  );
+  const revision = (
+    await runtime.run("git", ["rev-parse", "HEAD"], process.env)
+  ).stdout.trim();
+  if (status.stdout.trim() !== "" || revision !== expectedRevision) {
+    throw new Error("Acceptance record source changed during qualification");
+  }
+}
+
+function containsProhibitedContent(value: string): boolean {
+  return [
+    /postgres(?:ql)?:\/\//iu,
+    /password\s*[=:]/iu,
+    /\bPGPASSWORD\b/u,
+    /\bbearer\s+/iu,
+    /\bKEYNES_PLATFORM_CONTEXT\b/u,
+    /\badministratorUrl\b/u,
+    /\bkeynes_internal\b/u,
+    /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/iu,
+  ].some((pattern) => pattern.test(value));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sameStrings(
+  actual: readonly string[],
+  expected: readonly string[],
+): boolean {
+  return (
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index])
   );
 }
 
@@ -426,9 +541,7 @@ const productionRuntime: PlatformRuntime = {
         "vitest",
         "run",
         "--passWithNoTests=false",
-        ...(environment[PLATFORM_REPORT_ENV] === undefined
-          ? []
-          : ["--root=.."]),
+        "--root=..",
         ...(environment[PLATFORM_REPORT_ENV] === undefined
           ? []
           : [
@@ -436,11 +549,7 @@ const productionRuntime: PlatformRuntime = {
               `--outputFile=${environment[PLATFORM_REPORT_ENV]}`,
             ]),
         ...PLATFORM_TEST_FILES.map((file) =>
-          environment[PLATFORM_REPORT_ENV] === undefined
-            ? file
-            : file.startsWith("../database/")
-              ? file.slice(3)
-              : `sdk/${file}`,
+          file.startsWith("../database/") ? file.slice(3) : `sdk/${file}`,
         ),
       ],
       environment,
