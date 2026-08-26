@@ -4,7 +4,7 @@ import { Keynes, KeynesSdkError, ResourceDefinitionError } from "./index.js";
 
 describe("local Keynes facade", () => {
   it("runs approval, denial, settlement, overage, and inspection through Budget handles", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       const definitions = await keynes.defineResources({
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -68,7 +68,7 @@ describe("local Keynes facade", () => {
   });
 
   it("defines Resources idempotently and reports a conflicting definition", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       const definition = {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -93,7 +93,7 @@ describe("local Keynes facade", () => {
   });
 
   it("validates all Resource names before committing a definition", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       await expect(
         keynes.defineResources({
@@ -137,7 +137,7 @@ describe("local Keynes facade", () => {
   });
 
   it("rejects definition fields that could override the derived canonical name", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       const definition = {
         unit: "cent",
@@ -164,7 +164,7 @@ describe("local Keynes facade", () => {
   ])(
     "returns a stable error for malformed Resource definitions %#",
     async (definitions, path) => {
-      const keynes = await Keynes.create({ mode: "local" });
+      const keynes = await Keynes.create();
       try {
         await expect(
           Reflect.apply(keynes.defineResources, keynes, [definitions]),
@@ -183,7 +183,7 @@ describe("local Keynes facade", () => {
   );
 
   it("keeps the private Resource catalog detached from returned projections", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       const defined = await keynes.defineResources({
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -210,7 +210,7 @@ describe("local Keynes facade", () => {
   });
 
   it("leaves Budget membership decisions to the database", async () => {
-    const keynes = await Keynes.create({ mode: "local" });
+    const keynes = await Keynes.create();
     try {
       await keynes.defineResources({
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -245,13 +245,13 @@ describe("local Keynes facade", () => {
     }
   });
 
-  it("rejects invalid creation options before opening a runtime", async () => {
+  it("rejects every supplied creation argument before opening a runtime", async () => {
     for (const options of [
       undefined,
       {},
-      { mode: "cloud" },
-      { mode: "local", path: "keynes.db" },
-      Reflect.setPrototypeOf({}, { mode: "local" }),
+      { apiKey: undefined },
+      { apiKey: "keynes_test" },
+      { mode: "local" },
     ]) {
       await expect(
         Reflect.apply(Keynes.create, Keynes, [options]),

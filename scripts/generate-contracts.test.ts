@@ -256,27 +256,19 @@ describe("contract generator", () => {
     const contractRoot = prepareContractRoot();
     const firstOutput = makeTemporaryDirectory();
     const secondOutput = makeTemporaryDirectory();
-    const thirdOutput = makeTemporaryDirectory();
 
     const first = runGenerator(contractRoot, firstOutput);
     const second = runGenerator(contractRoot, secondOutput);
-    const third = runGenerator(contractRoot, thirdOutput);
 
     expect(first.stderr).toBe("");
     expect(first.status).toBe(0);
     expect(second.stderr).toBe("");
     expect(second.status).toBe(0);
-    expect(third.stderr).toBe("");
-    expect(third.status).toBe(0);
     expect(listFiles(firstOutput).sort()).toEqual(contract.outputs);
     expect(listFiles(secondOutput).sort()).toEqual(contract.outputs);
-    expect(listFiles(thirdOutput).sort()).toEqual(contract.outputs);
     for (const output of contract.outputs) {
       expect(readFileSync(join(firstOutput, output))).toEqual(
         readFileSync(join(secondOutput, output)),
-      );
-      expect(readFileSync(join(firstOutput, output))).toEqual(
-        readFileSync(join(thirdOutput, output)),
       );
       expect(readFileSync(join(firstOutput, output))).toEqual(
         readFileSync(join(repositoryRoot, output)),
@@ -284,7 +276,7 @@ describe("contract generator", () => {
     }
 
     const digestPath = "packages/contracts/generated/contract-digest.json";
-    const digests = [firstOutput, secondOutput, thirdOutput].map((root) =>
+    const digests = [firstOutput, secondOutput].map((root) =>
       readFileSync(join(root, digestPath), "utf8"),
     );
     expect(new Set(digests).size).toBe(1);

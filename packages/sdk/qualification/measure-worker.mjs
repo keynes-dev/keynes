@@ -7,7 +7,7 @@ async function runColdFirst() {
   const emptyRssBytes = process.memoryUsage.rss();
   const { Keynes } = await import("@keynes/sdk");
   const createStarted = performance.now();
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   const coldCreateMilliseconds = performance.now() - createStarted;
   const readyRssBytes = process.memoryUsage.rss();
   try {
@@ -38,7 +38,7 @@ async function runColdFirst() {
 
 async function runSteady() {
   const { Keynes } = await import("@keynes/sdk");
-  const keynes = await Keynes.create({ mode: "local" });
+  const keynes = await Keynes.create();
   try {
     await keynes.defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },

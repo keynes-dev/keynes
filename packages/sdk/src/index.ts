@@ -6,7 +6,6 @@ export type {
   AccountingBehavior,
   BudgetRequestDenialReason,
   BudgetRequestResult,
-  KeynesCreateOptions,
   ResourceAmounts,
   ResourceConfig,
   ResourceConfigs,

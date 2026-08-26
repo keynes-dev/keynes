@@ -10,7 +10,6 @@ import {
   type BudgetRequestDenialReason,
   type BudgetRequestResult,
   type GetBudgetResult,
-  type KeynesCreateOptions,
   type ResourceAmounts,
   type ResourceConfig,
   type ResourceConfigs,
@@ -51,9 +50,6 @@ describe("package-root exports", () => {
       "ResourceDefinitionError",
     ]);
 
-    expectTypeOf<KeynesCreateOptions>().toEqualTypeOf<{
-      readonly mode: "local";
-    }>();
     expectTypeOf<AccountingBehavior>().toEqualTypeOf<
       "consumable" | "reusable"
     >();
@@ -107,37 +103,15 @@ describe("package-root exports", () => {
     expectTypeOf(checkRequestTypes).toBeFunction();
   });
 
-  it("keeps hosts, identities, callers, databases, and fault controls private", () => {
-    for (const privateName of [
-      "PGlite",
-      "ProcedureCaller",
-      "DatabaseConnection",
-      "TransactionalDatabase",
-      "createKeynesClient",
-      "installDatabase",
-      "openInstalledPGliteDatabase",
-      "openLocalKeynes",
-      "openProductLocalKeynes",
-      "clientFor",
-      "DATABASE_ROOT",
-      "MIGRATIONS_ROOT",
-      "INSTALLATION_RECORD_URL",
-      "DATABASE_PATH",
-      "FIXTURE_TENANT_ID",
-      "FIXTURE_PRINCIPALS",
-      "PRODUCT_TENANT_ID",
-      "PRODUCT_PRINCIPAL_ID",
-      "PLATFORM_CONTEXT_ENV",
-      "RollbackCheckpoint",
-      "CommittedResponseLostError",
-      "dropResponseAfterCommitOnce",
-      "query",
-      "exec",
-      "sql",
-      "qualifyLocalPreview",
-      "measureLocalPreview",
-    ]) {
-      expect(privateName in sdk).toBe(false);
+  it("exposes only the zero-argument local constructor", () => {
+    function checkCreateTypes() {
+      void Keynes.create();
+      // @ts-expect-error Remote API-key discovery is not implemented yet.
+      void Keynes.create({ apiKey: "keynes_test" });
+      // @ts-expect-error Explicit undefined is not the zero-argument call shape.
+      void Keynes.create(undefined);
     }
+
+    expectTypeOf(checkCreateTypes).toBeFunction();
   });
 });

@@ -1,438 +1,299 @@
-# Keynes database-native architecture
+# Keynes runtime architecture
 
-> **Status:** The shared database core, generated TypeScript client, and packaged local PGlite runtime are implemented. The Policy system, Cloud, security qualification, and release conformance remain target design unless a roadmap note records evidence.
+> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, and FEAT-0006 private loopback service exist. The in-memory SQLite runtime is the planned replacement for PGlite and is not implemented. PostgreSQL installation, caller-owned transaction integration, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
 
 ## Purpose
 
-Keynes governs resource authority in a database. An application defines immutable Resource types, then places quantities of those Resources in a Budget. One atomic request moves an exact Resource envelope into a child Budget. The application does the work and later settles the Budget with observed usage.
-
-The product loop is:
+Keynes governs Resource limits through Budgets. An application defines immutable Resource types, allocates selected Resources to a root Budget, requests exact Resource quantities for a child, does the external work, and settles known usage.
 
 ```text
 Budget -> request -> child Budget -> settle -> evidence
 ```
 
-One PostgreSQL core owns this loop in both product runtimes:
+The product has one set of Budget rules and two implementations:
 
-- PGlite runs the core as an embedded, process-scoped PostgreSQL runtime for local TypeScript applications.
-- Managed PostgreSQL runs the core as the durable, multi-tenant authority for Keynes Cloud.
-- The generated TypeScript SDK calls the same commands through the local adapter and Cloud protocol without creating another Budget implementation.
-- One migration graph, procedure contract, Policy environment, and conformance corpus define Keynes semantics in both runtimes.
+```text
+Shared Budget behavior
+|
++-- Local runtime
+|   `-- In-memory SQLite
+|
+`-- PostgreSQL runtime
+    +-- Installed in the application's database
+    +-- Self-hosted behind the Keynes service
+    `-- Keynes Cloud
+```
 
-Transactions, database functions, constraints, and explicit locks implement the state transitions. SQL is also the Policy language. Each Policy can read a small set of command-scoped views and call deterministic functions on an allowlist. It cannot read the Keynes storage schema.
+Each Budget is stored in one place. Constructor shape selects the access path: zero arguments selects local SQLite, while a future API-key configuration selects remote discovery. Missing or invalid credentials in a supplied remote configuration never fall back to local state.
 
 ## Design principles
 
-The design follows these rules:
+1. One in-memory SQLite runtime owns each local Budget. One PostgreSQL database owns each durable Budget.
+2. Every command publishes one complete state change and result or changes no state.
+3. The local SQLite runtime and PostgreSQL expose the same commands, results, errors, replay behavior, accounting rules, and evidence format.
+4. Application code owns external work, retries, observation, outcomes, fallback behavior, and the business facts supplied to Policies.
+5. Policies are restricted queries over Keynes-provided inputs. They cannot read application tables.
+6. PostgreSQL is the only durable database implementation.
+7. Embedded, self-hosted, and managed Cloud deployments share PostgreSQL procedures but have different transaction, security, recovery, packaging, and operational requirements.
+8. A pass in one implementation or deployment is evidence only for what that test exercised.
+9. TypeScript is the only supported SDK.
+10. Another durable database requires a later constitution and architecture decision.
 
-1. The database that stores a Budget is the sole semantic and committed-state authority for that Budget.
-2. Every command enters through one named database procedure and commits one result atomically.
-3. Policies are complete read-only SQL queries, not expression fragments or a second policy language.
-4. Policy SQL can observe only the immutable view of the command that Keynes exposes to it.
-5. Local use requires no daemon, account, network service, or separately installed database.
-6. Cloud adds durable authentication, routing, recovery, and administration without changing the Budget model.
-7. Database procedures, the generated TypeScript SDK, and the Cloud protocol are contracts. None may bypass the database authority.
-8. Application effects, provider retries, observations, and business outcomes remain application-owned.
-9. Keynes supports two runtimes for one PostgreSQL database core: ephemeral local PGlite and managed Keynes Cloud.
-10. Runtime adapters may differ in lifecycle, concurrency, security, and operations, but they cannot redefine Budget behavior.
-11. Scalar requests are funded entirely by the structural parent. Subtree issuance and multi-source funding use explicit, separately qualified contracts and never change the scalar parent-funded default.
+## Runtime topology
 
-## System topology
-
-### Local runtime
-
-TypeScript is the only supported SDK language. The local runtime embeds PGlite and runs the database core without reimplementing transitions. Another SDK language would need its own product, architecture, packaging, and qualification decision.
+The generated SDK client sends five current operations through one private boundary:
 
 ```text
 TypeScript application
         |
         v
-   Keynes SDK
+     Keynes SDK
         |
-        v
-private PGlite instance
-  - command procedures
-  - Policy sandbox
-  - Budget transactions
-  - evidence ledger
+        +-- SqliteCommandExecutor
         |
-        v
-one private in-memory PostgreSQL data directory
+        +-- PostgresProcedureClient
+        |
+        `-- RemoteClient
 ```
 
-Each `Keynes.create({ mode: "local" })` runtime owns one private [PGlite](https://pglite.dev/docs/about/) instance backed by an in-memory data directory. PGlite runs PostgreSQL in WebAssembly inside the application process. It does not start a daemon, open a network port, or require a separate database installation. The TypeScript SDK calls the same named database RPC functions as Cloud. It does not construct transitions from application-side reads and writes.
+The target boundary is deliberately small:
 
-Local state lasts for the life of the process. Process exit discards the database, Budget identities, descendants, command history, and evidence. Keynes does not support a file-backed local deployment. Internal tests and diagnostic tools may use a file, but that use has no compatibility, recovery, or production support commitment.
-
-### Cloud runtime
-
-```text
-TypeScript application
-                  |
-                  v
-             Keynes SDK
-                  |
-                  v
-          Keynes RPC service
-          - authentication
-          - tenant routing
-          - request validation
-          - transport retries
-                  |
-                  v
-      Keynes database core
-          - command procedures
-          - Policy sandbox
-          - Budget transactions
-          - evidence ledger
-                  |
-                  v
-              PostgreSQL
+```ts
+interface CommandExecutor {
+  execute(operation: OperationName, input: unknown): Promise<unknown>;
+}
 ```
 
-The TypeScript RPC service handles transport and security. It does not reimplement Budget transitions. It authenticates the caller, authorizes access to a tenant and Budget, invokes one PostgreSQL procedure, and translates the committed result into the public protocol.
+`OperationName` covers the generated operations `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. Generated validators continue to check command inputs and results. The generated `KeynesClient` depends on `CommandExecutor`, not on PostgreSQL procedure names.
 
-Clients never receive database credentials and never issue arbitrary SQL to Cloud. Administrative operations use the same rule: the service invokes a named PostgreSQL procedure that owns the transaction.
+- `SqliteCommandExecutor` executes the commands against process-owned state.
+- `PostgresProcedureClient` maps the commands to the existing `keynes.*` procedures.
+- `RemoteClient` sends the same commands to the Keynes service.
 
-Managed Keynes Cloud is the only supported durable deployment. Applications use it when Budget authority must be remotely accessible or when Keynes should own authentication, routing, upgrades, recovery, and high availability.
+This is a command boundary, not a general storage adapter. It does not expose queries, transactions, tables, persistence, migrations, or an extension point for arbitrary databases.
 
-Both runtimes use one database migration graph. Local mode supplies one fixed internal tenant identity. Cloud supplies the identity established by authentication and may install operational overlays for routing, recovery, and administration. No runtime overlay may replace or fork the core Budget procedures.
+### Current implementation boundary
 
-### Deferred enterprise deployments
+Today the generated client depends on the private `ProcedureCaller` interface. Local mode uses it to call the `keynes.*` procedures in PGlite, and platform tests use it with native PostgreSQL. FEAT-0006 implements the same private RPC contract over its loopback service.
 
-Customer-hosted Cloud, customer-owned PostgreSQL, and embedding Keynes in an application's database are outside the product contract. A later enterprise requirement may introduce one of them through a separate product, architecture, security, packaging, and qualification decision. The current architecture exposes no customer installation, public SQL API, caller-owned transaction adapter, or extension contract.
+The SQLite runtime feature replaces the local `ProcedureCaller` path with `SqliteCommandExecutor` and changes the generated client boundary to `CommandExecutor`. FEAT-0007 changes only the facade call shape to `Keynes.create()`; it does not replace PGlite.
 
-## Components and responsibilities
+## Local implementation
 
-| Component             | Implementation                                  | Responsibility                                                                                                       |
-| --------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Database core         | PostgreSQL SQL, PL/pgSQL, and one migration graph | Database RPC functions, Policy isolation, transactions, private schema, and evidence                                 |
-| Local runtime adapter | TypeScript and PGlite                           | Private in-memory lifecycle, serialized access, migration startup, and result translation                            |
-| Cloud service         | TypeScript and managed PostgreSQL               | Authenticated RPC, lineage routing, pooling, retries, recovery fencing, operational overlays, and result translation |
-| TypeScript SDK        | TypeScript over PGlite and the Cloud protocol   | Typed Budget API, local lifecycle, and Cloud transport                                                               |
-| Contract source       | JSON Schema 2020-12 and a procedure manifest    | SDK types, validators, database wrappers, documentation, and fixtures                                                |
-| Contract fixtures     | Versioned canonical JSON and SQL                | Shared semantics, packaging equivalence, and runtime compatibility evidence                                          |
+`Keynes.create()` is the public local entry point. The planned `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
-PostgreSQL SQL and PL/pgSQL implement authority transitions once. Generated migrations install the relations, constraints, functions, Policy views, database RPC interface, and canonical result shapes in both runtimes. The local adapter and Cloud service contain no second Budget implementation.
+### Private state
 
-The database core uses only PostgreSQL capabilities included in the supported PGlite build and qualified managed PostgreSQL releases. A required dependency must have a qualified PGlite WebAssembly build and managed PostgreSQL equivalent before it can enter the core. A capability available in only one runtime remains outside Budget semantics.
+The runtime stores Resources, Budgets, command results, permissions, and history in a private SQLite schema. The SDK owns schema initialization, never returns the connection, and exposes neither tables nor arbitrary SQL. `:memory:` is an implementation detail, not a persistence option or general database adapter.
 
-## Repository boundaries and staging
+### Atomic commands
 
-The repository starts with six code and documentation ownership areas. All product code lives under one non-owning `packages/` namespace:
+The executor applies each command in one SQLite transaction. Validation, Policy evaluation when available, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
 
-```text
-packages/       # Namespace for product code; not an ownership boundary
-├── contracts/  # Versioned logical contracts and canonical fixtures
-├── database/   # Authority SQL, migrations, and runtime installation assets
-├── sdk/        # The sole public TypeScript SDK and private local adapter
-└── cloud/      # The private TypeScript Cloud service
-scripts/    # Repository automation and later contract generation
-docs/       # Product, architecture, roadmap, ADRs, and guides
-```
+### Replay and conflicts
 
-These are ownership boundaries, not six independently published packages. `packages/contracts/`, `packages/database/`, `packages/sdk/`, and `packages/cloud/` are product-code ownership boundaries. Only `packages/sdk/` and `packages/cloud/` are TypeScript workspaces discovered by pnpm and Turborepo. The `packages/` directory groups code but does not own behavior. `scripts/` contains root-owned repository automation; production code never depends on it, and it does not become a published code-generation or verification package.
+The first use of a command identity stores its operation, canonical input digest, and complete result. Exact reuse returns the stored result and marks it as replayed. Reuse with another operation or different input returns the established conflict error and changes no state.
 
-Root repository infrastructure such as `package.json`, workspace and tool configuration, `.gitignore`, `LICENSE`, and `.github/workflows/` supports these areas without becoming another product or code ownership boundary.
+Two independent SDK method calls remain two commands even when their input bodies match. Local SDK retries reuse the internal command identity for that invocation. Application code does not provide process-local idempotency keys.
 
-Tests stay with the code or contract owner. The database core, SDK adapters, Cloud service, and future repository scripts own their focused tests when they contain meaningful behavior. A root `tests/conformance/` area appears only when local PGlite and managed Cloud are implemented and one suite can exercise both runtimes. Empty security, performance, compatibility, and runtime directories do not precede the behavior they qualify.
+### Lifecycle and isolation
 
-FEAT-0001 creates only the six lean boundaries, the pnpm and Turborepo workspace, native workspace-boundary checks, and owner-local engineering tests. The executable database stage adds contract generation as root-owned scripts. Cloud implementation adds managed PostgreSQL installation and the cross-runtime conformance area. The staging sequence does not change the target components or move Budget semantics out of the database core.
+All public methods remain asynchronous. Once `close()` begins, new Keynes and Budget work fails with `runtime_closed`. Work admitted before close drains in call order. Repeated close calls return the same promise. When draining finishes, the runtime closes its SQLite connection and becomes closed.
+
+Separate local runtimes share no state. Process exit discards every Resource, Budget, command result, permission, and history entry.
+
+Local mode provides:
+
+- no persistence or file-backed option;
+- no database or storage handle;
+- no migration step or copied migration assets;
+- no network listener or connection string;
+- no general storage interface;
+- no multi-process coordination; and
+- no recovery after process exit.
+
+### Local replacement evidence
+
+The SQLite implementation feature must run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against `SqliteCommandExecutor`. It must also prove:
+
+- a failed command changes no state;
+- concurrent sibling requests cannot overspend a parent Budget;
+- exact command replay returns the original result;
+- conflicting command reuse changes no state;
+- returned values cannot mutate SQLite state; and
+- close rejects new work while draining admitted work.
+
+That feature removes `@electric-sql/pglite`, the PGlite adapter, local migration startup, and migrations copied into the SDK package. It keeps the PostgreSQL migrations, native tests, Cloud package, and FEAT-0006 service. It must requalify Node.js 24 and 26 on Linux, macOS, and Windows and remeasure package size, install size, ready memory, startup, request latency, and shutdown. Ready memory must be below the existing 512 MiB target.
+
+Policy, local persistence, browser support, security review, and production support remain `NOT RUN` for that feature unless its approved scope changes.
+
+## PostgreSQL implementation
+
+The existing migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
+
+The five current procedures are:
+
+| SDK operation    | PostgreSQL procedure                 | Purpose                                                 |
+| ---------------- | ------------------------------------ | ------------------------------------------------------- |
+| `defineResource` | `keynes.define_resource_type(jsonb)` | Define one immutable Resource type                      |
+| `createBudget`   | `keynes.create_budget(jsonb)`        | Allocate selected Resources to a root Budget            |
+| `requestBudget`  | `keynes.request(jsonb)`              | Deny or atomically reserve Resources and create a child |
+| `settleBudget`   | `keynes.settle(jsonb)`               | Record direct usage and derive settlement state         |
+| `getBudget`      | `keynes.get_budget(jsonb)`           | Return the authorized Budget projection and history     |
+
+`keynes_internal` owns private tables, unversioned implementation functions, command records, permissions, history, and migration metadata. Application roles never write those tables directly. The supported `keynes` procedures are the mutation and inspection boundary.
+
+### Embedded PostgreSQL
+
+An embedded application installs the existing migrations into its PostgreSQL database and calls supported `keynes.*` functions from its existing database code. The application owns the transaction, database operations, roles, upgrades, backup, recovery, and incident response.
+
+The defining advantage is transaction composition. Caller-owned database code can read application facts, call Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Keynes does not introduce a parent transaction API.
+
+Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
+
+The PostgreSQL transaction integration feature must prove:
+
+- one clean database can install the exact migrations;
+- an application role can call only supported Keynes functions;
+- caller-owned database code can invoke the supported SQL boundary inside its existing transaction;
+- a Budget request and application outbox row commit or roll back together;
+- application code cannot use a pending Budget before commit;
+- replay after commit returns the original result without creating another Budget; and
+- an incompatible or modified installation fails before use.
+
+That evidence does not establish broad provider support, recovery support, extension packaging, or production readiness.
+
+### Self-hosted Keynes
+
+The customer runs the Keynes service with a separate PostgreSQL database. The service authenticates the caller, selects the tenant, validates the transport command, manages connections, invokes one PostgreSQL procedure, and returns the result. It does not reimplement availability, reservation, settlement, replay, or evidence.
+
+The customer owns deployment, database and service upgrades, backups, recovery, monitoring, network security, incident response, and capacity. Keynes must provide supported packaging and operational contracts before this is a product claim.
+
+### Keynes Cloud
+
+Keynes operates the same service code and PostgreSQL implementation. Keynes owns hosting, upgrades, backups, recovery, administration, capacity, incident response, and support. Clients use `RemoteClient`; they receive no database credentials and cannot select a database or execute arbitrary SQL.
+
+Managed Cloud is an operating model, not another Budget implementation. It needs separate evidence for external identity, TLS ingress, tenant isolation, backup restoration, recovery, failover, upgrades, monitoring, incident operations, performance, and support.
+
+### Current service evidence
+
+FEAT-0006 proves only the current private loopback service against native PostgreSQL for its exact retained revision and artifact. It covers the implemented private RPC contract, two-tenant isolation, limited roles, restart, response-loss replay, conflict handling, and explicit database unavailability in that test environment.
+
+It does not prove a public protocol, remote SDK, external identity, TLS, self-hosted packaging, managed-provider deployment, backup restoration, recovery, failover, multi-region behavior, production security, performance, support, or production readiness.
 
 ## Public domain model
 
 ### Resource type
 
-A Resource type is an immutable, tenant-scoped definition for a countable kind of authority, such as `usd_cents`, `search_queries`, or `review_seats`. It has an opaque stable identifier, a unique canonical name within its tenant, an application-defined unit, and one accounting behavior:
+A Resource type is an immutable definition for a countable quantity, such as `usd_cents`, `search_queries`, or `review_seats`. It has a stable identifier, a canonical application-defined name and unit, and one accounting behavior:
 
-- A `consumable` Resource permanently consumes recorded use and returns any reliably unused amount.
-- A `reusable` Resource remains unavailable to ancestors while a descendant holds it and returns after the relevant subtree settles.
+- `consumable`: recorded usage consumes quantity permanently and known unused quantity returns after settlement;
+- `reusable`: quantity stays reserved while the relevant descendant subtree is active and returns in full when it settles.
 
-Amounts are non-negative safe integers no greater than `2^53 - 1`, so every SDK and procedure boundary represents them exactly. Keynes rejects overflow at every arithmetic boundary.
-
-Defining a Resource type creates no quantity or Budget authority. The Resource type cannot be edited after it is defined. A different unit or behavior requires a new Resource type with a new identity. Defining the same name and definition again is idempotent. Reusing the name with a different definition returns a conflict.
+Defining a Resource type creates no quantity. Repeating the same name and definition is idempotent. Reusing the name with a different definition is a conflict.
 
 ### Budget
 
-A Budget is the only public authority-bearing object. Its database state contains:
+Budget is the only public stateful governance object. Its logical state contains:
 
-- an opaque identifier and parent lineage;
-- allocations that reference defined Resource types;
-- current holdings and commitments to children;
-- a local Policy set and Policy revision;
-- lifecycle and accounting revisions;
-- direct usage, derived subtree usage, and isolated deficits; and
-- immutable command results and transition evidence.
+- stable identity and parent lineage;
+- lifecycle state;
+- initial, available, reserved, used, unresolved, and deficit amounts by Resource;
+- local Policy set and revision when Policies exist;
+- accounting revision;
+- command replay records; and
+- ordered history.
 
-An authorized root allocation creates a root Budget with quantities of selected defined Resource types. Root allocation is the boundary at which quantity enters the Budget model. Resource type definition and ordinary execution permission cannot create quantity. A root need not hold every type defined for its tenant. Every other Budget is created by one approved request against its parent. Policies belong to one Budget and govern only that Budget's direct child requests. They are not inherited. Root creation can supply the root's local Policies, and a request can supply the complete local Policy set for the child it creates. Omitting child Policies is canonically identical to supplying an empty set.
+An authorized root allocation is the only current path that introduces Resource quantity. Every non-root Budget comes from one approved request against its structural parent. A root or child holds only the Resource types allocated to it.
 
 ### Request
 
-A scalar request proposes one exact Resource envelope for one child Budget. The structural parent funds the entire envelope from Resources it holds. Keynes either denies the request or atomically reserves the Resources and creates the child. It never edits the request into a smaller envelope.
+A request proposes exact Resource quantities, fixed Policy context when required, and the complete local Policy set for the new child when supported. The selected implementation:
 
-The default command has no funding `source` and cannot issue quantity. Generated SDKs do not expose unsupported fields, and database validation rejects unknown source, funding-leg, or issuance input instead of inferring intent.
+1. validates the command, target Budget, Resources, amounts, context, and child Policy candidates;
+2. resolves exact replay or conflicting command reuse;
+3. observes one immutable parent state;
+4. evaluates every active Policy against the same request, availability, and context values;
+5. merges ceilings and stable denial reasons;
+6. compares the request with Policy ceilings and available holdings; and
+7. records a denial without changing holdings, or reserves the exact amounts and creates one child.
 
-Subtree issuance uses a separate database procedure and permission. It creates quantity for a defined Resource type within one child subtree and never runs with ordinary request permission. Once issuance passes its release gates, multi-source funding retains one structural parent and adds ordered funding legs from authorized Budgets in the same Keynes database. Keynes rejects cross-database composition before mutation. Both extensions leave the scalar parent-funded request as the default SDK path.
-
-For a new command, the database procedure performs these operations in one transaction:
-
-1. Validate the command, target Budget, Resource type identities, amounts, context, and child Policy candidates.
-2. Load the target Budget and establish the required write lock.
-3. Expose an immutable command snapshot through the Policy views.
-4. Evaluate every active Policy against that snapshot.
-5. Intersect all matching ceilings by Resource.
-6. Compare the requested amounts with the Policy ceilings and available holdings.
-7. Record a denial without changing holdings, or reserve the exact amounts and create one child Budget with the supplied local Policy set.
-8. Append canonical evidence and store the command result for replay.
-9. Commit the result.
-
-The transaction exposes no intermediate state from Policy evaluation, availability checks, reservation, child creation, or result recording.
+No intermediate reservation or child is visible. A denial is a valid recorded result. A Policy or execution failure is an error and changes no state.
 
 ### Settlement
 
-Settlement records direct usage for one Budget. Keynes derives subtree usage from descendants and never copies child usage into a parent's direct usage. The lifecycle is:
+Every Budget records its direct known usage. Keynes derives subtree totals and lifecycle state from that direct usage and settled descendants.
 
-```text
-active -> settling -> settled
-```
+A Budget with unresolved direct usage or unsettled descendants is `settling`. It accepts no new child requests but lets admitted descendants finish. It becomes `settled` only when every blocker resolves. Missing usage remains unresolved. Known use above the requested amount becomes an isolated child deficit. Keynes does not silently record zero or debit an ancestor to hide the overage.
 
-The first valid settlement seals direct usage and prevents new direct child requests. Existing descendants can finish. The Budget remains `settling` while usage is unresolved or descendants are open, then becomes `settled` when the last blocker resolves.
+### History and replay
 
-Missing usage never becomes zero. Known use above the Budget's allocation creates an isolated deficit on that Budget. Keynes does not debit an ancestor or sibling. Later evidence can replace an unresolved amount with a known amount, but cannot erase or contradict known usage.
+History entries are immutable outputs of completed commands. They support inspection, diagnostics, audit, and future delivery integrations, but they do not drive the transition that produced them.
 
-## Database RPC interface
-
-The database core separates adapter-facing database objects from its private storage:
-
-- `keynes_internal` owns base tables, unversioned implementation functions, Policy execution state, and migration metadata. Only the runtime database owner can access it directly.
-- `keynes` owns the database RPC functions and read views used by the local adapter and Cloud service. It is not a customer-facing SQL API. A later breaking contract adds a separate namespace only when incompatible runtime versions must coexist.
-
-The `keynes` schema exposes these functions to the local adapter and the Cloud service:
-
-| Function                      | Purpose                                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------------------- |
-| `keynes.define_resource_type` | Define one immutable Resource type without creating quantity                                  |
-| `keynes.create_budget`        | Create an authorized root allocation                                                          |
-| `keynes.request`              | Deny a request or create one child Budget atomically                                          |
-| `keynes.settle`               | Record monotone direct usage and derive settlement state                                      |
-| `keynes.get_budget`           | Read one authorized Budget projection and its complete root-lineage history from one snapshot |
-| `keynes.publish_policy`       | Validate and store an immutable Policy candidate                                              |
-| `keynes.activate_policy`      | Atomically activate a candidate against an expected revision                                  |
-| `keynes.explain_request`      | Explain a hypothetical request against one observed revision without creating authority       |
-
-Both runtimes invoke the same functions with the same `jsonb` inputs and outputs:
-
-```sql
-SELECT keynes.request($1::jsonb);
-SELECT keynes.settle($1::jsonb);
-```
-
-These calls are database RPCs, not queries over mutable application tables. The local SDK invokes them through its private PGlite handle. In Cloud, only the service execution role can invoke mutating functions. No application receives database credentials, writes a base table, or calls an internal mutation function.
-
-`define_resource_type` derives the tenant and definer from the authorized principal, stores the immutable definition, and returns its stable identifier. `create_budget` separately verifies root-allocation permission before creating any quantity. `request` can only move quantity held by its target parent. Definition, root allocation, request, settlement, and read permissions are independent.
-
-`explain_request` evaluates validation, availability, and active Policy ceilings against one transaction snapshot. It returns the observed Budget and Policy revisions, ceilings, availability, and stable reasons. Its result is advisory: it reserves nothing, has no command identity, and cannot be supplied to `request` as proof. Only a committed `request` result creates authority.
-
-## Database read views
-
-The database core defines tenant-scoped relational projections:
-
-| View | Purpose |
-| --- | --- |
-| `keynes.resource_types` | Immutable tenant-scoped Resource type definitions |
-| `keynes.budgets` | Budget identity, lineage, lifecycle, and revisions |
-| `keynes.budget_resources` | Allocations, availability, commitments, usage, and deficits |
-| `keynes.policies` | Published and active Policy metadata without execution internals |
-| `keynes.commands` | Command identity, kind, digest, result code, and replay status |
-| `keynes.budget_history` | Ordered canonical transition evidence presented as Budget history entries |
-
-The views are stable inspection contracts for Cloud reads and internal diagnostics. They never authorize a mutation. They omit secrets, private storage keys, raw Policy execution state, and operational metadata that is not part of the logical contract.
-
-Cloud exposes equivalent authorized projections through RPC rather than database credentials. Local mode may use the views for diagnostics, but they remain behind the SDK-owned PGlite handle.
-
-## Generated contract and strong typing
-
-Canonical JSON is the language-neutral representation for commands, results, errors, replay records, and digests. `jsonb` carries and validates those values. It does not define SDK types.
-
-The contract source contains:
-
-- pinned JSON Schema 2020-12 documents for every command, domain result, error, history entry, Policy envelope, and read projection; and
-- a procedure manifest binding each operation to its input, output, permission, transaction behavior, replay behavior, and database function.
-
-One generator produces TypeScript types, runtime validators, PostgreSQL validation, typed wrapper functions, procedure documentation, and canonical conformance fixtures. Keynes-specific generator rules define safe integers, required field presence, tagged unions, normalized identifiers, canonical key ordering, and digest domain separation. A generated artifact is accepted only when its embedded contract digest matches the installed database schema.
-
-Application Resource names, units, and Policy context fields remain application-defined. Defining a Resource type binds its name, unit, behavior, and stable identifier. SDK declarations preserve those names through generics or generated application types, so root allocations, requests, settlement usage, ceilings, evidence, and denial details do not fall back to untyped string maps. The database independently resolves the stable type identity and validates the same declared schemas at the authoritative boundary.
+The canonical command record contains an operation, identity, input digest, result, error or domain status, replay information, and evidence fields required by the public contract. Operational timestamps, traces, process data, database row identifiers, and query plans may differ by deployment and do not change canonical replay.
 
 ## Policy model
 
-### Policy definition
+### Public format
 
-A Policy is an immutable envelope containing:
+A Policy is an immutable restricted PostgreSQL-style query plus:
 
-- a stable Policy identifier;
-- a declared context schema;
-- a declared Resource schema;
-- one read-only SQL `SELECT` statement;
-- the stable reason codes that the query may return; and
-- a Policy view version, SQL profile version, and source digest.
+- declared Resource inputs and outputs;
+- an exact context schema;
+- stable result reasons;
+- a Policy revision and source digest; and
+- the supported query-profile and validator versions.
 
-Within the Keynes SQL profile, the statement may use joins, common table expressions, filters, aggregates, and `CASE` expressions. It cannot mutate state or inspect the Keynes storage schema. The active Policies on a Budget merge their declared context fields into one exact request schema. Conflicting types fail Policy composition before the Budget accepts requests.
+The supported query subset is the public portable format. It defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; integer and null behavior; deterministic functions; result columns; output limits; and failure behavior.
 
-A Policy returns zero or more Resource ceilings:
+The parser's internal syntax tree is an implementation detail. It may change without changing a Policy when the public query format, validation result, evaluation result, revision, and digest stay compatible.
 
-```text
-resource_name | ceiling | reason
-```
+### Inputs
 
-Each returned row constrains one requested Resource. Returning no rows means the Policy adds no constraint. Returning zero as a ceiling completely denies a positive request for that Resource. When several rows constrain the same Resource, Keynes applies the lowest ceiling. A Policy error fails the command. It never becomes a nonmatch or an approval. Returned Resource names must belong to the declared Resource schema, and returned reasons must belong to the envelope's declared stable reason set.
+Every Policy sees only:
 
-Every active Policy evaluates the same immutable context snapshot. A request must supply exactly the fields and scalar types required by the merged context schema. Context contains strings, Booleans, and signed safe integers only. Requested Resource amounts remain first-class command fields and are not duplicated in context.
+| Input               | Contents                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| Requested Resources | Resource identity or declared name and requested amount for the current command     |
+| Parent availability | Available amount for the parent Budget's relevant Resources at the command snapshot |
+| Context             | The fixed fields and scalar values supplied by the application for this request     |
 
-### Command-scoped views
+Policies cannot read Keynes private tables, application tables, secrets, command history, other Budgets, other tenants, database metadata, files, or network resources.
 
-Policy SQL can read only these logical views:
+The application declares and supplies business facts. Keynes validates the exact context fields and types and records the canonical context with the decision. Context is not inherited by the child. Replay uses the recorded command result and context without reading application data again.
 
-| View | Columns | Meaning |
-| --- | --- | --- |
-| `keynes_policy_request` | `resource_type_id`, `resource_name`, `amount` | Exact Resource envelope requested for the child |
-| `keynes_policy_context` | `field_name`, `value_type`, `text_value`, `integer_value`, `boolean_value` | Immutable application assertions for this request |
-| `keynes_policy_budget` | `resource_type_id`, `resource_name`, `behavior`, `available`, `committed` | Parent projection needed for Resource decisions |
+### Authoring and evaluation
 
-The views contain only the current command snapshot. They expose no Budget table, Policy table, event table, command history, tenant identifier, secret, database metadata, or unrelated application data. They are read-only and return rows only while a Policy evaluation is active.
+The TypeScript builder is the normal authoring path. It knows the available Resources, expected context fields, allowed operations, and result shape. It rejects unsupported expressions before compiling one query in the supported format.
 
-The database core materializes the snapshot behind security-barrier views in an isolated Policy execution scope. The implementation and view definitions are identical in PGlite and managed PostgreSQL. Policies cannot join application tables or registered application views. Application data enters Policy evaluation only through the exact immutable request context.
+Advanced users may submit raw SQL within the same subset. Builder output and raw SQL pass through the same parser, validator, canonicalization, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
 
-### Policy example
+`SqliteCommandExecutor` evaluates the parsed query in TypeScript against immutable command inputs. PostgreSQL validates the source and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access.
 
-This Policy limits low-priority work that requests searches to 25 cents and two searches:
+If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid source, unsupported syntax, nondeterminism, invalid context, resource limits, or invalid results fail the command.
 
-```sql
-WITH request_facts AS (
-  SELECT
-    MAX(CASE WHEN resource_name = 'search_queries' THEN amount END)
-      AS search_queries
-  FROM keynes_policy_request
-),
-context_facts AS (
-  SELECT
-    MAX(CASE WHEN field_name = 'priority' THEN text_value END)
-      AS priority
-  FROM keynes_policy_context
-)
-SELECT 'usd_cents' AS resource_name,
-       25 AS ceiling,
-       'low_priority_limit' AS reason
-FROM request_facts, context_facts
-WHERE search_queries > 0
-  AND priority NOT IN ('high', 'urgent')
-UNION ALL
-SELECT 'search_queries',
-       2,
-       'low_priority_limit'
-FROM request_facts, context_facts
-WHERE search_queries > 0
-  AND priority NOT IN ('high', 'urgent');
-```
+### Policy evidence
 
-This query uses ordinary PostgreSQL SQL. Every Policy accepted by the public Keynes API conforms to the declared Keynes SQL profile. SQL outside that profile is outside the Policy contract even when one runtime happens to accept it.
+The Policy implementation feature must build the typed builder, parser, local evaluator, and PostgreSQL evaluator together. Its comparison suite covers:
 
-### Typed Policy authoring
-
-The TypeScript SDK exposes a typed relational builder as the default Policy authoring path. The builder knows the application's declared Resources, context schema, the three command-scoped views, the permitted result columns, and the allowlisted SQL operations. Its host-language callback constructs a data AST during Policy definition. Keynes never stores or executes the callback as authoritative application code.
-
-The SDK compiler emits one complete parameter-free SQL `SELECT`, the declared context and Resource schemas, stable reasons, and the compiler version. The database parses and validates that SQL through the normal publication path. Builder type checking improves authoring and refactoring, but it does not replace database validation or make the SDK an evaluator.
-
-Advanced users may publish raw SQL with the same declared envelope. Raw SQL is an explicit lower-level escape hatch and receives no reduced validation. Builder and raw-SQL Policies with identical canonical SQL have identical source, dependency, and semantic digests.
-
-### SQL sandbox
-
-Keynes accepts Policy SQL only inside enforced capability boundaries. Both runtimes apply these controls:
-
-- Accept exactly one read-only `SELECT` statement.
-- Resolve every relation to a command-scoped view on an explicit allowlist.
-- Resolve every function, operator, cast, and collation to an allowed, deterministic implementation.
-- Reject DML, DDL, recursive SQL, extension loading, catalog access, temporary object creation, and transaction control.
-- Set execution-step, time, recursion, memory, output-row, and output-byte limits.
-- Validate every returned Resource, integer ceiling, and stable reason.
-- Fail closed when preparation, validation, execution, or result decoding fails.
-
-The database core validates a Policy when it is published. Validation parses and analyzes the statement against a fixed `search_path`, resolves object identifiers, rejects relations outside the command views, and verifies function volatility and the explicit allowlist. Activation binds the Policy to the validated source digest, dependency identifiers, SQL profile, and validator version. Execution uses a role that cannot read Keynes base tables, a fixed `search_path`, a statement timeout, and output limits. A dependency or validator version change invalidates the candidate until it is revalidated. PGlite and managed PostgreSQL run this same publication and execution path.
-
-The deterministic allowlist begins small. The supported profile includes integer and text comparison, Boolean logic, `CASE`, `COALESCE`, `MIN`, `MAX`, `COUNT`, and `SUM` with checked integer bounds and explicit text normalization. Wall time, randomness, locale-dependent comparison, regular-expression engines, user-defined functions, network access, filesystem access, and database mutation are not available to Policies.
-
-## PGlite execution model
-
-The TypeScript SDK creates one private `PGlite` instance with an in-memory data directory, applies the core migrations, and retains exclusive ownership of the handle. Application code never receives the handle. The SDK does not enable the socket server, expose a connection string, accept a caller data directory, or install caller-selected extensions.
-
-PGlite is a single-connection PostgreSQL runtime. The SDK serializes calls through one runtime mutex, begins a transaction, and invokes one schema-qualified procedure per mutation. The procedure is the sole transition entry point. The SDK commits its result or rolls back its error.
-
-Each Budget command procedure performs these operations:
-
-1. Resolve the tenant and target Budget from procedure inputs.
-2. Check the command identity and replay record.
-3. Lock the target Budget row with `SELECT ... FOR UPDATE`.
-4. Validate the expected revisions and defined Resource type identities.
-5. Evaluate active Policies against the command snapshot.
-6. Apply the transition and insert evidence.
-7. Store the canonical response before commit.
-
-The local adapter supplies one fixed internal tenant identity. Its private principal can define Resource types, allocate roots, run Budget commands, and administer Policies because the application process is the local trust boundary. These capabilities are not exposed as database credentials. Because only one connection exists, the runtime mutex provides call ordering. The procedure's row locks, revision checks, constraints, and idempotency records remain present and execute unchanged. Local commands therefore run the same procedures as Cloud commands. This does not mean that single-connection PGlite reproduces native PostgreSQL contention.
-
-Public TypeScript methods remain asynchronous so local and Cloud code use the same workflow. A dedicated worker can become a later performance option without changing the procedure interface or public contract.
-
-## Managed PostgreSQL execution model
-
-Each Cloud mutation invokes the same schema-qualified function inside one native PostgreSQL transaction. Authentication supplies the tenant identity and the router selects the fenced home database for the Budget lineage. Foreign keys, unique indexes, check constraints, revision predicates, and row locks defend the invariants under concurrent service instances. Lock order follows Budget ancestry, then identifier order, so settlement propagation cannot deadlock with child requests. The service retries serialization and deadlock errors only with the same idempotency key.
-
-Cloud routes Resource type definition to one fenced tenant catalog home. Before a root is allocated or a lineage moves, its home database must contain the same immutable Resource type identity and definition digest. Cloud may copy that immutable definition between homes, but a missing or conflicting digest fails before the Budget mutation.
-
-The database core owns all tables in `keynes_internal`. Keynes Cloud applies the shared migrations and then compatible operational overlays. Cloud service roles receive `EXECUTE` on specific procedures, never direct table write privileges. Read procedures return tenant-scoped projections rather than base rows. An overlay may add roles, indexes, partitions, routing metadata, or outbox delivery state, but cannot replace a core relation, procedure, Policy view, canonical result, or invariant.
-
-## Command identity and replay
-
-Every mutating command contains a command ID. The ledger binds it to:
-
-- the tenant or local runtime;
-- the target kind and canonical target key;
-- command kind;
-- canonical command digest; and
-- committed result.
-
-An exact retry returns the recorded result. An approved request returns the same child Budget and never reserves Resources twice. Replaying a Resource type definition returns the same immutable type. Reusing a command ID with a different target, kind, or body returns `command_conflict` and does not change state.
-
-The local SDK creates an internal command ID for each public method invocation and reuses it only while retrying that invocation. Application developers do not manage local idempotency keys. Cloud mutations are durable and can outlive a client process. The Cloud adapter requires or persists a durable idempotency key whenever an operation may be retried across an invocation boundary. Incompatible key reuse returns `idempotency_conflict`.
-
-Two separate request calls remain two separate commands even when their bodies are identical. Keynes never deduplicates legitimate work by request-body digest alone.
-
-## Storage model
-
-PGlite and managed PostgreSQL use the same private schema:
-
-| Relation | Responsibility |
-| --- | --- |
-| `resource_types` | Stable identity, tenant, canonical name, unit, behavior, definition digest, and definer evidence |
-| `budgets` | Identity, lineage, lifecycle, Policy revision, and accounting revision |
-| `budget_resources` | Resource type identity, initial amount, availability, commitments, usage, and deficit |
-| `policies` | Immutable SQL, profile, source digest, validation metadata, and activation state |
-| `commands` | Command identity, canonical digest, status, and committed result |
-| `events` | Ordered immutable transition evidence |
-| `authority_epochs` | Fenced lineage writer epoch and recovery state |
-| `principal_permissions` | Tenant-scoped capabilities for internal principals |
-
-The core DDL includes tenant keys, lineage keys, constraints, indexes, Policy metadata, read projections, and procedure permissions required for both runtimes. Local mode assigns all state to one fixed internal tenant. Cloud operational overlays may add partitioning, routing, and delivery metadata without changing core rows or procedure behavior. Database files and query plans need not be byte-identical.
-
-Budget history entries are outputs of committed procedures. They support inspection, diagnostics, audit, and Cloud integrations, but they do not drive the transition that created them. Consumers may use a delivery projection. Delivery state is operational metadata and never changes Budget authority.
+- Resource limits and denial reasons;
+- integer and null behavior;
+- ordering and aggregation;
+- unsupported SQL;
+- context validation;
+- deterministic function restrictions;
+- Policy revisions and digests;
+- recorded context and replay behavior; and
+- equivalence between builder output and raw SQL in the supported format.
 
 ## SDK experience
 
-The TypeScript SDK uses one workflow in both runtimes: create a Budget, request a child, do the application-owned work, and settle usage.
-
-### TypeScript
+The public local API remains:
 
 ```ts
 import { Keynes } from "@keynes/sdk";
 
-const keynes = await Keynes.create({ mode: "local" });
+const keynes = await Keynes.create();
 
 await keynes.defineResources({
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
@@ -453,183 +314,95 @@ if (result.status === "approved") {
   await runWorkflow(result.budget);
   await result.budget.settle({ usdCents: 19, searchQueries: 2 });
 }
+
+await keynes.close();
 ```
 
-`defineResources(...)` is idempotent for the same immutable definitions. It creates no quantity. `createBudget(...)` allocates selected defined types to a root, while `request(...)` accepts only amounts funded by its parent. The default SDK request has no `source`, funding-leg, or issuance form.
+The SQLite replacement preserves `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior.
 
-The `mode` discriminant selects the deployment without changing the Budget API:
+The facade has two intended call shapes: `Keynes.create()` selects local SQLite, and future `Keynes.create({ apiKey })` selects remote discovery. The remote service resolves Cloud versus self-hosted deployment metadata. `Keynes.create(undefined)`, `Keynes.create({})`, and `Keynes.create({ apiKey: undefined })` are invalid rather than local fallbacks. Embedded PostgreSQL is not a facade mode; application database code calls the supported SQL boundary inside its own transaction.
 
-```ts
-const local = await Keynes.create({ mode: "local" });
-const cloud = await Keynes.create({
-  mode: "cloud",
-  endpoint: process.env.KEYNES_ENDPOINT!,
-  apiKey: process.env.KEYNES_API_KEY!,
-});
-```
+## Generated contracts and compatibility
 
-Local mode accepts no database path, caller-owned connection, persistence option, or extension option. It creates a private in-memory PGlite runtime. Cloud mode sends the same commands to the Keynes RPC service. Neither mode exposes arbitrary database SQL execution, transactions, connection pools, extensions, or database credentials. The SDK may accept Policy SQL as sandboxed input data. Keynes never infers a mode from present or missing credentials, and it never falls back from Cloud to local state.
+The contract sources define operation names, command and result schemas, error families, history entries, canonical JSON, and digest rules. Generation produces TypeScript types and validators plus PostgreSQL-facing procedure metadata. A client or installation must reject an incompatible contract digest before use.
 
-### Language scope
+The local implementation uses private SQLite tables while PostgreSQL uses its own relations, constraints, and functions. Those internal representations do not need to match. Public command meaning and canonical evidence must match.
 
-TypeScript is the only supported SDK. Its generated contract and hand-authored facade cover local PGlite and Cloud without reimplementing Budget transitions. Contract digests identify the database procedure contract and Cloud protocol. This repository makes no package, directory, API, runtime, or release commitment for another SDK language. A future SDK needs its own approved architecture and qualification gates.
+PostgreSQL uses one ordered migration graph for durable deployments. Installation records the schema and contract digest. Additive changes may preserve one procedure namespace when old callers retain their exact meaning. A breaking input, result, error, or transaction contract needs an explicit compatibility decision. Migrations never rewrite immutable command bodies or history meaning.
 
-## Packaging, installation, and footprint
+Local mode has no public migration graph. The SDK initializes its private SQLite schema internally. Removing copied PostgreSQL migrations from the SDK package must not remove the canonical PostgreSQL migrations or the artifacts needed to install and verify durable deployments.
 
-The npm package ships the TypeScript SDK, a pinned PGlite package and WebAssembly assets, and the local migration assets generated from the database migration graph. It ships no platform-specific Keynes library, Node-API binding, sidecar, or daemon. Application developers do not install PostgreSQL, start a database process, or select a native artifact on the supported local path.
+## Testing model
 
-Cloud deployment uses a signed migration bundle generated from the same graph. Its installer:
+### Shared Budget behavior
 
-1. verifies the artifact signature, migration-graph digest, contract digest, object manifest, PostgreSQL version, build options, and required privileges;
-2. checks for drift in every Keynes-owned schema, procedure, view, role permission, and Policy dependency;
-3. applies expand-contract migrations under an installation lock;
-4. verifies generated wrappers and public-object digests after migration; and
-5. records the installed version and compatibility window.
+Run the same Budget examples directly against `SqliteCommandExecutor` and native PostgreSQL. Compare:
 
-An upgrade can expand the private schema and install a new contract schema beside the old one. It cannot destructively contract until every supported SDK version, service, and Policy has left the old contract. Downgrade means restoring a compatible backup and entering recovery reconciliation. Reverse SQL cannot undo committed authority or immutable evidence.
+- approved and denied results;
+- structured errors and details;
+- replay flags and original results;
+- conflicting command reuse;
+- Resource definitions and holdings;
+- Budget lifecycle and settlement;
+- ordered history; and
+- final Budget state.
 
-The release pins the PGlite and PostgreSQL compatibility matrix. An upgrade may change the embedded PostgreSQL build or data-directory format, so local mode remains ephemeral and initializes a fresh migrated database at startup.
+The shared suite includes lifecycle, availability, denial, consumable depletion, reusable release, nested settlement, unresolved usage, isolated deficits, rollback, isolation, malformed input, exact replay, and sibling requests that contend for one parent.
 
-Release qualification measures package download and installed size, loaded resident and WebAssembly memory, runtime creation time, first-request latency, steady-state request throughput, procedure overhead, installation and upgrade duration, lock time, and read cost for each supported runtime. Keynes makes no footprint, latency, or upgrade claim until these measurements run against the packaged artifacts.
+### Deployment-specific tests
 
-## Cloud service boundary
+- **Local**: lifecycle, memory release, serialized call order, return-value isolation, process isolation, close and drain, package contents, supported Node.js and operating systems, package size, install size, ready memory, startup, request latency, and shutdown.
+- **PostgreSQL**: independent-client contention, row locks, transactions, caller-owned transaction composition, roles and procedure permissions, installation compatibility, migrations, drift detection, and rollback boundaries.
+- **Remote service**: authentication, tenant selection, protocol validation, connection management, response-loss replay, service restart, rate and input limits, TLS ingress, and tenant isolation.
+- **Self-hosted**: packaging, configuration, upgrades, backup and restoration, monitoring, recovery runbooks, and customer-operated failure handling.
+- **Managed Cloud**: provider deployment, high availability, recovery, failover, capacity, incident response, vulnerability response, compliance controls, support, and production operations.
 
-The Cloud service owns concerns that do not belong in a database function:
+A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the future in-memory SQLite runtime. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
 
-- authentication and application identity;
-- Resource type definition, root allocation, and Budget command authorization;
-- rate limits and request-size limits;
-- RPC version negotiation;
-- durable idempotency-key handling at the network boundary;
-- invocation of the shared Resource type definition procedure;
-- invocation of the shared Policy publication and activation procedures;
-- fenced home-database routing by Budget lineage;
-- connection pooling and safe transaction retries;
-- authority-epoch changes, recovery reconciliation, and operator fencing; and
-- metrics, tracing, and administrative APIs.
+## Packaging and installation
 
-It does not calculate availability, evaluate Policy results, reserve Resources, derive settlement, or synthesize evidence. PostgreSQL remains the sole durable authority even when several service instances handle concurrent requests.
+The future local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It must not contain PGlite, a WebAssembly PostgreSQL build, local migrations, a database data directory, a native Keynes library, a sidecar, or a daemon.
 
-## Error model
+Durable installation uses the canonical PostgreSQL migrations and verifies its contract digest and owned objects before use. The installation design must define supported PostgreSQL versions, required privileges, compatible upgrade windows, drift detection, and failure behavior. None of those are proved by this documentation feature.
 
-Procedures distinguish valid domain results from execution failures:
+The self-hosted and Cloud service use the same service code. Packaging and operating ownership differ. A customer-operated container and a Keynes-operated deployment require separate release and support evidence even when the image contents match.
 
-- `approved` and `denied` are valid request results.
-- `settling` and `settled` are valid settlement results.
-- `invalid_command`, `command_conflict`, `idempotency_conflict`, `policy_error`, `resource_type_conflict`, `unsupported_capability`, `unsupported_version`, `contract_mismatch`, `arithmetic_error`, `stale_authority_epoch`, `recovery_required`, `installation_drift`, and `unavailable` are errors.
+## Security and recovery boundaries
 
-A Policy evaluation failure is never converted to a denial because a denial means Keynes completed an authoritative evaluation. A database timeout, serialization failure, process crash, or lost network response has an unknown transport outcome until replay resolves the command ID.
+Local mode protects state from accidental mutation through a private SQLite connection, input validation, detached returns, serialized commands, and fail-closed Policy evaluation. It does not defend against code that can inspect or modify its own process.
 
-Every public error has a stable code and generated structured fields. The TypeScript SDK maps those fields to idiomatic errors without depending on PGlite, managed PostgreSQL, or transport error text.
+Embedded PostgreSQL uses database roles and supported functions to prevent application roles from writing private Keynes state. The application database operator is inside the deployment's trust boundary.
 
-## Authority placement and recovery
+Remote deployments treat clients and Policy source as untrusted. The service must authenticate the caller, select one tenant, constrain request size and rate, invoke only supported procedures, avoid logging secrets or arbitrary context, and return stable errors without leaking another tenant or database internals.
 
-Each durable Budget lineage has one writable home database and one monotonically increasing authority epoch. Every mutation checks the lineage, home placement, and expected epoch inside the same transaction that locks and changes the Budget. A stale router, retried request against an old primary, or caller using an earlier epoch receives `stale_authority_epoch` and changes no state.
-
-Cloud owns a fencing record outside the lineage database and changes the epoch before routing mutations to a promoted writer. Read replicas are never authority, even when they are fresher or closer to the caller.
-
-A database restore is not automatically safe for authority. Point-in-time recovery can forget a committed request or settlement after application work has already occurred. After any restore or potentially lossy failover, the database enters `recovery_required`, receives a new epoch, and rejects mutations until an operator reconciles its final command and event checkpoints with evidence kept outside the restored failure domain. A Budget whose missing interval cannot be reconstructed remains frozen or unresolved. Keynes never assumes zero use or reissues forgotten authority.
-
-Managed Cloud maintains immutable recovery checkpoints and owns backup retention, former-primary fencing, and the reconciliation workflow. Keynes does not claim zero-data-loss recovery for an asynchronous replica or an incomplete evidence archive.
-
-Lineage placement is also the horizontal scaling boundary. Sibling requests against one parent intentionally serialize on that authority. Keynes may move a fenced lineage between databases, but it does not split one lineage across independent writers. Every default Budget mutation touches one lineage. Cross-lineage analysis may be distributed, but no default command composes authority from several lineages.
-
-## Conformance contract
-
-PGlite and managed PostgreSQL execute one database implementation. The contract consists of:
-
-- JSON Schemas and the procedure manifest;
-- canonical JSON and digest rules;
-- the logical Budget and Resource invariants;
-- the Policy view schemas and deterministic SQL profile;
-- database procedures, views, roles, and transaction semantics;
-- stable result, reason, blocker, history-entry, and error codes; and
-- black-box fixtures and property tests.
-
-The same semantic fixtures run against a fresh PGlite runtime and the managed Cloud path. They cover at least:
-
-- approval and denial under availability and Policy ceilings;
-- idempotent Resource type definition and conflicting-definition rejection;
-- rejection of root allocations that reference Resource types that have not been defined;
-- roots holding a strict subset of their tenant's defined Resource types;
-- rejection of unsupported source, funding-leg, and issuance command shapes;
-- multiple matching Policies and stable reason ordering;
-- typed-builder and raw-SQL Policy canonical equivalence;
-- exact replay and conflicting command reuse;
-- concurrent requests against the same parent;
-- consumable depletion and reusable release;
-- nested settlement and unresolved usage;
-- overage and isolated deficits;
-- Policy sandbox escapes and resource limits;
-- advisory explanation at an observed revision without reservation;
-- SDK-owned transaction commit and rollback;
-- Cloud read isolation and private-schema denial;
-- generated SDK, validator, PostgreSQL wrapper, and contract-digest agreement;
-- transaction rollback at every failure point;
-- migration from every supported schema version;
-- coexistence of old and new public major schemas;
-- loss of all local state when its process exits;
-- rejection of a file path or caller-owned connection by the local API;
-- Cloud replay after a committed response is lost in transit;
-- stale-writer fencing, replica read labeling, lineage movement, and hot-parent contention; and
-- failover, point-in-time restore, `recovery_required`, and unresolved evidence after a lossy interval.
-
-Results are compared as canonical domain values. Implementation-specific query plans, row identifiers, timestamps, and operational metadata are excluded.
-
-The database migration graph and procedures are the semantic change boundary. Every semantic change updates that code and its fixtures once. Both runtimes must pass before the change ships. Runtime-specific suites supplement the shared fixtures. The PGlite suite covers lifecycle, serialization, WebAssembly failure, and footprint. The managed PostgreSQL suite covers concurrent connections, lineage routing, fencing, tenant roles, forced failure, migration, and rolling deployment.
-
-## Versioning and migrations
-
-The database core has one private schema, one ordered migration graph, one `keynes` procedure schema, and one digest for each generated logical contract. Local startup applies the migration assets to a fresh PGlite database before accepting commands. Cloud rolls the graph forward under an explicit compatibility window so old and new TypeScript SDK releases and service instances can coexist. Operational overlays version independently but cannot change the procedure contract.
-
-Additive changes remain within `keynes` only when old callers preserve their exact meaning and generated validators accept both forms. A breaking input, result, view, error, or transaction change keeps the existing `keynes` contract and adds a separate SQL namespace only when incompatible callers must coexist. The procedure manifest states the supported window and contract digest for every operation. Keynes does not reserve a versioned namespace before that need exists.
-
-Subtree issuance and multi-source funding change the authority inputs and are therefore introduced through explicit contract versions rather than optional fields on the parent-funded request. Issuance qualification comes first and binds issuer scope, subtree lifetime, settlement, recovery, and replay. Multi-source qualification follows and binds ordered funding legs, source authorization and Policy isolation, same-database atomicity, settlement provenance, and cross-database rejection. The compatibility window preserves the scalar parent-funded meaning for callers that do not adopt either extension.
-
-A procedure rejects command versions it cannot interpret. Migrations never rewrite immutable command bodies or history-entry meaning. If a derived projection changes, Keynes rebuilds it from authoritative rows and records the projection version separately.
-
-Defined Resource types are immutable contract data. Migrations may add projections or indexes around them, but cannot change an existing type's identity, canonical name, unit, behavior, or definition digest.
-
-Policy candidates bind to the Policy view version, SQL profile version, validator version, compiler version when applicable, and source digest. A change to any of those inputs requires revalidation before activation.
-
-The migration graph is canonical. Local migration assets and the signed Cloud bundle must reproduce the same migration nodes and object manifest. Packaging metadata never becomes an alternate semantic source.
-
-## Security boundaries
-
-Local mode protects authority from accidental application access, malformed commands, unsafe Policy SQL, and concurrent calls inside one process. It does not defend against an application that can replace its PGlite or migration assets, modify WebAssembly memory, or instrument its own process.
-
-Cloud treats clients and Policy source as untrusted. The RPC service enforces identity and tenant access, the router enforces the fenced lineage placement, PostgreSQL roles deny base-table access, procedures recheck tenant scope and authority epoch, and the Policy sandbox has no credentials or general database visibility. Keynes database administrators remain inside the managed Cloud trust boundary.
-
-Secrets never enter Policy context, command evidence, denial reasons, or history payloads. Observability records stable identifiers, operation names, durations, and result codes, not arbitrary Policy inputs.
+Recovery cannot assume that a restored database contains every command whose external work may have run. Durable recovery design must fence old writers, identify the exact command and evidence interval, and leave unresolved work visible when it cannot be reconstructed. Self-hosted and managed Cloud need separate recovery evidence because their operators and failure domains differ.
 
 ## Observability and operations
 
-Each procedure records a stable operation name, command ID, target kind and ID, result code, Policy revision when applicable, private schema version, public contract digest, authority epoch, and duration. Cloud attaches trace, tenant, home-database, and routing metadata outside the canonical command. Trace context supports correlation but never authorizes a mutation or changes a Policy result.
+Canonical history records operation, command identity, target, result, Policy revision when relevant, and contract version. Deployment telemetry may add duration, trace, process, database, routing, and retry data outside canonical command evidence. Telemetry cannot grant permission, change a Policy result, or affect replay.
 
-Cloud metrics include transaction retries, parent-row lock wait, Policy evaluation time, denial rate by stable reason, unresolved Budgets, isolated deficits, read latency, stale-epoch errors, recovery state, checkpoint lag, migration state, drift detection, and delivery lag. The local SDK exposes optional diagnostic hooks without making telemetry a runtime dependency.
-
-Operational timestamps, replication positions, traces, installer logs, and query plans remain noncanonical metadata. They can diagnose authority but cannot change replay, evidence, Policy results, or semantic digests.
+Local diagnostics must remain optional and must not add a runtime service. Remote services need metrics and traces for authentication failures, database availability, transaction retries, command latency, denial reasons, unresolved Budgets, installation drift, recovery state, and delivery lag. Managed operations require runbooks and retained evidence before readiness claims.
 
 ## Product boundary
 
-Keynes owns immutable Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, subtree accounting, unresolved usage, deficits, canonical evidence, the database procedure contract, the generated TypeScript SDK contract, the Cloud protocol, authority epochs, and fail-closed recovery state.
+Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, subtree accounting, unresolved usage, deficits, canonical history and evidence, the TypeScript SDK contract, PostgreSQL procedures, and the remote protocol.
 
-The application owns workflow validity, request construction, context assertions, external effects, provider idempotency, retries, usage observation, business outcomes, fallback behavior, application transaction rows, and application evidence and decisions used during reconciliation.
+The application owns workflow validity, request construction, Policy context, external effects, provider idempotency and retries, usage observation, business outcomes, fallback behavior, application transaction rows, and application evidence.
 
-Keynes does not execute application work, retry providers, infer missing usage, store secrets in Policy context, turn a Budget identifier into authorization, or turn an advisory explanation into approval.
+Keynes does not execute application work, retry providers, infer missing usage, store secrets in Policy context, treat a Budget identifier as permission, read application tables, or turn an advisory result into an approval.
 
 ## Release gates
 
-This target architecture remains unqualified until executable evidence establishes the following gates:
+No deployment may claim compatibility, security, recovery, footprint, performance, or production readiness until evidence from the exact tested revision establishes the applicable gates:
 
-1. Generate the Resource type and Budget schemas, JSON contracts, procedure manifest, TypeScript types, validators, wrappers, and fixtures; prove their contract and object digests agree.
-2. Run Resource type definition, root allocation, request, and settlement through PGlite and managed Cloud; compare canonical results, history entries, errors, and digests.
-3. Prove typed-builder and raw-SQL Policy publication through the same sandbox with deterministic allowlists, cost limits, dependency binding, and adversarial escape tests in both runtimes.
-4. Prove SDK-owned transactions, rollback at every boundary, and Cloud replay after a committed response is lost.
-5. Prove Resource definition, root allocation, request, settlement, read, and Policy permissions; tenant bindings; read isolation; private-schema denial; migration coexistence; drift detection; and upgrade recovery.
-6. Prove true concurrent reservations, lock ordering, hot-parent behavior, lineage placement, stale-writer fencing, replica read labeling, forced failover, point-in-time recovery, and unresolved evidence after data loss.
-7. Package and measure local PGlite, the Cloud migration bundle, and the TypeScript SDK for the supported PostgreSQL, Node.js, operating-system, architecture, and managed-provider matrix.
-8. Qualify Cloud operations for authentication, tenant isolation, idempotency, routing, backup, recovery, incident response, vulnerability response, rolling migration, and support without forking the database core.
-9. Prove both runtimes and the SDK reject unsupported funding sources, funding legs, and issuance without changing Resource type, Budget, command, or evidence state.
+1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
+2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown after removing PGlite.
+3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
+4. Compare builder and raw-SQL Policy behavior through the local and PostgreSQL evaluators, including context and replay.
+5. Qualify the remote SDK and public service protocol through authenticated TLS ingress.
+6. Qualify self-hosted packaging, upgrades, backup, recovery, monitoring, security, and customer operations.
+7. Qualify managed Cloud hosting, recovery, failover, incident response, capacity, compliance controls, and support.
+8. Define the supported release contract and compatibility windows.
+9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
 
-No runtime may claim compatibility, security, footprint, performance, or production readiness until executable evidence passes the corresponding gate. The [roadmap](roadmap.md) records completed local and platform evidence. Policy, Cloud, cross-runtime, security, recovery, and production-release gates remain `NOT RUN`.
+The [roadmap](roadmap.md) records completed evidence and this sequence. This documentation feature proves only repository agreement with the target model.

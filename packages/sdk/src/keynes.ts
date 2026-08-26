@@ -46,10 +46,6 @@ export type BudgetRequestResult<Names extends string = string> =
       readonly reasons: readonly BudgetRequestDenialReason<Names>[];
     };
 
-export interface KeynesCreateOptions {
-  readonly mode: "local";
-}
-
 type RuntimeState = "open" | "closing" | "closed";
 
 interface RuntimeSession {
@@ -68,8 +64,9 @@ export class Keynes {
     this.#runtime = runtime;
   }
 
-  static async create(options: KeynesCreateOptions): Promise<Keynes> {
-    validateCreateOptions(options);
+  static create(): Promise<Keynes>;
+  static async create(...args: readonly unknown[]): Promise<Keynes> {
+    validateCreateArguments(args);
     try {
       const host = await openLocalRuntime();
       return new Keynes({
@@ -262,26 +259,11 @@ function closeRuntime(runtime: RuntimeSession): Promise<void> {
   return runtime.closePromise;
 }
 
-function validateCreateOptions(
-  options: unknown,
-): asserts options is KeynesCreateOptions {
-  if (!isRecord(options) || !Object.hasOwn(options, "mode")) {
+function validateCreateArguments(args: readonly unknown[]): void {
+  if (args.length !== 0) {
     throw new KeynesSdkError("invalid_configuration", {
-      field: "mode",
-      reason: "missing",
-    });
-  }
-  if (options.mode !== "local") {
-    throw new KeynesSdkError("invalid_configuration", {
-      field: "mode",
+      field: "options",
       reason: "unsupported",
-    });
-  }
-  const unknownField = Object.keys(options).find((field) => field !== "mode");
-  if (unknownField !== undefined) {
-    throw new KeynesSdkError("invalid_configuration", {
-      field: unknownField,
-      reason: "unknown",
     });
   }
 }
@@ -290,7 +272,3 @@ type ExactResourceAmounts<
   Names extends string,
   Resources extends ResourceAmounts<Names>,
 > = Resources & Readonly<Record<Exclude<keyof Resources, Names>, never>>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}

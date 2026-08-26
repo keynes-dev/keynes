@@ -29,23 +29,25 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-- **Singular authority**: Identify the one component that owns committed state
-  and state-transition semantics. Show that adapters cannot bypass it and list
-  the conservation, atomicity, replay, and unresolved-state invariants affected.
+- **One source of truth per Budget**: Identify where each affected Budget is
+  stored and which component owns its committed state and transitions. Show that
+  clients and services cannot bypass it or fall back to another store.
 - **Effect boundary**: Identify every external effect and confirm that the host
   application owns execution, idempotency, retry, observation, outcomes, and
   fallback behavior.
-- **Policy and security**: Describe Policy inputs, accessible views and
-  functions, failure behavior, authorization, tenant isolation, and secret
-  handling when Policy or durable authority is in scope.
-- **One cross-runtime contract**: Identify database procedure, schema, SDK,
-  Cloud protocol, migration, and compatibility changes. Define the shared
-  conformance evidence required for each affected runtime.
+- **Policy and security**: Describe Policy context, the supported query subset,
+  accessible inputs, failure behavior, permissions, tenant isolation, and secret
+  handling when Policy or durable storage is in scope.
+- **Consistent behavior across deployments**: Identify which runtime or
+  deployment changes, the affected database procedure, schema, SDK, service,
+  migration, and compatibility contracts, the shared Budget behavior tests, and
+  the deployment-specific tests that must pass.
 - **Evidence-first delivery**: Name the behavioral tests that will be observed
   failing before implementation, the deterministic provider-free verification
-  lane, and any separately authorized live, paid, fault, or benchmark lane.
+  lane, any separately authorized live, paid, fault, or benchmark lane, and all
+  claims that remain untested.
 - Mark a gate `N/A` only with a concrete rationale. Record every unavoidable
   violation in Complexity Tracking with a migration or removal path.
 
@@ -64,6 +66,7 @@ docs/features/[XXXX-feature]/
 ```
 
 ### Source Code (repository root)
+
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -114,7 +117,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
+| -------------------------- | ------------------ | ------------------------------------ |
+| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |

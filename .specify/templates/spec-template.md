@@ -7,7 +7,7 @@
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 <!--
   IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
@@ -77,7 +77,7 @@
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
@@ -92,37 +92,40 @@
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
-*Example of marking unclear requirements:*
+_Example of marking unclear requirements:_
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Constitutional Requirements *(mandatory)*
+### Constitutional Requirements _(mandatory)_
 
 Document each item below as a requirement or mark it `N/A` with a concrete
 rationale:
 
-- **Authority and invariants**: Identify the authoritative state transition and
-  the atomicity, conservation, idempotency, settlement, and replay behavior the
-  feature preserves or changes.
+- **Budget behavior and storage**: Identify where each affected Budget is stored
+  and the atomicity, conservation, idempotency, settlement, replay, history, and
+  error behavior the feature preserves or changes.
 - **Application boundary**: Identify any external effects and confirm which
   application component owns execution, retry, observation, outcomes, and
   fallback behavior.
-- **Policy and security**: Define Policy visibility and fail-closed behavior,
-  authorization boundaries, tenant isolation, and secret handling when relevant.
-- **Contracts and runtimes**: Identify database schema, procedure, SDK, Cloud
-  protocol, migration, compatibility, and cross-runtime conformance
-  implications.
+- **Policy and security**: Define Policy context, supported query behavior,
+  fail-closed handling, permission boundaries, tenant isolation, and secret
+  handling when relevant.
+- **Contracts and deployments**: Identify which runtime or deployment changes,
+  which shared Budget behavior tests must pass, and which local lifecycle,
+  PostgreSQL transaction, remote security, recovery, packaging, or managed
+  operations tests must pass separately.
 - **Evidence classification**: State which acceptance evidence is provider-free
   and which evidence is live, paid, externally mutating, fault-based, or
-  benchmark-based and therefore requires a separate lane or authorization.
+  benchmark-based and therefore requires a separate lane or authorization. List
+  every claim that remains untested.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 <!--
   ACTION REQUIRED: Define measurable success criteria.

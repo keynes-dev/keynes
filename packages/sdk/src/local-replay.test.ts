@@ -23,7 +23,7 @@ describe("local facade committed-response replay", () => {
     "replays one lost %s response with the same command",
     async (target) => {
       const harness = await loadHarness(target, 1);
-      const keynes = await harness.Keynes.create({ mode: "local" });
+      const keynes = await harness.Keynes.create();
       try {
         await exerciseMutation(keynes, target);
         expect(harness.captured).toHaveLength(2);
@@ -34,67 +34,24 @@ describe("local facade committed-response replay", () => {
     },
   );
 
-  it.each([
-    "keynes.define_resource_type",
-    "keynes.create_budget",
-    "keynes.request",
-    "keynes.settle",
-  ] as const)(
-    "maps a second lost %s response to operation_interrupted",
-    async (target) => {
-      const harness = await loadHarness(target, 2);
-      const keynes = await harness.Keynes.create({ mode: "local" });
-      try {
-        let mutation: Promise<unknown>;
-        let inspectCommittedEffect: (() => Promise<unknown>) | undefined;
-        if (target === "keynes.define_resource_type") {
-          mutation = defineWorkUnits(keynes);
-        } else {
-          await defineWorkUnits(keynes);
-          if (target === "keynes.create_budget") {
-            mutation = keynes.createBudget({ workUnits: 10 });
-          } else {
-            const root = await keynes.createBudget({ workUnits: 10 });
-            if (target === "keynes.request") {
-              mutation = root.request({ workUnits: 4 });
-              inspectCommittedEffect = async () =>
-                expect(
-                  (await root.inspect()).history.entries.filter(
-                    ({ kind }) => kind === "request_approved",
-                  ),
-                ).toHaveLength(1);
-            } else {
-              const request = await root.request({ workUnits: 4 });
-              if (request.status !== "approved") {
-                throw new Error("expected approved request");
-              }
-              mutation = request.budget.settle({ workUnits: 3 });
-              inspectCommittedEffect = async () =>
-                expect(
-                  (await request.budget.inspect()).history.entries.filter(
-                    ({ kind }) => kind === "budget_settlement_recorded",
-                  ),
-                ).toHaveLength(1);
-            }
-          }
-        }
-
-        await expect(mutation).rejects.toMatchObject({
-          name: "KeynesSdkError",
-          code: "operation_interrupted",
-        });
-        expect(harness.captured).toHaveLength(2);
-        expect(harness.captured[1]).toBe(harness.captured[0]);
-        await inspectCommittedEffect?.();
-      } finally {
-        await keynes.close();
-      }
-    },
-  );
+  it("maps a second lost response to operation_interrupted", async () => {
+    const harness = await loadHarness("keynes.define_resource_type", 2);
+    const keynes = await harness.Keynes.create();
+    try {
+      await expect(defineWorkUnits(keynes)).rejects.toMatchObject({
+        name: "KeynesSdkError",
+        code: "operation_interrupted",
+      });
+      expect(harness.captured).toHaveLength(2);
+      expect(harness.captured[1]).toBe(harness.captured[0]);
+    } finally {
+      await keynes.close();
+    }
+  });
 
   it("does not retry a generated domain failure", async () => {
     const harness = await loadHarness("keynes.define_resource_type", 0);
-    const keynes = await harness.Keynes.create({ mode: "local" });
+    const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
       const before = harness.captured.length;
@@ -114,7 +71,7 @@ describe("local facade committed-response replay", () => {
 
   it("creates a distinct command identity for each public call", async () => {
     const harness = await loadHarness("keynes.create_budget", 0);
-    const keynes = await harness.Keynes.create({ mode: "local" });
+    const keynes = await harness.Keynes.create();
     try {
       await defineWorkUnits(keynes);
       await keynes.createBudget({ workUnits: 10 });

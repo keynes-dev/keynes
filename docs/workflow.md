@@ -34,27 +34,27 @@ A narrow repair, explanation, or documentation change may not need a new feature
 
 Choose only the pstack skill that reduces a real uncertainty. The common routes are:
 
-| Need | Skill | Expected result |
-| --- | --- | --- |
-| Explain runtime flow, ownership, or placement | `$how` | A grounded account of the current implementation |
-| Recover design intent or explain a regression | `$why` | Evidence-backed rationale with uncertainty called out |
-| Shape a change across modules or authority boundaries | `$architect` | Types, signatures, ownership, and verification seams before code |
-| Compare materially different approaches | `$arena` | One selected approach with the strongest useful parts combined |
-| Remove needless implementation complexity | `$ponytail full` | The smallest working design or diff that still satisfies the approved artifact |
-| Check downstream risk | `$blast-radius` | Affected consumers and a direct check of the highest-risk assumption |
-| Pin a defect or behavior change with a local test | `$tdd` | A failing test followed by the smallest passing implementation |
-| Review a diff for removable complexity | `$ponytail-review` | Deletions and simpler standard-library, platform, or repository-native replacements |
-| Review a design or diff adversarially | `$interrogate` | Ranked findings supported by repository evidence |
-| Review comments and suppressions | `$no-comments` | Accepted fixes and clearer structural alternatives |
-| Split independent work | `$swarm` | One synthesized result after every required worker finishes |
-| Run a large bounded engineering task | `$figure-it-out` | An auditable playbook with explicit done conditions |
-| Preserve a decision trail for long work | `$show-me-your-work` | A compact record that ties decisions to evidence |
-| Change TypeScript | `$typescript-best-practices` | Type-safe code that follows the repository's TypeScript rules |
-| Write technical prose | `$technical-writing`, then `$unslop` | Direct documentation with real paths, symbols, commands, and evidence states |
+| Need                                               | Skill                                | Expected result                                                                     |
+| -------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| Explain runtime flow, ownership, or placement      | `$how`                               | A grounded account of the current implementation                                    |
+| Recover design intent or explain a regression      | `$why`                               | Evidence-backed rationale with uncertainty called out                               |
+| Shape a change across modules or Budget boundaries | `$architect`                         | Types, signatures, ownership, and verification seams before code                    |
+| Compare materially different approaches            | `$arena`                             | One selected approach with the strongest useful parts combined                      |
+| Remove needless implementation complexity          | `$ponytail full`                     | The smallest working design or diff that still satisfies the approved artifact      |
+| Check downstream risk                              | `$blast-radius`                      | Affected consumers and a direct check of the highest-risk assumption                |
+| Pin a defect or behavior change with a local test  | `$tdd`                               | A failing test followed by the smallest passing implementation                      |
+| Review a diff for removable complexity             | `$ponytail-review`                   | Deletions and simpler standard-library, platform, or repository-native replacements |
+| Review a design or diff adversarially              | `$interrogate`                       | Ranked findings supported by repository evidence                                    |
+| Review comments and suppressions                   | `$no-comments`                       | Accepted fixes and clearer structural alternatives                                  |
+| Split independent work                             | `$swarm`                             | One synthesized result after every required worker finishes                         |
+| Run a large bounded engineering task               | `$figure-it-out`                     | An auditable playbook with explicit done conditions                                 |
+| Preserve a decision trail for long work            | `$show-me-your-work`                 | A compact record that ties decisions to evidence                                    |
+| Change TypeScript                                  | `$typescript-best-practices`         | Type-safe code that follows the repository's TypeScript rules                       |
+| Write technical prose                              | `$technical-writing`, then `$unslop` | Direct documentation with real paths, symbols, commands, and evidence states        |
 
 Use `$poteto-mode` when a task needs several of these methods or when the user asks for pstack explicitly. Do not invoke every skill by default.
 
-Use Ponytail only after the requirement, ownership boundary, and affected flow are understood. `$ponytail full` may simplify design and implementation choices before custom code is added. It must not reduce approved requirements, authority boundaries, input validation, error handling, security, accessibility, verification, or acceptance evidence. Its minimum runnable check is a floor, not a replacement for checks required by the approved Spec Kit artifacts.
+Use Ponytail only after the requirement, ownership boundary, and affected flow are understood. `$ponytail full` may simplify design and implementation choices before custom code is added. It must not reduce approved requirements, Budget ownership, input validation, error handling, security, accessibility, verification, or acceptance evidence. Its minimum runnable check is a floor, not a replacement for checks required by the approved Spec Kit artifacts.
 
 ## Run the work
 
@@ -69,7 +69,7 @@ For non-trivial work:
 7. Reconcile the Spec Kit tasks and any in-task plan.
 8. Report what ran, what did not run, and what remains uncertain.
 
-Keep application effects under application control. Preserve one authority for Budget semantics, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
+Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 
 For a coherent diff that adds dependencies, compatibility machinery, wrappers, or several new layers, run `$ponytail-review` before `$interrogate`. Apply accepted simplifications, repeat the focused verification, and then run the broader review. Keep `$ponytail-audit` outside feature delivery as a standalone maintenance review. Do not use `$ponytail ultra` inside an approved feature because it may challenge requirements that Spec Kit already owns.
 
@@ -77,11 +77,13 @@ For a coherent diff that adds dependencies, compatibility machinery, wrappers, o
 
 Parallel work helps only when the slices are independent. The user or an applicable skill must authorize subagents. Give write-capable agents separate files, worktrees, or outputs. Give reviewers an explicit read-only instruction. The parent task owns synthesis and must inspect every accepted result and diff.
 
-Do not delegate requirements, authority decisions, or final acceptance. Those stay in the main task.
+Do not delegate requirements, Budget design decisions, or final acceptance. Those stay in the main task.
 
 ## Keep evidence honest
 
-Run repository-defined verification first. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage. For implementation, run the focused test before the broader provider-free checks.
+During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the Cloud and SDK tests that do not start PGlite.
+
+Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and adds the current PGlite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
 
 Label unavailable provider, conformance, security, packaging, compatibility, performance, and live-runtime evidence as `NOT RUN`. A passing type check does not prove runtime behavior. A local pass does not prove continuous integration passed for the same commit.
 
@@ -89,6 +91,6 @@ Label unavailable provider, conformance, security, packaging, compatibility, per
 
 The Keynes skill bundle lives under `.agents/skills/` and is ignored by Git. A fresh checkout does not receive the local skill files, so this document is the checked-in workflow contract rather than an installation record.
 
-The current local bundle combines the Spec Kit lifecycle skills with a focused pstack selection based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the authority boundary in this document and validate every retained skill before replacing the local bundle.
+The current local bundle combines the Spec Kit lifecycle skills with a focused pstack selection based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every retained skill before replacing the local bundle.
 
 Ponytail `4.9.0` is an optional external plugin, not part of Spec Kit or pstack. When it is unavailable, apply pstack's smallest-sufficient-change principle directly and do not block feature delivery. A fresh checkout does not install Ponytail from this repository.

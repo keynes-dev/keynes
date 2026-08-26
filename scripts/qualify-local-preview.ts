@@ -268,6 +268,13 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const bytes = await readFile(path);
   const entries = readTar(gunzipSync(bytes));
   validatePackageFilePaths(entries.map((entry) => entry.path));
+  const license = entries.find((entry) => entry.path === "package/LICENSE");
+  if (
+    license === undefined ||
+    !license.body.equals(await readFile(resolve(repositoryRoot, "LICENSE")))
+  ) {
+    throw new Error("Archive license differs from the repository license");
+  }
   for (const path of databaseFiles) {
     const entry = entries.find(
       (candidate) => candidate.path === `package/dist/database/${path}`,
@@ -294,6 +301,7 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     !isRecord(value) ||
     value.name !== "@keynes/sdk" ||
     typeof value.version !== "string" ||
+    value.license !== "Apache-2.0" ||
     !isRecord(value.dependencies) ||
     value.dependencies["@electric-sql/pglite"] !== "0.5.5"
   ) {
