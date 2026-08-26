@@ -17,11 +17,26 @@
 
 **Purpose**: Confirm the reserved identity, freeze the accepted baseline, and avoid mixing unrelated work into the runtime replacement.
 
-- [ ] T001 Run `pnpm check:feature-identity` and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; require FEAT-0008, `feat/0008-sqlite-local-runtime`, and `docs/features/0008-sqlite-local-runtime/tasks.md` to agree before implementation.
-- [ ] T002 [P] Run the current focused SDK, qualification-tool, repository, unit, and pull-request commands from `docs/features/0008-sqlite-local-runtime/quickstart.md`; record exact baseline passes, failures, source revision, Node version, and `NOT RUN` lanes in the completion notes of `docs/features/0008-sqlite-local-runtime/tasks.md`.
-- [ ] T003 [P] Inspect `git status --short`, the FEAT-0008 diff, and `origin/main`; record any pre-existing or unexpected change that overlaps `.specify/feature.json`, `AGENTS.md`, `docs/roadmap.md`, or `docs/features/0008-sqlite-local-runtime/` before editing those paths.
+- [x] T001 Run `pnpm check:feature-identity` and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; require FEAT-0008, `feat/0008-sqlite-local-runtime`, and `docs/features/0008-sqlite-local-runtime/tasks.md` to agree before implementation.
+- [x] T002 [P] Run the current focused SDK, qualification-tool, repository, unit, and pull-request commands from `docs/features/0008-sqlite-local-runtime/quickstart.md`; record exact baseline passes, failures, source revision, Node version, and `NOT RUN` lanes in the completion notes of `docs/features/0008-sqlite-local-runtime/tasks.md`.
+- [x] T003 [P] Inspect `git status --short`, the FEAT-0008 diff, and `origin/main`; record any pre-existing or unexpected change that overlaps `.specify/feature.json`, `AGENTS.md`, `docs/roadmap.md`, or `docs/features/0008-sqlite-local-runtime/` before editing those paths.
 
 **Checkpoint**: The feature identity is valid, baseline evidence is bounded, and the worktree contains no unexplained overlapping change.
+
+### Phase 1 completion notes
+
+- Baseline revision: `036bd63f68cc5c102db9484b02f9258ec829905a`; Node.js `v26.5.0`; pnpm `11.21.0`.
+- `pnpm check:feature-identity`: PASS. The manifest, branch, feature directory, and task path all identify FEAT-0008.
+- `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`: PASS.
+- `pnpm --filter @keynes/sdk test`: PASS, 13 files and 78 tests.
+- `pnpm test:qualification`: PASS, 3 files and 16 tests.
+- `pnpm check:repo`: PASS. Generated output, formatting, lint, type checks, and dependency boundaries passed.
+- `pnpm test:unit`: FAIL in the sandbox because the Cloud service tests cannot bind `127.0.0.1` (`listen EPERM`). The run passed 2 files and 24 tests; 1 file and 14 listener-dependent tests failed. An unsandboxed retry was stopped before it returned a result.
+- `pnpm test:pr`: FAIL at the same sandbox-only Cloud listener boundary after feature identity, generated drift, generator tests, formatting, lint, and type checks passed.
+- `git diff --check`: PASS.
+- The worktree and index were clean before implementation. The branch was zero commits behind and one intentional planning commit ahead of `origin/main`; no unexpected change overlapped `.specify/feature.json`, `AGENTS.md`, `docs/roadmap.md`, or the FEAT-0008 feature directory.
+- Package/archive qualification, native PostgreSQL, native Cloud, hosted six-environment compatibility, and reference measurements: `NOT RUN` in Phase 1.
+- Policy, persistence, browsers, bundlers, CommonJS, Node.js 25, Bun, Deno, custom Node builds, undeclared architectures, provider qualification, paid services, security qualification, recovery, upgrades, backup restoration, self-hosted operations, managed Cloud, registry publication, adopter use, broader fault campaigns, and production operations: `NOT RUN`.
 
 ---
 
