@@ -13,14 +13,6 @@ const INSTALLATION_RECORD_URL = new URL(
   DATABASE_ROOT,
 );
 
-const ALL_PERMISSIONS = [
-  "define_resource_type",
-  "create_root_budget",
-  "request_budget",
-  "settle_budget",
-  "read_budget",
-] as const;
-
 export const CONTROLLED_IDENTITIES = {
   "tenant-a-product": {
     tenantId: "00000000-0000-0000-0000-000000000001",
@@ -215,7 +207,7 @@ async function installControlledPermissions(client: Client): Promise<void> {
     CONTROLLED_IDENTITIES["tenant-a-product"],
     CONTROLLED_IDENTITIES["tenant-b-product"],
   ]) {
-    for (const permission of ALL_PERMISSIONS) {
+    for (const { permission } of Object.values(PROCEDURES)) {
       await client.query(
         `insert into keynes_internal.principal_permissions
            (tenant_id, principal_id, permission)
@@ -310,13 +302,16 @@ function resolveMigration(path: string): URL {
   return new URL(path, MIGRATIONS_ROOT);
 }
 
-function selectDatabase(connectionUrl: string, databaseName: string): string {
+export function selectDatabase(
+  connectionUrl: string,
+  databaseName: string,
+): string {
   const url = new URL(connectionUrl);
   url.pathname = `/${databaseName}`;
   return url.toString();
 }
 
-function selectRole(
+export function selectRole(
   connectionUrl: string,
   role: string,
   password: string,

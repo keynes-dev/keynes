@@ -137,7 +137,7 @@ export async function startCloudService(
   });
   const address = server.address();
   if (address === null || typeof address === "string") {
-    await closeServer(server);
+    await server[Symbol.asyncDispose]();
     throw new Error("Cloud service did not bind a TCP address");
   }
 
@@ -159,7 +159,7 @@ export async function startCloudService(
             };
           });
         }
-        await closeServer(server);
+        await server[Symbol.asyncDispose]();
       })();
       return closePromise;
     },
@@ -270,13 +270,4 @@ function sendJson(
 ): void {
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(value));
-}
-
-function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
-  return new Promise((resolveClose, rejectClose) => {
-    server.close((error) => {
-      if (error === undefined) resolveClose();
-      else rejectClose(error);
-    });
-  });
 }

@@ -181,7 +181,6 @@ async function invoke(
         "PostgreSQL transaction and rollback failed",
       );
       if (
-        classifyUnavailable(error) instanceof DatabaseUnavailableError ||
         classifyUnavailable(rollbackError) instanceof DatabaseUnavailableError
       ) {
         throw new DatabaseUnavailableError(aggregate);

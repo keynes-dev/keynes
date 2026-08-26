@@ -1,9 +1,14 @@
-import { fork, spawn, type ChildProcess } from "node:child_process";
+import {
+  execFile as execFileCallback,
+  fork,
+  type ChildProcess,
+} from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { access, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { arch, platform, release, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { Client } from "pg";
 
@@ -13,6 +18,8 @@ import {
   dropNativeAcceptanceDatabase,
   installNativeAcceptanceSchema,
   provisionNativeAcceptanceDatabase,
+  selectDatabase,
+  selectRole,
   type NativeDatabaseProvision,
 } from "./installation.ts";
 import {
@@ -30,6 +37,7 @@ export const POSTGRES_IMAGE =
 const EXPECTED_SERVER_VERSION = "180006";
 const READY_TIMEOUT_MS = 30_000;
 const CHILD_URL = new URL("native-acceptance-child.ts", import.meta.url);
+const execFile = promisify(execFileCallback);
 const CONTROLLED_PRINCIPALS: readonly ControlledPrincipal[] = [
   "tenant-a-product",
   "tenant-a-unauthorized",
@@ -532,21 +540,9 @@ function runCommand(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<{ readonly stdout: string }> {
-  return new Promise((resolveCommand, rejectCommand) => {
-    const child = spawn(executable, arguments_, {
-      env: environment,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
-    child.once("error", rejectCommand);
-    child.once("close", (exitCode) => {
-      if (exitCode === 0) resolveCommand({ stdout });
-      else rejectCommand(new Error(`${executable} failed`));
-    });
+  return execFile(executable, [...arguments_], {
+    encoding: "utf8",
+    env: environment,
   });
 }
 
@@ -608,23 +604,6 @@ function postgresUrl(password: string, port: number): string {
   const url = new URL("postgresql://postgres@127.0.0.1/postgres");
   url.password = password;
   url.port = String(port);
-  return url.toString();
-}
-
-function selectDatabase(connectionUrl: string, databaseName: string): string {
-  const url = new URL(connectionUrl);
-  url.pathname = `/${databaseName}`;
-  return url.toString();
-}
-
-function selectRole(
-  connectionUrl: string,
-  role: string,
-  password: string,
-): string {
-  const url = new URL(connectionUrl);
-  url.username = role;
-  url.password = password;
   return url.toString();
 }
 
