@@ -8,6 +8,13 @@ type MutationTarget =
   | "keynes.request"
   | "keynes.settle";
 
+const TARGET_OPERATIONS = {
+  "keynes.define_resource_type": "defineResource",
+  "keynes.create_budget": "createBudget",
+  "keynes.request": "requestBudget",
+  "keynes.settle": "settleBudget",
+} as const;
+
 afterEach(() => {
   vi.doUnmock("./private/local-runtime.js");
   vi.resetModules();
@@ -153,6 +160,7 @@ async function loadHarness(target: MutationTarget, losses: number) {
     return {
       ...actual,
       async openLocalRuntime() {
+        const selectedOperation = TARGET_OPERATIONS[target];
         const host = await fixtures.openPGliteCallerHost();
         const normal = host.callerFor("product-fixture");
         const lossy = Array.from({ length: losses }, () =>
@@ -162,11 +170,11 @@ async function loadHarness(target: MutationTarget, losses: number) {
         );
         return {
           client: generated.createKeynesClient({
-            call(calledTarget, input) {
-              if (calledTarget !== target)
-                return normal.call(calledTarget, input);
+            execute(calledOperation, input) {
+              if (calledOperation !== selectedOperation)
+                return normal.execute(calledOperation, input);
               captured.push(input);
-              return (lossy.shift() ?? normal).call(calledTarget, input);
+              return (lossy.shift() ?? normal).execute(calledOperation, input);
             },
           }),
           close: () => host.close(),

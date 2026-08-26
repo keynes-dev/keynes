@@ -4,10 +4,10 @@ import { expect } from "vitest";
 
 import {
   createKeynesClient,
-  type InstalledTarget,
+  type CommandExecutor,
   type KeynesClient,
-  type ProcedureCaller,
 } from "../generated/client.js";
+import type { OperationName } from "../generated/types.js";
 import type { DatabaseInstallation } from "./migrations.js";
 import { openInstalledPGliteDatabase } from "./pglite-database.js";
 import {
@@ -94,7 +94,7 @@ export interface KeynesCallerHost {
   callerFor(
     fixture: FixturePrincipal,
     options?: ClientFixtureOptions,
-  ): ProcedureCaller;
+  ): CommandExecutor;
   close(): Promise<void>;
 }
 
@@ -143,18 +143,18 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
 
 interface PairedCallerInput {
   readonly caseName: () => string;
-  readonly pglite: ProcedureCaller;
-  readonly postgres: ProcedureCaller;
+  readonly pglite: CommandExecutor;
+  readonly postgres: CommandExecutor;
 }
 
 type DeclaredControl =
   | { readonly kind: "rollback"; readonly checkpoint: string }
   | { readonly kind: "lost-response" };
 
-export class PairedProcedureCaller implements ProcedureCaller {
+export class PairedProcedureCaller implements CommandExecutor {
   readonly #caseName: () => string;
-  readonly #pglite: ProcedureCaller;
-  readonly #postgres: ProcedureCaller;
+  readonly #pglite: CommandExecutor;
+  readonly #postgres: CommandExecutor;
 
   constructor(input: PairedCallerInput) {
     this.#caseName = input.caseName;
@@ -162,12 +162,12 @@ export class PairedProcedureCaller implements ProcedureCaller {
     this.#postgres = input.postgres;
   }
 
-  async call(target: InstalledTarget, input: unknown): Promise<unknown> {
+  async execute(operation: OperationName, input: unknown): Promise<unknown> {
     const pgliteCall = Promise.resolve().then(() =>
-      this.#pglite.call(target, input),
+      this.#pglite.execute(operation, input),
     );
     const postgresCall = Promise.resolve().then(() =>
-      this.#postgres.call(target, input),
+      this.#postgres.execute(operation, input),
     );
     const [pglite, postgres] = await Promise.allSettled([
       pgliteCall,
@@ -178,7 +178,12 @@ export class PairedProcedureCaller implements ProcedureCaller {
       if (isDeepStrictEqual(pglite.value, postgres.value)) {
         return pglite.value;
       }
-      throw pairedFailure(this.#caseName(), target, "both", "result-mismatch");
+      throw pairedFailure(
+        this.#caseName(),
+        operation,
+        "both",
+        "result-mismatch",
+      );
     }
 
     if (pglite.status === "rejected" && postgres.status === "rejected") {
@@ -198,7 +203,12 @@ export class PairedProcedureCaller implements ProcedureCaller {
         : pglite.status === "fulfilled" && postgres.status === "rejected"
           ? "postgres"
           : "both";
-    throw pairedFailure(this.#caseName(), target, host, "unexpected-failure");
+    throw pairedFailure(
+      this.#caseName(),
+      operation,
+      host,
+      "unexpected-failure",
+    );
   }
 }
 
@@ -326,12 +336,12 @@ function controlError(control: DeclaredControl): Error {
 
 function pairedFailure(
   caseName: string,
-  target: InstalledTarget,
+  operation: OperationName,
   host: "pglite" | "postgres" | "both",
   reason: "result-mismatch" | "unexpected-failure",
 ): Error {
   return new Error(
-    `Paired call failed: case=${caseName}; target=${target}; host=${host}; reason=${reason}`,
+    `Paired call failed: case=${caseName}; operation=${operation}; host=${host}; reason=${reason}`,
   );
 }
 

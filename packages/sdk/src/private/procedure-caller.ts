@@ -1,14 +1,15 @@
-import type { InstalledTarget, ProcedureCaller } from "../generated/client.js";
+import type { CommandExecutor } from "../generated/client.js";
+import type { OperationName } from "../generated/types.js";
+import { validateOperationInputIssues } from "../generated/validators.js";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
-const TARGET_QUERIES = {
-  "keynes.define_resource_type":
-    "select keynes.define_resource_type($1::jsonb) as response",
-  "keynes.create_budget": "select keynes.create_budget($1::jsonb) as response",
-  "keynes.request": "select keynes.request($1::jsonb) as response",
-  "keynes.settle": "select keynes.settle($1::jsonb) as response",
-  "keynes.get_budget": "select keynes.get_budget($1::jsonb) as response",
-} as const satisfies Record<InstalledTarget, string>;
+const INSTALLED_TARGETS = {
+  defineResource: "keynes.define_resource_type",
+  createBudget: "keynes.create_budget",
+  requestBudget: "keynes.request",
+  settleBudget: "keynes.settle",
+  getBudget: "keynes.get_budget",
+} as const satisfies Record<OperationName, string>;
 
 export type RollbackCheckpoint =
   | "after_command_binding"
@@ -36,7 +37,7 @@ export interface ProcedureDatabaseOwner {
   ): Promise<Result>;
 }
 
-class InstalledProcedureCaller implements ProcedureCaller {
+class InstalledProcedureExecutor implements CommandExecutor {
   readonly #owner: ProcedureDatabaseOwner;
   readonly #context: TransactionContext;
   #dropResponseAfterCommitOnce: boolean;
@@ -48,18 +49,17 @@ class InstalledProcedureCaller implements ProcedureCaller {
       context.dropResponseAfterCommitOnce ?? false;
   }
 
-  call(target: InstalledTarget, input: unknown): Promise<unknown> {
-    const serializedInput = JSON.stringify(input);
-    if (serializedInput === undefined) {
-      return Promise.reject(new TypeError("Procedure input must be JSON"));
-    }
+  execute(operation: OperationName, input: unknown): Promise<unknown> {
+    const invalid = invalidCommandWire(operation, input);
+    if (invalid !== undefined) return Promise.resolve(invalid);
+    const serializedInput = serializeInput(input);
 
     return this.#owner.run(async (database) => {
       const wire = await database.transaction((transaction) =>
         callInstalledProcedure(
           transaction,
           this.#context,
-          target,
+          operation,
           serializedInput,
         ),
       );
@@ -77,15 +77,15 @@ class InstalledProcedureCaller implements ProcedureCaller {
 export function createOwnedProcedureCaller(
   owner: ProcedureDatabaseOwner,
   context: TransactionContext,
-): ProcedureCaller {
-  return new InstalledProcedureCaller(owner, context);
+): CommandExecutor {
+  return new InstalledProcedureExecutor(owner, context);
 }
 
 export function createDatabaseProcedureCaller(
   database: TransactionalDatabase,
   context: TransactionContext,
-): ProcedureCaller {
-  return new InstalledProcedureCaller(
+): CommandExecutor {
+  return new InstalledProcedureExecutor(
     { run: (operation) => operation(database) },
     context,
   );
@@ -94,18 +94,16 @@ export function createDatabaseProcedureCaller(
 export function createTransactionProcedureCaller(
   transaction: DatabaseConnection,
   context: TransactionContext,
-): ProcedureCaller {
+): CommandExecutor {
   return {
-    call(target, input) {
-      const serializedInput = JSON.stringify(input);
-      if (serializedInput === undefined) {
-        return Promise.reject(new TypeError("Procedure input must be JSON"));
-      }
+    execute(operation, input) {
+      const invalid = invalidCommandWire(operation, input);
+      if (invalid !== undefined) return Promise.resolve(invalid);
       return callInstalledProcedure(
         transaction,
         context,
-        target,
-        serializedInput,
+        operation,
+        serializeInput(input),
       );
     },
   };
@@ -114,12 +112,13 @@ export function createTransactionProcedureCaller(
 export async function callInstalledProcedure(
   transaction: DatabaseConnection,
   context: TransactionContext,
-  target: InstalledTarget,
+  operation: OperationName,
   serializedInput: string,
 ): Promise<unknown> {
   await setTransactionContext(transaction, context);
+  const target = INSTALLED_TARGETS[operation];
   const response = await transaction.query<{ response: unknown }>(
-    TARGET_QUERIES[target],
+    `select ${target}($1::jsonb) as response`,
     [serializedInput],
   );
 
@@ -131,6 +130,30 @@ export async function callInstalledProcedure(
 
   const value = response.rows[0]?.response;
   return typeof value === "string" ? JSON.parse(value) : value;
+}
+
+function invalidCommandWire(
+  operation: OperationName,
+  input: unknown,
+): unknown | undefined {
+  const issues = validateOperationInputIssues(operation, input);
+  if (issues.length === 0) return undefined;
+  return {
+    ok: false,
+    error: {
+      kind: "error",
+      code: "invalid_command",
+      details: { operation, issues },
+    },
+  };
+}
+
+function serializeInput(input: unknown): string {
+  const serialized = JSON.stringify(input);
+  if (serialized === undefined) {
+    throw new TypeError("Procedure input must be JSON");
+  }
+  return serialized;
 }
 
 async function setTransactionContext(
