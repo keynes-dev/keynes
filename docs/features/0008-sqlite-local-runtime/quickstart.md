@@ -61,7 +61,7 @@ Invoke `.github/workflows/local-preview.yml` for the exact accepted commit. The 
 
 Do not mark the feature accepted until all six consumer jobs pass and the reference record reports ready RSS strictly below 512 MiB. Retain all six job outcomes and the measurement artifact identity. Preserve failed and partial attempts as failed or partial.
 
-[Local Preview run 32956043624](https://github.com/shubsharan/keynes/actions/runs/32956043624) is the accepted FEAT-0008 hosted record. It passed all six consumer jobs for commit `7075ef13b307a4c2a33e529d8f6f05da74ae7dd7`; the retained acceptance and raw measurement records are under `artifacts/local-preview/run-32956043624/`. Failed run 32955451763 remains retained separately as non-passing evidence.
+[Local Preview run 32958313497](https://github.com/shubsharan/keynes/actions/runs/32958313497) is the accepted FEAT-0008 hosted record. It passed all six consumer jobs for clean commit `a2176c7512e5bb37e88d6884d255e18fc4a3d92e`, including the final SQLite/PostgreSQL parity repair; the retained acceptance and raw measurement records are under `artifacts/local-preview/run-32958313497/`. Run 32956043624 remains passing pre-alignment evidence, and failed run 32955451763 remains retained separately as non-passing evidence.
 
 ## Keep unproved claims explicit
 

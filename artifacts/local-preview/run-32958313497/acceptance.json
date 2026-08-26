@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-preview-hosted-acceptance",
+  "accepted": true,
+  "workflow": {
+    "runId": 32958313497,
+    "url": "https://github.com/shubsharan/keynes/actions/runs/32958313497",
+    "commit": "a2176c7512e5bb37e88d6884d255e18fc4a3d92e",
+    "conclusion": "success"
+  },
+  "archive": {
+    "artifactId": 9602857286,
+    "artifactServiceDigest": "sha256:1e8e542cfccb7d40eee7f68de83d207253a1a8e54ffff0ebb90d902c87e3c9d8",
+    "sha256": "cc7cafd2f18f22f2cf0fed1b58f01b7f43f697b06c7f497c7a0b67af7a657b37",
+    "compressedBytes": 23382,
+    "productionBytesOnReferenceHost": 128801,
+    "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
+  },
+  "consumers": [
+    {
+      "host": "ubuntu-24.04 x64",
+      "node": "24",
+      "conclusion": "success"
+    },
+    {
+      "host": "ubuntu-24.04 x64",
+      "node": "26",
+      "conclusion": "success"
+    },
+    {
+      "host": "macos-15 arm64",
+      "node": "24",
+      "conclusion": "success"
+    },
+    {
+      "host": "macos-15 arm64",
+      "node": "26",
+      "conclusion": "success"
+    },
+    {
+      "host": "windows-2025 x64",
+      "node": "24",
+      "conclusion": "success"
+    },
+    {
+      "host": "windows-2025 x64",
+      "node": "26",
+      "conclusion": "success"
+    }
+  ],
+  "measurementArtifact": {
+    "artifactId": 9602868068,
+    "name": "local-preview-measurement",
+    "serviceDigest": "sha256:c910fca082d8ba567784c5ec1d5259ae8df39aa11dec2f38152f436c74d775fe",
+    "recordPath": "local-preview-qualification.json",
+    "recordSha256": "98bfa4005f44a5e65aa59916fc2b94c22505c64be938782f228a24c0fd9ec8e0",
+    "environment": {
+      "host": "ubuntu-24.04 x64",
+      "release": "6.17.0-1022-azure",
+      "nodeVersion": "v24.19.0",
+      "runtimeEngine": "node:sqlite",
+      "sqliteVersion": "3.53.3",
+      "runnerName": "GitHub Actions 1000000330"
+    },
+    "method": {
+      "coldWarmup": 3,
+      "coldProcesses": 30,
+      "firstRequestProcesses": 30,
+      "steadyWarmup": 10,
+      "steadySamples": 100,
+      "percentile": "nearest-rank"
+    },
+    "observedP95": {
+      "readyRssDeltaBytes": 8699904,
+      "coldCreateMilliseconds": 0.8208680000000008,
+      "firstRequestMilliseconds": 0.5826640000000012,
+      "steadyRequestMilliseconds": 2.0371839999999963,
+      "shutdownMilliseconds": 0.10819699999999699
+    },
+    "limits": {
+      "archiveBytes": 524288,
+      "productionBytes": 36700160,
+      "readyRssDeltaBytesExclusive": 536870912,
+      "coldCreateP95Milliseconds": 3000,
+      "firstRequestP95Milliseconds": 250,
+      "steadyRequestP95Milliseconds": 100
+    },
+    "rawSampleCounts": {
+      "readyRssDeltaBytes": 30,
+      "coldCreateMilliseconds": 30,
+      "firstRequestMilliseconds": 30,
+      "steadyRequestMilliseconds": 100,
+      "shutdownMilliseconds": 30
+    },
+    "recalculatedNearestRankP95Matches": true,
+    "declaredLimitsPassed": true
+  },
+  "evidenceBoundary": {
+    "proved": "one exact archive passed the declared clean ESM consumer workflow on the six supported host and Node.js combinations, and its Linux x64 Node.js 24 reference measurements passed the declared preview limits",
+    "notRun": [
+      "Policy",
+      "persistence",
+      "browsers",
+      "bundlers",
+      "CommonJS",
+      "Node.js 25",
+      "Bun",
+      "Deno",
+      "custom Node.js builds",
+      "undeclared architectures",
+      "provider qualification",
+      "paid services",
+      "security qualification",
+      "recovery",
+      "upgrades",
+      "backup restoration",
+      "self-hosted operations",
+      "managed Cloud",
+      "registry release",
+      "adopter use",
+      "broader fault campaigns",
+      "production operations"
+    ]
+  }
+}
