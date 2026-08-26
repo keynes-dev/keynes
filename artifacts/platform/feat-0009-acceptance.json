@@ -1,7 +1,7 @@
 {
   "schemaVersion": "keynes.postgresql-acceptance/v1",
   "revision": {
-    "commit": "75fb60cf6e4df399b3c71ac28173e0ce769a42e7"
+    "commit": "fac88631574ed74559640d48f355abb6f52f2a6f"
   },
   "distribution": {
     "package": "@keynes/postgresql",
@@ -83,384 +83,9 @@
       "updated": 0,
       "didUpdate": false
     },
-    "startTime": 1787772961961,
+    "startTime": 1787773234351,
     "success": true,
     "testResults": [
-      {
-        "assertionResults": [
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive contains exactly the declared archive files",
-            "status": "passed",
-            "title": "contains exactly the declared archive files",
-            "duration": 0.7062919999998485,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive keeps migration and generated assets byte-identical to canonical sources",
-            "status": "passed",
-            "title": "keeps migration and generated assets byte-identical to canonical sources",
-            "duration": 61.199499999999716,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive publishes the supported installation identity",
-            "status": "passed",
-            "title": "publishes the supported installation identity",
-            "duration": 0.5632909999999356,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive ships an executable CLI with package documentation and license",
-            "status": "passed",
-            "title": "ships an executable CLI with package documentation and license",
-            "duration": 16.29012499999999,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive contains no credentials or SDK-owned SQL",
-            "status": "passed",
-            "title": "contains no credentials or SDK-owned SQL",
-            "duration": 0.33812499999976353,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive installs fresh and exact targets from the packed artifact",
-            "status": "passed",
-            "title": "installs fresh and exact targets from the packed artifact",
-            "duration": 421.26437499999975,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "@keynes/postgresql archive"
-            ],
-            "fullName": "@keynes/postgresql archive keeps PostgreSQL migrations out of the packed SDK archive",
-            "status": "passed",
-            "title": "keeps PostgreSQL migrations out of the packed SDK archive",
-            "duration": 0.23591700000042692,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          }
-        ],
-        "startTime": 1787772964342,
-        "endTime": 1787772964843.2358,
-        "status": "passed",
-        "message": "",
-        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/archive.test.ts"
-      },
-      {
-        "assertionResults": [
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation installs a fresh target atomically",
-            "status": "passed",
-            "title": "installs a fresh target atomically",
-            "duration": 395.910625,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation returns an exact no-op result without changing installed state",
-            "status": "passed",
-            "title": "returns an exact no-op result without changing installed state",
-            "duration": 316.430917,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects an unsupported PostgreSQL version before mutation",
-            "status": "passed",
-            "title": "rejects an unsupported PostgreSQL version before mutation",
-            "duration": 322.4851249999999,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects an operator without installation privilege before mutation",
-            "status": "passed",
-            "title": "rejects an operator without installation privilege before mutation",
-            "duration": 242.7348750000001,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects missing owner and application roles",
-            "status": "passed",
-            "title": "rejects missing owner and application roles",
-            "duration": 195.90616699999987,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects role login and database privilege contract violations",
-            "status": "passed",
-            "title": "rejects role login and database privilege contract violations",
-            "duration": 346.97533399999975,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects an application role with inherited owner authority",
-            "status": "passed",
-            "title": "rejects an application role with inherited owner authority",
-            "duration": 224.24033299999974,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects an incompatible partial target without repairing it",
-            "status": "passed",
-            "title": "rejects an incompatible partial target without repairing it",
-            "duration": 250.29329199999984,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation classifies two empty Keynes schemas as incompatible live state",
-            "status": "passed",
-            "title": "classifies two empty Keynes schemas as incompatible live state",
-            "duration": 164.76529200000004,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects a migration-byte mismatch without changing the target",
-            "status": "passed",
-            "title": "rejects a migration-byte mismatch without changing the target",
-            "duration": 139.426375,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects a migration contract-digest mismatch",
-            "status": "passed",
-            "title": "rejects a migration contract-digest mismatch",
-            "duration": 98.05895800000008,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects a contract mismatch without changing the target",
-            "status": "passed",
-            "title": "rejects a contract mismatch without changing the target",
-            "duration": 102.68920800000024,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects a changed live function body during exact recheck",
-            "status": "passed",
-            "title": "rejects a changed live function body during exact recheck",
-            "duration": 96.0082910000001,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects changed live function security properties",
-            "status": "passed",
-            "title": "rejects changed live function security properties",
-            "duration": 101.57437500000015,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rejects live object, permission, ownership, and ACL drift",
-            "status": "passed",
-            "title": "rejects live object, permission, ownership, and ACL drift",
-            "duration": 166.95350000000008,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "native PostgreSQL installation"
-            ],
-            "fullName": "native PostgreSQL installation rolls back every migration after an injected failure",
-            "status": "passed",
-            "title": "rolls back every migration after an injected failure",
-            "duration": 44.591457999999875,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          }
-        ],
-        "startTime": 1787772962249,
-        "endTime": 1787772965458.5916,
-        "status": "passed",
-        "message": "",
-        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/installation.native.test.ts"
-      },
-      {
-        "assertionResults": [
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance rechecks the exact graph read-only",
-            "status": "passed",
-            "title": "rechecks the exact graph read-only",
-            "duration": 26.083124999999995,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance checks the server, checksums, contract, and complete object inventory",
-            "status": "passed",
-            "title": "checks the server, checksums, contract, and complete object inventory",
-            "duration": 11.24529099999998,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance checks owners, bodies, languages, security, and fixed search paths",
-            "status": "passed",
-            "title": "checks owners, bodies, languages, security, and fixed search paths",
-            "duration": 14.699999999999989,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance checks bootstrap permissions and schema and function ACLs",
-            "status": "passed",
-            "title": "checks bootstrap permissions and schema and function ACLs",
-            "duration": 11.664333,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance allows the application role to call exactly the five public functions",
-            "status": "passed",
-            "title": "allows the application role to call exactly the five public functions",
-            "duration": 38.917125,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          },
-          {
-            "ancestorTitles": [
-              "PostgreSQL exact recheck and application-role conformance"
-            ],
-            "fullName": "PostgreSQL exact recheck and application-role conformance denies private and unsupported function access without changing state",
-            "status": "passed",
-            "title": "denies private and unsupported function access without changing state",
-            "duration": 30.535833000000025,
-            "failureMessages": [],
-            "meta": {},
-            "tags": []
-          }
-        ],
-        "startTime": 1787772963760,
-        "endTime": 1787772963893.536,
-        "status": "passed",
-        "message": "",
-        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/recheck.native.test.ts"
-      },
       {
         "assertionResults": [
           {
@@ -470,7 +95,7 @@
             "fullName": "Budget lifecycle defines a Resource type without creating Budget quantity",
             "status": "passed",
             "title": "defines a Resource type without creating Budget quantity",
-            "duration": 279.170834,
+            "duration": 291.823583,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -482,7 +107,7 @@
             "fullName": "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
             "status": "passed",
             "title": "preserves definition identity and distinguishes replay from redefinition",
-            "duration": 125.12179199999997,
+            "duration": 113.86283300000002,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -494,7 +119,7 @@
             "fullName": "Budget lifecycle returns canonical Resource definition errors",
             "status": "passed",
             "title": "returns canonical Resource definition errors",
-            "duration": 231.9766669999999,
+            "duration": 199.03099999999995,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -506,14 +131,14 @@
             "fullName": "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
             "status": "passed",
             "title": "completes one funded child lifecycle and reads its root-lineage history",
-            "duration": 248.33716600000002,
+            "duration": 240.442583,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772963656,
-        "endTime": 1787772964540.3372,
+        "startTime": 1787773235707,
+        "endTime": 1787773236552.4426,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/budget-lifecycle.test.ts"
@@ -527,7 +152,7 @@
             "fullName": "PostgreSQL installation installs explicit principal permission records",
             "status": "passed",
             "title": "installs explicit principal permission records",
-            "duration": 345.583042,
+            "duration": 278.371,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -539,7 +164,7 @@
             "fullName": "PostgreSQL installation installs the current graph and rechecks it without changes",
             "status": "passed",
             "title": "installs the current graph and rechecks it without changes",
-            "duration": 309.99083300000007,
+            "duration": 244.67079199999995,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -551,7 +176,7 @@
             "fullName": "PostgreSQL installation rejects a contract digest mismatch before installation",
             "status": "passed",
             "title": "rejects a contract digest mismatch before installation",
-            "duration": 308.83375,
+            "duration": 256.91724999999997,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -563,7 +188,7 @@
             "fullName": "PostgreSQL installation rejects migration byte drift before applying it",
             "status": "passed",
             "title": "rejects migration byte drift before applying it",
-            "duration": 261.1022499999999,
+            "duration": 228.83104200000014,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -575,7 +200,7 @@
             "fullName": "PostgreSQL installation rejects an installed-object mismatch after fresh migration",
             "status": "passed",
             "title": "rejects an installed-object mismatch after fresh migration",
-            "duration": 297.22466699999995,
+            "duration": 279.29808300000013,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -587,7 +212,7 @@
             "fullName": "PostgreSQL installation rolls back '0001-storage' atomically when its final statement fails",
             "status": "passed",
             "title": "rolls back '0001-storage' atomically when its final statement fails",
-            "duration": 235.40845900000022,
+            "duration": 224.74645799999985,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -599,7 +224,7 @@
             "fullName": "PostgreSQL installation rolls back '0002-budget' atomically when its final statement fails",
             "status": "passed",
             "title": "rolls back '0002-budget' atomically when its final statement fails",
-            "duration": 239.05308300000024,
+            "duration": 212.06554100000017,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -611,14 +236,14 @@
             "fullName": "PostgreSQL installation rolls back '0003-public' atomically when its final statement fails",
             "status": "passed",
             "title": "rolls back '0003-public' atomically when its final statement fails",
-            "duration": 218.19537499999979,
+            "duration": 216.8084170000002,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962287,
-        "endTime": 1787772964502.1953,
+        "startTime": 1787773234579,
+        "endTime": 1787773236520.8083,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/installation.test.ts"
@@ -632,7 +257,7 @@
             "fullName": "native PostgreSQL contention funds at most one sibling after proving the second request waits",
             "status": "passed",
             "title": "funds at most one sibling after proving the second request waits",
-            "duration": 364.886667,
+            "duration": 283.469208,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -644,7 +269,7 @@
             "fullName": "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
             "status": "passed",
             "title": "rejects a request that waits behind a committed settlement seal",
-            "duration": 307.821959,
+            "duration": 241.28666700000002,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -656,7 +281,7 @@
             "fullName": "native PostgreSQL contention orders a waiting settlement after the committed request",
             "status": "passed",
             "title": "orders a waiting settlement after the committed request",
-            "duration": 321.40658300000007,
+            "duration": 270.890625,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -668,14 +293,14 @@
             "fullName": "native PostgreSQL contention returns the stored result when a matching command waits for commit",
             "status": "passed",
             "title": "returns the stored result when a matching command waits for commit",
-            "duration": 244.0808340000001,
+            "duration": 222.66762500000004,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962283,
-        "endTime": 1787772963522.0808,
+        "startTime": 1787773234579,
+        "endTime": 1787773235597.6677,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/native-contention.native.test.ts"
@@ -689,7 +314,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions commits an approved request and application outbox row together",
             "status": "passed",
             "title": "commits an approved request and application outbox row together",
-            "duration": 363.97704200000004,
+            "duration": 281.683625,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -701,7 +326,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions leaves neither authority state nor outbox state after explicit rollback",
             "status": "passed",
             "title": "leaves neither authority state nor outbox state after explicit rollback",
-            "duration": 312.03125,
+            "duration": 241.74141600000002,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -713,7 +338,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions rolls back Keynes when the application write fails after approval",
             "status": "passed",
             "title": "rolls back Keynes when the application write fails after approval",
-            "duration": 324.7622499999999,
+            "duration": 271.58966699999996,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -725,7 +350,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions commits a denial without creating application work",
             "status": "passed",
             "title": "commits a denial without creating application work",
-            "duration": 241.30445899999995,
+            "duration": 224.24629199999993,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -737,7 +362,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions returns invalid_command for malformed input without opening application work",
             "status": "passed",
             "title": "returns invalid_command for malformed input without opening application work",
-            "duration": 288.4633749999998,
+            "duration": 270.743416,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -749,7 +374,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions uses the caller-owned transaction lifecycle",
             "status": "passed",
             "title": "uses the caller-owned transaction lifecycle",
-            "duration": 251.2618749999997,
+            "duration": 245.727083,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -761,7 +386,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions keeps a pending child and outbox row invisible to another session",
             "status": "passed",
             "title": "keeps a pending child and outbox row invisible to another session",
-            "duration": 232.50341700000035,
+            "duration": 196.39424999999983,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -773,7 +398,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions makes the child and outbox row visible after the caller commits",
             "status": "passed",
             "title": "makes the child and outbox row visible after the caller commits",
-            "duration": 249.07541600000013,
+            "duration": 242.48279100000013,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -785,7 +410,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions leaves neither child nor outbox row visible after the caller rolls back",
             "status": "passed",
             "title": "leaves neither child nor outbox row visible after the caller rolls back",
-            "duration": 167.55970800000023,
+            "duration": 168.05604099999982,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -797,7 +422,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions allows a rolled-back command identity to be reused and committed",
             "status": "passed",
             "title": "allows a rolled-back command identity to be reused and committed",
-            "duration": 134.44137499999988,
+            "duration": 116.66812499999969,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -809,7 +434,7 @@
             "fullName": "embedded PostgreSQL caller-owned transactions returns the committed result when another session replays exactly",
             "status": "passed",
             "title": "returns the committed result when another session replays exactly",
-            "duration": 100.56337500000018,
+            "duration": 97.09079199999996,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -821,14 +446,14 @@
             "fullName": "embedded PostgreSQL caller-owned transactions rejects conflicting command reuse without changing committed state",
             "status": "passed",
             "title": "rejects conflicting command reuse without changing committed state",
-            "duration": 99.59000000000015,
+            "duration": 108.40625,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962281,
-        "endTime": 1787772965047.59,
+        "startTime": 1787773234580,
+        "endTime": 1787773237045.4062,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/postgresql-embedded.native.test.ts"
@@ -842,7 +467,7 @@
             "fullName": "command replay recovers all four canonical results across principals without duplicate history",
             "status": "passed",
             "title": "recovers all four canonical results across principals without duplicate history",
-            "duration": 358.2915,
+            "duration": 276.62149999999997,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -854,7 +479,7 @@
             "fullName": "command replay replays a structurally equal command across principals despite object key order",
             "status": "passed",
             "title": "replays a structurally equal command across principals despite object key order",
-            "duration": 306.892167,
+            "duration": 237.95079099999992,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -866,7 +491,7 @@
             "fullName": "command replay recovers Resource definition after its committed response is lost",
             "status": "passed",
             "title": "recovers Resource definition after its committed response is lost",
-            "duration": 320.5123749999999,
+            "duration": 272.590417,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -878,7 +503,7 @@
             "fullName": "command replay recovers root allocation after its committed response is lost",
             "status": "passed",
             "title": "recovers root allocation after its committed response is lost",
-            "duration": 250.42624999999998,
+            "duration": 225.34112500000003,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -890,7 +515,7 @@
             "fullName": "command replay recovers an approved request after its committed response is lost",
             "status": "passed",
             "title": "recovers an approved request after its committed response is lost",
-            "duration": 288.1876669999999,
+            "duration": 270.19954099999995,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -902,7 +527,7 @@
             "fullName": "command replay recovers settlement after its committed response is lost",
             "status": "passed",
             "title": "recovers settlement after its committed response is lost",
-            "duration": 252.6221250000001,
+            "duration": 244.424708,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -914,7 +539,7 @@
             "fullName": "command replay rejects changed bodies for each mutation, including across principals",
             "status": "passed",
             "title": "rejects changed bodies for each mutation, including across principals",
-            "duration": 229.92849999999999,
+            "duration": 200.98450000000003,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -926,7 +551,7 @@
             "fullName": "command replay rejects reuse by a different operation",
             "status": "passed",
             "title": "rejects reuse by a different operation",
-            "duration": 251.29204200000004,
+            "duration": 242.3924589999997,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -938,14 +563,14 @@
             "fullName": "command replay rejects reuse against a different target",
             "status": "passed",
             "title": "rejects reuse against a different target",
-            "duration": 167.585333,
+            "duration": 167.0003340000003,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962285,
-        "endTime": 1787772964711.5854,
+        "startTime": 1787773234584,
+        "endTime": 1787773236721.0002,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/replay.test.ts"
@@ -959,7 +584,7 @@
             "fullName": "Budget request denial denies one unavailable Resource without changing the parent",
             "status": "passed",
             "title": "denies one unavailable Resource without changing the parent",
-            "duration": 356.474833,
+            "duration": 277.30158399999993,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -971,7 +596,7 @@
             "fullName": "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
             "status": "passed",
             "title": "denies a multi-Resource envelope without reserving its fundable part",
-            "duration": 309.664041,
+            "duration": 245.64074999999997,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -983,7 +608,7 @@
             "fullName": "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
             "status": "passed",
             "title": "conserves 100 sibling overlaps through public serialization, not multi-connection contention",
-            "duration": 2094.0008340000004,
+            "duration": 1829.9425,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -995,7 +620,7 @@
             "fullName": "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
             "status": "passed",
             "title": "rejects malformed, duplicate, and caller-selected funding envelopes",
-            "duration": 98.23008299999992,
+            "duration": 109.52275000000009,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1007,7 +632,7 @@
             "fullName": "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
             "status": "passed",
             "title": "rejects a Resource type that has not been defined before evaluating funding",
-            "duration": 89.03250000000025,
+            "duration": 89.24583399999983,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1019,7 +644,7 @@
             "fullName": "Budget request denial rejects a request after its parent becomes inactive",
             "status": "passed",
             "title": "rejects a request after its parent becomes inactive",
-            "duration": 91.44937500000015,
+            "duration": 92.22645799999964,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1031,14 +656,14 @@
             "fullName": "Budget request denial keeps request, settlement, and read permissions independent",
             "status": "passed",
             "title": "keeps request, settlement, and read permissions independent",
-            "duration": 62.74425000000019,
+            "duration": 87.69237499999963,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962284,
-        "endTime": 1787772965385.7441,
+        "startTime": 1787773234580,
+        "endTime": 1787773237311.6924,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/request-denial.test.ts"
@@ -1052,7 +677,7 @@
             "fullName": "command rollback rolls back Resource definition checkpoints",
             "status": "passed",
             "title": "rolls back Resource definition checkpoints",
-            "duration": 360.27504200000004,
+            "duration": 280.176708,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1064,7 +689,7 @@
             "fullName": "command rollback rolls back root allocation facts, result, and history",
             "status": "passed",
             "title": "rolls back root allocation facts, result, and history",
-            "duration": 309.93933300000003,
+            "duration": 245.25775000000004,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1076,7 +701,7 @@
             "fullName": "command rollback rolls back child reservation, result, and history",
             "status": "passed",
             "title": "rolls back child reservation, result, and history",
-            "duration": 322.86975000000007,
+            "duration": 266.38308300000006,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1088,14 +713,14 @@
             "fullName": "command rollback rolls back usage, result, and settlement history",
             "status": "passed",
             "title": "rolls back usage, result, and settlement history",
-            "duration": 243.8616669999999,
+            "duration": 226.30329200000006,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962283,
-        "endTime": 1787772963519.8616,
+        "startTime": 1787773234579,
+        "endTime": 1787773235597.3032,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/rollback.test.ts"
@@ -1109,7 +734,7 @@
             "fullName": "Budget settlement keeps a sealed parent settling until its open descendant settles",
             "status": "passed",
             "title": "keeps a sealed parent settling until its open descendant settles",
-            "duration": 362.367875,
+            "duration": 278.252208,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1121,7 +746,7 @@
             "fullName": "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
             "status": "passed",
             "title": "resolves missing usage and records an exact known repeat as a no-op",
-            "duration": 308.890584,
+            "duration": 246.29933399999993,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1133,7 +758,7 @@
             "fullName": "Budget settlement returns a reusable child allocation in full after settlement",
             "status": "passed",
             "title": "returns a reusable child allocation in full after settlement",
-            "duration": 324.1122919999999,
+            "duration": 266.78533400000003,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1145,7 +770,7 @@
             "fullName": "Budget settlement isolates child overage without charging its parent or sibling",
             "status": "passed",
             "title": "isolates child overage without charging its parent or sibling",
-            "duration": 245.1465830000002,
+            "duration": 225.44875000000013,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1157,7 +782,7 @@
             "fullName": "Budget settlement bounds settled nested charges before returning them to an ancestor",
             "status": "passed",
             "title": "bounds settled nested charges before returning them to an ancestor",
-            "duration": 288.0091659999998,
+            "duration": 270.55925,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1169,7 +794,7 @@
             "fullName": "Budget settlement settles a subset while keeping an omitted Resource unresolved",
             "status": "passed",
             "title": "settles a subset while keeping an omitted Resource unresolved",
-            "duration": 250.93904199999974,
+            "duration": 246.259458,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1181,7 +806,7 @@
             "fullName": "Budget settlement sorts multiple isolated deficits by Resource identity",
             "status": "passed",
             "title": "sorts multiple isolated deficits by Resource identity",
-            "duration": 229.81674999999996,
+            "duration": 198.40862500000003,
             "failureMessages": [],
             "meta": {},
             "tags": []
@@ -1193,17 +818,392 @@
             "fullName": "Budget settlement rejects derived arithmetic overflow without committing settlement",
             "status": "passed",
             "title": "rejects derived arithmetic overflow without committing settlement",
-            "duration": 250.8079160000002,
+            "duration": 242.77166600000032,
             "failureMessages": [],
             "meta": {},
             "tags": []
           }
         ],
-        "startTime": 1787772962281,
-        "endTime": 1787772964540.8079,
+        "startTime": 1787773234580,
+        "endTime": 1787773236554.7717,
         "status": "passed",
         "message": "",
         "name": "/Users/shubhankarsharan/Desktop/keynes/packages/sdk/src/settlement.test.ts"
+      },
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive contains exactly the declared archive files",
+            "status": "passed",
+            "title": "contains exactly the declared archive files",
+            "duration": 0.8156670000000759,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive keeps migration and generated assets byte-identical to canonical sources",
+            "status": "passed",
+            "title": "keeps migration and generated assets byte-identical to canonical sources",
+            "duration": 55.42704200000003,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive publishes the supported installation identity",
+            "status": "passed",
+            "title": "publishes the supported installation identity",
+            "duration": 0.5279579999998987,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive ships an executable CLI with package documentation and license",
+            "status": "passed",
+            "title": "ships an executable CLI with package documentation and license",
+            "duration": 14.454584000000068,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive contains no credentials or SDK-owned SQL",
+            "status": "passed",
+            "title": "contains no credentials or SDK-owned SQL",
+            "duration": 0.36974999999983993,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive installs fresh and exact targets from the packed artifact",
+            "status": "passed",
+            "title": "installs fresh and exact targets from the packed artifact",
+            "duration": 310.6659169999998,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "@keynes/postgresql archive"
+            ],
+            "fullName": "@keynes/postgresql archive keeps PostgreSQL migrations out of the packed SDK archive",
+            "status": "passed",
+            "title": "keeps PostgreSQL migrations out of the packed SDK archive",
+            "duration": 0.24583300000040254,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          }
+        ],
+        "startTime": 1787773236348,
+        "endTime": 1787773236731.2458,
+        "status": "passed",
+        "message": "",
+        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/archive.test.ts"
+      },
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation installs a fresh target atomically",
+            "status": "passed",
+            "title": "installs a fresh target atomically",
+            "duration": 310.38645799999995,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation returns an exact no-op result without changing installed state",
+            "status": "passed",
+            "title": "returns an exact no-op result without changing installed state",
+            "duration": 241.63512500000002,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects an unsupported PostgreSQL version before mutation",
+            "status": "passed",
+            "title": "rejects an unsupported PostgreSQL version before mutation",
+            "duration": 273.08779100000004,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects an operator without installation privilege before mutation",
+            "status": "passed",
+            "title": "rejects an operator without installation privilege before mutation",
+            "duration": 216.910708,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects missing owner and application roles",
+            "status": "passed",
+            "title": "rejects missing owner and application roles",
+            "duration": 187.86204199999997,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects role login and database privilege contract violations",
+            "status": "passed",
+            "title": "rejects role login and database privilege contract violations",
+            "duration": 333.03483400000005,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects an application role with inherited owner authority",
+            "status": "passed",
+            "title": "rejects an application role with inherited owner authority",
+            "duration": 195.0989169999998,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects an incompatible partial target without repairing it",
+            "status": "passed",
+            "title": "rejects an incompatible partial target without repairing it",
+            "duration": 239.54449999999997,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation classifies two empty Keynes schemas as incompatible live state",
+            "status": "passed",
+            "title": "classifies two empty Keynes schemas as incompatible live state",
+            "duration": 159.22879199999988,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects a migration-byte mismatch without changing the target",
+            "status": "passed",
+            "title": "rejects a migration-byte mismatch without changing the target",
+            "duration": 130.4257090000001,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects a migration contract-digest mismatch",
+            "status": "passed",
+            "title": "rejects a migration contract-digest mismatch",
+            "duration": 93.6166659999999,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects a contract mismatch without changing the target",
+            "status": "passed",
+            "title": "rejects a contract mismatch without changing the target",
+            "duration": 108.52145900000005,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects a changed live function body during exact recheck",
+            "status": "passed",
+            "title": "rejects a changed live function body during exact recheck",
+            "duration": 94.18216699999994,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects changed live function security properties",
+            "status": "passed",
+            "title": "rejects changed live function security properties",
+            "duration": 94.80654199999981,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rejects live object, permission, ownership, and ACL drift",
+            "status": "passed",
+            "title": "rejects live object, permission, ownership, and ACL drift",
+            "duration": 147.69845799999985,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "fullName": "native PostgreSQL installation rolls back every migration after an injected failure",
+            "status": "passed",
+            "title": "rolls back every migration after an injected failure",
+            "duration": 43.63933300000008,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          }
+        ],
+        "startTime": 1787773234557,
+        "endTime": 1787773237426.6394,
+        "status": "passed",
+        "message": "",
+        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/installation.native.test.ts"
+      },
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance rechecks the exact graph read-only",
+            "status": "passed",
+            "title": "rechecks the exact graph read-only",
+            "duration": 21.531041999999985,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance checks the server, checksums, contract, and complete object inventory",
+            "status": "passed",
+            "title": "checks the server, checksums, contract, and complete object inventory",
+            "duration": 9.140791000000007,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance checks owners, bodies, languages, security, and fixed search paths",
+            "status": "passed",
+            "title": "checks owners, bodies, languages, security, and fixed search paths",
+            "duration": 10.384957999999983,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance checks bootstrap permissions and schema and function ACLs",
+            "status": "passed",
+            "title": "checks bootstrap permissions and schema and function ACLs",
+            "duration": 12.633542000000006,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance allows the application role to call exactly the five public functions",
+            "status": "passed",
+            "title": "allows the application role to call exactly the five public functions",
+            "duration": 21.162584000000038,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          },
+          {
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role conformance"
+            ],
+            "fullName": "PostgreSQL exact recheck and application-role conformance denies private and unsupported function access without changing state",
+            "status": "passed",
+            "title": "denies private and unsupported function access without changing state",
+            "duration": 27.60062499999998,
+            "failureMessages": [],
+            "meta": {},
+            "tags": []
+          }
+        ],
+        "startTime": 1787773235823,
+        "endTime": 1787773235925.6006,
+        "status": "passed",
+        "message": "",
+        "name": "/Users/shubhankarsharan/Desktop/keynes/packages/database/test/recheck.native.test.ts"
       }
     ]
   },

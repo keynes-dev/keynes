@@ -218,7 +218,7 @@ CI=true pnpm test:platform -- --output \
 
 The native runner owns one disposable loopback PostgreSQL 18.6 container and refuses to overwrite the record. It writes the Vitest JSON report and provenance envelope only after every fixed scenario and cleanup pass. The record must use the same clean commit as `pnpm test:pr`.
 
-For accepted revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7`, a direct walkthrough of this flow after database and role preparation completed installation, exact recheck, application-owned outbox creation, an approved application-role request, and the shared commit in 195 milliseconds. This establishes the SC-008 under-15-minute bound for the documented reference path; it is not a benchmark or broader usability study.
+On product-code parent `75fb60cf6e4df399b3c71ac28173e0ce769a42e7`, a direct walkthrough of this flow after database and role preparation completed installation, exact recheck, application-owned outbox creation, an approved application-role request, and the shared commit in 195 milliseconds. Accepted revision `fac88631574ed74559640d48f355abb6f52f2a6f` changes only Cloud native acceptance fixtures after that walkthrough. This establishes the SC-008 under-15-minute bound for the unchanged documented reference path; it is not a benchmark or broader usability study.
 
 ## Evidence limits
 
