@@ -95,7 +95,7 @@
 
 - [x] T023 Run `pnpm check:feature-identity` and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; require FEAT-0007 and complete checklists
 - [x] T024 Run the required oxfmt check over governing documents, ADRs, constitution, templates, and package manifests; format only the files in scope if needed
-- [x] T025 Run `pnpm verify` for repository and runtime behavior, then run `pnpm test:qualification` and confirm the packed archive requires Apache-2.0 text
+- [x] T025 Run the complete repository and runtime checks, then run `pnpm test:qualification` and confirm the packed archive requires Apache-2.0 text
 - [x] T026 Search current governing documents for stale two-runtime, permanent-PGlite, managed-Cloud-only, unrestricted-SQL, and next-public-Cloud claims; review every remaining match in context
 - [x] T027 Run `git diff --check`, confirm `docs/features/0001-*` through `docs/features/0006-*` and retained evidence are unchanged, and inspect the complete diff for scope and naming
 - [x] T028 Mark `docs/features/0007-runtime-and-deployment-model/spec.md`, `docs/features/0007-runtime-and-deployment-model/tasks.md`, and the FEAT-0007 roadmap row complete only after T023-T027 pass; keep future runtime and deployment lanes `NOT RUN`
@@ -109,8 +109,11 @@
 - [x] T029 Audit the default, package, measurement, and native test panels and record which checks protect distinct behavior
 - [x] T030 Delete `packages/sdk/src/package-qualification.test.ts`, move its repeated-build check into `scripts/qualify-local-preview.test.ts`, and run qualification tests from `.github/workflows/local-preview.yml`
 - [x] T031 Remove the duplicated Resource rollback matrix, private-export blacklist, repeated second-loss cases, and third clean generator run
-- [x] T032 Add `pnpm generate:check` and `pnpm test:generator` to `pnpm verify`, and exclude package measurement workers from the default SDK test command
+- [x] T032 Add generated-output and generator tests to the complete pull request checks, and exclude package measurement workers from the default SDK test command
 - [x] T033 Update FEAT-0007 validation instructions and run focused qualification, generator, SDK, and repository verification
+- [x] T034 Add `pnpm check:repo` for repository agreement, `pnpm test:unit` for tests that do not start PGlite, and `pnpm test:pr` for the complete pull request and feature-acceptance checks
+- [x] T035 Document when to run the focused test, `pnpm check:repo`, `pnpm test:unit`, and `pnpm test:pr` in `docs/workflow.md` and the FEAT-0007 validation artifacts
+- [x] T036 Run `pnpm check:repo`, `pnpm test:unit`, `pnpm test:pr`, the focused documentation format check, and `git diff --check`
 
 **Checkpoint**: The default gate proves generated contracts and provider-free behavior. The Local Preview lane owns archive, install, license, and measurement evidence.
 

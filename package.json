@@ -14,6 +14,7 @@
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "test:feature-identity": "node --test scripts/feature-identity.test.mjs",
+    "test:unit": "pnpm --filter @keynes/cloud test && pnpm --filter @keynes/sdk test:unit",
     "test:generator": "vitest run scripts/generate-contracts.test.ts",
     "test:qualification": "vitest run scripts/qualify-local-preview.test.ts scripts/measure-local-preview.test.ts packages/sdk/qualification/measure-worker.test.mjs --maxWorkers=1",
     "build:package": "pnpm --filter @keynes/sdk build",
@@ -27,7 +28,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "check:deps": "turbo boundaries --ui=stream",
-    "verify": "pnpm test:feature-identity && pnpm check:feature-identity && pnpm generate:check && pnpm test:generator && turbo run quality typecheck test && pnpm check:deps"
+    "check:repo": "pnpm check:feature-identity && pnpm generate:check && turbo run quality typecheck && pnpm check:deps",
+    "test:pr": "pnpm test:feature-identity && pnpm check:feature-identity && pnpm generate:check && pnpm test:generator && turbo run quality typecheck test && pnpm check:deps"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

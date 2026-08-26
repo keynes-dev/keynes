@@ -34,23 +34,23 @@ A narrow repair, explanation, or documentation change may not need a new feature
 
 Choose only the pstack skill that reduces a real uncertainty. The common routes are:
 
-| Need | Skill | Expected result |
-| --- | --- | --- |
-| Explain runtime flow, ownership, or placement | `$how` | A grounded account of the current implementation |
-| Recover design intent or explain a regression | `$why` | Evidence-backed rationale with uncertainty called out |
-| Shape a change across modules or Budget boundaries | `$architect` | Types, signatures, ownership, and verification seams before code |
-| Compare materially different approaches | `$arena` | One selected approach with the strongest useful parts combined |
-| Remove needless implementation complexity | `$ponytail full` | The smallest working design or diff that still satisfies the approved artifact |
-| Check downstream risk | `$blast-radius` | Affected consumers and a direct check of the highest-risk assumption |
-| Pin a defect or behavior change with a local test | `$tdd` | A failing test followed by the smallest passing implementation |
-| Review a diff for removable complexity | `$ponytail-review` | Deletions and simpler standard-library, platform, or repository-native replacements |
-| Review a design or diff adversarially | `$interrogate` | Ranked findings supported by repository evidence |
-| Review comments and suppressions | `$no-comments` | Accepted fixes and clearer structural alternatives |
-| Split independent work | `$swarm` | One synthesized result after every required worker finishes |
-| Run a large bounded engineering task | `$figure-it-out` | An auditable playbook with explicit done conditions |
-| Preserve a decision trail for long work | `$show-me-your-work` | A compact record that ties decisions to evidence |
-| Change TypeScript | `$typescript-best-practices` | Type-safe code that follows the repository's TypeScript rules |
-| Write technical prose | `$technical-writing`, then `$unslop` | Direct documentation with real paths, symbols, commands, and evidence states |
+| Need                                               | Skill                                | Expected result                                                                     |
+| -------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| Explain runtime flow, ownership, or placement      | `$how`                               | A grounded account of the current implementation                                    |
+| Recover design intent or explain a regression      | `$why`                               | Evidence-backed rationale with uncertainty called out                               |
+| Shape a change across modules or Budget boundaries | `$architect`                         | Types, signatures, ownership, and verification seams before code                    |
+| Compare materially different approaches            | `$arena`                             | One selected approach with the strongest useful parts combined                      |
+| Remove needless implementation complexity          | `$ponytail full`                     | The smallest working design or diff that still satisfies the approved artifact      |
+| Check downstream risk                              | `$blast-radius`                      | Affected consumers and a direct check of the highest-risk assumption                |
+| Pin a defect or behavior change with a local test  | `$tdd`                               | A failing test followed by the smallest passing implementation                      |
+| Review a diff for removable complexity             | `$ponytail-review`                   | Deletions and simpler standard-library, platform, or repository-native replacements |
+| Review a design or diff adversarially              | `$interrogate`                       | Ranked findings supported by repository evidence                                    |
+| Review comments and suppressions                   | `$no-comments`                       | Accepted fixes and clearer structural alternatives                                  |
+| Split independent work                             | `$swarm`                             | One synthesized result after every required worker finishes                         |
+| Run a large bounded engineering task               | `$figure-it-out`                     | An auditable playbook with explicit done conditions                                 |
+| Preserve a decision trail for long work            | `$show-me-your-work`                 | A compact record that ties decisions to evidence                                    |
+| Change TypeScript                                  | `$typescript-best-practices`         | Type-safe code that follows the repository's TypeScript rules                       |
+| Write technical prose                              | `$technical-writing`, then `$unslop` | Direct documentation with real paths, symbols, commands, and evidence states        |
 
 Use `$poteto-mode` when a task needs several of these methods or when the user asks for pstack explicitly. Do not invoke every skill by default.
 
@@ -81,7 +81,9 @@ Do not delegate requirements, Budget design decisions, or final acceptance. Thos
 
 ## Keep evidence honest
 
-Run repository-defined verification first. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage. For implementation, run the focused test before the broader provider-free checks.
+During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the Cloud and SDK tests that do not start PGlite.
+
+Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and adds the current PGlite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
 
 Label unavailable provider, conformance, security, packaging, compatibility, performance, and live-runtime evidence as `NOT RUN`. A passing type check does not prove runtime behavior. A local pass does not prove continuous integration passed for the same commit.
 

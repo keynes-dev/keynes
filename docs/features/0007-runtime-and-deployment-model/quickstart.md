@@ -1,6 +1,6 @@
 # Quickstart: Validate the runtime and deployment model feature
 
-Run these commands from the repository root after every task is complete.
+Run the focused commands during implementation. Run the full sequence from the repository root before feature acceptance.
 
 ## 1. Confirm the active feature
 
@@ -17,16 +17,32 @@ Both commands must select `FEAT-0007` at `docs/features/0007-runtime-and-deploym
 pnpm exec oxfmt --check docs/product.md docs/architecture.md docs/roadmap.md docs/adr .specify/memory/constitution.md .specify/templates package.json packages/sdk/package.json packages/cloud/package.json
 ```
 
-## 3. Check repository behavior
+## 3. Check repository agreement
 
 ```sh
-pnpm verify
+pnpm check:repo
+```
+
+This command checks feature identity, generated contracts, formatting, lint, types, and package boundaries.
+
+## 4. Run unit tests
+
+```sh
+pnpm test:unit
+```
+
+This command runs the Cloud and SDK tests that do not start PGlite.
+
+## 5. Run pull request checks
+
+```sh
+pnpm test:pr
 git diff --check
 ```
 
-The repository gate checks generated-contract drift, generator behavior, types, package boundaries, and provider-free runtime behavior. It does not build or inspect a package archive.
+`pnpm test:pr` runs feature-identity and generator tests, repository checks, and all provider-free Cloud and SDK tests. The SDK tests include the current PGlite local runtime. Pull request CI runs the same command. It does not build or inspect a package archive.
 
-## 4. Check package qualification
+## 6. Check package qualification
 
 ```sh
 pnpm test:qualification
@@ -36,7 +52,7 @@ This lane builds the SDK twice and inspects the packed archive and Apache-2.0 li
 
 The manual Local Preview workflow owns the supported operating-system and Node.js matrix plus reference measurements.
 
-## 5. Search for stale governing claims
+## 7. Search for stale governing claims
 
 ```sh
 rg -n "One model, two runtimes|exactly two runtimes|permanent PGlite|only supported durable|Public Cloud access|complete, read-only PostgreSQL" docs/product.md docs/architecture.md docs/roadmap.md .specify/memory/constitution.md .specify/templates docs/adr

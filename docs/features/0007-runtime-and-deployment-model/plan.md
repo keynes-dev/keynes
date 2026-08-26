@@ -12,7 +12,7 @@ Replace the governing assumption that one PostgreSQL implementation serves both 
 **Language/Version**: Markdown, JSON package manifests, TypeScript tests, and one GitHub Actions workflow; Node.js 24 and 26 remain the declared SDK qualification targets
 **Primary Dependencies**: Existing Spec Kit scripts, oxfmt, pnpm, Vitest, and repository verification commands; no new runtime dependency
 **Storage**: No storage behavior changes. Current local mode still uses in-memory PGlite; current durable behavior uses PostgreSQL
-**Testing**: Spec Kit identity and prerequisite checks, oxfmt, generator drift and unit tests plus provider-free runtime tests through `pnpm verify`, package qualification through `pnpm test:qualification` and the Local Preview workflow, stale-claim searches, and `git diff --check`
+**Testing**: Spec Kit identity and prerequisite checks, repository checks through `pnpm check:repo`, non-PGlite Cloud and SDK unit tests through `pnpm test:unit`, the complete pull request suite through `pnpm test:pr`, package qualification through `pnpm test:qualification` and the Local Preview workflow, stale-claim searches, and `git diff --check`
 **Target Platform**: Repository documentation and npm package metadata; existing TypeScript workspace
 **Project Type**: Documentation and governance feature in a TypeScript monorepo
 **Performance Goals**: N/A. This feature runs no benchmark and makes no new performance claim
@@ -95,7 +95,7 @@ package.json
 3. Rewrite the product and architecture sources around the approved deployment model and Policy boundary.
 4. Reorder the roadmap while preserving completed rows and exact evidence.
 5. Align package metadata and the packed SDK license assertion with Apache-2.0.
-6. Remove duplicated tests, make generator validation part of the default repository gate, and move archive and measurement qualification to the explicit Local Preview lane.
+6. Remove duplicated tests, separate repository checks from unit tests and the complete pull request suite, and move archive and measurement qualification to the explicit Local Preview lane.
 7. Run the required checks and stale-claim searches, then mark the feature artifacts complete only if every check passes.
 
 ## Complexity tracking
