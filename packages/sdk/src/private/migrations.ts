@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 
 import { loadInstallationAssets } from "@keynes/postgresql/private/run-installation";
@@ -9,7 +8,6 @@ import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
 const DATABASE_ROOT = new URL("../../../database/", import.meta.url);
 const MIGRATIONS_ROOT = new URL("migrations/", DATABASE_ROOT);
-const MIGRATIONS_DIRECTORY = fileURLToPath(MIGRATIONS_ROOT);
 const MANIFEST_URL = new URL("manifest.json", MIGRATIONS_ROOT);
 const INSTALLATION_RECORD_URL = new URL(
   "generated/installation-record.json",
@@ -83,7 +81,8 @@ export async function installDatabase(
 
   const assets = await loadInstallationAssets({
     installationRecord: record,
-    migrationsDirectory: MIGRATIONS_DIRECTORY,
+    migrationsDirectory: MIGRATIONS_ROOT,
+    onChecksumMismatch: installationDrift,
   });
   const migrations = assets.map((asset) => {
     const manifestEntry = manifest.migrations.find(({ id }) => id === asset.id);

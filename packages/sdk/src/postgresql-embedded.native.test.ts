@@ -62,7 +62,9 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       const transaction = await database.beginTransaction();
       const client = createTransactionClient(transaction);
 
-      const approved = await client.requestBudget(request(resourceTypeId, budgetId));
+      const approved = await client.requestBudget(
+        request(resourceTypeId, budgetId),
+      );
       expect(approved.kind).toBe("approved");
       if (approved.kind !== "approved") return;
       await transaction.connection.query(
@@ -85,7 +87,9 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
       const transaction = await database.beginTransaction();
       const client = createTransactionClient(transaction);
 
-      const approved = await client.requestBudget(request(resourceTypeId, budgetId));
+      const approved = await client.requestBudget(
+        request(resourceTypeId, budgetId),
+      );
       expect(approved.kind).toBe("approved");
       if (approved.kind !== "approved") return;
       await expect(
@@ -175,7 +179,11 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
 
 function createTransactionClient(
   transaction: Awaited<
-    ReturnType<Awaited<ReturnType<typeof openInstalledPostgresDatabase>>["beginTransaction"]>
+    ReturnType<
+      Awaited<
+        ReturnType<typeof openInstalledPostgresDatabase>
+      >["beginTransaction"]
+    >
   >,
 ) {
   return createKeynesClient(
@@ -217,7 +225,9 @@ async function seedRoot(
     });
     const root = await client.createBudget({
       commandId: "20000000-0000-4000-8000-000000000001",
-      resources: [{ resourceTypeId: resource.resourceType.resourceTypeId, amount: 10 }],
+      resources: [
+        { resourceTypeId: resource.resourceType.resourceTypeId, amount: 10 },
+      ],
     });
     await transaction.commit();
     return {
@@ -230,7 +240,10 @@ async function seedRoot(
   }
 }
 
-function request(resourceTypeId: string, parentBudgetId: string): RequestBudgetCommand {
+function request(
+  resourceTypeId: string,
+  parentBudgetId: string,
+): RequestBudgetCommand {
   return {
     commandId: REQUEST_COMMAND_ID,
     parentBudgetId,

@@ -616,8 +616,8 @@ async function buildOutputs(options: CliOptions): Promise<Map<string, string>> {
     contractDigest: digest,
     migrationSetDigest,
     migrations,
-    expectedObjects: EXPECTED_POSTGRES_OBJECTS,
     expectedTargets,
+    expectedObjects: EXPECTED_POSTGRES_OBJECTS,
     functions: functionMetadata,
   });
 

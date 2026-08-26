@@ -38,6 +38,13 @@
       "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
     }
   ],
+  "expectedTargets": [
+    "keynes.define_resource_type",
+    "keynes.create_budget",
+    "keynes.request",
+    "keynes.settle",
+    "keynes.get_budget"
+  ],
   "expectedObjects": [
     "schema:keynes_internal",
     "schema:keynes",
@@ -67,13 +74,6 @@
     "function:keynes.request(jsonb)",
     "function:keynes.settle(jsonb)",
     "function:keynes.get_budget(jsonb)"
-  ],
-  "expectedTargets": [
-    "keynes.define_resource_type",
-    "keynes.create_budget",
-    "keynes.request",
-    "keynes.settle",
-    "keynes.get_budget"
   ],
   "functions": [
     {

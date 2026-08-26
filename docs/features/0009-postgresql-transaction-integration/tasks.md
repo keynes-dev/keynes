@@ -17,10 +17,10 @@
 
 **Purpose**: Establish the `@keynes/postgresql` workspace and deterministic archive boundary without changing runtime behavior.
 
-- [X] T001 Create the `@keynes/postgresql` workspace, TypeScript build entry, CLI bin declaration, dependency boundary, and root workspace wiring in `packages/database/package.json`, `packages/database/tsconfig.json`, `pnpm-workspace.yaml`, `package.json`, and `pnpm-lock.yaml`
-- [X] T002 Add the deterministic package-build entry point and archive allowlist for compiled CLI code, migrations, generated identity, README, and license in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
-- [X] T003 [P] Document package ownership, command names, connection environment, credential-redaction rule, and preview support limits in `packages/database/README.md`
-- [X] T004 Run the workspace build and pack-list checks against `packages/database/package.json`; fix only setup or package-wiring failures and record that Budget behavior and native PostgreSQL remain `NOT RUN` in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T001 Create the `@keynes/postgresql` workspace, TypeScript build entry, CLI bin declaration, dependency boundary, and root workspace wiring in `packages/database/package.json`, `packages/database/tsconfig.json`, `pnpm-workspace.yaml`, `package.json`, and `pnpm-lock.yaml`
+- [x] T002 Add the deterministic package-build entry point and archive allowlist for compiled CLI code, migrations, generated identity, README, and license in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
+- [x] T003 [P] Document package ownership, command names, connection environment, credential-redaction rule, and preview support limits in `packages/database/README.md`
+- [x] T004 Run the workspace build and pack-list checks against `packages/database/package.json`; fix only setup or package-wiring failures and record that Budget behavior and native PostgreSQL remain `NOT RUN` in `docs/features/0009-postgresql-transaction-integration/tasks.md`
 
 Phase 1 evidence: `CI=true pnpm --filter @keynes/postgresql build`, `pnpm format:check`, and a packed archive listing passed. Budget behavior, native PostgreSQL, installer behavior, and transaction integration remain `NOT RUN`.
 
@@ -34,17 +34,17 @@ Phase 1 evidence: `CI=true pnpm --filter @keynes/postgresql build`, `pnpm format
 
 **CRITICAL**: No user-story implementation begins until the generated assets, configuration contract, packed-archive boundary, and canonical graph runner pass their focused checks.
 
-- [X] T005 Extend generator tests first for the PostgreSQL 18.6 profile, ordered supported functions, expected object inventory, migration checksums, fixed function metadata, and in-transaction `PUBLIC` revokes in `scripts/generate-contracts.test.ts`; run the focused test and record the expected failure in `docs/features/0009-postgresql-transaction-integration/tasks.md`
-- [X] T006 Implement the single-source profile and installation metadata generation without changing the logical Budget contract digest in `scripts/generate-contracts.ts`, `packages/database/generated/installation-record.json`, `packages/database/migrations/manifest.json`, and `packages/database/migrations/0003-public.generated.sql`
-- [X] T007 Run contract generation and checked-in-output validation for `packages/contracts/contract.json`, `packages/contracts/schema.json`, `packages/database/generated/installation-record.json`, `packages/database/migrations/manifest.json`, and `packages/database/migrations/0003-public.generated.sql`
-- [X] T008 [P] Add failing closed-configuration and supported-profile unit tests for the four accepted keys, UUIDs, prepared role names, rejection of profile or permission overrides, and redacted errors in `packages/database/test/config.test.ts`
-- [X] T009 [P] Add failing archive contract tests for the exact file allowlist, byte-identical migration assets, generated installation identity, executable CLI, README, license, and absence of credentials or SDK-owned SQL in `packages/database/test/archive.test.ts`
-- [X] T010 Implement strict configuration parsing and the immutable supported-profile model required by T008 in `packages/database/src/config.ts` and `packages/database/src/profile.ts`
-- [X] T011 Complete deterministic archive construction and package exports required by T009 in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
-- [X] T012 Add failing unit tests for ordered asset loading, checksum validation, one caller-supplied installation transaction, rollback propagation, and no repair or resume path in `packages/database/test/run-installation.test.ts`; record the expected failure before implementation in `docs/features/0009-postgresql-transaction-integration/tasks.md`
-- [X] T013 Implement canonical migration asset loading and graph execution inside a supplied owner transaction in `packages/database/src/private/run-installation.ts`
-- [X] T014 Replace SDK and Cloud copies of migration loading with the canonical private graph boundary, preserving multi-principal fixture seeding only in test support, in `packages/sdk/src/private/migrations.ts`, `packages/cloud/src/private/installation.ts`, and `packages/database/package.json`
-- [X] T015 Run focused generator, configuration, migration-runner, archive, dependency-boundary, and repository-agreement checks for `scripts/generate-contracts.test.ts`, `packages/database/test/config.test.ts`, `packages/database/test/run-installation.test.ts`, `packages/database/test/archive.test.ts`, `packages/sdk/src/private/migrations.ts`, and `packages/cloud/src/private/installation.ts`
+- [x] T005 Extend generator tests first for the PostgreSQL 18.6 profile, ordered supported functions, expected object inventory, migration checksums, fixed function metadata, and in-transaction `PUBLIC` revokes in `scripts/generate-contracts.test.ts`; run the focused test and record the expected failure in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T006 Implement the single-source profile and installation metadata generation without changing the logical Budget contract digest in `scripts/generate-contracts.ts`, `packages/database/generated/installation-record.json`, `packages/database/migrations/manifest.json`, and `packages/database/migrations/0003-public.generated.sql`
+- [x] T007 Run contract generation and checked-in-output validation for `packages/contracts/contract.json`, `packages/contracts/schema.json`, `packages/database/generated/installation-record.json`, `packages/database/migrations/manifest.json`, and `packages/database/migrations/0003-public.generated.sql`
+- [x] T008 [P] Add failing closed-configuration and supported-profile unit tests for the four accepted keys, UUIDs, prepared role names, rejection of profile or permission overrides, and redacted errors in `packages/database/test/config.test.ts`
+- [x] T009 [P] Add failing archive contract tests for the exact file allowlist, byte-identical migration assets, generated installation identity, executable CLI, README, license, and absence of credentials or SDK-owned SQL in `packages/database/test/archive.test.ts`
+- [x] T010 Implement strict configuration parsing and the immutable supported-profile model required by T008 in `packages/database/src/config.ts` and `packages/database/src/profile.ts`
+- [x] T011 Complete deterministic archive construction and package exports required by T009 in `scripts/build-postgresql-package.ts` and `packages/database/package.json`
+- [x] T012 Add failing unit tests for ordered asset loading, checksum validation, one caller-supplied installation transaction, rollback propagation, and no repair or resume path in `packages/database/test/run-installation.test.ts`; record the expected failure before implementation in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T013 Implement canonical migration asset loading and graph execution inside a supplied owner transaction in `packages/database/src/private/run-installation.ts`
+- [x] T014 Replace SDK and Cloud copies of migration loading with the canonical private graph boundary, preserving multi-principal fixture seeding only in test support, in `packages/sdk/src/private/migrations.ts`, `packages/cloud/src/private/installation.ts`, and `packages/database/package.json`
+- [x] T015 Run focused generator, configuration, migration-runner, archive, dependency-boundary, and repository-agreement checks for `scripts/generate-contracts.test.ts`, `packages/database/test/config.test.ts`, `packages/database/test/run-installation.test.ts`, `packages/database/test/archive.test.ts`, `packages/sdk/src/private/migrations.ts`, and `packages/cloud/src/private/installation.ts`
 
 Phase 2 evidence: the delegated T005, T008, T009, and T012 tests were observed failing for missing profile/config/archive/runner behavior before implementation. Final focused generator (21), database (15), SDK unit (38), SDK/Cloud/database typechecks, `generate:check`, `format:check`, `check:deps`, and `git diff --check` passed. Cloud transport tests were not rerun because the sandbox forbids loopback listeners. Native PostgreSQL and installer behavior remain `NOT RUN`.
 
@@ -62,18 +62,20 @@ Phase 2 evidence: the delegated T005, T008, T009, and T012 tests were observed f
 
 > Write and observe these tests failing for the expected missing behavior before implementation.
 
-- [X] T016 [US1] Add native acceptance tests for approved commit, explicit rollback, application-write failure after approval, denial, malformed input, and caller-owned transaction lifecycle in `packages/sdk/src/postgresql-embedded.native.test.ts`
-- [X] T017 [P] [US1] Extend shared SQLite/PostgreSQL comparison assertions for public results, structured errors, replay flags, ordered history, and final Budget state used by the new transaction cases in `packages/sdk/src/private/test-keynes.test.ts`
-- [X] T018 [US1] Run the focused US1 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T016 [US1] Add native acceptance tests for approved commit, explicit rollback, application-write failure after approval, denial, malformed input, and caller-owned transaction lifecycle in `packages/sdk/src/postgresql-embedded.native.test.ts`
+- [x] T017 [P] [US1] Extend shared SQLite/PostgreSQL comparison assertions for public results, structured errors, replay flags, ordered history, and final Budget state used by the new transaction cases in `packages/sdk/src/private/test-keynes.test.ts`
+- [x] T018 [US1] Run the focused US1 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
 
 US1 test-first checkpoint: T016 native tests are present and skip without `KEYNES_PLATFORM_CONTEXT`; the T019 fixture implementation is intentionally pending. T017 shared assertions passed 22 tests.
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Add private native-test setup for the owner-installed graph, prepared application role, bootstrap tenant and principal permissions, and application-owned outbox table in `packages/sdk/src/private/test-keynes.ts`
-- [ ] T020 [US1] Implement the direct parameterized function-call fixture over the application's already checked-out `pg` client, with transaction-local tenant and principal settings and no Keynes transaction lifecycle, in `packages/sdk/src/private/postgres-database.ts` and `packages/sdk/src/private/procedure-caller.ts`
-- [ ] T021 [US1] Implement the commit, rollback, application-write-failure, denial, and malformed-input transaction sequences and paired-state inspections in `packages/sdk/src/postgresql-embedded.native.test.ts`
-- [ ] T022 [US1] Run the focused shared comparison and provider-free native tests for `packages/sdk/src/private/test-keynes.test.ts` and `packages/sdk/src/postgresql-embedded.native.test.ts`; retain the exact command, revision, PostgreSQL version, outcome, and remaining `NOT RUN` lanes in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T019 [US1] Add private native-test setup for the owner-installed graph, prepared application role, bootstrap tenant and principal permissions, and application-owned outbox table in `packages/sdk/src/private/test-keynes.ts`
+- [x] T020 [US1] Implement the direct parameterized function-call fixture over the application's already checked-out `pg` client, with transaction-local tenant and principal settings and no Keynes transaction lifecycle, in `packages/sdk/src/private/postgres-database.ts` and `packages/sdk/src/private/procedure-caller.ts`
+- [x] T021 [US1] Implement the commit, rollback, application-write-failure, denial, and malformed-input transaction sequences and paired-state inspections in `packages/sdk/src/postgresql-embedded.native.test.ts`
+- [x] T022 [US1] Run the focused shared comparison and provider-free native tests for `packages/sdk/src/private/test-keynes.test.ts` and `packages/sdk/src/postgresql-embedded.native.test.ts`; retain the exact command, revision, PostgreSQL version, outcome, and remaining `NOT RUN` lanes in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+
+Phase 3 evidence: `CI=true pnpm --config.confirmModulesPurge=false test:platform` passed all 50 tests on PostgreSQL 18.6, including the six caller-owned transaction scenarios. The platform lane was run before the phase commit; the final commit revision is recorded by the phase commit. Managed providers, recovery, fault, benchmark, security qualification, and production lanes remain `NOT RUN`.
 
 **Checkpoint**: US1 proves database atomicity for one Budget request plus one application row. It does not yet prove cross-session pending visibility or adopter-grade package installation.
 
