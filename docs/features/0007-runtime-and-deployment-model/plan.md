@@ -9,15 +9,15 @@ Replace the governing assumption that one PostgreSQL implementation serves both 
 
 ## Technical context
 
-**Language/Version**: Markdown, JSON package manifests, and one TypeScript package-qualification assertion; Node.js 24 and 26 remain the declared SDK qualification targets
+**Language/Version**: Markdown, JSON package manifests, TypeScript tests, and one GitHub Actions workflow; Node.js 24 and 26 remain the declared SDK qualification targets
 **Primary Dependencies**: Existing Spec Kit scripts, oxfmt, pnpm, Vitest, and repository verification commands; no new runtime dependency
 **Storage**: No storage behavior changes. Current local mode still uses in-memory PGlite; current durable behavior uses PostgreSQL
-**Testing**: Spec Kit identity and prerequisite checks, oxfmt, package qualification through `pnpm verify`, stale-claim searches, and `git diff --check`
+**Testing**: Spec Kit identity and prerequisite checks, oxfmt, generator drift and unit tests plus provider-free runtime tests through `pnpm verify`, package qualification through `pnpm test:qualification` and the Local Preview workflow, stale-claim searches, and `git diff --check`
 **Target Platform**: Repository documentation and npm package metadata; existing TypeScript workspace
 **Project Type**: Documentation and governance feature in a TypeScript monorepo
 **Performance Goals**: N/A. This feature runs no benchmark and makes no new performance claim
 **Constraints**: Preserve FEAT-0001 through FEAT-0006 artifacts and evidence; keep PGlite installed and working; do not select final Policy builder methods or connection options; make no unproved deployment claim
-**Scale/Scope**: Three governing documents, one constitution, three ADR files, three Spec Kit templates, three package manifests, one package test, workflow wording, and FEAT-0007 artifacts
+**Scale/Scope**: Three governing documents, one constitution, three ADR files, three Spec Kit templates, three package manifests, the verification panel, package qualification, workflow wording, and FEAT-0007 artifacts
 
 ## Constitution check
 
@@ -70,17 +70,23 @@ packages/
 ├── cloud/package.json
 └── sdk/
     ├── package.json
-    └── src/package-qualification.test.ts
+    ├── qualification/measure-worker.test.mjs
+    └── src/
+        ├── budget-lifecycle.test.ts
+        ├── local-replay.test.ts
+        └── public-exports.test.ts
 
 scripts/
+├── generate-contracts.test.ts
 ├── qualify-local-preview.test.ts
 └── qualify-local-preview.ts
 
+.github/workflows/local-preview.yml
 AGENTS.md
 package.json
 ```
 
-**Structure decision**: Keep all durable lifecycle artifacts under FEAT-0007, update only the current governing sources and templates, and make the smallest TypeScript test change needed to align packed-package license evidence. Completed feature directories and retained evidence are read-only.
+**Structure decision**: Keep all durable lifecycle artifacts under FEAT-0007, update the current governing sources and verification panel, and keep packed-package evidence in the explicit Local Preview lane. Completed FEAT-0001 through FEAT-0006 directories and retained evidence are read-only.
 
 ## Design and verification sequence
 
@@ -89,7 +95,8 @@ package.json
 3. Rewrite the product and architecture sources around the approved deployment model and Policy boundary.
 4. Reorder the roadmap while preserving completed rows and exact evidence.
 5. Align package metadata and the packed SDK license assertion with Apache-2.0.
-6. Run the required checks and stale-claim searches, then mark the feature artifacts complete only if every check passes.
+6. Remove duplicated tests, make generator validation part of the default repository gate, and move archive and measurement qualification to the explicit Local Preview lane.
+7. Run the required checks and stale-claim searches, then mark the feature artifacts complete only if every check passes.
 
 ## Complexity tracking
 

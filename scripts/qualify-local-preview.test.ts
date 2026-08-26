@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 
@@ -18,14 +18,20 @@ import {
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const runnerPath = resolve(repositoryRoot, "scripts/qualify-local-preview.ts");
+const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 let suiteRoot: string;
 let archivePath: string;
+let firstBuild: Map<string, Buffer>;
+let secondBuild: Map<string, Buffer>;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-package-test-"));
   run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+  firstBuild = await readTree(distRoot);
+  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+  secondBuild = await readTree(distRoot);
   run(pnpm, [
     "--filter",
     "@keynes/sdk",
@@ -42,6 +48,10 @@ afterAll(async () => {
 });
 
 describe("local preview qualification runner", () => {
+  it("builds the production tree deterministically", () => {
+    expect(secondBuild).toEqual(firstBuild);
+  });
+
   it("requires one known archive argument", () => {
     expect(() => parseArguments([])).toThrow("--archive");
     expect(parseArguments(["--", "--archive", "sdk.tgz"])).toEqual({
@@ -151,4 +161,22 @@ function run(command: string, args: readonly string[]): void {
     encoding: "utf8",
   });
   expect(result.status, result.stderr || result.stdout).toBe(0);
+}
+
+async function readTree(root: string): Promise<Map<string, Buffer>> {
+  const files = new Map<string, Buffer>();
+  for (const path of await walk(root)) {
+    files.set(relative(root, path), await readFile(path));
+  }
+  return files;
+}
+
+async function walk(root: string): Promise<string[]> {
+  const paths: string[] = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = resolve(root, entry.name);
+    if (entry.isDirectory()) paths.push(...(await walk(path)));
+    else if (entry.isFile()) paths.push(path);
+  }
+  return paths;
 }

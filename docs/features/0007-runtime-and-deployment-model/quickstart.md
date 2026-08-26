@@ -17,16 +17,26 @@ Both commands must select `FEAT-0007` at `docs/features/0007-runtime-and-deploym
 pnpm exec oxfmt --check docs/product.md docs/architecture.md docs/roadmap.md docs/adr .specify/memory/constitution.md .specify/templates package.json packages/sdk/package.json packages/cloud/package.json
 ```
 
-## 3. Check repository behavior and packed license evidence
+## 3. Check repository behavior
 
 ```sh
 pnpm verify
 git diff --check
 ```
 
-The repository gate must include the updated SDK package-qualification assertion for Apache-2.0. It does not prove a future runtime or deployment.
+The repository gate checks generated-contract drift, generator behavior, types, package boundaries, and provider-free runtime behavior. It does not build or inspect a package archive.
 
-## 4. Search for stale governing claims
+## 4. Check package qualification
+
+```sh
+pnpm test:qualification
+```
+
+This lane builds the SDK twice and inspects the packed archive and Apache-2.0 license bytes. It installs the archive outside the workspace and runs the clean consumer. It also validates the measurement controller and worker protocol.
+
+The manual Local Preview workflow owns the supported operating-system and Node.js matrix plus reference measurements.
+
+## 5. Search for stale governing claims
 
 ```sh
 rg -n "One model, two runtimes|exactly two runtimes|permanent PGlite|only supported durable|Public Cloud access|complete, read-only PostgreSQL" docs/product.md docs/architecture.md docs/roadmap.md .specify/memory/constitution.md .specify/templates docs/adr

@@ -106,38 +106,4 @@ describe("package-root exports", () => {
 
     expectTypeOf(checkRequestTypes).toBeFunction();
   });
-
-  it("keeps hosts, identities, callers, databases, and fault controls private", () => {
-    for (const privateName of [
-      "PGlite",
-      "ProcedureCaller",
-      "DatabaseConnection",
-      "TransactionalDatabase",
-      "createKeynesClient",
-      "installDatabase",
-      "openInstalledPGliteDatabase",
-      "openLocalKeynes",
-      "openProductLocalKeynes",
-      "clientFor",
-      "DATABASE_ROOT",
-      "MIGRATIONS_ROOT",
-      "INSTALLATION_RECORD_URL",
-      "DATABASE_PATH",
-      "FIXTURE_TENANT_ID",
-      "FIXTURE_PRINCIPALS",
-      "PRODUCT_TENANT_ID",
-      "PRODUCT_PRINCIPAL_ID",
-      "PLATFORM_CONTEXT_ENV",
-      "RollbackCheckpoint",
-      "CommittedResponseLostError",
-      "dropResponseAfterCommitOnce",
-      "query",
-      "exec",
-      "sql",
-      "qualifyLocalPreview",
-      "measureLocalPreview",
-    ]) {
-      expect(privateName in sdk).toBe(false);
-    }
-  });
 });

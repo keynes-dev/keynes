@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test qualification tooling
+        run: pnpm test:qualification
+
       - name: Build and pack archive
         shell: bash
         run: |

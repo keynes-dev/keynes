@@ -3,7 +3,7 @@
 **Input**: Design documents from `/docs/features/0007-runtime-and-deployment-model/`
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/document-contract.md`, `quickstart.md`
 
-**Tests**: This feature changes governance, documentation, templates, package metadata, and one existing package assertion. It changes no runtime behavior, so no new behavioral test can fail for the proposed runtime design. Focused validation checks document agreement, exact package metadata, packed license text, repository behavior, and honest evidence boundaries.
+**Tests**: This feature changes governance, documentation, templates, package metadata, and verification ownership. It changes no runtime behavior. The default gate checks generated-contract drift and behavior, while the explicit Local Preview lane checks package construction, packed license text, external installation, and measurements.
 
 ## Phase 1: Setup
 
@@ -82,7 +82,7 @@
 
 - [x] T019 [US4] Reorder future candidates and add in-memory, PostgreSQL transaction, and Policy acceptance boundaries in `docs/roadmap.md` while preserving FEAT-0001 through FEAT-0006 rows and evidence
 - [x] T020 [P] [US4] Add Apache-2.0 metadata to `package.json`, `packages/sdk/package.json`, and `packages/cloud/package.json`
-- [x] T021 [P] [US4] Update Apache-2.0 metadata and packed-license assertions in `packages/sdk/src/package-qualification.test.ts`, `scripts/qualify-local-preview.ts`, and `scripts/qualify-local-preview.test.ts`
+- [x] T021 [P] [US4] Update Apache-2.0 metadata and retain one packed-license assertion in `scripts/qualify-local-preview.ts` and `scripts/qualify-local-preview.test.ts`
 - [x] T022 [US4] Replace stale source-of-truth wording in `docs/workflow.md` only where the new two-implementation model makes it inaccurate
 
 **Checkpoint**: Roadmap, workflow, licensing, and package evidence agree with the governing decisions.
@@ -95,10 +95,24 @@
 
 - [x] T023 Run `pnpm check:feature-identity` and `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`; require FEAT-0007 and complete checklists
 - [x] T024 Run the required oxfmt check over governing documents, ADRs, constitution, templates, and package manifests; format only the files in scope if needed
-- [x] T025 Run `pnpm verify` and confirm the package qualification requires and packs Apache-2.0 text
+- [x] T025 Run `pnpm verify` for repository and runtime behavior, then run `pnpm test:qualification` and confirm the packed archive requires Apache-2.0 text
 - [x] T026 Search current governing documents for stale two-runtime, permanent-PGlite, managed-Cloud-only, unrestricted-SQL, and next-public-Cloud claims; review every remaining match in context
 - [x] T027 Run `git diff --check`, confirm `docs/features/0001-*` through `docs/features/0006-*` and retained evidence are unchanged, and inspect the complete diff for scope and naming
 - [x] T028 Mark `docs/features/0007-runtime-and-deployment-model/spec.md`, `docs/features/0007-runtime-and-deployment-model/tasks.md`, and the FEAT-0007 roadmap row complete only after T023-T027 pass; keep future runtime and deployment lanes `NOT RUN`
+
+---
+
+## Phase 8: Verification panel simplification
+
+**Purpose**: Remove duplicated checks and keep each verification lane focused on the evidence it owns.
+
+- [x] T029 Audit the default, package, measurement, and native test panels and record which checks protect distinct behavior
+- [x] T030 Delete `packages/sdk/src/package-qualification.test.ts`, move its repeated-build check into `scripts/qualify-local-preview.test.ts`, and run qualification tests from `.github/workflows/local-preview.yml`
+- [x] T031 Remove the duplicated Resource rollback matrix, private-export blacklist, repeated second-loss cases, and third clean generator run
+- [x] T032 Add `pnpm generate:check` and `pnpm test:generator` to `pnpm verify`, and exclude package measurement workers from the default SDK test command
+- [x] T033 Update FEAT-0007 validation instructions and run focused qualification, generator, SDK, and repository verification
+
+**Checkpoint**: The default gate proves generated contracts and provider-free behavior. The Local Preview lane owns archive, install, license, and measurement evidence.
 
 ---
 
@@ -108,7 +122,8 @@
 - Phase 2 supplies the governing language used by every later document.
 - Phases 3 through 5 update overlapping product and architecture files in order.
 - Phase 6 depends on the final product and architecture boundaries.
-- Phase 7 is sequential and completes the feature only after every required check passes.
+- Phase 7 is sequential and completes the original feature acceptance.
+- Phase 8 follows the repository-wide test audit and rechecks acceptance after changing verification ownership.
 
 ## Parallel opportunities
 

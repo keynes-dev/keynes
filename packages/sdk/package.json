@@ -18,7 +18,7 @@
     "build": "node ../../scripts/build-sdk-package.ts",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --maxWorkers=1 --exclude \"**/*.native.test.ts\"",
+    "test": "vitest run --maxWorkers=1 --exclude \"**/*.native.test.ts\" --exclude \"qualification/**\"",
     "test:budget": "vitest run src/budget-lifecycle.test.ts",
     "test:platform": "node src/private/run-platform-tests.ts"
   },

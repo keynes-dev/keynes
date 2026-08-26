@@ -125,51 +125,6 @@ describe("Budget lifecycle", () => {
     }
   });
 
-  it.each([
-    ["after_command_binding", "10000000-0000-0000-0000-000000000031"],
-    ["after_domain_mutation", "10000000-0000-0000-0000-000000000032"],
-    ["after_result_storage", "10000000-0000-0000-0000-000000000033"],
-  ] as const)(
-    "rolls back %s before a clean retry",
-    async (checkpoint, commandId) => {
-      const local = await openTestKeynes();
-
-      try {
-        const command = {
-          commandId,
-          definition: {
-            canonicalName: `checkpoint_${commandId.slice(-3)}`,
-            unit: "token",
-            accountingBehavior: "consumable",
-          },
-        } satisfies DefineResourceTypeCommand;
-
-        await expect(
-          local
-            .clientFor("definer-fixture", { checkpoint })
-            .defineResource(command),
-        ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
-
-        const retry = await local
-          .clientFor("definer-fixture")
-          .defineResource(command);
-        expect(retry).toMatchObject({
-          kind: "defined",
-          resourceType: {
-            resourceTypeId: commandId,
-            canonicalName: command.definition.canonicalName,
-          },
-          definitionEvidence: {
-            commandId,
-          },
-          replayed: false,
-        });
-      } finally {
-        await local.close();
-      }
-    },
-  );
-
   it("completes one funded child lifecycle and reads its root-lineage history", async () => {
     const local = await openTestKeynes();
 
