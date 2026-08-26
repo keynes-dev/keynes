@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0008-sqlite-local-runtime`
 **Roadmap stage**: `Implementation sequence`
 **Created**: August 25, 2026
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "SQLite local runtime from docs/roadmap.md"
 
 ## Feature story

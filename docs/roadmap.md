@@ -62,12 +62,10 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 
 ## Implementation sequence
 
-The sequence below has one promoted next candidate. Later candidates remain unnumbered until Spec Kit starts them.
-
 | Order | Feature candidate                                                  | Purpose                                                                                                                                              | Depends on                                      | Status      |
 | ----- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- |
-| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md) | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.           | Runtime and deployment model                    | Draft       |
-| 2     | PostgreSQL transaction integration                                 | Install the current migrations and prove caller-owned database code can compose supported `keynes.*` calls with application writes atomically.       | SQLite local runtime                            | Not started |
+| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md) | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.           | Runtime and deployment model                    | Complete    |
+| 2     | PostgreSQL transaction integration                                 | Install the current migrations and prove caller-owned database code can compose supported `keynes.*` calls with application writes atomically.       | SQLite local runtime                            | Next        |
 | 3     | PostgreSQL installation and support                                | Define supported installation, roles, compatibility, upgrades, drift checks, and a supported SQL boundary for durable deployments.                   | PostgreSQL transaction integration              | Not started |
 | 4     | Policies that work in local mode and PostgreSQL                    | Implement one restricted query format, typed builder, parser, local evaluator, PostgreSQL evaluator, and comparison suite.                           | PostgreSQL installation and support             | Not started |
 | 5     | Remote SDK and public service                                      | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback. | Policies that work in local mode and PostgreSQL | Not started |
@@ -76,7 +74,7 @@ The sequence below has one promoted next candidate. Later candidates remain unnu
 | 8     | Release support                                                    | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.               | Managed Cloud                                   | Not started |
 | 9     | Production testing                                                 | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.   | Release support                                 | Not started |
 
-`SQLite local runtime` is the active Spec Kit feature. Later candidates retain no feature identity until Spec Kit starts them.
+`PostgreSQL transaction integration` is the sole unnumbered `Next` item and has no feature identity until Spec Kit starts it. Later candidates remain unnumbered and `Not started`.
 
 ### SQLite local runtime
 
@@ -102,7 +100,9 @@ The feature must preserve `defineResources`, `createBudget`, `Budget.request`, `
 - measure package size, install size, memory, startup, request latency, and shutdown again; and
 - require ready memory below the existing 512 MiB target.
 
-Policy, persistence, browser support, security review, and production support remain `NOT RUN` for this feature.
+On August 26, 2026, FEAT-0008 completed at runtime revision `430edf64e9c3266502c4fdda958e8b972aacf3ad` with compatible package qualification at clean descendant `a2176c7512e5bb37e88d6884d255e18fc4a3d92e`. The provider-free gates, 44-test SQLite/PostgreSQL platform lane, and nine-scenario native Cloud lane passed. One 23,382-byte self-contained SDK archive passed clean ESM consumers on Node.js 24 and 26 across Linux x64, macOS arm64, and Windows x64 in [hosted run 32958313497](https://github.com/shubsharan/keynes/actions/runs/32958313497). On the Linux x64 Node.js 24 reference runner, ready-runtime RSS p95 was 8,699,904 bytes, cold creation p95 was 0.821 milliseconds, first request p95 was 0.583 milliseconds, steady request p95 was 2.037 milliseconds, and shutdown p95 was 0.108 milliseconds; all declared preview limits passed.
+
+Policy, persistence, browsers, bundlers, CommonJS, Node.js 25, Bun, Deno, custom Node.js builds, undeclared architectures, provider qualification, paid services, security qualification, recovery, upgrades, backup restoration, self-hosted operations, managed Cloud, registry release, adopter use, broader fault campaigns, and production operations remain `NOT RUN`.
 
 ### PostgreSQL transaction integration
 
