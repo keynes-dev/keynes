@@ -209,6 +209,46 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it("keeps returned mutation results detached from retained local state", async () => {
+    const keynes = await Keynes.create();
+    try {
+      await keynes.defineResources({
+        usdCents: { unit: "cent", accountingBehavior: "consumable" },
+      });
+      const root = await keynes.createBudget({ usdCents: 5 });
+      const returned = await root.settle({ usdCents: 3 });
+      const returnedResource = returned.budget.resources[0];
+      const returnedUsage = returned.newlyKnown[0];
+      if (returnedResource === undefined || returnedUsage === undefined) {
+        throw new Error(
+          "expected one Resource and one newly known usage value",
+        );
+      }
+
+      Reflect.set(returnedResource, "allocated", 0);
+      Reflect.set(returnedResource.resourceType, "canonicalName", "mutated");
+      Reflect.set(returnedUsage, "amount", 0);
+
+      const retained = await root.inspect();
+      expect(retained.budget).toMatchObject({
+        lifecycle: "settled",
+        resources: [
+          {
+            allocated: 5,
+            directUsage: 3,
+            resourceType: { canonicalName: "usd_cents" },
+          },
+        ],
+      });
+      expect(retained.history.entries[1]).toMatchObject({
+        kind: "budget_settlement_recorded",
+        newlyKnown: [{ amount: 3 }],
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("leaves Budget membership decisions to the database", async () => {
     const keynes = await Keynes.create();
     try {

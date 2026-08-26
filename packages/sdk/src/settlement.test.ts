@@ -150,8 +150,21 @@ describe("Budget settlement", () => {
       unresolvedResourceTypeIds: [],
     });
 
+    await expectKeynesError(
+      client.settleBudget({
+        commandId: "42000000-0000-0000-0000-000000000013",
+        budgetId: root.budget.budgetId,
+        usage: [{ resourceTypeId: resource.resourceTypeId, amount: null }],
+      }),
+      "invalid_command",
+      {
+        operation: "settleBudget",
+        issues: [{ path: "$.usage[].amount", rule: "monotone" }],
+      },
+    );
+
     const repeated = await client.settleBudget({
-      commandId: "42000000-0000-0000-0000-000000000013",
+      commandId: "42000000-0000-0000-0000-000000000014",
       budgetId: root.budget.budgetId,
       usage: [{ resourceTypeId: resource.resourceTypeId, amount: 4 }],
     });
@@ -164,7 +177,7 @@ describe("Budget settlement", () => {
 
     await expectKeynesError(
       client.settleBudget({
-        commandId: "42000000-0000-0000-0000-000000000014",
+        commandId: "42000000-0000-0000-0000-000000000015",
         budgetId: root.budget.budgetId,
         usage: [{ resourceTypeId: resource.resourceTypeId, amount: 5 }],
       }),

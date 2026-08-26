@@ -24,6 +24,8 @@ import schema from "../packages/contracts/schema.json" with { type: "json" };
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const generatorPath = resolve(import.meta.dirname, "generate-contracts.ts");
 const cloudProceduresPath = "packages/cloud/src/generated/procedures.ts";
+const sdkClientPath = "packages/sdk/src/generated/client.ts";
+const sdkValidatorsPath = "packages/sdk/src/generated/validators.ts";
 const temporaryDirectories: string[] = [];
 
 function makeTemporaryDirectory(): string {
@@ -252,7 +254,7 @@ describe("ordered contract source", () => {
 });
 
 describe("contract generator", () => {
-  it("emits only declared outputs with byte-identical ordering", () => {
+  it("emits only declared deterministic outputs with byte-identical ordering", () => {
     const contractRoot = prepareContractRoot();
     const firstOutput = makeTemporaryDirectory();
     const secondOutput = makeTemporaryDirectory();
@@ -299,6 +301,81 @@ describe("contract generator", () => {
       throw new Error("generated installation record has no migrations");
     }
     expect(installationRecord.migrations).toHaveLength(3);
+  });
+
+  it("emits one private operation executor boundary while retaining PostgreSQL metadata", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const result = runGenerator(prepareContractRoot(), outputRoot);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+
+    const clientSource = readFileSync(join(outputRoot, sdkClientPath), "utf8");
+    const validatorsSource = readFileSync(
+      join(outputRoot, sdkValidatorsPath),
+      "utf8",
+    );
+    const publicSource = readFileSync(
+      join(repositoryRoot, "packages/sdk/src/index.ts"),
+      "utf8",
+    );
+
+    expect(clientSource).toContain("export interface CommandExecutor {");
+    expect(clientSource).toContain(
+      "execute(operation: OperationName, input: unknown): Promise<unknown>;",
+    );
+    expect(clientSource).toMatch(
+      /executor\.execute\(\s*invocation\.operation,\s*invocation\.input,?\s*\)/u,
+    );
+    expect(clientSource).toContain(
+      "export function createKeynesClient(executor: CommandExecutor)",
+    );
+
+    const helperSignature = "export function validateOperationInputIssues(";
+    expect(validatorsSource.split(helperSignature)).toHaveLength(2);
+    expect(validatorsSource).toContain("operation: OperationName");
+    expect(validatorsSource).toContain("value: unknown");
+    expect(validatorsSource).toContain("): ValidationIssue[] {");
+
+    for (const operation of contract.operations) {
+      expect(clientSource).toContain(
+        `const operation = ${JSON.stringify(operation.method)}`,
+      );
+      expect(clientSource).not.toContain(operation.target);
+      expect(validatorsSource).toContain(
+        `case ${JSON.stringify(operation.method)}:`,
+      );
+      expect(validatorsSource).toContain(
+        `return validate${operation.input}Issues(value);`,
+      );
+    }
+
+    const installationRecord: unknown = JSON.parse(
+      readFileSync(
+        join(
+          outputRoot,
+          "packages/database/generated/installation-record.json",
+        ),
+        "utf8",
+      ),
+    );
+    if (
+      typeof installationRecord !== "object" ||
+      installationRecord === null ||
+      !("expectedTargets" in installationRecord) ||
+      !Array.isArray(installationRecord.expectedTargets)
+    ) {
+      throw new Error("generated installation record has no expected targets");
+    }
+    expect(installationRecord.expectedTargets).toEqual(
+      contract.operations.map(({ target }) => target),
+    );
+
+    expect(publicSource).not.toContain("CommandExecutor");
+    expect(publicSource).not.toContain("validateOperationInputIssues");
+    expect(publicSource).not.toMatch(
+      /export(?: type)? \* from "\.\/generated\/(?:client|validators)\.js"/u,
+    );
   });
 
   it("emits the ordered Cloud procedure manifest", () => {

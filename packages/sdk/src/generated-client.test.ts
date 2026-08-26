@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   createKeynesClient,
-  type InstalledTarget,
-  type ProcedureCaller,
+  type CommandExecutor,
 } from "./generated/client.js";
 import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
+  OperationName,
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
@@ -56,25 +56,25 @@ const commands = {
   },
 };
 
-const EXPECTED_TARGETS = [
-  "keynes.define_resource_type",
-  "keynes.create_budget",
-  "keynes.request",
-  "keynes.settle",
-  "keynes.get_budget",
-] satisfies readonly InstalledTarget[];
+const EXPECTED_OPERATIONS = [
+  "defineResource",
+  "createBudget",
+  "requestBudget",
+  "settleBudget",
+  "getBudget",
+] satisfies readonly OperationName[];
 
 describe("generated client bindings", () => {
-  it("binds every concrete method to its declared installed target", async () => {
-    const calls: InstalledTarget[] = [];
+  it("binds every concrete method to its deployment-neutral operation", async () => {
+    const calls: OperationName[] = [];
     const stop = new Error("binding observed");
-    const caller: ProcedureCaller = {
-      async call(target) {
-        calls.push(target);
+    const executor: CommandExecutor = {
+      async execute(operation) {
+        calls.push(operation);
         throw stop;
       },
     };
-    const client = createKeynesClient(caller);
+    const client = createKeynesClient(executor);
 
     await expect(client.defineResource(commands.defineResource)).rejects.toBe(
       stop,
@@ -86,7 +86,79 @@ describe("generated client bindings", () => {
     await expect(client.settleBudget(commands.settleBudget)).rejects.toBe(stop);
     await expect(client.getBudget(commands.getBudget)).rejects.toBe(stop);
 
-    expect(calls).toEqual(EXPECTED_TARGETS);
+    expect(calls).toEqual(EXPECTED_OPERATIONS);
+  });
+
+  it("validates input before dispatch", async () => {
+    let calls = 0;
+    const executor: CommandExecutor = {
+      async execute() {
+        calls += 1;
+        throw new Error("invalid input reached the executor");
+      },
+    };
+    const client = createKeynesClient(executor);
+
+    await expect(
+      Reflect.apply(client.createBudget, client, [
+        { commandId: "not-a-uuid", resources: [] },
+      ]),
+    ).rejects.toMatchObject({
+      code: "invalid_command",
+      details: { operation: "createBudget" },
+    });
+    expect(calls).toBe(0);
+  });
+
+  it.each([
+    undefined,
+    null,
+    {},
+    { ok: "yes" },
+    { ok: true },
+    { ok: false, error: null },
+  ])("rejects an invalid wire envelope before returning it", async (wire) => {
+    const executor: CommandExecutor = {
+      async execute() {
+        return wire;
+      },
+    };
+    const client = createKeynesClient(executor);
+
+    await expect(
+      client.defineResource(commands.defineResource),
+    ).rejects.toThrow(/invalid .*response for defineResource/);
+  });
+
+  it("detaches validated output from the executor wire value", async () => {
+    const digest = `sha256:${"a".repeat(64)}`;
+    const wireResult = {
+      kind: "defined",
+      resourceType: {
+        resourceTypeId: "10000000-0000-0000-0000-000000000001",
+        canonicalName: "model_tokens",
+        unit: "token",
+        accountingBehavior: "consumable",
+        definitionDigest: digest,
+      },
+      definitionEvidence: {
+        kind: "resource_type_defined",
+        commandId: "10000000-0000-0000-0000-000000000001",
+        principalId: "00000000-0000-0000-0000-000000000011",
+        definitionDigest: digest,
+      },
+    };
+    const executor: CommandExecutor = {
+      async execute() {
+        return { ok: true, result: wireResult, replayed: false };
+      },
+    };
+    const result = await createKeynesClient(executor).defineResource(
+      commands.defineResource,
+    );
+
+    wireResult.resourceType.unit = "mutated";
+    expect(result.resourceType.unit).toBe("token");
   });
 
   it("sorts validation issues independently of property insertion order", () => {

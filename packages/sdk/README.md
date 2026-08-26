@@ -1,6 +1,6 @@
 # TypeScript SDK
 
-`@keynes/sdk` is a private, unpublished ESM package. It owns the public local facade, the generated TypeScript contract consumer, and the private PGlite lifecycle.
+`@keynes/sdk` is a private, unpublished ESM package. It owns the public local facade, the generated TypeScript contract consumer, and one private SQLite runtime.
 
 ## Install the private archive
 
@@ -11,7 +11,7 @@ pnpm --filter @keynes/sdk build
 pnpm --filter @keynes/sdk pack --pack-destination <directory>
 ```
 
-Install the resulting `keynes-sdk-0.0.0.tgz` file as the only application dependency. The archive includes the compiled SDK and byte-identical copies of `packages/database/`. It remains private and has no registry publication command.
+Install the resulting `keynes-sdk-0.0.0.tgz` file as the application's only dependency. The archive contains the compiled SDK, its type declarations, the README, the license, and the package manifest. It has no production dependency, PGlite file, or copied PostgreSQL asset. The package remains private and has no registry publication command.
 
 ## Import the package root
 
@@ -39,7 +39,7 @@ Deep imports, package metadata imports, database handles, paths, tenant identiti
 
 ## Runtime limits
 
-Local mode runs one private PGlite database for each `Keynes` instance. State belongs to that instance and does not survive process exit. Two instances do not share state.
+Local mode opens one private in-memory `node:sqlite` database for each `Keynes` instance. State belongs to that instance and does not survive process exit. Two instances do not share state.
 
 Call `close()` when the application finishes. Closing drains admitted work, rejects new work with `runtime_closed`, and returns the same promise on repeated calls.
 
@@ -47,6 +47,8 @@ Local mode does not accept a database path, connection, extension, tenant, princ
 
 ## Compatibility boundary
 
-The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
+The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Node.js 25 is unsupported. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
 
-The accepted six-environment qualification run, exact commit, archive digest, and reference measurements are recorded in the [repository roadmap](https://github.com/shubsharan/keynes/blob/main/docs/roadmap.md). The temporary ready-runtime RSS ceiling is 1 GiB. [GitHub issue #6](https://github.com/shubsharan/keynes/issues/6) tracks the required reduction to 512 MiB p95 and the 384 MiB stretch target.
+Provider-free source tests do not qualify the archive. The manually dispatched `Local Preview` workflow reuses one archive digest across the six supported host and Node.js combinations. Its `local-preview-measurement` artifact records the workflow run, archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
+
+The workflow does not prove policy enforcement, persistence, browser support, provider qualification, security, recovery, managed operations, registry publication, adopter use, or production readiness. Treat those claims as `NOT RUN`.

@@ -15,16 +15,12 @@ import type {
   OperationName,
 } from "./types.js";
 import {
-  validateDefineResourceTypeCommandIssues,
   validateDefineResourceTypeResult,
-  validateCreateBudgetCommandIssues,
   validateCreateBudgetResult,
-  validateRequestBudgetCommandIssues,
   validateRequestBudgetResult,
-  validateSettleBudgetCommandIssues,
   validateSettleBudgetResult,
-  validateGetBudgetQueryIssues,
   validateGetBudgetResult,
+  validateOperationInputIssues,
   validateErrorEnvelope,
 } from "./validators.js";
 import type { ValidationIssue } from "./validators.js";
@@ -32,15 +28,8 @@ import type { ValidationIssue } from "./validators.js";
 export const CONTRACT_DIGEST =
   "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
 
-export type InstalledTarget =
-  | "keynes.define_resource_type"
-  | "keynes.create_budget"
-  | "keynes.request"
-  | "keynes.settle"
-  | "keynes.get_budget";
-
-export interface ProcedureCaller {
-  call(target: InstalledTarget, input: unknown): Promise<unknown>;
+export interface CommandExecutor {
+  execute(operation: OperationName, input: unknown): Promise<unknown>;
 }
 
 export interface KeynesClient {
@@ -68,9 +57,8 @@ export class KeynesError extends Error {
 type OutputValidator<Output> = (value: unknown) => value is Output;
 
 interface Invocation<Output> {
-  readonly caller: ProcedureCaller;
-  readonly target: InstalledTarget;
-  readonly operation: string;
+  readonly executor: CommandExecutor;
+  readonly operation: OperationName;
   readonly input: unknown;
   readonly validateOutput: OutputValidator<Output>;
   readonly replay: boolean;
@@ -95,8 +83,8 @@ function invalidCommand(
 }
 
 async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
-  const wire = await invocation.caller.call(
-    invocation.target,
+  const wire = await invocation.executor.execute(
+    invocation.operation,
     invocation.input,
   );
   if (!isRecord(wire) || typeof wire.ok !== "boolean") {
@@ -119,27 +107,27 @@ async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
     if (!invocation.validateOutput(result)) {
       throw new Error(`invalid result response for ${invocation.operation}`);
     }
-    return result;
+    return structuredClone(result);
   }
   if (!invocation.validateOutput(wire.result)) {
     throw new Error(`invalid result response for ${invocation.operation}`);
   }
-  return wire.result;
+  return structuredClone(wire.result);
 }
 
-export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
+export function createKeynesClient(executor: CommandExecutor): KeynesClient {
   return {
     async defineResource(
       input: DefineResourceTypeCommand,
     ): Promise<DefineResourceTypeResult> {
-      const issues = validateDefineResourceTypeCommandIssues(input);
+      const operation = "defineResource";
+      const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
-        throw invalidCommand("defineResource", issues);
+        throw invalidCommand(operation, issues);
       }
       return invoke({
-        caller,
-        target: "keynes.define_resource_type",
-        operation: "defineResource",
+        executor,
+        operation,
         input,
         validateOutput: validateDefineResourceTypeResult,
         replay: true,
@@ -148,14 +136,14 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async createBudget(
       input: CreateBudgetCommand,
     ): Promise<CreateBudgetResult> {
-      const issues = validateCreateBudgetCommandIssues(input);
+      const operation = "createBudget";
+      const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
-        throw invalidCommand("createBudget", issues);
+        throw invalidCommand(operation, issues);
       }
       return invoke({
-        caller,
-        target: "keynes.create_budget",
-        operation: "createBudget",
+        executor,
+        operation,
         input,
         validateOutput: validateCreateBudgetResult,
         replay: true,
@@ -164,14 +152,14 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async requestBudget(
       input: RequestBudgetCommand,
     ): Promise<RequestBudgetResult> {
-      const issues = validateRequestBudgetCommandIssues(input);
+      const operation = "requestBudget";
+      const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
-        throw invalidCommand("requestBudget", issues);
+        throw invalidCommand(operation, issues);
       }
       return invoke({
-        caller,
-        target: "keynes.request",
-        operation: "requestBudget",
+        executor,
+        operation,
         input,
         validateOutput: validateRequestBudgetResult,
         replay: true,
@@ -180,28 +168,28 @@ export function createKeynesClient(caller: ProcedureCaller): KeynesClient {
     async settleBudget(
       input: SettleBudgetCommand,
     ): Promise<SettleBudgetResult> {
-      const issues = validateSettleBudgetCommandIssues(input);
+      const operation = "settleBudget";
+      const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
-        throw invalidCommand("settleBudget", issues);
+        throw invalidCommand(operation, issues);
       }
       return invoke({
-        caller,
-        target: "keynes.settle",
-        operation: "settleBudget",
+        executor,
+        operation,
         input,
         validateOutput: validateSettleBudgetResult,
         replay: true,
       });
     },
     async getBudget(input: GetBudgetQuery): Promise<GetBudgetResult> {
-      const issues = validateGetBudgetQueryIssues(input);
+      const operation = "getBudget";
+      const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
-        throw invalidCommand("getBudget", issues);
+        throw invalidCommand(operation, issues);
       }
       return invoke({
-        caller,
-        target: "keynes.get_budget",
-        operation: "getBudget",
+        executor,
+        operation,
         input,
         validateOutput: validateGetBudgetResult,
         replay: false,

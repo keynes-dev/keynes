@@ -7,6 +7,34 @@
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
+## Feature story _(mandatory)_
+
+_The feature story explains intent. Numbered requirements and success criteria define acceptance. Do not introduce implementation decisions or unsupported evidence claims here._
+
+### Before this feature
+
+[Explain what users can do today and what remains incomplete, costly, confusing, or unavailable.]
+
+### Why this feature exists
+
+[Explain why the product needs this work now. Use product and user language, not implementation details.]
+
+### What changes for users
+
+[Describe the resulting experience in plain language.]
+
+### What must stay true
+
+[Name the public behavior, vocabulary, compatibility promises, and ownership boundaries that the feature preserves.]
+
+### What this feature does not include
+
+[State the deliberate limits, deferred capabilities, and unproved claims.]
+
+### Where this leads
+
+[Place the feature in the roadmap and explain what later work it enables without assigning new feature identity.]
+
 ## User Scenarios & Testing _(mandatory)_
 
 <!--

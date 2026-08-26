@@ -30,22 +30,11 @@ const productionModules = [
   "generated/validators",
   "index",
   "keynes",
-  "private/database",
   "private/local-runtime",
-  "private/migrations",
-  "private/pglite-database",
-  "private/procedure-caller",
   "private/resource-catalog",
+  "private/sqlite-command-executor",
+  "private/test-controls",
   "sdk-errors",
-] as const;
-
-const databaseFiles = [
-  "README.md",
-  "generated/installation-record.json",
-  "migrations/0001-storage.sql",
-  "migrations/0002-budget.sql",
-  "migrations/0003-public.generated.sql",
-  "migrations/manifest.json",
 ] as const;
 
 const allowedPackageFiles = [
@@ -56,7 +45,6 @@ const allowedPackageFiles = [
     `package/dist/sdk/src/${path}.d.ts`,
     `package/dist/sdk/src/${path}.js`,
   ]),
-  ...databaseFiles.map((path) => `package/dist/database/${path}`),
 ].sort();
 
 export interface QualificationArguments {
@@ -86,7 +74,6 @@ export interface ArchiveInspection {
   readonly sha256: string;
   readonly compressedBytes: number;
   readonly packageVersion: string;
-  readonly pgliteVersion: "0.5.5";
   readonly contractDigest: string;
 }
 
@@ -205,17 +192,6 @@ export async function installExternalConsumer(
   try {
     await cp(qualificationRoot, root, { recursive: true });
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
-    const pgliteArchive = resolve(root, "pglite-0.5.5.tgz");
-    run(
-      pnpm,
-      ["pack", "--out", pgliteArchive],
-      await realpath(
-        resolve(
-          repositoryRoot,
-          "packages/sdk/node_modules/@electric-sql/pglite",
-        ),
-      ),
-    );
     await writeFile(
       resolve(root, "package.json"),
       `${JSON.stringify(
@@ -227,10 +203,6 @@ export async function installExternalConsumer(
         null,
         2,
       )}\n`,
-    );
-    await writeFile(
-      resolve(root, "pnpm-workspace.yaml"),
-      `packages:\n  - .\noverrides:\n  "@electric-sql/pglite": file:./pglite-0.5.5.tgz\n`,
     );
     run(pnpm, ["install", "--prod", "--offline", "--ignore-scripts"], root);
 
@@ -269,26 +241,13 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const entries = readTar(gunzipSync(bytes));
   validatePackageFilePaths(entries.map((entry) => entry.path));
   const license = entries.find((entry) => entry.path === "package/LICENSE");
+  const repositoryLicense = await readFile(resolve(repositoryRoot, "LICENSE"));
   if (
     license === undefined ||
-    !license.body.equals(await readFile(resolve(repositoryRoot, "LICENSE")))
+    normalizeLineEndings(license.body) !==
+      normalizeLineEndings(repositoryLicense)
   ) {
     throw new Error("Archive license differs from the repository license");
-  }
-  for (const path of databaseFiles) {
-    const entry = entries.find(
-      (candidate) => candidate.path === `package/dist/database/${path}`,
-    );
-    if (
-      entry === undefined ||
-      !entry.body.equals(
-        await readFile(resolve(repositoryRoot, "packages/database", path)),
-      )
-    ) {
-      throw new Error(
-        `Archive database file differs from canonical source: ${path}`,
-      );
-    }
   }
 
   const manifest = entries.find(
@@ -302,29 +261,30 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     value.name !== "@keynes/sdk" ||
     typeof value.version !== "string" ||
     value.license !== "Apache-2.0" ||
-    !isRecord(value.dependencies) ||
-    value.dependencies["@electric-sql/pglite"] !== "0.5.5"
+    value.type !== "module" ||
+    !isRecord(value.engines) ||
+    value.engines.node !== ">=24 <25 || >=26 <27" ||
+    hasPackageDependencies(value)
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
   }
-  const installationRecord = entries.find(
-    (entry) =>
-      entry.path === "package/dist/database/generated/installation-record.json",
+  const generatedClient = entries.find(
+    (entry) => entry.path === "package/dist/sdk/src/generated/client.js",
   );
-  if (installationRecord === undefined) {
-    throw new Error("Archive installation record is missing");
-  }
-  const record: unknown = JSON.parse(installationRecord.body.toString("utf8"));
-  if (!isRecord(record) || typeof record.contractDigest !== "string") {
-    throw new Error("Archive installation record is invalid");
+  if (generatedClient === undefined)
+    throw new Error("Archive generated client is missing");
+  const contractDigest = generatedClient.body
+    .toString("utf8")
+    .match(/export const CONTRACT_DIGEST\s*=\s*"([a-f0-9]{64})"/)?.[1];
+  if (contractDigest === undefined) {
+    throw new Error("Archive generated client has no valid contract digest");
   }
 
   return {
     sha256: createHash("sha256").update(bytes).digest("hex"),
     compressedBytes: archiveStat.size,
     packageVersion: value.version,
-    pgliteVersion: "0.5.5",
-    contractDigest: record.contractDigest,
+    contractDigest,
   };
 }
 
@@ -364,6 +324,10 @@ function readTar(bytes: Buffer): ArchiveEntry[] {
 function readTarText(bytes: Buffer): string {
   const end = bytes.indexOf(0);
   return bytes.subarray(0, end === -1 ? bytes.length : end).toString("utf8");
+}
+
+function normalizeLineEndings(bytes: Buffer): string {
+  return bytes.toString("utf8").replaceAll("\r\n", "\n");
 }
 
 function assertWithin(root: string, candidate: string): void {
@@ -423,6 +387,29 @@ function run(command: string, args: readonly string[], cwd: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasPackageDependencies(manifest: Record<string, unknown>): boolean {
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const value = manifest[field];
+    if (
+      value !== undefined &&
+      (!isRecord(value) || Object.keys(value).length > 0)
+    ) {
+      return true;
+    }
+  }
+  for (const field of ["bundleDependencies", "bundledDependencies"]) {
+    const value = manifest[field];
+    if (value !== undefined && (!Array.isArray(value) || value.length > 0)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function main(): Promise<void> {

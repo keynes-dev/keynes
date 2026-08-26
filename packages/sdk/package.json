@@ -23,15 +23,12 @@
     "test:budget": "vitest run src/budget-lifecycle.test.ts",
     "test:platform": "node src/private/run-platform-tests.ts"
   },
-  "dependencies": {
-    "@electric-sql/pglite": "0.5.5"
-  },
   "devDependencies": {
     "@types/pg": "8.23.1",
     "pg": "8.23.0",
     "vitest": "4.1.11"
   },
   "engines": {
-    "node": ">=24 <27"
+    "node": ">=24 <25 || >=26 <27"
   }
 }

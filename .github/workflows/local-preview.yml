@@ -12,7 +12,7 @@ env:
 
 jobs:
   build:
-    name: Build archive
+    name: Build self-contained SQLite archive
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -115,11 +115,11 @@ jobs:
           if (actual !== expected) throw new Error('archive digest mismatch');
           console.log(actual);"
 
-      - name: Qualify consumer
+      - name: Qualify clean SQLite consumer
         run: pnpm test:package -- --archive "${{ env.ARCHIVE_PATH }}"
 
   measurement:
-    name: Reference measurement
+    name: Node SQLite reference measurement
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20

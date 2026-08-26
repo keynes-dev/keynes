@@ -7,6 +7,7 @@ import type {
   SettleBudgetResult,
   GetBudgetResult,
   ErrorEnvelope,
+  OperationName,
 } from "./types.js";
 
 export interface ValidationIssue {
@@ -1248,4 +1249,26 @@ export function validateGetBudgetQueryIssues(
   value: unknown,
 ): ValidationIssue[] {
   return validateDefinition("GetBudgetQuery", value);
+}
+
+export function validateOperationInputIssues(
+  operation: OperationName,
+  value: unknown,
+): ValidationIssue[] {
+  switch (operation) {
+    case "defineResource":
+      return validateDefineResourceTypeCommandIssues(value);
+    case "createBudget":
+      return validateCreateBudgetCommandIssues(value);
+    case "requestBudget":
+      return validateRequestBudgetCommandIssues(value);
+    case "settleBudget":
+      return validateSettleBudgetCommandIssues(value);
+    case "getBudget":
+      return validateGetBudgetQueryIssues(value);
+    default: {
+      const exhaustive: never = operation;
+      throw new Error(`unknown operation: ${exhaustive}`);
+    }
+  }
 }

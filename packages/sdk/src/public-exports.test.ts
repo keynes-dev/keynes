@@ -29,6 +29,10 @@ import type { LocalResourceDefinition } from "./index.js";
 import type { LocalResourceDefinitions } from "./index.js";
 // @ts-expect-error Procedure callers remain private implementation types.
 import type { ProcedureCaller } from "./index.js";
+// @ts-expect-error Command executors remain private implementation types.
+import type { CommandExecutor } from "./index.js";
+// @ts-expect-error Authority-boundary validators remain private helpers.
+import type { validateOperationInputIssues } from "./index.js";
 import * as sdk from "./index.js";
 
 type RemovedPublicTypes = readonly [
@@ -38,6 +42,8 @@ type RemovedPublicTypes = readonly [
   LocalResourceDefinition,
   LocalResourceDefinitions,
   ProcedureCaller,
+  CommandExecutor,
+  typeof validateOperationInputIssues,
 ];
 
 describe("package-root exports", () => {

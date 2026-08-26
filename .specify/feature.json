@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0007",
-  "slug": "runtime-and-deployment-model",
-  "branch": "feat/0007-runtime-and-deployment-model",
-  "feature_directory": "docs/features/0007-runtime-and-deployment-model",
-  "roadmap_stage": null
+  "feature_id": "FEAT-0008",
+  "slug": "sqlite-local-runtime",
+  "branch": "feat/0008-sqlite-local-runtime",
+  "feature_directory": "docs/features/0008-sqlite-local-runtime",
+  "roadmap_stage": "Implementation sequence"
 }

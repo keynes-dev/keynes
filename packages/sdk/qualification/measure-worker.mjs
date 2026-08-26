@@ -1,16 +1,18 @@
+import { DatabaseSync } from "node:sqlite";
+
 const mode = process.argv[2];
 if (mode === "cold-first") await runColdFirst();
 else if (mode === "steady") await runSteady();
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runColdFirst() {
-  const emptyRssBytes = process.memoryUsage.rss();
   const { Keynes } = await import("@keynes/sdk");
   const createStarted = performance.now();
   const keynes = await Keynes.create();
   const coldCreateMilliseconds = performance.now() - createStarted;
-  const readyRssBytes = process.memoryUsage.rss();
   try {
+    const readyRssBytes = process.memoryUsage.rss();
+    const sqliteVersion = installedSqliteVersion();
     await keynes.defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     });
@@ -21,18 +23,35 @@ async function runColdFirst() {
     if (request.status !== "approved")
       throw new Error("first request was denied");
     await request.budget.settle({ workUnits: 1 });
+    const shutdownStarted = performance.now();
     await keynes.close();
+    const shutdownMilliseconds = performance.now() - shutdownStarted;
     write({
       kind: "cold-first",
-      emptyRssBytes,
+      runtimeEngine: "node:sqlite",
+      nodeVersion: process.version,
+      sqliteVersion,
       readyRssBytes,
-      readyRssDeltaBytes: readyRssBytes - emptyRssBytes,
       coldCreateMilliseconds,
       firstRequestMilliseconds,
+      shutdownMilliseconds,
       closed: true,
     });
   } finally {
     await keynes.close();
+  }
+}
+
+function installedSqliteVersion() {
+  const database = new DatabaseSync(":memory:", { allowExtension: false });
+  try {
+    const row = database.prepare("SELECT sqlite_version() AS version").get();
+    if (typeof row.version !== "string") {
+      throw new Error("node:sqlite returned an invalid SQLite version");
+    }
+    return row.version;
+  } finally {
+    database.close();
   }
 }
 

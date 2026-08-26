@@ -4,24 +4,25 @@ import { expect } from "vitest";
 
 import {
   createKeynesClient,
-  type InstalledTarget,
+  type CommandExecutor,
   type KeynesClient,
-  type ProcedureCaller,
 } from "../generated/client.js";
+import type { OperationName } from "../generated/types.js";
 import type { DatabaseInstallation } from "./migrations.js";
-import { openInstalledPGliteDatabase } from "./pglite-database.js";
 import {
   openInstalledPostgresDatabase,
   type PostgresDatabase,
 } from "./postgres-database.js";
 import {
-  CommittedResponseLostError,
   createDatabaseProcedureCaller,
-  createOwnedProcedureCaller,
   createTransactionProcedureCaller,
-  type RollbackCheckpoint,
 } from "./procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./run-platform-tests.js";
+import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
+import {
+  CommittedResponseLostError,
+  type RollbackCheckpoint,
+} from "./test-controls.js";
 
 export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -94,7 +95,7 @@ export interface KeynesCallerHost {
   callerFor(
     fixture: FixturePrincipal,
     options?: ClientFixtureOptions,
-  ): ProcedureCaller;
+  ): CommandExecutor;
   close(): Promise<void>;
 }
 
@@ -141,80 +142,90 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
   };
 }
 
-interface PairedCallerInput {
+interface PairedExecutorInput {
   readonly caseName: () => string;
-  readonly pglite: ProcedureCaller;
-  readonly postgres: ProcedureCaller;
+  readonly sqlite: CommandExecutor;
+  readonly postgres: CommandExecutor;
 }
 
-type DeclaredControl =
-  | { readonly kind: "rollback"; readonly checkpoint: string }
+type SanitizedExecutorError =
+  | { readonly kind: "rollback"; readonly checkpoint: RollbackCheckpoint }
   | { readonly kind: "lost-response" };
 
-export class PairedProcedureCaller implements ProcedureCaller {
+export class PairedCommandExecutor implements CommandExecutor {
   readonly #caseName: () => string;
-  readonly #pglite: ProcedureCaller;
-  readonly #postgres: ProcedureCaller;
+  readonly #sqlite: CommandExecutor;
+  readonly #postgres: CommandExecutor;
 
-  constructor(input: PairedCallerInput) {
+  constructor(input: PairedExecutorInput) {
     this.#caseName = input.caseName;
-    this.#pglite = input.pglite;
+    this.#sqlite = input.sqlite;
     this.#postgres = input.postgres;
   }
 
-  async call(target: InstalledTarget, input: unknown): Promise<unknown> {
-    const pgliteCall = Promise.resolve().then(() =>
-      this.#pglite.call(target, input),
+  async execute(operation: OperationName, input: unknown): Promise<unknown> {
+    const sqliteCall = Promise.resolve().then(() =>
+      this.#sqlite.execute(operation, input),
     );
     const postgresCall = Promise.resolve().then(() =>
-      this.#postgres.call(target, input),
+      this.#postgres.execute(operation, input),
     );
-    const [pglite, postgres] = await Promise.allSettled([
-      pgliteCall,
+    const [sqlite, postgres] = await Promise.allSettled([
+      sqliteCall,
       postgresCall,
     ]);
 
-    if (pglite.status === "fulfilled" && postgres.status === "fulfilled") {
-      if (isDeepStrictEqual(pglite.value, postgres.value)) {
-        return pglite.value;
+    if (sqlite.status === "fulfilled" && postgres.status === "fulfilled") {
+      if (isDeepStrictEqual(sqlite.value, postgres.value)) {
+        return sqlite.value;
       }
-      throw pairedFailure(this.#caseName(), target, "both", "result-mismatch");
+      throw pairedFailure(
+        this.#caseName(),
+        operation,
+        "both",
+        "result-mismatch",
+      );
     }
 
-    if (pglite.status === "rejected" && postgres.status === "rejected") {
-      const pgliteControl = declaredControl(pglite.reason);
-      const postgresControl = declaredControl(postgres.reason);
+    if (sqlite.status === "rejected" && postgres.status === "rejected") {
+      const sqliteError = sanitizeExpectedError(sqlite.reason);
+      const postgresError = sanitizeExpectedError(postgres.reason);
       if (
-        pgliteControl !== undefined &&
-        isDeepStrictEqual(pgliteControl, postgresControl)
+        sqliteError !== undefined &&
+        isDeepStrictEqual(sqliteError, postgresError)
       ) {
-        throw controlError(pgliteControl);
+        throw recreateSanitizedError(sqliteError);
       }
     }
 
     const host =
-      pglite.status === "rejected" && postgres.status === "fulfilled"
-        ? "pglite"
-        : pglite.status === "fulfilled" && postgres.status === "rejected"
+      sqlite.status === "rejected" && postgres.status === "fulfilled"
+        ? "sqlite"
+        : sqlite.status === "fulfilled" && postgres.status === "rejected"
           ? "postgres"
           : "both";
-    throw pairedFailure(this.#caseName(), target, host, "unexpected-failure");
+    throw pairedFailure(
+      this.#caseName(),
+      operation,
+      host,
+      "unexpected-failure",
+    );
   }
 }
 
 export async function openTestKeynes(): Promise<TestKeynes> {
   const source = process.env[PLATFORM_CONTEXT_ENV];
   if (source === undefined) {
-    return openPGliteTestKeynes();
+    return openSqliteTestKeynes();
   }
 
   const context = parsePlatformContext(source);
   const opened = await Promise.allSettled([
-    openPGliteCallerHost(),
+    openSqliteCallerHost(),
     openPostgresCallerHost(context.administratorUrl),
   ]);
-  const [pglite, postgres] = opened;
-  if (pglite.status === "rejected" || postgres.status === "rejected") {
+  const [sqlite, postgres] = opened;
+  if (sqlite.status === "rejected" || postgres.status === "rejected") {
     await Promise.allSettled(
       opened.flatMap((result) =>
         result.status === "fulfilled" ? [result.value.close()] : [],
@@ -223,26 +234,41 @@ export async function openTestKeynes(): Promise<TestKeynes> {
     throw new Error("Platform test host failed during open");
   }
 
-  return pairedHost(pglite.value, postgres.value);
+  return pairedHost(sqlite.value, postgres.value);
 }
 
-export async function openPGliteCallerHost(): Promise<KeynesCallerHost> {
-  const owner = await openInstalledPGliteDatabase(FIXTURE_INSTALLATION);
+export async function openSqliteCallerHost(): Promise<KeynesCallerHost> {
+  const executor = openSqliteCommandExecutor(FIXTURE_INSTALLATION, {
+    tenantId: FIXTURE_TENANT_ID,
+    principalId: FIXTURE_PRINCIPALS["product-fixture"],
+  });
   return {
     callerFor(fixture, options) {
-      return createOwnedProcedureCaller(owner, {
-        tenantId: FIXTURE_TENANT_ID,
-        principalId: FIXTURE_PRINCIPALS[fixture],
-        checkpoint: options?.checkpoint,
-        dropResponseAfterCommitOnce: options?.dropResponseAfterCommitOnce,
-      });
+      let dropResponseAfterCommitOnce =
+        options?.dropResponseAfterCommitOnce ?? false;
+      return {
+        execute(operation, input) {
+          const dropResponse = dropResponseAfterCommitOnce;
+          dropResponseAfterCommitOnce = false;
+          return executor.executeFor(
+            {
+              tenantId: FIXTURE_TENANT_ID,
+              principalId: FIXTURE_PRINCIPALS[fixture],
+              checkpoint: options?.checkpoint,
+              dropResponseAfterCommitOnce: dropResponse,
+            },
+            operation,
+            input,
+          );
+        },
+      };
     },
-    close: () => owner.close(),
+    close: async () => executor.close(),
   };
 }
 
-async function openPGliteTestKeynes(): Promise<TestKeynes> {
-  const host = await openPGliteCallerHost();
+async function openSqliteTestKeynes(): Promise<TestKeynes> {
+  const host = await openSqliteCallerHost();
   return {
     clientFor: (fixture, options) =>
       createKeynesClient(host.callerFor(fixture, options)),
@@ -274,22 +300,33 @@ function openPostgresOwner(
 }
 
 function pairedHost(
-  pglite: KeynesCallerHost,
+  sqlite: KeynesCallerHost,
   postgres: KeynesCallerHost,
 ): TestKeynes {
+  let admittedOperations = Promise.resolve();
   return {
     clientFor(fixture: FixturePrincipal, options?: ClientFixtureOptions) {
-      return createKeynesClient(
-        new PairedProcedureCaller({
-          caseName: currentTestName,
-          pglite: pglite.callerFor(fixture, options),
-          postgres: postgres.callerFor(fixture, options),
-        }),
-      );
+      const paired = new PairedCommandExecutor({
+        caseName: currentTestName,
+        sqlite: sqlite.callerFor(fixture, options),
+        postgres: postgres.callerFor(fixture, options),
+      });
+      return createKeynesClient({
+        execute(operation, input) {
+          const result = admittedOperations.then(() =>
+            paired.execute(operation, input),
+          );
+          admittedOperations = result.then(
+            () => undefined,
+            () => undefined,
+          );
+          return result;
+        },
+      });
     },
     async close() {
       const closed = await Promise.allSettled([
-        pglite.close(),
+        sqlite.close(),
         postgres.close(),
       ]);
       if (closed.some((result) => result.status === "rejected")) {
@@ -303,35 +340,42 @@ function currentTestName(): string {
   return expect.getState().currentTestName ?? "unknown test";
 }
 
-function declaredControl(error: unknown): DeclaredControl | undefined {
+function sanitizeExpectedError(
+  error: unknown,
+): SanitizedExecutorError | undefined {
   if (error instanceof CommittedResponseLostError) {
     return { kind: "lost-response" };
   }
   if (!(error instanceof Error)) return undefined;
 
-  const rollback =
-    /^private rollback checkpoint: (after_(?:command_binding|domain_mutation|result_storage|history_insertion))$/.exec(
-      error.message,
-    );
-  return rollback?.[1] === undefined
-    ? undefined
-    : { kind: "rollback", checkpoint: rollback[1] };
+  switch (error.message) {
+    case "private rollback checkpoint: after_command_binding":
+      return { kind: "rollback", checkpoint: "after_command_binding" };
+    case "private rollback checkpoint: after_domain_mutation":
+      return { kind: "rollback", checkpoint: "after_domain_mutation" };
+    case "private rollback checkpoint: after_result_storage":
+      return { kind: "rollback", checkpoint: "after_result_storage" };
+    case "private rollback checkpoint: after_history_insertion":
+      return { kind: "rollback", checkpoint: "after_history_insertion" };
+    default:
+      return undefined;
+  }
 }
 
-function controlError(control: DeclaredControl): Error {
-  return control.kind === "lost-response"
+function recreateSanitizedError(error: SanitizedExecutorError): Error {
+  return error.kind === "lost-response"
     ? new CommittedResponseLostError()
-    : new Error(`private rollback checkpoint: ${control.checkpoint}`);
+    : new Error(`private rollback checkpoint: ${error.checkpoint}`);
 }
 
 function pairedFailure(
   caseName: string,
-  target: InstalledTarget,
-  host: "pglite" | "postgres" | "both",
+  operation: OperationName,
+  host: "sqlite" | "postgres" | "both",
   reason: "result-mismatch" | "unexpected-failure",
 ): Error {
   return new Error(
-    `Paired call failed: case=${caseName}; target=${target}; host=${host}; reason=${reason}`,
+    `Paired command failed: case=${caseName}; operation=${operation}; host=${host}; reason=${reason}`,
   );
 }
 

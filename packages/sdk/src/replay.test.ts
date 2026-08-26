@@ -89,6 +89,29 @@ describe("command replay", () => {
     });
   });
 
+  it("replays a structurally equal command across principals despite object key order", async () => {
+    const commandId = "13000000-0000-0000-0000-000000000081";
+    const first = await local.clientFor("product-fixture").defineResource({
+      commandId,
+      definition: {
+        canonicalName: "model_tokens",
+        unit: "token",
+        accountingBehavior: "consumable",
+      },
+    });
+
+    const replay = await local.clientFor("definer-fixture").defineResource({
+      commandId,
+      definition: {
+        accountingBehavior: "consumable",
+        unit: "token",
+        canonicalName: "model_tokens",
+      },
+    });
+
+    expect(replay).toEqual({ ...first, replayed: true });
+  });
+
   it("recovers Resource definition after its committed response is lost", async () => {
     const command = {
       commandId: "13000000-0000-0000-0000-000000000041",

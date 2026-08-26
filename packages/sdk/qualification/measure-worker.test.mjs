@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -18,20 +19,24 @@ beforeAll(() => {
 });
 
 describe("local preview measurement worker", () => {
-  it("reports empty and ready RSS, cold creation, first request, and close once", () => {
+  it("reports exact runtime identity, cold measurements, and shutdown once", () => {
     const result = runWorker("cold-first");
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout.trim().split("\n")).toHaveLength(1);
     const output = JSON.parse(result.stdout);
     expect(output).toMatchObject({
       kind: "cold-first",
-      emptyRssBytes: expect.any(Number),
+      runtimeEngine: "node:sqlite",
+      nodeVersion: process.version,
+      sqliteVersion: installedSqliteVersion(),
       readyRssBytes: expect.any(Number),
-      readyRssDeltaBytes: expect.any(Number),
       coldCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),
+      shutdownMilliseconds: expect.any(Number),
       closed: true,
     });
+    expect(output).not.toHaveProperty("emptyRssBytes");
+    expect(output).not.toHaveProperty("readyRssDeltaBytes");
     for (const value of Object.values(output)) {
       if (typeof value === "number") {
         expect(Number.isFinite(value)).toBe(true);
@@ -71,4 +76,13 @@ function runWorker(mode) {
     encoding: "utf8",
     timeout: 15_000,
   });
+}
+
+function installedSqliteVersion() {
+  const database = new DatabaseSync(":memory:", { allowExtension: false });
+  try {
+    return database.prepare("SELECT sqlite_version() AS version").get().version;
+  } finally {
+    database.close();
+  }
 }
