@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "kind": "local-preview-local-qualification",
+  "sourceRevision": "98483b08922e70d7bec9f4aa28888a59f6125a57",
+  "environment": {
+    "nodeVersion": "v26.5.0",
+    "pnpmVersion": "11.21.0"
+  },
+  "archive": {
+    "path": "artifacts/keynes-sdk-0.0.0.tgz",
+    "sha256": "b0831edd9eb1a0b421cee6210129d24c842fc100ea35cc421e118d1dc6eee399",
+    "compressedBytes": 23334,
+    "productionBytes": 128714,
+    "packageVersion": "0.0.0",
+    "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+    "nodeEngine": ">=24 <25 || >=26 <27",
+    "productionDependencies": 0,
+    "compiledFiles": 20
+  },
+  "commands": [
+    {
+      "command": "CI=true pnpm test:qualification",
+      "result": "PASS: 3 files, 21 tests"
+    },
+    {
+      "command": "CI=true pnpm build:package",
+      "result": "PASS"
+    },
+    {
+      "command": "pnpm --filter @keynes/sdk pack --pack-destination artifacts",
+      "result": "PASS"
+    },
+    {
+      "command": "CI=true pnpm test:package -- --archive artifacts/keynes-sdk-0.0.0.tgz",
+      "result": "PASS"
+    }
+  ],
+  "checks": [
+    "exact-engine-declaration",
+    "generated-contract-digest",
+    "budget-loop",
+    "isolation",
+    "closure",
+    "process-loss",
+    "external-typecheck",
+    "forbidden-private-import",
+    "cleanup"
+  ],
+  "forbiddenArchiveContent": {
+    "productionDependencies": "absent",
+    "pglitePaths": "absent",
+    "distDatabasePaths": "absent",
+    "workspaceLinks": "absent",
+    "stagedDatabaseArchives": "absent"
+  },
+  "evidenceBoundary": {
+    "proved": "provider-free local archive composition and clean ESM consumer behavior on this host and Node.js version",
+    "notRun": [
+      "six-environment hosted compatibility",
+      "hosted reference measurement",
+      "native PostgreSQL platform qualification",
+      "native Cloud qualification",
+      "provider qualification",
+      "security qualification",
+      "production operations"
+    ]
+  }
+}
