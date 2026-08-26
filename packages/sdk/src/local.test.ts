@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Keynes, KeynesSdkError, ResourceDefinitionError } from "./index.js";
+
+vi.mock("./private/pglite-database.js", () => ({
+  openInstalledPGliteDatabase: () =>
+    Promise.reject(
+      new Error("PGlite must not start in SQLite acceptance tests"),
+    ),
+}));
 
 describe("local Keynes facade", () => {
   it("runs approval, denial, settlement, overage, and inspection through Budget handles", async () => {

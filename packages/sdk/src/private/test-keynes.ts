@@ -22,6 +22,7 @@ import {
   type RollbackCheckpoint,
 } from "./procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./run-platform-tests.js";
+import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
 
 export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -215,7 +216,7 @@ export class PairedProcedureCaller implements CommandExecutor {
 export async function openTestKeynes(): Promise<TestKeynes> {
   const source = process.env[PLATFORM_CONTEXT_ENV];
   if (source === undefined) {
-    return openPGliteTestKeynes();
+    return openSqliteTestKeynes();
   }
 
   const context = parsePlatformContext(source);
@@ -236,6 +237,45 @@ export async function openTestKeynes(): Promise<TestKeynes> {
   return pairedHost(pglite.value, postgres.value);
 }
 
+export async function openSqliteCallerHost(): Promise<KeynesCallerHost> {
+  const executor = openSqliteCommandExecutor(FIXTURE_INSTALLATION, {
+    tenantId: FIXTURE_TENANT_ID,
+    principalId: FIXTURE_PRINCIPALS["product-fixture"],
+  });
+  return {
+    callerFor(fixture, options) {
+      let dropResponseAfterCommitOnce =
+        options?.dropResponseAfterCommitOnce ?? false;
+      return {
+        execute(operation, input) {
+          const dropResponse = dropResponseAfterCommitOnce;
+          dropResponseAfterCommitOnce = false;
+          return executor.executeFor(
+            {
+              tenantId: FIXTURE_TENANT_ID,
+              principalId: FIXTURE_PRINCIPALS[fixture],
+              checkpoint: options?.checkpoint,
+              dropResponseAfterCommitOnce: dropResponse,
+            },
+            operation,
+            input,
+          );
+        },
+      };
+    },
+    close: async () => executor.close(),
+  };
+}
+
+async function openSqliteTestKeynes(): Promise<TestKeynes> {
+  const host = await openSqliteCallerHost();
+  return {
+    clientFor: (fixture, options) =>
+      createKeynesClient(host.callerFor(fixture, options)),
+    close: () => host.close(),
+  };
+}
+
 export async function openPGliteCallerHost(): Promise<KeynesCallerHost> {
   const owner = await openInstalledPGliteDatabase(FIXTURE_INSTALLATION);
   return {
@@ -248,15 +288,6 @@ export async function openPGliteCallerHost(): Promise<KeynesCallerHost> {
       });
     },
     close: () => owner.close(),
-  };
-}
-
-async function openPGliteTestKeynes(): Promise<TestKeynes> {
-  const host = await openPGliteCallerHost();
-  return {
-    clientFor: (fixture, options) =>
-      createKeynesClient(host.callerFor(fixture, options)),
-    close: () => host.close(),
   };
 }
 

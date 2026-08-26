@@ -3,8 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Keynes } from "./index.js";
 
 afterEach(() => {
-  vi.doUnmock("@electric-sql/pglite");
-  vi.doUnmock("./private/migrations.js");
+  vi.doUnmock("./private/sqlite-command-executor.js");
   vi.resetModules();
 });
 
@@ -77,14 +76,50 @@ describe("local runtime lifecycle", () => {
     }
   }, 15_000);
 
-  it("closes an acquired database when installation fails", async () => {
-    const close = vi.fn(async () => undefined);
-    const startupFailure = new Error("installation failed");
-    vi.doMock("@electric-sql/pglite", () => ({
-      PGlite: { create: vi.fn(async () => ({ close })) },
+  it("constructs the local runtime with one SQLite command executor", async () => {
+    const close = vi.fn(() => undefined);
+    const openSqliteCommandExecutor = vi.fn(() => ({
+      execute: vi.fn(),
+      close,
     }));
-    vi.doMock("./private/migrations.js", () => ({
-      installDatabase: vi.fn(async () => {
+    vi.doMock("./private/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor,
+    }));
+
+    const { openLocalRuntime } = await import("./private/local-runtime.js");
+    const runtime = await openLocalRuntime();
+
+    expect(openSqliteCommandExecutor).toHaveBeenCalledOnce();
+    expect(openSqliteCommandExecutor).toHaveBeenCalledWith(
+      {
+        tenantId: "00000000-0000-4000-8000-000000000002",
+        principals: [
+          {
+            principalId: "00000000-0000-4000-8000-000000000201",
+            permissions: [
+              "define_resource_type",
+              "create_root_budget",
+              "request_budget",
+              "settle_budget",
+              "read_budget",
+            ],
+          },
+        ],
+      },
+      {
+        tenantId: "00000000-0000-4000-8000-000000000002",
+        principalId: "00000000-0000-4000-8000-000000000201",
+      },
+    );
+
+    await runtime.close();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("retains a SQLite schema initialization failure", async () => {
+    const startupFailure = new Error("schema initialization failed");
+    vi.doMock("./private/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor: vi.fn(() => {
         throw startupFailure;
       }),
     }));
@@ -95,24 +130,18 @@ describe("local runtime lifecycle", () => {
       code: "initialization_failed",
       cause: startupFailure,
     });
-    expect(close).toHaveBeenCalledOnce();
   });
 
-  it("retains startup and cleanup failures when initialization cleanup fails", async () => {
-    const startupFailure = new Error("installation failed");
+  it("retains SQLite schema initialization and cleanup failures", async () => {
+    const startupFailure = new Error("schema initialization failed");
     const cleanupFailure = new Error("close failed");
-    vi.doMock("@electric-sql/pglite", () => ({
-      PGlite: {
-        create: vi.fn(async () => ({
-          close: vi.fn(async () => {
-            throw cleanupFailure;
-          }),
-        })),
-      },
-    }));
-    vi.doMock("./private/migrations.js", () => ({
-      installDatabase: vi.fn(async () => {
-        throw startupFailure;
+    vi.doMock("./private/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor: vi.fn(() => {
+        throw new AggregateError(
+          [startupFailure, cleanupFailure],
+          "SQLite initialization and cleanup failed",
+          { cause: startupFailure },
+        );
       }),
     }));
 

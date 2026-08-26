@@ -1,7 +1,6 @@
 import { createKeynesClient, type KeynesClient } from "../generated/client.js";
 import type { DatabaseInstallation } from "./migrations.js";
-import { openInstalledPGliteDatabase } from "./pglite-database.js";
-import { createOwnedProcedureCaller } from "./procedure-caller.js";
+import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
 
 export interface LocalRuntime {
   readonly client: KeynesClient;
@@ -27,14 +26,12 @@ const PRODUCT_INSTALLATION = {
 } as const satisfies DatabaseInstallation;
 
 export async function openLocalRuntime(): Promise<LocalRuntime> {
-  const owner = await openInstalledPGliteDatabase(PRODUCT_INSTALLATION);
+  const executor = openSqliteCommandExecutor(PRODUCT_INSTALLATION, {
+    tenantId: PRODUCT_TENANT_ID,
+    principalId: PRODUCT_PRINCIPAL_ID,
+  });
   return {
-    client: createKeynesClient(
-      createOwnedProcedureCaller(owner, {
-        tenantId: PRODUCT_TENANT_ID,
-        principalId: PRODUCT_PRINCIPAL_ID,
-      }),
-    ),
-    close: () => owner.close(),
+    client: createKeynesClient(executor),
+    close: async () => executor.close(),
   };
 }
