@@ -1,5 +1,4 @@
 ---
-
 description: "Task list template for feature implementation"
 ---
 
@@ -9,9 +8,14 @@ description: "Task list template for feature implementation"
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
 **Tests**: Behavioral tests are REQUIRED and MUST be written and observed
-failing for the expected reason before implementation. Documentation-only,
-generated-output, or mechanical changes may use focused validation instead, but
-the tasks MUST state why no behavioral test applies.
+failing for the expected reason before implementation. For runtime or deployment
+changes, name both the shared Budget behavior tests and the separate local
+lifecycle, PostgreSQL transaction, remote security, recovery, packaging, or
+managed-operations tests that apply. For Policy changes, name context,
+supported-query, local-evaluation, PostgreSQL, evidence, and replay coverage.
+Documentation-only, generated-output, or mechanical changes may use focused
+validation instead, but the tasks MUST state why no behavioral test applies and
+which claims remain untested.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -45,9 +49,11 @@ the tasks MUST state why no behavioral test applies.
 
   Each behavioral story MUST order its acceptance, contract, integration, or
   unit tests before implementation and include retained provider-free evidence.
-  Add security, recovery, migration, compatibility, cross-runtime conformance,
+  Add shared Budget behavior, local lifecycle, PostgreSQL transaction, remote
+  security, recovery, migration, compatibility, packaging, managed operations,
   fault, performance, or separately authorized live tasks when the plan puts
-  those qualities in scope.
+  those qualities in scope. Add Policy context and supported-query tasks when
+  Policy behavior changes. List every claim that remains untested.
 
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================

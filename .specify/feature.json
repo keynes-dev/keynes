@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0006",
-  "slug": "cloud-runtime-service",
-  "branch": "feat/0006-cloud-runtime-service",
-  "feature_directory": "docs/features/0006-cloud-runtime-service",
-  "roadmap_stage": "Hosted Cloud preview"
+  "feature_id": "FEAT-0007",
+  "slug": "runtime-and-deployment-model",
+  "branch": "feat/0007-runtime-and-deployment-model",
+  "feature_directory": "docs/features/0007-runtime-and-deployment-model",
+  "roadmap_stage": null
 }

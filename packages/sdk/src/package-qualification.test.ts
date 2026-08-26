@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const sdkRoot = resolve(repositoryRoot, "packages/sdk");
+const cloudRoot = resolve(repositoryRoot, "packages/cloud");
 const distRoot = resolve(sdkRoot, "dist");
 const databaseRoot = resolve(repositoryRoot, "packages/database");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -58,13 +59,22 @@ describe("SDK package layout", () => {
   });
 
   it("declares one private ESM package root and packs only allowed files", () => {
+    expect(readJson(resolve(repositoryRoot, "package.json"))).toMatchObject({
+      name: "keynes",
+      license: "Apache-2.0",
+    });
+    expect(readJson(resolve(cloudRoot, "package.json"))).toMatchObject({
+      name: "@keynes/cloud",
+      license: "Apache-2.0",
+    });
+
     const packageJson = readJson(resolve(sdkRoot, "package.json"));
     expect(packageJson).toMatchObject({
       name: "@keynes/sdk",
       version: "0.0.0",
       private: true,
       type: "module",
-      license: "MIT",
+      license: "Apache-2.0",
       engines: { node: ">=24 <27" },
       files: ["dist", "README.md"],
       exports: {
@@ -83,6 +93,9 @@ describe("SDK package layout", () => {
         "package.json",
         ...expectedDistFiles.map((path) => `dist/${path}`),
       ].sort(),
+    );
+    expect(readFileSync(resolve(repositoryRoot, "LICENSE"), "utf8")).toMatch(
+      /Apache License\s+Version 2\.0/,
     );
     expect(packedFiles).not.toEqual(
       expect.arrayContaining([

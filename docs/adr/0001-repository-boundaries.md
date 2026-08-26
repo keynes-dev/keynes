@@ -1,5 +1,7 @@
 # ADR-0001: Adopt lean repository boundaries
 
+> **Superseded in part by [ADR-0003](0003-local-ledger-and-postgresql.md):** ADR-0003 replaces the permanent PGlite and managed-Cloud-only runtime direction. This record retains the historical reasoning and repository-boundary decision made at the time.
+
 - **Date:** 2026-08-21
 - **Status:** Accepted
 - **Amended:** 2026-08-21 - group all product code under `packages/`
@@ -36,14 +38,14 @@ Only `packages/sdk/` and `packages/cloud/` are pnpm workspaces. Their provisiona
 
 ### Ownership and public edges
 
-| Area | Responsibility | Allowed or public edge |
-| --- | --- | --- |
-| `packages/contracts/` | Logical interfaces and canonical fixtures | Approved contract sources and fixtures |
-| `packages/database/` | Database SQL, migrations, private storage, and runtime installation assets | Database procedures and contract-defined protocols |
-| `packages/sdk/` | Public TypeScript SDK and private local PGlite adapter | Future package exports derived from shared contracts |
-| `packages/cloud/` | Private TypeScript Cloud service | Future contract-defined authenticated Cloud protocol |
-| `scripts/` | Later contract generation and repository automation not covered by native tools | Root contributor commands |
-| `docs/` | Product, architecture, roadmap, ADRs, and guides | Source-of-truth documents and accepted decisions |
+| Area                  | Responsibility                                                                  | Allowed or public edge                               |
+| --------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `packages/contracts/` | Logical interfaces and canonical fixtures                                       | Approved contract sources and fixtures               |
+| `packages/database/`  | Database SQL, migrations, private storage, and runtime installation assets      | Database procedures and contract-defined protocols   |
+| `packages/sdk/`       | Public TypeScript SDK and private local PGlite adapter                          | Future package exports derived from shared contracts |
+| `packages/cloud/`     | Private TypeScript Cloud service                                                | Future contract-defined authenticated Cloud protocol |
+| `scripts/`            | Later contract generation and repository automation not covered by native tools | Root contributor commands                            |
+| `docs/`               | Product, architecture, roadmap, ADRs, and guides                                | Source-of-truth documents and accepted decisions     |
 
 The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume contract artifacts and invoke only contract-defined database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
 

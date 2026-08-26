@@ -98,6 +98,20 @@ describe("local preview qualification runner", () => {
     );
   });
 
+  it("rejects packaged license text that differs from the repository license", async () => {
+    const archive = gunzipSync(await readFile(archivePath));
+    const canonical = await readFile(resolve(repositoryRoot, "LICENSE"));
+    const offset = archive.indexOf(canonical);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    archive.writeUInt8(archive.readUInt8(offset) ^ 1, offset);
+
+    const tamperedPath = resolve(suiteRoot, "tampered-license-sdk.tgz");
+    await writeFile(tamperedPath, gzipSync(archive));
+    await expect(inspectArchive(tamperedPath)).rejects.toThrow(
+      "differs from the repository license",
+    );
+  });
+
   it("retains the exact archive identity, installs externally, and cleans up", async () => {
     const consumerRoot = resolve(suiteRoot, "consumers");
     const result = spawnSync(
