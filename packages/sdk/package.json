@@ -23,6 +23,9 @@
     "test:budget": "vitest run src/budget-lifecycle.test.ts",
     "test:platform": "node src/private/run-platform-tests.ts"
   },
+  "dependencies": {
+    "@keynes/postgresql": "workspace:*"
+  },
   "devDependencies": {
     "@types/pg": "8.23.1",
     "pg": "8.23.0",

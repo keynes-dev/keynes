@@ -18,6 +18,10 @@
     ".": {
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js"
+    },
+    "./private/run-installation": {
+      "types": "./dist/private/run-installation.d.ts",
+      "import": "./dist/private/run-installation.js"
     }
   },
   "scripts": {

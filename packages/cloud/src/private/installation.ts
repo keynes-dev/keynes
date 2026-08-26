@@ -1,12 +1,14 @@
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
+import { loadInstallationAssets } from "@keynes/postgresql/private/run-installation";
 import { Client } from "pg";
 
 import { CONTRACT_DIGEST, PROCEDURES } from "../generated/procedures.ts";
 
 const DATABASE_ROOT = new URL("../../../database/", import.meta.url);
 const MIGRATIONS_ROOT = new URL("migrations/", DATABASE_ROOT);
+const MIGRATIONS_DIRECTORY = fileURLToPath(MIGRATIONS_ROOT);
 const MANIFEST_URL = new URL("manifest.json", MIGRATIONS_ROOT);
 const INSTALLATION_RECORD_URL = new URL(
   "generated/installation-record.json",
@@ -162,19 +164,24 @@ async function installCanonicalMigrations(client: Client): Promise<void> {
     throw new Error("Canonical installation metadata does not match Cloud");
   }
 
-  for (const migration of manifest) {
-    const expected = recorded.get(migration.id);
-    if (expected === undefined || expected.path !== migration.path) {
+  const assets = await loadInstallationAssets({
+    installationRecord: record,
+    migrationsDirectory: MIGRATIONS_DIRECTORY,
+  });
+  for (const asset of assets) {
+    const migration = manifest.find(({ id }) => id === asset.id);
+    const expected = recorded.get(asset.id);
+    if (
+      migration === undefined ||
+      expected === undefined ||
+      expected.path !== asset.path
+    ) {
       throw new Error("Canonical migration metadata does not match");
-    }
-    const bytes = await readFile(resolveMigration(migration.path));
-    if (sha256(bytes) !== expected.sha256) {
-      throw new Error("Canonical migration checksum does not match");
     }
 
     await client.query("begin");
     try {
-      await client.query(bytes.toString("utf8"));
+      await client.query(asset.sql);
       await client.query(
         `insert into keynes_internal.schema_migrations
            (migration_id, byte_checksum, contract_digest)
@@ -295,13 +302,6 @@ function parseInstallationRecord(source: string): InstallationRecord {
   };
 }
 
-function resolveMigration(path: string): URL {
-  if (!/^\d{4}-[a-z0-9-]+(?:\.generated)?\.sql$/.test(path)) {
-    throw new Error("Invalid canonical migration path");
-  }
-  return new URL(path, MIGRATIONS_ROOT);
-}
-
 export function selectDatabase(
   connectionUrl: string,
   databaseName: string,
@@ -335,10 +335,6 @@ function quoteIdentifier(value: string): string {
 
 function quoteLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
-}
-
-function sha256(source: Uint8Array): string {
-  return createHash("sha256").update(source).digest("hex");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
