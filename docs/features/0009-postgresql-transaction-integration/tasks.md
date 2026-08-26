@@ -91,16 +91,18 @@ Phase 3 evidence: `CI=true pnpm --config.confirmModulesPurge=false test:platform
 
 > Write and observe these tests failing for the expected missing behavior before implementation.
 
-- [ ] T023 [US2] Add failing cross-session tests for pre-commit invisibility, post-commit visibility, rollback absence, rollback-then-reuse, exact replay, and conflicting command reuse in `packages/sdk/src/postgresql-embedded.native.test.ts`
-- [ ] T024 [P] [US2] Add failing application-role contention assertions for sibling overcommit, settlement-before-request, request-before-settlement, concurrent exact replay, and observed `pg_blocking_pids` blockers in `packages/sdk/src/native-contention.native.test.ts`
-- [ ] T025 [US2] Run the focused US2 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T023 [US2] Add failing cross-session tests for pre-commit invisibility, post-commit visibility, rollback absence, rollback-then-reuse, exact replay, and conflicting command reuse in `packages/sdk/src/postgresql-embedded.native.test.ts`
+- [x] T024 [P] [US2] Add failing application-role contention assertions for sibling overcommit, settlement-before-request, request-before-settlement, concurrent exact replay, and observed `pg_blocking_pids` blockers in `packages/sdk/src/native-contention.native.test.ts`
+- [x] T025 [US2] Run the focused US2 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
 
 ### Implementation for User Story 2
 
-- [ ] T026 [US2] Extend native test support with a second independent application session, outbox observer, bounded state counters, and rollback-safe fixture cleanup in `packages/sdk/src/private/test-keynes.ts`
-- [ ] T027 [US2] Implement the pending-visibility, rollback-then-reuse, replay, conflict, and duplicate-prevention transaction sequences using direct calls on caller-owned clients in `packages/sdk/src/postgresql-embedded.native.test.ts`
-- [ ] T028 [P] [US2] Route the four existing contention cases through the least-privilege application role and record actual blocker relationships rather than elapsed-time inference in `packages/sdk/src/native-contention.native.test.ts`
-- [ ] T029 [US2] Run the focused provider-free native tests for `packages/sdk/src/postgresql-embedded.native.test.ts` and `packages/sdk/src/native-contention.native.test.ts`; retain exact evidence and explicit managed-provider, recovery, fault, benchmark, and security-qualification `NOT RUN` statements in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [x] T026 [US2] Extend native test support with a second independent application session, outbox observer, bounded state counters, and rollback-safe fixture cleanup in `packages/sdk/src/private/test-keynes.ts`
+- [x] T027 [US2] Implement the pending-visibility, rollback-then-reuse, replay, conflict, and duplicate-prevention transaction sequences using direct calls on caller-owned clients in `packages/sdk/src/postgresql-embedded.native.test.ts`
+- [x] T028 [P] [US2] Route the four existing contention cases through the least-privilege application role and record actual blocker relationships rather than elapsed-time inference in `packages/sdk/src/native-contention.native.test.ts`
+- [x] T029 [US2] Run the focused provider-free native tests for `packages/sdk/src/postgresql-embedded.native.test.ts` and `packages/sdk/src/native-contention.native.test.ts`; retain exact evidence and explicit managed-provider, recovery, fault, benchmark, and security-qualification `NOT RUN` statements in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+
+Phase 4 evidence: the Docker-backed PostgreSQL 18.6 lane passed 56/56 tests, including six visibility/replay/conflict scenarios and four contention scenarios routed through a prepared application role with observed `pg_blocking_pids` relationships. The pre-implementation focused-failure rerun was not independently retained; no claim is made for that evidence lane. Managed providers, recovery, fault, benchmark, and security qualification remain `NOT RUN`.
 
 **Checkpoint**: US1 and US2 together prove transaction atomicity, visibility, replay, conflict, and contention on the native profile without adding a public transaction abstraction.
 

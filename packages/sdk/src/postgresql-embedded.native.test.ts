@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createKeynesClient, KeynesError } from "./generated/client.js";
 import type { RequestBudgetCommand } from "./generated/types.js";
 import { openInstalledPostgresDatabase } from "./private/postgres-database.js";
-import { createTransactionProcedureCaller } from "./private/procedure-caller.js";
+import {
+  createDatabaseProcedureCaller,
+  createTransactionProcedureCaller,
+} from "./private/procedure-caller.js";
 import { PLATFORM_CONTEXT_ENV } from "./private/run-platform-tests.js";
 import {
   FIXTURE_INSTALLATION,
@@ -174,6 +177,146 @@ describe.skipIf(process.env[PLATFORM_CONTEXT_ENV] === undefined)(
 
       expect(statements.join("\n")).not.toMatch(/\b(begin|commit|rollback)\b/i);
     });
+
+    it("keeps a pending child and outbox row invisible to another session", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction();
+      const client = createTransactionClient(transaction);
+
+      const approved = await client.requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      expect(approved.kind).toBe("approved");
+      if (approved.kind !== "approved") return;
+      await insertOutbox(database, approved.childBudgetId, transaction);
+
+      expect(await readState(database, approved.childBudgetId)).toEqual({
+        budget: false,
+        outbox: false,
+      });
+      await transaction.rollback();
+    });
+
+    it("makes the child and outbox row visible after the caller commits", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction();
+      const client = createTransactionClient(transaction);
+
+      const approved = await client.requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      expect(approved.kind).toBe("approved");
+      if (approved.kind !== "approved") return;
+      await insertOutbox(database, approved.childBudgetId, transaction);
+      await transaction.commit();
+
+      expect(await readState(database, approved.childBudgetId)).toEqual({
+        budget: true,
+        outbox: true,
+      });
+    });
+
+    it("leaves neither child nor outbox row visible after the caller rolls back", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction();
+      const client = createTransactionClient(transaction);
+
+      const approved = await client.requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      expect(approved.kind).toBe("approved");
+      if (approved.kind !== "approved") return;
+      await insertOutbox(database, approved.childBudgetId, transaction);
+      await transaction.rollback();
+
+      expect(await readState(database, approved.childBudgetId)).toEqual({
+        budget: false,
+        outbox: false,
+      });
+    });
+
+    it("allows a rolled-back command identity to be reused and committed", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const first = await database.beginTransaction();
+      const firstResult = await createTransactionClient(first).requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      expect(firstResult.kind).toBe("approved");
+      await first.rollback();
+
+      const second = await database.beginTransaction();
+      const secondResult = await createTransactionClient(second).requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      await second.commit();
+
+      expect(secondResult).toMatchObject({
+        kind: "approved",
+        replayed: false,
+        childBudgetId: REQUEST_COMMAND_ID,
+      });
+      expect(await readState(database, REQUEST_COMMAND_ID)).toEqual({
+        budget: true,
+        outbox: false,
+      });
+    });
+
+    it("returns the committed result when another session replays exactly", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction();
+      const command = request(resourceTypeId, budgetId);
+      const approved =
+        await createTransactionClient(transaction).requestBudget(command);
+      expect(approved.kind).toBe("approved");
+      if (approved.kind !== "approved") return;
+      await transaction.commit();
+
+      const replay =
+        await createDatabaseClient(database).requestBudget(command);
+
+      expect(replay).toEqual({ ...approved, replayed: true });
+      expect(await readState(database, approved.childBudgetId)).toEqual({
+        budget: true,
+        outbox: false,
+      });
+    });
+
+    it("rejects conflicting command reuse without changing committed state", async () => {
+      database = await openFixture();
+      const { resourceTypeId, budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction();
+      const approved = await createTransactionClient(transaction).requestBudget(
+        request(resourceTypeId, budgetId),
+      );
+      expect(approved.kind).toBe("approved");
+      if (approved.kind !== "approved") return;
+      await transaction.commit();
+
+      const conflicting: RequestBudgetCommand = {
+        ...request(resourceTypeId, budgetId),
+        resources: [{ resourceTypeId, amount: 2 }],
+      };
+      await expect(
+        createDatabaseClient(database).requestBudget(conflicting),
+      ).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "command_conflict",
+        details: {
+          commandId: REQUEST_COMMAND_ID,
+          existingOperation: "requestBudget",
+          attemptedOperation: "requestBudget",
+        },
+      });
+      expect(await readState(database, approved.childBudgetId)).toEqual({
+        budget: true,
+        outbox: false,
+      });
+    });
   },
 );
 
@@ -188,6 +331,17 @@ function createTransactionClient(
 ) {
   return createKeynesClient(
     createTransactionProcedureCaller(transaction.connection, {
+      tenantId: FIXTURE_TENANT_ID,
+      principalId: FIXTURE_PRINCIPALS["product-fixture"],
+    }),
+  );
+}
+
+function createDatabaseClient(
+  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
+) {
+  return createKeynesClient(
+    createDatabaseProcedureCaller(database.database, {
       tenantId: FIXTURE_TENANT_ID,
       principalId: FIXTURE_PRINCIPALS["product-fixture"],
     }),
@@ -267,4 +421,18 @@ async function readState(
   const state = result.rows[0];
   if (state === undefined) throw new Error("state query returned no row");
   return state;
+}
+
+async function insertOutbox(
+  database: Awaited<ReturnType<typeof openInstalledPostgresDatabase>>,
+  childBudgetId: string,
+  transaction?: Awaited<ReturnType<typeof database.beginTransaction>>,
+): Promise<void> {
+  const connection = transaction?.connection ?? database.database;
+  await connection.query(
+    `insert into application_outbox
+      (outbox_id, command_id, child_budget_id)
+     values ($1::uuid, $2::uuid, $3::uuid)`,
+    [OUTBOX_ID, REQUEST_COMMAND_ID, childBudgetId],
+  );
 }
