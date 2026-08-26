@@ -1,7 +1,7 @@
 {
   "schemaVersion": "keynes.postgresql-acceptance/v1",
   "revision": {
-    "commit": "619d0b3245c020655da84e83dfb09704788aa105"
+    "commit": "261b4d616352c1d9bc4e3ff043676ca129223a6e"
   },
   "distribution": {
     "package": "@keynes/postgresql",
