@@ -175,9 +175,7 @@ export async function runPlatformTests(
     throw platformFailure(runId, "cleanup");
   }
   if (recordWorkspace !== undefined) {
-    try {
-      await writeAcceptanceRecord(recordWorkspace, runId);
-    }
+    await writeAcceptanceRecord(recordWorkspace, runId);
   }
 }
 
