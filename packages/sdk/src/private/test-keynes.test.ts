@@ -247,9 +247,40 @@ describe("PostgreSQL command executor", () => {
 });
 
 describe("paired command executor", () => {
-  it("returns exact matching SQLite and PostgreSQL public JSON", async () => {
-    const left = { ok: true, result: { values: [1, 2, 3] } };
-    const right = { ok: true, result: { values: [1, 2, 3] } };
+  it("returns exact matching public results, replay flags, history, and Budget state", async () => {
+    const left = {
+      ok: true,
+      result: {
+        budget: {
+          budgetId: "20000000-0000-0000-0000-000000000001",
+          lifecycle: "settled",
+          resources: [
+            {
+              resourceType: {
+                resourceTypeId: "10000000-0000-0000-0000-000000000001",
+              },
+              allocated: 40,
+              available: 15,
+              committed: 0,
+              directUsage: 25,
+              subtreeObservedUsage: 25,
+              unresolved: false,
+              deficit: 0,
+            },
+          ],
+        },
+        history: {
+          rootBudgetId: "20000000-0000-0000-0000-000000000001",
+          entries: [
+            { kind: "budget_created", sequence: 1 },
+            { kind: "request_approved", sequence: 2 },
+            { kind: "budget_settlement_recorded", sequence: 3 },
+          ],
+        },
+      },
+      replayed: false,
+    };
+    const right = structuredClone(left);
 
     await expect(
       pairedExecutor(
@@ -257,6 +288,116 @@ describe("paired command executor", () => {
         executor(async () => right),
       ).execute(OPERATION, {}),
     ).resolves.toBe(left);
+  });
+
+  it("returns exact matching structured errors", async () => {
+    const error = {
+      ok: false,
+      error: {
+        kind: "error",
+        code: "budget_not_active",
+        details: {
+          budgetId: "20000000-0000-0000-0000-000000000001",
+          lifecycle: "settled",
+        },
+      },
+    };
+
+    await expect(
+      pairedExecutor(
+        executor(async () => error),
+        executor(async () => structuredClone(error)),
+      ).execute("settleBudget", {}),
+    ).resolves.toBe(error);
+  });
+
+  type ComparisonResponse = {
+    readonly ok: true;
+    readonly result: {
+      readonly budget: {
+        readonly resources: readonly [
+          { readonly available: number; readonly [key: string]: unknown },
+        ];
+        readonly [key: string]: unknown;
+      };
+      readonly history: {
+        readonly entries: readonly {
+          readonly kind: string;
+          readonly sequence: number;
+        }[];
+        readonly [key: string]: unknown;
+      };
+      readonly [key: string]: unknown;
+    };
+    readonly replayed: boolean;
+    readonly [key: string]: unknown;
+  };
+
+  const response: ComparisonResponse = {
+    ok: true,
+    result: {
+      budget: {
+        budgetId: "20000000-0000-0000-0000-000000000001",
+        resources: [{ available: 15 }],
+      },
+      history: {
+        entries: [
+          { kind: "budget_created", sequence: 1 },
+          { kind: "request_approved", sequence: 2 },
+        ],
+      },
+    },
+    replayed: false,
+  };
+
+  it.each([
+    {
+      name: "replay flags",
+      change: (response: Record<string, unknown>) => ({
+        ...response,
+        replayed: true,
+      }),
+    },
+    {
+      name: "ordered history",
+      change: (response: ComparisonResponse) => ({
+        ...response,
+        result: {
+          ...response.result,
+          history: {
+            ...response.result.history,
+            entries: [...response.result.history.entries].reverse(),
+          },
+        },
+      }),
+    },
+    {
+      name: "final Budget state",
+      change: (response: ComparisonResponse) => ({
+        ...response,
+        result: {
+          ...response.result,
+          budget: {
+            ...response.result.budget,
+            resources: [
+              {
+                ...response.result.budget.resources[0],
+                available: 14,
+              },
+            ],
+          },
+        },
+      }),
+    },
+  ])("rejects unequal $name", async ({ change }) => {
+    await expect(
+      pairedExecutor(
+        executor(async () => response),
+        executor(async () => change(response)),
+      ).execute(OPERATION, {}),
+    ).rejects.toThrow(
+      "Paired command failed: case=paired executor case; operation=requestBudget; host=both; reason=result-mismatch",
+    );
   });
 
   it("rejects unequal public JSON with a sanitized case and target", async () => {

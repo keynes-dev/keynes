@@ -62,9 +62,11 @@ Phase 2 evidence: the delegated T005, T008, T009, and T012 tests were observed f
 
 > Write and observe these tests failing for the expected missing behavior before implementation.
 
-- [ ] T016 [US1] Add native acceptance tests for approved commit, explicit rollback, application-write failure after approval, denial, malformed input, and caller-owned transaction lifecycle in `packages/sdk/src/postgresql-embedded.native.test.ts`
-- [ ] T017 [P] [US1] Extend shared SQLite/PostgreSQL comparison assertions for public results, structured errors, replay flags, ordered history, and final Budget state used by the new transaction cases in `packages/sdk/src/private/test-keynes.test.ts`
-- [ ] T018 [US1] Run the focused US1 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+- [X] T016 [US1] Add native acceptance tests for approved commit, explicit rollback, application-write failure after approval, denial, malformed input, and caller-owned transaction lifecycle in `packages/sdk/src/postgresql-embedded.native.test.ts`
+- [X] T017 [P] [US1] Extend shared SQLite/PostgreSQL comparison assertions for public results, structured errors, replay flags, ordered history, and final Budget state used by the new transaction cases in `packages/sdk/src/private/test-keynes.test.ts`
+- [X] T018 [US1] Run the focused US1 tests before implementation and record the expected failures, command, and reason in `docs/features/0009-postgresql-transaction-integration/tasks.md`
+
+US1 test-first checkpoint: T016 native tests are present and skip without `KEYNES_PLATFORM_CONTEXT`; the T019 fixture implementation is intentionally pending. T017 shared assertions passed 22 tests.
 
 ### Implementation for User Story 1
 
