@@ -20,16 +20,22 @@ inside `keynes_internal.apply_command`. Neither Kysely's operation tree, the
 PostgreSQL parser tree, submitted SQL text, nor either backend representation is
 durable or directly executable Policy authority.
 
+The SDK also moves to a schema-first functional API. `defineResources` creates
+one frozen Resource schema, and `createKeynes({ resources })` opens a ready local
+runtime. Public `Keynes` and `Budget` names are readonly branded interfaces
+implemented by frozen closure-backed handles. They retain method calls while
+hiding runtime and Budget identity. They are not public classes.
+
 ## Technical Context
 
 **Language/Version**: TypeScript 7.0.2 on Node.js 24 and 26; PostgreSQL 18.6 SQL/PLpgSQL
 **Primary Dependencies**: `kysely@0.29.5` for typed query construction and compilation; `libpg-query@18.1.4` for the PostgreSQL 18 WASM parser; `decimal.js@10.6.0` for the bounded local decimal profile; existing `node:sqlite`, `pg@8.23.0`, AJV, canonical JSON, and generated contracts
 **Storage**: Private process-owned in-memory SQLite for local Budgets; PostgreSQL 18.6 `keynes_internal` storage for durable Budgets; no Policy registry or second authority
-**Testing**: Vitest unit/conformance/package suites; shared local/PostgreSQL Policy corpus; native PostgreSQL system tests; private Cloud regression; packed SDK and PostgreSQL qualification; hosted Node.js 24/26 matrix
+**Testing**: Vitest unit/conformance/package suites; compile-only public API fixtures; shared local/PostgreSQL Policy corpus; native PostgreSQL system tests; private Cloud regression; packed SDK and PostgreSQL qualification; hosted Node.js 24/26 matrix
 **Target Platform**: ESM TypeScript SDK on supported Node.js 24/26 Linux, macOS, and Windows hosts; embedded PostgreSQL 18.6
 **Project Type**: pnpm/Turbo TypeScript monorepo with generated contracts, SDK library, PostgreSQL installer/runtime, and private Cloud service
 **Performance Goals**: Reject over-limit programs before evaluation; bound each Policy to 65,536 estimated operations; retain the established SDK package measurement method and report parser initialization, archive/install size, ready RSS, cold creation, first request, steady request, and shutdown without inventing a readiness claim
-**Constraints**: One statement and a published deterministic PostgreSQL-style profile; no ambient database access; no execution of submitted SQL; exact local/PostgreSQL numeric and null parity; fail closed; caller-owned PostgreSQL transactions; no remote Policy transport; parser WASM must be present in the packed SDK and load on all six supported hosts
+**Constraints**: One statement and a published deterministic PostgreSQL-style profile; schema-first Resource typing; no public `Keynes` or `Budget` constructor; no ambient database access; no execution of submitted SQL; exact local/PostgreSQL numeric and null parity; fail closed; caller-owned PostgreSQL transactions; no remote Policy transport; parser WASM must be present in the packed SDK and load on all six supported hosts
 **Scale/Scope**: At most 16 Policies per Budget, 64 input/output Resources per Policy, 32 context fields, 512 program nodes, 16 KiB source per Policy, 64 result rows, and 50 or more cross-runtime acceptance cases
 
 ## Constitution Check
@@ -69,6 +75,30 @@ and decimal dependencies is an explicit product choice, not an exception to a
 dependency-free rule.
 
 ## Design Decisions
+
+### Functional values and capability handles
+
+`defineResources`, `definePolicy`, `definePolicySql`, and `policySet` are pure
+functions that return frozen values. `createKeynes({ resources })` returns a
+readonly `Keynes<Names>` interface whose methods close over the private runtime.
+Approved Budgets are readonly `Budget<Names, Context, Reasons>` interfaces whose
+methods close over that runtime and one private Budget ID. The implementation
+freezes every handle and uses unexported `unique symbol` brands for nominal
+TypeScript identity.
+
+This is not a flat API. Callers still use `keynes.createBudget(...)` and
+`budget.request(...)` because those methods bind hidden authority. Public
+classes add constructor and prototype semantics without improving that
+authority. They also add `this` binding hazards and force asynchronous creation
+through a static factory anyway. `Keynes` implements `AsyncDisposable` through
+the returned object, so both `await using` and explicit `close()` remain valid.
+
+The Resource schema is complete before the runtime opens. This gives Policy and
+Budget calls one exact Resource-name union and prevents a half-configured public
+session. Remote access is outside FEAT-0012. Embedded PostgreSQL remains a
+separate caller-owned transaction boundary. Error subclasses remain classes
+because they extend the JavaScript `Error` protocol. Concrete internal resource
+owners may use classes when that implementation is clearer.
 
 ### One Kysely-facing authoring model
 
@@ -198,7 +228,10 @@ packages/contracts/
 packages/sdk/
 ├── package.json                     # pinned Kysely, parser, decimal deps
 ├── src/index.ts
-├── src/keynes.ts
+├── src/resources.ts                 # frozen Resource schema and type carrier
+├── src/keynes.ts                    # factory and public Keynes interface
+├── src/budget.ts                    # private closure-backed Budget factory
+├── src/local/runtime.ts             # process-local state and lifecycle
 ├── src/policy/                      # new authoring and local backend
 │   ├── authoring.ts
 │   ├── compile.ts
@@ -239,9 +272,9 @@ rejection. No new workspace or stateful Policy service is needed.
 ## Delivery Sequence
 
 1. **Contract and failing fixtures**: Extend neutral command/result schemas,
-   profile manifest, canonical examples, Policy errors, evidence, and at least
-   50 Kysely/raw/local/PostgreSQL comparison fixtures. Record expected failures
-   before production changes.
+   profile manifest, canonical examples, Policy errors, evidence, compile-only
+   factory and handle fixtures, and at least 50 Kysely/raw/local/PostgreSQL
+   comparison fixtures. Record expected failures before production changes.
 2. **Authoring convergence**: Add pinned dependencies, create the cold typed
    Kysely database, compile Kysely and raw inputs, parse both with the PG18
    WASM adapter, and prove identical candidate trees for equivalent source.
@@ -271,7 +304,10 @@ rejection. No new workspace or stateful Policy service is needed.
 - Provider-free: `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, and
   `CI=true pnpm test:pr`.
 - Focused source: SDK Policy unit/conformance suites, contracts generation and
-  canonical fixtures, PostgreSQL unit/integration suites, and Cloud unit tests.
+  canonical fixtures, compile-only API fixtures, PostgreSQL unit/integration
+  suites, and Cloud unit tests. API fixtures cover exact Resource names, exact
+  governed Context, child Policy inference, forbidden public construction,
+  destructured method calls, `AsyncDisposable`, and hidden wire identifiers.
 - Package: `pnpm test:package:sdk`, `pnpm measure:package:sdk`, and
   `pnpm test:package:postgresql`, using extracted archives and verifying the
   parser WASM is included and loaded without workspace fallbacks.

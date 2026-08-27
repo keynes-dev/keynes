@@ -144,6 +144,12 @@ Implement the Kysely authoring adapter, PostgreSQL parser adapter, Policy-progra
 
 Kysely output and raw SQL must pass through the same parser, validator, and normalizer into one versioned Policy program. One semantic registry owns the program rules; deployment-native execution is the v1 choice, not a permanent ban on a shared executable core. The feature does not choose another durable database or give Policies direct access to application tables.
 
+This feature also replaces the pre-release class facade with a schema-first
+functional API. `defineResources(...)` returns a frozen type carrier,
+`createKeynes({ resources })` returns a readonly local capability, and approved
+requests return readonly Budget capabilities. The SDK keeps method calls but
+exports no constructible `Keynes` or `Budget` class and no compatibility alias.
+
 ## Conditional growth
 
 This stage contains optional capabilities. Product direction can promote a candidate into the delivery sequence without an adopter trial or external validation gate.

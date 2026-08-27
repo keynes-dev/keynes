@@ -38,6 +38,37 @@
 
 Relevant Kysely references: [raw SQL recipe](https://kysely.dev/docs/recipes/raw-sql) and [`sql` API](https://kysely-org.github.io/kysely-apidoc/interfaces/Sql.html).
 
+## Functional public API with capability handles
+
+**Decision**: Replace public `Keynes` and `Budget` classes with readonly branded
+interfaces returned by factories. `defineResources` creates a frozen Resource
+schema. `createKeynes({ resources })` returns a ready local handle, and approved
+requests return frozen Budget handles. Each method is a closure over private
+runtime state and, for a Budget, its private ID. Keep method calls rather than
+exposing a flat API. Support both `AsyncDisposable` and explicit `close()`.
+
+**Rationale**: The handles need hidden identity and lifecycle, not constructor
+or prototype semantics. Closures provide the actual authority because callers
+cannot create methods that reach the private runtime or Budget ID. Unexported
+`unique symbol` brands prevent accidental structural substitution in
+TypeScript. Arrow-function methods do not depend on `this`. Schema-first
+creation gives Resource definitions, Policies, and Budgets one exact
+Resource-name union.
+
+**Alternatives considered**:
+
+- Keep final capability classes: rejected because private asynchronous creation
+  still needs factories, `instanceof` has no product use, and public classes add
+  receiver binding and prototype identity without strengthening authority.
+- Expose flat functions with runtime and Budget tokens: rejected because every
+  call would expose identity plumbing and allow callers to mix unrelated
+  capabilities.
+- Preserve `Keynes.create()` and post-open `defineResources()`: rejected because
+  compatibility has no value before release, and mutable setup produces a
+  half-configured session whose Resource type cannot safely widen in place.
+- Replace Error subclasses: rejected because errors participate in the built-in
+  JavaScript `Error` protocol and benefit from class identity.
+
 ## Pinned PostgreSQL parser
 
 **Decision**: Pin `libpg-query@18.1.4`, the PostgreSQL 18 WASM build, and parse the compiled output of both authoring paths. Adapt recognized parser nodes into a Keynes candidate model, then run an independent closed validator and normalizer. Reject every parser node, field, operator, function, or statement shape that the profile does not enumerate.

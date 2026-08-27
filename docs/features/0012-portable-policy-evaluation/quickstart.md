@@ -5,15 +5,25 @@ This is the implementation and acceptance walkthrough for FEAT-0012. The feature
 ## Author a typed Policy
 
 ```ts
-import { Keynes, definePolicy, policySet, policyValue } from "@keynes/sdk";
+import {
+  createKeynes,
+  definePolicy,
+  definePolicySql,
+  defineResources,
+  policySet,
+  policyValue,
+} from "@keynes/sdk";
 
-const supportLimit = definePolicy({
+const resources = defineResources({
+  usdCents: { unit: "USD cent", accountingBehavior: "consumable" },
+  searchQueries: { unit: "query", accountingBehavior: "consumable" },
+});
+
+const supportLimit = definePolicy(resources, {
   name: "support_limit",
   revision: 1,
-  resources: {
-    inputs: ["usdCents", "searchQueries"],
-    outputs: ["usdCents", "searchQueries"],
-  },
+  inputs: ["usdCents", "searchQueries"],
+  outputs: ["usdCents", "searchQueries"],
   context: {
     customerTier: policyValue.text(),
     riskClass: policyValue.text(),
@@ -51,15 +61,11 @@ The callback receives a restricted Kysely database and Kysely's parameterizing `
 ## Compare the raw-SQL path
 
 ```ts
-import { definePolicySql, policyValue } from "@keynes/sdk";
-
-const supportLimitFromSql = definePolicySql({
+const supportLimitFromSql = definePolicySql(resources, {
   name: "support_limit",
   revision: 1,
-  resources: {
-    inputs: ["usdCents", "searchQueries"],
-    outputs: ["usdCents", "searchQueries"],
-  },
+  inputs: ["usdCents", "searchQueries"],
+  outputs: ["usdCents", "searchQueries"],
   context: {
     customerTier: policyValue.text(),
     riskClass: policyValue.text(),
@@ -89,12 +95,7 @@ The Kysely and raw definitions must have equal `canonicalSql`, `sourceDigest`, a
 ## Govern local requests
 
 ```ts
-const keynes = await Keynes.create();
-
-await keynes.defineResources({
-  usdCents: { unit: "USD cent", accountingBehavior: "consumable" },
-  searchQueries: { unit: "query", accountingBehavior: "consumable" },
-});
+await using keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget(
   { usdCents: 10_000, searchQueries: 100 },
@@ -133,25 +134,23 @@ if (denied.status === "denied") {
 }
 
 const inspection = await root.inspect();
-await keynes.close();
 ```
 
 The Policy sees one immutable request, relevant parent availability, and context snapshot. A request above an effective ceiling is denied without revision. A valid denial is recorded. Invalid context or evaluation throws a stable error and records nothing.
 
-## Preserve legacy behavior
+## Run without Policies
 
 ```ts
-const keynes = await Keynes.create();
-
-await keynes.defineResources({
+const localResources = defineResources({
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
 
+await using keynes = await createKeynes({ resources: localResources });
 const root = await keynes.createBudget({ searchQueries: 100 });
 const result = await root.request({ searchQueries: 2 });
 ```
 
-This flow must produce the existing command, result, history, and replay JSON. It does not include an empty Policy set, empty context, or empty evidence field.
+This flow preserves the established no-Policy Budget behavior and wire bytes. It does not include an empty Policy set, empty context, or empty evidence field. The public setup API changes intentionally because Keynes has no released compatibility contract.
 
 ## Use embedded PostgreSQL
 
@@ -189,7 +188,9 @@ The private Cloud `/rpc` path keeps its existing no-Policy behavior. For FEAT-00
 
 Write the shared Kysely/raw and parser fixtures, generated semantic node vectors,
 property-generated programs, numeric boundaries, and cross-backend comparisons
-failing first. Then run provider-free gates:
+failing first. Add compile-only fixtures for exact Resource and Context types,
+forbidden handle construction, destructured methods, and `AsyncDisposable`.
+Then run provider-free gates:
 
 ```sh
 CI=true pnpm check:repo

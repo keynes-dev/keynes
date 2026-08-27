@@ -1,5 +1,37 @@
 # Data model: Portable Policy evaluation
 
+## Resource schema
+
+A frozen SDK value created before a local runtime opens. It carries the exact
+Resource-name union through Policy authoring, root Budget creation, requests,
+settlement, and inspection.
+
+| Field         | Type                 | Rules                                                          |
+| ------------- | -------------------- | -------------------------------------------------------------- |
+| `definitions` | Resource definitions | Exact lower-camel-case names with unit and accounting behavior |
+| `digest`      | digest               | Canonical identity for the complete definition set             |
+
+The schema owns no database connection or installed Resource IDs.
+`createKeynes({ resources })` installs the complete schema or closes the failed
+runtime before returning. A session cannot add Resource definitions after it
+opens.
+
+## Runtime capability handles
+
+`Keynes<Names>` and `Budget<Names, Context, Reasons>` are public readonly
+interface types, not durable records. The SDK returns frozen method-bearing
+objects:
+
+- A Keynes handle closes over one private runtime session and owns admission,
+  command identity, retry, and shutdown.
+- A Budget handle closes over that runtime and one private Budget ID. It stores
+  no allocation, availability, Policy result, usage, history, or lifecycle
+  snapshot.
+
+The interfaces use unexported TypeScript brands. The method closures provide
+runtime authority. Neither handle serializes identity or exposes a constructor,
+executor, database handle, Resource ID, Budget ID, or command ID.
+
 ## Policy definition
 
 An immutable value produced by either authoring path and accepted identically by both runtimes.

@@ -58,7 +58,7 @@ interface LaneResult {
 Do not infer one lane from another. In particular:
 
 - `providerFreeRepository` records `check:repo`, `test:unit`, and `test:pr` separately in `commands`;
-- `localPolicyComparison` records Kysely/raw, parser, decimal, generated semantic-vector, property-conformance, and TypeScript backend outcomes;
+- `localPolicyComparison` records public API type fixtures, Kysely/raw, parser, decimal, generated semantic-vector, property-conformance, and TypeScript backend outcomes;
 - `noPolicyRegression` records the unchanged complete Budget corpus;
 - `nativePostgresql` names PostgreSQL 18.6, the packed installer subject, exact four-migration identity, generated semantic-vector and property-conformance outcomes, and Policy comparison counts;
 - `privateCloudRegression` records Policy-field rejection and the no-Policy native scenarios without claiming remote Policy support;

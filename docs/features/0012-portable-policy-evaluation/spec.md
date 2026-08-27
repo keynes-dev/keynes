@@ -25,6 +25,12 @@ This feature also fixes the application-data boundary before remote access is ad
 
 A TypeScript application can author an immutable Policy through Kysely or the supported raw-SQL profile. Keynes parses and normalizes both forms into one portable Policy definition. The application can attach Policies to a Budget and supply one fixed, validated context object with a request.
 
+The application defines one frozen Resource schema before it opens the local
+runtime. `createKeynes({ resources })` returns a readonly method-bearing
+capability, and approved requests return readonly Budget capabilities. The SDK
+exports `Keynes` and `Budget` as types, not constructible classes. Their methods
+hide runtime, Resource, Budget, and command identities.
+
 Keynes evaluates every active Policy against the requested Resources, the parent Budget's available Resources, and that context. A Policy returns Resource ceilings and stable reasons. Local mode and PostgreSQL make the same approval, denial, or error decision and record the Policy revision, reasons, and exact context used.
 
 ### What must stay true
@@ -157,6 +163,8 @@ As an application recovering from an uncertain response, I can replay a Policy-g
 - **FR-026**: The acceptance corpus MUST compare local mode and PostgreSQL for Kysely output, raw SQL, generated node vectors, property-generated programs, Resource ceilings, denial reasons, bounded-decimal and final-integer behavior, null behavior, ordering, grouping, aggregation, unsupported SQL, context validation, deterministic restrictions, revisions, digests, recorded context, replay, atomic rollback, and final Budget state.
 - **FR-027**: The feature MUST NOT add a second durable database, expose a database handle, grant Policies general SQL access, or let either runtime delegate Policy authority to the application.
 - **FR-028**: The feature MUST NOT add remote Policy access, public ingress, self-hosted packaging, managed Cloud behavior, recovery support, automatic Policy tuning, or outcome analysis.
+- **FR-029**: The TypeScript SDK MUST expose `defineResources`, `definePolicy`, `definePolicySql`, and `policySet` as pure functions that return frozen values. `createKeynes({ resources })` MUST open a ready local runtime with one exact Resource vocabulary. The SDK MUST NOT export constructible `Keynes` or `Budget` classes or a post-open Resource-definition mutation.
+- **FR-030**: The TypeScript SDK MUST expose `Keynes` and `Budget` as readonly branded interfaces implemented by method-bearing capability handles. Each handle MUST hide runtime and Budget identity, remain valid when a method is destructured, and prevent callers from supplying Resource IDs, Budget IDs, command IDs, executors, or database handles. `Keynes` MUST support idempotent `close()` and `AsyncDisposable`.
 
 ### Constitutional requirements
 
@@ -174,6 +182,9 @@ As an application recovering from an uncertain response, I can replay a Policy-g
 - **Policy result**: Zero or more Resource ceilings and stable reasons produced for one Policy from one command snapshot.
 - **Policy decision evidence**: The canonical Policy revisions, digests, context, ceilings, reasons, and decision status recorded with a command result.
 - **Portable query profile**: The public SQL subset that defines accepted reads, expressions, joins, filters, grouping, aggregation, ordering, deterministic functions, bounded-decimal, final-integer, and null behavior, results, limits, and failures.
+- **Resource schema**: A frozen value that carries the exact Resource names and definitions used by Policy authoring and one runtime session.
+- **Keynes handle**: A readonly local-runtime capability returned by `createKeynes`. It owns lifecycle and hides runtime coordination and identity.
+- **Budget handle**: A readonly capability bound to one Keynes runtime and one private Budget identity. It stores no cached Budget state.
 
 ## Success criteria
 
@@ -188,6 +199,7 @@ As an application recovering from an uncertain response, I can replay a Policy-g
 - **SC-007**: Every acceptance denial identifies the constrained Resource and stable reason without requiring access to evaluator internals, while Policy errors remain distinguishable from denials.
 - **SC-008**: The complete no-Policy Budget corpus passes unchanged in both runtimes, with zero new public database, storage, or remote-service surface.
 - **SC-009**: Retained provider-free acceptance evidence names the exact FEAT-0012 source revision and reports the local comparison, native PostgreSQL, no-Policy regression, and private Cloud regression outcomes separately. Every unexecuted hosted, live, paid, managed, fault, benchmark, recovery, and production lane is listed as `NOT RUN`.
+- **SC-010**: Compile-only package fixtures prove exact Resource-name inference, exact governed Context requirements, child Policy inference, forbidden construction of Keynes and Budget handles, destructuring-safe methods, and `AsyncDisposable` support on Node.js 24 and 26 consumers.
 
 ## Assumptions
 

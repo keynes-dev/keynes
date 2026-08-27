@@ -67,7 +67,7 @@ This is a command boundary, not a general storage adapter. It does not expose qu
 
 ## Local implementation
 
-`Keynes.create()` is the public local entry point. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`createKeynes({ resources })` is the public local entry point. It returns a frozen capability whose methods close over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -280,17 +280,17 @@ The Policy implementation feature must build the Kysely authoring adapter, Postg
 
 ## SDK experience
 
-The public local API remains:
+The planned public local API is schema-first and functional:
 
 ```ts
-import { Keynes } from "@keynes/sdk";
+import { createKeynes, defineResources } from "@keynes/sdk";
 
-const keynes = await Keynes.create();
-
-await keynes.defineResources({
+const resources = defineResources({
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
+
+await using keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget({
   usdCents: 1000,
@@ -306,13 +306,11 @@ if (result.status === "approved") {
   await runWorkflow(result.budget);
   await result.budget.settle({ usdCents: 19, searchQueries: 2 });
 }
-
-await keynes.close();
 ```
 
-The SQLite replacement preserves `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior.
+`Keynes` and `Budget` are exported readonly interface types, not public classes. Frozen closure-backed objects implement them. The method syntax keeps hidden runtime and Budget identity out of every call, while arrow-function methods avoid `this` binding. `Keynes` supports both `AsyncDisposable` and explicit idempotent `close()`.
 
-The facade has two intended call shapes: `Keynes.create()` selects local SQLite, and future `Keynes.create({ apiKey })` selects remote discovery. The remote service resolves Cloud versus self-hosted deployment metadata. `Keynes.create(undefined)`, `Keynes.create({})`, and `Keynes.create({ apiKey: undefined })` are invalid rather than local fallbacks. Embedded PostgreSQL is not a facade mode; application database code calls the supported SQL boundary inside its own transaction.
+`createKeynes({ resources })` selects local SQLite. Remote SDK access is outside FEAT-0012. Embedded PostgreSQL is not a factory mode; application database code calls the supported SQL boundary inside its own transaction.
 
 ## Generated contracts and compatibility
 
