@@ -170,13 +170,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function listFiles(directory: string): string[] {
   if (!existsSync(directory)) return [];
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return listFiles(path);
-    return [".json", ".md", ".mjs", ".ps1", ".sh", ".ts", ".yml"].includes(
-      extname(entry.name),
+  return readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter(
+      (entry) =>
+        !entry.isDirectory() &&
+        [".json", ".md", ".mjs", ".ps1", ".sh", ".ts", ".yml"].includes(
+          extname(entry.name),
+        ),
     )
-      ? [path]
-      : [];
-  });
+    .map((entry) => join(entry.parentPath, entry.name));
 }

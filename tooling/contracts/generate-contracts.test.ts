@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -194,11 +194,12 @@ function runGenerator(contractRoot: string, outputRoot: string) {
   );
 }
 
-function listFiles(root: string, directory = root): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    return entry.isDirectory() ? listFiles(root, path) : relative(root, path);
-  });
+function listFiles(root: string): string[] {
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) =>
+      relative(root, join(entry.parentPath, entry.name)).split(sep).join("/"),
+    );
 }
 
 afterEach(() => {

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { chmod, mkdtemp, readdir, rename, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const EXPECTED_DIST_FILES = [
@@ -174,17 +174,21 @@ async function validateDist(distRoot: string): Promise<void> {
   }
 }
 
-async function listFiles(root: string, relativeRoot = ""): Promise<string[]> {
-  const entries = await readdir(resolve(root, relativeRoot), {
+async function listFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, {
+    recursive: true,
     withFileTypes: true,
   });
   const files: string[] = [];
   for (const entry of entries) {
-    const relativePath =
-      relativeRoot === "" ? entry.name : `${relativeRoot}/${entry.name}`;
-    if (entry.isDirectory()) {
-      files.push(...(await listFiles(root, relativePath)));
-    } else if (entry.isFile()) {
+    const relativePath = relative(
+      root,
+      resolve(entry.parentPath, entry.name),
+    )
+      .split(sep)
+      .join("/");
+    if (entry.isDirectory()) continue;
+    if (entry.isFile()) {
       files.push(relativePath);
     } else {
       throw new Error(

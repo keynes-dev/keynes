@@ -283,13 +283,9 @@ async function readTree(root: string): Promise<Map<string, Buffer>> {
 }
 
 async function walk(root: string): Promise<string[]> {
-  const paths: string[] = [];
-  for (const entry of await readdir(root, { withFileTypes: true })) {
-    const path = resolve(root, entry.name);
-    if (entry.isDirectory()) paths.push(...(await walk(path)));
-    else if (entry.isFile()) paths.push(path);
-  }
-  return paths;
+  return (await readdir(root, { recursive: true, withFileTypes: true }))
+    .filter((entry) => entry.isFile())
+    .map((entry) => resolve(entry.parentPath, entry.name));
 }
 
 function readArchiveEntries(bytes: Buffer): Map<string, Buffer> {

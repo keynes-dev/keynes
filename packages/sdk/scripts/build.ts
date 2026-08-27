@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { access, mkdtemp, readdir, rename, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const sdkRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -99,17 +99,19 @@ function compile(outDir: string): void {
   }
 }
 
-async function listFiles(root: string, prefix = ""): Promise<string[]> {
-  const entries = await readdir(resolve(root, prefix), {
+async function listFiles(root: string): Promise<string[]> {
+  const entries = await readdir(root, {
+    recursive: true,
     withFileTypes: true,
   });
-  const paths = await Promise.all(
-    entries.map(async (entry): Promise<string[]> => {
-      const path = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-      return entry.isDirectory() ? listFiles(root, path) : [path];
-    }),
-  );
-  return paths.flat().sort();
+  return entries
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) =>
+      relative(root, resolve(entry.parentPath, entry.name))
+        .split(sep)
+        .join("/"),
+    )
+    .sort();
 }
 
 async function exists(path: string): Promise<boolean> {
