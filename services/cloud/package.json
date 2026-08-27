@@ -1,0 +1,21 @@
+{
+  "name": "@keynes/cloud",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run test/unit"
+  },
+  "dependencies": {
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=24 <27"
+  }
+}

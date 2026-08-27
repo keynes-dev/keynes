@@ -7,8 +7,8 @@
 Maintainers build and pack one archive from the repository:
 
 ```sh
-pnpm --filter @keynes/sdk build
-pnpm --filter @keynes/sdk pack --pack-destination <directory>
+pnpm build:sdk
+pnpm pack:sdk --pack-destination <directory>
 ```
 
 Install the resulting `keynes-sdk-0.0.0.tgz` file as the application's only dependency. The archive contains the compiled SDK, its type declarations, the README, the license, and the package manifest. It has no production dependency, PGlite file, or copied PostgreSQL asset. The package remains private and has no registry publication command.
@@ -49,6 +49,6 @@ Local mode does not accept a database path, connection, extension, tenant, princ
 
 The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Node.js 25 is unsupported. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
 
-Provider-free source tests do not qualify the archive. The manually dispatched `Local Preview` workflow reuses one archive digest across the six supported host and Node.js combinations. Its `local-preview-measurement` artifact records the workflow run, archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
+Provider-free source tests do not qualify the archive. The SDK package lane installs one exact archive outside the workspace and exercises its public lifecycle and compatibility boundary. The separate SDK measurement record uses `keynes.package-test.sdk-measurement/v1` under `artifacts/package-tests/sdk/` and records the archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
 
 The workflow does not prove policy enforcement, persistence, browser support, provider qualification, security, recovery, managed operations, registry publication, adopter use, or production readiness. Treat those claims as `NOT RUN`.

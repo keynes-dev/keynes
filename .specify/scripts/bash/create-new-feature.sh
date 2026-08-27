@@ -5,4 +5,4 @@ set -euo pipefail
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-exec node "$REPO_ROOT/scripts/feature-identity.mjs" start --materialize "$@"
+exec node "$REPO_ROOT/tooling/repository/feature-identity.mjs" start --materialize "$@"

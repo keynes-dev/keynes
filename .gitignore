@@ -30,4 +30,4 @@ test-results/
 dist/
 build/
 *.tsbuildinfo
-packages/database/LICENSE
+packages/postgresql/LICENSE

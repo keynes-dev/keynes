@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, PostgreSQL migrations and procedures, packaged local PGlite runtime, native PostgreSQL platform tests, FEAT-0006 private loopback service, and FEAT-0009 PostgreSQL distribution code exist. The in-memory SQLite runtime is the planned replacement for PGlite and is not implemented. Native acceptance, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, private in-memory SQLite runtime, PostgreSQL migrations and procedures, CLI-only PostgreSQL package, PostgreSQL system tests, and private Cloud service exist. Policy, a public remote SDK, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -41,22 +41,15 @@ Each Budget is stored in one place. Constructor shape selects the access path: z
 
 ## Runtime topology
 
-The generated SDK client sends five current operations through one private boundary:
+The current repository has three product paths:
 
 ```text
-TypeScript application
-        |
-        v
-     Keynes SDK
-        |
-        +-- SqliteCommandExecutor
-        |
-        +-- PostgresProcedureClient
-        |
-        `-- RemoteClient
+Local TypeScript application -> @keynes/sdk -> SqliteCommandExecutor
+Embedded database code      -> keynes.* PostgreSQL procedures
+Private remote caller       -> Cloud service -> PostgreSQL procedures
 ```
 
-The target boundary is deliberately small:
+The local SDK boundary is deliberately small:
 
 ```ts
 interface CommandExecutor {
@@ -66,21 +59,15 @@ interface CommandExecutor {
 
 `OperationName` covers the generated operations `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. Generated validators continue to check command inputs and results. The generated `KeynesClient` depends on `CommandExecutor`, not on PostgreSQL procedure names.
 
-- `SqliteCommandExecutor` executes the commands against process-owned state.
-- `PostgresProcedureClient` maps the commands to the existing `keynes.*` procedures.
-- `RemoteClient` sends the same commands to the Keynes service.
+- `SqliteCommandExecutor` executes commands against process-owned state.
+- Embedded applications call the supported `keynes.*` procedures through caller-owned database code.
+- The private Cloud service authenticates a caller and invokes one allowlisted procedure through `PostgresDatabase`.
 
 This is a command boundary, not a general storage adapter. It does not expose queries, transactions, tables, persistence, migrations, or an extension point for arbitrary databases.
 
-### Current implementation boundary
-
-Today the generated client depends on the private `ProcedureCaller` interface. Local mode uses it to call the `keynes.*` procedures in PGlite, and platform tests use it with native PostgreSQL. FEAT-0006 implements the same private RPC contract over its loopback service.
-
-The SQLite runtime feature replaces the local `ProcedureCaller` path with `SqliteCommandExecutor` and changes the generated client boundary to `CommandExecutor`. FEAT-0007 changes only the facade call shape to `Keynes.create()`; it does not replace PGlite.
-
 ## Local implementation
 
-`Keynes.create()` is the public local entry point. The planned `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`Keynes.create()` is the public local entry point. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -112,9 +99,9 @@ Local mode provides:
 - no multi-process coordination; and
 - no recovery after process exit.
 
-### Local replacement evidence
+### Local evidence
 
-The SQLite implementation feature must run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against `SqliteCommandExecutor`. It must also prove:
+The local source and package lanes cover lifecycle, denial, settlement, replay, history, rollback, isolation, malformed input, and close behavior. They also cover these properties:
 
 - a failed command changes no state;
 - concurrent sibling requests cannot overspend a parent Budget;
@@ -123,9 +110,7 @@ The SQLite implementation feature must run the existing lifecycle, denial, settl
 - returned values cannot mutate SQLite state; and
 - close rejects new work while draining admitted work.
 
-That feature removes `@electric-sql/pglite`, the PGlite adapter, local migration startup, and migrations copied into the SDK package. It keeps the PostgreSQL migrations, native tests, Cloud package, and FEAT-0006 service. It must requalify Node.js 24 and 26 on Linux, macOS, and Windows and remeasure package size, install size, ready memory, startup, request latency, and shutdown. Ready memory must be below the existing 512 MiB target.
-
-Policy, local persistence, browser support, security review, and production support remain `NOT RUN` for that feature unless its approved scope changes.
+The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Policy, local persistence, browser support, security review, and production support remain `NOT RUN`.
 
 ## PostgreSQL implementation
 
@@ -165,7 +150,7 @@ The PostgreSQL transaction integration feature must prove:
 
 That evidence does not establish broad provider support, recovery support, extension packaging, or production readiness.
 
-The application role sets `keynes.tenant_id` and `keynes.principal_id` with transaction-local settings. The one-role and one-principal preview trusts those values from application code. They identify the installed authority principal. They are not end-user authentication, and hostile-role security qualification remains `NOT RUN`.
+The application role sets `keynes.tenant_id` and `keynes.principal_id` with transaction-local settings. The one-role and one-principal preview trusts those values from application code. They identify the installed principal. They are not end-user authentication, and hostile-role security qualification remains `NOT RUN`.
 
 ### Self-hosted Keynes
 
@@ -175,7 +160,7 @@ The customer owns deployment, database and service upgrades, backups, recovery, 
 
 ### Keynes Cloud
 
-Keynes operates the same service code and PostgreSQL implementation. Keynes owns hosting, upgrades, backups, recovery, administration, capacity, incident response, and support. Clients use `RemoteClient`; they receive no database credentials and cannot select a database or execute arbitrary SQL.
+Keynes operates the same service code and PostgreSQL implementation. Keynes owns hosting, upgrades, backups, recovery, administration, capacity, incident response, and support. Future remote clients receive no database credentials and cannot select a database or execute arbitrary SQL.
 
 Managed Cloud is an operating model, not another Budget implementation. It needs separate evidence for external identity, TLS ingress, tenant isolation, backup restoration, recovery, failover, upgrades, monitoring, incident operations, performance, and support.
 
@@ -361,15 +346,15 @@ The shared suite includes lifecycle, availability, denial, consumable depletion,
 - **Self-hosted**: packaging, configuration, upgrades, backup and restoration, monitoring, recovery runbooks, and customer-operated failure handling.
 - **Managed Cloud**: provider deployment, high availability, recovery, failover, capacity, incident response, vulnerability response, compliance controls, support, and production operations.
 
-A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the future in-memory SQLite runtime. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
+A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the current SQLite runtime. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
 
 ## Packaging and installation
 
-The future local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It must not contain PGlite, a WebAssembly PostgreSQL build, local migrations, a database data directory, a native Keynes library, a sidecar, or a daemon.
+The local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It contains no PGlite runtime, WebAssembly PostgreSQL build, local migration, database data directory, native Keynes library, sidecar, or daemon.
 
 Durable installation uses the canonical PostgreSQL migrations and generated installation record. The installer verifies the server version, migration IDs and checksums, contract digest, object inventory, ownership, function properties, bootstrap permissions, and ACLs. Exact recheck is read-only and makes no migration, grant, revoke, or repair change. An incompatible target fails with a stable category and check name. The installer does not support upgrades, downgrades, rolling deployment, uninstall, or extension packaging.
 
-Native acceptance, other PostgreSQL releases, provider qualification, backup, recovery, failover, self-hosting, managed Cloud, hostile-role security qualification, performance qualification, and production support remain `NOT RUN`.
+Other PostgreSQL releases, managed-provider qualification, backup, recovery, failover, self-hosting, managed Cloud, hostile-role security qualification, performance qualification, and production support remain `NOT RUN`.
 
 The self-hosted and Cloud service use the same service code. Packaging and operating ownership differ. A customer-operated container and a Keynes-operated deployment require separate release and support evidence even when the image contents match.
 
@@ -402,7 +387,7 @@ Keynes does not execute application work, retry providers, infer missing usage, 
 No deployment may claim compatibility, security, recovery, footprint, performance, or production readiness until evidence from the exact tested revision establishes the applicable gates:
 
 1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
-2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown after removing PGlite.
+2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown for SQLite.
 3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
 4. Compare builder and raw-SQL Policy behavior through the local and PostgreSQL evaluators, including context and replay.
 5. Qualify the remote SDK and public service protocol through authenticated TLS ingress.

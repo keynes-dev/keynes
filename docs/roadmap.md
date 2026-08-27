@@ -75,6 +75,14 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 
 `PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes. Later candidates remain unnumbered and `Not started`.
 
+## Standalone repository work
+
+Standalone Spec Kit work can maintain the repository without changing the product sequence.
+
+| Feature                                                                       | Purpose                                                                                                                                  | Depends on                         | Status   |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | -------- |
+| [0010 Repository organization](features/0010-repository-organization/spec.md) | Organize products, tooling, package tests, system tests, commands, and new evidence by responsibility without changing product behavior. | PostgreSQL transaction integration | Complete |
+
 ### SQLite local runtime
 
 Keep this public API unchanged:

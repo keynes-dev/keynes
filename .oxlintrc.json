@@ -4,6 +4,8 @@
     "node_modules/**",
     ".turbo/**",
     "coverage/**",
-    "reports/**"
+    "reports/**",
+    "artifacts/package-tests/**",
+    "artifacts/system-tests/**"
   ]
 }

@@ -3,11 +3,11 @@
   "version": "0.8.8",
   "installed_at": "2026-08-21T21:09:58.478901+00:00",
   "files": {
-    ".specify/scripts/bash/common.sh": "0e3f940466abfdab67316372a10b67d85f0108bf9db749ae92f968a0e07756d8",
+    ".specify/scripts/bash/common.sh": "87625807bdde8a7f867a3365f4a29c3a784c451aed478d450f0925227dfadd40",
     ".specify/scripts/bash/setup-plan.sh": "065f9cdbb3d74e1f4901a11918c56d0ebf4e1d2d93ad62bd883deb94761b699e",
     ".specify/scripts/bash/setup-tasks.sh": "0ba2a7fb05c861637d6f54380636af9a21eaa19345241e4e82f1e9a511a409c0",
     ".specify/scripts/bash/check-prerequisites.sh": "aff361639c504b95a2901493f5022788adc01a6792fd37f132de8f57782e4b80",
-    ".specify/scripts/bash/create-new-feature.sh": "880f5069e2b880bea5a4ccab7fb3afea38bf54eced17bd0851c785e46a3cd023",
+    ".specify/scripts/bash/create-new-feature.sh": "3618026d979c590ef04c33bf2d21e715408f5f8e3178a846b74e258d40e0a821",
     ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
     ".specify/templates/checklist-template.md": "c37695297e5d3153d64f82c21223509940b13932046c7961c42d1d669516130c",
     ".specify/templates/tasks-template.md": "213bba9196d2e63732ea1c4778fdbf36309c53c6ecfb0edb1fe5265dd5c54569",

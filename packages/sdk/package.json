@@ -10,25 +10,18 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/sdk/src/index.d.ts",
-      "import": "./dist/sdk/src/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "node ../../scripts/build-sdk-package.ts",
+    "build": "node scripts/build.ts",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --maxWorkers=1 --exclude \"**/*.native.test.ts\" --exclude \"qualification/**\"",
-    "test:unit": "vitest run src/generated-client.test.ts src/private/run-platform-tests.test.ts src/private/test-keynes.test.ts src/public-exports.test.ts --maxWorkers=1",
-    "test:budget": "vitest run src/budget-lifecycle.test.ts",
-    "test:platform": "node src/private/run-platform-tests.ts"
-  },
-  "dependencies": {
-    "@keynes/postgresql": "workspace:*"
+    "test": "vitest run test --maxWorkers=1",
+    "test:unit": "vitest run test/public test/local --maxWorkers=1"
   },
   "devDependencies": {
-    "@types/pg": "8.23.1",
-    "pg": "8.23.0",
     "vitest": "4.1.11"
   },
   "engines": {

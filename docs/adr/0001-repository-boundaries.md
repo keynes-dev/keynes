@@ -1,11 +1,14 @@
 # ADR-0001: Adopt lean repository boundaries
 
 > **Superseded in part by [ADR-0003](0003-sqlite-and-postgresql.md):** ADR-0003 replaces the permanent PGlite and managed-Cloud-only runtime direction. This record retains the historical reasoning and repository-boundary decision made at the time.
+>
+> **Repository layout superseded by [ADR-0005](0005-repository-organization.md):** ADR-0005 replaces the active ownership tree and command names. This record retains the original FEAT-0001 decision body.
 
 - **Date:** 2026-08-21
 - **Status:** Accepted
 - **Amended:** 2026-08-21 - group all product code under `packages/`
 - **Amended:** 2026-08-25 - remove the customer-owned PostgreSQL distribution requirement
+- **Superseded:** 2026-08-26 - replace the active repository layout through ADR-0005
 - **Decider:** `@shubsharan`
 - **Tags:** repository, ownership, TypeScript, monorepo
 
