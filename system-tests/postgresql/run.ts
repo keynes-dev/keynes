@@ -1,6 +1,13 @@
 import { spawn } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -344,6 +351,7 @@ async function writeAcceptanceRecord(
     throw new Error("Acceptance record contains prohibited content");
   }
   await verifyAcceptanceRevision(runtime, workspace.revision);
+  await mkdir(dirname(workspace.outputPath), { recursive: true });
   await writeFile(workspace.outputPath, serialized, {
     encoding: "utf8",
     flag: "wx",

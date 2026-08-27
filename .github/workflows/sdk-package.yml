@@ -123,6 +123,8 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      MEASUREMENT_PATH: artifacts/package-tests/sdk/attempts/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -165,13 +167,13 @@ jobs:
         run: >-
           pnpm measure:package:sdk --
           --archive "${{ env.ARCHIVE_PATH }}"
-          --output artifacts/package-tests/sdk/measurement.json
+          --output "${{ env.MEASUREMENT_PATH }}"
 
       - name: Retain measurement
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: sdk-package-measurement
-          path: artifacts/package-tests/sdk/measurement.json
+          path: ${{ env.MEASUREMENT_PATH }}
           if-no-files-found: error
           retention-days: 14

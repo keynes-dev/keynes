@@ -344,6 +344,23 @@ describe("PostgreSQL system-test runner", () => {
     }
   });
 
+  it("creates the acceptance record parent directory", async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "keynes-postgresql-system-parent-test-"),
+    );
+    const outputPath = join(directory, "missing", "acceptance.json");
+
+    try {
+      await runPostgresqlSystemTests(fakeRuntime().runtime, {}, { outputPath });
+      expect(JSON.parse(await readFile(outputPath, "utf8"))).toMatchObject({
+        schemaVersion: "keynes.system-test.postgresql/v1",
+        outcome: "passed",
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("refuses an existing --output path before starting Docker", async () => {
     const output = await temporaryOutputPath();
     await writeFile(output.path, "existing\n");

@@ -109,6 +109,15 @@ describe("repository organization", () => {
     ).toHaveLength(2);
   });
 
+  it("writes hosted SDK measurements to a run-specific path", () => {
+    const workflow = readFile(".github/workflows/sdk-package.yml");
+    expect(workflow).toContain(
+      "MEASUREMENT_PATH: artifacts/package-tests/sdk/attempts/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json",
+    );
+    expect(workflow).toContain('--output "${{ env.MEASUREMENT_PATH }}"');
+    expect(workflow).toContain("path: ${{ env.MEASUREMENT_PATH }}");
+  });
+
   it("keeps production products independent", () => {
     const subjects = [
       ["packages/sdk", {}],
