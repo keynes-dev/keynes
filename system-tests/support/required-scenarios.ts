@@ -98,23 +98,3 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "Budget settlement rejects derived arithmetic overflow without committing settlement",
   ],
 } as const;
-
-export const REQUIRED_PROVIDER_FREE_SQLITE_SCENARIOS = {
-  "system-tests/support/provider-free-sqlite.test.ts": [
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
-      "system-tests/postgresql/budget-lifecycle.test.ts"
-    ],
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
-      "system-tests/postgresql/replay.test.ts"
-    ],
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
-      "system-tests/postgresql/request-denial.test.ts"
-    ],
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
-      "system-tests/postgresql/rollback.test.ts"
-    ],
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
-      "system-tests/postgresql/settlement.test.ts"
-    ],
-  ],
-} as const;
