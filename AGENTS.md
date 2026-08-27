@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/0011-idiomatic-monorepo/plan.md`.
+`docs/features/0012-portable-policy-evaluation/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow

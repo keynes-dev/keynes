@@ -225,7 +225,7 @@ The canonical command record contains an operation, identity, input digest, resu
 
 ### Public format
 
-A Policy is an immutable restricted PostgreSQL-style query plus:
+A Policy is an immutable normalized query program plus:
 
 - declared Resource inputs and outputs;
 - an exact context schema;
@@ -233,9 +233,9 @@ A Policy is an immutable restricted PostgreSQL-style query plus:
 - a Policy revision and source digest; and
 - the supported query-profile and validator versions.
 
-The supported query subset is the public portable format. It defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; integer and null behavior; deterministic functions; result columns; output limits; and failure behavior.
+The supported SQL query profile is the public authoring contract. Kysely compiles typed queries into that profile, and advanced users may provide SQL directly. The normalized Policy program is the portable runtime format. The profile defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; bounded-decimal, final-integer, and null behavior; deterministic functions; result columns; output limits; and failure behavior.
 
-The parser's internal syntax tree is an implementation detail. It may change without changing a Policy when the public query format, validation result, evaluation result, revision, and digest stay compatible.
+Kysely's operation tree and the parser's syntax tree are implementation details. They may change without changing a Policy when the public query profile, normalized program, evaluation result, revision, and digest stay compatible.
 
 ### Inputs
 
@@ -253,27 +253,30 @@ The application declares and supplies business facts. Keynes validates the exact
 
 ### Authoring and evaluation
 
-The TypeScript builder is the normal authoring path. It knows the available Resources, expected context fields, allowed operations, and result shape. It rejects unsupported expressions before compiling one query in the supported format.
+The TypeScript SDK constructs Policies with a pinned Kysely dependency. It gives Kysely typed logical tables for the available Resources, expected context fields, and required result shape. Kysely compiles one PostgreSQL query and its bound values.
 
-Advanced users may submit raw SQL within the same subset. Builder output and raw SQL pass through the same parser, validator, canonicalization, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
+Advanced users may submit raw SQL within the same profile. Kysely-compiled SQL and raw SQL pass through the same pinned PostgreSQL parser, validator, normalizer, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
 
-`SqliteCommandExecutor` evaluates the parsed query in TypeScript against immutable command inputs. PostgreSQL validates the source and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access.
+Policy evaluation occurs inside the selected Budget authority's atomic command, and Keynes never accepts an application-computed decision. One machine-readable semantic registry defines the normalized program's nodes, typing, null and numeric rules, work costs, canonical forms, backend declarations, and conformance vectors.
 
-If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid source, unsupported syntax, nondeterminism, invalid context, resource limits, or invalid results fail the command.
+The v1 `SqliteCommandExecutor` backend interprets the normalized program in TypeScript against immutable command inputs. The v1 PostgreSQL backend validates the program against generated profile metadata and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access. These are deployment-native execution backends for one semantics contract, not independent Policy languages. A shared executable core remains a valid future option if it preserves caller-owned PostgreSQL transactions and justifies its extension, provider, ABI, security, and operational costs.
+
+If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid definitions, unsupported nodes, nondeterminism, invalid context, resource limits, or invalid results fail the command.
 
 ### Policy evidence
 
-The Policy implementation feature must build the typed builder, parser, local evaluator, and PostgreSQL evaluator together. Its comparison suite covers:
+The Policy implementation feature must build the Kysely authoring adapter, PostgreSQL parser adapter, program normalizer, authoritative semantic registry, generated backend declarations, local backend, and PostgreSQL backend together. Generation must reject a node without both backend declarations, and the comparison suite covers:
 
 - Resource limits and denial reasons;
-- integer and null behavior;
+- bounded-decimal, final-integer, and null behavior;
 - ordering and aggregation;
 - unsupported SQL;
 - context validation;
 - deterministic function restrictions;
 - Policy revisions and digests;
 - recorded context and replay behavior; and
-- equivalence between builder output and raw SQL in the supported format.
+- equivalence between Kysely output and raw SQL in the supported profile; and
+- node-level vectors and property-generated programs evaluated through both backends.
 
 ## SDK experience
 
@@ -350,7 +353,7 @@ A pass in one category does not prove another. PGlite evidence from FEAT-0003 th
 
 ## Packaging and installation
 
-The local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It contains no PGlite runtime, WebAssembly PostgreSQL build, local migration, database data directory, native Keynes library, sidecar, or daemon.
+The local SDK package contains TypeScript code for the facade, generated client and validators, `SqliteCommandExecutor`, declared production dependencies, and any required parser assets. It contains no PGlite runtime, embedded PostgreSQL server, local migration, database data directory, native Keynes library, sidecar, or daemon. A parser WebAssembly asset is a library implementation detail, not a PostgreSQL runtime.
 
 Durable installation uses the canonical PostgreSQL migrations and generated installation record. The installer verifies the server version, migration IDs and checksums, contract digest, object inventory, ownership, function properties, bootstrap permissions, and ACLs. Exact recheck is read-only and makes no migration, grant, revoke, or repair change. An incompatible target fails with a stable category and check name. The installer does not support upgrades, downgrades, rolling deployment, uninstall, or extension packaging.
 
@@ -389,7 +392,7 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
 2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown for SQLite.
 3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
-4. Compare builder and raw-SQL Policy behavior through the local and PostgreSQL evaluators, including context and replay.
+4. Compare Kysely and raw-SQL Policy behavior through the local and PostgreSQL backends, including generated semantic vectors, context, and replay.
 5. Qualify the remote SDK and public service protocol through authenticated TLS ingress.
 6. Qualify self-hosted packaging, upgrades, backup, recovery, monitoring, security, and customer operations.
 7. Qualify managed Cloud hosting, recovery, failover, incident response, capacity, compliance controls, and support.

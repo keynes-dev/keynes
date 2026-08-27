@@ -43,15 +43,15 @@ Keynes may later add explicit subtree issuance and same-database multi-source fu
 
 A Policy constrains how many Resources a Budget may grant. It can read the requested Resources, the parent Budget's available Resources, and one fixed context object supplied by the application. It returns ceilings and stable reasons for one or more Resources.
 
-The TypeScript builder is the normal way to write a Policy. It knows the available Resources and the expected context fields. It rejects unsupported expressions and compiles the Policy to a restricted PostgreSQL-style query. Advanced users may write SQL directly, but only within the same supported subset. This product design does not choose final builder method names or future connection options.
+The TypeScript SDK uses Kysely as the normal way to author a Policy. The typed query knows the available Resources and expected context fields. Advanced users may write raw SQL within the same supported profile. Keynes parses and normalizes both forms into its portable Policy format. This product design does not choose future database-connection or application-source options.
 
-Local mode parses the query and evaluates it in TypeScript. PostgreSQL validates and runs the generated SQL against inputs provided by Keynes. Both paths must agree on Resource limits, denials, integer and null behavior, ordering, aggregation, unsupported SQL, context validation, deterministic functions, revisions, digests, recorded context, and replay.
+Policy evaluation occurs inside the selected Budget authority's atomic command; Keynes never trusts an application-supplied decision. Every deployment implements one versioned Policy semantics contract. Deployments may use a shared executable evaluator or deployment-native backends, but all paths must agree on Resource limits, denials, bounded-decimal calculations, final integer ceilings, null behavior, ordering, aggregation, unsupported SQL, context validation, deterministic functions, revisions, digests, recorded context, and replay.
 
 A Policy cannot read application tables directly. The application reads its business data and passes a fixed context object with the request. For example, it might supply a ticket priority, customer tier, or workflow risk class. Keynes validates the declared fields and types and records the exact context used for the decision. Secrets do not belong in Policy context, and context does not pass to the child.
 
 An application using embedded PostgreSQL may read business facts and call Keynes inside the same caller-owned transaction. This gives the facts and the Budget request one transaction snapshot without giving the Policy access to application tables. A replay returns the recorded result and context; it does not query application tables again.
 
-When several Policies return ceilings for the same Resource, the lowest ceiling wins. A zero ceiling denies a positive request. No rows means no added constraint. Invalid or unsupported SQL, invalid context, a nondeterministic function, an execution limit, or an invalid result fails the request. Keynes does not turn a Policy error into an approval or a domain denial.
+When several Policies return ceilings for the same Resource, the lowest ceiling wins. A zero ceiling denies a positive request. No rows means no added constraint. An invalid or unsupported query, invalid context, a nondeterministic function, an execution limit, or an invalid result fails the request. Keynes does not turn a Policy error into an approval or a domain denial.
 
 A child does not inherit Policies from its parent. Omitting `policies` has the same canonical meaning as `policies: []`. A child without local Policies is still limited by the Resources it received and by Keynes's conservation, availability, accounting, and settlement rules.
 
@@ -156,15 +156,16 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - An authorized root allocation creates quantity for selected Resource types. Ordinary requests cannot create quantity.
 - A request proposes exact Resource quantities and atomically creates one child Budget or returns a denial. By default, the structural parent funds the request.
 - Policies are optional Resource constraints expressed in one restricted PostgreSQL-style query format.
-- The TypeScript builder is the normal Policy authoring path. Raw SQL is an advanced path within the same supported subset.
+- Kysely is the normal Policy authoring path. Raw SQL is an advanced path within the same supported profile.
 - Policy inputs are the request, the parent Budget's available Resources, and one fixed, typed, application-supplied context object.
 - Policies never read application tables. Keynes records the exact context used and does not query application data during replay.
+- Keynes evaluates Policy inside the selected Budget authority's atomic command and never trusts an application-computed decision.
 - Child Policies are optional, local to the child, and never inherited from the parent.
 - Keynes never changes a request or executes, tracks, or retries application work.
 - Every Budget settles direct usage. Keynes derives subtree accounting.
 - Missing usage and overage stay visible.
 - Each Budget has one storage location and one committed history.
-- The local SQLite runtime and PostgreSQL implement the same Budget behavior through separate code and shared black-box tests.
+- The local SQLite runtime and PostgreSQL implement the same Budget and Policy semantics through one versioned contract and shared black-box tests; their execution backends may differ.
 - PostgreSQL is the only durable database implementation.
 - Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
 - TypeScript is the only supported SDK.
