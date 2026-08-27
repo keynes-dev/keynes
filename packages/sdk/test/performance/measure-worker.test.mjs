@@ -22,6 +22,7 @@ beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-sdk-worker-test-"));
   run(pnpm, ["--filter", "@keynes/sdk", "build"]);
   run(pnpm, [
+    "--config.node-linker=hoisted",
     "--filter",
     "@keynes/sdk",
     "pack",
@@ -60,6 +61,7 @@ describe("SDK package measurement worker", () => {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
+      parserInitializationMilliseconds: expect.any(Number),
       readyRssBytes: expect.any(Number),
       coldCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),

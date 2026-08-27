@@ -1,4 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 const mode = process.argv[2];
 if (mode === "cold-first") await runColdFirst();
@@ -6,6 +8,13 @@ else if (mode === "steady") await runSteady();
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runColdFirst() {
+  const sdkEntry = fileURLToPath(import.meta.resolve("@keynes/sdk"));
+  const parserEntry = createRequire(sdkEntry).resolve("libpg-query");
+  const parserInitializationStarted = performance.now();
+  const { loadModule } = await import(parserEntry);
+  await loadModule();
+  const parserInitializationMilliseconds =
+    performance.now() - parserInitializationStarted;
   const { createKeynes, defineResources } = await import("@keynes/sdk");
   const resources = defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -31,6 +40,7 @@ async function runColdFirst() {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion,
+      parserInitializationMilliseconds,
       readyRssBytes,
       coldCreateMilliseconds,
       firstRequestMilliseconds,

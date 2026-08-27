@@ -1,4 +1,5 @@
 import type { PolicyDefinitionV1 } from "./generated/types.js";
+import { digestCanonicalJson } from "./policy/canonicalize.js";
 
 export class CommittedResponseLostError extends Error {
   constructor() {
@@ -11,18 +12,24 @@ export function canonicalPolicyDefinitionsForReplay(
   policies: readonly PolicyDefinitionV1[],
 ): PolicyDefinitionV1[] {
   return policies
-    .map((policy) => ({
-      ...policy,
-      inputResources: sortedNonEmpty(policy.inputResources),
-      outputResources: sortedNonEmpty(policy.outputResources),
-      contextSchema: [...policy.contextSchema].sort(
-        (left, right) =>
-          compareStrings(left.name, right.name) ||
-          compareStrings(left.type, right.type) ||
-          Number(left.nullable) - Number(right.nullable),
-      ),
-      reasons: sortedNonEmpty(policy.reasons),
-    }))
+    .map((policy) => {
+      const { definitionDigest: _definitionDigest, ...document } = {
+        ...policy,
+        inputResources: sortedNonEmpty(policy.inputResources),
+        outputResources: sortedNonEmpty(policy.outputResources),
+        contextSchema: [...policy.contextSchema].sort(
+          (left, right) =>
+            compareStrings(left.name, right.name) ||
+            compareStrings(left.type, right.type) ||
+            Number(left.nullable) - Number(right.nullable),
+        ),
+        reasons: sortedNonEmpty(policy.reasons),
+      };
+      return {
+        ...document,
+        definitionDigest: digestCanonicalJson(document),
+      };
+    })
     .sort(
       (left, right) =>
         compareStrings(left.name, right.name) ||

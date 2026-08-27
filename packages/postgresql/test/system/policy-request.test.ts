@@ -133,7 +133,11 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
     it("attaches only the explicit child Policy set and evaluates it on the next request", async () => {
       fixture = await openPolicyFixture();
       const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
-      const childPolicy = requestLimitPolicy("child_ceiling", "child_limit");
+      const childPolicy = resealDeclarations(
+        requestLimitPolicy("child_ceiling", "child_limit"),
+        ["model_tokens"],
+        ["model_tokens"],
+      );
       await seedGovernedRoot(fixture, parentPolicy);
 
       const child = await committed(fixture, "requestBudget", {
@@ -168,6 +172,113 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           policies: [{ name: childPolicy.name }],
           decision: "denied",
         },
+      });
+    });
+
+    it("rejects a root Policy declaration outside the receiving Budget holdings", async () => {
+      fixture = await openPolicyFixture();
+      await definePolicyResources(fixture);
+      const policy = requestLimitPolicy("request_ceiling", "request_limit");
+      const transaction = await beginApplicationAttempt(fixture);
+      const wire = await call(transaction, "createBudget", {
+        commandId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 100 }],
+        policies: [policy],
+      });
+      await transaction.commit();
+
+      expect(wire).toMatchObject({
+        ok: false,
+        error: {
+          code: "invalid_policy",
+          details: { path: "$.policies", rule: "allocatedResourceTypes" },
+        },
+      });
+      await expectBudgetState(fixture.owner, ROOT_BUDGET_ID, false);
+    });
+
+    it("rejects a child Policy declaration outside the receiving child holdings", async () => {
+      fixture = await openPolicyFixture();
+      const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
+      await seedGovernedRoot(fixture, parentPolicy);
+      const childPolicy = resealDeclarations(
+        requestLimitPolicy("child_ceiling", "child_limit"),
+        ["search_queries"],
+        ["search_queries"],
+      );
+      const transaction = await beginApplicationAttempt(fixture);
+      const wire = await call(transaction, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 8 }],
+        context: { parent_ceiling: 10 },
+        childPolicies: [childPolicy],
+      });
+      await transaction.commit();
+
+      expect(wire).toMatchObject({
+        ok: false,
+        error: {
+          code: "invalid_policy",
+          details: { path: "$.policies", rule: "allocatedResourceTypes" },
+        },
+      });
+      await expectBudgetState(fixture.owner, REQUEST_ID, false);
+    });
+
+    it("approves an ungoverned parent request with child Policies without parent Policy evidence", async () => {
+      fixture = await openPolicyFixture();
+      await definePolicyResources(fixture);
+      const childPolicy = resealDeclarations(
+        requestLimitPolicy("child_ceiling", "child_limit"),
+        ["model_tokens"],
+        ["model_tokens"],
+      );
+      await committed(fixture, "createBudget", {
+        commandId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 100 }],
+      });
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        childPolicies: [childPolicy],
+      });
+
+      expect(request.result).toMatchObject({
+        kind: "approved",
+        childBudgetId: REQUEST_ID,
+      });
+      expect(request.result).not.toHaveProperty("policyEvidence");
+    });
+
+    it("orders availability denial reasons by canonical Resource name, not Resource UUID", async () => {
+      fixture = await openPolicyFixture();
+      await definePolicyResources(fixture);
+      await committed(fixture, "createBudget", {
+        commandId: ROOT_BUDGET_ID,
+        resources: [
+          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 10 },
+          { resourceTypeId: MODEL_RESOURCE_ID, amount: 10 },
+        ],
+      });
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [
+          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 11 },
+          { resourceTypeId: MODEL_RESOURCE_ID, amount: 11 },
+        ],
+      });
+
+      expect(request.result).toMatchObject({
+        kind: "denied",
+        reasons: [
+          { resourceTypeId: MODEL_RESOURCE_ID },
+          { resourceTypeId: SEARCH_RESOURCE_ID },
+        ],
       });
     });
 
@@ -279,6 +390,20 @@ async function seedGovernedRoot(
   fixture: PolicyFixture,
   policy: PolicyDefinitionV1,
 ): Promise<void> {
+  await definePolicyResources(fixture);
+  requireSuccess(
+    await committed(fixture, "createBudget", {
+      commandId: ROOT_BUDGET_ID,
+      resources: [
+        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
+        { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
+      ],
+      policies: [policy],
+    }),
+  );
+}
+
+async function definePolicyResources(fixture: PolicyFixture): Promise<void> {
   await committed(fixture, "defineResource", {
     commandId: SEARCH_RESOURCE_ID,
     definition: {
@@ -295,16 +420,6 @@ async function seedGovernedRoot(
       accountingBehavior: "consumable",
     },
   });
-  requireSuccess(
-    await committed(fixture, "createBudget", {
-      commandId: ROOT_BUDGET_ID,
-      resources: [
-        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
-        { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
-      ],
-      policies: [policy],
-    }),
-  );
 }
 
 async function committed(
@@ -421,6 +536,19 @@ function requestLimitPolicy(
     canonicalSql,
     sourceDigest: digestText(canonicalSql),
   } satisfies Omit<PolicyDefinitionV1, "definitionDigest">;
+  return { ...document, definitionDigest: digestCanonicalJson(document) };
+}
+
+function resealDeclarations(
+  policy: PolicyDefinitionV1,
+  inputResources: PolicyDefinitionV1["inputResources"],
+  outputResources: PolicyDefinitionV1["outputResources"],
+): PolicyDefinitionV1 {
+  const { definitionDigest: _definitionDigest, ...document } = {
+    ...policy,
+    inputResources,
+    outputResources,
+  };
   return { ...document, definitionDigest: digestCanonicalJson(document) };
 }
 

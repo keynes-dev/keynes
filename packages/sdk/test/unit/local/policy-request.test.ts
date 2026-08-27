@@ -14,6 +14,11 @@ const resources = defineResources({
   tokens: { unit: "token", accountingBehavior: "consumable" },
 });
 
+const orderingResources = defineResources({
+  a0thing: { unit: "token", accountingBehavior: "consumable" },
+  aThing: { unit: "token", accountingBehavior: "consumable" },
+});
+
 const contextSchema = {
   limit: policyValue.integer(),
   segment: policyValue.text(),
@@ -249,6 +254,47 @@ describe("local governed Budget requests", () => {
     }
   });
 
+  it("orders Policy evidence and Resources by PostgreSQL C bytes", async () => {
+    const policyUnderscore = orderingPolicy(
+      orderingResources,
+      "policy_",
+      "reason_",
+    );
+    const policyDigit = orderingPolicy(orderingResources, "policy0", "reason0");
+    const keynes = await createKeynes({ resources: orderingResources });
+    try {
+      const root = await keynes.createBudget(
+        { a0thing: 10, aThing: 10 },
+        { policies: policySet(policyUnderscore, policyDigit) },
+      );
+      const result = await root.request(
+        { a0thing: 1, aThing: 1 },
+        { context: CONTEXT },
+      );
+      if (result.status !== "approved") {
+        throw new Error("expected governed approval");
+      }
+
+      expect(result.policyEvidence.policies.map(({ name }) => name)).toEqual([
+        "policy0",
+        "policy_",
+      ]);
+      expect(
+        result.policyEvidence.effectiveCeilings.map(({ resource }) => resource),
+      ).toEqual(["a0thing", "aThing"]);
+      expect(
+        result.policyEvidence.effectiveCeilings[0]?.reasons.map(
+          ({ policyName, reason }) => [policyName, reason],
+        ),
+      ).toEqual([
+        ["policy0", "reason0"],
+        ["policy_", "reason_"],
+      ]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("returns identical canonical evidence in the result and history", async () => {
     const { keynes, root } = await openGoverned(policySet(contextLimit));
     try {
@@ -387,6 +433,29 @@ function ceilingPolicy<const Reason extends string>(definition: {
       SELECT requested.resource AS resource,
              ${definition.ceiling} AS ceiling,
              '${definition.reason}' AS reason
+        FROM requested_resources AS requested
+        INNER JOIN available_resources AS available USING (resource)
+        CROSS JOIN policy_context AS context
+    `,
+  });
+}
+
+function orderingPolicy<const Name extends string, const Reason extends string>(
+  orderedResources: typeof orderingResources,
+  name: Name,
+  reason: Reason,
+) {
+  return definePolicySql(orderedResources, {
+    name,
+    revision: 1,
+    inputs: ["a0thing", "aThing"],
+    outputs: ["a0thing", "aThing"],
+    context: contextSchema,
+    reasons: [reason],
+    sql: `
+      SELECT requested.resource AS resource,
+             available.amount AS ceiling,
+             '${reason}' AS reason
         FROM requested_resources AS requested
         INNER JOIN available_resources AS available USING (resource)
         CROSS JOIN policy_context AS context

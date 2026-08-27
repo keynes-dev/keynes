@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, private in-memory SQLite runtime, PostgreSQL migrations and procedures, CLI-only PostgreSQL package, PostgreSQL system tests, and private Cloud service exist. Policy, a public remote SDK, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, CLI-only PostgreSQL package, PostgreSQL 18.6 system tests, and private no-Policy Cloud service exist. Final FEAT-0012 archives, hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -24,7 +24,7 @@ Shared Budget behavior
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. Constructor shape selects the access path: zero arguments selects local SQLite, while a future API-key configuration selects remote discovery. Missing or invalid credentials in a supplied remote configuration never fall back to local state.
+Each Budget is stored in one place. `createKeynes({ resources })` selects local SQLite. Remote discovery is a later feature and cannot fall back to local state.
 
 ## Design principles
 
@@ -75,7 +75,7 @@ The runtime stores Resources, Budgets, command results, permissions, and history
 
 ### Atomic commands
 
-The executor applies each command in one SQLite transaction. Validation, Policy evaluation when available, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
+The executor applies each command in one SQLite transaction. Validation, Policy evaluation, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
 
 ### Replay and conflicts
 
@@ -110,7 +110,7 @@ The local source and package lanes cover lifecycle, denial, settlement, replay, 
 - returned values cannot mutate SQLite state; and
 - close rejects new work while draining admitted work.
 
-The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Policy, local persistence, browser support, security review, and production support remain `NOT RUN`.
+The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Local Policy source tests pass against the private SQLite backend. Final archive, hosted compatibility, browser support, security qualification, and production support remain `NOT RUN`.
 
 ## PostgreSQL implementation
 
@@ -265,7 +265,7 @@ If several Policies constrain the same Resource, the lowest ceiling wins. Zero d
 
 ### Policy evidence
 
-The Policy implementation feature must build the Kysely authoring adapter, PostgreSQL parser adapter, program normalizer, authoritative semantic registry, generated backend declarations, local backend, and PostgreSQL backend together. Generation must reject a node without both backend declarations, and the comparison suite covers:
+FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, program normalizer, authoritative semantic registry, generated backend declarations, local backend, and PostgreSQL backend together. Generation rejects a node without both backend declarations. The comparison suite covers:
 
 - Resource limits and denial reasons;
 - bounded-decimal, final-integer, and null behavior;
@@ -280,7 +280,7 @@ The Policy implementation feature must build the Kysely authoring adapter, Postg
 
 ## SDK experience
 
-The planned public local API is schema-first and functional:
+The public local API is schema-first and functional:
 
 ```ts
 import { createKeynes, defineResources } from "@keynes/sdk";
@@ -397,4 +397,4 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 8. Define the supported release contract and compatibility windows.
 9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
 
-The [roadmap](roadmap.md) records completed evidence and this sequence. This documentation feature proves only repository agreement with the target model.
+The [roadmap](roadmap.md) records completed evidence and this sequence. FEAT-0012 source and PostgreSQL 18.6 system lanes have exercised Policy behavior. Final archive, hosted, provider, recovery, and production claims require their own exact-revision evidence.

@@ -22,6 +22,8 @@ const productionFiles = [
   "policy/authoring",
   "policy/canonicalize",
   "policy/compile",
+  "policy/decimal",
+  "policy/evaluate",
   "policy/normalize",
   "policy/parse",
   "policy/validate",

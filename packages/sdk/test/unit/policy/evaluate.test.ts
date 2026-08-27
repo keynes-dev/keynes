@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { POLICY_RUNTIME_CONFORMANCE_CASES } from "@keynes/contracts/conformance";
+
 import {
   POLICY_CANONICAL_VECTORS,
   POLICY_LIMITS,
@@ -67,6 +69,30 @@ function evaluationError(run: () => unknown): unknown {
 }
 
 describe("local Policy interpreter", () => {
+  it("executes every shared runtime conformance program", () => {
+    for (const testCase of POLICY_RUNTIME_CONFORMANCE_CASES) {
+      try {
+        if ("error" in testCase.expected) {
+          expect(
+            evaluationError(() =>
+              evaluatePolicyProgram(testCase.program, testCase.input),
+            ),
+            testCase.name,
+          ).toMatchObject({ category: testCase.expected.error });
+          continue;
+        }
+        expect(
+          evaluatePolicyProgram(testCase.program, testCase.input),
+          testCase.name,
+        ).toEqual(testCase.expected);
+      } catch (error: unknown) {
+        throw new Error(`Shared runtime case failed: ${testCase.name}`, {
+          cause: error,
+        });
+      }
+    }
+  });
+
   it("executes every generated scalar canonical vector", () => {
     let executed = 0;
 
@@ -240,6 +266,28 @@ describe("local Policy interpreter", () => {
         baseInput,
       ),
     ).toEqual([{ resource: "model_tokens", ceiling: 1, reason: "test_limit" }]);
+  });
+
+  it("does not evaluate unreachable coalesce arguments", () => {
+    const divisionByZero: ExpressionNodeV1 = {
+      kind: "binary_numeric",
+      operator: "/",
+      left: decimal("1"),
+      right: decimal("0"),
+      valueType: "numeric",
+      nullable: false,
+    };
+    const ceiling: ExpressionNodeV1 = {
+      kind: "variadic",
+      function: "coalesce",
+      arguments: [decimal("1"), divisionByZero],
+      valueType: "numeric",
+      nullable: false,
+    };
+
+    expect(evaluatePolicyProgram(select({ ceiling }), baseInput)).toEqual([
+      { resource: "model_tokens", ceiling: 1, reason: "test_limit" },
+    ]);
   });
 
   it("groups, aggregates, and canonically orders result rows", () => {

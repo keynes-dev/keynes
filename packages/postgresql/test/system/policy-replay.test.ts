@@ -57,14 +57,18 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
     it("returns the exact stored result, evidence, and Context", async () => {
       fixture = await openFixture();
       const parentPolicy = requestLimitPolicy({ revision: 1 });
-      const firstChildPolicy = requestLimitPolicy({
-        name: "child_a",
-        revision: 1,
-      });
-      const secondChildPolicy = requestLimitPolicy({
-        name: "child_b",
-        revision: 1,
-      });
+      const firstChildPolicy = receivingChildPolicy(
+        requestLimitPolicy({
+          name: "child_a",
+          revision: 1,
+        }),
+      );
+      const secondChildPolicy = receivingChildPolicy(
+        requestLimitPolicy({
+          name: "child_b",
+          revision: 1,
+        }),
+      );
       await seedGovernedRoot(fixture, parentPolicy);
       const command = requestCommand({
         childPolicies: [firstChildPolicy, secondChildPolicy],
@@ -144,10 +148,12 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
 
     it("rejects command identity reuse with changed child Policies without changing state", async () => {
       fixture = await openFixture();
-      const originalChildPolicy = requestLimitPolicy({
-        name: "child_limit",
-        revision: 1,
-      });
+      const originalChildPolicy = receivingChildPolicy(
+        requestLimitPolicy({
+          name: "child_limit",
+          revision: 1,
+        }),
+      );
       await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
       await committedCall(
         fixture,
@@ -161,7 +167,9 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         "requestBudget",
         requestCommand({
           childPolicies: [
-            requestLimitPolicy({ name: "child_limit", revision: 2 }),
+            receivingChildPolicy(
+              requestLimitPolicy({ name: "child_limit", revision: 2 }),
+            ),
           ],
         }),
       );
@@ -454,6 +462,17 @@ function reversePolicyDeclarations(
     contextSchema: [...policy.contextSchema].reverse(),
     reasons: reverseNonEmpty(policy.reasons),
   };
+}
+
+function receivingChildPolicy(policy: PolicyDefinitionV1): PolicyDefinitionV1 {
+  const inputResources: [string, ...string[]] = ["model_tokens"];
+  const outputResources: [string, ...string[]] = ["model_tokens"];
+  const { definitionDigest: _definitionDigest, ...document } = {
+    ...policy,
+    inputResources,
+    outputResources,
+  };
+  return { ...document, definitionDigest: digestCanonical(document) };
 }
 
 function reverseNonEmpty<Value>(

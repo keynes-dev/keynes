@@ -744,6 +744,12 @@ BEGIN
           ));
         END IF;
       END LOOP;
+      SELECT coalesce(jsonb_agg(reason.value ORDER BY resource_type.canonical_name COLLATE "C"), '[]'::jsonb)
+      INTO denial_reasons
+      FROM jsonb_array_elements(denial_reasons) AS reason(value)
+      JOIN keynes_internal.resource_types AS resource_type
+        ON resource_type.tenant_id = tenant
+        AND resource_type.resource_type_id = (reason.value->>'resourceTypeId')::uuid;
       IF jsonb_array_length(denial_reasons) > 0 THEN
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(

@@ -1,54 +1,144 @@
 # TypeScript SDK
 
-`@keynes/sdk` is a private, unpublished ESM package. It owns the public local facade, the generated TypeScript contract consumer, and one private SQLite runtime.
+`@keynes/sdk` is a private, unpublished ESM package. It owns the schema-first
+local API, portable Policy authoring, generated contracts, and one private
+in-memory SQLite runtime.
 
 ## Install the private archive
 
-Maintainers build and pack one archive from the repository:
+Maintainers build and pack one archive from the repository root:
 
 ```sh
-pnpm build:sdk
-pnpm pack:sdk --pack-destination <directory>
+CI=true pnpm pack:sdk
 ```
 
-Install the resulting `keynes-sdk-0.0.0.tgz` file as the application's only dependency. The archive contains the compiled SDK, its type declarations, the README, the license, and the package manifest. It has no production dependency, PGlite file, or copied PostgreSQL asset. The package remains private and has no registry publication command.
+Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
+The package has four pinned production dependencies: Kysely for typed Policy
+queries, `libpg-query` and `@pgsql/types` for the PostgreSQL 18 parser and its
+types, and `decimal.js` for local bounded-decimal evaluation. It contains no
+PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
+library. The package remains private and has no registry publication command.
 
-## Import the package root
+## Create a local Budget
 
 Applications import only `@keynes/sdk`:
 
 ```ts
-import { Keynes } from "@keynes/sdk";
+import { createKeynes, defineResources } from "@keynes/sdk";
 
-const keynes = await Keynes.create();
-try {
-  await keynes.defineResources({
-    usdCents: { unit: "cent", accountingBehavior: "consumable" },
-  });
-  const budget = await keynes.createBudget({ usdCents: 100 });
-  const request = await budget.request({ usdCents: 25 });
-  if (request.status === "approved") {
-    await request.budget.settle({ usdCents: 20 });
-  }
-} finally {
-  await keynes.close();
+const resources = defineResources({
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  searchQueries: { unit: "query", accountingBehavior: "consumable" },
+});
+
+await using keynes = await createKeynes({ resources });
+const root = await keynes.createBudget({
+  usdCents: 100,
+  searchQueries: 10,
+});
+const request = await root.request({ usdCents: 25, searchQueries: 2 });
+
+if (request.status === "approved") {
+  await request.budget.settle({ usdCents: 20, searchQueries: 2 });
 }
 ```
 
-Deep imports, package metadata imports, database handles, paths, tenant identities, principal identities, replay controls, raw SQL, and qualification commands are private.
+`defineResources(...)` copies, orders, digests, and freezes the complete
+Resource schema. `createKeynes({ resources })` installs that schema before it
+returns. Resource keys flow through root creation, requests, settlement,
+inspection, denial reasons, and Policy authoring as exact TypeScript types.
+
+`Keynes` and `Budget` are exported readonly interface types, not classes.
+Frozen method-bearing objects implement them. The SDK exposes no Resource,
+Budget, command, executor, or database identifier. You may destructure methods
+because they do not depend on `this`.
+
+## Add a Policy
+
+Use Kysely for typed authoring or `definePolicySql(...)` for raw SQL inside the
+same restricted profile:
+
+```ts
+import { definePolicy, policySet, policyValue } from "@keynes/sdk";
+
+const limit = definePolicy(resources, {
+  name: "spend_limit",
+  revision: 1,
+  inputs: ["usdCents"],
+  outputs: ["usdCents"],
+  context: { limit: policyValue.integer() },
+  reasons: ["account_limit"],
+  query: ({ db }) =>
+    db
+      .selectFrom("requested_resources as requested")
+      .innerJoin("available_resources as available", (join) =>
+        join.onRef("available.resource", "=", "requested.resource"),
+      )
+      .crossJoin("policy_context as context")
+      .select(({ eb }) => [
+        "requested.resource as resource",
+        eb
+          .fn<number>("least", ["available.amount", "context.limit"])
+          .as("ceiling"),
+        eb.val("account_limit").as("reason"),
+      ]),
+});
+
+const governed = await keynes.createBudget(
+  { usdCents: 100 },
+  { policies: policySet(limit) },
+);
+const decision = await governed.request(
+  { usdCents: 25 },
+  { context: { limit: 20 } },
+);
+```
+
+The request is denied with a `policy_ceiling` reason and canonical Policy
+evidence. Invalid Policy source, context, evaluation, or result rows throw a
+stable error and change no Budget state. Exact replay returns the stored result
+without parsing or evaluating the Policy again.
+
+A child never inherits its parent's Policies. Pass a complete `policySet(...)`
+as the request option `policies` to govern that child. An ungoverned Budget
+rejects context instead of ignoring it.
+
+See the [portable Policy quickstart](../../docs/features/0012-portable-policy-evaluation/quickstart.md)
+for Kysely and raw-SQL equivalence, approval and denial evidence, embedded
+PostgreSQL, and the supported query profile.
 
 ## Runtime limits
 
-Local mode opens one private in-memory `node:sqlite` database for each `Keynes` instance. State belongs to that instance and does not survive process exit. Two instances do not share state.
+Local mode opens one private `node:sqlite` in-memory database for each
+`createKeynes(...)` call. State belongs to that runtime and does not survive
+`close()` or process exit. Two runtimes share no state.
 
-Call `close()` when the application finishes. Closing drains admitted work, rejects new work with `runtime_closed`, and returns the same promise on repeated calls.
+Call `close()` when the application finishes, or use `await using`. Closing
+drains admitted work, rejects new work with `runtime_closed`, and returns the
+same promise on repeated calls.
 
-Local mode does not accept a database path, connection, extension, tenant, principal, or credential. It does not provide durable storage, a daemon, a socket server, or a public database interface.
+Local mode accepts no database path, connection, extension, tenant, principal,
+or credential. It provides no durable storage, daemon, socket server, or public
+database interface. Deep imports, package metadata imports, replay controls,
+and direct Policy-program construction are private.
 
-## Compatibility boundary
+The private Cloud service does not accept Policies. Embedded PostgreSQL uses
+the separate `@keynes/postgresql` installer and direct `keynes.*(jsonb)` calls;
+it is not a `createKeynes(...)` mode.
 
-The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Node.js 25 is unsupported. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
+## Compatibility and evidence
 
-Provider-free source tests do not qualify the archive. The SDK package lane installs one exact archive outside the workspace and exercises its public lifecycle and compatibility boundary. The separate SDK measurement record uses `keynes.package-test.sdk-measurement/v1` under ignored `.artifacts/package-tests/sdk/` and records the archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
+The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS
+arm64, and Windows x64. Node.js 25 is unsupported. Browsers, bundlers, CommonJS,
+Bun, Deno, other architectures, remote SDK access, and registry publication are
+outside the package contract.
 
-The workflow does not prove policy enforcement, persistence, browser support, provider qualification, security, recovery, managed operations, registry publication, adopter use, or production readiness. Treat those claims as `NOT RUN`.
+Provider-free source tests do not qualify an archive. The Phase 7 package lane
+must install one exact archive outside the workspace, import its package root,
+load the parser without a workspace fallback, exercise the public Policy and
+Budget API, and record the archive identity. The separate measurement lane
+records archive and install bytes, ready RSS, creation, request, and shutdown.
+
+Final SDK archive qualification, the hosted Node.js matrix, provider
+qualification, security qualification, recovery, managed operations, adopter
+use, and production readiness remain `NOT RUN` for FEAT-0012.

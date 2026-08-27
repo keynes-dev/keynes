@@ -37,6 +37,10 @@ import {
   PolicyEvaluationError,
   evaluatePolicyProgram,
 } from "../policy/evaluate.js";
+import {
+  PolicyValidationError,
+  validatePolicyProgramScope,
+} from "../policy/validate.js";
 import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
 export type SqliteMutationStage =
   | "after_command_binding"
@@ -516,15 +520,17 @@ export class SqliteCommandExecutor implements CommandExecutor {
       }
     }
     reasons.sort((left, right) => {
-      const resource = this.#requireResource(
+      const leftResource = this.#requireResource(
         context.tenantId,
         left.resourceTypeId,
-      ).canonicalName.localeCompare(
-        this.#requireResource(context.tenantId, right.resourceTypeId)
-          .canonicalName,
-      );
+      ).canonicalName;
+      const rightResource = this.#requireResource(
+        context.tenantId,
+        right.resourceTypeId,
+      ).canonicalName;
+      const resource = compareText(leftResource, rightResource);
       if (resource !== 0) return resource;
-      const code = left.code.localeCompare(right.code);
+      const code = compareText(left.code, right.code);
       if (code !== 0) return code;
       if (left.code !== "policy_ceiling" || right.code !== "policy_ceiling") {
         return 0;
@@ -688,14 +694,17 @@ export class SqliteCommandExecutor implements CommandExecutor {
         ceiling: value.ceiling,
         reasons: asNonEmpty(value.reasons.sort(comparePolicyReasons)),
       }))
-      .sort((left, right) =>
-        this.#requireResource(
+      .sort((left, right) => {
+        const leftResource = this.#requireResource(
           tenantId,
           left.resourceTypeId,
-        ).canonicalName.localeCompare(
-          this.#requireResource(tenantId, right.resourceTypeId).canonicalName,
-        ),
-      );
+        ).canonicalName;
+        const rightResource = this.#requireResource(
+          tenantId,
+          right.resourceTypeId,
+        ).canonicalName;
+        return compareText(leftResource, rightResource);
+      });
     return {
       context,
       policies: asNonEmpty(policyEvidence),
@@ -1292,15 +1301,9 @@ function canonicalAmounts<Value extends ResourceAmount | UsageAmount>(
 ): [Value, ...Value[]] {
   return asNonEmpty(
     [...resources].sort((left, right) =>
-      left.resourceTypeId.localeCompare(right.resourceTypeId),
+      compareText(left.resourceTypeId, right.resourceTypeId),
     ),
   );
-}
-
-function canonicalPolicies(
-  policies: readonly PolicyDefinitionV1[],
-): PolicyDefinitionV1[] {
-  return [...policies].sort(comparePolicies);
 }
 
 function canonicalJson(value: unknown): string {
@@ -1347,13 +1350,27 @@ function validatePolicies(
   if (supplied.length > POLICY_LIMITS.policiesPerBudget) {
     invalidPolicy(operation, undefined, undefined, "$.policies", "maxItems");
   }
-  const ordered = canonicalPolicies(supplied);
+  const ordered = canonicalPolicyDefinitionsForReplay(supplied);
   let previousName: string | undefined;
   let contextSchema: string | undefined;
   let sourceBytes = 0;
   for (const policy of ordered) {
     if (!isPolicyDefinitionV1(policy)) {
       invalidPolicy(operation, undefined, undefined, "$.policies", "schema");
+    }
+    try {
+      validatePolicyProgramScope(policy.program, policy);
+    } catch (error: unknown) {
+      if (error instanceof PolicyValidationError) {
+        invalidPolicy(
+          operation,
+          policy.name,
+          policy.revision,
+          "$.policies",
+          error.rule,
+        );
+      }
+      throw error;
     }
     if (policy.name === previousName) {
       invalidPolicy(
@@ -1539,26 +1556,19 @@ function hasUnpairedSurrogate(value: string): boolean {
   return false;
 }
 
-function comparePolicies(
-  left: PolicyDefinitionV1,
-  right: PolicyDefinitionV1,
-): number {
-  return (
-    left.name.localeCompare(right.name) ||
-    left.revision - right.revision ||
-    left.definitionDigest.localeCompare(right.definitionDigest)
-  );
-}
-
 function comparePolicyReasons(
   left: { policyName: string; policyRevision: number; reason: string },
   right: { policyName: string; policyRevision: number; reason: string },
 ): number {
   return (
-    left.policyName.localeCompare(right.policyName) ||
+    compareText(left.policyName, right.policyName) ||
     left.policyRevision - right.policyRevision ||
-    left.reason.localeCompare(right.reason)
+    compareText(left.reason, right.reason)
   );
+}
+
+function compareText(left: string, right: string): number {
+  return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
 }
 
 function fail(envelope: ErrorEnvelope): never {

@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
   "exports": {
@@ -29,6 +30,7 @@
     "measure:package": "node test/performance/measure.ts"
   },
   "dependencies": {
+    "@pgsql/types": "18.0.0",
     "decimal.js": "10.6.0",
     "kysely": "0.29.5",
     "libpg-query": "18.1.4"
@@ -40,6 +42,12 @@
     "oxfmt": "0.64.0",
     "vitest": "4.1.11"
   },
+  "bundledDependencies": [
+    "@pgsql/types",
+    "decimal.js",
+    "kysely",
+    "libpg-query"
+  ],
   "engines": {
     "node": ">=24 <25 || >=26 <27"
   }

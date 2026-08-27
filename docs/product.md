@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The packaged local SDK runs on a private in-memory SQLite database. The PostgreSQL package provides the supported installer command for PostgreSQL 18.6, and the private Cloud service invokes the same durable procedures. Policy, a public remote SDK, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
+> **Status:** The source SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through the installed procedures. The private Cloud service supports only the no-Policy transport and rejects Policy fields. Final FEAT-0012 archives, hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
 
 ## Thesis
 
@@ -43,13 +43,13 @@ Keynes may later add explicit subtree issuance and same-database multi-source fu
 
 A Policy constrains how many Resources a Budget may grant. It can read the requested Resources, the parent Budget's available Resources, and one fixed context object supplied by the application. It returns ceilings and stable reasons for one or more Resources.
 
-The TypeScript SDK uses Kysely as the normal way to author a Policy. The typed query knows the available Resources and expected context fields. Advanced users may write raw SQL within the same supported profile. Keynes parses and normalizes both forms into its portable Policy format. This product design does not choose future database-connection or application-source options.
+The TypeScript SDK uses Kysely as the normal way to author a Policy. The typed query knows the available Resources and expected context fields. Advanced users may write raw SQL within the same supported profile. Keynes parses and normalizes both forms into one frozen portable Policy definition with canonical SQL, a normalized program, and stable digests.
 
 Policy evaluation occurs inside the selected Budget authority's atomic command; Keynes never trusts an application-supplied decision. Every deployment implements one versioned Policy semantics contract. Deployments may use a shared executable evaluator or deployment-native backends, but all paths must agree on Resource limits, denials, bounded-decimal calculations, final integer ceilings, null behavior, ordering, aggregation, unsupported SQL, context validation, deterministic functions, revisions, digests, recorded context, and replay.
 
 A Policy cannot read application tables directly. The application reads its business data and passes a fixed context object with the request. For example, it might supply a ticket priority, customer tier, or workflow risk class. Keynes validates the declared fields and types and records the exact context used for the decision. Secrets do not belong in Policy context, and context does not pass to the child.
 
-An application using embedded PostgreSQL may read business facts and call Keynes inside the same caller-owned transaction. This gives the facts and the Budget request one transaction snapshot without giving the Policy access to application tables. A replay returns the recorded result and context; it does not query application tables again.
+An application using embedded PostgreSQL may read business facts and call Keynes inside the same caller-owned transaction. This gives the facts and the Budget request one transaction snapshot without giving the Policy access to application tables. Exact replay returns the recorded result and context before reading current facts, availability, or Policy state.
 
 When several Policies return ceilings for the same Resource, the lowest ceiling wins. A zero ceiling denies a positive request. No rows means no added constraint. An invalid or unsupported query, invalid context, a nondeterministic function, an execution limit, or an invalid result fails the request. Keynes does not turn a Policy error into an approval or a domain denial.
 
@@ -117,7 +117,7 @@ The `@keynes/postgresql` package installs the canonical migrations and procedure
 
 The application's existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, acquire a connection, retry, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
 
-Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. Native acceptance and production support remain `NOT RUN`.
+Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. PostgreSQL 18.6 Policy system scenarios have passed during FEAT-0012 development. Final package, provider, hostile-role, recovery, and production qualification remain `NOT RUN`.
 
 ### Self-hosted Keynes
 
@@ -133,7 +133,7 @@ Cloud suits teams that want durable remote Budgets without operating Keynes. The
 
 ### Applications that use another database
 
-An application that stores its own data in MySQL, MongoDB, SQLite, or another database can call self-hosted Keynes or Keynes Cloud over the remote SDK. Keynes still stores its own durable Budget data in PostgreSQL. The application reads its business facts and sends the fixed Policy context with the request. A later decision is required before Keynes supports another durable database implementation.
+The planned path for an application that stores its own data in MySQL, MongoDB, SQLite, or another database is a remote SDK call to self-hosted Keynes or Keynes Cloud. Keynes would still store its own durable Budget data in PostgreSQL. The application reads its business facts and sends the fixed Policy context with the request. Remote access is not implemented, and another durable database implementation requires a later decision.
 
 ## Open core
 
@@ -169,7 +169,7 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - PostgreSQL is the only durable database implementation.
 - Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
 - TypeScript is the only supported SDK.
-- Constructor shape selects access: zero arguments means local SQLite; an API-key configuration means remote discovery. Keynes never treats a missing or invalid API key in a supplied configuration as local.
+- `defineResources(...)` creates one frozen Resource schema. `createKeynes({ resources })` opens one local SQLite capability. Remote discovery is not implemented.
 - Supporting another durable database requires a later constitution and product decision.
 - Keynes will qualify subtree issuance before same-database multi-source funding. Both use explicit contracts and preserve the parent-funded default.
 - Product direction can promote optional capabilities without making external adoption evidence a delivery gate.

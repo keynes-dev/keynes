@@ -559,12 +559,16 @@ function evaluateVariadic(
   scope.work.charge(
     POLICY_WORK_METADATA.variadic.perArgument * expression.arguments.length,
   );
+  if (expression.function === "coalesce") {
+    for (const argument of expression.arguments) {
+      const value = evaluateExpression(argument, scope);
+      if (value !== null) return normalizeScalar(value);
+    }
+    return null;
+  }
   const values = expression.arguments.map((argument) =>
     evaluateExpression(argument, scope),
   );
-  if (expression.function === "coalesce") {
-    return normalizeScalar(values.find((value) => value !== null) ?? null);
-  }
   const nonNull = values.filter((value) => value !== null);
   if (nonNull.length === 0) return null;
   return normalizeScalar(

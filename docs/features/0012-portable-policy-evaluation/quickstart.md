@@ -1,8 +1,17 @@
 # Quickstart: Portable Policy evaluation
 
-This is the implementation and acceptance walkthrough for FEAT-0012. The feature is planned, not implemented, until its tasks and exact-revision evidence say otherwise.
+This walkthrough creates one typed Resource schema, authors the same Policy
+through Kysely and raw SQL, and exercises an approval and a denial in local
+SQLite. It then shows the equivalent embedded PostgreSQL request boundary.
 
-## Author a typed Policy
+The source and PostgreSQL 18.6 system lanes implement this behavior. Final SDK
+and PostgreSQL archives, the hosted Node.js matrix, provider qualification, and
+production readiness remain `NOT RUN` until Phase 7 records exact-revision
+evidence.
+
+## Author one portable Policy
+
+Import only the SDK package root:
 
 ```ts
 import {
@@ -15,20 +24,23 @@ import {
 } from "@keynes/sdk";
 
 const resources = defineResources({
-  usdCents: { unit: "USD cent", accountingBehavior: "consumable" },
-  searchQueries: { unit: "query", accountingBehavior: "consumable" },
+  tokens: { unit: "token", accountingBehavior: "consumable" },
 });
 
-const supportLimit = definePolicy(resources, {
-  name: "support_limit",
+const declaration = {
+  name: "context_limit",
   revision: 1,
-  inputs: ["usdCents", "searchQueries"],
-  outputs: ["usdCents", "searchQueries"],
+  inputs: ["tokens"],
+  outputs: ["tokens"],
   context: {
-    customerTier: policyValue.text(),
-    riskClass: policyValue.text(),
+    limit: policyValue.integer(),
+    segment: policyValue.text(),
   },
-  reasons: ["customer_tier_limit", "workflow_risk_limit"],
+  reasons: ["tier_limit"],
+} as const;
+
+const contextLimit = definePolicy(resources, {
+  ...declaration,
   query: ({ db, sql }) =>
     db
       .selectFrom("requested_resources as requested")
@@ -38,159 +50,218 @@ const supportLimit = definePolicy(resources, {
       .crossJoin("policy_context as context")
       .select(({ eb }) => [
         "requested.resource as resource",
-        sql<number>`
-          CASE
-            WHEN ${eb.ref("context.customer_tier")} = ${"standard"}
-            THEN least(2500, round(${eb.ref("available.amount")} * 0.75))
-            ELSE ${eb.ref("available.amount")}
-          END
-        `.as("ceiling"),
-        sql<string>`
-          CASE
-            WHEN ${eb.ref("context.risk_class")} = ${"high"}
-            THEN ${"workflow_risk_limit"}
-            ELSE ${"customer_tier_limit"}
-          END
-        `.as("reason"),
+        sql<number>`least(
+          ${eb.ref("available.amount")},
+          ${eb.ref("context.limit")}
+        )`.as("ceiling"),
+        eb.val("tier_limit").as("reason"),
       ]),
 });
-```
 
-The callback receives a restricted Kysely database and Kysely's parameterizing `sql` template. Only the virtual Policy tables are typed. Kysely catches ordinary relation, column, context, and output-shape mistakes, while the shared parser and validator remain authoritative for every compiled expression. `supportLimit` is a frozen value; it is not a remote handle or mutable Policy record.
-
-## Compare the raw-SQL path
-
-```ts
-const supportLimitFromSql = definePolicySql(resources, {
-  name: "support_limit",
-  revision: 1,
-  inputs: ["usdCents", "searchQueries"],
-  outputs: ["usdCents", "searchQueries"],
-  context: {
-    customerTier: policyValue.text(),
-    riskClass: policyValue.text(),
-  },
-  reasons: ["customer_tier_limit", "workflow_risk_limit"],
+const contextLimitFromSql = definePolicySql(resources, {
+  ...declaration,
   sql: `
     SELECT requested.resource AS resource,
-           CASE
-             WHEN context.customer_tier = 'standard'
-             THEN least(2500, round(available.amount * 0.75))
-             ELSE available.amount
-           END AS ceiling,
-           CASE
-             WHEN context.risk_class = 'high'
-             THEN 'workflow_risk_limit'
-             ELSE 'customer_tier_limit'
-           END AS reason
+           least(available.amount, context.limit) AS ceiling,
+           'tier_limit' AS reason
       FROM requested_resources AS requested
       INNER JOIN available_resources AS available USING (resource)
       CROSS JOIN policy_context AS context
   `,
 });
+
+if (
+  contextLimit.canonicalSql !== contextLimitFromSql.canonicalSql ||
+  contextLimit.sourceDigest !== contextLimitFromSql.sourceDigest ||
+  contextLimit.definitionDigest !== contextLimitFromSql.definitionDigest
+) {
+  throw new Error("the Kysely and raw Policy definitions diverged");
+}
 ```
 
-The Kysely and raw definitions must have equal `canonicalSql`, `sourceDigest`, and `definitionDigest`. Kysely's parameters and the raw literals normalize into the same typed program nodes. The raw input's whitespace and comments are not retained. Its text is parsed and validated in TypeScript but never executed by SQLite or PostgreSQL.
+`defineResources(...)`, both Policy definitions, and `policySet(...)` return
+deeply frozen values. Kysely catches ordinary table, column, context, and result
+shape mistakes. The parser and validator remain authoritative for both
+authoring paths. They accept only the published Policy query profile.
+
+The original SQL, comments, whitespace, Kysely tree, and parameter vector do
+not become Policy identity. Both paths produce one canonical SQL string, one
+normalized program, and the same source and definition digests.
 
 ## Govern local requests
+
+Create the runtime from the complete Resource schema. The returned `Keynes` and
+`Budget` values are frozen capability handles, not classes or serializable
+records.
 
 ```ts
 await using keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget(
-  { usdCents: 10_000, searchQueries: 100 },
-  { policies: policySet(supportLimit) },
+  { tokens: 10 },
+  { policies: policySet(contextLimit) },
 );
 
-const approved = await root.request(
-  { usdCents: 2_000, searchQueries: 2 },
-  {
-    context: {
-      customerTier: "standard",
-      riskClass: "low",
-    },
-  },
-);
-
-const denied = await root.request(
-  { usdCents: 3_000, searchQueries: 2 },
-  {
-    context: {
-      customerTier: "standard",
-      riskClass: "high",
-    },
-    // Omit policies: an approved child receives an empty set, not the parent set.
-  },
-);
+const context = { limit: 6, segment: "standard" } as const;
+const approved = await root.request({ tokens: 4 }, { context });
+const denied = await root.request({ tokens: 7 }, { context });
 
 if (approved.status !== "approved") {
   throw new Error("expected the first request to be approved");
 }
-
-if (denied.status === "denied") {
-  for (const reason of denied.reasons) {
-    console.log(reason);
-  }
+if (denied.status !== "denied") {
+  throw new Error("expected the second request to be denied");
 }
 
-const inspection = await root.inspect();
+console.log(approved.policyEvidence);
+console.log(denied.reasons);
+console.log(denied.policyEvidence);
+console.log(await root.inspect());
 ```
 
-The Policy sees one immutable request, relevant parent availability, and context snapshot. A request above an effective ceiling is denied without revision. A valid denial is recorded. Invalid context or evaluation throws a stable error and records nothing.
+The approval reserves exactly four tokens and returns evidence with this
+shape. Digest strings are omitted here only because their values depend on the
+exact canonical definition.
+
+```ts
+{
+  context: { limit: 6, segment: "standard" },
+  policies: [{
+    name: "context_limit",
+    revision: 1,
+    sourceDigest: "<sha256>",
+    definitionDigest: "<sha256>",
+    rows: [{ resource: "tokens", ceiling: 6, reason: "tier_limit" }],
+  }],
+  effectiveCeilings: [{
+    resource: "tokens",
+    ceiling: 6,
+    reasons: [{
+      policyName: "context_limit",
+      policyRevision: 1,
+      reason: "tier_limit",
+    }],
+  }],
+  decision: "approved",
+}
+```
+
+The second request exceeds the ceiling. These selected fields show the denial;
+its context, rows, and effective ceilings match the approval evidence above.
+Keynes records the denial and leaves the root holding unchanged:
+
+```ts
+{
+  status: "denied",
+  reasons: [{
+    code: "policy_ceiling",
+    resource: "tokens",
+    requested: 7,
+    ceiling: 6,
+    policyName: "context_limit",
+    policyRevision: 1,
+    reason: "tier_limit",
+  }],
+  policyEvidence: {
+    policies: [{
+      name: "context_limit",
+      revision: 1,
+    }],
+    decision: "denied",
+  },
+}
+```
+
+`root.inspect()` reports 10 allocated tokens, 6 available tokens, and 4
+committed tokens. Its history contains `budget_created`, `request_approved`,
+and `request_denied` in that order. The denial creates no child and reserves no
+additional tokens.
+
+A child receives no Policies by inheritance. To govern an approved child, pass
+its complete set as `policies` in that request's options. Omitting the field and
+passing `policySet()` have the same canonical meaning.
 
 ## Run without Policies
 
-```ts
-const localResources = defineResources({
-  searchQueries: { unit: "query", accountingBehavior: "consumable" },
-});
+Omit both Policy options and context:
 
-await using keynes = await createKeynes({ resources: localResources });
-const root = await keynes.createBudget({ searchQueries: 100 });
-const result = await root.request({ searchQueries: 2 });
+```ts
+const ungovernedRoot = await keynes.createBudget({ tokens: 100 });
+const result = await ungovernedRoot.request({ tokens: 2 });
 ```
 
-This flow preserves the established no-Policy Budget behavior and wire bytes. It does not include an empty Policy set, empty context, or empty evidence field. The public setup API changes intentionally because Keynes has no released compatibility contract.
+The no-Policy path omits Policy sets, context, and Policy evidence. Its command,
+result, history, replay, and error bytes retain the established contract.
 
 ## Use embedded PostgreSQL
 
-An embedded adopter starts and owns the transaction, reads application facts if needed, and invokes the same `keynes.*(jsonb)` boundary:
+Install the PostgreSQL 18.6 preview as described in the
+[embedded PostgreSQL walkthrough](../0009-postgresql-transaction-integration/quickstart.md).
+The installer adds `0004-policy.sql` to the exact migration graph. The
+application then calls the same five `keynes.*(jsonb)` functions through a
+checked-out connection.
+
+For a governed request, attach the portable Policy definition to the parent
+when the parent is created. Read application facts and call Keynes on the same
+checked-out connection and transaction:
 
 ```sql
 BEGIN;
 
-SELECT set_config('keynes.tenant_id', :tenant_id, true);
-SELECT set_config('keynes.principal_id', :principal_id, true);
+SELECT set_config('keynes.tenant_id', :tenant_id, true),
+       set_config('keynes.principal_id', :principal_id, true);
 
--- The application can read its own table in this transaction.
-SELECT customer_tier, risk_class
+SELECT token_limit AS limit, customer_segment AS segment
   FROM application_workflow
  WHERE workflow_id = :workflow_id
- FOR SHARE;
+   FOR SHARE;
 
-SELECT keynes.request(:compiled_approved_command::jsonb);
-
-SELECT keynes.request(:compiled_denied_command::jsonb);
-
-INSERT INTO application_outbox (workflow_id, decision)
-VALUES (:workflow_id, :approved_and_denied_decisions);
+SELECT keynes.request(:request_command::jsonb);
 
 COMMIT;
 ```
 
-The two compiled commands use the same Policy definition and logical cases as the local walkthrough. Each contains canonical context and, when an approved child needs them, compiled child Policy definitions. Raw Policy SQL is an SDK authoring input, not a database procedure input. The application owns `BEGIN`, `COMMIT`, `ROLLBACK`, and its application-table read. PostgreSQL owns Policy evaluation, reservation, child creation, replay, and canonical evidence. With the local and PostgreSQL runtimes already available, this walkthrough is designed to complete in under 15 minutes.
+Build `request_command` with a fresh `commandId`, the parent Budget UUID,
+Resource UUID-and-amount rows, and the canonical context returned by the
+business-table read. Roll back instead of committing if the read or procedure
+call fails.
 
-## Reject remote Policy transport
+The application owns the connection, business-table read, `BEGIN`, `COMMIT`,
+and `ROLLBACK`. PostgreSQL owns Policy validation, evaluation, reservation,
+child creation, replay, and evidence in the same transaction. Direct procedure
+results use Resource and Budget UUIDs on the wire. The local SDK projects those
+private IDs back to schema keys and capability handles.
 
-The private Cloud `/rpc` path keeps its existing no-Policy behavior. For FEAT-0012 it rejects any Policy-bearing field before a database call. Do not use the private service to author, attach, or submit Policies. A later remote SDK and public service feature must version that capability explicitly.
+An approval returns `ok: true`, `result.kind: "approved"`, one child Budget,
+and `policyEvidence.decision: "approved"`. A Policy denial returns `ok: true`,
+`result.kind: "denied"`, canonical reasons, and
+`policyEvidence.decision: "denied"`. Invalid Policy source, context, execution,
+or result rows return a stable error and roll back the command. They never
+become approvals or domain denials.
 
-## Implement and verify
+Exact replay returns the stored result and evidence before Policy validation,
+parent snapshot reads, holding reads, or evaluation. Keynes does not query
+application tables during replay. Reusing the command ID with different
+canonical context or child Policies returns `command_conflict`.
 
-Write the shared Kysely/raw and parser fixtures, generated semantic node vectors,
-property-generated programs, numeric boundaries, and cross-backend comparisons
-failing first. Add compile-only fixtures for exact Resource and Context types,
-forbidden handle construction, destructured methods, and `AsyncDisposable`.
-Then run provider-free gates:
+## Know the unsupported operations
+
+Policy v1 does not support arbitrary database relations, application-table
+reads, catalog reads, DDL, DML, multiple statements, subqueries, CTEs, window
+functions, nondeterministic functions, or syntax outside the published
+[Policy query profile](contracts/policy-query-profile.md).
+
+The private Cloud `/rpc` path rejects `createBudget.policies`,
+`requestBudget.context`, and `requestBudget.childPolicies` whenever each key is
+present, including empty arrays. Remote Policy transport, a public remote SDK,
+self-hosted operations, managed Cloud, other PostgreSQL versions, upgrades,
+recovery, backup restoration, failover, provider qualification, hostile-role
+security qualification, registry publication, adopter use, and production
+readiness remain `NOT RUN`.
+
+## Run the evidence lanes
+
+Run the provider-free source checks from the repository root:
 
 ```sh
 CI=true pnpm check:repo
@@ -198,27 +269,25 @@ CI=true pnpm test:unit
 CI=true pnpm test:pr
 ```
 
-Rebuild and test the exact archives:
+Build and test fresh archives only after the source checks pass:
 
 ```sh
-pnpm test:package:sdk
-pnpm measure:package:sdk
-pnpm test:package:postgresql
+CI=true pnpm pack:sdk
+CI=true pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/qualification.json
+CI=true pnpm measure:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/measurement.json
+CI=true pnpm pack:postgresql
+CI=true pnpm test:package:postgresql -- --archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz
 ```
 
-Run native authority and blast-radius lanes when Docker is available:
+When Docker and the native prerequisites are available, run each native lane
+separately:
 
 ```sh
-pnpm test:system:postgresql
-pnpm test:system:cloud
+CI=true pnpm test:system:postgresql
+CI=true pnpm test:system:cloud
 ```
 
-The PostgreSQL test must use the packed CLI, a clean PostgreSQL 18.6 database, the exact four-migration graph, application-role calls, caller-owned transactions, sandbox attacks, replay, contention, and rollback. The Cloud test must prove each Policy field is rejected and the existing no-Policy scenarios still pass.
-
-Dispatch the hosted SDK package matrix only for the exact accepted archive. Retain its archive digest, Node.js 24/26 results on Linux, macOS, and Windows, package size, install size, ready RSS, initialization, first request, steady request, and shutdown values.
-
-## Evidence boundaries
-
-Planning and documentation checks do not prove Policy behavior. Until exact implementation evidence exists, local Policy evaluation, native PostgreSQL Policy evaluation, Kysely/raw equivalence, parser packaging, numeric parity, package compatibility, hosted compatibility, and performance are `NOT RUN`.
-
-Provider qualification, public ingress, external identity, self-hosted operations, managed Cloud, hostile-role security qualification, recovery, backup restoration, failover, upgrades, rolling deployment, paid infrastructure, registry publication, adopter use, and production readiness remain `NOT RUN` for this feature.
+Do not infer an archive, hosted, native, Cloud, security, measurement, or
+production pass from another lane. The final FEAT-0012 acceptance record must
+name one clean source revision and the exact archive or installation subject
+that each command exercised.

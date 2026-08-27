@@ -68,6 +68,46 @@ describe("@keynes/postgresql packed archive", () => {
     }
   });
 
+  it("publishes exactly four ordered migrations with only 0004 contract-bound", () => {
+    const manifest: unknown = JSON.parse(
+      entry("package/migrations/manifest.json").body.toString("utf8"),
+    );
+    expect(manifest).toEqual({
+      migrations: [
+        { id: "0001-storage", path: "0001-storage.sql" },
+        { id: "0002-budget", path: "0002-budget.sql" },
+        { id: "0003-public", path: "0003-public.generated.sql" },
+        { id: "0004-policy", path: "0004-policy.sql", contract: true },
+      ],
+    });
+
+    const record = JSON.parse(
+      entry("package/generated/installation-record.json").body.toString("utf8"),
+    ) as {
+      readonly migrations: readonly {
+        readonly id: string;
+        readonly path: string;
+        readonly contractDigest?: string;
+      }[];
+    };
+    expect(
+      record.migrations.map(({ id, path, contractDigest }) => [
+        id,
+        path,
+        contractDigest ?? null,
+      ]),
+    ).toEqual([
+      ["0001-storage", "0001-storage.sql", null],
+      ["0002-budget", "0002-budget.sql", null],
+      ["0003-public", "0003-public.generated.sql", null],
+      [
+        "0004-policy",
+        "0004-policy.sql",
+        expect.stringMatching(/^[a-f0-9]{64}$/u),
+      ],
+    ]);
+  });
+
   it("publishes only the CLI and pg production dependency", () => {
     const manifest = JSON.parse(
       entry("package/package.json").body.toString("utf8"),

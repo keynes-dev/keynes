@@ -92,6 +92,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@pgsql/types':
+        specifier: 18.0.0
+        version: 18.0.0
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0

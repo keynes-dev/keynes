@@ -11,10 +11,12 @@ import {
 import { createKeynesClient } from "../../../src/generated/client.js";
 import type {
   ExpressionNodeV1,
+  PolicyDefinitionV1,
   PolicyProgramV1,
 } from "../../../src/generated/policy-types.js";
 import type { RequestBudgetCommand } from "../../../src/generated/types.js";
 import { openSqliteCommandExecutor } from "../../../src/local/sqlite-command-executor.js";
+import { digestCanonicalJson } from "../../../src/policy/canonicalize.js";
 import {
   PolicyEvaluationError,
   evaluatePolicyProgram,
@@ -54,6 +56,97 @@ const EXECUTION_CONTEXT = {
 } as const;
 
 describe("local Policy evaluation failures", () => {
+  it("rejects a digest-correct artifact whose canonical SQL does not match its program", async () => {
+    const executor = openSqliteCommandExecutor(INSTALLATION, EXECUTION_CONTEXT);
+    const client = createKeynesClient(executor);
+    try {
+      const tokens = await client.defineResource({
+        commandId: "10000000-0000-4000-8000-000000000001",
+        definition: {
+          canonicalName: "tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const policy = resealPolicy(
+        ceilingPolicy({
+          name: "mismatched_source",
+          reason: "limit",
+          ceiling: "available.amount",
+        }),
+        { canonicalSql: "select 1" },
+      );
+
+      await expect(
+        client.createBudget({
+          commandId: "20000000-0000-4000-8000-000000000001",
+          resources: [
+            { resourceTypeId: tokens.resourceType.resourceTypeId, amount: 10 },
+          ],
+          policies: [policy],
+        }),
+      ).rejects.toMatchObject({
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "canonicalDefinition" },
+      });
+    } finally {
+      executor.close();
+    }
+  });
+
+  it("rejects a direct Policy artifact whose outputs are not inputs", async () => {
+    const executor = openSqliteCommandExecutor(INSTALLATION, EXECUTION_CONTEXT);
+    const client = createKeynesClient(executor);
+    try {
+      const tokens = await client.defineResource({
+        commandId: "10000000-0000-4000-8000-000000000001",
+        definition: {
+          canonicalName: "tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const searches = await client.defineResource({
+        commandId: "10000000-0000-4000-8000-000000000002",
+        definition: {
+          canonicalName: "search_queries",
+          unit: "query",
+          accountingBehavior: "consumable",
+        },
+      });
+      const policy = resealOutputResources(
+        ceilingPolicy({
+          name: "invalid_outputs",
+          reason: "limit",
+          ceiling: "available.amount",
+        }),
+        ["search_queries"],
+      );
+
+      await expect(
+        client.createBudget({
+          commandId: "20000000-0000-4000-8000-000000000001",
+          resources: [
+            {
+              resourceTypeId: tokens.resourceType.resourceTypeId,
+              amount: 10,
+            },
+            {
+              resourceTypeId: searches.resourceType.resourceTypeId,
+              amount: 10,
+            },
+          ],
+          policies: [policy],
+        }),
+      ).rejects.toMatchObject({
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "not_input_resource" },
+      });
+    } finally {
+      executor.close();
+    }
+  });
+
   it("enforces the generated work limit", () => {
     const names = Array.from({ length: 64 }, (_, index) => `r${index}`);
     const amount = numericReference("available", "amount");
@@ -371,6 +464,28 @@ function ceilingPolicy<const Reason extends string>(definition: {
         CROSS JOIN policy_context AS context
     `,
   });
+}
+
+function resealOutputResources(
+  policy: PolicyDefinitionV1,
+  outputResources: PolicyDefinitionV1["outputResources"],
+): PolicyDefinitionV1 {
+  const { definitionDigest: _definitionDigest, ...document } = {
+    ...policy,
+    outputResources,
+  };
+  return { ...document, definitionDigest: digestCanonicalJson(document) };
+}
+
+function resealPolicy(
+  policy: PolicyDefinitionV1,
+  replacement: Partial<PolicyDefinitionV1>,
+): PolicyDefinitionV1 {
+  const { definitionDigest: _definitionDigest, ...document } = {
+    ...policy,
+    ...replacement,
+  };
+  return { ...document, definitionDigest: digestCanonicalJson(document) };
 }
 
 async function openGoverned(

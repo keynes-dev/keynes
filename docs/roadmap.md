@@ -52,7 +52,7 @@ This evidence covers only the private loopback service and provider-free Postgre
 
 ## Runtime and deployment model
 
-This feature records the move to a local in-memory SQLite runtime, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It also simplifies the current local facade to `Keynes.create()`; it does not replace PGlite or implement remote discovery.
+This feature records the move to a local in-memory SQLite runtime, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It also simplified the then-current pre-release facade to `Keynes.create()`; it did not replace PGlite or implement remote discovery.
 
 | Feature                                                                                 | Purpose                                                                                                                             | Depends on                | Status   |
 | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | -------- |
@@ -73,7 +73,9 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 | 7     | Release support                                                                                | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.                            | Managed Cloud                      | Not started |
 | 8     | Production testing                                                                             | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.                | Release support                    | Not started |
 
-`PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes. `Portable Policy evaluation` is now FEAT-0012 and in progress. Later candidates remain unnumbered and `Not started`.
+`PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes.
+
+`Portable Policy evaluation` is FEAT-0012 and remains in progress while Phase 7 qualifies final artifacts. The implemented source supports schema-first handles, Kysely and raw-SQL authoring, generated portable semantics, local and PostgreSQL evaluation, fail-closed rollback, canonical evidence, and exact governed replay. The Phase 6 worktree passed 182 SDK tests and 104 PostgreSQL 18.6 system scenarios. Final provider-free revision checks, SDK and PostgreSQL archives, measurements, the hosted Node.js matrix, and final acceptance are not yet recorded. Later candidates remain unnumbered and `Not started`.
 
 ## Standalone repository work
 
@@ -86,13 +88,16 @@ Standalone Spec Kit work can maintain the repository without changing the produc
 
 ### SQLite local runtime
 
-Keep this public API unchanged:
+FEAT-0008 delivered the private SQLite runtime behind the earlier pre-release facade. FEAT-0012 now opens it through the schema-first API:
 
 ```ts
-const keynes = await Keynes.create();
+const resources = defineResources({
+  tokens: { unit: "token", accountingBehavior: "consumable" },
+});
+const keynes = await createKeynes({ resources });
 ```
 
-The feature must preserve `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior. It must:
+The runtime preserves `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, structured error details, replay behavior, and close behavior. `Keynes` and `Budget` are now readonly interface types implemented by frozen closure-backed handles. FEAT-0008 required the runtime to:
 
 - implement the five current operations in `SqliteCommandExecutor` over a private `node:sqlite` in-memory database;
 - run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against it;
@@ -130,7 +135,7 @@ This feature supports fresh installation and exact recheck only. Keynes has no r
 
 ### Portable Policy evaluation
 
-Implement the Kysely authoring adapter, PostgreSQL parser adapter, Policy-program normalizer, authoritative machine-readable semantics profile, generated backend declarations, local backend, and PostgreSQL backend together. Evaluation stays inside the selected Budget authority's atomic command; Keynes does not trust application-computed decisions. Compare:
+FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, Policy-program normalizer, authoritative machine-readable semantics profile, generated backend declarations, local backend, and PostgreSQL backend together. Evaluation stays inside the selected Budget authority's atomic command. Keynes does not trust application-computed decisions. The comparison covers:
 
 - Resource limits and denial reasons;
 - bounded-decimal, final-integer, and null behavior;

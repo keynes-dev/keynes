@@ -32,10 +32,14 @@ const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const expectedProductionDependencies = {
+  "@pgsql/types": "18.0.0",
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
   "libpg-query": "18.1.4",
 } as const;
+const expectedBundledDependencies = Object.keys(
+  expectedProductionDependencies,
+).sort();
 
 let suiteRoot: string;
 let archivePath: string;
@@ -50,6 +54,7 @@ beforeAll(async () => {
   run(pnpm, ["--filter", "@keynes/sdk", "build"]);
   secondBuild = await readTree(distRoot);
   run(pnpm, [
+    "--config.node-linker=hoisted",
     "--filter",
     "@keynes/sdk",
     "pack",
@@ -122,8 +127,8 @@ describe("SDK package-test runner", () => {
 
   it("enforces compressed and production size limits", () => {
     expect(() =>
-      validateSizes({ compressedBytes: 524_289, productionBytes: 1 }),
-    ).toThrow("512 KiB");
+      validateSizes({ compressedBytes: 1_048_577, productionBytes: 1 }),
+    ).toThrow("1 MiB");
     expect(() =>
       validateSizes({ compressedBytes: 1, productionBytes: 36_700_161 }),
     ).toThrow("35 MiB");
@@ -155,7 +160,7 @@ describe("SDK package-test runner", () => {
     expect(manifest).not.toHaveProperty("optionalDependencies");
     expect(manifest).not.toHaveProperty("peerDependencies");
     expect(manifest).not.toHaveProperty("bundleDependencies");
-    expect(manifest).not.toHaveProperty("bundledDependencies");
+    expect(manifest.bundledDependencies).toEqual(expectedBundledDependencies);
   });
 
   it("packs only the reachable schema-first and Policy API modules", () => {
@@ -177,9 +182,22 @@ describe("SDK package-test runner", () => {
     }
   });
 
+  it("bundles the parser runtime and WASM in the archive", () => {
+    const paths = [...archiveEntries.keys()];
+    expect(paths).toContain(
+      "package/node_modules/libpg-query/wasm/libpg-query.wasm",
+    );
+    expect(paths).toContain("package/node_modules/libpg-query/wasm/index.js");
+    expect(paths).toContain("package/node_modules/@pgsql/types/package.json");
+  });
+
   it("contains no PGlite or copied database archive path", () => {
     const paths = [...archiveEntries.keys()];
-    expect(paths.filter((path) => /pglite/i.test(path))).toEqual([]);
+    expect(
+      paths.filter(
+        (path) => path.startsWith("package/dist/") && /pglite/i.test(path),
+      ),
+    ).toEqual([]);
     expect(
       paths.filter((path) => path.startsWith("package/dist/database/")),
     ).toEqual([]);
@@ -280,7 +298,11 @@ describe("SDK package-test runner", () => {
         contractDigest: CONTRACT_DIGEST,
       },
       checks: [
+        "parser-wasm",
+        "public-types",
+        "package-root-import",
         "budget-loop",
+        "policy-runtime",
         "isolation",
         "closure",
         "process-loss",

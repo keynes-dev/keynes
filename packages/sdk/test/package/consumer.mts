@@ -1,4 +1,10 @@
-import { createKeynes, defineResources } from "@keynes/sdk";
+import {
+  createKeynes,
+  definePolicySql,
+  defineResources,
+  policySet,
+  policyValue,
+} from "@keynes/sdk";
 
 declare const process: { readonly argv: readonly string[] };
 
@@ -6,6 +12,9 @@ const mode = process.argv[2] ?? "budget-loop";
 switch (mode) {
   case "budget-loop":
     await runBudgetLoop();
+    break;
+  case "policy-runtime":
+    await runPolicyRuntime();
     break;
   case "isolation":
     await runIsolation();
@@ -74,6 +83,49 @@ async function runBudgetLoop(): Promise<void> {
         "budget_settlement_recorded",
       ],
     );
+  } finally {
+    await keynes.close();
+  }
+}
+
+async function runPolicyRuntime(): Promise<void> {
+  const resources = defineResources({
+    modelTokens: { unit: "token", accountingBehavior: "consumable" },
+  });
+  const limit = definePolicySql(resources, {
+    name: "package_limit",
+    revision: 1,
+    inputs: ["modelTokens"],
+    outputs: ["modelTokens"],
+    context: { limit: policyValue.integer() },
+    reasons: ["package_limit"],
+    sql: `
+      SELECT requested.resource AS resource,
+             least(available.amount, context.limit) AS ceiling,
+             'package_limit' AS reason
+        FROM requested_resources AS requested
+        INNER JOIN available_resources AS available USING (resource)
+        CROSS JOIN policy_context AS context
+    `,
+  });
+  const keynes = await createKeynes({ resources });
+  try {
+    const root = await keynes.createBudget(
+      { modelTokens: 10 },
+      { policies: policySet(limit) },
+    );
+    const approved = await root.request(
+      { modelTokens: 4 },
+      { context: { limit: 5 } },
+    );
+    assertEqual(approved.status, "approved");
+
+    const denied = await root.request(
+      { modelTokens: 6 },
+      { context: { limit: 5 } },
+    );
+    assertEqual(denied.status, "denied");
+    assertEqual(denied.policyEvidence?.decision, "denied");
   } finally {
     await keynes.close();
   }

@@ -7,6 +7,7 @@ import type {
   RequestBudgetCommand,
 } from "../../../src/generated/types.js";
 import { definePolicySql, policyValue } from "../../../src/policy/authoring.js";
+import { digestCanonicalJson } from "../../../src/policy/canonicalize.js";
 import type { PolicyEvaluationInput } from "../../../src/policy/evaluate.js";
 import type { PolicyProgramV1 } from "../../../src/generated/policy-types.js";
 import { defineResources } from "../../../src/resources.js";
@@ -168,10 +169,14 @@ describe("local governed request replay", () => {
       const mutationCalls = harness.observe.mock.calls.length;
       const reorderedDeclarations = structuredClone(childA);
       reorderedDeclarations.contextSchema.reverse();
+      const resealedDeclarations = resealDefinition(reorderedDeclarations);
+      expect(resealedDeclarations.definitionDigest).not.toBe(
+        childA.definitionDigest,
+      );
 
       const replay = await harness.client.requestBudget({
         ...command,
-        childPolicies: [childB, reorderedDeclarations],
+        childPolicies: [childB, resealedDeclarations],
       });
       await expect(
         harness.client.requestBudget({
@@ -301,4 +306,12 @@ function ceilingPolicy(name: string, revision: number): PolicyDefinitionV1 {
         CROSS JOIN policy_context AS context
     `,
   });
+}
+
+function resealDefinition(definition: PolicyDefinitionV1): PolicyDefinitionV1 {
+  const { definitionDigest: _definitionDigest, ...document } = definition;
+  return {
+    ...document,
+    definitionDigest: digestCanonicalJson(document),
+  };
 }

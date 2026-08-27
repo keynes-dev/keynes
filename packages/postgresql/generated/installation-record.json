@@ -19,7 +19,7 @@
     ]
   },
   "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  "migrationSetDigest": "0746ab946cfa305e5610219cd94a2428f53a2d1c62b459c7dcd045025fc91ac4",
+  "migrationSetDigest": "c4635559376303f98b35bb91712ec75259f10b57cb6d7dc23dce09b0d2092f72",
   "migrations": [
     {
       "id": "0001-storage",
@@ -29,7 +29,7 @@
     {
       "id": "0002-budget",
       "path": "0002-budget.sql",
-      "sha256": "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b"
+      "sha256": "23b586d2a1ff2eb09dd42e7e9d72d6b6ab2d2fb02163723a2bd91884a9797587"
     },
     {
       "id": "0003-public",
@@ -39,7 +39,7 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
-      "sha256": "a00f088869105f43508fcffd8795339485bfd7fa53c33781794adf5901c44574",
+      "sha256": "5bb9c0e63284dedaf0db2e358ffb26b1dd7cbc56a6945e8c81bd2c8fbc083bb3",
       "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],
@@ -83,6 +83,8 @@
     "function:keynes_internal.apply_command_legacy(operation_name text,input jsonb)",
     "function:keynes_internal.policy_canonical_json(value jsonb)",
     "function:keynes_internal.canonical_policy_set(policies jsonb)",
+    "function:keynes_internal.policy_sum(input_values numeric[])",
+    "function:keynes_internal.policy_avg(input_values numeric[])",
     "function:keynes_internal.invalid_policy(issue_path text,issue_rule text)",
     "function:keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
     "function:keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",
@@ -90,6 +92,9 @@
     "function:keynes_internal.render_policy_node(node jsonb)",
     "function:keynes_internal.validate_policy_program(program jsonb)",
     "function:keynes_internal.render_policy_program(program jsonb)",
+    "function:keynes_internal.canonical_policy_expression(node jsonb)",
+    "function:keynes_internal.canonical_policy_parenthesize(node jsonb)",
+    "function:keynes_internal.canonical_policy_sql(program jsonb)",
     "function:keynes_internal.policy_work_bound(program jsonb,requested_rows integer,available_rows integer)",
     "function:keynes_internal.validate_policy_set(policies jsonb)",
     "function:keynes_internal.validate_policy_context(policies jsonb,context jsonb)",

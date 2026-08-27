@@ -18,7 +18,7 @@
     "test:generator": "pnpm --filter @keynes/contracts test",
     "test:repository": "vitest run scripts/repository-organization.test.ts --maxWorkers=1",
     "build:sdk": "pnpm --filter @keynes/sdk build",
-    "pack:sdk": "pnpm --filter @keynes/sdk pack --pack-destination .artifacts/package-tests/sdk",
+    "pack:sdk": "pnpm --config.node-linker=hoisted --filter @keynes/sdk pack --pack-destination .artifacts/package-tests/sdk",
     "build:postgresql": "pnpm --filter @keynes/postgresql build",
     "pack:postgresql": "pnpm --filter @keynes/postgresql pack --pack-destination .artifacts/package-tests/postgresql",
     "test:package:sdk": "pnpm --filter @keynes/sdk test:package",

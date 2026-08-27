@@ -3,6 +3,7 @@ import { Decimal } from "decimal.js";
 import {
   POLICY_LIMITS,
   POLICY_WORK_METADATA,
+  isPolicyNodeV1,
   isPolicyProgramV1,
 } from "../generated/policy-profile.js";
 import type {
@@ -247,6 +248,44 @@ export function validateNormalizedProgram(program: PolicyProgramV1): void {
   }
 }
 
+export function validatePolicyProgramScope(
+  program: PolicyProgramV1,
+  scope: PolicyNormalizationScope,
+): void {
+  validateNormalizedProgram(program);
+  validateScope(scope);
+  const contextFields = new Map(
+    scope.contextSchema.map((field) => [field.name, field]),
+  );
+  visitProgramValues(program, (reference) => {
+    if (reference.source === "context") {
+      const field = contextFields.get(reference.field);
+      const expectedType = field?.type === "integer" ? "numeric" : field?.type;
+      if (
+        field === undefined ||
+        reference.valueType !== expectedType ||
+        reference.nullable !== field.nullable
+      ) {
+        fail("/program", "reference_scope");
+      }
+      return;
+    }
+    const expectedType =
+      reference.field === "resource"
+        ? "text"
+        : reference.field === "amount"
+          ? "numeric"
+          : undefined;
+    if (
+      expectedType === undefined ||
+      reference.valueType !== expectedType ||
+      reference.nullable
+    ) {
+      fail("/program", "reference_scope");
+    }
+  });
+}
+
 export function fail(path: string, rule: string): never {
   throw new PolicyValidationError(path, rule);
 }
@@ -346,6 +385,23 @@ function validateText(value: string, path: string): void {
     new TextEncoder().encode(value).byteLength > POLICY_LIMITS.contextTextBytes
   ) {
     fail(path, "text_limit");
+  }
+}
+
+function visitProgramValues(
+  value: unknown,
+  visitReference: (reference: ReferenceNodeV1) => void,
+): void {
+  if (Array.isArray(value)) {
+    for (const member of value) visitProgramValues(member, visitReference);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  if (isPolicyNodeV1(value) && value.kind === "reference") {
+    visitReference(value);
+  }
+  for (const member of Object.values(value)) {
+    visitProgramValues(member, visitReference);
   }
 }
 
