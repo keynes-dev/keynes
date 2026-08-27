@@ -11,9 +11,46 @@ importers:
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
+      oxfmt:
+        specifier: 0.64.0
+        version: 0.64.0
+      oxlint:
+        specifier: 1.79.0
+        version: 1.79.0
+      turbo:
+        specifier: 2.10.11
+        version: 2.10.11
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
+
+  apps/cloud:
+    dependencies:
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@keynes/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@keynes/testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
+      oxfmt:
+        specifier: 0.64.0
+        version: 0.64.0
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
+
+  packages/contracts:
+    dependencies:
       ajv:
         specifier: 8.20.0
         version: 8.20.0
@@ -26,18 +63,7 @@ importers:
       oxfmt:
         specifier: 0.64.0
         version: 0.64.0
-      oxlint:
-        specifier: 1.79.0
-        version: 1.79.0
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
-      turbo:
-        specifier: 2.10.11
-        version: 2.10.11
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+    devDependencies:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
@@ -48,31 +74,48 @@ importers:
         specifier: 8.23.0
         version: 8.23.0
     devDependencies:
+      '@keynes/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@keynes/testkit':
+        specifier: workspace:*
+        version: link:../testkit
       '@types/pg':
         specifier: 8.15.5
         version: 8.15.5
+      oxfmt:
+        specifier: 0.64.0
+        version: 0.64.0
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
   packages/sdk:
     devDependencies:
+      '@keynes/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@keynes/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+      json-schema-to-typescript:
+        specifier: 15.0.4
+        version: 15.0.4
+      oxfmt:
+        specifier: 0.64.0
+        version: 0.64.0
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
-  services/cloud:
-    dependencies:
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
+  packages/testkit:
     devDependencies:
-      '@types/pg':
-        specifier: 8.23.1
-        version: 8.23.1
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
 
 packages:
 

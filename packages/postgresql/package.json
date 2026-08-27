@@ -17,15 +17,23 @@
   "exports": {},
   "scripts": {
     "build": "node scripts/build.ts",
+    "generate": "node scripts/generate.ts",
+    "generate:check": "node scripts/generate.ts --check",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test/unit --maxWorkers=1"
+    "test": "vitest run test/unit --maxWorkers=1",
+    "test:integration": "vitest run test/integration --maxWorkers=1",
+    "test:package": "node test/package/run.ts",
+    "test:system": "node test/system/run.ts"
   },
   "dependencies": {
     "pg": "8.23.0"
   },
   "devDependencies": {
+    "@keynes/contracts": "workspace:*",
+    "@keynes/testkit": "workspace:*",
     "@types/pg": "8.15.5",
+    "oxfmt": "0.64.0",
     "vitest": "4.1.11"
   },
   "engines": {

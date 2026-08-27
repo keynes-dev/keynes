@@ -49,6 +49,6 @@ Local mode does not accept a database path, connection, extension, tenant, princ
 
 The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS arm64, and Windows x64. Node.js 25 is unsupported. Browser, bundler, CommonJS, Bun, Deno, other architectures, customer PostgreSQL, and Cloud support remain outside this package contract.
 
-Provider-free source tests do not qualify the archive. The SDK package lane installs one exact archive outside the workspace and exercises its public lifecycle and compatibility boundary. The separate SDK measurement record uses `keynes.package-test.sdk-measurement/v1` under `artifacts/package-tests/sdk/` and records the archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
+Provider-free source tests do not qualify the archive. The SDK package lane installs one exact archive outside the workspace and exercises its public lifecycle and compatibility boundary. The separate SDK measurement record uses `keynes.package-test.sdk-measurement/v1` under ignored `.artifacts/package-tests/sdk/` and records the archive identity, Node.js and SQLite versions, exact size counts, raw runtime samples, and nearest-rank p95 values. Ready-runtime RSS must stay strictly below 512 MiB.
 
 The workflow does not prove policy enforcement, persistence, browser support, provider qualification, security, recovery, managed operations, registry publication, adopter use, or production readiness. Treat those claims as `NOT RUN`.

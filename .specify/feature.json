@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0010",
-  "slug": "repository-organization",
-  "branch": "feat/0010-repository-organization",
-  "feature_directory": "docs/features/0010-repository-organization",
+  "feature_id": "FEAT-0011",
+  "slug": "idiomatic-monorepo",
+  "branch": "feat/0011-idiomatic-monorepo",
+  "feature_directory": "docs/features/0011-idiomatic-monorepo",
   "roadmap_stage": null
 }

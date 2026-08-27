@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 env:
-  ARCHIVE_PATH: artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz
-  DIGEST_PATH: artifacts/package-tests/sdk/archive.sha256
+  ARCHIVE_PATH: .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz
+  DIGEST_PATH: .artifacts/package-tests/sdk/archive.sha256
 
 jobs:
   build:
@@ -38,15 +38,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test qualification tooling
-        run: pnpm exec vitest run package-tests/sdk --maxWorkers=1
+        run: pnpm --filter @keynes/sdk test:package:unit
 
       - name: Build and pack archive
         shell: bash
         run: |
-          mkdir -p artifacts/package-tests/sdk
+          mkdir -p .artifacts/package-tests/sdk
           pnpm generate:check
           pnpm build:sdk
-          pnpm pack:sdk --pack-destination artifacts/package-tests/sdk
+          pnpm pack:sdk
 
       - name: Record archive digest
         run: >-
@@ -103,7 +103,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: SDK-package-archive
-          path: artifacts/package-tests/sdk
+          path: .artifacts/package-tests/sdk
 
       - name: Verify archive digest
         run: >-
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      MEASUREMENT_PATH: artifacts/package-tests/sdk/attempts/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json
+      MEASUREMENT_PATH: .artifacts/package-tests/sdk/attempts/${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -151,7 +151,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: SDK-package-archive
-          path: artifacts/package-tests/sdk
+          path: .artifacts/package-tests/sdk
 
       - name: Verify archive digest
         run: >-
