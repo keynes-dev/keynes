@@ -270,7 +270,9 @@ function run(command: string, args: readonly string[]): void {
   const result = spawnSync(command, args, {
     cwd: repositoryRoot,
     encoding: "utf8",
+    shell: process.platform === "win32",
   });
+  if (result.error !== undefined) throw result.error;
   expect(result.status, result.stderr || result.stdout).toBe(0);
 }
 
