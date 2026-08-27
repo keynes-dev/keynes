@@ -3,6 +3,7 @@ import { access, cp, mkdir, writeFile } from "node:fs/promises";
 import { arch, platform, release } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
 import {
   ARCHIVE_LIMIT_BYTES,
@@ -69,29 +70,36 @@ export type SdkPackageMeasurementRecord = ReturnType<
 export function parseMeasurementArguments(
   args: readonly string[],
 ): MeasurementArguments {
-  let archive: string | undefined;
-  let output: string | undefined;
-  for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index];
-    if (index === 0 && argument === "--") continue;
-    if (argument !== "--archive" && argument !== "--output") {
-      throw new Error(`Unknown argument ${argument}`);
-    }
-    const value = args[index + 1];
-    if (value === undefined || value.startsWith("--")) {
-      throw new Error(`${argument} requires a path`);
-    }
-    if (argument === "--archive") {
-      if (archive !== undefined)
-        throw new Error("--archive may be provided only once");
-      archive = value;
-    } else {
-      if (output !== undefined)
-        throw new Error("--output may be provided only once");
-      output = value;
-    }
-    index += 1;
+  const normalized = args[0] === "--" ? args.slice(1) : args;
+  const { tokens } = parseArgs({
+    args: normalized,
+    options: { archive: { type: "string" }, output: { type: "string" } },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  for (const token of tokens) {
+    if (token.kind === "positional")
+      throw new Error(`Unknown argument ${token.value}`);
+    if (token.kind !== "option") continue;
+    if (token.name !== "archive" && token.name !== "output")
+      throw new Error(`Unknown argument ${token.rawName}`);
+    if (token.inlineValue === true)
+      throw new Error(`Unknown argument ${normalized[token.index]}`);
+    if (token.value === undefined || token.value.startsWith("--"))
+      throw new Error(`${token.rawName} requires a path`);
   }
+  const optionTokens = tokens.filter((token) => token.kind === "option");
+  const archiveTokens = optionTokens.filter(
+    (token) => token.name === "archive",
+  );
+  const outputTokens = optionTokens.filter((token) => token.name === "output");
+  if (archiveTokens.length > 1)
+    throw new Error("--archive may be provided only once");
+  if (outputTokens.length > 1)
+    throw new Error("--output may be provided only once");
+  const archive = archiveTokens[0]?.value;
+  const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
   if (output === undefined) throw new Error("--output is required");
   return { archivePath: resolve(archive), outputPath: resolve(output) };

@@ -4,6 +4,7 @@ import { access, mkdir, open, readFile, realpath } from "node:fs/promises";
 import { arch, platform, release } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
 import { POSTGRESQL_PACKAGE_ARCHIVE_ENV } from "../../system-tests/support/packed-package.ts";
 
@@ -168,30 +169,35 @@ function commandOutput(
 export async function parseArguments(
   arguments_: readonly string[],
 ): Promise<PostgresqlPackageTestArguments> {
-  let archive: string | undefined;
-  let output: string | undefined;
-  for (let index = 0; index < arguments_.length; index += 1) {
-    const argument = arguments_[index];
-    if (argument !== "--archive" && argument !== "--output") {
-      throw new Error(`Unknown argument ${argument}`);
-    }
-    const value = arguments_[index + 1];
-    if (value === undefined || value.startsWith("--")) {
-      throw new Error(`${argument} requires a path`);
-    }
-    if (argument === "--archive") {
-      if (archive !== undefined) {
-        throw new Error("--archive may be provided only once");
-      }
-      archive = value;
-    } else {
-      if (output !== undefined) {
-        throw new Error("--output may be provided only once");
-      }
-      output = value;
-    }
-    index += 1;
+  const { tokens } = parseArgs({
+    args: arguments_,
+    options: { archive: { type: "string" }, output: { type: "string" } },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  for (const token of tokens) {
+    if (token.kind === "positional")
+      throw new Error(`Unknown argument ${token.value}`);
+    if (token.kind !== "option") continue;
+    if (token.name !== "archive" && token.name !== "output")
+      throw new Error(`Unknown argument ${token.rawName}`);
+    if (token.inlineValue === true)
+      throw new Error(`Unknown argument ${arguments_[token.index]}`);
+    if (token.value === undefined || token.value.startsWith("--"))
+      throw new Error(`${token.rawName} requires a path`);
   }
+  const optionTokens = tokens.filter((token) => token.kind === "option");
+  const archiveTokens = optionTokens.filter(
+    (token) => token.name === "archive",
+  );
+  const outputTokens = optionTokens.filter((token) => token.name === "output");
+  if (archiveTokens.length > 1)
+    throw new Error("--archive may be provided only once");
+  if (outputTokens.length > 1)
+    throw new Error("--output may be provided only once");
+  const archive = archiveTokens[0]?.value;
+  const output = outputTokens[0]?.value;
   if (archive === undefined || !archive.endsWith(".tgz")) {
     throw new Error("--archive requires a .tgz path");
   }

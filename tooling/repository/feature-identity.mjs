@@ -12,6 +12,7 @@ import {
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { parseArgs } from "node:util";
 
 const FEATURE_DIRECTORY = "docs/features";
 const FEATURE_NUMBER = /^[0-9]{4}$/;
@@ -247,32 +248,56 @@ export function resolveActiveFeature(
 }
 
 function parseArguments(argv) {
-  const options = {
-    json: false,
-    dryRun: false,
-    allowExisting: false,
-    materialize: false,
-  };
-  const positionals = [];
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
-    if (argument === "--json") options.json = true;
-    else if (argument === "--dry-run") options.dryRun = true;
-    else if (argument === "--allow-existing-branch")
-      options.allowExisting = true;
-    else if (argument === "--materialize") options.materialize = true;
-    else if (argument === "--no-branch-check") options.requireBranch = false;
-    else if (["--short-name", "--roadmap-stage"].includes(argument)) {
-      const value = argv[index + 1];
-      if (!value) fail(`${argument} requires a value`);
-      options[argument === "--short-name" ? "shortName" : "roadmapStage"] =
-        value;
-      index += 1;
-    } else if (argument.startsWith("--")) fail(`Unknown option: ${argument}`);
-    else positionals.push(argument);
+  const { values, positionals, tokens } = parseArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean" },
+      "dry-run": { type: "boolean" },
+      "allow-existing-branch": { type: "boolean" },
+      materialize: { type: "boolean" },
+      "no-branch-check": { type: "boolean" },
+      "short-name": { type: "string" },
+      "roadmap-stage": { type: "string" },
+    },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  const knownOptions = new Set([
+    "json",
+    "dry-run",
+    "allow-existing-branch",
+    "materialize",
+    "no-branch-check",
+    "short-name",
+    "roadmap-stage",
+  ]);
+  for (const token of tokens) {
+    if (token.kind !== "option") continue;
+    if (!knownOptions.has(token.name) || token.inlineValue === true) {
+      fail(`Unknown option: ${argv[token.index]}`);
+    }
+    if (
+      (token.name === "short-name" || token.name === "roadmap-stage") &&
+      (token.value === undefined || token.value.startsWith("--"))
+    ) {
+      fail(`${token.rawName} requires a value`);
+    }
   }
-  options.description = positionals.join(" ").trim();
-  return options;
+  return {
+    json: values.json === true,
+    dryRun: values["dry-run"] === true,
+    allowExisting: values["allow-existing-branch"] === true,
+    materialize: values.materialize === true,
+    ...(values["no-branch-check"] === true ? { requireBranch: false } : {}),
+    ...(typeof values["short-name"] === "string"
+      ? { shortName: values["short-name"] }
+      : {}),
+    ...(typeof values["roadmap-stage"] === "string"
+      ? { roadmapStage: values["roadmap-stage"] }
+      : {}),
+    description: positionals.join(" ").trim(),
+  };
 }
 
 function outputIdentity(identity, format) {

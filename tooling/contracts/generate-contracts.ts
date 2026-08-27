@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 import canonicalize from "canonicalize";
 import { compile } from "json-schema-to-typescript";
@@ -220,32 +221,56 @@ function parseContract(value: unknown): Contract {
 }
 
 function parseOptions(arguments_: readonly string[]): CliOptions {
-  let contractRoot = process.cwd();
-  let outputRoot = process.cwd();
-  let check = false;
-
-  for (let index = 0; index < arguments_.length; index += 1) {
-    const argument = arguments_[index];
-    if (argument === "--check") {
-      check = true;
-      continue;
+  const { tokens, values } = parseArgs({
+    args: arguments_,
+    options: {
+      check: { type: "boolean" },
+      "contract-root": { type: "string" },
+      "output-root": { type: "string" },
+    },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  for (const token of tokens) {
+    if (token.kind === "positional") fail(`unknown argument: ${token.value}`);
+    if (token.kind !== "option") continue;
+    if (
+      !(["check", "contract-root", "output-root"] as string[]).includes(
+        token.name,
+      )
+    )
+      fail(`unknown argument: ${token.rawName}`);
+    if (token.inlineValue === true)
+      fail(`unknown argument: ${arguments_[token.index]}`);
+    if (
+      token.name !== "check" &&
+      (token.value === undefined || token.value.startsWith("--"))
+    ) {
+      fail(`missing value for ${token.rawName}`);
     }
-    if (argument !== "--contract-root" && argument !== "--output-root") {
-      fail(`unknown argument: ${argument}`);
-    }
-    const value = arguments_[index + 1];
-    if (value === undefined) {
-      fail(`missing value for ${argument}`);
-    }
-    if (argument === "--contract-root") {
-      contractRoot = resolve(value);
-    } else {
-      outputRoot = resolve(value);
-    }
-    index += 1;
   }
-
-  return { contractRoot, outputRoot, check };
+  for (const name of ["contract-root", "output-root"] as const) {
+    if (
+      tokens.filter((token) => token.kind === "option" && token.name === name)
+        .length > 1
+    ) {
+      fail(`--${name} may be provided only once`);
+    }
+  }
+  return {
+    contractRoot: resolve(
+      typeof values["contract-root"] === "string"
+        ? values["contract-root"]
+        : process.cwd(),
+    ),
+    outputRoot: resolve(
+      typeof values["output-root"] === "string"
+        ? values["output-root"]
+        : process.cwd(),
+    ),
+    check: values.check === true,
+  };
 }
 
 function validateSchemaNode(node: unknown, location: string): void {

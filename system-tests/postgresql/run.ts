@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
 import { Client } from "pg";
 
@@ -498,14 +499,30 @@ function sha256(value: Buffer): string {
 function parseArguments(
   arguments_: readonly string[],
 ): PostgresqlSystemRunOptions {
-  const outputIndex = arguments_.indexOf("--output");
-  if (outputIndex === -1) return {};
-  const outputPath = arguments_[outputIndex + 1];
-  if (outputPath === undefined || outputPath.startsWith("--"))
+  const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  const { tokens } = parseArgs({
+    args: normalized,
+    options: { output: { type: "string" } },
+    allowPositionals: true,
+    strict: false,
+    tokens: true,
+  });
+  const optionTokens = tokens.filter((token) => token.kind === "option");
+  const outputTokens = optionTokens.filter((token) => token.name === "output");
+  const output = outputTokens[0];
+  if (
+    output !== undefined &&
+    (output.inlineValue === true ||
+      output.value === undefined ||
+      output.value.startsWith("--"))
+  ) {
     throw new Error("--output requires a path");
-  if (arguments_.indexOf("--output", outputIndex + 1) !== -1)
+  }
+  if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
-  return { outputPath: resolve(REPOSITORY_ROOT, outputPath) };
+  return output?.value === undefined
+    ? {}
+    : { outputPath: resolve(REPOSITORY_ROOT, output.value) };
 }
 
 async function waitForPostgres(
