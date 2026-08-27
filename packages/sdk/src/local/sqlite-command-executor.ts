@@ -39,6 +39,7 @@ import {
 } from "../policy/evaluate.js";
 export type SqliteMutationStage =
   | "after_command_binding"
+  | "after_policy_evaluation"
   | "after_domain_mutation"
   | "after_result_storage"
   | "after_history_insertion";
@@ -492,6 +493,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
             command.context,
           );
     if (policyEvidence !== undefined) {
+      this.#observeMutation?.("after_policy_evaluation");
       for (const resource of resources) {
         const effective = policyEvidence.effectiveCeilings.find(
           (ceiling) => ceiling.resourceTypeId === resource.resourceTypeId,

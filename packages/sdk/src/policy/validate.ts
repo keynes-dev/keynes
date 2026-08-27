@@ -112,11 +112,15 @@ export class PolicyValidationContext {
     }
     const value = this.#parameters[position - 1];
     if (position > this.#parameters.length) fail(path, "parameter_missing");
-    const valueType = parameterType(value, expected, path);
     const established = this.#parameterTypes.get(position);
-    if (established !== undefined && established !== valueType) {
+    if (
+      established !== undefined &&
+      expected !== undefined &&
+      established !== expected
+    ) {
       fail(path, "parameter_type_conflict");
     }
+    const valueType = parameterType(value, expected, path);
     this.#usedParameters.add(position);
     this.#parameterTypes.set(position, valueType);
     return literal(value, valueType, path);

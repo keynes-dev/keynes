@@ -110,6 +110,7 @@ export async function generatePostgresql(
   const policySql = renderPolicyMigration(
     options.policyProfile,
     legacyBudgetSql,
+    options.contract.source,
   );
   const manifest = readMigrationManifest(repositoryRoot);
   const contractMigrations = manifest.filter(
@@ -181,6 +182,7 @@ function assertImmutablePublicMigration(value: string, phase: string): void {
 function renderPolicyMigration(
   profile: LoadedPolicyProfile,
   legacyBudgetSql: string,
+  contract: ContractSource,
 ): string {
   const categories = Object.fromEntries(
     profile.nodeKinds.map((kind) => [
@@ -225,7 +227,7 @@ function renderPolicyMigration(
         `REVOKE ALL ON FUNCTION keynes_internal.${signature} FROM PUBLIC;`,
     )
     .join("\n");
-  const policyRuntime = renderPolicyRuntime(profile, legacyBudgetSql);
+  const policyRuntime = renderPolicyRuntime(profile, legacyBudgetSql, contract);
 
   return `-- Generated from packages/contracts/policy-profile.json. Do not edit.
 -- Policy profile SHA-256: ${profile.digest}
@@ -233,13 +235,28 @@ function renderPolicyMigration(
 CREATE OR REPLACE FUNCTION keynes_internal.invalid_policy(issue_path text, issue_rule text)
 RETURNS void
 LANGUAGE plpgsql
-IMMUTABLE
 SET search_path = pg_catalog
 AS $$
+DECLARE
+  operation_name text := coalesce(nullif(current_setting('keynes.policy_operation', true), ''), 'createBudget');
+  policy_name text := nullif(current_setting('keynes.policy_name', true), '');
+  policy_revision text := nullif(current_setting('keynes.policy_revision', true), '');
+  details jsonb;
 BEGIN
+  details := jsonb_build_object(
+    'operation', operation_name,
+    'path', issue_path,
+    'rule', issue_rule
+  );
+  IF policy_name IS NOT NULL THEN
+    details := details || jsonb_build_object('policyName', policy_name);
+  END IF;
+  IF policy_revision ~ '^[1-9][0-9]*$' THEN
+    details := details || jsonb_build_object('policyRevision', policy_revision::numeric);
+  END IF;
   PERFORM keynes_internal.raise_domain_error(
     'invalid_policy',
-    jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', issue_path, 'rule', issue_rule)))
+    details
   );
 END;
 $$;
@@ -612,6 +629,7 @@ ${revokes}
 function renderPolicyRuntime(
   profile: LoadedPolicyProfile,
   legacyBudgetSql: string,
+  contract: ContractSource,
 ): string {
   if (
     !legacyBudgetSql.includes(
@@ -626,10 +644,31 @@ function renderPolicyRuntime(
   if (legacyApplyMatch === null) {
     throw new Error("immutable 0002 apply_command definition is missing");
   }
-  const legacyApply = legacyApplyMatch[0].replace(
-    "CREATE FUNCTION keynes_internal.apply_command(operation_name text, input jsonb)",
-    "CREATE FUNCTION keynes_internal.apply_command_legacy(operation_name text, input jsonb)",
+  const legacyApply = legacyApplyMatch[0]
+    .replace(
+      "CREATE FUNCTION keynes_internal.apply_command(operation_name text, input jsonb)",
+      "CREATE FUNCTION keynes_internal.apply_command_legacy(operation_name text, input jsonb)",
+    )
+    .replace(
+      "SET search_path = pg_catalog, keynes_internal",
+      "SET search_path = pg_catalog, keynes_internal, pg_temp",
+    );
+  const legacyGetMatch = legacyBudgetSql.match(
+    /CREATE FUNCTION keynes_internal\.get_budget\(input jsonb\)[\s\S]*?\$function\$;/u,
   );
+  if (legacyGetMatch === null) {
+    throw new Error("immutable 0002 get_budget definition is missing");
+  }
+  const secureGet = legacyGetMatch[0]
+    .replace(
+      "CREATE FUNCTION keynes_internal.get_budget(input jsonb)",
+      "CREATE OR REPLACE FUNCTION keynes_internal.get_budget(input jsonb)",
+    )
+    .replace(
+      "SET search_path = pg_catalog, keynes_internal",
+      "SET search_path = pg_catalog, keynes_internal, pg_temp",
+    );
+  const securePublic = renderSecurePublicFunctions(contract);
   const versions = profile.source.versions;
   const limits = profile.source.limits;
   return `ALTER TABLE keynes_internal.budgets
@@ -639,6 +678,8 @@ function renderPolicyRuntime(
   );
 
 ${legacyApply}
+
+${secureGet}
 
 CREATE OR REPLACE FUNCTION keynes_internal.policy_canonical_json(value jsonb)
 RETURNS text
@@ -662,7 +703,6 @@ $$;
 CREATE OR REPLACE FUNCTION keynes_internal.validate_policy_set(policies jsonb)
 RETURNS void
 LANGUAGE plpgsql
-IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
 DECLARE
@@ -676,6 +716,8 @@ BEGIN
   END IF;
   FOR policy IN SELECT value FROM jsonb_array_elements(policies) LOOP
     ordinal := ordinal + 1;
+    PERFORM set_config('keynes.policy_name', coalesce(policy->>'name', ''), true);
+    PERFORM set_config('keynes.policy_revision', coalesce(policy->>'revision', ''), true);
     PERFORM keynes_internal.policy_assert_exact_keys(
       policy,
       ARRAY['kind','name','revision','inputResources','outputResources','contextSchema','reasons','programVersion','queryProfileVersion','validatorVersion','limitsVersion','policyProfileDigest','program','canonicalSql','sourceDigest','definitionDigest'],
@@ -742,23 +784,36 @@ DECLARE
 BEGIN
   IF jsonb_array_length(policies) = 0 THEN
     IF context IS NOT NULL THEN
-      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context', 'rule', 'ungoverned'))));
+      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context', 'rule', 'additionalProperties'));
     END IF;
     RETURN;
   END IF;
-  IF jsonb_typeof(context) IS DISTINCT FROM 'object'
-    OR octet_length(convert_to(context::text, 'UTF8')) > ${limits.canonicalContextBytes}
-    OR ARRAY(SELECT member.key FROM jsonb_object_keys(context) AS member(key) ORDER BY member.key)
+  IF context IS NULL THEN
+    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context', 'rule', 'required'));
+  END IF;
+  IF jsonb_typeof(context) IS DISTINCT FROM 'object' THEN
+    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context', 'rule', 'type'));
+  END IF;
+  IF octet_length(convert_to(keynes_internal.policy_canonical_json(context), 'UTF8')) > ${limits.canonicalContextBytes} THEN
+    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context', 'rule', 'limit'));
+  END IF;
+  IF ARRAY(SELECT member.key FROM jsonb_object_keys(context) AS member(key) ORDER BY member.key)
        IS DISTINCT FROM ARRAY(SELECT field.member->>'name' FROM jsonb_array_elements(schema) AS field(member) ORDER BY field.member->>'name') THEN
-    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context', 'rule', 'schema'))));
+    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object(
+      'operation', 'requestBudget', 'path', '$.context',
+      'rule', CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements(schema) expected WHERE NOT (context ? (expected->>'name'))) THEN 'required' ELSE 'additionalProperties' END
+    ));
   END IF;
   FOR field IN SELECT member FROM jsonb_array_elements(schema) member LOOP
     value := context->(field->>'name');
     IF value = 'null'::jsonb AND (field->>'nullable')::boolean THEN CONTINUE; END IF;
-    IF (field->>'type' = 'integer' AND (jsonb_typeof(value) IS DISTINCT FROM 'number' OR value::text !~ '^-?[0-9]+$' OR abs((value::text)::numeric) > ${profile.source.numeric.maximumSafeInteger}))
+    IF value = 'null'::jsonb THEN
+      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context.' || (field->>'name'), 'rule', 'null'));
+    END IF;
+    IF (field->>'type' = 'integer' AND (jsonb_typeof(value) IS DISTINCT FROM 'number' OR value::text !~ '^-?[0-9]+$' OR (value::text)::numeric < 0 OR (value::text)::numeric > ${profile.source.numeric.maximumSafeInteger}))
       OR (field->>'type' = 'text' AND (jsonb_typeof(value) IS DISTINCT FROM 'string' OR octet_length(convert_to(value #>> '{}', 'UTF8')) > ${limits.contextTextBytes}))
       OR (field->>'type' = 'boolean' AND jsonb_typeof(value) IS DISTINCT FROM 'boolean') THEN
-      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context.' || (field->>'name'), 'rule', 'type'))));
+      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('operation', 'requestBudget', 'path', '$.context.' || (field->>'name'), 'rule', 'type'));
     END IF;
   END LOOP;
 END;
@@ -797,7 +852,10 @@ BEGIN
       EXECUTE 'SELECT coalesce(jsonb_agg(to_jsonb(policy_result) ORDER BY resource COLLATE "C", reason COLLATE "C", ceiling), ''[]''::jsonb) FROM (' || rendered || ') policy_result'
         INTO rows USING requested_named, available_named, context;
     EXCEPTION WHEN OTHERS THEN
-      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object('policyName', policy->>'name', 'policyRevision', (policy->>'revision')::numeric));
+      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object(
+        'operation', 'requestBudget', 'policyName', policy->>'name',
+        'policyRevision', (policy->>'revision')::numeric, 'category', 'execution_failed'
+      ));
     END;
     IF jsonb_array_length(rows) > ${limits.resultRows} OR EXISTS (
       SELECT 1 FROM jsonb_array_elements(rows) row
@@ -810,7 +868,10 @@ BEGIN
          OR NOT (policy->'reasons' ? (row->>'reason'))
          OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(requested_named) requested WHERE requested->>'resource' = row->>'resource')
     ) THEN
-      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object('policyName', policy->>'name', 'policyRevision', (policy->>'revision')::numeric));
+      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object(
+        'operation', 'requestBudget', 'policyName', policy->>'name',
+        'policyRevision', (policy->>'revision')::numeric, 'category', 'invalid_result'
+      ));
     END IF;
     policy_rows := policy_rows || jsonb_build_array(jsonb_build_object(
       'name', policy->>'name', 'revision', (policy->>'revision')::numeric,
@@ -839,7 +900,7 @@ CREATE OR REPLACE FUNCTION keynes_internal.apply_command(operation_name text, in
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, keynes_internal
+SET search_path = pg_catalog, keynes_internal, pg_temp
 AS $function$
 <<apply_command>>
 DECLARE
@@ -870,6 +931,7 @@ BEGIN
     RETURN keynes_internal.apply_command_legacy(operation_name, input);
   END IF;
   command_id := (input->>'commandId')::uuid;
+  PERFORM set_config('keynes.policy_operation', operation_name, true);
   IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
     parent_id := (input->>'parentBudgetId')::uuid;
     SELECT stored.policies INTO parent_policies FROM keynes_internal.budgets stored
@@ -956,7 +1018,9 @@ BEGIN
             CROSS JOIN LATERAL jsonb_array_elements_text(policy->'inputResources') name
             JOIN keynes_internal.resource_types resource_type ON resource_type.tenant_id = tenant AND resource_type.canonical_name = name
         ) ORDER BY locked.resource_type_id FOR UPDATE;
+      PERFORM keynes_internal.checkpoint('before_policy_evaluation');
       evidence := keynes_internal.evaluate_policy_set(tenant,parent_id,parent_policies,items,input->'context');
+      PERFORM keynes_internal.checkpoint('after_policy_evaluation');
       FOR item IN SELECT value FROM jsonb_array_elements(items) LOOP
         SELECT coalesce((SELECT (resource->>'available')::numeric FROM jsonb_array_elements(keynes_internal.budget_projection(tenant,parent_id)->'resources') resource WHERE resource->'resourceType'->>'resourceTypeId' = item->>'resourceTypeId'),0) INTO available_amount;
         IF available_amount < (item->>'amount')::numeric THEN
@@ -968,6 +1032,7 @@ BEGIN
         END IF;
       END LOOP;
       evidence := evidence || jsonb_build_object('decision', CASE WHEN jsonb_array_length(denial_reasons) = 0 THEN 'approved' ELSE 'denied' END);
+      PERFORM keynes_internal.checkpoint('after_policy_evidence');
       IF jsonb_array_length(denial_reasons) > 0 THEN
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(tenant,budget.root_budget_id,command_id,'request_denied',parent_id,jsonb_build_object('parentBudgetId',parent_id::text,'reasons',denial_reasons,'policyEvidence',evidence));
@@ -1000,7 +1065,44 @@ REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_set(jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_context(jsonb,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.evaluate_policy_set(uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION keynes_internal.apply_command(text,jsonb) FROM PUBLIC;`;
+REVOKE ALL ON FUNCTION keynes_internal.apply_command(text,jsonb) FROM PUBLIC;
+
+${securePublic}`;
+}
+
+function renderSecurePublicFunctions(contract: ContractSource): string {
+  const statements = contract.operations.map((operation) => {
+    const functionName = operation.target.slice("keynes.".length);
+    const body = operation.replay
+      ? `keynes_internal.apply_command('${operation.method}', input)`
+      : "keynes_internal.get_budget(input)";
+    return operation.replay
+      ? `CREATE OR REPLACE FUNCTION keynes.${functionName}(input jsonb)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+  SELECT ${body};
+$$;`
+      : `CREATE OR REPLACE FUNCTION keynes.${functionName}(input jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+BEGIN
+  RETURN ${body};
+  EXCEPTION
+    WHEN SQLSTATE 'K0001' THEN
+      RETURN jsonb_build_object('ok', false, 'error', SQLERRM::jsonb);
+END;
+$$;`;
+  });
+  const revokes = contract.operations
+    .map(({ target }) => `REVOKE ALL ON FUNCTION ${target}(jsonb) FROM PUBLIC;`)
+    .join("\n");
+  return `${statements.join("\n\n")}\n\n${revokes}`;
 }
 
 function renderPolicyValidator(
@@ -1368,7 +1470,7 @@ function installationFunctions(
     returnType: "jsonb",
     language: operation.method === "getBudget" ? "plpgsql" : "sql",
     securityDefiner: true,
-    searchPath: ["pg_catalog", "keynes_internal"],
+    searchPath: ["pg_catalog", "keynes_internal", "pg_temp"],
   }));
 }
 

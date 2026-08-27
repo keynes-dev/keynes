@@ -15,7 +15,7 @@ import type {
 } from "../generated/policy-types.js";
 import { normalizePolicy } from "./normalize.js";
 import { parsePolicySql } from "./parse.js";
-import type { PolicyNormalizationScope } from "./validate.js";
+import { fail, type PolicyNormalizationScope } from "./validate.js";
 
 export type { PolicyNormalizationScope } from "./validate.js";
 
@@ -76,9 +76,7 @@ class PolicyQueryCompiler extends PostgresQueryCompiler {
       !/^[a-z][a-z0-9_]{0,62}$/.test(identifier) ||
       !this.#identifiers.has(identifier)
     ) {
-      throw new TypeError(
-        `Policy query contains unsupported identifier ${identifier}`,
-      );
+      fail("/source", "identifier");
     }
     return identifier;
   }

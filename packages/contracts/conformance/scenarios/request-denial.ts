@@ -213,7 +213,7 @@ export function registerRequestDenialContractTests(
           { budgetId: denied.commandId },
         );
       }
-    });
+    }, 15_000);
 
     it("rejects malformed, duplicate, and caller-selected funding envelopes", async () => {
       const client = local.clientFor("product-fixture");

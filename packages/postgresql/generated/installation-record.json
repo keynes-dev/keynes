@@ -19,7 +19,7 @@
     ]
   },
   "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  "migrationSetDigest": "e6d1b3668720f91ab3b25af8d7fa4b37da9c9bb73161044bb99970d9c42c7382",
+  "migrationSetDigest": "a5b74c749fd677ee96188605e87883e58eb873c979bd6bbed45173a05e06caf1",
   "migrations": [
     {
       "id": "0001-storage",
@@ -39,7 +39,7 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
-      "sha256": "dd2fe672df5236150b521472671782468b50b0da8ec3583c347905e7241a8a39",
+      "sha256": "a97a4788dea7c191f708a221c0596ce0aace41e86672d558872f2c28b436165b",
       "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],
@@ -146,7 +146,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "createBudget",
@@ -156,7 +156,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "requestBudget",
@@ -166,7 +166,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "settleBudget",
@@ -176,7 +176,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "getBudget",
@@ -186,7 +186,7 @@
       "returnType": "jsonb",
       "language": "plpgsql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     }
   ]
 }

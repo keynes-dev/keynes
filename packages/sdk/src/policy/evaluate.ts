@@ -20,7 +20,7 @@ import {
   type PolicyDecimal,
 } from "./decimal.js";
 
-type EvaluationFailureCategory =
+export type PolicyEvaluationFailureCategory =
   | "limit_exceeded"
   | "arithmetic_overflow"
   | "numeric_domain"
@@ -29,9 +29,9 @@ type EvaluationFailureCategory =
   | "execution_failed";
 
 export class PolicyEvaluationError extends Error {
-  readonly category: EvaluationFailureCategory;
+  readonly category: PolicyEvaluationFailureCategory;
 
-  constructor(category: EvaluationFailureCategory) {
+  constructor(category: PolicyEvaluationFailureCategory) {
     super(category);
     this.name = "PolicyEvaluationError";
     this.category = category;

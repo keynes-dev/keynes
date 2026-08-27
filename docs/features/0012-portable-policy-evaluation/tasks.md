@@ -171,18 +171,35 @@
 
 ### Failing tests for user story 3
 
-- [ ] T039 [P] [US3] Add exhaustive parser-node, unsafe Kysely identifier, multi-statement, DDL, DML, catalog, application-relation, function, operator, cast, parameter, and comment-identity rejection cases in `packages/sdk/test/unit/policy/rejection.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T040 [P] [US3] Add local work-limit, arithmetic, numeric-domain, precision, invalid-result, mixed-Policy, sanitized-error, and mutation-checkpoint tests in `packages/sdk/test/unit/local/policy-fail-closed.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T041 [P] [US3] Add PostgreSQL malformed-program, submitted-SQL non-execution, fixed-search-path, role-bypass, result-validation, generated-query failure, and rollback-matrix scenarios in `packages/postgresql/test/system/policy-security.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T039 [P] [US3] Add exhaustive parser-node, unsafe Kysely identifier, multi-statement, DDL, DML, catalog, application-relation, function, operator, cast, parameter, and comment-identity rejection cases in `packages/sdk/test/unit/policy/rejection.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T040 [P] [US3] Add local work-limit, arithmetic, numeric-domain, precision, invalid-result, mixed-Policy, sanitized-error, and mutation-checkpoint tests in `packages/sdk/test/unit/local/policy-fail-closed.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T041 [P] [US3] Add PostgreSQL malformed-program, submitted-SQL non-execution, fixed-search-path, role-bypass, result-validation, generated-query failure, and rollback-matrix scenarios in `packages/postgresql/test/system/policy-security.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**US3 RED evidence (2026-08-27)**:
+
+- T039, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/rejection.test.ts --maxWorkers=1`: 18 passed and 25 expected failures across 43 initial cases. Parser and lexeme failures surfaced generic errors, casts lacked a stable rule, unsafe Kysely identifiers surfaced `TypeError`, and conflicting repeated parameters reported the wrong rule.
+- T040, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-fail-closed.test.ts --maxWorkers=1`: 11 passed and 1 expected failure. Existing evaluator categories and transaction checkpoints held, but the governed path had no post-evaluation rollback checkpoint.
+- T041, `CI=true pnpm test:system:postgresql`: 91 passed and 7 expected failures across the 98-case expanded PostgreSQL 18.6 corpus. The Policy error details were not contract-shaped, eight definer functions omitted `pg_temp` from fixed search paths, evaluation errors lacked stable categories, and three Policy-specific rollback checkpoints were absent. Submitted SQL non-execution, private-role bypass, and the existing command/domain/history/result rollback checkpoints passed.
 
 ### Implementation for user story 3
 
-- [ ] T042 [US3] Close every parser, name-resolution, type, parameter, function, operator, result, and work-limit branch with stable `invalid_policy` rules in `packages/sdk/src/policy/parse.ts` and `packages/sdk/src/policy/validate.ts`
-- [ ] T043 [US3] Map only evaluator-owned limit, arithmetic, numeric, result, and execution failures to sanitized `policy_evaluation_failed` categories in `packages/sdk/src/policy/evaluate.ts` and `packages/sdk/src/sdk-errors.ts`
-- [ ] T044 [US3] Roll back local command binding, evidence, reservation, child insertion, result, and history for every Policy error checkpoint in `packages/sdk/src/local/sqlite-command-executor.ts` and `packages/sdk/test/unit/support/sqlite-faults.ts`
-- [ ] T045 [US3] Enforce generated-only SQL, parameterized inputs, fixed trusted names, result validation, safe error details, and full rollback in `packages/postgresql/migrations/0004-policy.sql`
-- [ ] T046 [US3] Run the complete provider-free rejection, fail-closed, mutation, and no-Policy suites and record exact outcomes in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T047 [US3] Run the hostile-role and PostgreSQL rollback scenarios only against an authorized clean PostgreSQL 18.6 installation, or record native security qualification as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T042 [US3] Close every parser, name-resolution, type, parameter, function, operator, result, and work-limit branch with stable `invalid_policy` rules in `packages/sdk/src/policy/parse.ts` and `packages/sdk/src/policy/validate.ts`
+- [x] T043 [US3] Map only evaluator-owned limit, arithmetic, numeric, result, and execution failures to sanitized `policy_evaluation_failed` categories in `packages/sdk/src/policy/evaluate.ts` and `packages/sdk/src/sdk-errors.ts`
+- [x] T044 [US3] Roll back local command binding, evidence, reservation, child insertion, result, and history for every Policy error checkpoint in `packages/sdk/src/local/sqlite-command-executor.ts` and `packages/sdk/test/unit/support/sqlite-faults.ts`
+- [x] T045 [US3] Enforce generated-only SQL, parameterized inputs, fixed trusted names, result validation, safe error details, and full rollback in `packages/postgresql/migrations/0004-policy.sql`
+- [x] T046 [US3] Run the complete provider-free rejection, fail-closed, mutation, and no-Policy suites and record exact outcomes in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T047 [US3] Run the hostile-role and PostgreSQL rollback scenarios only against an authorized clean PostgreSQL 18.6 installation, or record native security qualification as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**Phase 5 implementation evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/rejection.test.ts --maxWorkers=1`: 45 passed, 0 failed. Source type/size/syntax, statement class/count, parser nodes, lexical forms, unsafe identifiers, relations, functions, operators, casts, collations, subqueries, parameters, and comment identity return stable outcomes.
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-fail-closed.test.ts --maxWorkers=1`: 13 passed, 0 failed. All six evaluator-owned categories, mixed-Policy failure, exact sanitized details, failed-command reuse, unchanged Budget state, and five SQLite mutation checkpoints passed.
+- `CI=true pnpm --filter @keynes/sdk test`: 177 passed, 0 failed across 15 files. SDK typecheck passed; the 32-case no-Policy conformance corpus remained green.
+- `CI=true pnpm --filter @keynes/postgresql test`: 24 passed, 0 failed. `CI=true pnpm generate:check` and PostgreSQL typecheck passed.
+- `CI=true pnpm test:system:postgresql`: 99 passed, 0 failed across 12 files on the pinned PostgreSQL 18.6 image. The native security lane covered malformed stored programs, submitted-SQL non-execution, fixed `search_path` with `pg_temp`, private-role bypass, invalid-result and execution-failure sanitization, negative integer Context rejection, and seven rollback checkpoints.
+- Two intermediate native reruns timed out only in the pre-existing 100-attempt public-serialization scenario at Vitest's default five-second limit. Giving that bounded workload a 15-second test budget produced the final 99/99 pass without changing product behavior.
+- Migrations `0001` through `0003` retained SHA-256 values `1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd`, `464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b`, and `b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753`. Other PostgreSQL versions and managed or hosted security qualification remain **NOT RUN**.
+- Read-only Ponytail review kept failure categories beside the evaluator, removed a test-only error subclass, merged adjacent Policy-evidence branches, and deduplicated rollback test data. It retained recursive parser-node rejection, immutable legacy-function extraction, generated secure public wrappers, and every transaction checkpoint.
 
 **Checkpoint**: Every unsupported or failed Policy path returns an error and leaves no partial command state.
 
