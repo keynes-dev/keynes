@@ -24,6 +24,7 @@ await generateSdk({ check, contract, policyProfile, repositoryRoot });
 const installation = await generatePostgresql({
   check,
   contract,
+  policyProfile,
   repositoryRoot,
 });
 await generateCloud({ check, contract, installation, repositoryRoot });

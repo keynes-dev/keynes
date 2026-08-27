@@ -40,6 +40,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0001-storage' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0002-budget' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0003-public' atomically when its final statement fails",
+    "PostgreSQL installation rolls back '0004-policy' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
     "native PostgreSQL contention funds at most one sibling after proving the second request waits",

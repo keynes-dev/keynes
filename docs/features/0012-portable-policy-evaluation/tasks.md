@@ -78,21 +78,39 @@
 
 ### Failing tests for user story 1
 
-- [ ] T015 [P] [US1] Add Kysely, Kysely `sql`, raw-SQL, parameter, canonicalization, revision, and digest equivalence tests in `packages/sdk/test/unit/policy/authoring.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T016 [P] [US1] Add PostgreSQL 18 parser adapter tests for the accepted statement shape, comments, positional parameters, and representative rejected parser nodes in `packages/sdk/test/unit/policy/parser.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T017 [P] [US1] Add generated-vector and bounded-decimal interpreter tests for arithmetic, nulls, grouping, aggregation, ordering, limits, and result rows in `packages/sdk/test/unit/policy/evaluate.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T018 [P] [US1] Add generated PostgreSQL validator and renderer tests that compare fixed SQL templates and parameter vectors with the profile registry in `packages/postgresql/test/unit/policy-backend.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T015 [P] [US1] Add Kysely, Kysely `sql`, raw-SQL, parameter, canonicalization, revision, and digest equivalence tests in `packages/sdk/test/unit/policy/authoring.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T016 [P] [US1] Add PostgreSQL 18 parser adapter tests for the accepted statement shape, comments, positional parameters, and representative rejected parser nodes in `packages/sdk/test/unit/policy/parser.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T017 [P] [US1] Add generated-vector and bounded-decimal interpreter tests for arithmetic, nulls, grouping, aggregation, ordering, limits, and result rows in `packages/sdk/test/unit/policy/evaluate.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T018 [P] [US1] Add generated PostgreSQL validator and renderer tests that compare fixed SQL templates and parameter vectors with the profile registry in `packages/postgresql/test/unit/policy-backend.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**US1 RED evidence (2026-08-27)**:
+
+- T015, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/authoring.test.ts --maxWorkers=1`: 3 expected failures because `definePolicy`, `definePolicySql`, and `policySet` were absent.
+- T016, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/parser.test.ts --maxWorkers=1`: expected collection failure because `src/policy/parse.ts` was absent.
+- T017, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/evaluate.test.ts --maxWorkers=1`: expected collection failure because `src/policy/evaluate.ts` was absent.
+- T018, `CI=true pnpm --filter @keynes/postgresql exec vitest run test/unit/policy-backend.test.ts --maxWorkers=1`: 3 expected failures because `migrations/0004-policy.sql` was absent.
 
 ### Implementation for user story 1
 
-- [ ] T019 [US1] Implement frozen `definePolicy`, `definePolicySql`, and `policySet` values over a cold PostgreSQL-dialect Kysely instance in `packages/sdk/src/policy/authoring.ts` and `packages/sdk/src/policy/compile.ts`
-- [ ] T020 [US1] Load the packaged PG18 WASM parser and convert recognized nodes into a non-authoritative candidate tree in `packages/sdk/src/policy/parse.ts`
-- [ ] T021 [US1] Validate names, types, nullability, parameters, result shape, source limits, and work limits before normalizing `PolicyProgramV1` in `packages/sdk/src/policy/validate.ts` and `packages/sdk/src/policy/normalize.ts`
-- [ ] T022 [US1] Emit canonical SQL, canonical JSON, source digests, definition digests, and Policy-set digests from validated programs in `packages/sdk/src/policy/canonicalize.ts`
-- [ ] T023 [US1] Implement the immutable `decimal.js` profile and pure local interpreter from generated dispatch metadata in `packages/sdk/src/policy/decimal.ts` and `packages/sdk/src/policy/evaluate.ts`
-- [ ] T024 [US1] Generate the PostgreSQL program validator, fixed renderer, work estimator, and canonical-vector checks from `packages/postgresql/scripts/generate.ts` into `packages/postgresql/migrations/0004-policy.sql`
-- [ ] T025 [US1] Add at least 50 named Kysely, raw-SQL, canonical-vector, property-program, numeric, null, ordering, aggregation, limit, and mutation cases in `packages/contracts/conformance/policy/cases.ts`
-- [ ] T026 [US1] Run the US1 SDK and PostgreSQL unit suites plus contract generation, record exact commands and outcomes, and leave native PostgreSQL execution `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md` unless T024 is exercised against PostgreSQL 18.6
+- [x] T019 [US1] Implement frozen `definePolicy`, `definePolicySql`, and `policySet` values over a cold PostgreSQL-dialect Kysely instance in `packages/sdk/src/policy/authoring.ts` and `packages/sdk/src/policy/compile.ts`
+- [x] T020 [US1] Load the packaged PG18 WASM parser and convert recognized nodes into a non-authoritative candidate tree in `packages/sdk/src/policy/parse.ts`
+- [x] T021 [US1] Validate names, types, nullability, parameters, result shape, source limits, and work limits before normalizing `PolicyProgramV1` in `packages/sdk/src/policy/validate.ts` and `packages/sdk/src/policy/normalize.ts`
+- [x] T022 [US1] Emit canonical SQL, canonical JSON, source digests, definition digests, and Policy-set digests from validated programs in `packages/sdk/src/policy/canonicalize.ts`
+- [x] T023 [US1] Implement the immutable `decimal.js` profile and pure local interpreter from generated dispatch metadata in `packages/sdk/src/policy/decimal.ts` and `packages/sdk/src/policy/evaluate.ts`
+- [x] T024 [US1] Generate the PostgreSQL program validator, fixed renderer, work estimator, and canonical-vector checks from `packages/postgresql/scripts/generate.ts` into `packages/postgresql/migrations/0004-policy.sql`
+- [x] T025 [US1] Add at least 50 named Kysely, raw-SQL, canonical-vector, property-program, numeric, null, ordering, aggregation, limit, and mutation cases in `packages/contracts/conformance/policy/cases.ts`
+- [x] T026 [US1] Run the US1 SDK and PostgreSQL unit suites plus contract generation, record exact commands and outcomes, and leave native PostgreSQL execution `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md` unless T024 is exercised against PostgreSQL 18.6
+
+**Phase 3 implementation evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/policy/parser.test.ts test/unit/policy/authoring.test.ts test/unit/policy/evaluate.test.ts --maxWorkers=1`: 21 passed, 0 failed. The parser cases include comments, positional parameters, quoted identifiers, escape strings, and dollar strings.
+- `CI=true pnpm --filter @keynes/contracts test`: 45 passed, 0 failed. The Policy conformance inventory contains 51 unique named cases across Kysely, Kysely `sql`, raw SQL, canonical vectors, numeric, null, ordering, aggregation, limit, and mutation categories.
+- `CI=true pnpm --filter @keynes/postgresql test`: 24 passed, 0 failed. Generated validators enforce closed descriptors and semantic types; renderers use fixed virtual-input templates; work bounds distinguish inner and cross joins; canonical self-checks cover select, join, reference, aggregate, and scalar vectors. The profile currently declares no error vectors.
+- `CI=true pnpm generate:check`: passed. The generated `0004-policy.sql` was accepted by the pinned PostgreSQL 18 parser as 103 outer statements. Native PostgreSQL 18.6 installation and Policy execution: **NOT RUN** because no runner-owned database context or `psql` is available.
+- `CI=true pnpm --filter @keynes/sdk test:package:unit`: 16 passed, 0 failed, including deterministic packing and the reachable Policy authoring/parser modules. Full packed SDK qualification: **NOT RUN** at this checkpoint.
+- Two read-only backend audits found and closed missing `PUBLIC` revokes, incomplete descriptor/type validation, omitted grouping and numeric boundaries, divergent work accounting, weak canonical self-checks, and stale migration provenance. The final audit reported no remaining scoped static P0/P1 finding.
+- Read-only Ponytail review accepted native `String.prototype.isWellFormed()`, Kysely's `Compilable`, direct non-empty Policy-set tuples, `Set`-based result uniqueness, one-pass generated work accumulation, module-scoped migration loading, and native string sorting. No safe contract or generated SQL deletion was found.
+- `CI=true pnpm check:repo`: passed. `CI=true pnpm test:unit`: contracts 45, Cloud 38, PostgreSQL 24, and SDK 112 passed. `CI=true pnpm test:pr`: passed.
 
 **Checkpoint**: Both authoring forms produce one immutable program, and the two backend implementations agree on the provider-free semantic corpus.
 

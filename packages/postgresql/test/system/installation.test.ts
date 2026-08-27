@@ -49,6 +49,12 @@ const MIGRATIONS = [
     tableName: null,
     procedureName: "keynes.define_resource_type(jsonb)",
   },
+  {
+    id: "0004-policy",
+    path: "0004-policy.sql",
+    tableName: null,
+    procedureName: "keynes_internal.validate_policy_program(jsonb)",
+  },
 ] as const;
 
 type FileContents = string | Buffer;
@@ -152,6 +158,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           { migration_id: "0001-storage" },
           { migration_id: "0002-budget" },
           { migration_id: "0003-public" },
+          { migration_id: "0004-policy" },
         ]);
       });
     });

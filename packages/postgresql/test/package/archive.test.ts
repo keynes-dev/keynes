@@ -24,6 +24,7 @@ const expectedFiles = [
   "package/migrations/0001-storage.sql",
   "package/migrations/0002-budget.sql",
   "package/migrations/0003-public.generated.sql",
+  "package/migrations/0004-policy.sql",
   "package/migrations/manifest.json",
   "package/package.json",
 ] as const;

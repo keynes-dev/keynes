@@ -39,6 +39,25 @@ export type {
 } from "./generated/policy-types.js";
 export { createKeynes } from "./keynes.js";
 export type { Keynes } from "./keynes.js";
+export {
+  definePolicy,
+  definePolicySql,
+  policySet,
+  policyValue,
+} from "./policy/authoring.js";
+export type {
+  InferPolicyContext,
+  InferPolicyContextRow,
+  PolicyContextSchema,
+  PolicyInput,
+  PolicyValueDescriptor,
+  ResourceName,
+} from "./policy/authoring.js";
+export type {
+  PolicyAuthoring,
+  PolicyDatabase,
+  PolicyQueryRow,
+} from "./policy/compile.js";
 export { defineResources } from "./resources.js";
 export type {
   AccountingBehavior,

@@ -5,7 +5,11 @@ import {
   KeynesSdkError,
   ResourceDefinitionError,
   createKeynes,
+  definePolicy,
+  definePolicySql,
   defineResources,
+  policySet,
+  policyValue,
   type AccountingBehavior,
   type Budget,
   type BudgetHistoryEntry,
@@ -76,7 +80,11 @@ describe("package-root exports", () => {
       "KeynesSdkError",
       "ResourceDefinitionError",
       "createKeynes",
+      "definePolicy",
+      "definePolicySql",
       "defineResources",
+      "policySet",
+      "policyValue",
     ]);
 
     expectTypeOf<AccountingBehavior>().toEqualTypeOf<
@@ -122,7 +130,11 @@ describe("package-root exports", () => {
     expectTypeOf<RemovedPublicTypes>().toMatchTypeOf<readonly unknown[]>();
     expectTypeOf<Budget<"usdCents">>().toBeObject();
     expect(createKeynes).toBeTypeOf("function");
+    expect(definePolicy).toBeTypeOf("function");
+    expect(definePolicySql).toBeTypeOf("function");
     expect(defineResources).toBeTypeOf("function");
+    expect(policySet).toBeTypeOf("function");
+    expect(policyValue).toBeTypeOf("object");
     expect(sdk).not.toHaveProperty("Budget");
     expect(sdk).not.toHaveProperty("Keynes");
     expect(KeynesError).toBeTypeOf("function");

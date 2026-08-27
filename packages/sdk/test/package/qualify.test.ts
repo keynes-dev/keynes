@@ -158,14 +158,23 @@ describe("SDK package-test runner", () => {
     expect(manifest).not.toHaveProperty("bundledDependencies");
   });
 
-  it("packs only the reachable schema-first API modules", () => {
+  it("packs only the reachable schema-first and Policy API modules", () => {
     const paths = [...archiveEntries.keys()];
-    for (const module of ["budget", "resources", "generated/policy-types"]) {
+    for (const module of [
+      "budget",
+      "resources",
+      "generated/policy-profile",
+      "generated/policy-types",
+      "policy/authoring",
+      "policy/canonicalize",
+      "policy/compile",
+      "policy/normalize",
+      "policy/parse",
+      "policy/validate",
+    ]) {
       expect(paths).toContain(`package/dist/${module}.d.ts`);
       expect(paths).toContain(`package/dist/${module}.js`);
     }
-    expect(paths).not.toContain("package/dist/generated/policy-profile.d.ts");
-    expect(paths).not.toContain("package/dist/generated/policy-profile.js");
   });
 
   it("contains no PGlite or copied database archive path", () => {
