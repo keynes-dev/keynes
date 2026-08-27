@@ -1,0 +1,145 @@
+{
+  "schema": "keynes.policy-acceptance/v1",
+  "featureId": "FEAT-0012",
+  "sourceRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+  "createdAt": "2026-08-27T22:22:17Z",
+  "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
+  "policyProfileDigest": "7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486",
+  "localBackendDigest": "02566125deb597ab88e1e4368bda07302f8e0a75eecd2e5cad9994f3b6974b20",
+  "postgresqlBackendDigest": "28c77179df5303934e883f091d1506528814c4c01a069b84d8eec3d16e30c4a9",
+  "kyselyVersion": "0.29.5",
+  "parserVersion": "libpg-query@18.1.4",
+  "decimalVersion": "10.6.0",
+  "installationDigest": "e6261aec69fb9bb85cb4447b3ccbd82f4b96e97cf9a0866379fbb75af87d11e7",
+  "sdkArchiveDigest": "da81720af221c23085aee3c8119779a5394d1d6fcfb57ce28f2461c6b28714fe",
+  "lanes": {
+    "providerFreeRepository": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm check:repo",
+        "CI=true pnpm test:unit",
+        "CI=true pnpm test:pr"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "passed": 302,
+      "failed": 0,
+      "skipped": 0,
+      "note": "The count is the provider-free test:unit total: contracts 47, Cloud 44, PostgreSQL 24, and SDK 187. check:repo and the broader test:pr gate also passed."
+    },
+    "localPolicyComparison": {
+      "status": "passed",
+      "commands": ["CI=true pnpm test:unit", "CI=true pnpm test:pr"],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "02566125deb597ab88e1e4368bda07302f8e0a75eecd2e5cad9994f3b6974b20",
+      "failed": 0,
+      "note": "The backend digest is SHA-256 over the ordered SHA-256 manifest for generated policy metadata, decimal and evaluator code, policy validation, and the SQLite command executor. Public API fixtures, Kysely and raw authoring, parser, decimal, generated vectors, 65 shared conformance programs, and TypeScript execution passed."
+    },
+    "noPolicyRegression": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm test:unit",
+        "CI=true pnpm test:system:postgresql -- --output .artifacts/system-tests/postgresql/final-ea621cc.json",
+        "CI=true pnpm test:system:cloud -- --output .artifacts/system-tests/cloud/final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "failed": 0,
+      "note": "The complete local and native Budget corpora and the private Cloud no-Policy lifecycle passed without inferring remote Policy support."
+    },
+    "nativePostgresql": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm pack:postgresql",
+        "CI=true pnpm test:system:postgresql -- --output .artifacts/system-tests/postgresql/final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "4f369e357729ad7ab8513eeb0b0b0490973658c30a9da387ad6e5abbfe0edfd3",
+      "passed": 132,
+      "failed": 0,
+      "skipped": 0,
+      "recordPath": ".artifacts/system-tests/postgresql/final-ea621cc.json",
+      "note": "The PostgreSQL backend digest is SHA-256 over the ordered SHA-256 manifest for migration 0004 and the generated installation record. PostgreSQL 18.6 installed and rechecked migrations 0001 through 0004 from the packed CLI, then passed native Policy comparison, shared semantic conformance, transaction, replay, fail-closed, security-boundary, and legacy Budget scenarios. Other PostgreSQL versions and hostile-role security qualification are NOT RUN."
+    },
+    "privateCloudRegression": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm test:unit",
+        "CI=true pnpm test:system:cloud -- --output .artifacts/system-tests/cloud/final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "4f369e357729ad7ab8513eeb0b0b0490973658c30a9da387ad6e5abbfe0edfd3",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "recordPath": ".artifacts/system-tests/cloud/final-ea621cc.json",
+      "note": "Provider-free Cloud tests rejected Policy-bearing fields before database access, and the private loopback Cloud service passed the no-Policy native lifecycle. Remote Policy remains unsupported."
+    },
+    "sdkPackage": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm pack:sdk",
+        "CI=true pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "da81720af221c23085aee3c8119779a5394d1d6fcfb57ce28f2461c6b28714fe",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "recordPath": ".artifacts/package-tests/sdk/final-ea621cc.json",
+      "note": "The extracted archive loaded the PG18 WASM parser from a clean offline consumer, imported through the real package root, compiled public types, and exercised the local Policy runtime without workspace fallback."
+    },
+    "postgresqlPackage": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm pack:postgresql",
+        "CI=true pnpm test:package:postgresql -- --archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz --output .artifacts/package-tests/postgresql/final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "4f369e357729ad7ab8513eeb0b0b0490973658c30a9da387ad6e5abbfe0edfd3",
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "recordPath": ".artifacts/package-tests/postgresql/final-ea621cc.json",
+      "note": "The exact extracted archive contained the four-migration manifest and ran its real installed CLI path."
+    },
+    "hostedSdkCompatibility": {
+      "status": "NOT RUN",
+      "commands": [],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "da81720af221c23085aee3c8119779a5394d1d6fcfb57ce28f2461c6b28714fe",
+      "note": "The branch was not pushed and the manual six-environment Node.js 24 and 26 workflow was not dispatched."
+    },
+    "sdkMeasurement": {
+      "status": "passed",
+      "commands": [
+        "CI=true pnpm measure:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/measurement-final-ea621cc.json"
+      ],
+      "subjectRevision": "ea621cc567d30e5c685fc40cd907f308e16489bc",
+      "artifactDigest": "da81720af221c23085aee3c8119779a5394d1d6fcfb57ce28f2461c6b28714fe",
+      "recordPath": ".artifacts/package-tests/sdk/measurement-final-ea621cc.json",
+      "note": "Archive 866827 bytes; production install 4368679 bytes; parser initialization p95 17.928292 ms; ready RSS p95 91455488 bytes; cold create p95 3.031375 ms; first request p95 0.718291 ms; steady request p95 3.181792 ms; shutdown p95 0.082708 ms."
+    }
+  },
+  "unsupported": {
+    "publicIngress": "NOT RUN",
+    "externalIdentity": "NOT RUN",
+    "remotePolicy": "NOT RUN",
+    "selfHostedOperations": "NOT RUN",
+    "managedCloud": "NOT RUN",
+    "otherPostgresqlVersions": "NOT RUN",
+    "managedProviders": "NOT RUN",
+    "hostileRoleSecurityQualification": "NOT RUN",
+    "recovery": "NOT RUN",
+    "backupRestore": "NOT RUN",
+    "failover": "NOT RUN",
+    "upgradeDowngrade": "NOT RUN",
+    "rollingDeployment": "NOT RUN",
+    "paidInfrastructure": "NOT RUN",
+    "registryPublication": "NOT RUN",
+    "adopterUse": "NOT RUN",
+    "productionReadiness": "NOT RUN",
+    "benchmark": "NOT RUN",
+    "faultCampaign": "NOT RUN",
+    "extensionPackaging": "NOT RUN",
+    "liveExposure": "NOT RUN"
+  }
+}

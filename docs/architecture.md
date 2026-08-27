@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, CLI-only PostgreSQL package, PostgreSQL 18.6 system tests, and private no-Policy Cloud service exist. Final FEAT-0012 archives, hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. Hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -397,4 +397,4 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 8. Define the supported release contract and compatibility windows.
 9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
 
-The [roadmap](roadmap.md) records completed evidence and this sequence. FEAT-0012 source and PostgreSQL 18.6 system lanes have exercised Policy behavior. Final archive, hosted, provider, recovery, and production claims require their own exact-revision evidence.
+The [roadmap](roadmap.md) records completed evidence and this sequence. FEAT-0012 source, local package, measurement, private Cloud, and PostgreSQL 18.6 lanes have exact-revision records. Hosted, provider, recovery, and production claims require their own evidence.

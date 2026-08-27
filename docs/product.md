@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The source SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through the installed procedures. The private Cloud service supports only the no-Policy transport and rejects Policy fields. Final FEAT-0012 archives, hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
+> **Status:** The SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through qualified installed procedures. The private Cloud service supports only the no-Policy transport and rejects Policy fields. Hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
 
 ## Thesis
 
@@ -117,7 +117,7 @@ The `@keynes/postgresql` package installs the canonical migrations and procedure
 
 The application's existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, acquire a connection, retry, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
 
-Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. PostgreSQL 18.6 Policy system scenarios have passed during FEAT-0012 development. Final package, provider, hostile-role, recovery, and production qualification remain `NOT RUN`.
+Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. The exact PostgreSQL archive and 132 PostgreSQL 18.6 system scenarios passed for the FEAT-0012 accepted source revision. Provider, hostile-role, recovery, and production qualification remain `NOT RUN`.
 
 ### Self-hosted Keynes
 
