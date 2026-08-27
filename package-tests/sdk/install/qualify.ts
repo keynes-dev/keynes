@@ -17,7 +17,8 @@ import { arch, platform, release, tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { gunzipSync } from "node:zlib";
+
+import { readPackageArchiveBytes } from "../../../system-tests/support/archive.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const installRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -92,11 +93,6 @@ export interface QualificationResult {
     readonly securityQualification: "NOT RUN";
     readonly productionReadiness: "NOT RUN";
   };
-}
-
-interface ArchiveEntry {
-  readonly path: string;
-  readonly body: Buffer;
 }
 
 export interface ArchiveInspection {
@@ -365,7 +361,7 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   const archiveStat = await stat(path);
   if (!archiveStat.isFile()) throw new Error(`Archive is not a file: ${path}`);
   const bytes = await readFile(path);
-  const entries = readTar(gunzipSync(bytes));
+  const entries = readPackageArchiveBytes(bytes);
   validatePackageFilePaths(entries.map((entry) => entry.path));
   const license = entries.find((entry) => entry.path === "package/LICENSE");
   const repositoryLicense = await readFile(resolve(repositoryRoot, "LICENSE"));
@@ -413,44 +409,6 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     packageVersion: value.version,
     contractDigest,
   };
-}
-
-function readTar(bytes: Buffer): ArchiveEntry[] {
-  const entries: ArchiveEntry[] = [];
-  for (let offset = 0; offset + 512 <= bytes.length;) {
-    const header = bytes.subarray(offset, offset + 512);
-    if (header.every((byte) => byte === 0)) break;
-    const name = readTarText(header.subarray(0, 100));
-    const prefix = readTarText(header.subarray(345, 500));
-    const path = prefix === "" ? name : `${prefix}/${name}`;
-    const sizeText = readTarText(header.subarray(124, 136)).trim();
-    const size = sizeText === "" ? 0 : Number.parseInt(sizeText, 8);
-    if (!Number.isSafeInteger(size) || size < 0) {
-      throw new Error(`Archive has invalid size for ${path}`);
-    }
-    const bodyStart = offset + 512;
-    const bodyEnd = bodyStart + size;
-    if (bodyEnd > bytes.length)
-      throw new Error(`Archive is truncated at ${path}`);
-    const type = header[156];
-    if (type === 0 || type === 48) {
-      if (
-        path === "" ||
-        path.startsWith("/") ||
-        path.split("/").includes("..")
-      ) {
-        throw new Error(`Archive has invalid path ${path}`);
-      }
-      entries.push({ path, body: bytes.subarray(bodyStart, bodyEnd) });
-    }
-    offset = bodyStart + Math.ceil(size / 512) * 512;
-  }
-  return entries;
-}
-
-function readTarText(bytes: Buffer): string {
-  const end = bytes.indexOf(0);
-  return bytes.subarray(0, end === -1 ? bytes.length : end).toString("utf8");
 }
 
 function normalizeLineEndings(bytes: Buffer): string {

@@ -1,5 +1,5 @@
-import { createGunzip } from "node:zlib";
 import { readFile } from "node:fs/promises";
+import { gunzipSync } from "node:zlib";
 
 export interface ArchiveEntry {
   readonly body: Buffer;
@@ -10,18 +10,11 @@ export interface ArchiveEntry {
 export async function readPackageArchive(
   path: string,
 ): Promise<ArchiveEntry[]> {
-  const compressed = await readFile(path);
-  const bytes = Buffer.from(
-    await new Promise<Buffer>((resolve, reject) => {
-      const stream = createGunzip();
-      const chunks: Buffer[] = [];
-      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      stream.on("error", reject);
-      stream.on("end", () => resolve(Buffer.concat(chunks)));
-      stream.end(compressed);
-    }),
-  );
-  return readTar(bytes);
+  return readPackageArchiveBytes(await readFile(path));
+}
+
+export function readPackageArchiveBytes(compressed: Buffer): ArchiveEntry[] {
+  return readTar(gunzipSync(compressed));
 }
 
 function readTar(bytes: Buffer): ArchiveEntry[] {
@@ -33,10 +26,23 @@ function readTar(bytes: Buffer): ArchiveEntry[] {
     const prefix = tarText(header.subarray(345, 500));
     const path = prefix === "" ? name : `${prefix}/${name}`;
     const mode = Number.parseInt(tarText(header.subarray(100, 108)).trim(), 8);
-    const size = Number.parseInt(tarText(header.subarray(124, 136)).trim(), 8);
+    const sizeText = tarText(header.subarray(124, 136)).trim();
+    const size = sizeText === "" ? 0 : Number.parseInt(sizeText, 8);
+    if (!Number.isSafeInteger(size) || size < 0) {
+      throw new Error(`Archive has invalid size for ${path}`);
+    }
     const bodyStart = offset + 512;
     const bodyEnd = bodyStart + size;
+    if (bodyEnd > bytes.length)
+      throw new Error(`Archive is truncated at ${path}`);
     if (header[156] === 0 || header[156] === 48) {
+      if (
+        path === "" ||
+        path.startsWith("/") ||
+        path.split("/").includes("..")
+      ) {
+        throw new Error(`Archive has invalid path ${path}`);
+      }
       result.push({ body: bytes.subarray(bodyStart, bodyEnd), mode, path });
     }
     offset = bodyStart + Math.ceil(size / 512) * 512;
