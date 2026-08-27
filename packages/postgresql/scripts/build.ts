@@ -169,7 +169,11 @@ function compile(root: string, outputRoot: string): void {
   const result = spawnSync(
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["exec", "tsc", "--project", "tsconfig.build.json", "--outDir", outputRoot],
-    { cwd: root, stdio: "inherit" },
+    {
+      cwd: root,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    },
   );
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) {
