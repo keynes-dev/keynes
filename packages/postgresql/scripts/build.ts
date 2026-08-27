@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { chmod, mkdtemp, readdir, rename, rm } from "node:fs/promises";
+import { access, chmod, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,152 +14,103 @@ const EXPECTED_DIST_FILES = [
   "installer/run-installation.js",
 ] as const;
 
-export interface PostgresqlBuildRuntime {
-  readonly compile: (options: {
-    readonly packageRoot: string;
-    readonly outputRoot: string;
-  }) => void;
-}
-
 interface PostgresqlBuildFileSystem {
   readonly move: typeof rename;
   readonly remove: typeof rm;
 }
 
 export interface PostgresqlBuildOptions {
-  readonly packageRoot: string;
-  readonly runtime: PostgresqlBuildRuntime;
+  readonly packageRoot?: string;
+  readonly compileDistribution?: (outDir: string) => void | Promise<void>;
   readonly fileSystem?: PostgresqlBuildFileSystem;
 }
 
-export async function buildPostgresqlPackage({
-  packageRoot,
-  runtime,
-  fileSystem = productionFileSystem,
-}: PostgresqlBuildOptions): Promise<void> {
-  const distRoot = resolve(packageRoot, "dist");
-  const stageRoot = await mkdtemp(resolve(packageRoot, ".dist-stage-"));
-  const stagedDistRoot = resolve(stageRoot, "dist");
-  const backupRoot = resolve(packageRoot, `.dist-backup-${randomUUID()}`);
-  let backedUp = false;
-  let promoted = false;
-  let buildFailed = false;
-  let buildError: unknown;
-
+export async function buildPostgresqlPackage(
+  options: PostgresqlBuildOptions = {},
+): Promise<void> {
+  const root = options.packageRoot ?? packageRoot;
+  const compileDistribution =
+    options.compileDistribution ?? ((outDir) => compile(root, outDir));
+  const fileSystem = options.fileSystem ?? productionFileSystem;
+  const stageRoot = await mkdtemp(resolve(root, ".dist-stage-"));
+  const stagedDist = resolve(stageRoot, "dist");
   try {
-    runtime.compile({ packageRoot, outputRoot: stagedDistRoot });
-    await chmod(resolve(stagedDistRoot, "cli.js"), 0o755);
-    await validateDist(stagedDistRoot);
-
-    try {
-      await fileSystem.move(distRoot, backupRoot);
-      backedUp = true;
-    } catch (error: unknown) {
-      if (!isMissingPath(error)) throw error;
-    }
-
-    try {
-      await fileSystem.move(stagedDistRoot, distRoot);
-      promoted = true;
-    } catch (promotionError: unknown) {
-      if (!backedUp) throw promotionError;
-      try {
-        await fileSystem.move(backupRoot, distRoot);
-        backedUp = false;
-      } catch (restoreError: unknown) {
-        throw new AggregateError(
-          [promotionError, restoreError],
-          "PostgreSQL build promotion failed and the previous dist could not be restored",
-        );
-      }
-      throw promotionError;
-    }
-  } catch (error: unknown) {
-    buildFailed = true;
-    buildError = error;
-  }
-
-  let cleanupFailed = false;
-  let cleanupError: unknown;
-  try {
-    if (promoted && backedUp) {
-      try {
-        await fileSystem.remove(backupRoot, { recursive: true, force: true });
-      } catch (backupCleanupError: unknown) {
-        try {
-          await restorePreviousDistribution({
-            fileSystem,
-            stagedDistRoot,
-            distRoot,
-            backupRoot,
-          });
-          promoted = false;
-          backedUp = false;
-        } catch (restorationError: unknown) {
-          throw new AggregateError(
-            [backupCleanupError, restorationError],
-            "PostgreSQL build backup cleanup failed and the previous dist could not be restored",
-            { cause: backupCleanupError },
-          );
-        }
-        throw backupCleanupError;
-      }
-    }
-  } catch (error: unknown) {
-    cleanupFailed = true;
-    cleanupError = error;
-  }
-
-  const cleanupFailedBeforeStageRemoval = cleanupFailed;
-  try {
+    await compileDistribution(stagedDist);
+    await chmod(resolve(stagedDist, "cli.js"), 0o755);
+    await validateDist(stagedDist);
+    await replaceDistribution(stagedDist, resolve(root, "dist"), fileSystem);
+  } finally {
     await fileSystem.remove(stageRoot, { recursive: true, force: true });
-  } catch (stageCleanupError: unknown) {
-    cleanupFailed = true;
-    cleanupError = !cleanupFailedBeforeStageRemoval
-      ? stageCleanupError
-      : new AggregateError(
-          [cleanupError, stageCleanupError],
-          "PostgreSQL build cleanup failed",
-          { cause: cleanupError },
-        );
   }
-
-  if (buildFailed && cleanupFailed) {
-    throw new AggregateError(
-      [buildError, cleanupError],
-      "PostgreSQL build and cleanup failed",
-      { cause: buildError },
-    );
-  }
-  if (buildFailed) throw buildError;
-  if (cleanupFailed) throw cleanupError;
 }
 
-async function restorePreviousDistribution({
-  fileSystem,
-  stagedDistRoot,
-  distRoot,
-  backupRoot,
-}: {
-  readonly fileSystem: PostgresqlBuildFileSystem;
-  readonly stagedDistRoot: string;
-  readonly distRoot: string;
-  readonly backupRoot: string;
-}): Promise<void> {
-  await fileSystem.move(distRoot, stagedDistRoot);
+async function replaceDistribution(
+  source: string,
+  destination: string,
+  fileSystem: PostgresqlBuildFileSystem,
+): Promise<void> {
+  const backup = `${destination}.previous`;
+  await fileSystem.remove(backup, { recursive: true, force: true });
+  const hadDestination = await exists(destination);
+  if (hadDestination) await fileSystem.move(destination, backup);
   try {
-    await fileSystem.move(backupRoot, distRoot);
-  } catch (restorationError: unknown) {
+    await fileSystem.move(source, destination);
+  } catch (promotionFailure: unknown) {
+    if (hadDestination) {
+      try {
+        await fileSystem.move(backup, destination);
+      } catch (restorationFailure: unknown) {
+        throw new AggregateError(
+          [promotionFailure, restorationFailure],
+          "PostgreSQL build promotion and restoration failed",
+          { cause: promotionFailure },
+        );
+      }
+    }
+    throw promotionFailure;
+  }
+  try {
+    await fileSystem.remove(backup, { recursive: true, force: true });
+  } catch (cleanupFailure: unknown) {
+    if (!hadDestination) throw cleanupFailure;
     try {
-      await fileSystem.move(stagedDistRoot, distRoot);
-    } catch (recoveryError: unknown) {
+      await restorePreviousDistribution(
+        source,
+        destination,
+        backup,
+        fileSystem,
+      );
+    } catch (restorationFailure: unknown) {
       throw new AggregateError(
-        [restorationError, recoveryError],
-        "PostgreSQL build restoration failed and the promoted dist could not be recovered",
-        { cause: restorationError },
+        [cleanupFailure, restorationFailure],
+        "PostgreSQL build cleanup and restoration failed",
+        { cause: cleanupFailure },
       );
     }
-    throw restorationError;
+    throw cleanupFailure;
+  }
+}
+
+async function restorePreviousDistribution(
+  stagedDist: string,
+  dist: string,
+  backup: string,
+  fileSystem: PostgresqlBuildFileSystem,
+): Promise<void> {
+  await fileSystem.move(dist, stagedDist);
+  try {
+    await fileSystem.move(backup, dist);
+  } catch (restorationFailure: unknown) {
+    try {
+      await fileSystem.move(stagedDist, dist);
+    } catch (recoveryFailure: unknown) {
+      throw new AggregateError(
+        [restorationFailure, recoveryFailure],
+        "PostgreSQL build restoration and recovery failed",
+        { cause: restorationFailure },
+      );
+    }
+    throw restorationFailure;
   }
 }
 
@@ -181,10 +131,7 @@ async function listFiles(root: string): Promise<string[]> {
   });
   const files: string[] = [];
   for (const entry of entries) {
-    const relativePath = relative(
-      root,
-      resolve(entry.parentPath, entry.name),
-    )
+    const relativePath = relative(root, resolve(entry.parentPath, entry.name))
       .split(sep)
       .join("/");
     if (entry.isDirectory()) continue;
@@ -199,12 +146,18 @@ async function listFiles(root: string): Promise<string[]> {
   return files.sort();
 }
 
-function isMissingPath(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
-  );
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch (error: unknown) {
+    if (isNodeError(error) && error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }
 
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -212,32 +165,23 @@ const productionFileSystem: PostgresqlBuildFileSystem = {
   move: rename,
   remove: rm,
 };
-const productionRuntime: PostgresqlBuildRuntime = {
-  compile: ({ packageRoot: root, outputRoot }) => {
-    const result = spawnSync(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      [
-        "exec",
-        "tsc",
-        "--project",
-        "tsconfig.build.json",
-        "--outDir",
-        outputRoot,
-      ],
-      { cwd: root, stdio: "inherit" },
+function compile(root: string, outputRoot: string): void {
+  const result = spawnSync(
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+    ["exec", "tsc", "--project", "tsconfig.build.json", "--outDir", outputRoot],
+    { cwd: root, stdio: "inherit" },
+  );
+  if (result.error !== undefined) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `PostgreSQL package compilation exited ${result.status ?? 1}`,
     );
-    if (result.error !== undefined) throw result.error;
-    if (result.status !== 0) {
-      throw new Error(
-        `PostgreSQL package compilation exited ${result.status ?? 1}`,
-      );
-    }
-  },
-};
+  }
+}
 
 if (
   process.argv[1] !== undefined &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  await buildPostgresqlPackage({ packageRoot, runtime: productionRuntime });
+  await buildPostgresqlPackage();
 }

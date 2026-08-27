@@ -29,10 +29,8 @@ describe("PostgreSQL package build promotion", () => {
     await expect(
       buildPostgresqlPackage({
         packageRoot: root,
-        runtime: {
-          compile: () => {
-            throw new Error("compile failed");
-          },
+        compileDistribution: () => {
+          throw new Error("compile failed");
         },
       }),
     ).rejects.toThrow("compile failed");
@@ -49,10 +47,8 @@ describe("PostgreSQL package build promotion", () => {
     await expect(
       buildPostgresqlPackage({
         packageRoot: root,
-        runtime: {
-          compile: ({ outputRoot }) => {
-            mkdirSync(outputRoot, { recursive: true });
-          },
+        compileDistribution: (outputRoot) => {
+          mkdirSync(outputRoot, { recursive: true });
         },
       }),
     ).rejects.toThrow();
@@ -61,18 +57,53 @@ describe("PostgreSQL package build promotion", () => {
     );
   });
 
-  it("restores the previous dist when backup cleanup fails", async () => {
+  it("restores the previous dist when promotion fails", async () => {
     const root = await makePackageRoot();
-    const cleanupFailure = new Error("backup cleanup failed");
+    const promotionFailure = new Error("promotion failed");
 
     await expect(
       buildPostgresqlPackage({
         packageRoot: root,
-        runtime: { compile: compileCompleteDistribution },
+        compileDistribution: compileCompleteDistribution,
+        fileSystem: {
+          async move(source, destination) {
+            if (
+              String(source).includes(".dist-stage-") &&
+              destination === join(root, "dist")
+            ) {
+              throw promotionFailure;
+            }
+            await rename(source, destination);
+          },
+          remove: rm,
+        },
+      }),
+    ).rejects.toBe(promotionFailure);
+
+    expect(await readFile(join(root, "dist/marker"), "utf8")).toBe(
+      "previous\n",
+    );
+    expect(
+      (await readdir(root)).filter((entry) => entry.startsWith(".dist-")),
+    ).toEqual([]);
+  });
+
+  it("restores the previous dist when backup cleanup fails", async () => {
+    const root = await makePackageRoot();
+    const cleanupFailure = new Error("backup cleanup failed");
+    let backupRemovals = 0;
+
+    await expect(
+      buildPostgresqlPackage({
+        packageRoot: root,
+        compileDistribution: compileCompleteDistribution,
         fileSystem: {
           move: rename,
           async remove(path, options) {
-            if (String(path).includes(".dist-backup-")) throw cleanupFailure;
+            if (String(path).endsWith("dist.previous")) {
+              backupRemovals += 1;
+              if (backupRemovals === 2) throw cleanupFailure;
+            }
             await rm(path, options);
           },
         },
@@ -91,16 +122,17 @@ describe("PostgreSQL package build promotion", () => {
     const root = await makePackageRoot();
     const cleanupFailure = new Error("backup cleanup failed");
     const restorationFailure = new Error("backup restoration failed");
+    let backupRemovals = 0;
 
     let failure: unknown;
     try {
       await buildPostgresqlPackage({
         packageRoot: root,
-        runtime: { compile: compileCompleteDistribution },
+        compileDistribution: compileCompleteDistribution,
         fileSystem: {
           async move(source, destination) {
             if (
-              String(source).includes(".dist-backup-") &&
+              String(source).endsWith("dist.previous") &&
               destination === join(root, "dist")
             ) {
               throw restorationFailure;
@@ -108,7 +140,10 @@ describe("PostgreSQL package build promotion", () => {
             await rename(source, destination);
           },
           async remove(path, options) {
-            if (String(path).includes(".dist-backup-")) throw cleanupFailure;
+            if (String(path).endsWith("dist.previous")) {
+              backupRemovals += 1;
+              if (backupRemovals === 2) throw cleanupFailure;
+            }
             await rm(path, options);
           },
         },
@@ -125,18 +160,12 @@ describe("PostgreSQL package build promotion", () => {
       "new distribution\n",
     );
     expect(
-      (await readdir(root)).filter((entry) =>
-        entry.startsWith(".dist-backup-"),
-      ),
+      (await readdir(root)).filter((entry) => entry === "dist.previous"),
     ).toHaveLength(1);
   });
 });
 
-function compileCompleteDistribution({
-  outputRoot,
-}: {
-  readonly outputRoot: string;
-}): void {
+function compileCompleteDistribution(outputRoot: string): void {
   for (const path of [
     "cli.d.ts",
     "cli.js",
