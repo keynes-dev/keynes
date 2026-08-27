@@ -19,7 +19,7 @@
     ]
   },
   "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  "migrationSetDigest": "c4635559376303f98b35bb91712ec75259f10b57cb6d7dc23dce09b0d2092f72",
+  "migrationSetDigest": "35cdc85675543972310ddfd11906536f53496adbe8fc7c159c41e079e54bf926",
   "migrations": [
     {
       "id": "0001-storage",
@@ -39,7 +39,7 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
-      "sha256": "5bb9c0e63284dedaf0db2e358ffb26b1dd7cbc56a6945e8c81bd2c8fbc083bb3",
+      "sha256": "603e1f13cd683db88d835b7387f52bd54d6d08be8c1967b363a4585361892691",
       "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],

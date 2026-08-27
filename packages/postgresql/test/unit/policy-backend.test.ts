@@ -32,6 +32,26 @@ describe("generated PostgreSQL Policy backend", () => {
     expect(migration).toContain("numeric(38,18)");
   });
 
+  it("preserves Policy handling for every contract UUID and canonicalizes evidence order", () => {
+    expect(migration).toContain(
+      "'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'",
+    );
+    expect(migration).not.toContain(
+      "'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'",
+    );
+    expect(migration).toContain('ORDER BY grouped.resource COLLATE "C"');
+    expect(migration).toContain(
+      "ORDER BY (policy_row->>'name') COLLATE \"C\", (policy_row->>'revision')::numeric, (row->>'reason') COLLATE \"C\"",
+    );
+  });
+
+  it("renders boolean operators as ordered lazy CASE expressions", () => {
+    expect(migration).toContain("WHEN 'and' THEN '(CASE '");
+    expect(migration).toContain(" WHEN FALSE THEN FALSE WHEN TRUE THEN ");
+    expect(migration).toContain("WHEN 'or' THEN '(CASE '");
+    expect(migration).toContain(" WHEN TRUE THEN TRUE WHEN FALSE THEN ");
+  });
+
   it("includes generated work estimation and canonical-vector checks", () => {
     expect(migration).toContain("FUNCTION keynes_internal.policy_work_bound(");
     expect(migration).toContain(

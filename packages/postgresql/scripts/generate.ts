@@ -1141,11 +1141,11 @@ BEGIN
   SELECT coalesce(jsonb_agg(jsonb_build_object(
     'resourceTypeId', resource_type.resource_type_id::text, 'ceiling', grouped.ceiling,
     'reasons', grouped.reasons
-  ) ORDER BY resource_type.resource_type_id), '[]'::jsonb)
+  ) ORDER BY grouped.resource COLLATE "C"), '[]'::jsonb)
   INTO effective
   FROM (
     SELECT row->>'resource' resource, min((row->>'ceiling')::numeric) ceiling,
-           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY policy_row->>'name', (policy_row->>'revision')::numeric, row->>'reason') FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
+           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY (policy_row->>'name') COLLATE "C", (policy_row->>'revision')::numeric, (row->>'reason') COLLATE "C") FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
     FROM jsonb_array_elements(policy_rows) policy_row
     CROSS JOIN LATERAL jsonb_array_elements(policy_row->'rows') row
     CROSS JOIN LATERAL (SELECT min((candidate->>'ceiling')::numeric) minimum FROM jsonb_array_elements(policy_rows) p CROSS JOIN LATERAL jsonb_array_elements(p->'rows') candidate WHERE candidate->>'resource' = row->>'resource') minimum
@@ -1190,7 +1190,7 @@ BEGIN
     OR jsonb_typeof(input->'commandId') IS DISTINCT FROM 'string' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input);
   END IF;
-  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
   END IF;
   command_id := (input->>'commandId')::uuid;
@@ -1202,7 +1202,7 @@ BEGIN
     child_policies := keynes_internal.canonical_policy_set(coalesce(input->'childPolicies', '[]'::jsonb));
   END IF;
   IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
-    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
       RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
     END IF;
     parent_id := (input->>'parentBudgetId')::uuid;
@@ -1631,7 +1631,10 @@ function policyRendererExpression(kind: string): string {
     case "is_null":
       return `'(' || ${child("operand")} || CASE node->>'operator' WHEN 'is_null' THEN ' IS NULL)' ELSE ' IS NOT NULL)' END`;
     case "boolean_binary":
-      return `'(' || ${child("left")} || ' ' || upper(node->>'operator') || ' ' || ${child("right")} || ')'`;
+      return `CASE node->>'operator'
+        WHEN 'and' THEN '(CASE ' || ${child("left")} || ' WHEN FALSE THEN FALSE WHEN TRUE THEN ' || ${child("right")} || ' ELSE ' || ${child("right")} || ' AND NULL END)'
+        WHEN 'or' THEN '(CASE ' || ${child("left")} || ' WHEN TRUE THEN TRUE WHEN FALSE THEN ' || ${child("right")} || ' ELSE ' || ${child("right")} || ' OR NULL END)'
+      END`;
     case "boolean_not":
       return `'(NOT ' || ${child("operand")} || ')'`;
     case "case":

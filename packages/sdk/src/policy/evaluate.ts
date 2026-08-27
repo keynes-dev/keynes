@@ -520,13 +520,11 @@ function evaluateBooleanBinary(
   scope: EvaluationScope,
 ): boolean | null {
   const left = booleanValue(evaluateExpression(expression.left, scope));
+  const decisive = expression.operator === "and" ? false : true;
+  if (left === decisive) return decisive;
   const right = booleanValue(evaluateExpression(expression.right, scope));
-  if (expression.operator === "and") {
-    if (left === false || right === false) return false;
-    return left === null || right === null ? null : true;
-  }
-  if (left === true || right === true) return true;
-  return left === null || right === null ? null : false;
+  if (left !== null) return right;
+  return right === decisive ? decisive : null;
 }
 
 function evaluateBooleanNot(

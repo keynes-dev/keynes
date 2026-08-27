@@ -93,7 +93,7 @@ Numeric inputs begin as exact safe integers from 0 through 9,007,199,254,740,991
 
 `sum` and `avg` use the same decimal boundary after every deterministic aggregate transition and at the final result. `round` follows PostgreSQL numeric half-away-from-zero behavior. `ceil`, `floor`, and `trunc` retain numeric type. Functions that select PostgreSQL `double precision` overloads are invalid even when PostgreSQL could resolve them.
 
-Boolean expressions use PostgreSQL three-valued logic. `NOT NULL` is null. `FALSE AND x` is false, `TRUE AND NULL` is null, and `NULL AND FALSE` is false. `TRUE OR x` is true, `FALSE OR NULL` is null, and `NULL OR TRUE` is true.
+Boolean expressions use PostgreSQL three-valued logic with deterministic left-to-right lazy evaluation. `NOT NULL` is null. `FALSE AND x` is false without evaluating `x`; `TRUE AND NULL` is null; and `NULL AND FALSE` is false. `TRUE OR x` is true without evaluating `x`; `FALSE OR NULL` is null; and `NULL OR TRUE` is true. Errors in a skipped right operand do not occur.
 
 `WHERE` retains only `TRUE`. Comparisons with null return null. `count` returns zero for no inputs; `min` and `max` ignore nulls and return null for no non-null inputs. `coalesce` returns its first non-null input. `least` and `greatest` ignore null arguments and return null only when every argument is null. A null `resource`, `ceiling`, or `reason` result is invalid.
 
