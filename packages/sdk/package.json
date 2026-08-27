@@ -28,6 +28,11 @@
     "test:performance": "vitest run test/performance --maxWorkers=1",
     "measure:package": "node test/performance/measure.ts"
   },
+  "dependencies": {
+    "decimal.js": "10.6.0",
+    "kysely": "0.29.5",
+    "libpg-query": "18.1.4"
+  },
   "devDependencies": {
     "@keynes/contracts": "workspace:*",
     "@keynes/testkit": "workspace:*",

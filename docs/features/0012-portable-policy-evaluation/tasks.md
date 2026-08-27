@@ -11,8 +11,16 @@
 
 **Purpose**: Run the existing compatibility checks and add the approved production dependencies.
 
-- [ ] T001 Run the existing no-Policy conformance, contract generation, and migration recheck suites in `packages/sdk/test/conformance/budget.test.ts`, `packages/contracts/test/generate-contracts.test.ts`, and `packages/postgresql/test/integration/recheck.test.ts` before changing behavior
-- [ ] T002 [P] Pin `kysely@0.29.5`, `libpg-query@18.1.4`, and `decimal.js@10.6.0` as SDK production dependencies in `packages/sdk/package.json` and `pnpm-lock.yaml`
+- [x] T001 Run the existing no-Policy conformance, contract generation, and migration recheck suites in `packages/sdk/test/conformance/budget.test.ts`, `packages/contracts/test/generate-contracts.test.ts`, and `packages/postgresql/test/integration/recheck.test.ts` before changing behavior
+- [x] T002 [P] Pin `kysely@0.29.5`, `libpg-query@18.1.4`, and `decimal.js@10.6.0` as SDK production dependencies in `packages/sdk/package.json` and `pnpm-lock.yaml`
+
+**Phase 1 evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/conformance/budget.test.ts --maxWorkers=1`: 32 passed, 0 failed.
+- `CI=true pnpm --filter @keynes/contracts exec vitest run test/generate-contracts.test.ts --maxWorkers=1`: 10 passed, 0 failed.
+- `CI=true pnpm --filter @keynes/postgresql exec vitest run test/integration/recheck.test.ts --maxWorkers=1`: 6 skipped because the runner-owned `KEYNES_POSTGRESQL_SYSTEM_CONTEXT` was absent. Native PostgreSQL migration recheck: **NOT RUN**.
+- `pnpm --filter @keynes/sdk add --save-exact kysely@0.29.5 libpg-query@18.1.4 decimal.js@10.6.0`: exact production versions recorded in the SDK manifest and lockfile.
+- Read-only Ponytail review: `Lean already. Ship.`
 
 ---
 
