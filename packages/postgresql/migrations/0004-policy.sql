@@ -1633,6 +1633,54 @@ AS $$
   END;
 $$;
 
+CREATE OR REPLACE FUNCTION keynes_internal.canonical_policy_set(policies jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog, keynes_internal
+AS $$
+DECLARE
+  policy jsonb;
+  normalized jsonb;
+  result jsonb := '[]'::jsonb;
+BEGIN
+  IF jsonb_typeof(policies) IS DISTINCT FROM 'array' THEN
+    RETURN policies;
+  END IF;
+  FOR policy IN SELECT value FROM jsonb_array_elements(policies) LOOP
+    normalized := policy;
+    IF jsonb_typeof(policy) = 'object'
+      AND jsonb_typeof(policy->'inputResources') = 'array'
+      AND jsonb_typeof(policy->'outputResources') = 'array'
+      AND jsonb_typeof(policy->'contextSchema') = 'array'
+      AND jsonb_typeof(policy->'reasons') = 'array' THEN
+      normalized := normalized || jsonb_build_object(
+        'inputResources', (SELECT coalesce(jsonb_agg(member.value ORDER BY member.value COLLATE "C"), '[]'::jsonb) FROM jsonb_array_elements_text(policy->'inputResources') AS member(value)),
+        'outputResources', (SELECT coalesce(jsonb_agg(member.value ORDER BY member.value COLLATE "C"), '[]'::jsonb) FROM jsonb_array_elements_text(policy->'outputResources') AS member(value)),
+        'contextSchema', (SELECT coalesce(jsonb_agg(member.value ORDER BY (member.value->>'name') COLLATE "C"), '[]'::jsonb) FROM jsonb_array_elements(policy->'contextSchema') AS member(value)),
+        'reasons', (SELECT coalesce(jsonb_agg(member.value ORDER BY member.value COLLATE "C"), '[]'::jsonb) FROM jsonb_array_elements_text(policy->'reasons') AS member(value))
+      );
+      IF normalized ? 'definitionDigest' THEN
+        normalized := jsonb_set(
+          normalized,
+          '{definitionDigest}',
+          to_jsonb(encode(sha256(convert_to(keynes_internal.policy_canonical_json(normalized - 'definitionDigest'), 'UTF8')), 'hex'))
+        );
+      END IF;
+    END IF;
+    result := result || jsonb_build_array(normalized);
+  END LOOP;
+  RETURN coalesce((
+    SELECT jsonb_agg(member.value ORDER BY
+      (member.value->>'name') COLLATE "C",
+      CASE WHEN jsonb_typeof(member.value->'revision') = 'number' AND member.value->>'revision' ~ '^[0-9]+$' THEN (member.value->>'revision')::numeric END,
+      (member.value->>'definitionDigest') COLLATE "C"
+    )
+    FROM jsonb_array_elements(result) AS member(value)
+  ), '[]'::jsonb);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION keynes_internal.validate_policy_set(policies jsonb)
 RETURNS void
 LANGUAGE plpgsql
@@ -1849,7 +1897,7 @@ DECLARE
   body jsonb;
   body_digest_value text;
   prior keynes_internal.commands%ROWTYPE;
-  budget keynes_internal.budgets%ROWTYPE;
+  budget record;
   item jsonb;
   evidence jsonb;
   denial_reasons jsonb := '[]'::jsonb;
@@ -1865,16 +1913,26 @@ BEGIN
   END IF;
   command_id := (input->>'commandId')::uuid;
   PERFORM set_config('keynes.policy_operation', operation_name, true);
+  IF operation_name = 'createBudget' THEN
+    policies := keynes_internal.canonical_policy_set(coalesce(input->'policies', '[]'::jsonb));
+  END IF;
+  IF operation_name = 'requestBudget' THEN
+    child_policies := keynes_internal.canonical_policy_set(coalesce(input->'childPolicies', '[]'::jsonb));
+  END IF;
   IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
     parent_id := (input->>'parentBudgetId')::uuid;
-    SELECT stored.policies INTO parent_policies FROM keynes_internal.budgets stored
-      WHERE stored.tenant_id = nullif(current_setting('keynes.tenant_id', true), '')::uuid AND stored.budget_id = parent_id;
-    parent_policies := coalesce(parent_policies, '[]'::jsonb);
+    IF NOT (input ? 'context')
+      AND jsonb_typeof(child_policies) = 'array'
+      AND jsonb_array_length(child_policies) = 0 THEN
+      SELECT stored.policies INTO parent_policies FROM keynes_internal.budgets stored
+        WHERE stored.tenant_id = nullif(current_setting('keynes.tenant_id', true), '')::uuid AND stored.budget_id = parent_id;
+      parent_policies := coalesce(parent_policies, '[]'::jsonb);
+    END IF;
   END IF;
-  IF operation_name = 'createBudget' THEN policies := coalesce(input->'policies', '[]'::jsonb); END IF;
-  IF operation_name = 'requestBudget' THEN child_policies := coalesce(input->'childPolicies', '[]'::jsonb); END IF;
-  IF jsonb_array_length(policies) = 0 AND jsonb_array_length(parent_policies) = 0
-    AND jsonb_array_length(child_policies) = 0 AND NOT (input ? 'context') THEN
+  IF jsonb_typeof(policies) = 'array' AND jsonb_array_length(policies) = 0
+    AND jsonb_typeof(parent_policies) = 'array' AND jsonb_array_length(parent_policies) = 0
+    AND jsonb_typeof(child_policies) = 'array' AND jsonb_array_length(child_policies) = 0
+    AND NOT (input ? 'context') THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies']::text[]);
   END IF;
   BEGIN
@@ -1995,6 +2053,7 @@ $function$;
 
 REVOKE ALL ON FUNCTION keynes_internal.apply_command_legacy(text,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.canonical_policy_set(jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_set(jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_context(jsonb,jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.evaluate_policy_set(uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC;
@@ -2127,6 +2186,7 @@ SELECT keynes_internal.check_policy_canonical_vectors();
 
 REVOKE ALL ON FUNCTION keynes_internal.apply_command_legacy(operation_name text,input jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(value jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.canonical_policy_set(policies jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.invalid_policy(issue_path text,issue_rule text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text) FROM PUBLIC;

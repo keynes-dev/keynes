@@ -90,6 +90,13 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
     "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",
   ],
+  "packages/postgresql/test/system/policy-replay.test.ts": [
+    "PostgreSQL governed Policy replay returns the exact stored result, evidence, and Context",
+    "PostgreSQL governed Policy replay ignores changed availability, an external fact, and an unrelated Policy revision",
+    "PostgreSQL governed Policy replay rejects command identity reuse with changed Context without changing state",
+    "PostgreSQL governed Policy replay rejects command identity reuse with changed child Policies without changing state",
+    "PostgreSQL governed Policy replay returns before reading the parent Policy snapshot or invoking the evaluator",
+  ],
   "packages/postgresql/test/system/policy-security.test.ts": [
     "PostgreSQL Policy security rejects a malformed durable program with a sanitized invalid_policy error and no state",
     "PostgreSQL Policy security never executes submitted SQL bytes or parameter values",

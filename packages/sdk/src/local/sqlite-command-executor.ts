@@ -37,6 +37,7 @@ import {
   PolicyEvaluationError,
   evaluatePolicyProgram,
 } from "../policy/evaluate.js";
+import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
 export type SqliteMutationStage =
   | "after_command_binding"
   | "after_policy_evaluation"
@@ -1244,7 +1245,9 @@ function canonicalCommand(
       resources: canonicalAmounts(command.resources),
       ...(command.policies === undefined || command.policies.length === 0
         ? {}
-        : { policies: canonicalPolicies(command.policies) }),
+        : {
+            policies: canonicalPolicyDefinitionsForReplay(command.policies),
+          }),
     };
   } else if (operation === "requestBudget") {
     const command = input as RequestBudgetCommand;
@@ -1258,7 +1261,11 @@ function canonicalCommand(
       ...(command.childPolicies === undefined ||
       command.childPolicies.length === 0
         ? {}
-        : { childPolicies: canonicalPolicies(command.childPolicies) }),
+        : {
+            childPolicies: canonicalPolicyDefinitionsForReplay(
+              command.childPolicies,
+            ),
+          }),
     };
   } else {
     const command = input as SettleBudgetCommand;

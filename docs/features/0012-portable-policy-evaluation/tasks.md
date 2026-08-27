@@ -213,15 +213,29 @@
 
 ### Failing tests for user story 4
 
-- [ ] T048 [P] [US4] Add local exact-replay spies, changed-fact cases, changed-profile cases, Context conflicts, child-Policy conflicts, and zero-mutation assertions in `packages/sdk/test/unit/local/policy-replay.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T049 [P] [US4] Add PostgreSQL exact governed replay, changed availability, changed external fact, changed unrelated revision, conflict reuse, and evaluator non-invocation scenarios in `packages/postgresql/test/system/policy-replay.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T048 [P] [US4] Add local exact-replay spies, changed-fact cases, changed-profile cases, Context conflicts, child-Policy conflicts, and zero-mutation assertions in `packages/sdk/test/unit/local/policy-replay.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T049 [P] [US4] Add PostgreSQL exact governed replay, changed availability, changed external fact, changed unrelated revision, conflict reuse, and evaluator non-invocation scenarios in `packages/postgresql/test/system/policy-replay.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**US4 RED evidence (2026-08-27)**:
+
+- T048, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-replay.test.ts --maxWorkers=1`: 4 passed and 1 expected failure across 5 cases. Exact stored replay, changed evaluator/profile, changed availability and unrelated revision, Context key order, Context conflict, omitted versus empty child Policies, and zero mutation already held; reordering declaration-only Context fields inside an otherwise equivalent child Policy returned `command_conflict`.
+- T049, `CI=true pnpm test:system:postgresql`: 102 passed and 2 expected failures across the 104-case PostgreSQL 18.6 corpus. Equivalent reordered child Policy sets and declaration arrays returned `command_conflict`, and exact replay timed out at 250 ms behind an `ACCESS EXCLUSIVE` lock on `keynes_internal.budgets`, proving that the wrapper read the parent Policy snapshot before replay.
 
 ### Implementation for user story 4
 
-- [ ] T050 [US4] Include canonical Context and child Policy sets in command identity while canonicalizing key order, Policy order, and empty sets in `packages/sdk/src/replay.ts`
-- [ ] T051 [US4] Return the exact stored governed result and evidence before local semantic validation or evaluator calls in `packages/sdk/src/local/sqlite-command-executor.ts`
-- [ ] T052 [US4] Return stored governed results before PostgreSQL Policy validation, snapshot reads, rendering, or execution while retaining conflict detection in `packages/postgresql/migrations/0004-policy.sql`
-- [ ] T053 [US4] Run the local replay and conflict suites, then run the PostgreSQL replay lane when authorized or record it as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T050 [US4] Include canonical Context and child Policy sets in command identity while canonicalizing key order, Policy order, and empty sets in `packages/sdk/src/replay.ts`
+- [x] T051 [US4] Return the exact stored governed result and evidence before local semantic validation or evaluator calls in `packages/sdk/src/local/sqlite-command-executor.ts`
+- [x] T052 [US4] Return stored governed results before PostgreSQL Policy validation, snapshot reads, rendering, or execution while retaining conflict detection in `packages/postgresql/migrations/0004-policy.sql`
+- [x] T053 [US4] Run the local replay and conflict suites, then run the PostgreSQL replay lane when authorized or record it as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**Phase 6 implementation evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-replay.test.ts --maxWorkers=1`: 5 passed, 0 failed. Exact replay retained the original evidence and Context without evaluator or mutation callbacks; Context keys, Policy sets, semantic declaration sets, and omitted/empty child sets canonicalized, while material Context and Policy changes returned `command_conflict` with unchanged state.
+- `CI=true pnpm --filter @keynes/sdk test`: 182 passed, 0 failed across 16 files. SDK typecheck passed.
+- `CI=true pnpm --filter @keynes/postgresql test`: 24 passed, 0 failed. Root generation and drift checks passed, including refreshed Cloud procedure metadata for migration `0004`.
+- `CI=true pnpm test:system:postgresql`: 104 passed, 0 failed across 13 files on the pinned PostgreSQL 18.6 image. Authorized exact replay returned while an `ACCESS EXCLUSIVE` parent-Budget lock was held and the evaluator checkpoint was armed; changed availability, external facts, unrelated revisions, Context, child Policies, canonical Policy order, and declaration order behaved as specified.
+- Migrations `0001` through `0004` have SHA-256 values `1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd`, `464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b`, `b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753`, and `a00f088869105f43508fcffd8795339485bfd7fa53c33781794adf5901c44574`. Other PostgreSQL versions, Cloud end-to-end replay, package, hosted, and provider qualification remain **NOT RUN**.
+- Read-only Ponytail review removed redundant evaluator counters and mock cleanup from the local corpus and inlined a one-use routing predicate. Its suggested reuse of the installed-procedure caller was rejected after typecheck showed that the helper intentionally exposes only the shared contract rollback checkpoints, not the Policy-specific test hook. The review retained separate runtime canonicalizers, explicit byte-stable comparators, generated migration and security authority, durable state assertions, the unrelated-revision fixture, and the external-fact case.
 
 **Checkpoint**: Exact replay returns the original governed decision without observing current Policy or application facts.
 
