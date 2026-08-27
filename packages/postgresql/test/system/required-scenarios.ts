@@ -124,6 +124,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security maps generated numeric overflow to arithmetic_overflow and rolls back",
     "PostgreSQL Policy security maps aggregate transition overflow to arithmetic_overflow and rolls back",
     "PostgreSQL Policy security rejects noncanonical decimal literal precision before evaluation",
+    "PostgreSQL Policy security rejects a contextSchema member with non-object",
+    "PostgreSQL Policy security rejects a contextSchema member with array",
     "PostgreSQL Policy security rejects a contextSchema member with extra key",
     "PostgreSQL Policy security rejects a contextSchema member with invalid name",
     "PostgreSQL Policy security rejects a contextSchema member with invalid type",
