@@ -6,16 +6,16 @@ else if (mode === "steady") await runSteady();
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runColdFirst() {
-  const { Keynes } = await import("@keynes/sdk");
+  const { createKeynes, defineResources } = await import("@keynes/sdk");
+  const resources = defineResources({
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  });
   const createStarted = performance.now();
-  const keynes = await Keynes.create();
+  const keynes = await createKeynes({ resources });
   const coldCreateMilliseconds = performance.now() - createStarted;
   try {
     const readyRssBytes = process.memoryUsage.rss();
     const sqliteVersion = installedSqliteVersion();
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
     const root = await keynes.createBudget({ workUnits: 2 });
     const requestStarted = performance.now();
     const request = await root.request({ workUnits: 1 });
@@ -56,12 +56,12 @@ function installedSqliteVersion() {
 }
 
 async function runSteady() {
-  const { Keynes } = await import("@keynes/sdk");
-  const keynes = await Keynes.create();
+  const { createKeynes, defineResources } = await import("@keynes/sdk");
+  const resources = defineResources({
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  });
+  const keynes = await createKeynes({ resources });
   try {
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
     const root = await keynes.createBudget({ workUnits: 110 });
     for (let index = 0; index < 10; index += 1) {
       await fundedRequest(root);

@@ -17,3 +17,4 @@ export {
   registerRollbackContractTests,
   registerSettlementContractTests,
 } from "./scenarios/index.ts";
+export { canonicalizePolicyCommand } from "./policy.ts";

@@ -119,7 +119,14 @@ describe("repository organization", () => {
 
   it("keeps production products independent", () => {
     const subjects = [
-      ["packages/sdk", {}],
+      [
+        "packages/sdk",
+        {
+          "decimal.js": "10.6.0",
+          kysely: "0.29.5",
+          "libpg-query": "18.1.4",
+        },
+      ],
       ["packages/postgresql", { pg: "8.23.0" }],
       ["apps/cloud", { pg: "8.23.0" }],
     ] as const;

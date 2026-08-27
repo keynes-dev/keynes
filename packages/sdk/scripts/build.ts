@@ -7,8 +7,10 @@ const sdkRoot = fileURLToPath(new URL("..", import.meta.url));
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 const productionFiles = [
+  "budget",
   "command-executor",
   "generated/client",
+  "generated/policy-types",
   "generated/types",
   "generated/validators",
   "index",
@@ -17,6 +19,7 @@ const productionFiles = [
   "local/runtime",
   "local/sqlite-command-executor",
   "replay",
+  "resources",
   "sdk-errors",
 ] as const;
 

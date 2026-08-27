@@ -32,21 +32,39 @@
 
 ### Failing foundational tests
 
-- [ ] T003 [P] Add contract tests for Policy definitions, Policy sets, context, evidence, errors, canonical omission of empty sets, and complete no-Policy byte preservation in `packages/contracts/test/policy-contract.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T004 [P] Add generation tests that require every Policy node to declare TypeScript handling, PostgreSQL validation and rendering, work cost, and canonical vectors in `packages/contracts/test/policy-generation.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T005 [P] Add compile-only fixtures for exact Resource names, exact governed and ungoverned Context, child Policy inference, forbidden `Keynes` and `Budget` construction, destructured methods, hidden wire identifiers, and `AsyncDisposable` in `packages/sdk/test/package/compatibility/policy-api.mts`, then record the expected TypeScript failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T006 [P] Add public runtime tests for frozen Resource schemas, frozen closure-backed handles, idempotent `close()`, and the removal of post-open Resource mutation in `packages/sdk/test/unit/public/policy-api.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T003 [P] Add contract tests for Policy definitions, Policy sets, context, evidence, errors, canonical omission of empty sets, and complete no-Policy byte preservation in `packages/contracts/test/policy-contract.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T004 [P] Add generation tests that require every Policy node to declare TypeScript handling, PostgreSQL validation and rendering, work cost, and canonical vectors in `packages/contracts/test/policy-generation.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T005 [P] Add compile-only fixtures for exact Resource names, exact governed and ungoverned Context, child Policy inference, forbidden `Keynes` and `Budget` construction, destructured methods, hidden wire identifiers, and `AsyncDisposable` in `packages/sdk/test/package/compatibility/policy-api.mts`, then record the expected TypeScript failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T006 [P] Add public runtime tests for frozen Resource schemas, frozen closure-backed handles, idempotent `close()`, and the removal of post-open Resource mutation in `packages/sdk/test/unit/public/policy-api.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**Foundational RED evidence (2026-08-27)**:
+
+- T003, `CI=true pnpm --filter @keynes/contracts exec vitest run test/policy-contract.test.ts --maxWorkers=1`: expected failure before collection because `generated/policy-schema.json` does not exist.
+- T004, `CI=true pnpm --filter @keynes/contracts exec vitest run test/policy-generation.test.ts --maxWorkers=1`: all 6 tests failed at the missing `policy-profile.json` input.
+- T005, `CI=true pnpm --filter @keynes/sdk exec tsc --project test/package/tsconfig.json --noEmit`: expected missing schema-first exports and handle generics, plus current runtime class values.
+- T006, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts --maxWorkers=1`: both tests failed because `defineResources` is not implemented.
 
 ### Foundational implementation
 
-- [ ] T007 Define neutral Policy, Policy-set, context, evidence, denial-reason, and error-envelope models in `packages/contracts/src/model.ts`
-- [ ] T008 Define every v1 node, type rule, null rule, decimal boundary, work cost, backend declaration, and canonical vector in `packages/contracts/policy-profile.json`
-- [ ] T009 Generate Policy TypeScript types, guards, dispatch metadata, PostgreSQL metadata, canonical vectors, and profile digests from `packages/contracts/src/generation.ts` into `packages/contracts/generated/`
-- [ ] T010 Export the neutral Policy contracts and conformance inputs from `packages/contracts/src/index.ts` and `packages/contracts/conformance/index.ts`
-- [ ] T011 Implement `defineResources` and canonical lower-camel-case to lowercase-snake-case Resource mapping in `packages/sdk/src/resources.ts`
-- [ ] T012 Replace public runtime classes with branded `Keynes` and `Budget` interfaces and frozen closure-backed factories in `packages/sdk/src/keynes.ts`, `packages/sdk/src/budget.ts`, and `packages/sdk/src/local/runtime.ts`
-- [ ] T013 Export `defineResources`, `createKeynes`, `Keynes`, `Budget`, and the Policy types without constructible runtime classes from `packages/sdk/src/index.ts`
-- [ ] T014 Regenerate `packages/contracts/generated/`, `packages/sdk/src/generated/`, `packages/postgresql/migrations/0003-public.generated.sql`, and `apps/cloud/src/generated/procedures.ts`, then make T003-T006 pass without changing the no-Policy bytes covered by T001
+- [x] T007 Define neutral Policy, Policy-set, context, evidence, denial-reason, and error-envelope models in `packages/contracts/src/model.ts`
+- [x] T008 Define every v1 node, type rule, null rule, decimal boundary, work cost, backend declaration, and canonical vector in `packages/contracts/policy-profile.json`
+- [x] T009 Generate Policy TypeScript types, guards, dispatch metadata, PostgreSQL metadata, canonical vectors, and profile digests from `packages/contracts/src/generation.ts` into `packages/contracts/generated/`
+- [x] T010 Export the neutral Policy contracts and conformance inputs from `packages/contracts/src/index.ts` and `packages/contracts/conformance/index.ts`
+- [x] T011 Implement `defineResources` and canonical lower-camel-case to lowercase-snake-case Resource mapping in `packages/sdk/src/resources.ts`
+- [x] T012 Replace public runtime classes with branded `Keynes` and `Budget` interfaces and frozen closure-backed factories in `packages/sdk/src/keynes.ts`, `packages/sdk/src/budget.ts`, and `packages/sdk/src/local/runtime.ts`
+- [x] T013 Export `defineResources`, `createKeynes`, `Keynes`, `Budget`, and the Policy types without constructible runtime classes from `packages/sdk/src/index.ts`
+- [x] T014 Regenerate `packages/contracts/generated/`, `packages/sdk/src/generated/`, `packages/postgresql/migrations/0003-public.generated.sql`, and `apps/cloud/src/generated/procedures.ts`, then make T003-T006 pass without changing the no-Policy bytes covered by T001
+
+**Phase 2 implementation evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/contracts exec vitest run test/policy-contract.test.ts test/policy-generation.test.ts --maxWorkers=1`: 32 passed, 0 failed after the registry redesign; the initial redesigned T004 run failed on the missing inventory as expected.
+- `CI=true pnpm --filter @keynes/sdk exec tsc --project test/package/tsconfig.json --noEmit`: passed the schema-first public API and negative compile fixtures.
+- `CI=true pnpm --filter @keynes/sdk test:unit`: 59 passed, 0 failed, including frozen handles, ID-free error projection, fail-closed Policy options, and public Resource ordering independent of private UUIDs.
+- `CI=true pnpm generate:check`: passed. The Policy profile digest is `7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486`.
+- Legacy generated SDK client/types/validators and Cloud procedures remain byte-identical. PostgreSQL migration `0003-public.generated.sql` remains SHA-256 `b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753`; the legacy contract digest remains `0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6`.
+- `CI=true pnpm --filter @keynes/sdk test:package:unit`: 16 passed, 0 failed. Full packed SDK qualification: **NOT RUN** at this checkpoint.
+- Read-only Ponytail review accepted bounded tuple generation, duplicate contract Policy type removal, redundant PostgreSQL profile assertion removal, private SDK Policy helper types, unused Resource catalog state, one-pass text descriptor validation, and smaller test helpers. The generated Policy declarations fell to 553 lines per owner while retaining a non-empty tuple and runtime maximum. A shared profile renderer was rejected because the contract and SDK generators own distinct output tails.
+- `CI=true pnpm check:repo`: passed. `CI=true pnpm test:unit`: contracts 44, Cloud 38, PostgreSQL 18, and SDK 91 passed. `CI=true pnpm test:pr`: passed after the repository dependency check was updated to require the exact three SDK production dependencies.
 
 **Checkpoint**: The generated semantic registry is exhaustive, the schema-first public API compiles, and legacy no-Policy bytes remain fixed.
 

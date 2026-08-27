@@ -9,5 +9,9 @@
     "outDir": "build",
     "types": []
   },
-  "include": ["consumer.mts", "private-imports.mts"]
+  "include": [
+    "consumer.mts",
+    "compatibility/policy-api.mts",
+    "private-imports.mts"
+  ]
 }

@@ -29,18 +29,27 @@ export const ARCHIVE_LIMIT_BYTES = 512 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
 const productionModules = [
+  "budget",
+  "command-executor",
   "generated/client",
+  "generated/policy-types",
   "generated/types",
   "generated/validators",
   "index",
   "keynes",
-  "command-executor",
   "local/resource-catalog",
   "local/runtime",
   "local/sqlite-command-executor",
   "replay",
+  "resources",
   "sdk-errors",
 ] as const;
+
+const expectedProductionDependencies = {
+  "decimal.js": "10.6.0",
+  kysely: "0.29.5",
+  "libpg-query": "18.1.4",
+} as const;
 
 const allowedPackageFiles = [
   "package/LICENSE",
@@ -211,14 +220,10 @@ export async function qualifyArchive(
     run(process.execPath, [consumer, "budget-loop"], external.root);
     run(process.execPath, [consumer, "isolation"], external.root);
     run(process.execPath, [consumer, "closure"], external.root);
-    const processState = parseProcessState(
+    assertProcessState(
       run(process.execPath, [consumer, "write-then-exit"], external.root),
     );
-    run(
-      process.execPath,
-      [consumer, "read-after-restart", processState.resourceTypeId],
-      external.root,
-    );
+    run(process.execPath, [consumer, "read-after-restart"], external.root);
 
     productionBytes = external.productionBytes;
   } finally {
@@ -389,7 +394,7 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     value.type !== "module" ||
     !isRecord(value.engines) ||
     value.engines.node !== ">=24 <25 || >=26 <27" ||
-    hasPackageDependencies(value)
+    hasInvalidPackageDependencies(value)
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
   }
@@ -436,22 +441,16 @@ async function directoryBytes(root: string): Promise<number> {
   return bytes;
 }
 
-function parseProcessState(source: string): {
-  readonly resourceTypeId: string;
-  readonly budgetId: string;
-} {
+function assertProcessState(source: string): void {
   const value: unknown = JSON.parse(source);
   if (
     !isRecord(value) ||
-    typeof value.resourceTypeId !== "string" ||
-    typeof value.budgetId !== "string"
+    value.resource !== "processMemory" ||
+    value.unit !== "item" ||
+    value.allocated !== 1
   ) {
-    throw new Error("write-then-exit returned invalid process state");
+    throw new Error("write-then-exit returned invalid public Budget state");
   }
-  return {
-    resourceTypeId: value.resourceTypeId,
-    budgetId: value.budgetId,
-  };
 }
 
 function run(command: string, args: readonly string[], cwd: string): string {
@@ -496,12 +495,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasPackageDependencies(manifest: Record<string, unknown>): boolean {
-  for (const field of [
-    "dependencies",
-    "optionalDependencies",
-    "peerDependencies",
-  ]) {
+function hasInvalidPackageDependencies(
+  manifest: Record<string, unknown>,
+): boolean {
+  const dependencies = manifest.dependencies;
+  if (!isRecord(dependencies)) return true;
+  const expectedNames = Object.keys(expectedProductionDependencies).sort();
+  const actualNames = Object.keys(dependencies).sort();
+  if (
+    actualNames.length !== expectedNames.length ||
+    actualNames.some((name, index) => name !== expectedNames[index])
+  ) {
+    return true;
+  }
+  for (const [name, version] of Object.entries(
+    expectedProductionDependencies,
+  )) {
+    if (dependencies[name] !== version) {
+      return true;
+    }
+  }
+  for (const field of ["optionalDependencies", "peerDependencies"]) {
     const value = manifest[field];
     if (
       value !== undefined &&

@@ -1,5 +1,3 @@
-import type { ResourceTypeProjection } from "./generated/types.js";
-
 export type KeynesSdkErrorCode =
   | "invalid_configuration"
   | "runtime_closed"
@@ -41,12 +39,12 @@ export class KeynesSdkError<
 export class ResourceDefinitionError extends Error {
   readonly code = "resource_definition_failed";
   readonly failedResource: string;
-  readonly definedResources: readonly ResourceTypeProjection[];
+  readonly definedResources: readonly DefinedResource[];
   override readonly cause: unknown;
 
   constructor(
     failedResource: string,
-    definedResources: readonly ResourceTypeProjection[],
+    definedResources: readonly DefinedResource[],
     cause: unknown,
   ) {
     super("resource_definition_failed", { cause });
@@ -55,4 +53,12 @@ export class ResourceDefinitionError extends Error {
     this.definedResources = definedResources;
     this.cause = cause;
   }
+}
+
+export interface DefinedResource {
+  readonly resource: string;
+  readonly canonicalName: string;
+  readonly unit: string;
+  readonly accountingBehavior: "consumable" | "reusable";
+  readonly definitionDigest: string;
 }

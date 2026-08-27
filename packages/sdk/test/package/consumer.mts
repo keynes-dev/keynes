@@ -1,4 +1,4 @@
-import { Keynes } from "@keynes/sdk";
+import { createKeynes, defineResources } from "@keynes/sdk";
 
 declare const process: { readonly argv: readonly string[] };
 
@@ -17,28 +17,29 @@ switch (mode) {
     await writeThenExit();
     break;
   case "read-after-restart":
-    await readAfterRestart(process.argv[3]);
+    await readAfterRestart();
     break;
   default:
     throw new Error(`Unknown consumer mode ${mode}`);
 }
 
 async function runBudgetLoop(): Promise<void> {
-  const keynes = await Keynes.create();
+  const resources = defineResources({
+    usdCents: { unit: "cent", accountingBehavior: "consumable" },
+    searchQueries: { unit: "query", accountingBehavior: "consumable" },
+  });
+  const keynes = await createKeynes({ resources });
   try {
-    const resources = await keynes.defineResources({
-      usdCents: { unit: "cent", accountingBehavior: "consumable" },
-      searchQueries: { unit: "query", accountingBehavior: "consumable" },
-    });
-    assertEqual(
-      resources.map(({ canonicalName }) => canonicalName),
-      ["search_queries", "usd_cents"],
-    );
-
     const root = await keynes.createBudget({
       usdCents: 100,
       searchQueries: 10,
     });
+    assertEqual(
+      (await root.inspect()).budget.resources
+        .map(({ resource }) => resource)
+        .sort(),
+      ["searchQueries", "usdCents"],
+    );
     const approved = await root.request({ usdCents: 40, searchQueries: 2 });
     assertEqual(approved.status, "approved");
     if (approved.status !== "approved") throw new Error("expected approval");
@@ -79,17 +80,12 @@ async function runBudgetLoop(): Promise<void> {
 }
 
 async function runIsolation(): Promise<void> {
-  const left = await Keynes.create();
-  const right = await Keynes.create();
+  const resources = defineResources({
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  });
+  const left = await createKeynes({ resources });
+  const right = await createKeynes({ resources });
   try {
-    await Promise.all([
-      left.defineResources({
-        workUnits: { unit: "unit", accountingBehavior: "consumable" },
-      }),
-      right.defineResources({
-        workUnits: { unit: "unit", accountingBehavior: "consumable" },
-      }),
-    ]);
     const [leftRoot, rightRoot] = await Promise.all([
       left.createBudget({ workUnits: 3 }),
       right.createBudget({ workUnits: 9 }),
@@ -104,10 +100,10 @@ async function runIsolation(): Promise<void> {
 }
 
 async function runClosure(): Promise<void> {
-  const keynes = await Keynes.create();
-  await keynes.defineResources({
+  const resources = defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
+  const keynes = await createKeynes({ resources });
   const root = await keynes.createBudget({ workUnits: 1 });
   const firstClose = keynes.close();
   assertEqual(keynes.close() === firstClose, true);
@@ -119,35 +115,28 @@ async function runClosure(): Promise<void> {
 }
 
 async function writeThenExit(): Promise<void> {
-  const keynes = await Keynes.create();
-  const [resource] = await keynes.defineResources({
+  const resources = defineResources({
     processMemory: { unit: "item", accountingBehavior: "consumable" },
   });
+  const keynes = await createKeynes({ resources });
   const root = await keynes.createBudget({ processMemory: 1 });
-  console.log(
-    JSON.stringify({
-      resourceTypeId: resource.resourceTypeId,
-      budgetId: (await root.inspect()).budget.budgetId,
-    }),
-  );
+  const [resource] = (await root.inspect()).budget.resources;
+  if (resource === undefined)
+    throw new Error("expected processMemory Resource");
+  console.log(JSON.stringify(resource));
 }
 
-async function readAfterRestart(
-  previousResourceTypeId: string | undefined,
-): Promise<void> {
-  if (previousResourceTypeId === undefined) {
-    throw new Error(
-      "read-after-restart requires the previous Resource type ID",
-    );
-  }
-  const keynes = await Keynes.create();
+async function readAfterRestart(): Promise<void> {
+  const resources = defineResources({
+    processMemory: { unit: "byte", accountingBehavior: "consumable" },
+  });
+  const keynes = await createKeynes({ resources });
   try {
-    const [resource] = await keynes.defineResources({
-      processMemory: { unit: "item", accountingBehavior: "consumable" },
-    });
-    if (resource.resourceTypeId === previousResourceTypeId) {
-      throw new Error("local Resource state survived process restart");
-    }
+    const root = await keynes.createBudget({ processMemory: 2 });
+    const [resource] = (await root.inspect()).budget.resources;
+    assertEqual(resource?.resource, "processMemory");
+    assertEqual(resource?.unit, "byte");
+    assertEqual(resource?.allocated, 2);
   } finally {
     await keynes.close();
   }

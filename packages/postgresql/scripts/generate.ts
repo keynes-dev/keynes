@@ -69,6 +69,9 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes.get_budget(input jsonb)",
 ] as const;
 
+const IMMUTABLE_PUBLIC_MIGRATION_SHA256 =
+  "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753";
+
 export interface InstallationMigration {
   readonly id: string;
   readonly path: string;
@@ -91,7 +94,16 @@ export async function generatePostgresql(
   options: GeneratePostgresqlOptions,
 ): Promise<PostgresqlInstallationIdentity> {
   const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot();
+  const publicMigrationPath = join(
+    repositoryRoot,
+    "packages/postgresql/migrations/0003-public.generated.sql",
+  );
+  assertImmutablePublicMigration(
+    readFileSync(publicMigrationPath, "utf8"),
+    "before generation",
+  );
   const publicSql = renderSql(options.contract.source, options.contract.digest);
+  assertImmutablePublicMigration(publicSql, "rendered output");
   const manifest = readMigrationManifest(repositoryRoot);
   const contractMigrations = manifest.filter(
     (migration) => migration.contract === true,
@@ -137,7 +149,20 @@ export async function generatePostgresql(
       },
     ],
   });
+  assertImmutablePublicMigration(
+    readFileSync(publicMigrationPath, "utf8"),
+    "after generation",
+  );
   return { contractMigrationId, migrations };
+}
+
+function assertImmutablePublicMigration(value: string, phase: string): void {
+  const actual = sha256(value);
+  if (actual !== IMMUTABLE_PUBLIC_MIGRATION_SHA256) {
+    throw new Error(
+      `immutable migration 0003 changed ${phase}: expected ${IMMUTABLE_PUBLIC_MIGRATION_SHA256}, received ${actual}`,
+    );
+  }
 }
 
 function renderSql(contract: ContractSource, digest: string): string {

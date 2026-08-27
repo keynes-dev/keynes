@@ -31,6 +31,11 @@ const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const expectedProductionDependencies = {
+  "decimal.js": "10.6.0",
+  kysely: "0.29.5",
+  "libpg-query": "18.1.4",
+} as const;
 
 let suiteRoot: string;
 let archivePath: string;
@@ -133,7 +138,7 @@ describe("SDK package-test runner", () => {
     ).toThrow("workspace");
   });
 
-  it("packs the exact supported Node lines with no production dependency", () => {
+  it("packs the exact supported Node lines and production dependencies", () => {
     const manifestBytes = archiveEntries.get("package/package.json");
     expect(manifestBytes).toBeDefined();
     const manifest: unknown = JSON.parse(
@@ -143,13 +148,24 @@ describe("SDK package-test runner", () => {
       name: "@keynes/sdk",
       license: "Apache-2.0",
       engines: { node: ">=24 <25 || >=26 <27" },
+      dependencies: expectedProductionDependencies,
     });
     if (!isRecord(manifest)) throw new Error("package manifest is invalid");
-    expect(
-      manifest.dependencies === undefined ||
-        (isRecord(manifest.dependencies) &&
-          Object.keys(manifest.dependencies).length === 0),
-    ).toBe(true);
+    expect(manifest.dependencies).toEqual(expectedProductionDependencies);
+    expect(manifest).not.toHaveProperty("optionalDependencies");
+    expect(manifest).not.toHaveProperty("peerDependencies");
+    expect(manifest).not.toHaveProperty("bundleDependencies");
+    expect(manifest).not.toHaveProperty("bundledDependencies");
+  });
+
+  it("packs only the reachable schema-first API modules", () => {
+    const paths = [...archiveEntries.keys()];
+    for (const module of ["budget", "resources", "generated/policy-types"]) {
+      expect(paths).toContain(`package/dist/${module}.d.ts`);
+      expect(paths).toContain(`package/dist/${module}.js`);
+    }
+    expect(paths).not.toContain("package/dist/generated/policy-profile.d.ts");
+    expect(paths).not.toContain("package/dist/generated/policy-profile.js");
   });
 
   it("contains no PGlite or copied database archive path", () => {

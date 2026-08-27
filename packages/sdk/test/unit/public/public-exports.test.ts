@@ -1,21 +1,29 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  Budget,
-  Keynes,
   KeynesError,
   KeynesSdkError,
   ResourceDefinitionError,
+  createKeynes,
+  defineResources,
   type AccountingBehavior,
+  type Budget,
+  type BudgetHistoryEntry,
+  type BudgetResourceSnapshot,
+  type BudgetRequestAvailabilityReason,
   type BudgetRequestDenialReason,
+  type BudgetRequestPolicyReason,
   type BudgetRequestResult,
-  type GetBudgetResult,
+  type BudgetSnapshot,
+  type BudgetState,
+  type Keynes,
+  type NamedResourceAmount,
   type ResourceAmounts,
-  type ResourceConfig,
-  type ResourceConfigs,
-  type ResourceTypeProjection,
+  type ResourceDefinition,
+  type ResourceDefinitions,
+  type ResourceSchema,
   type ResourceUsage,
-  type SettleBudgetResult,
+  type Settlement,
 } from "../../../src/index.js";
 // @ts-expect-error Old deployment-specific public names must not remain exported.
 import type { KeynesLocalError } from "../../../src/index.js";
@@ -27,6 +35,16 @@ import type { LocalRequestResult } from "../../../src/index.js";
 import type { LocalResourceDefinition } from "../../../src/index.js";
 // @ts-expect-error Old deployment-specific public names must not remain exported.
 import type { LocalResourceDefinitions } from "../../../src/index.js";
+// @ts-expect-error The schema-first API replaced ResourceConfig.
+import type { ResourceConfig } from "../../../src/index.js";
+// @ts-expect-error The schema-first API replaced ResourceConfigs.
+import type { ResourceConfigs } from "../../../src/index.js";
+// @ts-expect-error Generated wire projections stay behind the public facade.
+import type { GetBudgetResult } from "../../../src/index.js";
+// @ts-expect-error Resource installation identifiers stay private.
+import type { ResourceTypeProjection } from "../../../src/index.js";
+// @ts-expect-error Generated settlement results stay behind the public facade.
+import type { SettleBudgetResult } from "../../../src/index.js";
 // @ts-expect-error Procedure callers remain private implementation types.
 import type { ProcedureCaller } from "../../../src/index.js";
 // @ts-expect-error Command executors remain private implementation types.
@@ -41,6 +59,11 @@ type RemovedPublicTypes = readonly [
   LocalRequestResult,
   LocalResourceDefinition,
   LocalResourceDefinitions,
+  ResourceConfig,
+  ResourceConfigs,
+  GetBudgetResult,
+  ResourceTypeProjection,
+  SettleBudgetResult,
   ProcedureCaller,
   CommandExecutor,
   typeof validateOperationInputIssues,
@@ -49,35 +72,40 @@ type RemovedPublicTypes = readonly [
 describe("package-root exports", () => {
   it("exports the local facade and accepted generated domain types", () => {
     expect(Object.keys(sdk).sort()).toEqual([
-      "Budget",
-      "Keynes",
       "KeynesError",
       "KeynesSdkError",
       "ResourceDefinitionError",
+      "createKeynes",
+      "defineResources",
     ]);
 
     expectTypeOf<AccountingBehavior>().toEqualTypeOf<
       "consumable" | "reusable"
     >();
-    expectTypeOf<ResourceConfig>().toEqualTypeOf<{
+    expectTypeOf<ResourceDefinition>().toEqualTypeOf<{
       readonly unit: string;
       readonly accountingBehavior: AccountingBehavior;
     }>();
-    expectTypeOf<ResourceConfigs>().toEqualTypeOf<
-      Readonly<Record<string, ResourceConfig>>
+    expectTypeOf<ResourceDefinitions>().toEqualTypeOf<
+      Readonly<Record<string, ResourceDefinition>>
     >();
+    expectTypeOf<ResourceSchema<ResourceDefinitions>>().toBeObject();
     expectTypeOf<ResourceAmounts<"usdCents">>().toEqualTypeOf<{
       readonly usdCents?: number;
     }>();
     expectTypeOf<ResourceUsage<"usdCents">>().toEqualTypeOf<{
       readonly usdCents?: number | null;
     }>();
-    expectTypeOf<BudgetRequestDenialReason<"usdCents">>().toEqualTypeOf<{
+    expectTypeOf<BudgetRequestAvailabilityReason<"usdCents">>().toEqualTypeOf<{
       readonly code: "insufficient_available";
       readonly resource: "usdCents";
       readonly requested: number;
       readonly available: number;
     }>();
+    expectTypeOf<BudgetRequestDenialReason<"usdCents">>().toEqualTypeOf<
+      | BudgetRequestAvailabilityReason<"usdCents">
+      | BudgetRequestPolicyReason<"usdCents", never>
+    >();
     expectTypeOf<BudgetRequestResult<"usdCents">>().toEqualTypeOf<
       | { readonly status: "approved"; readonly budget: Budget<"usdCents"> }
       | {
@@ -85,12 +113,18 @@ describe("package-root exports", () => {
           readonly reasons: readonly BudgetRequestDenialReason<"usdCents">[];
         }
     >();
-    expectTypeOf<ResourceTypeProjection>().toBeObject();
-    expectTypeOf<GetBudgetResult>().toBeObject();
-    expectTypeOf<SettleBudgetResult>().toBeObject();
+    expectTypeOf<BudgetState<"usdCents">>().toBeObject();
+    expectTypeOf<BudgetResourceSnapshot<"usdCents">>().toBeObject();
+    expectTypeOf<BudgetSnapshot<"usdCents">>().toBeObject();
+    expectTypeOf<Settlement<"usdCents">>().toBeObject();
+    expectTypeOf<NamedResourceAmount<"usdCents">>().toBeObject();
+    expectTypeOf<BudgetHistoryEntry<"usdCents">>().toBeObject();
     expectTypeOf<RemovedPublicTypes>().toMatchTypeOf<readonly unknown[]>();
     expectTypeOf<Budget<"usdCents">>().toBeObject();
-    expect(Keynes).toBeTypeOf("function");
+    expect(createKeynes).toBeTypeOf("function");
+    expect(defineResources).toBeTypeOf("function");
+    expect(sdk).not.toHaveProperty("Budget");
+    expect(sdk).not.toHaveProperty("Keynes");
     expect(KeynesError).toBeTypeOf("function");
     expect(KeynesSdkError).toBeTypeOf("function");
     expect(ResourceDefinitionError).toBeTypeOf("function");
@@ -109,13 +143,21 @@ describe("package-root exports", () => {
     expectTypeOf(checkRequestTypes).toBeFunction();
   });
 
-  it("exposes only the zero-argument local constructor", () => {
-    function checkCreateTypes() {
-      void Keynes.create();
+  it("requires one complete Resource schema when opening a local runtime", () => {
+    async function checkCreateTypes() {
+      const resources = defineResources({
+        usdCents: { unit: "cent", accountingBehavior: "consumable" },
+      });
+      const keynes = await createKeynes({ resources });
+      expectTypeOf(keynes).toEqualTypeOf<Keynes<"usdCents">>();
+      // @ts-expect-error The schema-first factory requires options.
+      void createKeynes();
       // @ts-expect-error Remote API-key discovery is not implemented yet.
-      void Keynes.create({ apiKey: "keynes_test" });
-      // @ts-expect-error Explicit undefined is not the zero-argument call shape.
-      void Keynes.create(undefined);
+      void createKeynes({ resources, apiKey: "keynes_test" });
+      // @ts-expect-error Resource definitions must be sealed into a schema first.
+      void createKeynes({ resources: resources.definitions });
+      // @ts-expect-error Explicit undefined is not a creation-options object.
+      void createKeynes(undefined);
     }
 
     expectTypeOf(checkCreateTypes).toBeFunction();

@@ -1,18 +1,72 @@
 export { KeynesError } from "./generated/client.js";
-export type { KeynesClient } from "./generated/client.js";
-export type * from "./generated/types.js";
-export { Budget, Keynes } from "./keynes.js";
+export type {
+  AggregateNodeV1,
+  BinaryNumericNodeV1,
+  BooleanBinaryNodeV1,
+  BooleanLiteralNodeV1,
+  BooleanNotNodeV1,
+  CanonicalIdentifier,
+  CaseNodeV1,
+  ComparisonNodeV1,
+  CrossJoinNodeV1,
+  DecimalLiteralNodeV1,
+  ExpressionNodeV1,
+  InnerJoinNodeV1,
+  InvalidPolicyContextErrorEnvelope,
+  InvalidPolicyErrorEnvelope,
+  IsNullNodeV1,
+  JoinNodeV1,
+  KeynesPolicyContract,
+  NullLiteralNodeV1,
+  NumericFunctionNodeV1,
+  PolicyContextFieldV1,
+  PolicyContextV1,
+  PolicyDefinitionV1,
+  PolicyErrorEnvelopeV1,
+  PolicyEvaluationFailedErrorEnvelope,
+  PolicyNodeV1,
+  PolicyProgramV1,
+  PolicyResultRowV1,
+  PolicyScalarV1,
+  PolicySetV1,
+  PowerNodeV1,
+  ReferenceNodeV1,
+  ScaleFunctionNodeV1,
+  TextInNodeV1,
+  TextLiteralNodeV1,
+  UnaryNumericNodeV1,
+  VariadicNodeV1,
+} from "./generated/policy-types.js";
+export { createKeynes } from "./keynes.js";
+export type { Keynes } from "./keynes.js";
+export { defineResources } from "./resources.js";
 export type {
   AccountingBehavior,
+  ResourceDefinition,
+  ResourceDefinitions,
+  ResourceSchema,
+} from "./resources.js";
+export type {
+  Budget,
+  BudgetHistoryEntry,
+  BudgetRequestAvailabilityReason,
   BudgetRequestDenialReason,
+  BudgetRequestPolicyReason,
   BudgetRequestResult,
+  BudgetResourceSnapshot,
+  BudgetSnapshot,
+  BudgetState,
+  NamedResourceAmount,
+  NoPolicyContext,
+  PolicyDefinition,
+  PolicySet,
   ResourceAmounts,
-  ResourceConfig,
-  ResourceConfigs,
   ResourceUsage,
-} from "./keynes.js";
+  Settlement,
+} from "./budget.js";
 export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 export type {
+  DefinedResource,
   KeynesSdkErrorCode,
   KeynesSdkErrorDetails,
 } from "./sdk-errors.js";
