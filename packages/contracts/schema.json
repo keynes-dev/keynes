@@ -149,7 +149,7 @@
         }
       }
     },
-    "RequestDenialReason": {
+    "AvailabilityDenialReason": {
       "type": "object",
       "additionalProperties": false,
       "required": ["code", "resourceTypeId", "requested", "available"],
@@ -159,6 +159,12 @@
         "requested": { "$ref": "#/$defs/Amount" },
         "available": { "$ref": "#/$defs/Amount" }
       }
+    },
+    "RequestDenialReason": {
+      "oneOf": [
+        { "$ref": "#/$defs/AvailabilityDenialReason" },
+        { "$ref": "#/$defs/PolicyCeilingReasonV1" }
+      ]
     },
     "BudgetCreatedHistoryEntry": {
       "type": "object",
@@ -203,7 +209,8 @@
         "subjectBudgetId": { "$ref": "#/$defs/Uuid" },
         "parentBudgetId": { "$ref": "#/$defs/Uuid" },
         "childBudgetId": { "$ref": "#/$defs/Uuid" },
-        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "policyEvidence": { "$ref": "#/$defs/PolicyEvidenceV1" }
       }
     },
     "RequestDeniedHistoryEntry": {
@@ -230,7 +237,8 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/RequestDenialReason" }
-        }
+        },
+        "policyEvidence": { "$ref": "#/$defs/PolicyEvidenceV1" }
       }
     },
     "BudgetSettlementRecordedHistoryEntry": {
@@ -329,7 +337,13 @@
       "required": ["commandId", "resources"],
       "properties": {
         "commandId": { "$ref": "#/$defs/Uuid" },
-        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "policies": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/PolicyDefinitionV1" }
+        }
       }
     },
     "CreateBudgetResult": {
@@ -349,7 +363,14 @@
       "properties": {
         "commandId": { "$ref": "#/$defs/Uuid" },
         "parentBudgetId": { "$ref": "#/$defs/Uuid" },
-        "resources": { "$ref": "#/$defs/ResourceEnvelope" }
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "context": { "$ref": "#/$defs/PolicyContextV1" },
+        "childPolicies": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/PolicyDefinitionV1" }
+        }
       }
     },
     "RequestApproved": {
@@ -369,6 +390,7 @@
         "parentBudgetId": { "$ref": "#/$defs/Uuid" },
         "childBudgetId": { "$ref": "#/$defs/Uuid" },
         "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "policyEvidence": { "$ref": "#/$defs/PolicyEvidenceV1" },
         "replayed": { "type": "boolean" }
       }
     },
@@ -392,6 +414,7 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/RequestDenialReason" }
         },
+        "policyEvidence": { "$ref": "#/$defs/PolicyEvidenceV1" },
         "replayed": { "type": "boolean" }
       }
     },
@@ -704,7 +727,10 @@
               }
             }
           }
-        }
+        },
+        { "$ref": "#/$defs/InvalidPolicyErrorEnvelope" },
+        { "$ref": "#/$defs/InvalidPolicyContextErrorEnvelope" },
+        { "$ref": "#/$defs/PolicyEvaluationFailedErrorEnvelope" }
       ]
     }
   }

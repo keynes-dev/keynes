@@ -79,17 +79,41 @@ await governed.request({ usdCents: 10 }, { context: extraContext });
 // @ts-expect-error Ungoverned requests reject Context instead of ignoring it.
 await root.request({ usdCents: 10 }, { context: { customerTier: "standard" } });
 
-const childResult = await governed.request(
+const unexpectedContext = { customerTier: "standard" };
+// @ts-expect-error Ungoverned Context is forbidden for predeclared objects too.
+await root.request({ usdCents: 10 }, { context: unexpectedContext });
+
+const ungovernedChildResult = await governed.request(
+  { usdCents: 10 },
+  { context: { customerTier: "standard" } },
+);
+if (ungovernedChildResult.status === "approved") {
+  expectType<Budget<"usdCents">>(ungovernedChildResult.budget);
+  await ungovernedChildResult.budget.request({ usdCents: 1 });
+  await ungovernedChildResult.budget.request(
+    { usdCents: 1 },
+    // @ts-expect-error A child does not inherit its parent's governed Context.
+    { context: { customerTier: "standard" } },
+  );
+}
+
+const governedChildResult = await governed.request(
   { usdCents: 10 },
   {
     context: { customerTier: "standard" },
     policies: childPolicies,
   },
 );
-if (childResult.status === "approved") {
+if (governedChildResult.status === "approved") {
   expectType<
     Budget<"usdCents", { readonly riskClass: string }, "workflow_risk_limit">
-  >(childResult.budget);
+  >(governedChildResult.budget);
+  await governedChildResult.budget.request(
+    { usdCents: 1 },
+    { context: { riskClass: "low" } },
+  );
+  // @ts-expect-error A governed child requires its own complete Context.
+  await governedChildResult.budget.request({ usdCents: 1 });
 }
 
 // @ts-expect-error Keynes is a type-only capability with no constructor.

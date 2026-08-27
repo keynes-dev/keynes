@@ -37,6 +37,7 @@ export async function generateContracts(
   validateCanonicalVectors(policySchema, policyProfile.source.nodes);
   const types = await compile(contract.schema, "KeynesBudgetContract", {
     bannerComment: "// Generated from @keynes/contracts. Do not edit.",
+    maxItems: 4,
     style: { singleQuote: false },
     unreachableDefinitions: true,
   });
@@ -60,6 +61,10 @@ export async function generateContracts(
     "policy-schema.json",
     jsonFile(policySchema),
   );
+  const formattedContractSchema = await formatSource(
+    "schema.json",
+    jsonFile(contract.schema),
+  );
   const contractIdentity = await formatSource(
     "contract.ts",
     `// Generated from packages/contracts. Do not edit.\n\nexport const CONTRACT_DIGEST = ${JSON.stringify(contract.digest)};\n`,
@@ -69,6 +74,7 @@ export async function generateContracts(
     outputRoot: packageRoot,
     outputs: new Map([
       ["generated/contract.ts", contractIdentity],
+      ["generated/schema.json", formattedContractSchema],
       [
         "generated/contract-digest.json",
         jsonFile({ algorithm: "sha256", digest: contract.digest }),

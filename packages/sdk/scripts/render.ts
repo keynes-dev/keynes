@@ -177,9 +177,10 @@ function isJsonObject(value: unknown): value is JsonObject {
 }
 
 export function renderValidators(
-  definitions: JsonObject,
+  sourceDefinitions: JsonObject,
   contract: Contract,
 ): string {
+  const definitions = contractValidatorDefinitions(sourceDefinitions);
   const path = "$" + "{path}";
   const validatorNames = [
     ...new Set(contract.operations.map((operation) => operation.output)),
@@ -211,7 +212,62 @@ export function renderValidators(
   }\n  if (schema.type === "array") {\n    if (!Array.isArray(value)) return issue(path, "type");\n    const issues: ValidationIssue[] = [];\n    if (schema.minItems !== undefined && value.length < schema.minItems) issues.push(...issue(path, "minItems"));\n    if (schema.uniqueItems === true) {\n      if (value.some((item, index) => value.slice(0, index).some((candidate) => sameJson(candidate, item)))) issues.push(...issue(path, "uniqueItems"));\n    }\n    if (schema.items !== undefined) value.forEach((item, index) => issues.push(...validate(schema.items!, item, \`${path}/\${index}\`)));\n    return issues;\n  }\n  if (schema.type === "string") {\n    if (typeof value !== "string") return issue(path, "type");\n    if (schema.minLength !== undefined && value.length < schema.minLength) return issue(path, "minLength");\n    if (schema.maxLength !== undefined && value.length > schema.maxLength) return issue(path, "maxLength");\n    if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(value)) return issue(path, "pattern");\n    return [];\n  }\n  if (schema.type === "integer") {\n    if (!Number.isSafeInteger(value)) return issue(path, "type");\n    if (schema.minimum !== undefined && Number(value) < schema.minimum) return issue(path, "minimum");\n    if (schema.maximum !== undefined && Number(value) > schema.maximum) return issue(path, "maximum");\n    return [];\n  }\n  if (schema.type === "number") return typeof value === "number" && Number.isFinite(value) ? [] : issue(path, "type");\n  if (schema.type === "boolean") return typeof value === "boolean" ? [] : issue(path, "type");\n  if (schema.type === "null") return value === null ? [] : issue(path, "type");\n  return schema.type === undefined ? [] : issue(path, "unsupported-type");\n}\n\nfunction validateDefinition(name: string, value: unknown): ValidationIssue[] {\n  const definition = definitions[name];\n  const issues = definition === undefined ? issue("", "unknown-definition") : validate(definition, value, "");\n  return issues.sort((left, right) =>\n    left.path.localeCompare(right.path) || left.rule.localeCompare(right.rule),\n  );\n}\n\n${validators}\n\n${inputIssues}\n`;
 }
 
-export function renderClient(contract: Contract, digest: string): string {
+function contractValidatorDefinitions(definitions: JsonObject): JsonObject {
+  const unsupported = new Set([
+    "maxCanonicalUtf8Bytes",
+    "maxItems",
+    "maxProperties",
+    "maxUtf8Bytes",
+    "propertyNames",
+  ]);
+
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!isJsonObject(value)) return value;
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([key, member]) => {
+        if (unsupported.has(key)) return [];
+        if (key === "additionalProperties" && isJsonObject(member)) {
+          return [[key, true]];
+        }
+        return [[key, visit(member)]];
+      }),
+    );
+  }
+
+  const supported = visit(definitions);
+  if (!isJsonObject(supported)) {
+    throw new Error("contract validator definitions must be an object");
+  }
+  return {
+    ...supported,
+    PolicyContextV1: { type: "object" },
+    PolicyDefinitionV1: { type: "object" },
+  };
+}
+
+export function renderClient(
+  contract: Contract,
+  digest: string,
+  fieldOrder: readonly string[],
+): string {
+  return renderClientSource(contract, digest)
+    .replace(
+      "\n\nexport interface KeynesClient",
+      `\n\nconst resultFieldRank = new Map(${JSON.stringify(fieldOrder)}.map((field, index) => [field, index]));\n\nexport interface KeynesClient`,
+    )
+    .replace(
+      "\n\nasync function invoke<Output>",
+      `\n\nfunction orderResult<Value>(value: Value): Value {\n  if (Array.isArray(value)) return value.map(orderResult) as Value;\n  if (!isRecord(value)) return value;\n  return Object.fromEntries(\n    Object.entries(value)\n      .sort(([left], [right]) => {\n        const rank = (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) - (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);\n        return rank || left.localeCompare(right);\n      })\n      .map(([key, member]) => [key, orderResult(member)]),\n  ) as Value;\n}\n\nasync function invoke<Output>`,
+    )
+    .replace("return structuredClone(result);", "return orderResult(result);")
+    .replace(
+      "return structuredClone(wire.result);",
+      "return orderResult(wire.result);",
+    );
+}
+
+function renderClientSource(contract: Contract, digest: string): string {
   const typeNames = [
     ...new Set(
       contract.operations.flatMap((operation) => [

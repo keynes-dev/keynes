@@ -1,7 +1,7 @@
 // Generated from contracts/. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
+  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";
 
 export const INSTALLATION_MIGRATIONS = [
   {
@@ -25,9 +25,9 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0004-policy",
     byteChecksum:
-      "1cf1d773357846ecc3ece8e77d2233adc9cbaf4dbb7637df458123cbddabe284",
+      "dd2fe672df5236150b521472671782468b50b0da8ec3583c347905e7241a8a39",
     contractDigest:
-      "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+      "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },
 ] as const;
 

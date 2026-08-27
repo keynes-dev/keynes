@@ -1,10 +1,28 @@
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 
 import contract from "../contract.json" with { type: "json" };
-import schema from "../schema.json" with { type: "json" };
+import schema from "../generated/schema.json" with { type: "json" };
 import type { OperationName } from "../generated/types.ts";
+import { contractFieldOrder } from "../src/generation.ts";
 
 const ajv = new Ajv2020({ strict: true });
+const resultFieldRank = new Map(
+  contractFieldOrder(schema.$defs).map((field, index) => [field, index]),
+);
+ajv.addKeyword({
+  keyword: "maxUtf8Bytes",
+  type: "string",
+  schemaType: "number",
+  validate: (limit: number, value: string) =>
+    new TextEncoder().encode(value).byteLength <= limit,
+});
+ajv.addKeyword({
+  keyword: "maxCanonicalUtf8Bytes",
+  type: "object",
+  schemaType: "number",
+  validate: (limit: number, value: unknown) =>
+    new TextEncoder().encode(JSON.stringify(value)).byteLength <= limit,
+});
 ajv.addSchema(schema, contract.schema);
 
 const operationOutputs = new Map(
@@ -21,6 +39,21 @@ export function validateOperationResult(
     throw new Error(`missing output definition for ${operation}`);
   }
   return validator(output)(value);
+}
+
+export function orderContractResult<Value>(value: Value): Value {
+  if (Array.isArray(value)) return value.map(orderContractResult) as Value;
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => {
+        const rank =
+          (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) -
+          (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);
+        return rank || left.localeCompare(right);
+      })
+      .map(([key, member]) => [key, orderContractResult(member)]),
+  ) as Value;
 }
 
 export function validateErrorEnvelope(value: unknown): boolean {

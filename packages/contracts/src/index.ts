@@ -2,6 +2,7 @@ export {
   applyGeneratedOutputs,
   buildPolicySchema,
   canonicalJson,
+  contractFieldOrder,
   jsonFile,
   renderPolicyProfileModule,
 } from "./generation.ts";

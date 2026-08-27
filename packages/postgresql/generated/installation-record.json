@@ -18,8 +18,8 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
-  "migrationSetDigest": "b7a81534efd7a9e9a6ca69e1034a4a80104144cc64cb2c31e45131b886260aa9",
+  "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
+  "migrationSetDigest": "e6d1b3668720f91ab3b25af8d7fa4b37da9c9bb73161044bb99970d9c42c7382",
   "migrations": [
     {
       "id": "0001-storage",
@@ -39,8 +39,8 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
-      "sha256": "1cf1d773357846ecc3ece8e77d2233adc9cbaf4dbb7637df458123cbddabe284",
-      "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
+      "sha256": "dd2fe672df5236150b521472671782468b50b0da8ec3583c347905e7241a8a39",
+      "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],
   "expectedTargets": [
@@ -80,6 +80,8 @@
     "function:keynes.request(input jsonb)",
     "function:keynes.settle(input jsonb)",
     "function:keynes.get_budget(input jsonb)",
+    "function:keynes_internal.apply_command_legacy(operation_name text,input jsonb)",
+    "function:keynes_internal.policy_canonical_json(value jsonb)",
     "function:keynes_internal.invalid_policy(issue_path text,issue_rule text)",
     "function:keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
     "function:keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",
@@ -88,6 +90,9 @@
     "function:keynes_internal.validate_policy_program(program jsonb)",
     "function:keynes_internal.render_policy_program(program jsonb)",
     "function:keynes_internal.policy_work_bound(program jsonb,requested_rows integer,available_rows integer)",
+    "function:keynes_internal.validate_policy_set(policies jsonb)",
+    "function:keynes_internal.validate_policy_context(policies jsonb,context jsonb)",
+    "function:keynes_internal.evaluate_policy_set(selected_tenant uuid,selected_budget uuid,policies jsonb,requested_items jsonb,context jsonb)",
     "function:keynes_internal.check_policy_canonical_vectors()",
     "function:keynes_internal.validate_select(node jsonb)",
     "function:keynes_internal.render_select(node jsonb)",

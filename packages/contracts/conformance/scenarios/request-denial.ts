@@ -37,13 +37,19 @@ export function registerRequestDenialContractTests(
       });
       const commandId = "31000000-0000-0000-0000-000000000001";
 
-      const denied = await client.requestBudget({
+      const requestCommand = {
         commandId,
         parentBudgetId: root.budget.budgetId,
         resources: [{ resourceTypeId: resource.resourceTypeId, amount: 11 }],
-      });
+      } satisfies RequestBudgetCommand;
+      const requestCommandBytes = `{"commandId":"${commandId}","parentBudgetId":"${root.budget.budgetId}","resources":[{"resourceTypeId":"${resource.resourceTypeId}","amount":11}]}`;
+      expect(JSON.stringify(requestCommand)).toBe(requestCommandBytes);
+      expect(
+        JSON.stringify({ operation: "requestBudget", input: requestCommand }),
+      ).toBe(`{"operation":"requestBudget","input":${requestCommandBytes}}`);
+      const denied = await client.requestBudget(requestCommand);
 
-      expect(denied).toEqual({
+      const expectedDenied = {
         kind: "denied",
         commandId,
         parentBudgetId: root.budget.budgetId,
@@ -56,7 +62,13 @@ export function registerRequestDenialContractTests(
           },
         ],
         replayed: false,
-      });
+      } as const;
+      expect(denied).toEqual(expectedDenied);
+      expect(JSON.stringify(denied)).toBe(JSON.stringify(expectedDenied));
+      const replay = await client.requestBudget(requestCommand);
+      expect(JSON.stringify(replay)).toBe(
+        JSON.stringify({ ...expectedDenied, replayed: true }),
+      );
       const parent = await client.getBudget({ budgetId: root.budget.budgetId });
       expect(parent.budget.resources[0]).toMatchObject({
         allocated: 10,
@@ -67,10 +79,26 @@ export function registerRequestDenialContractTests(
         "budget_created",
         "request_denied",
       ]);
-      await expectKeynesError(
+      const denialEntry = parent.history.entries[1];
+      if (denialEntry?.kind !== "request_denied") {
+        throw new Error("the no-Policy fixture must record one denial");
+      }
+      expect(JSON.stringify(denialEntry)).toBe(
+        JSON.stringify({
+          kind: "request_denied",
+          entryId: denialEntry.entryId,
+          sequence: 2,
+          commandId,
+          subjectBudgetId: root.budget.budgetId,
+          parentBudgetId: root.budget.budgetId,
+          reasons: expectedDenied.reasons,
+        }),
+      );
+      const missing = await captureError(
         client.getBudget({ budgetId: commandId }),
-        "budget_not_found",
-        { budgetId: commandId },
+      );
+      expect(JSON.stringify(missing)).toBe(
+        `{"code":"budget_not_found","details":{"budgetId":"${commandId}"},"name":"KeynesError"}`,
       );
     });
 
@@ -353,4 +381,13 @@ async function expectKeynesError(
     code,
     details,
   });
+}
+
+async function captureError(operation: Promise<unknown>): Promise<unknown> {
+  try {
+    await operation;
+  } catch (error: unknown) {
+    return error;
+  }
+  throw new Error("expected operation to reject");
 }

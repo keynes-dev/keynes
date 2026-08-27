@@ -1,4 +1,4 @@
 // Generated from packages/contracts. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
+  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";

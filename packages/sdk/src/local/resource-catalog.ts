@@ -18,6 +18,7 @@ export interface CatalogResource {
 export class ResourceCatalog {
   readonly #byKey = new Map<string, CatalogResource>();
   readonly #byId = new Map<string, CatalogResource>();
+  readonly #byCanonicalName = new Map<string, CatalogResource>();
 
   record(
     prepared: ResourceInstallationDefinition,
@@ -34,12 +35,21 @@ export class ResourceCatalog {
     });
     this.#byKey.set(prepared.key, resource);
     this.#byId.set(resourceType.resourceTypeId, resource);
+    this.#byCanonicalName.set(prepared.canonicalName, resource);
   }
 
   resource(resourceTypeId: string): CatalogResource {
     const resource = this.#byId.get(resourceTypeId);
     if (resource === undefined) {
       throw new Error("Database returned an unknown Resource identity");
+    }
+    return resource;
+  }
+
+  resourceByCanonicalName(canonicalName: string): CatalogResource {
+    const resource = this.#byCanonicalName.get(canonicalName);
+    if (resource === undefined) {
+      throw new Error("Database returned an unknown Resource name");
     }
     return resource;
   }

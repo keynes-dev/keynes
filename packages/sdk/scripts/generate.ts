@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import {
   applyGeneratedOutputs,
   buildPolicySchema,
+  contractFieldOrder,
   loadContract,
   loadPolicyProfile,
   type LoadedContract,
@@ -42,6 +43,7 @@ export async function generateSdk(options: GenerateSdkOptions): Promise<void> {
   }
   const types = await compile(options.contract.schema, "KeynesBudgetContract", {
     bannerComment: LEGACY_GENERATED_HEADER,
+    maxItems: 4,
     style: { singleQuote: false },
     unreachableDefinitions: true,
   });
@@ -52,7 +54,11 @@ export async function generateSdk(options: GenerateSdkOptions): Promise<void> {
   );
   const formattedClient = await formatSource(
     "client.ts",
-    renderClient(options.contract.source, options.contract.digest),
+    renderClient(
+      options.contract.source,
+      options.contract.digest,
+      contractFieldOrder(options.contract.definitions),
+    ),
   );
   const policyTypes = await compile(policySchema, "KeynesPolicyContract", {
     bannerComment:

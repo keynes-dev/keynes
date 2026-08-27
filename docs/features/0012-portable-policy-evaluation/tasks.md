@@ -124,21 +124,40 @@
 
 ### Failing tests for user story 2
 
-- [ ] T027 [P] [US2] Add local governed approval, denial, exact context, multiple-Policy ceiling, evidence, child non-inheritance, and rollback tests in `packages/sdk/test/unit/local/policy-request.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T028 [P] [US2] Add required governed Context, forbidden ungoverned Context, explicit child Policy-set, and inferred child-handle cases to `packages/sdk/test/package/compatibility/policy-api.mts`, then record the expected TypeScript failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T029 [P] [US2] Add PostgreSQL 18.6 system scenarios for governed approval, denial, evidence, child Policies, caller-owned commit and rollback, and canonical availability locks in `packages/postgresql/test/system/policy-request.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T030 [P] [US2] Add Cloud unit tests that reject `policies`, `context`, and `childPolicies` before any database call while retaining no-Policy forwarding in `apps/cloud/test/unit/policy-rejection.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T027 [P] [US2] Add local governed approval, denial, exact context, multiple-Policy ceiling, evidence, child non-inheritance, and rollback tests in `packages/sdk/test/unit/local/policy-request.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T028 [P] [US2] Add required governed Context, forbidden ungoverned Context, explicit child Policy-set, and inferred child-handle cases to `packages/sdk/test/package/compatibility/policy-api.mts`, then record the expected TypeScript failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T029 [P] [US2] Add PostgreSQL 18.6 system scenarios for governed approval, denial, evidence, child Policies, caller-owned commit and rollback, and canonical availability locks in `packages/postgresql/test/system/policy-request.test.ts`, then record the expected failures or `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T030 [P] [US2] Add Cloud unit tests that reject `policies`, `context`, and `childPolicies` before any database call while retaining no-Policy forwarding in `apps/cloud/test/unit/policy-rejection.test.ts`, then record the expected failures in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**US2 RED evidence (2026-08-27)**:
+
+- T027, `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-request.test.ts --maxWorkers=1`: 7 expected failures because attaching a non-empty root Policy set still returned `invalid_configuration` for unsupported `policies`.
+- T028, `CI=true pnpm --filter @keynes/sdk exec tsc --project test/package/tsconfig.json --noEmit`: passed. Phase 2 already established the required Context and child-handle generic constraints; compile-only coverage therefore has no legitimate RED failure. Runtime Policy arguments still fail through `assertLegacyPolicyArguments` and remain the Phase 4 implementation gap.
+- T029, `CI=true pnpm --filter @keynes/postgresql exec vitest run test/system/policy-request.test.ts --maxWorkers=1`: 6 skipped because the runner-owned `KEYNES_POSTGRESQL_SYSTEM_CONTEXT` is absent. Native PostgreSQL RED execution: **NOT RUN**.
+- T030, `CI=true pnpm --filter @keynes/cloud exec vitest run test/unit/policy-rejection.test.ts --maxWorkers=1`: 3 expected failures because Cloud forwarded `policies`, `context`, and `childPolicies` to the database; the no-Policy forwarding case passed.
 
 ### Implementation for user story 2
 
-- [ ] T031 [US2] Wire the generated create and request contracts into public command construction, governed results, history, evidence, and stable error projection in `packages/sdk/src/keynes.ts` and `packages/sdk/src/budget.ts`
-- [ ] T032 [US2] Attach immutable Policy sets to local Budget rows and evaluate detached snapshots after replay under `BEGIN IMMEDIATE` in `packages/sdk/src/local/sqlite-command-executor.ts`
-- [ ] T033 [US2] Validate request Context and child Policy sets, merge ceilings, return frozen Budget handles, and hide runtime identifiers in `packages/sdk/src/budget.ts` and `packages/sdk/src/keynes.ts`
-- [ ] T034 [US2] Add inline `jsonb` Policy storage, canonical holding locks, generated SQL evaluation, evidence, denial commit, exact reservation, child creation, and rollback to `packages/postgresql/migrations/0004-policy.sql`
-- [ ] T035 [US2] Reject every Policy-bearing Cloud field before database invocation without parsing Policy artifacts in `apps/cloud/src/service.ts`
-- [ ] T036 [US2] Extend the complete local and PostgreSQL no-Policy corpus to compare legacy command, result, history, replay, error, and Cloud forwarding bytes in `packages/contracts/conformance/scenarios/budget-lifecycle.ts` and `packages/contracts/conformance/scenarios/request-denial.ts`
-- [ ] T037 [US2] Run the US2 local, compile-only, Cloud unit, and no-Policy suites and record exact provider-free outcomes in `docs/features/0012-portable-policy-evaluation/tasks.md`
-- [ ] T038 [US2] Run `pnpm test:system:postgresql` and `pnpm test:system:cloud` against the packed PostgreSQL subject when Docker is available and authorized, or record both native lanes as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T031 [US2] Wire the generated create and request contracts into public command construction, governed results, history, evidence, and stable error projection in `packages/sdk/src/keynes.ts` and `packages/sdk/src/budget.ts`
+- [x] T032 [US2] Attach immutable Policy sets to local Budget rows and evaluate detached snapshots after replay under `BEGIN IMMEDIATE` in `packages/sdk/src/local/sqlite-command-executor.ts`
+- [x] T033 [US2] Validate request Context and child Policy sets, merge ceilings, return frozen Budget handles, and hide runtime identifiers in `packages/sdk/src/budget.ts` and `packages/sdk/src/keynes.ts`
+- [x] T034 [US2] Add inline `jsonb` Policy storage, canonical holding locks, generated SQL evaluation, evidence, denial commit, exact reservation, child creation, and rollback to `packages/postgresql/migrations/0004-policy.sql`
+- [x] T035 [US2] Reject every Policy-bearing Cloud field before database invocation without parsing Policy artifacts in `apps/cloud/src/service.ts`
+- [x] T036 [US2] Extend the complete local and PostgreSQL no-Policy corpus to compare legacy command, result, history, replay, error, and Cloud forwarding bytes in `packages/contracts/conformance/scenarios/budget-lifecycle.ts` and `packages/contracts/conformance/scenarios/request-denial.ts`
+- [x] T037 [US2] Run the US2 local, compile-only, Cloud unit, and no-Policy suites and record exact provider-free outcomes in `docs/features/0012-portable-policy-evaluation/tasks.md`
+- [x] T038 [US2] Run `pnpm test:system:postgresql` and `pnpm test:system:cloud` against the packed PostgreSQL subject when Docker is available and authorized, or record both native lanes as `NOT RUN` in `docs/features/0012-portable-policy-evaluation/tasks.md`
+
+**Phase 4 implementation evidence (2026-08-27, Node.js 26.5.0, pnpm 11.21.0)**:
+
+- `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/local/policy-request.test.ts --maxWorkers=1`: 7 passed, 0 failed. Governed approval, denial, detached Context evidence, tied lowest ceilings, explicit child Policies, non-inheritance, and rollback passed.
+- `CI=true pnpm --filter @keynes/sdk exec tsc --project test/package/tsconfig.json --noEmit`: passed. Required governed Context, forbidden ungoverned Context, explicit child Policy sets, and inferred child handle types compiled as specified.
+- `CI=true pnpm --filter @keynes/sdk test`: 119 passed, 0 failed, including 32 provider-free conformance cases. Exact no-Policy command, Cloud wrapper, result, replay, history, and error JSON bytes remained unchanged.
+- `CI=true pnpm --filter @keynes/cloud test`: 44 passed, 0 failed. Policy-bearing local-only fields were rejected before invocation, including explicit empty arrays, while no-Policy requests retained their existing forwarding shape.
+- `CI=true pnpm --filter @keynes/contracts test`: 46 passed, 0 failed. `CI=true pnpm --filter @keynes/postgresql test`: 24 passed, 0 failed. Contract composition, generated output, immutable migration provenance, Policy metadata, and PostgreSQL outer parsing passed.
+- `CI=true pnpm test:system:postgresql`: 85 passed, 0 failed against PostgreSQL 18.6, including all six governed T029 scenarios and the exact no-Policy byte corpus. Migrations `0001` through `0003` retained SHA-256 values `1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd`, `464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b`, and `b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753`.
+- `CI=true pnpm test:system:cloud -- --output .artifacts/system-tests/cloud/feat-0012-phase4-precommit.json`: 9 passed, 0 failed against the packed PostgreSQL subject with archive SHA-256 `4f934c847bad75662b4715c724a600b35f95e5b64133b5586037c74c5e828bf3`. The record is pre-commit and dirty-worktree evidence; managed provider, paid service, live exposure, Policy execution through Cloud, security qualification, backup/recovery, failover, benchmark, and production readiness remain **NOT RUN**.
+- Read-only Ponytail review accepted deletion of the dead legacy `renderSql`, scalar-only Context freezing, an unnecessary canonical-name wrapper, and a duplicated catalog field. It retained contract-derived result ordering, semantic and stored-state validation, generated PostgreSQL authority, Cloud presence rejection, and byte-level no-Policy assertions.
+- `CI=true pnpm generate:check`, contracts typecheck, SDK typecheck, PostgreSQL typecheck, Cloud typecheck, and `git diff --check`: passed.
 
 **Checkpoint**: Governed requests commit one explainable decision, and no-Policy behavior remains byte-compatible.
 

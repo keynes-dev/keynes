@@ -12,6 +12,10 @@ import type {
   GetBudgetQuery,
   GetBudgetResult,
   OperationName,
+  PolicyContextV1,
+  PolicyDefinitionV1,
+  PolicyEvidenceV1,
+  PolicyResultRowV1,
   PermissionName,
   RequestBudgetCommand,
   RequestDenialReason,
@@ -20,7 +24,19 @@ import type {
   SettleBudgetCommand,
   UsageAmount,
 } from "../generated/types.js";
+import {
+  POLICY_LIMITS,
+  isPolicyDefinitionV1,
+} from "../generated/policy-profile.js";
 import { validateOperationInputIssues } from "../generated/validators.js";
+import {
+  canonicalJson as canonicalPolicyJson,
+  canonicalPolicyDefinition,
+} from "../policy/canonicalize.js";
+import {
+  PolicyEvaluationError,
+  evaluatePolicyProgram,
+} from "../policy/evaluate.js";
 export type SqliteMutationStage =
   | "after_command_binding"
   | "after_domain_mutation"
@@ -92,6 +108,7 @@ CREATE TABLE budgets (
   root_budget_id TEXT NOT NULL,
   depth INTEGER NOT NULL,
   lifecycle TEXT NOT NULL,
+  policies_json TEXT NOT NULL,
   PRIMARY KEY (tenant_id, budget_id)
 );
 CREATE TABLE budget_resources (
@@ -116,6 +133,7 @@ interface BudgetRow {
   readonly rootBudgetId: string;
   readonly depth: bigint;
   readonly lifecycle: "active" | "settling";
+  readonly policies: readonly PolicyDefinitionV1[];
 }
 
 interface HoldingRow {
@@ -371,6 +389,17 @@ export class SqliteCommandExecutor implements CommandExecutor {
   ): unknown {
     const resources = canonicalAmounts(command.resources);
     this.#requireResourceTypes(context.tenantId, resources);
+    const policies = validatePolicies(
+      "createBudget",
+      command.policies ?? [],
+      new Set(
+        resources.map(
+          (resource) =>
+            this.#requireResource(context.tenantId, resource.resourceTypeId)
+              .canonicalName,
+        ),
+      ),
+    );
     this.#statements.insertBudget.run(
       context.tenantId,
       command.commandId,
@@ -378,6 +407,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       command.commandId,
       0n,
       "active",
+      canonicalPolicyJson(policies),
     );
     this.#insertHoldings(context.tenantId, command.commandId, resources);
     this.#observeMutation?.("after_domain_mutation");
@@ -421,6 +451,17 @@ export class SqliteCommandExecutor implements CommandExecutor {
     }
     const resources = canonicalAmounts(command.resources);
     this.#requireResourceTypes(context.tenantId, resources);
+    const childPolicies = validatePolicies(
+      "requestBudget",
+      command.childPolicies ?? [],
+      new Set(
+        resources.map(
+          (resource) =>
+            this.#requireResource(context.tenantId, resource.resourceTypeId)
+              .canonicalName,
+        ),
+      ),
+    );
     const available = new Map(
       projectedParent.resources.map((resource) => [
         resource.resourceType.resourceTypeId,
@@ -440,8 +481,59 @@ export class SqliteCommandExecutor implements CommandExecutor {
           ]
         : [];
     });
+    const policyEvidence =
+      parent.policies.length === 0
+        ? requireAbsentPolicyContext(command.context)
+        : this.#evaluatePolicies(
+            context.tenantId,
+            parent,
+            resources,
+            projectedParent,
+            command.context,
+          );
+    if (policyEvidence !== undefined) {
+      for (const resource of resources) {
+        const effective = policyEvidence.effectiveCeilings.find(
+          (ceiling) => ceiling.resourceTypeId === resource.resourceTypeId,
+        );
+        if (effective === undefined || resource.amount <= effective.ceiling) {
+          continue;
+        }
+        reasons.push(
+          ...effective.reasons.map((reason) => ({
+            code: "policy_ceiling" as const,
+            resourceTypeId: resource.resourceTypeId,
+            requested: resource.amount,
+            ceiling: effective.ceiling,
+            policyName: reason.policyName,
+            policyRevision: reason.policyRevision,
+            reason: reason.reason,
+          })),
+        );
+      }
+    }
+    reasons.sort((left, right) => {
+      const resource = this.#requireResource(
+        context.tenantId,
+        left.resourceTypeId,
+      ).canonicalName.localeCompare(
+        this.#requireResource(context.tenantId, right.resourceTypeId)
+          .canonicalName,
+      );
+      if (resource !== 0) return resource;
+      const code = left.code.localeCompare(right.code);
+      if (code !== 0) return code;
+      if (left.code !== "policy_ceiling" || right.code !== "policy_ceiling") {
+        return 0;
+      }
+      return comparePolicyReasons(left, right);
+    });
 
     if (reasons.length > 0) {
+      const deniedEvidence =
+        policyEvidence === undefined
+          ? undefined
+          : { ...policyEvidence, decision: "denied" as const };
       this.#observeMutation?.("after_domain_mutation");
       this.#appendHistory(context.tenantId, parent.rootBudgetId, {
         kind: "request_denied",
@@ -451,6 +543,9 @@ export class SqliteCommandExecutor implements CommandExecutor {
         subjectBudgetId: command.parentBudgetId,
         parentBudgetId: command.parentBudgetId,
         reasons: asNonEmpty(reasons),
+        ...(deniedEvidence === undefined
+          ? {}
+          : { policyEvidence: deniedEvidence }),
       });
       this.#observeMutation?.("after_history_insertion");
       return {
@@ -458,6 +553,9 @@ export class SqliteCommandExecutor implements CommandExecutor {
         commandId: command.commandId,
         parentBudgetId: command.parentBudgetId,
         reasons,
+        ...(deniedEvidence === undefined
+          ? {}
+          : { policyEvidence: deniedEvidence }),
       };
     }
 
@@ -468,6 +566,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parent.rootBudgetId,
       parent.depth + 1n,
       "active",
+      canonicalPolicyJson(childPolicies),
     );
     this.#insertHoldings(context.tenantId, command.commandId, resources);
     this.#observeMutation?.("after_domain_mutation");
@@ -480,6 +579,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parentBudgetId: command.parentBudgetId,
       childBudgetId: command.commandId,
       resources,
+      ...(policyEvidence === undefined ? {} : { policyEvidence }),
     });
     this.#observeMutation?.("after_history_insertion");
     return {
@@ -488,7 +588,117 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parentBudgetId: command.parentBudgetId,
       childBudgetId: command.commandId,
       resources,
+      ...(policyEvidence === undefined ? {} : { policyEvidence }),
     };
+  }
+
+  #evaluatePolicies(
+    tenantId: string,
+    parent: BudgetRow,
+    resources: readonly ResourceAmount[],
+    projectedParent: BudgetProjection,
+    suppliedContext: PolicyContextV1 | undefined,
+  ): PolicyEvidenceV1 {
+    const context = validatePolicyContext(parent.policies, suppliedContext);
+    const requestedByName = new Map(
+      resources.map((resource) => [
+        this.#requireResource(tenantId, resource.resourceTypeId).canonicalName,
+        resource.amount,
+      ]),
+    );
+    const availableByName = new Map(
+      projectedParent.resources.map((resource) => [
+        resource.resourceType.canonicalName,
+        resource.available,
+      ]),
+    );
+    const policyEvidence = parent.policies.map((policy) => {
+      let rows: PolicyResultRowV1[];
+      try {
+        rows = evaluatePolicyProgram(policy.program, {
+          requested: policy.inputResources.flatMap((resource) => {
+            const amount = requestedByName.get(resource);
+            return amount === undefined ? [] : [{ resource, amount }];
+          }),
+          available: policy.inputResources.map((resource) => ({
+            resource,
+            amount: availableByName.get(resource) ?? 0,
+          })),
+          context,
+          outputResources: policy.outputResources,
+          reasons: policy.reasons,
+        });
+      } catch (error: unknown) {
+        if (!(error instanceof PolicyEvaluationError)) throw error;
+        fail({
+          kind: "error",
+          code: "policy_evaluation_failed",
+          details: {
+            operation: "requestBudget",
+            policyName: policy.name,
+            policyRevision: policy.revision,
+            category: error.category,
+          },
+        });
+      }
+      return {
+        name: policy.name,
+        revision: policy.revision,
+        sourceDigest: policy.sourceDigest,
+        definitionDigest: policy.definitionDigest,
+        rows,
+      };
+    });
+    const effective = new Map<
+      string,
+      {
+        ceiling: number;
+        reasons: {
+          policyName: string;
+          policyRevision: number;
+          reason: string;
+        }[];
+      }
+    >();
+    for (const policy of policyEvidence) {
+      for (const row of policy.rows) {
+        const current = effective.get(row.resource);
+        const reason = {
+          policyName: policy.name,
+          policyRevision: policy.revision,
+          reason: row.reason,
+        };
+        if (current === undefined || row.ceiling < current.ceiling) {
+          effective.set(row.resource, {
+            ceiling: row.ceiling,
+            reasons: [reason],
+          });
+        } else if (row.ceiling === current.ceiling) {
+          current.reasons.push(reason);
+        }
+      }
+    }
+    const effectiveCeilings = [...effective.entries()]
+      .map(([canonicalName, value]) => ({
+        resourceTypeId: this.#requireResourceByName(tenantId, canonicalName)
+          .resourceTypeId,
+        ceiling: value.ceiling,
+        reasons: asNonEmpty(value.reasons.sort(comparePolicyReasons)),
+      }))
+      .sort((left, right) =>
+        this.#requireResource(
+          tenantId,
+          left.resourceTypeId,
+        ).canonicalName.localeCompare(
+          this.#requireResource(tenantId, right.resourceTypeId).canonicalName,
+        ),
+      );
+    return {
+      context,
+      policies: asNonEmpty(policyEvidence),
+      effectiveCeilings,
+      decision: "approved",
+    } as PolicyEvidenceV1;
   }
 
   #settleBudget(
@@ -822,6 +1032,18 @@ export class SqliteCommandExecutor implements CommandExecutor {
     return resourceRow(row);
   }
 
+  #requireResourceByName(tenantId: string, canonicalName: string): ResourceRow {
+    const row = this.#statements.resourceByName.get(tenantId, canonicalName);
+    if (row === undefined) {
+      fail({
+        kind: "error",
+        code: "resource_type_not_found",
+        details: { resourceTypeId: canonicalName },
+      });
+    }
+    return resourceRow(row);
+  }
+
   #requireResourceTypes(
     tenantId: string,
     resources: readonly ResourceAmount[],
@@ -950,13 +1172,13 @@ function prepareStatements(database: DatabaseSync) {
       "INSERT INTO resource_types (tenant_id, resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
     ),
     budget: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle FROM budgets WHERE tenant_id = ? AND budget_id = ?",
+      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND budget_id = ?",
     ),
     children: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle FROM budgets WHERE tenant_id = ? AND parent_budget_id = ? ORDER BY budget_id",
+      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND parent_budget_id = ? ORDER BY budget_id",
     ),
     insertBudget: database.prepare(
-      "INSERT INTO budgets (tenant_id, budget_id, parent_budget_id, root_budget_id, depth, lifecycle) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO budgets (tenant_id, budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
     ),
     setLifecycle: database.prepare(
       "UPDATE budgets SET lifecycle = ? WHERE tenant_id = ? AND budget_id = ?",
@@ -1016,7 +1238,12 @@ function canonicalCommand(
     commandId = command.commandId;
     targetKind = "budget";
     targetId = command.commandId;
-    body = { resources: canonicalAmounts(command.resources) };
+    body = {
+      resources: canonicalAmounts(command.resources),
+      ...(command.policies === undefined || command.policies.length === 0
+        ? {}
+        : { policies: canonicalPolicies(command.policies) }),
+    };
   } else if (operation === "requestBudget") {
     const command = input as RequestBudgetCommand;
     commandId = command.commandId;
@@ -1025,6 +1252,11 @@ function canonicalCommand(
     body = {
       parentBudgetId: command.parentBudgetId,
       resources: canonicalAmounts(command.resources),
+      ...(command.context === undefined ? {} : { context: command.context }),
+      ...(command.childPolicies === undefined ||
+      command.childPolicies.length === 0
+        ? {}
+        : { childPolicies: canonicalPolicies(command.childPolicies) }),
     };
   } else {
     const command = input as SettleBudgetCommand;
@@ -1054,6 +1286,12 @@ function canonicalAmounts<Value extends ResourceAmount | UsageAmount>(
       left.resourceTypeId.localeCompare(right.resourceTypeId),
     ),
   );
+}
+
+function canonicalPolicies(
+  policies: readonly PolicyDefinitionV1[],
+): PolicyDefinitionV1[] {
+  return [...policies].sort(comparePolicies);
 }
 
 function canonicalJson(value: unknown): string {
@@ -1090,6 +1328,228 @@ function semanticInputIssues(
   return new Set(resourceIds).size === resourceIds.length
     ? []
     : [{ path: `$.${field}`, rule: "uniqueItems" }];
+}
+
+function validatePolicies(
+  operation: "createBudget" | "requestBudget",
+  supplied: readonly PolicyDefinitionV1[],
+  allowedResources: ReadonlySet<string>,
+): PolicyDefinitionV1[] {
+  if (supplied.length > POLICY_LIMITS.policiesPerBudget) {
+    invalidPolicy(operation, undefined, undefined, "$.policies", "maxItems");
+  }
+  const ordered = canonicalPolicies(supplied);
+  let previousName: string | undefined;
+  let contextSchema: string | undefined;
+  let sourceBytes = 0;
+  for (const policy of ordered) {
+    if (!isPolicyDefinitionV1(policy)) {
+      invalidPolicy(operation, undefined, undefined, "$.policies", "schema");
+    }
+    if (policy.name === previousName) {
+      invalidPolicy(
+        operation,
+        policy.name,
+        policy.revision,
+        "$.policies",
+        "uniquePolicyNames",
+      );
+    }
+    previousName = policy.name;
+    const schema = canonicalPolicyJson(policy.contextSchema);
+    if (contextSchema !== undefined && schema !== contextSchema) {
+      invalidPolicy(
+        operation,
+        policy.name,
+        policy.revision,
+        "$.policies",
+        "sharedContextSchema",
+      );
+    }
+    contextSchema = schema;
+    for (const resource of [
+      ...policy.inputResources,
+      ...policy.outputResources,
+    ]) {
+      if (!allowedResources.has(resource)) {
+        invalidPolicy(
+          operation,
+          policy.name,
+          policy.revision,
+          "$.policies",
+          "allocatedResourceTypes",
+        );
+      }
+    }
+    sourceBytes += Buffer.byteLength(policy.canonicalSql, "utf8");
+    if (sourceBytes > POLICY_LIMITS.sourceBytesPerPolicySet) {
+      invalidPolicy(
+        operation,
+        policy.name,
+        policy.revision,
+        "$.policies",
+        "limit",
+      );
+    }
+    const canonical = canonicalPolicyDefinition(
+      {
+        name: policy.name,
+        revision: policy.revision,
+        inputResources: policy.inputResources,
+        outputResources: policy.outputResources,
+        contextSchema: policy.contextSchema,
+        reasons: policy.reasons,
+      },
+      policy.program,
+    );
+    if (canonicalPolicyJson(policy) !== canonicalPolicyJson(canonical)) {
+      invalidPolicy(
+        operation,
+        policy.name,
+        policy.revision,
+        "$.policies",
+        "canonicalDefinition",
+      );
+    }
+  }
+  return structuredClone(ordered);
+}
+
+function validatePolicyContext(
+  policies: readonly PolicyDefinitionV1[],
+  supplied: PolicyContextV1 | undefined,
+): PolicyContextV1 {
+  if (supplied === undefined) {
+    invalidPolicyContext("$.context", "required");
+  }
+  const schema = policies[0]?.contextSchema ?? [];
+  const byName = new Map(schema.map((field) => [field.name, field]));
+  for (const field of schema) {
+    if (!Object.hasOwn(supplied, field.name)) {
+      invalidPolicyContext(`$.context.${field.name}`, "required");
+    }
+  }
+  for (const [name, value] of Object.entries(supplied)) {
+    const field = byName.get(name);
+    if (field === undefined) {
+      invalidPolicyContext(`$.context.${name}`, "additionalProperties");
+    }
+    if (value === null) {
+      if (!field.nullable) invalidPolicyContext(`$.context.${name}`, "null");
+      continue;
+    }
+    if (field.type === "text") {
+      if (typeof value !== "string") {
+        invalidPolicyContext(`$.context.${name}`, "type");
+      }
+      if (value.includes("\u0000") || hasUnpairedSurrogate(value)) {
+        invalidPolicyContext(`$.context.${name}`, "encoding");
+      }
+      if (Buffer.byteLength(value, "utf8") > POLICY_LIMITS.contextTextBytes) {
+        invalidPolicyContext(`$.context.${name}`, "limit");
+      }
+    } else if (field.type === "boolean") {
+      if (typeof value !== "boolean") {
+        invalidPolicyContext(`$.context.${name}`, "type");
+      }
+    } else if (
+      typeof value !== "number" ||
+      !Number.isSafeInteger(value) ||
+      value < 0
+    ) {
+      invalidPolicyContext(`$.context.${name}`, "type");
+    }
+  }
+  const detached = structuredClone(supplied);
+  if (
+    Buffer.byteLength(canonicalPolicyJson(detached), "utf8") >
+    POLICY_LIMITS.canonicalContextBytes
+  ) {
+    invalidPolicyContext("$.context", "limit");
+  }
+  return Object.freeze(detached);
+}
+
+function requireAbsentPolicyContext(
+  supplied: PolicyContextV1 | undefined,
+): undefined {
+  if (supplied !== undefined) {
+    invalidPolicyContext("$.context", "additionalProperties");
+  }
+  return undefined;
+}
+
+function invalidPolicy(
+  operation: "createBudget" | "requestBudget",
+  policyName: string | undefined,
+  policyRevision: number | undefined,
+  path: string,
+  rule: string,
+): never {
+  fail({
+    kind: "error",
+    code: "invalid_policy",
+    details: {
+      operation,
+      ...(policyName === undefined ? {} : { policyName }),
+      ...(policyRevision === undefined ? {} : { policyRevision }),
+      path,
+      rule,
+    },
+  });
+}
+
+function invalidPolicyContext(
+  path: string,
+  rule:
+    | "required"
+    | "additionalProperties"
+    | "type"
+    | "null"
+    | "encoding"
+    | "limit",
+): never {
+  fail({
+    kind: "error",
+    code: "invalid_policy_context",
+    details: { operation: "requestBudget", path, rule },
+  });
+}
+
+function hasUnpairedSurrogate(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) return true;
+      index += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function comparePolicies(
+  left: PolicyDefinitionV1,
+  right: PolicyDefinitionV1,
+): number {
+  return (
+    left.name.localeCompare(right.name) ||
+    left.revision - right.revision ||
+    left.definitionDigest.localeCompare(right.definitionDigest)
+  );
+}
+
+function comparePolicyReasons(
+  left: { policyName: string; policyRevision: number; reason: string },
+  right: { policyName: string; policyRevision: number; reason: string },
+): number {
+  return (
+    left.policyName.localeCompare(right.policyName) ||
+    left.policyRevision - right.policyRevision ||
+    left.reason.localeCompare(right.reason)
+  );
 }
 
 function fail(envelope: ErrorEnvelope): never {
@@ -1140,7 +1600,16 @@ function budgetRow(value: unknown): BudgetRow {
     rootBudgetId: stringColumn(row, "root_budget_id"),
     depth: bigintColumn(row, "depth"),
     lifecycle,
+    policies: storedPolicies(stringColumn(row, "policies_json")),
   };
+}
+
+function storedPolicies(value: string): readonly PolicyDefinitionV1[] {
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || !parsed.every(isPolicyDefinitionV1)) {
+    throw new Error("Invalid stored Policy definitions");
+  }
+  return Object.freeze(structuredClone(parsed));
 }
 
 function holdingRow(value: unknown): HoldingRow {

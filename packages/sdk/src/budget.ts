@@ -4,6 +4,8 @@ import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
+  PolicyContextV1,
+  PolicyEvidenceV1 as WirePolicyEvidenceV1,
   RequestBudgetCommand,
   RequestDenialReason,
   ResourceAmount,
@@ -13,6 +15,7 @@ import type {
 import { KeynesError } from "./generated/client.js";
 import type { PolicyDefinitionV1 } from "./generated/policy-types.js";
 import { admit, invokeMutation, type LocalRuntime } from "./local/runtime.js";
+import { canonicalResourceName } from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
 
 declare const budgetBrand: unique symbol;
@@ -89,20 +92,69 @@ export type BudgetRequestDenialReason<
   | BudgetRequestAvailabilityReason<Name>
   | BudgetRequestPolicyReason<Name, Reason>;
 
+export interface PolicyEvidence<Name extends string = string> {
+  readonly context: Readonly<Record<string, string | boolean | number | null>>;
+  readonly policies: readonly {
+    readonly name: string;
+    readonly revision: number;
+    readonly sourceDigest: string;
+    readonly definitionDigest: string;
+    readonly rows: readonly {
+      readonly resource: Name;
+      readonly ceiling: number;
+      readonly reason: string;
+    }[];
+  }[];
+  readonly effectiveCeilings: readonly {
+    readonly resource: Name;
+    readonly ceiling: number;
+    readonly reasons: readonly {
+      readonly policyName: string;
+      readonly policyRevision: number;
+      readonly reason: string;
+    }[];
+  }[];
+  readonly decision: "approved" | "denied";
+}
+
 export type BudgetRequestResult<
   Names extends string = string,
   Reasons extends string = never,
   ChildContext = NoPolicyContext,
   ChildReasons extends string = never,
-> =
-  | {
-      readonly status: "approved";
-      readonly budget: Budget<Names, ChildContext, ChildReasons>;
-    }
-  | {
-      readonly status: "denied";
-      readonly reasons: readonly BudgetRequestDenialReason<Names, Reasons>[];
-    };
+> = [Reasons] extends [never]
+  ?
+      | {
+          readonly status: "approved";
+          readonly budget: Budget<Names, ChildContext, ChildReasons>;
+        }
+      | {
+          readonly status: "denied";
+          readonly reasons: readonly BudgetRequestDenialReason<
+            Names,
+            Reasons
+          >[];
+        }
+  :
+      | {
+          readonly status: "approved";
+          readonly budget: Budget<Names, ChildContext, ChildReasons>;
+          readonly policyEvidence: PolicyEvidence<Names>;
+        }
+      | {
+          readonly status: "denied";
+          readonly reasons: readonly BudgetRequestDenialReason<
+            Names,
+            Reasons
+          >[];
+          readonly policyEvidence: PolicyEvidence<Names>;
+        };
+
+type PolicyEvidenceField<Names extends string, Reasons extends string> = [
+  Reasons,
+] extends [never]
+  ? object
+  : { readonly policyEvidence: PolicyEvidence<Names> };
 
 export interface BudgetResourceSnapshot<Name extends string = string> {
   readonly resource: Name;
@@ -128,22 +180,25 @@ export interface NamedResourceAmount<Name extends string = string> {
   readonly amount: number;
 }
 
-export type BudgetHistoryEntry<Names extends string = string> =
+export type BudgetHistoryEntry<
+  Names extends string = string,
+  Reasons extends string = never,
+> =
   | {
       readonly kind: "budget_created";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
     }
-  | {
+  | ({
       readonly kind: "request_approved";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
-    }
-  | {
+    } & PolicyEvidenceField<Names, Reasons>)
+  | ({
       readonly kind: "request_denied";
       readonly sequence: number;
-      readonly reasons: readonly BudgetRequestAvailabilityReason<Names>[];
-    }
+      readonly reasons: readonly BudgetRequestDenialReason<Names, Reasons>[];
+    } & PolicyEvidenceField<Names, Reasons>)
   | {
       readonly kind: "budget_settlement_recorded";
       readonly sequence: number;
@@ -153,10 +208,13 @@ export type BudgetHistoryEntry<Names extends string = string> =
       readonly isolatedDeficits: readonly NamedResourceAmount<Names>[];
     };
 
-export interface BudgetSnapshot<Names extends string = string> {
+export interface BudgetSnapshot<
+  Names extends string = string,
+  Reasons extends string = never,
+> {
   readonly budget: BudgetState<Names>;
   readonly history: {
-    readonly entries: readonly BudgetHistoryEntry<Names>[];
+    readonly entries: readonly BudgetHistoryEntry<Names, Reasons>[];
   };
 }
 
@@ -201,7 +259,7 @@ export interface Budget<
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
-  readonly inspect: () => Promise<BudgetSnapshot<Names>>;
+  readonly inspect: () => Promise<BudgetSnapshot<Names, Reasons>>;
 }
 
 export type ExactResourceAmounts<
@@ -313,12 +371,12 @@ export function createBudgetHandle<
       return projectSettlement<Names>(runtime, result);
     });
 
-  const inspect = (): Promise<BudgetSnapshot<Names>> =>
+  const inspect = (): Promise<BudgetSnapshot<Names, Reasons>> =>
     admit(runtime, async () => {
       const result = await invokeBudgetOperation(runtime, () =>
         runtime.client.getBudget({ budgetId }),
       );
-      return projectSnapshot<Names>(runtime, result);
+      return projectSnapshot<Names, Reasons>(runtime, result);
     });
 
   const handle = Object.freeze({
@@ -355,17 +413,18 @@ function requestBudget<
   >
 > {
   type RequestedName = Extract<keyof Resources, Names>;
-  return admit(runtime, async () => {
-    assertLegacyPolicyArguments(options);
+  const preparedOptions = prepareRequestPolicyOptions(options);
+  const pending = admit(runtime, async () => {
     const resolved = runtime.resources.resources<RequestedName>(
       resources,
       "requestBudget",
     );
-    const command = {
+    const command: RequestBudgetCommand = {
       commandId: randomUUID(),
       parentBudgetId: budgetId,
       resources: resolved,
-    } satisfies RequestBudgetCommand;
+      ...preparedOptions,
+    };
     const result = await invokeBudgetOperation(runtime, () =>
       invokeMutation(() => runtime.client.requestBudget(command)),
     );
@@ -377,21 +436,49 @@ function requestBudget<
           ContextOfPolicySet<ChildPolicies>,
           ReasonsOfPolicySet<ChildPolicies>
         >(runtime, result.childBudgetId),
+        ...(result.policyEvidence === undefined
+          ? {}
+          : {
+              policyEvidence: projectPolicyEvidence<RequestedName>(
+                runtime,
+                result.policyEvidence,
+              ),
+            }),
       });
     }
     return Object.freeze({
       status: "denied" as const,
       reasons: Object.freeze(
         result.reasons
-          .map((reason) => projectDenialReason<RequestedName>(runtime, reason))
+          .map((reason) =>
+            projectDenialReason<RequestedName, Reasons>(runtime, reason),
+          )
           .sort(compareDenialReasons),
       ),
+      ...(result.policyEvidence === undefined
+        ? {}
+        : {
+            policyEvidence: projectPolicyEvidence<RequestedName>(
+              runtime,
+              result.policyEvidence,
+            ),
+          }),
     });
   });
+  return pending as Promise<
+    BudgetRequestResult<
+      RequestedName,
+      Reasons,
+      ContextOfPolicySet<ChildPolicies>,
+      ReasonsOfPolicySet<ChildPolicies>
+    >
+  >;
 }
 
-export function assertLegacyPolicyArguments(options: readonly unknown[]): void {
-  if (options.length === 0) return;
+export function attachedPolicyDefinitions(
+  options: readonly unknown[],
+): CreatePolicyDefinitions | undefined {
+  if (options.length === 0) return undefined;
   const option = options[0];
   if (options.length !== 1 || !isRecord(option)) {
     throw invalidConfiguration("options", "unsupported");
@@ -402,9 +489,65 @@ export function assertLegacyPolicyArguments(options: readonly unknown[]): void {
   if (unknownField !== undefined) {
     throw invalidConfiguration(unknownField, "unsupported");
   }
-  if (!isCanonicalEmptyPolicySet(option.policies)) {
+  return policyDefinitions(option.policies);
+}
+
+type CreatePolicyDefinitions = NonNullable<
+  import("./generated/types.js").CreateBudgetCommand["policies"]
+>;
+
+function prepareRequestPolicyOptions(
+  options: readonly unknown[],
+): Pick<RequestBudgetCommand, "context" | "childPolicies"> {
+  if (options.length === 0) return {};
+  const option = options[0];
+  if (options.length !== 1 || !isRecord(option)) {
+    throw invalidConfiguration("options", "unsupported");
+  }
+  const unknownField = Object.keys(option).find(
+    (field) => field !== "context" && field !== "policies",
+  );
+  if (unknownField !== undefined) {
+    throw invalidConfiguration(unknownField, "unsupported");
+  }
+  const context =
+    "context" in option ? canonicalContext(option.context) : undefined;
+  const childPolicies =
+    "policies" in option ? policyDefinitions(option.policies) : undefined;
+  return {
+    ...(context === undefined ? {} : { context }),
+    ...(childPolicies === undefined ? {} : { childPolicies }),
+  };
+}
+
+function policyDefinitions(
+  value: unknown,
+): CreatePolicyDefinitions | undefined {
+  if (!isRecord(value) || !Array.isArray(value.definitions)) {
     throw invalidConfiguration("policies", "unsupported");
   }
+  if (value.definitions.length === 0) {
+    if (!isCanonicalEmptyPolicySet(value)) {
+      throw invalidConfiguration("policies", "unsupported");
+    }
+    return undefined;
+  }
+  if (value.definitions.length > 16) {
+    throw invalidConfiguration("policies", "unsupported");
+  }
+  return structuredClone(value.definitions) as CreatePolicyDefinitions;
+}
+
+function canonicalContext(value: unknown): PolicyContextV1 {
+  if (!isRecord(value)) {
+    throw invalidConfiguration("context", "unsupported");
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, member]) => [
+      canonicalResourceName(key),
+      structuredClone(member),
+    ]),
+  ) as PolicyContextV1;
 }
 
 function isCanonicalEmptyPolicySet(value: unknown): boolean {
@@ -443,16 +586,16 @@ function projectSettlement<Names extends string>(
   });
 }
 
-function projectSnapshot<Names extends string>(
+function projectSnapshot<Names extends string, Reasons extends string>(
   runtime: LocalRuntime,
   result: GetBudgetResult,
-): BudgetSnapshot<Names> {
+): BudgetSnapshot<Names, Reasons> {
   return Object.freeze({
     budget: projectBudget<Names>(runtime, result.budget),
     history: Object.freeze({
       entries: Object.freeze(
         result.history.entries.map((entry) =>
-          projectHistoryEntry<Names>(runtime, entry),
+          projectHistoryEntry<Names, Reasons>(runtime, entry),
         ),
       ),
     }),
@@ -490,10 +633,10 @@ function projectBudget<Names extends string>(
   });
 }
 
-function projectHistoryEntry<Names extends string>(
+function projectHistoryEntry<Names extends string, Reasons extends string>(
   runtime: LocalRuntime,
   entry: WireBudgetHistoryEntry,
-): BudgetHistoryEntry<Names> {
+): BudgetHistoryEntry<Names, Reasons> {
   switch (entry.kind) {
     case "budget_created":
     case "request_approved":
@@ -501,6 +644,15 @@ function projectHistoryEntry<Names extends string>(
         kind: entry.kind,
         sequence: entry.sequence,
         resources: projectAmounts<Names>(runtime, entry.resources),
+        ...(entry.kind === "request_approved" &&
+        entry.policyEvidence !== undefined
+          ? {
+              policyEvidence: projectPolicyEvidence<Names>(
+                runtime,
+                entry.policyEvidence,
+              ),
+            }
+          : {}),
       });
     case "request_denied":
       return Object.freeze({
@@ -508,9 +660,19 @@ function projectHistoryEntry<Names extends string>(
         sequence: entry.sequence,
         reasons: Object.freeze(
           entry.reasons
-            .map((reason) => projectDenialReason<Names>(runtime, reason))
+            .map((reason) =>
+              projectDenialReason<Names, Reasons>(runtime, reason),
+            )
             .sort(compareDenialReasons),
         ),
+        ...(entry.policyEvidence === undefined
+          ? {}
+          : {
+              policyEvidence: projectPolicyEvidence<Names>(
+                runtime,
+                entry.policyEvidence,
+              ),
+            }),
       });
     case "budget_settlement_recorded":
       return Object.freeze({
@@ -630,15 +792,67 @@ function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function projectDenialReason<Names extends string>(
+function projectDenialReason<Names extends string, Reasons extends string>(
   runtime: LocalRuntime,
   reason: RequestDenialReason,
-): BudgetRequestAvailabilityReason<Names> {
+): BudgetRequestDenialReason<Names, Reasons> {
+  return reason.code === "insufficient_available"
+    ? Object.freeze({
+        code: reason.code,
+        resource: resourceName<Names>(runtime, reason.resourceTypeId),
+        requested: reason.requested,
+        available: reason.available,
+      })
+    : Object.freeze({
+        code: reason.code,
+        resource: resourceName<Names>(runtime, reason.resourceTypeId),
+        requested: reason.requested,
+        ceiling: reason.ceiling,
+        policyName: reason.policyName,
+        policyRevision: reason.policyRevision,
+        reason: reason.reason as Reasons,
+      });
+}
+
+function projectPolicyEvidence<Names extends string>(
+  runtime: LocalRuntime,
+  evidence: WirePolicyEvidenceV1,
+): PolicyEvidence<Names> {
   return Object.freeze({
-    code: reason.code,
-    resource: resourceName<Names>(runtime, reason.resourceTypeId),
-    requested: reason.requested,
-    available: reason.available,
+    context: Object.freeze({ ...evidence.context }),
+    policies: Object.freeze(
+      evidence.policies.map((policy) =>
+        Object.freeze({
+          name: policy.name,
+          revision: policy.revision,
+          sourceDigest: policy.sourceDigest,
+          definitionDigest: policy.definitionDigest,
+          rows: Object.freeze(
+            policy.rows.map((row) =>
+              Object.freeze({
+                resource: runtime.resources.resourceByCanonicalName(
+                  row.resource,
+                ).key as Names,
+                ceiling: row.ceiling,
+                reason: row.reason,
+              }),
+            ),
+          ),
+        }),
+      ),
+    ),
+    effectiveCeilings: Object.freeze(
+      evidence.effectiveCeilings.map((effective) =>
+        Object.freeze({
+          resource: resourceName<Names>(runtime, effective.resourceTypeId),
+          ceiling: effective.ceiling,
+          reasons: Object.freeze(
+            effective.reasons.map((reason) => Object.freeze({ ...reason })),
+          ),
+        }),
+      ),
+    ),
+    decision: evidence.decision,
   });
 }
 

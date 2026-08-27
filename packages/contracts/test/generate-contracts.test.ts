@@ -14,7 +14,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import contractSource from "../contract.json" with { type: "json" };
 import expectations from "../fixtures/expectations.json" with { type: "json" };
 import fixtures from "../fixtures/source.json" with { type: "json" };
-import schema from "../schema.json" with { type: "json" };
 import { applyGeneratedOutputs, loadContract } from "../src/index.ts";
 
 const packageRoot = resolve(import.meta.dirname, "..");
@@ -39,7 +38,22 @@ describe("contract source", () => {
   });
 
   it("validates the canonical command fixtures", () => {
+    const schema = loadContract(packageRoot).schema;
     const ajv = new Ajv2020({ strict: true });
+    ajv.addKeyword({
+      keyword: "maxUtf8Bytes",
+      type: "string",
+      schemaType: "number",
+      validate: (limit: number, value: string) =>
+        new TextEncoder().encode(value).byteLength <= limit,
+    });
+    ajv.addKeyword({
+      keyword: "maxCanonicalUtf8Bytes",
+      type: "object",
+      schemaType: "number",
+      validate: (limit: number, value: unknown) =>
+        new TextEncoder().encode(JSON.stringify(value)).byteLength <= limit,
+    });
     ajv.addSchema(schema, contractSource.schema);
     for (const [definition, fixture] of [
       ["DefineResourceTypeCommand", fixtures.commands.defineConsumable],
@@ -57,6 +71,53 @@ describe("contract source", () => {
       );
       expect(validate?.(fixture), JSON.stringify(validate?.errors)).toBe(true);
     }
+  });
+
+  it("wires Policy commands, evidence, reasons, and errors into the Budget contract", () => {
+    const definitions = loadContract(packageRoot).definitions;
+
+    expect(definitions.CreateBudgetCommand).toMatchObject({
+      properties: {
+        policies: {
+          type: "array",
+          items: { $ref: "#/$defs/PolicyDefinitionV1" },
+        },
+      },
+    });
+    expect(definitions.RequestBudgetCommand).toMatchObject({
+      properties: {
+        context: { $ref: "#/$defs/PolicyContextV1" },
+        childPolicies: {
+          type: "array",
+          items: { $ref: "#/$defs/PolicyDefinitionV1" },
+        },
+      },
+    });
+    for (const name of [
+      "RequestApproved",
+      "RequestDenied",
+      "RequestApprovedHistoryEntry",
+      "RequestDeniedHistoryEntry",
+    ]) {
+      expect(definitions[name]).toMatchObject({
+        properties: {
+          policyEvidence: { $ref: "#/$defs/PolicyEvidenceV1" },
+        },
+      });
+    }
+    expect(definitions.RequestDenialReason).toMatchObject({
+      oneOf: expect.arrayContaining([
+        { $ref: "#/$defs/AvailabilityDenialReason" },
+        { $ref: "#/$defs/PolicyCeilingReasonV1" },
+      ]),
+    });
+    expect(definitions.ErrorEnvelope).toMatchObject({
+      oneOf: expect.arrayContaining([
+        { $ref: "#/$defs/InvalidPolicyErrorEnvelope" },
+        { $ref: "#/$defs/InvalidPolicyContextErrorEnvelope" },
+        { $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope" },
+      ]),
+    });
   });
 
   it("rejects operation metadata drift", () => {

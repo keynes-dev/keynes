@@ -13,6 +13,7 @@ import type {
   SettleBudgetResult,
 } from "../generated/types.ts";
 import {
+  orderContractResult,
   validateErrorEnvelope,
   validateOperationResult,
 } from "./validation.ts";
@@ -113,7 +114,7 @@ async function invoke<Result>(
   if (!validateOperationResult(operation, result)) {
     throw new Error(`invalid result response for ${operation}`);
   }
-  return structuredClone(result) as Result;
+  return orderContractResult(result) as Result;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

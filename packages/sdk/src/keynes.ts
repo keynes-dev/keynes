@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  assertLegacyPolicyArguments,
+  attachedPolicyDefinitions,
   createBudgetHandle,
   type AttachPolicyArguments,
   type Budget,
@@ -84,16 +84,17 @@ function createRootBudget<
   >
 > {
   type BudgetName = Extract<keyof Resources, Names>;
+  const policies = attachedPolicyDefinitions(options);
   return admit(runtime, async () => {
-    assertLegacyPolicyArguments(options);
     const resolved = runtime.resources.resources<BudgetName>(
       resources,
       "createBudget",
     );
-    const command = {
+    const command: CreateBudgetCommand = {
       commandId: randomUUID(),
       resources: resolved,
-    } satisfies CreateBudgetCommand;
+      ...(policies === undefined ? {} : { policies }),
+    };
     const result = await invokeMutation(() =>
       runtime.client.createBudget(command),
     );

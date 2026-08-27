@@ -82,6 +82,14 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "Budget request denial rejects a request after its parent becomes inactive",
     "Budget request denial keeps request, settlement, and read permissions independent",
   ],
+  "packages/postgresql/test/system/policy-request.test.ts": [
+    "PostgreSQL governed Policy requests approves within the Policy ceiling and records canonical evidence",
+    "PostgreSQL governed Policy requests denies above the Policy ceiling without reserving or creating a child",
+    "PostgreSQL governed Policy requests attaches only the explicit child Policy set and evaluates it on the next request",
+    "PostgreSQL governed Policy requests keeps governed state pending until the caller commits",
+    "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
+    "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",
+  ],
   "packages/postgresql/test/system/rollback.test.ts": [
     "command rollback rolls back Resource definition checkpoints",
     "command rollback rolls back root allocation facts, result, and history",

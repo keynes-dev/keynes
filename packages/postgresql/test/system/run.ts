@@ -35,6 +35,7 @@ const POSTGRESQL_SYSTEM_TEST_FILES = [
   "packages/postgresql/test/system/contention.test.ts",
   "packages/postgresql/test/system/embedded-transactions.test.ts",
   "packages/postgresql/test/system/installation.test.ts",
+  "packages/postgresql/test/system/policy-request.test.ts",
   "packages/postgresql/test/system/budget-lifecycle.test.ts",
   "packages/postgresql/test/system/replay.test.ts",
   "packages/postgresql/test/system/request-denial.test.ts",

@@ -102,8 +102,8 @@ BEGIN
       END IF;
     WHEN 'enum' THEN
       IF jsonb_typeof(value) IS DISTINCT FROM 'string' OR NOT EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(descriptor->'values') allowed
-         WHERE allowed = value #>> '{}'
+        SELECT 1 FROM jsonb_array_elements_text(descriptor->'values') AS allowed(member)
+         WHERE allowed.member = validate_policy_descriptor.value #>> '{}'
       ) THEN
         PERFORM keynes_internal.invalid_policy(issue_path, 'enum');
       END IF;
@@ -126,7 +126,7 @@ BEGIN
       IF descriptor ? 'maxItems' AND jsonb_array_length(value) > (descriptor->>'maxItems')::integer THEN
         PERFORM keynes_internal.invalid_policy(issue_path, 'maxItems');
       END IF;
-      FOR member IN SELECT member_value FROM jsonb_array_elements(value) member_value
+      FOR member IN SELECT element.member_value FROM jsonb_array_elements(value) AS element(member_value)
       LOOP
         PERFORM keynes_internal.validate_policy_descriptor(member, descriptor->'items', issue_path);
       END LOOP;
@@ -136,7 +136,7 @@ BEGIN
         ARRAY(SELECT key FROM jsonb_object_keys(descriptor->'fields') key),
         issue_path
       );
-      FOR field IN SELECT key, value AS descriptor FROM jsonb_each(descriptor->'fields')
+      FOR field IN SELECT member.key, member.member_value AS descriptor FROM jsonb_each(descriptor->'fields') AS member(key, member_value)
       LOOP
         PERFORM keynes_internal.validate_policy_descriptor(value->field.key, field.descriptor, issue_path || '/' || field.key);
       END LOOP;
@@ -391,7 +391,7 @@ BEGIN
     PERFORM keynes_internal.validate_policy_descriptor(node->field.key, field.descriptor, '$.program/' || field.key);
   END LOOP;
   IF node->>'source' IN ('requested', 'available') AND
-     CASE node->>'field' WHEN 'resource' THEN 'text' WHEN 'amount' THEN 'numeric' END IS DISTINCT FROM node->>'valueType' THEN
+     (CASE node->>'field' WHEN 'resource' THEN 'text' WHEN 'amount' THEN 'numeric' END) IS DISTINCT FROM node->>'valueType' THEN
     PERFORM keynes_internal.invalid_policy('$.program/field', 'type');
   END IF;
   IF node->>'source' IN ('requested', 'available') AND (node->>'nullable')::boolean THEN
@@ -791,7 +791,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT quote_literal(node->>'value') || ' COLLATE "C"';
+  SELECT quote_literal(node->>'value') || '::text COLLATE "C"';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_boolean_literal(node jsonb)
@@ -818,7 +818,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT CASE node->>'source' || '.' || node->>'field' WHEN 'requested.resource' THEN 'requested.resource' WHEN 'requested.amount' THEN 'requested.amount' WHEN 'available.resource' THEN 'available.resource' WHEN 'available.amount' THEN 'available.amount' ELSE CASE node->>'valueType' WHEN 'numeric' THEN '(context.value->>' || quote_literal(node->>'field') || ')::numeric(38,18)' WHEN 'boolean' THEN '(context.value->>' || quote_literal(node->>'field') || ')::boolean' ELSE '(context.value->>' || quote_literal(node->>'field') || ') COLLATE "C"' END END;
+  SELECT CASE (node->>'source') || '.' || (node->>'field') WHEN 'requested.resource' THEN 'requested.resource' WHEN 'requested.amount' THEN 'requested.amount' WHEN 'available.resource' THEN 'available.resource' WHEN 'available.amount' THEN 'available.amount' ELSE CASE node->>'valueType' WHEN 'numeric' THEN '(context.value->>' || quote_literal(node->>'field') || ')::numeric(38,18)' WHEN 'boolean' THEN '(context.value->>' || quote_literal(node->>'field') || ')::boolean' ELSE '(context.value->>' || quote_literal(node->>'field') || ') COLLATE "C"' END END;
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_unary_numeric(node jsonb)
@@ -827,7 +827,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT '( ' || node->>'operator' || keynes_internal.render_policy_node(node->'operand') || ' )::numeric(38,18)';
+  SELECT '( ' || (node->>'operator') || keynes_internal.render_policy_node(node->'operand') || ' )::numeric(38,18)';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_binary_numeric(node jsonb)
@@ -836,7 +836,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT '( ' || keynes_internal.render_policy_node(node->'left') || ' ' || node->>'operator' || ' ' || keynes_internal.render_policy_node(node->'right') || ' )::numeric(38,18)';
+  SELECT '( ' || keynes_internal.render_policy_node(node->'left') || ' ' || (node->>'operator') || ' ' || keynes_internal.render_policy_node(node->'right') || ' )::numeric(38,18)';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_comparison(node jsonb)
@@ -845,7 +845,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT '( ' || keynes_internal.render_policy_node(node->'left') || ' ' || node->>'operator' || ' ' || keynes_internal.render_policy_node(node->'right') || ' )';
+  SELECT '( ' || keynes_internal.render_policy_node(node->'left') || ' ' || (node->>'operator') || ' ' || keynes_internal.render_policy_node(node->'right') || ' )';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_text_in(node jsonb)
@@ -980,16 +980,15 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_policy_program(program jsonb)
-RETURNS TABLE(sql text, parameter_order text[])
+RETURNS text
 LANGUAGE plpgsql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
 BEGIN
   PERFORM keynes_internal.validate_policy_program(program);
-  sql := keynes_internal.render_select(program);
-  parameter_order := ARRAY['requested_resources', 'available_resources', 'policy_context'];
-  RETURN NEXT;
+  PERFORM ARRAY['requested_resources', 'available_resources', 'policy_context'];
+  RETURN keynes_internal.render_select(program);
 END;
 $$;
 
@@ -1061,6 +1060,842 @@ AS $$
     CROSS JOIN expression_stats;
 $$;
 
+ALTER TABLE keynes_internal.budgets
+  ADD COLUMN policies jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD CONSTRAINT budget_policies_shape CHECK (
+    jsonb_typeof(policies) = 'array' AND jsonb_array_length(policies) <= 16
+  );
+
+CREATE FUNCTION keynes_internal.apply_command_legacy(operation_name text, input jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal
+AS $function$
+<<apply_command>>
+DECLARE
+  permission_name text;
+  target_kind text;
+  tenant uuid;
+  principal uuid;
+  command_id uuid;
+  parent_id uuid;
+  target_id uuid;
+  items jsonb;
+  canonical_definition jsonb;
+  body jsonb;
+  body_digest_value text;
+  definition_digest_value text;
+  prior keynes_internal.commands%ROWTYPE;
+  stored_resource keynes_internal.resource_types%ROWTYPE;
+  budget keynes_internal.budgets%ROWTYPE;
+  item jsonb;
+  result jsonb;
+  projection jsonb;
+  newly_known jsonb := '[]'::jsonb;
+  unresolved jsonb;
+  deficits jsonb;
+  denial_reasons jsonb;
+  available_amount numeric;
+  existing_usage bigint;
+  domain_error_message text;
+BEGIN
+  permission_name := CASE operation_name
+    WHEN 'defineResource' THEN 'define_resource_type'
+    WHEN 'createBudget' THEN 'create_root_budget'
+    WHEN 'requestBudget' THEN 'request_budget'
+    WHEN 'settleBudget' THEN 'settle_budget'
+    ELSE NULL
+  END;
+  IF permission_name IS NULL THEN
+    RAISE EXCEPTION USING ERRCODE = '0A000',
+      MESSAGE = format('operation %L is not implemented', operation_name);
+  END IF;
+  BEGIN
+    IF operation_name = 'defineResource' THEN
+      IF input IS NULL OR jsonb_typeof(input) <> 'object' THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$', 'type');
+      END IF;
+      IF NOT (input ? 'commandId') OR NOT (input ? 'definition') THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$', 'required');
+      END IF;
+      IF input - ARRAY['commandId', 'definition']::text[] <> '{}'::jsonb THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$', 'additionalProperties');
+      END IF;
+      IF jsonb_typeof(input->'commandId') <> 'string' THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$.commandId', 'type');
+      END IF;
+      IF input->>'commandId'
+        !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$.commandId', 'format');
+      END IF;
+    ELSIF input IS NULL OR jsonb_typeof(input) <> 'object'
+      OR NOT (input ? 'commandId')
+      OR jsonb_typeof(input->'commandId') <> 'string'
+      OR input->>'commandId'
+        !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$.commandId', 'format');
+    END IF;
+    command_id := (input->>'commandId')::uuid;
+    CASE operation_name
+      WHEN 'defineResource' THEN
+        IF jsonb_typeof(input->'definition') <> 'object' THEN
+          PERFORM keynes_internal.invalid_command(operation_name, '$.definition', 'type');
+        END IF;
+        IF NOT (input->'definition' ? 'canonicalName')
+          OR NOT (input->'definition' ? 'unit')
+          OR NOT (input->'definition' ? 'accountingBehavior') THEN
+          PERFORM keynes_internal.invalid_command(operation_name, '$.definition', 'required');
+        END IF;
+        IF (input->'definition')
+          - ARRAY['canonicalName', 'unit', 'accountingBehavior']::text[]
+          <> '{}'::jsonb THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, '$.definition', 'additionalProperties'
+          );
+        END IF;
+        IF jsonb_typeof(input->'definition'->'canonicalName') <> 'string'
+          OR (input->'definition'->>'canonicalName') !~ '^[a-z][a-z0-9_]{0,62}$' THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, '$.definition.canonicalName', 'pattern'
+          );
+        END IF;
+        IF jsonb_typeof(input->'definition'->'unit') <> 'string'
+          OR char_length(input->'definition'->>'unit') NOT BETWEEN 1 AND 64
+          OR input->'definition'->>'unit' <> btrim(input->'definition'->>'unit')
+          OR input->'definition'->>'unit' ~ '[[:cntrl:]]' THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, '$.definition.unit', 'format'
+          );
+        END IF;
+        IF jsonb_typeof(input->'definition'->'accountingBehavior') <> 'string'
+          OR input->'definition'->>'accountingBehavior'
+            NOT IN ('consumable', 'reusable') THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, '$.definition.accountingBehavior', 'enum'
+          );
+        END IF;
+        canonical_definition := jsonb_build_object(
+          'canonicalName', input->'definition'->>'canonicalName',
+          'unit', input->'definition'->>'unit',
+          'accountingBehavior', input->'definition'->>'accountingBehavior'
+        );
+        body := jsonb_build_object('definition', canonical_definition);
+        target_kind := 'resource_type';
+        target_id := command_id;
+      WHEN 'createBudget' THEN
+        IF NOT (input ? 'resources')
+          OR input - ARRAY['commandId', 'resources']::text[] <> '{}'::jsonb THEN
+          PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
+        END IF;
+        items := keynes_internal.canonical_envelope(
+          operation_name, input->'resources', '$.resources', false
+        );
+        body := jsonb_build_object('resources', items);
+        target_kind := 'budget';
+        target_id := command_id;
+      WHEN 'requestBudget' THEN
+        IF NOT (input ? 'parentBudgetId') OR NOT (input ? 'resources')
+          OR input - ARRAY['commandId', 'parentBudgetId', 'resources']::text[] <> '{}'::jsonb
+          OR jsonb_typeof(input->'parentBudgetId') <> 'string'
+          OR input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+          PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
+        END IF;
+        parent_id := (input->>'parentBudgetId')::uuid;
+        items := keynes_internal.canonical_envelope(
+          operation_name, input->'resources', '$.resources', false
+        );
+        body := jsonb_build_object('parentBudgetId', parent_id::text, 'resources', items);
+        target_kind := 'budget';
+        target_id := command_id;
+      WHEN 'settleBudget' THEN
+        IF NOT (input ? 'budgetId') OR NOT (input ? 'usage')
+          OR input - ARRAY['commandId', 'budgetId', 'usage']::text[] <> '{}'::jsonb
+          OR jsonb_typeof(input->'budgetId') <> 'string'
+          OR input->>'budgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+          PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
+        END IF;
+        target_id := (input->>'budgetId')::uuid;
+        items := keynes_internal.canonical_envelope(
+          operation_name, input->'usage', '$.usage', true
+        );
+        body := jsonb_build_object('budgetId', target_id::text, 'usage', items);
+        target_kind := 'budget';
+    END CASE;
+    IF coalesce(current_setting('keynes.tenant_id', true), '')
+        !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      OR coalesce(current_setting('keynes.principal_id', true), '')
+        !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+      PERFORM keynes_internal.raise_domain_error(
+        'unauthorized', jsonb_build_object(
+          'operation', operation_name, 'requiredPermission', permission_name
+        )
+      );
+    END IF;
+    tenant := current_setting('keynes.tenant_id')::uuid;
+    principal := current_setting('keynes.principal_id')::uuid;
+    IF NOT EXISTS (
+      SELECT 1 FROM keynes_internal.principal_permissions
+      WHERE tenant_id = tenant AND principal_id = principal AND permission = permission_name
+    ) THEN
+      PERFORM keynes_internal.raise_domain_error(
+        'unauthorized', jsonb_build_object(
+          'operation', operation_name, 'requiredPermission', permission_name
+        )
+      );
+    END IF;
+    body_digest_value := 'command-body:' || encode(
+      sha256(convert_to(body::text, 'UTF8')), 'hex'
+    );
+    INSERT INTO keynes_internal.commands (
+      tenant_id, command_id, operation, target_kind, target_id,
+      canonical_body, body_digest, principal_id
+    ) VALUES (
+      tenant, command_id, operation_name, target_kind, target_id,
+      body, body_digest_value, principal
+    ) ON CONFLICT ON CONSTRAINT commands_pkey DO NOTHING;
+    IF NOT FOUND THEN
+      SELECT * INTO prior FROM keynes_internal.commands AS stored
+      WHERE stored.tenant_id = tenant
+        AND stored.command_id = apply_command.command_id FOR UPDATE;
+      IF prior.operation <> operation_name OR prior.target_kind <> target_kind
+        OR prior.target_id <> target_id OR prior.canonical_body <> body
+        OR prior.body_digest <> body_digest_value THEN
+        PERFORM keynes_internal.raise_domain_error(
+          'command_conflict', jsonb_build_object(
+            'commandId', command_id::text, 'existingOperation', prior.operation,
+            'attemptedOperation', operation_name
+          )
+        );
+      END IF;
+      RETURN jsonb_build_object('ok', true, 'result', prior.result, 'replayed', true);
+    END IF;
+    PERFORM keynes_internal.checkpoint('after_command_binding');
+
+    IF operation_name = 'defineResource' THEN
+      definition_digest_value := 'resource-definition:' || encode(
+        sha256(convert_to(canonical_definition::text, 'UTF8')), 'hex'
+      );
+      SELECT * INTO stored_resource
+      FROM keynes_internal.resource_types AS resource_type
+      WHERE resource_type.tenant_id = tenant
+        AND resource_type.canonical_name = canonical_definition->>'canonicalName'
+      FOR UPDATE;
+      IF FOUND THEN
+        IF stored_resource.definition_digest <> definition_digest_value
+          OR stored_resource.definition <> canonical_definition THEN
+          PERFORM keynes_internal.raise_domain_error(
+            'resource_type_conflict',
+            jsonb_build_object(
+              'canonicalName', canonical_definition->>'canonicalName',
+              'existingDefinitionDigest', stored_resource.definition_digest,
+              'attemptedDefinitionDigest', definition_digest_value
+            )
+          );
+        END IF;
+      ELSE
+        INSERT INTO keynes_internal.resource_types (
+          tenant_id, resource_type_id, canonical_name, unit,
+          accounting_behavior, definition, definition_digest,
+          definer_principal_id
+        ) VALUES (
+          tenant, command_id, canonical_definition->>'canonicalName',
+          canonical_definition->>'unit',
+          canonical_definition->>'accountingBehavior', canonical_definition,
+          definition_digest_value, principal
+        )
+        RETURNING * INTO stored_resource;
+      END IF;
+      PERFORM keynes_internal.checkpoint('after_domain_mutation');
+      result := jsonb_build_object(
+        'kind', 'defined',
+        'resourceType', jsonb_build_object(
+          'resourceTypeId', stored_resource.resource_type_id::text,
+          'canonicalName', stored_resource.canonical_name,
+          'unit', stored_resource.unit,
+          'accountingBehavior', stored_resource.accounting_behavior,
+          'definitionDigest', stored_resource.definition_digest
+        ),
+        'definitionEvidence', jsonb_build_object(
+          'kind', 'resource_type_defined',
+          'commandId', stored_resource.resource_type_id::text,
+          'principalId', stored_resource.definer_principal_id::text,
+          'definitionDigest', stored_resource.definition_digest
+        )
+      );
+    ELSIF operation_name = 'createBudget' THEN
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        IF NOT EXISTS (
+          SELECT 1 FROM keynes_internal.resource_types
+          WHERE tenant_id = tenant AND resource_type_id = (item->>'resourceTypeId')::uuid
+        ) THEN
+          PERFORM keynes_internal.raise_domain_error(
+            'resource_type_not_found', jsonb_build_object('resourceTypeId', item->>'resourceTypeId')
+          );
+        END IF;
+      END LOOP;
+      INSERT INTO keynes_internal.budgets (
+        tenant_id, budget_id, parent_budget_id, root_budget_id,
+        depth, lifecycle
+      ) VALUES (tenant, command_id, NULL, command_id, 0, 'active');
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        INSERT INTO keynes_internal.budget_resources (
+          tenant_id, budget_id, resource_type_id, allocated_amount
+        ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
+      END LOOP;
+      INSERT INTO keynes_internal.budget_history_streams (tenant_id, stream_id)
+      VALUES (tenant, command_id);
+      PERFORM keynes_internal.checkpoint('after_domain_mutation');
+      PERFORM keynes_internal.append_history(
+        tenant, command_id, command_id, 'budget_created', command_id,
+        jsonb_build_object('rootBudgetId', command_id::text, 'resources', items)
+      );
+      PERFORM keynes_internal.checkpoint('after_history_insertion');
+      result := jsonb_build_object(
+        'kind', 'created', 'budget', keynes_internal.budget_projection(tenant, command_id)
+      );
+    ELSIF operation_name = 'requestBudget' THEN
+      SELECT * INTO budget FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = parent_id FOR UPDATE;
+      IF NOT FOUND THEN
+        PERFORM keynes_internal.raise_domain_error(
+          'budget_not_found', jsonb_build_object('budgetId', parent_id::text)
+        );
+      END IF;
+      IF budget.lifecycle <> 'active' THEN
+        PERFORM keynes_internal.raise_domain_error(
+          'budget_not_active', jsonb_build_object(
+            'budgetId', parent_id::text, 'lifecycle', budget.lifecycle
+          )
+        );
+      END IF;
+      PERFORM 1 FROM keynes_internal.budget_resources AS locked
+      WHERE locked.tenant_id = tenant
+        AND locked.budget_id = parent_id
+        AND locked.resource_type_id IN (
+          SELECT (requested->>'resourceTypeId')::uuid
+          FROM jsonb_array_elements(items) AS requested
+        )
+      ORDER BY locked.resource_type_id FOR UPDATE;
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        IF NOT EXISTS (
+          SELECT 1 FROM keynes_internal.resource_types
+          WHERE tenant_id = tenant AND resource_type_id = (item->>'resourceTypeId')::uuid
+        ) THEN
+          PERFORM keynes_internal.raise_domain_error(
+            'resource_type_not_found', jsonb_build_object('resourceTypeId', item->>'resourceTypeId')
+          );
+        END IF;
+      END LOOP;
+      denial_reasons := '[]'::jsonb;
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        SELECT coalesce((SELECT (resource->>'available')::numeric
+          FROM jsonb_array_elements(
+            keynes_internal.budget_projection(tenant, parent_id)->'resources'
+          ) AS resource
+          WHERE resource->'resourceType'->>'resourceTypeId' = item->>'resourceTypeId'), 0)
+        INTO available_amount;
+        IF available_amount < (item->>'amount')::numeric THEN
+          denial_reasons := denial_reasons || jsonb_build_array(jsonb_build_object(
+            'code', 'insufficient_available',
+            'resourceTypeId', item->>'resourceTypeId',
+            'requested', (item->>'amount')::numeric,
+            'available', available_amount
+          ));
+        END IF;
+      END LOOP;
+      IF jsonb_array_length(denial_reasons) > 0 THEN
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(
+          tenant, budget.root_budget_id, command_id, 'request_denied', parent_id,
+          jsonb_build_object('parentBudgetId', parent_id::text, 'reasons', denial_reasons)
+        );
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object(
+          'kind', 'denied', 'commandId', command_id::text,
+          'parentBudgetId', parent_id::text, 'reasons', denial_reasons
+        );
+      ELSE
+        INSERT INTO keynes_internal.budgets (
+          tenant_id, budget_id, parent_budget_id, root_budget_id,
+          depth, lifecycle
+        ) VALUES (
+          tenant, command_id, parent_id, budget.root_budget_id,
+          budget.depth + 1, 'active'
+        );
+        FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+          INSERT INTO keynes_internal.budget_resources (
+            tenant_id, budget_id, resource_type_id, allocated_amount
+          ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
+        END LOOP;
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(
+          tenant, budget.root_budget_id, command_id, 'request_approved', command_id,
+          jsonb_build_object(
+            'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
+            'resources', items
+          )
+        );
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object(
+          'kind', 'approved', 'commandId', command_id::text,
+          'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
+          'resources', items
+        );
+      END IF;
+    ELSE
+      SELECT * INTO budget FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = target_id FOR UPDATE;
+      IF NOT FOUND THEN
+        PERFORM keynes_internal.raise_domain_error(
+          'budget_not_found', jsonb_build_object('budgetId', target_id::text)
+        );
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM jsonb_array_elements(items) AS usage
+        WHERE NOT EXISTS (
+          SELECT 1 FROM keynes_internal.budget_resources AS fact
+          WHERE fact.tenant_id = tenant AND fact.budget_id = target_id
+            AND fact.resource_type_id = (usage->>'resourceTypeId')::uuid
+        )
+      ) THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$.usage', 'allocatedResourceTypes');
+      END IF;
+      PERFORM 1 FROM keynes_internal.budget_resources AS locked
+      WHERE locked.tenant_id = tenant AND locked.budget_id = target_id
+      ORDER BY locked.resource_type_id FOR UPDATE;
+      FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
+        SELECT fact.direct_usage_amount INTO existing_usage
+        FROM keynes_internal.budget_resources AS fact
+        WHERE fact.tenant_id = tenant AND fact.budget_id = target_id
+          AND fact.resource_type_id = (item->>'resourceTypeId')::uuid;
+        IF item->'amount' = 'null'::jsonb THEN
+          IF existing_usage IS NOT NULL THEN
+            PERFORM keynes_internal.invalid_command(
+              operation_name, '$.usage[].amount', 'monotone'
+            );
+          END IF;
+        ELSIF existing_usage IS NULL THEN
+          UPDATE keynes_internal.budget_resources
+          SET direct_usage_amount = (item->>'amount')::bigint, usage_command_id = command_id
+          WHERE tenant_id = tenant AND budget_id = target_id
+            AND resource_type_id = (item->>'resourceTypeId')::uuid;
+          newly_known := newly_known || jsonb_build_array(item);
+        ELSIF existing_usage <> (item->>'amount')::bigint THEN
+          PERFORM keynes_internal.raise_domain_error(
+            'usage_conflict',
+            jsonb_build_object(
+              'budgetId', target_id::text,
+              'resourceTypeId', item->>'resourceTypeId',
+              'existing', existing_usage,
+              'attempted', (item->>'amount')::numeric
+            )
+          );
+        END IF;
+      END LOOP;
+      UPDATE keynes_internal.budgets SET lifecycle = 'settling'
+      WHERE tenant_id = tenant AND budget_id = target_id AND lifecycle = 'active';
+      PERFORM keynes_internal.assert_safe_accounting(tenant, target_id, operation_name);
+      PERFORM keynes_internal.checkpoint('after_domain_mutation');
+      SELECT coalesce(jsonb_agg(resource_type_id::text ORDER BY resource_type_id), '[]'::jsonb)
+      INTO unresolved FROM keynes_internal.budget_resources
+      WHERE tenant_id = tenant AND budget_id = target_id AND direct_usage_amount IS NULL;
+      projection := keynes_internal.budget_projection(tenant, target_id);
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'resourceTypeId', resource->'resourceType'->>'resourceTypeId',
+        'amount', (resource->>'deficit')::numeric
+      ) ORDER BY resource->'resourceType'->>'resourceTypeId'), '[]'::jsonb) INTO deficits
+      FROM jsonb_array_elements(projection->'resources') AS resource
+      WHERE (resource->>'deficit')::numeric > 0;
+      PERFORM keynes_internal.append_history(
+        tenant, budget.root_budget_id, command_id, 'budget_settlement_recorded', target_id,
+        jsonb_build_object(
+          'budgetId', target_id::text, 'newlyKnown', newly_known,
+          'unresolvedResourceTypeIds', unresolved,
+          'lifecycle', projection->>'lifecycle', 'isolatedDeficits', deficits
+        )
+      );
+      PERFORM keynes_internal.checkpoint('after_history_insertion');
+      result := jsonb_build_object(
+        'kind', projection->>'lifecycle', 'budget', projection,
+        'newlyKnown', newly_known, 'unresolvedResourceTypeIds', unresolved
+      );
+    END IF;
+    UPDATE keynes_internal.commands AS stored
+    SET result = apply_command.result, committed_at = clock_timestamp()
+    WHERE stored.tenant_id = tenant
+      AND stored.command_id = apply_command.command_id;
+    PERFORM keynes_internal.checkpoint('after_result_storage');
+    RETURN jsonb_build_object('ok', true, 'result', result, 'replayed', false);
+  EXCEPTION WHEN SQLSTATE 'K0001' THEN
+    GET STACKED DIAGNOSTICS domain_error_message = MESSAGE_TEXT;
+    RETURN jsonb_build_object('ok', false, 'error', domain_error_message::jsonb);
+  END;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.policy_canonical_json(value jsonb)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, keynes_internal
+AS $$
+  SELECT CASE jsonb_typeof(value)
+    WHEN 'object' THEN '{' || coalesce((
+      SELECT string_agg(to_jsonb(member.key)::text || ':' || keynes_internal.policy_canonical_json(member.member_value), ',' ORDER BY member.key COLLATE "C")
+      FROM jsonb_each(value) AS member(key, member_value)
+    ), '') || '}'
+    WHEN 'array' THEN '[' || coalesce((
+      SELECT string_agg(keynes_internal.policy_canonical_json(member.member_value), ',' ORDER BY member.ordinality)
+      FROM jsonb_array_elements(value) WITH ORDINALITY AS member(member_value, ordinality)
+    ), '') || ']'
+    ELSE value::text
+  END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.validate_policy_set(policies jsonb)
+RETURNS void
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog, keynes_internal
+AS $$
+DECLARE
+  policy jsonb;
+  first_context jsonb;
+  ordinal integer := 0;
+BEGIN
+  IF jsonb_typeof(policies) IS DISTINCT FROM 'array'
+    OR jsonb_array_length(policies) > 16 THEN
+    PERFORM keynes_internal.invalid_policy('$.policies', 'type_or_limit');
+  END IF;
+  FOR policy IN SELECT value FROM jsonb_array_elements(policies) LOOP
+    ordinal := ordinal + 1;
+    PERFORM keynes_internal.policy_assert_exact_keys(
+      policy,
+      ARRAY['kind','name','revision','inputResources','outputResources','contextSchema','reasons','programVersion','queryProfileVersion','validatorVersion','limitsVersion','policyProfileDigest','program','canonicalSql','sourceDigest','definitionDigest'],
+      '$.policies[' || (ordinal - 1)::text || ']'
+    );
+    IF policy->>'kind' IS DISTINCT FROM 'keynes.policy'
+      OR policy->>'programVersion' IS DISTINCT FROM 'keynes-policy-program/v1'
+      OR policy->>'queryProfileVersion' IS DISTINCT FROM 'keynes-policy-query/v1'
+      OR policy->>'validatorVersion' IS DISTINCT FROM 'keynes-policy-validator/v1'
+      OR policy->>'limitsVersion' IS DISTINCT FROM 'keynes-policy-limits/v1'
+      OR policy->>'policyProfileDigest' IS DISTINCT FROM '7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486'
+      OR policy->>'sourceDigest' IS DISTINCT FROM encode(sha256(convert_to(policy->>'canonicalSql', 'UTF8')), 'hex')
+      OR policy->>'definitionDigest' IS DISTINCT FROM encode(sha256(convert_to(keynes_internal.policy_canonical_json(policy - 'definitionDigest'), 'UTF8')), 'hex')
+      OR jsonb_typeof(policy->'inputResources') IS DISTINCT FROM 'array'
+      OR jsonb_array_length(policy->'inputResources') NOT BETWEEN 1 AND 64
+      OR jsonb_typeof(policy->'outputResources') IS DISTINCT FROM 'array'
+      OR jsonb_array_length(policy->'outputResources') NOT BETWEEN 1 AND 64
+      OR jsonb_typeof(policy->'contextSchema') IS DISTINCT FROM 'array'
+      OR jsonb_array_length(policy->'contextSchema') > 32
+      OR jsonb_typeof(policy->'reasons') IS DISTINCT FROM 'array'
+      OR jsonb_array_length(policy->'reasons') NOT BETWEEN 1 AND 64 THEN
+      PERFORM keynes_internal.invalid_policy('$.policies[' || (ordinal - 1)::text || ']', 'artifact');
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(policy->'inputResources') WITH ORDINALITY item(value, n)
+      WHERE value !~ '^[a-z][a-z0-9_]{0,62}$'
+         OR (n > 1 AND value <= (policy->'inputResources'->>((n - 2)::integer)))
+    ) OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(policy->'outputResources') WITH ORDINALITY item(value, n)
+      WHERE value !~ '^[a-z][a-z0-9_]{0,62}$'
+         OR (n > 1 AND value <= (policy->'outputResources'->>((n - 2)::integer)))
+    ) OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(policy->'reasons') WITH ORDINALITY item(value, n)
+      WHERE value = '' OR octet_length(convert_to(value, 'UTF8')) > 256
+         OR (n > 1 AND value <= (policy->'reasons'->>((n - 2)::integer)))
+    ) THEN
+      PERFORM keynes_internal.invalid_policy('$.policies[' || (ordinal - 1)::text || ']', 'canonical_order');
+    END IF;
+    PERFORM keynes_internal.validate_policy_program(policy->'program');
+    IF keynes_internal.policy_work_bound(
+      policy->'program', 64, 64
+    ) > 65536 THEN
+      PERFORM keynes_internal.invalid_policy('$.policies[' || (ordinal - 1)::text || '].program', 'work_limit');
+    END IF;
+    IF first_context IS NULL THEN
+      first_context := policy->'contextSchema';
+    ELSIF first_context IS DISTINCT FROM policy->'contextSchema' THEN
+      PERFORM keynes_internal.invalid_policy('$.policies', 'shared_context_schema');
+    END IF;
+  END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.validate_policy_context(policies jsonb, context jsonb)
+RETURNS void
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog, keynes_internal
+AS $$
+DECLARE
+  schema jsonb := policies->0->'contextSchema';
+  field jsonb;
+  value jsonb;
+BEGIN
+  IF jsonb_array_length(policies) = 0 THEN
+    IF context IS NOT NULL THEN
+      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context', 'rule', 'ungoverned'))));
+    END IF;
+    RETURN;
+  END IF;
+  IF jsonb_typeof(context) IS DISTINCT FROM 'object'
+    OR octet_length(convert_to(context::text, 'UTF8')) > 8192
+    OR ARRAY(SELECT member.key FROM jsonb_object_keys(context) AS member(key) ORDER BY member.key)
+       IS DISTINCT FROM ARRAY(SELECT field.member->>'name' FROM jsonb_array_elements(schema) AS field(member) ORDER BY field.member->>'name') THEN
+    PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context', 'rule', 'schema'))));
+  END IF;
+  FOR field IN SELECT member FROM jsonb_array_elements(schema) member LOOP
+    value := context->(field->>'name');
+    IF value = 'null'::jsonb AND (field->>'nullable')::boolean THEN CONTINUE; END IF;
+    IF (field->>'type' = 'integer' AND (jsonb_typeof(value) IS DISTINCT FROM 'number' OR value::text !~ '^-?[0-9]+$' OR abs((value::text)::numeric) > 9007199254740991))
+      OR (field->>'type' = 'text' AND (jsonb_typeof(value) IS DISTINCT FROM 'string' OR octet_length(convert_to(value #>> '{}', 'UTF8')) > 256))
+      OR (field->>'type' = 'boolean' AND jsonb_typeof(value) IS DISTINCT FROM 'boolean') THEN
+      PERFORM keynes_internal.raise_domain_error('invalid_policy_context', jsonb_build_object('issues', jsonb_build_array(jsonb_build_object('path', '$.context.' || (field->>'name'), 'rule', 'type'))));
+    END IF;
+  END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.evaluate_policy_set(
+  selected_tenant uuid, selected_budget uuid, policies jsonb, requested_items jsonb, context jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path = pg_catalog, keynes_internal
+AS $$
+DECLARE
+  policy jsonb;
+  rendered text;
+  rows jsonb;
+  policy_rows jsonb := '[]'::jsonb;
+  requested_named jsonb;
+  available_named jsonb;
+  effective jsonb;
+BEGIN
+  SELECT jsonb_agg(jsonb_build_object('resource', resource_type.canonical_name, 'amount', (item->>'amount')::numeric) ORDER BY resource_type.canonical_name)
+    INTO requested_named
+    FROM jsonb_array_elements(requested_items) item
+    JOIN keynes_internal.resource_types resource_type
+      ON resource_type.tenant_id = selected_tenant AND resource_type.resource_type_id = (item->>'resourceTypeId')::uuid;
+  SELECT coalesce(jsonb_agg(jsonb_build_object('resource', resource_type.canonical_name, 'amount', (resource->>'available')::numeric) ORDER BY resource_type.canonical_name), '[]'::jsonb)
+    INTO available_named
+    FROM jsonb_array_elements(keynes_internal.budget_projection(selected_tenant, selected_budget)->'resources') resource
+    JOIN keynes_internal.resource_types resource_type
+      ON resource_type.tenant_id = selected_tenant AND resource_type.resource_type_id = (resource->'resourceType'->>'resourceTypeId')::uuid;
+  FOR policy IN SELECT value FROM jsonb_array_elements(policies) LOOP
+    rendered := keynes_internal.render_policy_program(policy->'program');
+    BEGIN
+      EXECUTE 'SELECT coalesce(jsonb_agg(to_jsonb(policy_result) ORDER BY resource COLLATE "C", reason COLLATE "C", ceiling), ''[]''::jsonb) FROM (' || rendered || ') policy_result'
+        INTO rows USING requested_named, available_named, context;
+    EXCEPTION WHEN OTHERS THEN
+      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object('policyName', policy->>'name', 'policyRevision', (policy->>'revision')::numeric));
+    END;
+    IF jsonb_array_length(rows) > 64 OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements(rows) row
+      WHERE row - ARRAY['resource','ceiling','reason']::text[] <> '{}'::jsonb
+         OR jsonb_typeof(row->'resource') IS DISTINCT FROM 'string'
+         OR jsonb_typeof(row->'ceiling') IS DISTINCT FROM 'number'
+         OR (row->>'ceiling')::numeric < 0 OR (row->>'ceiling')::numeric > 9007199254740991
+         OR (row->>'ceiling')::numeric <> trunc((row->>'ceiling')::numeric)
+         OR NOT (policy->'outputResources' ? (row->>'resource'))
+         OR NOT (policy->'reasons' ? (row->>'reason'))
+         OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements(requested_named) requested WHERE requested->>'resource' = row->>'resource')
+    ) THEN
+      PERFORM keynes_internal.raise_domain_error('policy_evaluation_failed', jsonb_build_object('policyName', policy->>'name', 'policyRevision', (policy->>'revision')::numeric));
+    END IF;
+    policy_rows := policy_rows || jsonb_build_array(jsonb_build_object(
+      'name', policy->>'name', 'revision', (policy->>'revision')::numeric,
+      'sourceDigest', policy->>'sourceDigest', 'definitionDigest', policy->>'definitionDigest', 'rows', rows
+    ));
+  END LOOP;
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+    'resourceTypeId', resource_type.resource_type_id::text, 'ceiling', grouped.ceiling,
+    'reasons', grouped.reasons
+  ) ORDER BY resource_type.resource_type_id), '[]'::jsonb)
+  INTO effective
+  FROM (
+    SELECT row->>'resource' resource, min((row->>'ceiling')::numeric) ceiling,
+           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY policy_row->>'name', (policy_row->>'revision')::numeric, row->>'reason') FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
+    FROM jsonb_array_elements(policy_rows) policy_row
+    CROSS JOIN LATERAL jsonb_array_elements(policy_row->'rows') row
+    CROSS JOIN LATERAL (SELECT min((candidate->>'ceiling')::numeric) minimum FROM jsonb_array_elements(policy_rows) p CROSS JOIN LATERAL jsonb_array_elements(p->'rows') candidate WHERE candidate->>'resource' = row->>'resource') minimum
+    GROUP BY row->>'resource'
+  ) grouped
+  JOIN keynes_internal.resource_types resource_type ON resource_type.tenant_id = selected_tenant AND resource_type.canonical_name = grouped.resource;
+  RETURN jsonb_build_object('context', context, 'policies', policy_rows, 'effectiveCeilings', effective);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.apply_command(operation_name text, input jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal
+AS $function$
+<<apply_command>>
+DECLARE
+  tenant uuid;
+  principal uuid;
+  command_id uuid;
+  parent_id uuid;
+  permission_name text;
+  items jsonb;
+  policies jsonb := '[]'::jsonb;
+  parent_policies jsonb := '[]'::jsonb;
+  child_policies jsonb := '[]'::jsonb;
+  body jsonb;
+  body_digest_value text;
+  prior keynes_internal.commands%ROWTYPE;
+  budget keynes_internal.budgets%ROWTYPE;
+  item jsonb;
+  evidence jsonb;
+  denial_reasons jsonb := '[]'::jsonb;
+  available_amount numeric;
+  ceiling jsonb;
+  result jsonb;
+  domain_error_message text;
+BEGIN
+  IF operation_name NOT IN ('createBudget', 'requestBudget')
+    OR input IS NULL OR jsonb_typeof(input) <> 'object'
+    OR jsonb_typeof(input->'commandId') IS DISTINCT FROM 'string' THEN
+    RETURN keynes_internal.apply_command_legacy(operation_name, input);
+  END IF;
+  command_id := (input->>'commandId')::uuid;
+  IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
+    parent_id := (input->>'parentBudgetId')::uuid;
+    SELECT stored.policies INTO parent_policies FROM keynes_internal.budgets stored
+      WHERE stored.tenant_id = nullif(current_setting('keynes.tenant_id', true), '')::uuid AND stored.budget_id = parent_id;
+    parent_policies := coalesce(parent_policies, '[]'::jsonb);
+  END IF;
+  IF operation_name = 'createBudget' THEN policies := coalesce(input->'policies', '[]'::jsonb); END IF;
+  IF operation_name = 'requestBudget' THEN child_policies := coalesce(input->'childPolicies', '[]'::jsonb); END IF;
+  IF jsonb_array_length(policies) = 0 AND jsonb_array_length(parent_policies) = 0
+    AND jsonb_array_length(child_policies) = 0 AND NOT (input ? 'context') THEN
+    RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies']::text[]);
+  END IF;
+  BEGIN
+    IF operation_name = 'createBudget' THEN
+      IF NOT (input ? 'resources') OR input - ARRAY['commandId','resources','policies']::text[] <> '{}'::jsonb THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
+      END IF;
+      items := keynes_internal.canonical_envelope(operation_name, input->'resources', '$.resources', false);
+      body := jsonb_build_object('resources', items, 'policies', policies);
+      permission_name := 'create_root_budget';
+    ELSE
+      IF NOT (input ? 'parentBudgetId') OR NOT (input ? 'resources')
+        OR input - ARRAY['commandId','parentBudgetId','resources','context','childPolicies']::text[] <> '{}'::jsonb THEN
+        PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
+      END IF;
+      items := keynes_internal.canonical_envelope(operation_name, input->'resources', '$.resources', false);
+      body := jsonb_build_object('parentBudgetId', parent_id::text, 'resources', items, 'context', coalesce(input->'context', 'null'::jsonb), 'childPolicies', child_policies);
+      permission_name := 'request_budget';
+    END IF;
+    IF coalesce(current_setting('keynes.tenant_id', true), '') !~ '^[0-9a-f-]{36}$'
+      OR coalesce(current_setting('keynes.principal_id', true), '') !~ '^[0-9a-f-]{36}$' THEN
+      PERFORM keynes_internal.raise_domain_error('unauthorized', jsonb_build_object('operation', operation_name, 'requiredPermission', permission_name));
+    END IF;
+    tenant := current_setting('keynes.tenant_id')::uuid;
+    principal := current_setting('keynes.principal_id')::uuid;
+    IF NOT EXISTS (SELECT 1 FROM keynes_internal.principal_permissions WHERE tenant_id = tenant AND principal_id = principal AND permission = permission_name) THEN
+      PERFORM keynes_internal.raise_domain_error('unauthorized', jsonb_build_object('operation', operation_name, 'requiredPermission', permission_name));
+    END IF;
+    body_digest_value := 'command-body:' || encode(sha256(convert_to(body::text, 'UTF8')), 'hex');
+    INSERT INTO keynes_internal.commands (tenant_id,command_id,operation,target_kind,target_id,canonical_body,body_digest,principal_id)
+      VALUES (tenant,command_id,operation_name,'budget',command_id,body,body_digest_value,principal)
+      ON CONFLICT ON CONSTRAINT commands_pkey DO NOTHING;
+    IF NOT FOUND THEN
+      SELECT * INTO prior FROM keynes_internal.commands stored WHERE stored.tenant_id = tenant AND stored.command_id = apply_command.command_id FOR UPDATE;
+      IF prior.operation <> operation_name OR prior.target_kind <> 'budget' OR prior.target_id <> command_id OR prior.canonical_body <> body OR prior.body_digest <> body_digest_value THEN
+        PERFORM keynes_internal.raise_domain_error('command_conflict', jsonb_build_object('commandId', command_id::text, 'existingOperation', prior.operation, 'attemptedOperation', operation_name));
+      END IF;
+      RETURN jsonb_build_object('ok', true, 'result', prior.result, 'replayed', true);
+    END IF;
+    PERFORM keynes_internal.checkpoint('after_command_binding');
+    IF operation_name = 'createBudget' THEN
+      PERFORM keynes_internal.validate_policy_set(policies);
+      FOR item IN SELECT value FROM jsonb_array_elements(items) LOOP
+        IF NOT EXISTS (SELECT 1 FROM keynes_internal.resource_types WHERE tenant_id = tenant AND resource_type_id = (item->>'resourceTypeId')::uuid) THEN
+          PERFORM keynes_internal.raise_domain_error('resource_type_not_found', jsonb_build_object('resourceTypeId', item->>'resourceTypeId'));
+        END IF;
+      END LOOP;
+      IF EXISTS (SELECT 1 FROM jsonb_array_elements(policies) policy CROSS JOIN LATERAL jsonb_array_elements_text(policy->'inputResources') name WHERE NOT EXISTS (SELECT 1 FROM keynes_internal.resource_types WHERE tenant_id = tenant AND canonical_name = name)) THEN
+        PERFORM keynes_internal.invalid_policy('$.policies.inputResources', 'defined_resources');
+      END IF;
+      INSERT INTO keynes_internal.budgets (tenant_id,budget_id,parent_budget_id,root_budget_id,depth,lifecycle,policies)
+        VALUES (tenant,command_id,NULL,command_id,0,'active',policies);
+      FOR item IN SELECT value FROM jsonb_array_elements(items) LOOP
+        INSERT INTO keynes_internal.budget_resources (tenant_id,budget_id,resource_type_id,allocated_amount)
+          VALUES (tenant,command_id,(item->>'resourceTypeId')::uuid,(item->>'amount')::bigint);
+      END LOOP;
+      INSERT INTO keynes_internal.budget_history_streams (tenant_id,stream_id) VALUES (tenant,command_id);
+      PERFORM keynes_internal.checkpoint('after_domain_mutation');
+      PERFORM keynes_internal.append_history(tenant,command_id,command_id,'budget_created',command_id,jsonb_build_object('rootBudgetId',command_id::text,'resources',items));
+      PERFORM keynes_internal.checkpoint('after_history_insertion');
+      result := jsonb_build_object('kind','created','budget',keynes_internal.budget_projection(tenant,command_id));
+    ELSE
+      SELECT * INTO budget FROM keynes_internal.budgets WHERE tenant_id = tenant AND budget_id = parent_id FOR UPDATE;
+      IF NOT FOUND THEN PERFORM keynes_internal.raise_domain_error('budget_not_found', jsonb_build_object('budgetId',parent_id::text)); END IF;
+      IF budget.lifecycle <> 'active' THEN PERFORM keynes_internal.raise_domain_error('budget_not_active', jsonb_build_object('budgetId',parent_id::text,'lifecycle',budget.lifecycle)); END IF;
+      parent_policies := budget.policies;
+      PERFORM keynes_internal.validate_policy_set(child_policies);
+      PERFORM keynes_internal.validate_policy_context(parent_policies, input->'context');
+      PERFORM 1 FROM keynes_internal.budget_resources locked
+        WHERE locked.tenant_id = tenant AND locked.budget_id = parent_id AND locked.resource_type_id IN (
+          SELECT (requested->>'resourceTypeId')::uuid FROM jsonb_array_elements(items) requested
+          UNION
+          SELECT resource_type.resource_type_id FROM jsonb_array_elements(parent_policies) policy
+            CROSS JOIN LATERAL jsonb_array_elements_text(policy->'inputResources') name
+            JOIN keynes_internal.resource_types resource_type ON resource_type.tenant_id = tenant AND resource_type.canonical_name = name
+        ) ORDER BY locked.resource_type_id FOR UPDATE;
+      evidence := keynes_internal.evaluate_policy_set(tenant,parent_id,parent_policies,items,input->'context');
+      FOR item IN SELECT value FROM jsonb_array_elements(items) LOOP
+        SELECT coalesce((SELECT (resource->>'available')::numeric FROM jsonb_array_elements(keynes_internal.budget_projection(tenant,parent_id)->'resources') resource WHERE resource->'resourceType'->>'resourceTypeId' = item->>'resourceTypeId'),0) INTO available_amount;
+        IF available_amount < (item->>'amount')::numeric THEN
+          denial_reasons := denial_reasons || jsonb_build_array(jsonb_build_object('code','insufficient_available','resourceTypeId',item->>'resourceTypeId','requested',(item->>'amount')::numeric,'available',available_amount));
+        END IF;
+        SELECT value INTO ceiling FROM jsonb_array_elements(evidence->'effectiveCeilings') value WHERE value->>'resourceTypeId' = item->>'resourceTypeId';
+        IF ceiling IS NOT NULL AND (item->>'amount')::numeric > (ceiling->>'ceiling')::numeric THEN
+          denial_reasons := denial_reasons || (SELECT jsonb_agg(jsonb_build_object('code','policy_ceiling','resourceTypeId',item->>'resourceTypeId','requested',(item->>'amount')::numeric,'ceiling',(ceiling->>'ceiling')::numeric,'policyName',reason->>'policyName','policyRevision',(reason->>'policyRevision')::numeric,'reason',reason->>'reason') ORDER BY reason->>'policyName',(reason->>'policyRevision')::numeric,reason->>'reason') FROM jsonb_array_elements(ceiling->'reasons') reason);
+        END IF;
+      END LOOP;
+      evidence := evidence || jsonb_build_object('decision', CASE WHEN jsonb_array_length(denial_reasons) = 0 THEN 'approved' ELSE 'denied' END);
+      IF jsonb_array_length(denial_reasons) > 0 THEN
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(tenant,budget.root_budget_id,command_id,'request_denied',parent_id,jsonb_build_object('parentBudgetId',parent_id::text,'reasons',denial_reasons,'policyEvidence',evidence));
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object('kind','denied','commandId',command_id::text,'parentBudgetId',parent_id::text,'reasons',denial_reasons,'policyEvidence',evidence);
+      ELSE
+        INSERT INTO keynes_internal.budgets (tenant_id,budget_id,parent_budget_id,root_budget_id,depth,lifecycle,policies)
+          VALUES (tenant,command_id,parent_id,budget.root_budget_id,budget.depth + 1,'active',child_policies);
+        FOR item IN SELECT value FROM jsonb_array_elements(items) LOOP
+          INSERT INTO keynes_internal.budget_resources (tenant_id,budget_id,resource_type_id,allocated_amount) VALUES (tenant,command_id,(item->>'resourceTypeId')::uuid,(item->>'amount')::bigint);
+        END LOOP;
+        PERFORM keynes_internal.checkpoint('after_domain_mutation');
+        PERFORM keynes_internal.append_history(tenant,budget.root_budget_id,command_id,'request_approved',command_id,jsonb_build_object('parentBudgetId',parent_id::text,'childBudgetId',command_id::text,'resources',items,'policyEvidence',evidence));
+        PERFORM keynes_internal.checkpoint('after_history_insertion');
+        result := jsonb_build_object('kind','approved','commandId',command_id::text,'parentBudgetId',parent_id::text,'childBudgetId',command_id::text,'resources',items,'policyEvidence',evidence);
+      END IF;
+    END IF;
+    UPDATE keynes_internal.commands stored SET result = apply_command.result, committed_at = clock_timestamp() WHERE stored.tenant_id = tenant AND stored.command_id = apply_command.command_id;
+    PERFORM keynes_internal.checkpoint('after_result_storage');
+    RETURN jsonb_build_object('ok',true,'result',result,'replayed',false);
+  EXCEPTION WHEN SQLSTATE 'K0001' THEN
+    GET STACKED DIAGNOSTICS domain_error_message = MESSAGE_TEXT;
+    RETURN jsonb_build_object('ok',false,'error',domain_error_message::jsonb);
+  END;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION keynes_internal.apply_command_legacy(text,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.validate_policy_set(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.validate_policy_context(jsonb,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.evaluate_policy_set(uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.apply_command(text,jsonb) FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION keynes_internal.check_policy_canonical_vectors()
 RETURNS void
 LANGUAGE plpgsql
@@ -1102,7 +1937,7 @@ BEGIN
       EXECUTE 'SELECT pg_typeof((' || rendered || '))::text, ((' || rendered || ') IS NULL), (' || rendered || ')::text FROM (VALUES (''model_tokens''::text COLLATE "C", 1::numeric(38,18))) AS requested(resource, amount) CROSS JOIN (VALUES (''model_tokens''::text COLLATE "C", 100::numeric(38,18))) AS available(resource, amount) CROSS JOIN (VALUES (''{}''::jsonb)) AS context(value)'
         INTO actual_type, actual_null, actual;
       IF actual_type IS DISTINCT FROM vector->'expected'->>'type' THEN
-        PERFORM keynes_internal.invalid_policy('$.vectors', 'type');
+        PERFORM keynes_internal.invalid_policy('$.vectors.' || (vector->>'kind'), 'type');
       END IF;
       IF (vector->'input'->>'nullable')::boolean IS DISTINCT FROM (vector->'expected'->>'nullable')::boolean THEN
         PERFORM keynes_internal.invalid_policy('$.vectors', 'nullable');
@@ -1130,6 +1965,8 @@ $$;
 
 SELECT keynes_internal.check_policy_canonical_vectors();
 
+REVOKE ALL ON FUNCTION keynes_internal.apply_command_legacy(operation_name text,input jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(value jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.invalid_policy(issue_path text,issue_rule text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text) FROM PUBLIC;
@@ -1138,6 +1975,9 @@ REVOKE ALL ON FUNCTION keynes_internal.render_policy_node(node jsonb) FROM PUBLI
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_program(program jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.render_policy_program(program jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_work_bound(program jsonb,requested_rows integer,available_rows integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.validate_policy_set(policies jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.validate_policy_context(policies jsonb,context jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.evaluate_policy_set(selected_tenant uuid,selected_budget uuid,policies jsonb,requested_items jsonb,context jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.check_policy_canonical_vectors() FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_select(node jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.render_select(node jsonb) FROM PUBLIC;
