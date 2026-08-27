@@ -11,7 +11,7 @@ param(
 )
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../../../..")).Path
-$arguments = @((Join-Path $repoRoot "tooling/repository/feature-identity.mjs"), "start")
+$arguments = @((Join-Path $repoRoot ".specify/scripts/feature-identity.mjs"), "start")
 if ($Json) { $arguments += "--json" }
 if ($DryRun) { $arguments += "--dry-run" }
 if ($AllowExistingBranch) { $arguments += "--allow-existing-branch" }

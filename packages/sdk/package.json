@@ -16,12 +16,23 @@
   },
   "scripts": {
     "build": "node scripts/build.ts",
+    "generate": "node scripts/generate.ts",
+    "generate:check": "node scripts/generate.ts --check",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test --maxWorkers=1",
-    "test:unit": "vitest run test/public test/local --maxWorkers=1"
+    "test": "vitest run test/unit test/conformance --maxWorkers=1",
+    "test:unit": "vitest run test/unit --maxWorkers=1",
+    "test:conformance": "vitest run test/conformance --maxWorkers=1",
+    "test:package:unit": "vitest run test/package --maxWorkers=1",
+    "test:package": "pnpm test:package:unit && node test/package/qualify.ts",
+    "test:performance": "vitest run test/performance --maxWorkers=1",
+    "measure:package": "node test/performance/measure.ts"
   },
   "devDependencies": {
+    "@keynes/contracts": "workspace:*",
+    "@keynes/testkit": "workspace:*",
+    "json-schema-to-typescript": "15.0.4",
+    "oxfmt": "0.64.0",
     "vitest": "4.1.11"
   },
   "engines": {

@@ -91,7 +91,11 @@ function compile(outDir: string): void {
   const result = spawnSync(
     pnpm,
     ["exec", "tsc", "--project", "tsconfig.build.json", "--outDir", outDir],
-    { cwd: sdkRoot, stdio: "inherit" },
+    {
+      cwd: sdkRoot,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    },
   );
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) {

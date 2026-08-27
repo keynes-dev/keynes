@@ -1,7 +1,7 @@
 # ADR-0005: Organize the repository by responsibility
 
 - **Date:** 2026-08-26
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0006](0006-idiomatic-monorepo.md)
 - **Supersedes:** [ADR-0001](0001-repository-boundaries.md)
 - **Decider:** `@shubsharan`
 - **Tags:** repository, ownership, TypeScript, packages, tests, evidence

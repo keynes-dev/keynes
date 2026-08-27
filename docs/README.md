@@ -32,6 +32,11 @@ Document organization, prose structure, and unpublished working material are not
 
 Keep product value, runtime semantics, roadmap sequencing, and decision records in their owning documents. Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` states honestly. Do not report provider, conformance, security, packaging, performance, or runtime evidence that has not executed.
 
+Local archives, measurements, and test records are transient output under the
+ignored `.artifacts/` tree. CI owns uploaded run artifacts. When an accepted
+record supports a durable feature claim, retain only that record beside the
+owning feature documentation and preserve its revision and evidence boundary.
+
 ## Deferred work
 
 Generated reference documentation, packaging guides, and host qualification reports arrive with the stages that own their real behavior and evidence. FEAT-0001 adds no generated documentation system.

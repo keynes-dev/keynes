@@ -6,9 +6,6 @@
     ".turbo/**",
     "coverage/**",
     "reports/**",
-    "package-tests/**/fixtures/**",
-    "system-tests/**/fixtures/**",
-    "artifacts/package-tests/**",
-    "artifacts/system-tests/**"
+    ".artifacts/**"
   ]
 }

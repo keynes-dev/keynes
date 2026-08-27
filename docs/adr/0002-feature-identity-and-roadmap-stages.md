@@ -15,7 +15,7 @@ feat/0001-repository-and-code-architecture
 docs/features/0001-repository-and-code-architecture/
 ```
 
-`tooling/repository/feature-identity.mjs` owns allocation and validation. The Bash and PowerShell commands call that implementation. `.specify/feature.json` records the complete identity, and every later Spec Kit phase rejects disagreement between the manifest, branch, directory, and specification header.
+`.specify/scripts/feature-identity.mjs` owns allocation and validation. The Bash and PowerShell commands call that implementation. `.specify/feature.json` records the complete identity, and every later Spec Kit phase rejects disagreement between the manifest, branch, directory, and specification header.
 
 The roadmap uses unnumbered stages to group related features around an outcome and an exit gate. A stage has no ID, directory, template, branch, or Spec Kit lifecycle. Standalone features use `roadmap_stage: null`.
 

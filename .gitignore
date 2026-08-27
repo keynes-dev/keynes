@@ -25,6 +25,7 @@ node_modules/
 coverage/
 reports/
 test-results/
+.artifacts/
 
 # Generated output
 dist/

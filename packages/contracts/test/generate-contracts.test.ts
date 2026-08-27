@@ -1,0 +1,174 @@
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { afterEach, describe, expect, it } from "vitest";
+
+import contractSource from "../contract.json" with { type: "json" };
+import expectations from "../fixtures/expectations.json" with { type: "json" };
+import fixtures from "../fixtures/source.json" with { type: "json" };
+import schema from "../schema.json" with { type: "json" };
+import { applyGeneratedOutputs, loadContract } from "../src/index.ts";
+
+const packageRoot = resolve(import.meta.dirname, "..");
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+describe("contract source", () => {
+  it("loads the five allowlisted operations in caller order", () => {
+    const contract = loadContract(packageRoot);
+    expect(contract.source.operations.map(({ method }) => method)).toEqual(
+      expectations.operationMethods,
+    );
+    expect(contract.source.operations.map(({ target }) => target)).toEqual(
+      expectations.installedTargets,
+    );
+    expect(contract.digest).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("validates the canonical command fixtures", () => {
+    const ajv = new Ajv2020({ strict: true });
+    ajv.addSchema(schema, contractSource.schema);
+    for (const [definition, fixture] of [
+      ["DefineResourceTypeCommand", fixtures.commands.defineConsumable],
+      ["DefineResourceTypeCommand", fixtures.commands.defineReusable],
+      ["CreateBudgetCommand", fixtures.commands.createRoot],
+      ["RequestBudgetCommand", fixtures.commands.requestChild],
+      ["SettleBudgetCommand", fixtures.commands.settleChild],
+      ["GetBudgetQuery", fixtures.commands.getChild],
+    ] as const) {
+      const validate = ajv.getSchema(
+        `${contractSource.schema}#/$defs/${definition}`,
+      );
+      expect(validate, `missing schema definition ${definition}`).toBeTypeOf(
+        "function",
+      );
+      expect(validate?.(fixture), JSON.stringify(validate?.errors)).toBe(true);
+    }
+  });
+
+  it("rejects operation metadata drift", () => {
+    const root = copyContractPackage();
+    const path = join(root, "contract.json");
+    writeFileSync(
+      path,
+      readFileSync(path, "utf8").replace(
+        '"permission": "read_budget"',
+        '"permission": "settle_budget"',
+      ),
+    );
+    expect(() => loadContract(root)).toThrow(
+      /operation metadata mismatch.*permission/i,
+    );
+  });
+
+  it.each([
+    {
+      name: "duplicate installed targets",
+      file: "contract.json",
+      search: '"target": "keynes.create_budget"',
+      replacement: '"target": "keynes.define_resource_type"',
+      error: /duplicate installed target keynes\.define_resource_type/i,
+    },
+    {
+      name: "undeclared operation definitions",
+      file: "contract.json",
+      search: '"input": "GetBudgetQuery"',
+      replacement: '"input": "MissingQuery"',
+      error: /undeclared input MissingQuery/i,
+    },
+    {
+      name: "replay metadata drift",
+      file: "contract.json",
+      search: '"replay": false',
+      replacement: '"replay": true',
+      error: /operation metadata mismatch.*replay/i,
+    },
+    {
+      name: "duplicate enumeration members",
+      file: "schema.json",
+      search: '"enum": ["consumable", "reusable"]',
+      replacement: '"enum": ["consumable", "consumable"]',
+      error: /unstable enumeration/i,
+    },
+  ])("rejects $name", ({ file, search, replacement, error }) => {
+    const root = copyContractPackage();
+    const path = join(root, file);
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain(search);
+    writeFileSync(path, source.replace(search, replacement));
+    expect(() => loadContract(root)).toThrow(error);
+  });
+
+  it("rejects unsupported schema keywords", () => {
+    const root = copyContractPackage();
+    const path = join(root, "schema.json");
+    writeFileSync(
+      path,
+      readFileSync(path, "utf8").replace(
+        '"type": "string",',
+        '"type": "string",\n      "format": "uuid",',
+      ),
+    );
+    expect(() => loadContract(root)).toThrow(
+      /unsupported schema keyword format/i,
+    );
+  });
+});
+
+describe("generated output ownership", () => {
+  it("rejects drift in check mode", () => {
+    const root = makeTemporaryDirectory();
+    expect(() =>
+      applyGeneratedOutputs({
+        check: true,
+        outputRoot: root,
+        outputs: new Map([["generated/value.ts", "export const value = 1;\n"]]),
+        generatedDirectories: [{ path: "generated", accepts: () => true }],
+      }),
+    ).toThrow(/generated output drift.*generated\/value.ts/i);
+  });
+
+  it("rejects undeclared files inside the owner directory", () => {
+    const root = makeTemporaryDirectory();
+    applyGeneratedOutputs({
+      check: false,
+      outputRoot: root,
+      outputs: new Map([["generated/value.ts", "export const value = 1;\n"]]),
+      generatedDirectories: [{ path: "generated", accepts: () => true }],
+    });
+    writeFileSync(join(root, "generated/undeclared.ts"), "export {};\n");
+    expect(() =>
+      applyGeneratedOutputs({
+        check: true,
+        outputRoot: root,
+        outputs: new Map([["generated/value.ts", "export const value = 1;\n"]]),
+        generatedDirectories: [{ path: "generated", accepts: () => true }],
+      }),
+    ).toThrow(/undeclared generated files.*undeclared.ts/i);
+  });
+});
+
+function copyContractPackage(): string {
+  const root = makeTemporaryDirectory();
+  cpSync(packageRoot, root, { recursive: true });
+  return root;
+}
+
+function makeTemporaryDirectory(): string {
+  const root = mkdtempSync(join(tmpdir(), "keynes-contracts-"));
+  temporaryDirectories.push(root);
+  return root;
+}
