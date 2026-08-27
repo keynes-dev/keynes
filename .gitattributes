@@ -1,1 +1,1 @@
-packages/database/** text eol=lf
+packages/postgresql/** text eol=lf

@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0009",
-  "slug": "postgresql-transaction-integration",
-  "branch": "feat/0009-postgresql-transaction-integration",
-  "feature_directory": "docs/features/0009-postgresql-transaction-integration",
-  "roadmap_stage": "Implementation sequence"
+  "feature_id": "FEAT-0010",
+  "slug": "repository-organization",
+  "branch": "feat/0010-repository-organization",
+  "feature_directory": "docs/features/0010-repository-organization",
+  "roadmap_stage": null
 }

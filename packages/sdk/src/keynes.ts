@@ -11,9 +11,9 @@ import type {
   SettleBudgetResult,
 } from "./generated/types.js";
 import { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
-import { openLocalRuntime } from "./private/local-runtime.js";
-import { ResourceCatalog } from "./private/resource-catalog.js";
-import { CommittedResponseLostError } from "./private/test-controls.js";
+import { openLocalRuntime } from "./local/runtime.js";
+import { ResourceCatalog } from "./local/resource-catalog.js";
+import { CommittedResponseLostError } from "./replay.js";
 
 export type AccountingBehavior = "consumable" | "reusable";
 

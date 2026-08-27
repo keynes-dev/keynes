@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Packaged local mode currently runs on private, in-memory PGlite. FEAT-0006 also implements a private loopback service over native PostgreSQL. Replacing PGlite with an in-memory SQLite runtime is planned, not implemented. FEAT-0009 defines the packaged PostgreSQL installer and caller-owned SQL transaction contract. Native acceptance, Policy, public remote access, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current evidence from the target design.
+> **Status:** The packaged local SDK runs on a private in-memory SQLite database. The PostgreSQL package provides the supported installer command for PostgreSQL 18.6, and the private Cloud service invokes the same durable procedures. Policy, a public remote SDK, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
 
 ## Thesis
 
@@ -107,9 +107,7 @@ Each Budget is stored in one place. `Keynes.create()` selects the process-local 
 
 ### Local mode
 
-Local mode runs inside one Node.js process through `Keynes.create()`. It needs no account, API key, service, database installation, daemon, or network. The planned runtime uses Node's built-in `node:sqlite` with a private in-memory database and loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
-
-PGlite is still the current local implementation. The next implementation feature must replace it without changing the public Budget API or behavior and must requalify package size, install size, supported environments, memory, startup, request latency, and shutdown.
+Local mode runs inside one Node.js process through `Keynes.create()`. It needs no account, API key, service, database installation, daemon, or network. The runtime uses Node's built-in `node:sqlite` with a private in-memory database. It loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
 
 Local mode is for evaluation, tests, local development, short-lived workflows, and applications that do not need a Budget after process exit. It does not provide persistence, multi-process coordination, database transactions, remote access, backup, or recovery.
 

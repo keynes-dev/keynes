@@ -1,0 +1,45 @@
+{
+  "schema": "schema.json",
+  "operations": [
+    {
+      "method": "defineResource",
+      "target": "keynes.define_resource_type",
+      "permission": "define_resource_type",
+      "replay": true,
+      "input": "DefineResourceTypeCommand",
+      "output": "DefineResourceTypeResult"
+    },
+    {
+      "method": "createBudget",
+      "target": "keynes.create_budget",
+      "permission": "create_root_budget",
+      "replay": true,
+      "input": "CreateBudgetCommand",
+      "output": "CreateBudgetResult"
+    },
+    {
+      "method": "requestBudget",
+      "target": "keynes.request",
+      "permission": "request_budget",
+      "replay": true,
+      "input": "RequestBudgetCommand",
+      "output": "RequestBudgetResult"
+    },
+    {
+      "method": "settleBudget",
+      "target": "keynes.settle",
+      "permission": "settle_budget",
+      "replay": true,
+      "input": "SettleBudgetCommand",
+      "output": "SettleBudgetResult"
+    },
+    {
+      "method": "getBudget",
+      "target": "keynes.get_budget",
+      "permission": "read_budget",
+      "replay": false,
+      "input": "GetBudgetQuery",
+      "output": "GetBudgetResult"
+    }
+  ]
+}

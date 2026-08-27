@@ -26,7 +26,7 @@ Feature specifications refine these documents without silently changing their ow
 
 ## Private internals
 
-Document organization, prose structure, and unpublished working material are not runtime, protocol, or authority interfaces. An implementation must not infer behavior from a draft or from documentation outside its owning source of truth.
+Document organization, prose structure, and unpublished working material are not runtime, protocol, or ownership interfaces. An implementation must not infer behavior from a draft or from documentation outside its owning source of truth.
 
 ## Source policy
 

@@ -1,6 +1,6 @@
 packages:
-  - packages/database
+  - packages/postgresql
   - packages/sdk
-  - packages/cloud
+  - services/cloud
 engineStrict: true
 disallowWorkspaceCycles: true

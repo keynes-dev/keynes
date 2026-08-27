@@ -116,7 +116,7 @@ find_feature_dir_by_prefix() {
 get_feature_paths() {
     local repo_root=$(get_repo_root)
     local identity
-    identity=$(cd "$repo_root" && node scripts/feature-identity.mjs active) || return 1
+    identity=$(cd "$repo_root" && node tooling/repository/feature-identity.mjs active) || return 1
     eval "$identity"
     local current_branch="$BRANCH_NAME"
     local feature_dir="$repo_root/$FEATURE_DIR"

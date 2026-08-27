@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "keynes.package-test.sdk/v1",
+  "subject": "@keynes/sdk",
+  "sourceRevision": {
+    "commit": "79de721c5f0b8a85074b2d7b338fd583704584a6",
+    "cleanBefore": false,
+    "cleanAfter": false
+  },
+  "archive": {
+    "sha256": "44451b0fa7f3cf0f555b00f7b2ccfc2375821c199ff3d36c534af5fa1909727e",
+    "compressedBytes": 23172,
+    "productionBytes": 128616,
+    "packageVersion": "0.0.0",
+    "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
+  },
+  "environment": {
+    "node": "v26.5.0",
+    "pnpm": "11.21.0",
+    "os": "darwin",
+    "osRelease": "25.5.0",
+    "architecture": "arm64"
+  },
+  "checks": [
+    "budget-loop",
+    "isolation",
+    "closure",
+    "process-loss",
+    "deep-imports-blocked"
+  ],
+  "outcome": "passed",
+  "exclusions": {
+    "hostedMatrix": "NOT RUN",
+    "registry": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}

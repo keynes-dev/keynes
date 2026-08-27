@@ -1,0 +1,177 @@
+name: SDK Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ARCHIVE_PATH: artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz
+  DIGEST_PATH: artifacts/package-tests/sdk/archive.sha256
+
+jobs:
+  build:
+    name: Build self-contained SQLite archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: "24"
+          check-latest: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test qualification tooling
+        run: pnpm exec vitest run package-tests/sdk --maxWorkers=1
+
+      - name: Build and pack archive
+        shell: bash
+        run: |
+          mkdir -p artifacts/package-tests/sdk
+          pnpm generate:check
+          pnpm build:sdk
+          pnpm pack:sdk --pack-destination artifacts/package-tests/sdk
+
+      - name: Record archive digest
+        run: >-
+          node --input-type=module -e
+          "import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const digest = createHash('sha256').update(readFileSync(process.env.ARCHIVE_PATH)).digest('hex');
+          writeFileSync(process.env.DIGEST_PATH, digest + '\n');
+          console.log(digest);"
+
+      - name: Retain archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: SDK-package-archive
+          path: |
+            ${{ env.ARCHIVE_PATH }}
+            ${{ env.DIGEST_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+  consumer:
+    name: Consumer (${{ matrix.runner }}, Node.js ${{ matrix.node }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, macos-15, windows-2025]
+        node: ["24", "26"]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: SDK-package-archive
+          path: artifacts/package-tests/sdk
+
+      - name: Verify archive digest
+        run: >-
+          node --input-type=module -e
+          "import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const expected = readFileSync(process.env.DIGEST_PATH, 'utf8').trim();
+          const actual = createHash('sha256').update(readFileSync(process.env.ARCHIVE_PATH)).digest('hex');
+          if (actual !== expected) throw new Error('archive digest mismatch');
+          console.log(actual);"
+
+      - name: Qualify clean SQLite consumer
+        run: pnpm test:package:sdk -- --archive "${{ env.ARCHIVE_PATH }}"
+
+  measurement:
+    name: Node SQLite reference measurement
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: "24"
+          check-latest: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: SDK-package-archive
+          path: artifacts/package-tests/sdk
+
+      - name: Verify archive digest
+        run: >-
+          node --input-type=module -e
+          "import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const expected = readFileSync(process.env.DIGEST_PATH, 'utf8').trim();
+          const actual = createHash('sha256').update(readFileSync(process.env.ARCHIVE_PATH)).digest('hex');
+          if (actual !== expected) throw new Error('archive digest mismatch');
+          console.log(actual);"
+
+      - name: Measure reference environment
+        run: >-
+          pnpm measure:package:sdk --
+          --archive "${{ env.ARCHIVE_PATH }}"
+          --output artifacts/package-tests/sdk/measurement.json
+
+      - name: Retain measurement
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-package-measurement
+          path: artifacts/package-tests/sdk/measurement.json
+          if-no-files-found: error
+          retention-days: 14
