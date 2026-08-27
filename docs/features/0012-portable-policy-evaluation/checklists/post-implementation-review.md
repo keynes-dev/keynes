@@ -52,9 +52,9 @@ named evidence passed at the recorded review revision.
 
 - [x] Contracts parsing, generation, and conformance fixtures have one named
       responsibility per authored module.
-- [ ] The SDK Policy compiler, validator, normalizer, and evaluator retain one
+- [x] The SDK Policy compiler, validator, normalizer, and evaluator retain one
       public facade for each complete operation.
-- [ ] Budget projection and request preparation are separate from public types.
+- [x] Budget projection and request preparation are separate from public types.
 - [ ] SQLite mechanics are separate from the transaction coordinator without
       splitting replay or mutation invariants across services.
 - [ ] PostgreSQL generation separates output orchestration, Policy rendering,
