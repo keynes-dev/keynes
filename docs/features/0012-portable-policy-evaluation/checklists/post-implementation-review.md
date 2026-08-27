@@ -57,7 +57,7 @@ named evidence passed at the recorded review revision.
 - [x] Budget projection and request preparation are separate from public types.
 - [x] SQLite mechanics are separate from the transaction coordinator without
       splitting replay or mutation invariants across services.
-- [ ] PostgreSQL generation separates output orchestration, Policy rendering,
+- [x] PostgreSQL generation separates output orchestration, Policy rendering,
       Budget runtime generation, and secure wrappers.
 - [ ] Generated files and `policy-profile.json` remain generated artifacts or
       one authored semantic source rather than refactor targets.
