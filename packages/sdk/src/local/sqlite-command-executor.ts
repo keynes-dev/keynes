@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { DatabaseSync, type StatementSync } from "node:sqlite";
 
 import type { CommandExecutor } from "../command-executor.js";
 import type {
@@ -40,6 +39,13 @@ import {
 import { validatePolicyProgramScope } from "../policy/validate.js";
 import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
 import { PolicyValidationError } from "../sdk-errors.js";
+import {
+  SqliteStore,
+  type SqliteBudgetRow as BudgetRow,
+  type SqliteHoldingRow as HoldingRow,
+  type SqliteInstallation,
+  type SqliteResourceRow as ResourceRow,
+} from "./sqlite-store.js";
 export type SqliteMutationStage =
   | "after_command_binding"
   | "after_policy_evaluation"
@@ -48,16 +54,6 @@ export type SqliteMutationStage =
   | "after_history_insertion";
 
 const MAX_SAFE_AMOUNT = BigInt(Number.MAX_SAFE_INTEGER);
-
-interface SqlitePrincipalPermissions {
-  readonly principalId: string;
-  readonly permissions: readonly PermissionName[];
-}
-
-interface SqliteInstallation {
-  readonly tenantId: string;
-  readonly principals: readonly SqlitePrincipalPermissions[];
-}
 
 interface SqliteTransactionContext {
   readonly tenantId: string;
@@ -74,87 +70,6 @@ const REQUIRED_PERMISSIONS = {
   getBudget: "read_budget",
 } as const satisfies Record<OperationName, PermissionName>;
 
-const SCHEMA = `
-PRAGMA foreign_keys = ON;
-CREATE TABLE permissions (
-  tenant_id TEXT NOT NULL,
-  principal_id TEXT NOT NULL,
-  permission TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, principal_id, permission)
-);
-CREATE TABLE commands (
-  tenant_id TEXT NOT NULL,
-  command_id TEXT NOT NULL,
-  operation TEXT NOT NULL,
-  target_kind TEXT NOT NULL,
-  target_id TEXT NOT NULL,
-  body_json TEXT NOT NULL,
-  body_digest TEXT NOT NULL,
-  principal_id TEXT NOT NULL,
-  result_json TEXT,
-  PRIMARY KEY (tenant_id, command_id)
-);
-CREATE TABLE resource_types (
-  tenant_id TEXT NOT NULL,
-  resource_type_id TEXT NOT NULL,
-  canonical_name TEXT NOT NULL,
-  unit TEXT NOT NULL,
-  accounting_behavior TEXT NOT NULL,
-  definition_digest TEXT NOT NULL,
-  definer_principal_id TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, resource_type_id),
-  UNIQUE (tenant_id, canonical_name)
-);
-CREATE TABLE budgets (
-  tenant_id TEXT NOT NULL,
-  budget_id TEXT NOT NULL,
-  parent_budget_id TEXT,
-  root_budget_id TEXT NOT NULL,
-  depth INTEGER NOT NULL,
-  lifecycle TEXT NOT NULL,
-  policies_json TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, budget_id)
-);
-CREATE TABLE budget_resources (
-  tenant_id TEXT NOT NULL,
-  budget_id TEXT NOT NULL,
-  resource_type_id TEXT NOT NULL,
-  allocated_amount INTEGER NOT NULL,
-  direct_usage_amount INTEGER,
-  PRIMARY KEY (tenant_id, budget_id, resource_type_id)
-);
-CREATE TABLE history_entries (
-  tenant_id TEXT NOT NULL,
-  root_budget_id TEXT NOT NULL,
-  sequence INTEGER NOT NULL,
-  payload_json TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, root_budget_id, sequence)
-);`;
-
-interface BudgetRow {
-  readonly budgetId: string;
-  readonly parentBudgetId: string | null;
-  readonly rootBudgetId: string;
-  readonly depth: bigint;
-  readonly lifecycle: "active" | "settling";
-  readonly policies: readonly PolicyDefinitionV1[];
-}
-
-interface HoldingRow {
-  readonly resourceTypeId: string;
-  readonly allocated: bigint;
-  readonly directUsage: bigint | null;
-}
-
-interface ResourceRow {
-  readonly resourceTypeId: string;
-  readonly canonicalName: string;
-  readonly unit: string;
-  readonly accountingBehavior: "consumable" | "reusable";
-  readonly definitionDigest: string;
-  readonly definerPrincipalId: string;
-}
-
 class DomainFailure extends Error {
   readonly envelope: ErrorEnvelope;
 
@@ -165,21 +80,19 @@ class DomainFailure extends Error {
 }
 
 export class SqliteCommandExecutor implements CommandExecutor {
-  readonly #database: DatabaseSync;
+  readonly #store: SqliteStore;
   readonly #context: SqliteTransactionContext;
   readonly #observeMutation: SqliteMutationObserver | undefined;
-  readonly #statements: ReturnType<typeof prepareStatements>;
   #closed = false;
 
   constructor(
-    database: DatabaseSync,
+    store: SqliteStore,
     context: SqliteTransactionContext,
     observeMutation?: SqliteMutationObserver,
   ) {
-    this.#database = database;
+    this.#store = store;
     this.#context = context;
     this.#observeMutation = observeMutation;
-    this.#statements = prepareStatements(database);
   }
 
   execute(operation: OperationName, input: unknown): Promise<unknown> {
@@ -214,14 +127,14 @@ export class SqliteCommandExecutor implements CommandExecutor {
         return Promise.resolve({ ok: true, result, replayed: false });
       }
 
-      this.#database.exec("BEGIN IMMEDIATE");
+      this.#store.beginImmediate();
       let applied: { readonly result: unknown; readonly replayed: boolean };
       try {
         this.#requirePermission(context, operation);
         applied = this.#applyMutation(context, operation, input);
-        this.#database.exec("COMMIT");
+        this.#store.commit();
       } catch (error) {
-        this.#database.exec("ROLLBACK");
+        this.#store.rollback();
         throw error;
       }
       return Promise.resolve({
@@ -240,7 +153,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
-    this.#database.close();
+    this.#store.close();
   }
 
   #requireOpen(): void {
@@ -252,12 +165,12 @@ export class SqliteCommandExecutor implements CommandExecutor {
     operation: OperationName,
   ): void {
     const requiredPermission = REQUIRED_PERMISSIONS[operation];
-    const row = this.#statements.permission.get(
+    const allowed = this.#store.hasPermission(
       context.tenantId,
       context.principalId,
       requiredPermission,
     );
-    if (row === undefined) {
+    if (!allowed) {
       fail({
         kind: "error",
         code: "unauthorized",
@@ -273,42 +186,41 @@ export class SqliteCommandExecutor implements CommandExecutor {
   ): { readonly result: unknown; readonly replayed: boolean } {
     const canonical = canonicalCommand(operation, input);
     const commandId = canonical.commandId;
-    const prior = this.#statements.command.get(context.tenantId, commandId);
+    const prior = this.#store.findCommand(context.tenantId, commandId);
     if (prior !== undefined) {
-      const existing = asRow(prior);
       if (
-        existing.operation !== operation ||
-        existing.target_kind !== canonical.targetKind ||
-        existing.target_id !== canonical.targetId ||
-        existing.body_json !== canonical.bodyJson ||
-        existing.body_digest !== canonical.bodyDigest
+        prior.operation !== operation ||
+        prior.targetKind !== canonical.targetKind ||
+        prior.targetId !== canonical.targetId ||
+        prior.bodyJson !== canonical.bodyJson ||
+        prior.bodyDigest !== canonical.bodyDigest
       ) {
         fail({
           kind: "error",
           code: "command_conflict",
           details: {
             commandId,
-            existingOperation: operationName(existing.operation),
+            existingOperation: operationName(prior.operation),
             attemptedOperation: operation,
           },
         });
       }
-      if (typeof existing.result_json !== "string") {
+      if (prior.resultJson === null) {
         throw new Error(`Command ${commandId} has no stored result`);
       }
-      return { result: JSON.parse(existing.result_json), replayed: true };
+      return { result: JSON.parse(prior.resultJson), replayed: true };
     }
 
-    this.#statements.insertCommand.run(
-      context.tenantId,
+    this.#store.insertCommand({
+      tenantId: context.tenantId,
       commandId,
       operation,
-      canonical.targetKind,
-      canonical.targetId,
-      canonical.bodyJson,
-      canonical.bodyDigest,
-      context.principalId,
-    );
+      targetKind: canonical.targetKind,
+      targetId: canonical.targetId,
+      bodyJson: canonical.bodyJson,
+      bodyDigest: canonical.bodyDigest,
+      principalId: context.principalId,
+    });
     this.#observeMutation?.("after_command_binding");
 
     const result =
@@ -319,14 +231,11 @@ export class SqliteCommandExecutor implements CommandExecutor {
           : operation === "requestBudget"
             ? this.#requestBudget(context, input as RequestBudgetCommand)
             : this.#settleBudget(context, input as SettleBudgetCommand);
-    const stored = this.#statements.storeResult.run(
-      JSON.stringify(result),
+    this.#store.storeCommandResult(
       context.tenantId,
       commandId,
+      JSON.stringify(result),
     );
-    if (stored.changes !== 1 && stored.changes !== 1n) {
-      throw new Error("SQLite failed to store command result");
-    }
     this.#observeMutation?.("after_result_storage");
     return { result, replayed: false };
   }
@@ -337,13 +246,13 @@ export class SqliteCommandExecutor implements CommandExecutor {
   ): unknown {
     const definition = command.definition;
     const definitionDigest = resourceDefinitionDigest(definition);
-    const existing = this.#statements.resourceByName.get(
+    const existing = this.#store.findResourceByName(
       context.tenantId,
       definition.canonicalName,
     );
     let resource: ResourceRow;
     if (existing !== undefined) {
-      resource = resourceRow(existing);
+      resource = existing;
       if (resource.definitionDigest !== definitionDigest) {
         fail({
           kind: "error",
@@ -356,15 +265,15 @@ export class SqliteCommandExecutor implements CommandExecutor {
         });
       }
     } else {
-      this.#statements.insertResource.run(
-        context.tenantId,
-        command.commandId,
-        definition.canonicalName,
-        definition.unit,
-        definition.accountingBehavior,
+      this.#store.insertResource({
+        tenantId: context.tenantId,
+        resourceTypeId: command.commandId,
+        canonicalName: definition.canonicalName,
+        unit: definition.unit,
+        accountingBehavior: definition.accountingBehavior,
         definitionDigest,
-        context.principalId,
-      );
+        definerPrincipalId: context.principalId,
+      });
       resource = {
         resourceTypeId: command.commandId,
         canonicalName: definition.canonicalName,
@@ -404,15 +313,15 @@ export class SqliteCommandExecutor implements CommandExecutor {
         ),
       ),
     );
-    this.#statements.insertBudget.run(
-      context.tenantId,
-      command.commandId,
-      null,
-      command.commandId,
-      0n,
-      "active",
-      canonicalPolicyJson(policies),
-    );
+    this.#store.insertBudget({
+      tenantId: context.tenantId,
+      budgetId: command.commandId,
+      parentBudgetId: null,
+      rootBudgetId: command.commandId,
+      depth: 0n,
+      lifecycle: "active",
+      policiesJson: canonicalPolicyJson(policies),
+    });
     this.#insertHoldings(context.tenantId, command.commandId, resources);
     this.#observeMutation?.("after_domain_mutation");
     this.#appendHistory(context.tenantId, command.commandId, {
@@ -566,15 +475,15 @@ export class SqliteCommandExecutor implements CommandExecutor {
       };
     }
 
-    this.#statements.insertBudget.run(
-      context.tenantId,
-      command.commandId,
-      command.parentBudgetId,
-      parent.rootBudgetId,
-      parent.depth + 1n,
-      "active",
-      canonicalPolicyJson(childPolicies),
-    );
+    this.#store.insertBudget({
+      tenantId: context.tenantId,
+      budgetId: command.commandId,
+      parentBudgetId: command.parentBudgetId,
+      rootBudgetId: parent.rootBudgetId,
+      depth: parent.depth + 1n,
+      lifecycle: "active",
+      policiesJson: canonicalPolicyJson(childPolicies),
+    });
     this.#insertHoldings(context.tenantId, command.commandId, resources);
     this.#observeMutation?.("after_domain_mutation");
     this.#appendHistory(context.tenantId, parent.rootBudgetId, {
@@ -767,11 +676,11 @@ export class SqliteCommandExecutor implements CommandExecutor {
         });
       }
       if (holding.directUsage === null) {
-        this.#statements.setUsage.run(
-          attempted,
+        this.#store.setUsage(
           context.tenantId,
           command.budgetId,
           item.resourceTypeId,
+          attempted,
         );
         newlyKnown.push({
           resourceTypeId: item.resourceTypeId,
@@ -779,10 +688,10 @@ export class SqliteCommandExecutor implements CommandExecutor {
         });
       }
     }
-    this.#statements.setLifecycle.run(
-      "settling",
+    this.#store.setBudgetLifecycle(
       context.tenantId,
       command.budgetId,
+      "settling",
     );
     this.#assertSafeAncestry(context.tenantId, budget, "settleBudget");
     const projection = this.#projectBudget(context.tenantId, command.budgetId);
@@ -834,12 +743,9 @@ export class SqliteCommandExecutor implements CommandExecutor {
     query: GetBudgetQuery,
   ): GetBudgetResult {
     const budget = this.#requireBudget(context.tenantId, query.budgetId);
-    const history = this.#statements.history
-      .all(context.tenantId, budget.rootBudgetId)
-      .map(
-        (row) =>
-          JSON.parse(stringColumn(row, "payload_json")) as BudgetHistoryEntry,
-      );
+    const history = this.#store
+      .history(context.tenantId, budget.rootBudgetId)
+      .map((payload) => JSON.parse(payload) as BudgetHistoryEntry);
     return {
       budget: this.#projectBudget(context.tenantId, query.budgetId),
       history: { rootBudgetId: budget.rootBudgetId, entries: history },
@@ -1019,39 +925,39 @@ export class SqliteCommandExecutor implements CommandExecutor {
   }
 
   #requireBudget(tenantId: string, budgetId: string): BudgetRow {
-    const row = this.#statements.budget.get(tenantId, budgetId);
-    if (row === undefined) {
+    const budget = this.#store.findBudget(tenantId, budgetId);
+    if (budget === undefined) {
       fail({
         kind: "error",
         code: "budget_not_found",
         details: { budgetId },
       });
     }
-    return budgetRow(row);
+    return budget;
   }
 
   #requireResource(tenantId: string, resourceTypeId: string): ResourceRow {
-    const row = this.#statements.resource.get(tenantId, resourceTypeId);
-    if (row === undefined) {
+    const resource = this.#store.findResource(tenantId, resourceTypeId);
+    if (resource === undefined) {
       fail({
         kind: "error",
         code: "resource_type_not_found",
         details: { resourceTypeId },
       });
     }
-    return resourceRow(row);
+    return resource;
   }
 
   #requireResourceByName(tenantId: string, canonicalName: string): ResourceRow {
-    const row = this.#statements.resourceByName.get(tenantId, canonicalName);
-    if (row === undefined) {
+    const resource = this.#store.findResourceByName(tenantId, canonicalName);
+    if (resource === undefined) {
       fail({
         kind: "error",
         code: "resource_type_not_found",
         details: { resourceTypeId: canonicalName },
       });
     }
-    return resourceRow(row);
+    return resource;
   }
 
   #requireResourceTypes(
@@ -1069,12 +975,12 @@ export class SqliteCommandExecutor implements CommandExecutor {
     resources: readonly ResourceAmount[],
   ): void {
     for (const resource of resources) {
-      this.#statements.insertHolding.run(
+      this.#store.insertHolding({
         tenantId,
         budgetId,
-        resource.resourceTypeId,
-        BigInt(resource.amount),
-      );
+        resourceTypeId: resource.resourceTypeId,
+        allocated: BigInt(resource.amount),
+      });
     }
   }
 
@@ -1083,29 +989,28 @@ export class SqliteCommandExecutor implements CommandExecutor {
     rootBudgetId: string,
     entry: BudgetHistoryEntry,
   ): void {
-    this.#statements.insertHistory.run(
+    this.#store.insertHistory({
       tenantId,
       rootBudgetId,
-      BigInt(entry.sequence),
-      JSON.stringify(entry),
-    );
+      sequence: BigInt(entry.sequence),
+      payloadJson: JSON.stringify(entry),
+    });
   }
 
   #nextSequence(tenantId: string, rootBudgetId: string): number {
-    const row = this.#statements.nextSequence.get(tenantId, rootBudgetId);
-    return safeNumber(bigintColumn(row, "sequence"), "getBudget", rootBudgetId);
+    return safeNumber(
+      this.#store.nextSequence(tenantId, rootBudgetId),
+      "getBudget",
+      rootBudgetId,
+    );
   }
 
   #children(tenantId: string, budgetId: string): BudgetRow[] {
-    return this.#statements.children
-      .all(tenantId, budgetId)
-      .map((row) => budgetRow(row));
+    return this.#store.children(tenantId, budgetId);
   }
 
   #holdings(tenantId: string, budgetId: string): HoldingRow[] {
-    return this.#statements.holdings
-      .all(tenantId, budgetId)
-      .map((row) => holdingRow(row));
+    return this.#store.holdings(tenantId, budgetId);
   }
 
   #holding(
@@ -1113,12 +1018,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
     budgetId: string,
     resourceTypeId: string,
   ): HoldingRow | undefined {
-    const row = this.#statements.holding.get(
-      tenantId,
-      budgetId,
-      resourceTypeId,
-    );
-    return row === undefined ? undefined : holdingRow(row);
+    return this.#store.findHolding(tenantId, budgetId, resourceTypeId);
   }
 }
 
@@ -1127,94 +1027,11 @@ export function openSqliteCommandExecutor(
   context: SqliteTransactionContext,
   observeMutation?: SqliteMutationObserver,
 ): SqliteCommandExecutor {
-  const database = new DatabaseSync(":memory:", { allowExtension: false });
-  try {
-    database.exec(SCHEMA);
-    const permission = database.prepare(
-      "INSERT INTO permissions (tenant_id, principal_id, permission) VALUES (?, ?, ?)",
-    );
-    for (const principal of installation.principals) {
-      for (const name of principal.permissions) {
-        permission.run(installation.tenantId, principal.principalId, name);
-      }
-    }
-    return new SqliteCommandExecutor(database, context, observeMutation);
-  } catch (startupFailure) {
-    try {
-      database.close();
-    } catch (cleanupFailure) {
-      throw new AggregateError(
-        [startupFailure, cleanupFailure],
-        "SQLite initialization and cleanup failed",
-        { cause: startupFailure },
-      );
-    }
-    throw startupFailure;
-  }
-}
-
-function prepareStatements(database: DatabaseSync) {
-  const prepareRead = (sql: string): StatementSync => {
-    const statement = database.prepare(sql);
-    statement.setReadBigInts(true);
-    return statement;
-  };
-  return {
-    permission: prepareRead(
-      "SELECT 1 AS allowed FROM permissions WHERE tenant_id = ? AND principal_id = ? AND permission = ?",
-    ),
-    command: prepareRead(
-      "SELECT operation, target_kind, target_id, body_json, body_digest, result_json FROM commands WHERE tenant_id = ? AND command_id = ?",
-    ),
-    insertCommand: database.prepare(
-      "INSERT INTO commands (tenant_id, command_id, operation, target_kind, target_id, body_json, body_digest, principal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    ),
-    storeResult: database.prepare(
-      "UPDATE commands SET result_json = ? WHERE tenant_id = ? AND command_id = ?",
-    ),
-    resourceByName: prepareRead(
-      "SELECT resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND canonical_name = ?",
-    ),
-    resource: prepareRead(
-      "SELECT resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND resource_type_id = ?",
-    ),
-    insertResource: database.prepare(
-      "INSERT INTO resource_types (tenant_id, resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ),
-    budget: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND budget_id = ?",
-    ),
-    children: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND parent_budget_id = ? ORDER BY budget_id",
-    ),
-    insertBudget: database.prepare(
-      "INSERT INTO budgets (tenant_id, budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ),
-    setLifecycle: database.prepare(
-      "UPDATE budgets SET lifecycle = ? WHERE tenant_id = ? AND budget_id = ?",
-    ),
-    holdings: prepareRead(
-      "SELECT resource_type_id, allocated_amount, direct_usage_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? ORDER BY resource_type_id",
-    ),
-    holding: prepareRead(
-      "SELECT resource_type_id, allocated_amount, direct_usage_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
-    ),
-    insertHolding: database.prepare(
-      "INSERT INTO budget_resources (tenant_id, budget_id, resource_type_id, allocated_amount) VALUES (?, ?, ?, ?)",
-    ),
-    setUsage: database.prepare(
-      "UPDATE budget_resources SET direct_usage_amount = ? WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
-    ),
-    nextSequence: prepareRead(
-      "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM history_entries WHERE tenant_id = ? AND root_budget_id = ?",
-    ),
-    insertHistory: database.prepare(
-      "INSERT INTO history_entries (tenant_id, root_budget_id, sequence, payload_json) VALUES (?, ?, ?, ?)",
-    ),
-    history: prepareRead(
-      "SELECT payload_json FROM history_entries WHERE tenant_id = ? AND root_budget_id = ? ORDER BY sequence",
-    ),
-  };
+  return new SqliteCommandExecutor(
+    SqliteStore.open(installation),
+    context,
+    observeMutation,
+  );
 }
 
 function canonicalCommand(
@@ -1605,60 +1422,6 @@ function resourceProjection(resource: ResourceRow): ResourceTypeProjection {
   };
 }
 
-function budgetRow(value: unknown): BudgetRow {
-  const row = asRow(value);
-  const lifecycle = stringColumn(row, "lifecycle");
-  if (lifecycle !== "active" && lifecycle !== "settling") {
-    throw new Error(`Invalid stored budget lifecycle: ${lifecycle}`);
-  }
-  return {
-    budgetId: stringColumn(row, "budget_id"),
-    parentBudgetId: nullableStringColumn(row, "parent_budget_id"),
-    rootBudgetId: stringColumn(row, "root_budget_id"),
-    depth: bigintColumn(row, "depth"),
-    lifecycle,
-    policies: storedPolicies(stringColumn(row, "policies_json")),
-  };
-}
-
-function storedPolicies(value: string): readonly PolicyDefinitionV1[] {
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed) || !parsed.every(isPolicyDefinitionV1)) {
-    throw new Error("Invalid stored Policy definitions");
-  }
-  return Object.freeze(structuredClone(parsed));
-}
-
-function holdingRow(value: unknown): HoldingRow {
-  const row = asRow(value);
-  return {
-    resourceTypeId: stringColumn(row, "resource_type_id"),
-    allocated: bigintColumn(row, "allocated_amount"),
-    directUsage: nullableBigintColumn(row, "direct_usage_amount"),
-  };
-}
-
-function resourceRow(value: unknown): ResourceRow {
-  const row = asRow(value);
-  const accountingBehavior = stringColumn(row, "accounting_behavior");
-  if (
-    accountingBehavior !== "consumable" &&
-    accountingBehavior !== "reusable"
-  ) {
-    throw new Error(
-      `Invalid stored accounting behavior: ${accountingBehavior}`,
-    );
-  }
-  return {
-    resourceTypeId: stringColumn(row, "resource_type_id"),
-    canonicalName: stringColumn(row, "canonical_name"),
-    unit: stringColumn(row, "unit"),
-    accountingBehavior,
-    definitionDigest: stringColumn(row, "definition_digest"),
-    definerPrincipalId: stringColumn(row, "definer_principal_id"),
-  };
-}
-
 function operationName(value: unknown): OperationName {
   if (
     value === "defineResource" ||
@@ -1691,43 +1454,8 @@ function minBigInt(left: bigint, right: bigint): bigint {
   return left < right ? left : right;
 }
 
-function asRow(value: unknown): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error("SQLite returned an invalid row");
-  return value;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringColumn(value: unknown, name: string): string {
-  const column = asRow(value)[name];
-  if (typeof column !== "string")
-    throw new Error(`SQLite column ${name} is not text`);
-  return column;
-}
-
-function nullableStringColumn(value: unknown, name: string): string | null {
-  const column = asRow(value)[name];
-  if (column === null) return null;
-  if (typeof column !== "string")
-    throw new Error(`SQLite column ${name} is not text`);
-  return column;
-}
-
-function bigintColumn(value: unknown, name: string): bigint {
-  const column = asRow(value)[name];
-  if (typeof column !== "bigint")
-    throw new Error(`SQLite column ${name} is not bigint`);
-  return column;
-}
-
-function nullableBigintColumn(value: unknown, name: string): bigint | null {
-  const column = asRow(value)[name];
-  if (column === null) return null;
-  if (typeof column !== "bigint")
-    throw new Error(`SQLite column ${name} is not bigint`);
-  return column;
 }
 
 function asNonEmpty<Value>(values: Value[]): [Value, ...Value[]] {

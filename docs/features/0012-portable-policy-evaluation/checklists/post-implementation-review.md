@@ -55,7 +55,7 @@ named evidence passed at the recorded review revision.
 - [x] The SDK Policy compiler, validator, normalizer, and evaluator retain one
       public facade for each complete operation.
 - [x] Budget projection and request preparation are separate from public types.
-- [ ] SQLite mechanics are separate from the transaction coordinator without
+- [x] SQLite mechanics are separate from the transaction coordinator without
       splitting replay or mutation invariants across services.
 - [ ] PostgreSQL generation separates output orchestration, Policy rendering,
       Budget runtime generation, and secure wrappers.
