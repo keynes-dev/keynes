@@ -114,11 +114,12 @@ surviving in-contract fault blocks completion.
 
 ## Final evidence
 
-- [ ] `CI=true pnpm check:repo`
-- [ ] `CI=true pnpm test:unit`
-- [ ] `CI=true pnpm test:pr`
-- [ ] SDK package qualification and measurement use one exact archive.
-- [ ] PostgreSQL package and PostgreSQL 18.6 system tests use one exact archive.
-- [ ] Private Cloud regression names the exact PostgreSQL subject.
-- [ ] The acceptance record names the clean final source revision and every
+- [x] `CI=true pnpm check:repo`
+- [x] `CI=true pnpm test:unit`
+- [x] `CI=true pnpm test:pr`
+- [x] SDK package qualification and measurement use one exact archive.
+- [x] PostgreSQL package and PostgreSQL 18.6 system records identify the exact
+      extracted archive exercised by each lane.
+- [x] Private Cloud regression names the exact PostgreSQL subject.
+- [x] The acceptance record names the clean final source revision and every
       executed or `NOT RUN` lane without reusing older evidence.
