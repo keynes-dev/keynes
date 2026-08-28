@@ -674,13 +674,13 @@ function call(
 }
 
 function requireSuccess(value: unknown): SuccessfulWire {
+  if (!isRecord(value) || value.ok !== true) {
+    throw new Error(
+      `expected successful wire response, received ${JSON.stringify(value)}`,
+    );
+  }
   expect(value).toMatchObject({ ok: true, replayed: expect.any(Boolean) });
-  if (
-    !isRecord(value) ||
-    value.ok !== true ||
-    !isRecord(value.result) ||
-    typeof value.replayed !== "boolean"
-  ) {
+  if (!isRecord(value.result) || typeof value.replayed !== "boolean") {
     throw new Error(
       `expected successful wire response, received ${JSON.stringify(value)}`,
     );
@@ -834,7 +834,7 @@ function inputSensitivePolicy(): PolicyDefinitionV1 {
   } satisfies PolicyProgramV1;
   const canonicalSql = [
     "select requested.resource as resource,",
-    "       least((requested.amount + context.input_offset), available.amount) as ceiling,",
+    "       least(requested.amount + context.input_offset, available.amount) as ceiling,",
     "       'input_sensitive_limit' as reason",
     "from requested_resources as requested",
     "inner join available_resources as available using (resource)",
