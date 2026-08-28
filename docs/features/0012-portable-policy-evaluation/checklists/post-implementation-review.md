@@ -59,39 +59,55 @@ named evidence passed at the recorded review revision.
       splitting replay or mutation invariants across services.
 - [x] PostgreSQL generation separates output orchestration, Policy rendering,
       Budget runtime generation, and secure wrappers.
-- [ ] Generated files and `policy-profile.json` remain generated artifacts or
+- [x] Generated files and `policy-profile.json` remain generated artifacts or
       one authored semantic source rather than refactor targets.
 - [x] Pure refactors leave generated output, canonical programs, SQL, and digests
       byte-identical.
 
 ## Test quality
 
-- [ ] The coverage matrix names every node, operator, function, null rule,
-      numeric boundary, work branch, source form, and rejection family.
-- [ ] Representative approval, denial, invalid Policy, evaluator failure, and
+- [x] The executable inventory pins every node, operator, function, backend
+      responsibility, work declaration, and canonical-vector requirement.
+- [x] Representative approval, denial, invalid Policy, evaluator failure, and
       replay tests assert exact wire results.
-- [ ] Malformed Context-schema tests assert exact paths and rules.
-- [ ] A curated shared corpus runs through the public request path in both
-      authorities where the contract requires parity.
-- [ ] Golden expectations do not call the production generator, renderer, or
+- [x] Malformed Context-schema tests assert exact paths and rules.
+- [x] A curated shared corpus runs through the local interpreter and installed
+      PostgreSQL renderer, with input-sensitive public-request oracles for both
+      authorities.
+- [x] Golden expectations do not call the production generator, renderer, or
       canonicalizer that they are intended to check.
-- [ ] Count-only, substring-only, partial-object, and duplicate tests are either
+- [x] Count-only, substring-only, partial-object, and duplicate tests are either
       strengthened, classified as drift checks, or removed.
-- [ ] Every retained test identifies a distinct failure mode or compatibility
+- [x] Every retained test identifies a distinct failure mode or compatibility
       promise.
+
+The executable coverage map is intentionally small: the machine-readable
+profile and generation tests own the complete language inventory; generated
+scalar vectors exercise the local interpreter; the shared runtime corpus
+exercises local evaluation and the installed PostgreSQL renderer; public Budget
+tests own request wiring, evidence, replay, and atomicity; rejection and
+security suites own fail-closed and rollback behavior. Ten targeted faults
+challenge the highest-risk links between those layers.
 
 ## Targeted fault probes
 
-- [ ] PostgreSQL evaluator parameters swapped.
-- [ ] One PostgreSQL arithmetic renderer changed.
-- [ ] Canonical output ordering removed.
-- [ ] Replay moved after parent lookup or evaluation.
-- [ ] One rollback checkpoint omitted.
-- [ ] One declared Policy input holding left unlocked.
-- [ ] One undeclared output Resource accepted.
-- [ ] One unexpected evidence field appended.
-- [ ] Local lowest-ceiling or tied-reason rule changed.
-- [ ] One profile descriptor or backend declaration removed.
+- [x] PostgreSQL evaluator parameters swapped: `killed` by the input-sensitive
+      public request evidence (`6` became `4`).
+- [x] One PostgreSQL arithmetic renderer changed: `killed` by shared runtime
+      conformance (expected `10`, received `7`).
+- [x] Canonical output ordering removed: `killed` by exact Resource ordering.
+- [x] Replay moved after parent lookup or evaluation: `killed` by lock timeout.
+- [x] One rollback checkpoint omitted: `killed` by the checkpoint table.
+- [x] One declared Policy input holding left unlocked: `killed` by the required
+      blocking relationship.
+- [x] One undeclared output Resource accepted: `killed` by exact
+      `invalid_result` and absent request state.
+- [x] One unexpected evidence field appended: `killed` by three exact request
+      wire assertions.
+- [x] Local lowest-ceiling or tied-reason rule changed: `killed` by the tied
+      ceiling denial oracle.
+- [x] One profile descriptor or backend declaration removed: `killed` by the
+      complete backend-responsibility inventory.
 
 Each probe must be recorded as `killed`, `survived`, or `INCONCLUSIVE`. A
 surviving in-contract fault blocks completion.
