@@ -41,7 +41,62 @@ const contextLimit = ceilingPolicy({
   ceiling: "least(available.amount, context.limit)",
 });
 
+const inputSensitiveLimit = ceilingPolicy({
+  name: "input_sensitive_limit",
+  revision: 1,
+  reason: "input_sensitive_limit",
+  ceiling: "least(requested.amount + context.limit, available.amount)",
+});
+
 describe("local governed Budget requests", () => {
+  it("evaluates requested, availability, and Context through the public Budget path", async () => {
+    const { keynes, root } = await openGoverned(policySet(inputSensitiveLimit));
+    try {
+      const result = await root.request(
+        { tokens: 4 },
+        { context: { limit: 2, segment: "standard" } },
+      );
+
+      if (result.status !== "approved") {
+        throw new Error("expected input-sensitive Policy approval");
+      }
+      expect(result.policyEvidence).toEqual({
+        context: { limit: 2, segment: "standard" },
+        policies: [
+          {
+            name: "input_sensitive_limit",
+            revision: 1,
+            sourceDigest: inputSensitiveLimit.sourceDigest,
+            definitionDigest: inputSensitiveLimit.definitionDigest,
+            rows: [
+              {
+                resource: "tokens",
+                ceiling: 6,
+                reason: "input_sensitive_limit",
+              },
+            ],
+          },
+        ],
+        effectiveCeilings: [
+          {
+            resource: "tokens",
+            ceiling: 6,
+            reasons: [
+              {
+                policyName: "input_sensitive_limit",
+                policyRevision: 1,
+                reason: "input_sensitive_limit",
+              },
+            ],
+          },
+        ],
+        decision: "approved",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("approves atomically and reserves the exact requested quantity", async () => {
     const { keynes, root } = await openGoverned(policySet(contextLimit));
     try {

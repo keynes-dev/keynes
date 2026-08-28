@@ -4,28 +4,6 @@ import type {
   PolicyResultRowV1,
 } from "../../generated/policy-types.ts";
 
-export type PolicyConformanceCategory =
-  | "kysely"
-  | "kysely_sql"
-  | "raw_sql"
-  | "canonical_vector"
-  | "numeric"
-  | "null"
-  | "ordering"
-  | "aggregation"
-  | "property"
-  | "limit"
-  | "mutation";
-
-export interface PolicyConformanceCase {
-  readonly name: string;
-  readonly category: PolicyConformanceCategory;
-  readonly source?: string;
-  readonly parameters?: readonly (string | boolean | number | null)[];
-  readonly input?: unknown;
-  readonly expected: unknown;
-}
-
 export interface PolicyRuntimeConformanceCase {
   readonly name: string;
   readonly category:
