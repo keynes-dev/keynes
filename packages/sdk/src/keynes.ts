@@ -1,274 +1,140 @@
 import { randomUUID } from "node:crypto";
 
-import type { KeynesClient } from "./generated/client.js";
-import type {
-  CreateBudgetCommand,
-  DefineResourceTypeCommand,
-  GetBudgetResult,
-  RequestBudgetCommand,
-  ResourceTypeProjection,
-  SettleBudgetCommand,
-  SettleBudgetResult,
-} from "./generated/types.js";
-import { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
-import { openLocalRuntime } from "./local/runtime.js";
-import { ResourceCatalog } from "./local/resource-catalog.js";
-import { CommittedResponseLostError } from "./replay.js";
+import {
+  attachedPolicyDefinitions,
+  createBudgetHandle,
+  type AttachPolicyArguments,
+  type Budget,
+  type ContextOfPolicySet,
+  type ExactResourceAmounts,
+  type PolicyDefinition,
+  type ReasonsOfPolicySet,
+  type ResourceAmounts,
+} from "./budget.js";
+import type { CreateBudgetCommand } from "./generated/types.js";
+import {
+  admit,
+  closeRuntime,
+  invokeMutation,
+  type LocalRuntime,
+  openConfiguredRuntime,
+} from "./local/runtime.js";
+import type { ResourceDefinitions, ResourceSchema } from "./resources.js";
+import { KeynesSdkError } from "./sdk-errors.js";
 
-export type AccountingBehavior = "consumable" | "reusable";
+declare const keynesBrand: unique symbol;
 
-export interface ResourceConfig {
-  readonly unit: string;
-  readonly accountingBehavior: AccountingBehavior;
-}
-
-export type ResourceConfigs = Readonly<Record<string, ResourceConfig>>;
-
-export type ResourceAmounts<Names extends string = string> = Readonly<
-  Partial<Record<Names, number>>
->;
-
-export type ResourceUsage<Names extends string = string> = Readonly<
-  Partial<Record<Names, number | null>>
->;
-
-export interface BudgetRequestDenialReason<Name extends string = string> {
-  readonly code: "insufficient_available";
-  readonly resource: Name;
-  readonly requested: number;
-  readonly available: number;
-}
-
-export type BudgetRequestResult<Names extends string = string> =
-  | { readonly status: "approved"; readonly budget: Budget<Names> }
-  | {
-      readonly status: "denied";
-      readonly reasons: readonly BudgetRequestDenialReason<Names>[];
-    };
-
-type RuntimeState = "open" | "closing" | "closed";
-
-interface RuntimeSession {
-  readonly client: KeynesClient;
-  readonly resources: ResourceCatalog;
-  readonly closeHost: () => Promise<void>;
-  state: RuntimeState;
-  tail: Promise<void>;
-  closePromise: Promise<void> | undefined;
-}
-
-export class Keynes {
-  readonly #runtime: RuntimeSession;
-
-  private constructor(runtime: RuntimeSession) {
-    this.#runtime = runtime;
-  }
-
-  static create(): Promise<Keynes>;
-  static async create(...args: readonly unknown[]): Promise<Keynes> {
-    validateCreateArguments(args);
-    try {
-      const host = await openLocalRuntime();
-      return new Keynes({
-        client: host.client,
-        resources: new ResourceCatalog(),
-        closeHost: () => host.close(),
-        state: "open",
-        tail: Promise.resolve(),
-        closePromise: undefined,
-      });
-    } catch (cause: unknown) {
-      throw new KeynesSdkError("initialization_failed", {}, { cause });
-    }
-  }
-
-  defineResources<const Definitions extends ResourceConfigs>(
-    definitions: Definitions,
-  ): Promise<readonly ResourceTypeProjection[]> {
-    return admit(this.#runtime, async () => {
-      const prepared = this.#runtime.resources.prepareDefinitions(definitions);
-      const definedResources: ResourceTypeProjection[] = [];
-      for (const resource of prepared) {
-        try {
-          const command = {
-            commandId: randomUUID(),
-            definition: resource.definition,
-          } satisfies DefineResourceTypeCommand;
-          const result = await invokeMutation(() =>
-            this.#runtime.client.defineResource(command),
-          );
-          this.#runtime.resources.record(resource, result.resourceType);
-          definedResources.push(result.resourceType);
-        } catch (cause: unknown) {
-          if (
-            cause instanceof KeynesSdkError &&
-            cause.code === "operation_interrupted"
-          ) {
-            throw cause;
-          }
-          throw new ResourceDefinitionError(
-            resource.key,
-            definedResources,
-            cause,
-          );
-        }
-      }
-      return definedResources;
-    });
-  }
-
-  createBudget<const Resources extends Readonly<Record<string, number>>>(
-    resources: Resources,
-  ): Promise<Budget<Extract<keyof Resources, string>>> {
-    return admit(this.#runtime, async () => {
-      const resolved = this.#runtime.resources.resources(
-        resources,
-        "createBudget",
-      );
-      const command = {
-        commandId: randomUUID(),
-        resources: resolved.envelope,
-      } satisfies CreateBudgetCommand;
-      const result = await invokeMutation(() =>
-        this.#runtime.client.createBudget(command),
-      );
-      return createBudgetHandle(this.#runtime, result.budget.budgetId);
-    });
-  }
-
-  close(): Promise<void> {
-    return closeRuntime(this.#runtime);
-  }
-}
-
-export class Budget<Names extends string = string> {
-  readonly #runtime: RuntimeSession;
-  readonly #budgetId: string;
-
-  protected constructor(runtime: RuntimeSession, budgetId: string) {
-    this.#runtime = runtime;
-    this.#budgetId = budgetId;
-  }
-
-  request<const Resources extends ResourceAmounts<Names>>(
+export interface Keynes<Names extends string> extends AsyncDisposable {
+  readonly [keynesBrand]: void;
+  readonly createBudget: <
+    const Resources extends ResourceAmounts<Names>,
+    const Policies extends PolicySetInput | undefined = undefined,
+  >(
     resources: ExactResourceAmounts<Names, Resources>,
-  ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>>> {
-    type RequestedName = Extract<keyof Resources, Names>;
-    return admit(this.#runtime, async () => {
-      const resolved = this.#runtime.resources.resources<RequestedName>(
-        resources,
-        "requestBudget",
-      );
-      const command = {
-        commandId: randomUUID(),
-        parentBudgetId: this.#budgetId,
-        resources: resolved.envelope,
-      } satisfies RequestBudgetCommand;
-      const result = await invokeMutation(() =>
-        this.#runtime.client.requestBudget(command),
-      );
-      if (result.kind === "approved") {
-        return {
-          status: "approved",
-          budget: createBudgetHandle(this.#runtime, result.childBudgetId),
-        };
-      }
-      return {
-        status: "denied",
-        reasons: result.reasons.map((reason) => ({
-          code: reason.code,
-          resource: resolved.keyFor(reason.resourceTypeId),
-          requested: reason.requested,
-          available: reason.available,
-        })),
-      };
-    });
-  }
-
-  settle(usage: ResourceUsage<Names>): Promise<SettleBudgetResult> {
-    return admit(this.#runtime, () => {
-      const command = {
-        commandId: randomUUID(),
-        budgetId: this.#budgetId,
-        usage: this.#runtime.resources.usage(usage),
-      } satisfies SettleBudgetCommand;
-      return invokeMutation(() => this.#runtime.client.settleBudget(command));
-    });
-  }
-
-  inspect(): Promise<GetBudgetResult> {
-    return admit(this.#runtime, () =>
-      this.#runtime.client.getBudget({ budgetId: this.#budgetId }),
-    );
-  }
+    ...options: AttachPolicyArguments<Extract<keyof Resources, Names>, Policies>
+  ) => Promise<
+    Budget<
+      Extract<keyof Resources, Names>,
+      ContextOfPolicySet<Policies>,
+      ReasonsOfPolicySet<Policies>
+    >
+  >;
+  readonly close: () => Promise<void>;
+  readonly [Symbol.asyncDispose]: () => Promise<void>;
 }
 
-class LocalBudget<Names extends string> extends Budget<Names> {
-  constructor(runtime: RuntimeSession, budgetId: string) {
-    super(runtime, budgetId);
-  }
+export function createKeynes<
+  const Schema extends ResourceSchema<ResourceDefinitions>,
+>(options: {
+  readonly resources: Schema;
+}): Promise<Keynes<Extract<keyof Schema["definitions"], string>>>;
+export async function createKeynes(options: unknown): Promise<Keynes<string>> {
+  const resources = requireCreateOptions(options);
+  const runtime = await openConfiguredRuntime(resources);
+  return createKeynesHandle(runtime);
 }
 
-function createBudgetHandle<Names extends string>(
-  runtime: RuntimeSession,
-  budgetId: string,
-): Budget<Names> {
-  return new LocalBudget(runtime, budgetId);
-}
-
-function admit<Result>(
-  runtime: RuntimeSession,
-  operation: () => Promise<Result>,
-): Promise<Result> {
-  if (runtime.state !== "open") {
-    return Promise.reject(new KeynesSdkError("runtime_closed", {}));
-  }
-  const result = runtime.tail.then(operation);
-  runtime.tail = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
-}
-
-async function invokeMutation<Result>(
-  operation: () => Promise<Result>,
-): Promise<Result> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof CommittedResponseLostError)) throw error;
-  }
-
-  try {
-    return await operation();
-  } catch (cause: unknown) {
-    if (!(cause instanceof CommittedResponseLostError)) throw cause;
-    throw new KeynesSdkError("operation_interrupted", {}, { cause });
-  }
-}
-
-function closeRuntime(runtime: RuntimeSession): Promise<void> {
-  if (runtime.closePromise !== undefined) {
-    return runtime.closePromise;
-  }
-  runtime.state = "closing";
-  runtime.closePromise = runtime.tail.then(runtime.closeHost).finally(() => {
-    runtime.state = "closed";
+function createKeynesHandle<Names extends string>(
+  runtime: LocalRuntime,
+): Keynes<Names> {
+  const createBudget: Keynes<Names>["createBudget"] = (resources, ...options) =>
+    createRootBudget(runtime, resources, ...options);
+  const close = (): Promise<void> => closeRuntime(runtime);
+  const handle = Object.freeze({
+    createBudget,
+    close,
+    [Symbol.asyncDispose]: close,
   });
-  return runtime.closePromise;
+  return handle as Keynes<Names>;
 }
 
-function validateCreateArguments(args: readonly unknown[]): void {
-  if (args.length !== 0) {
-    throw new KeynesSdkError("invalid_configuration", {
-      field: "options",
-      reason: "unsupported",
-    });
-  }
-}
-
-type ExactResourceAmounts<
+function createRootBudget<
   Names extends string,
-  Resources extends ResourceAmounts<Names>,
-> = Resources & Readonly<Record<Exclude<keyof Resources, Names>, never>>;
+  const Resources extends ResourceAmounts<Names>,
+  const Policies extends PolicySetInput | undefined = undefined,
+>(
+  runtime: LocalRuntime,
+  resources: ExactResourceAmounts<Names, Resources>,
+  ...options: AttachPolicyArguments<Extract<keyof Resources, Names>, Policies>
+): Promise<
+  Budget<
+    Extract<keyof Resources, Names>,
+    ContextOfPolicySet<Policies>,
+    ReasonsOfPolicySet<Policies>
+  >
+> {
+  type BudgetName = Extract<keyof Resources, Names>;
+  const policies = attachedPolicyDefinitions(options);
+  return admit(runtime, async () => {
+    const resolved = runtime.resources.resources<BudgetName>(
+      resources,
+      "createBudget",
+    );
+    const command: CreateBudgetCommand = {
+      commandId: randomUUID(),
+      resources: resolved,
+      ...(policies === undefined ? {} : { policies }),
+    };
+    const result = await invokeMutation(() =>
+      runtime.client.createBudget(command),
+    );
+    return createBudgetHandle<
+      BudgetName,
+      ContextOfPolicySet<Policies>,
+      ReasonsOfPolicySet<Policies>
+    >(runtime, result.budget.budgetId);
+  });
+}
+
+type PolicySetInput = {
+  readonly definitions: readonly PolicyDefinition<string, unknown, string>[];
+  readonly contextSchemaDigest: string | null;
+  readonly setDigest: string;
+};
+
+function requireCreateOptions(value: unknown): ResourceSchema {
+  if (!isRecord(value)) {
+    throw invalidConfiguration("options", "missing");
+  }
+  const unknownField = Object.keys(value).find(
+    (field) => field !== "resources",
+  );
+  if (unknownField !== undefined) {
+    throw invalidConfiguration(unknownField, "unknown");
+  }
+  if (!("resources" in value)) {
+    throw invalidConfiguration("resources", "missing");
+  }
+  return value.resources as ResourceSchema;
+}
+
+function invalidConfiguration(
+  field: string,
+  reason: "missing" | "unknown" | "unsupported",
+): KeynesSdkError<"invalid_configuration"> {
+  return new KeynesSdkError("invalid_configuration", { field, reason });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0011",
-  "slug": "idiomatic-monorepo",
-  "branch": "feat/0011-idiomatic-monorepo",
-  "feature_directory": "docs/features/0011-idiomatic-monorepo",
-  "roadmap_stage": null
+  "feature_id": "FEAT-0012",
+  "slug": "portable-policy-evaluation",
+  "branch": "feat/0012-portable-policy-evaluation",
+  "feature_directory": "docs/features/0012-portable-policy-evaluation",
+  "roadmap_stage": "Implementation sequence"
 }

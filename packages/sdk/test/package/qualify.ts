@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import {
   cp,
   lstat,
@@ -25,21 +26,56 @@ const installRoot = fileURLToPath(new URL(".", import.meta.url));
 const compatibilityRoot = resolve(installRoot, "compatibility");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
-export const ARCHIVE_LIMIT_BYTES = 512 * 1024;
+export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
 const productionModules = [
+  "budget",
+  "command-executor",
   "generated/client",
+  "generated/policy-profile",
+  "generated/policy-types",
   "generated/types",
   "generated/validators",
   "index",
   "keynes",
-  "command-executor",
   "local/resource-catalog",
   "local/runtime",
   "local/sqlite-command-executor",
+  "policy/authoring",
+  "policy/canonicalize",
+  "policy/compile",
+  "policy/decimal",
+  "policy/evaluate",
+  "policy/normalize",
+  "policy/parse",
+  "policy/validate",
   "replay",
+  "resources",
   "sdk-errors",
+] as const;
+
+const expectedProductionDependencies = {
+  "@pgsql/types": "18.0.0",
+  "decimal.js": "10.6.0",
+  kysely: "0.29.5",
+  "libpg-query": "18.1.4",
+} as const;
+const expectedBundledDependencies = Object.keys(
+  expectedProductionDependencies,
+).sort();
+const bundledPackageRoots = expectedBundledDependencies.map(
+  (name) => `package/node_modules/${name}`,
+);
+const requiredBundledPackageFiles = [
+  "package/node_modules/@pgsql/types/package.json",
+  "package/node_modules/decimal.js/package.json",
+  "package/node_modules/kysely/package.json",
+  "package/node_modules/libpg-query/package.json",
+  "package/node_modules/libpg-query/wasm/index.cjs",
+  "package/node_modules/libpg-query/wasm/index.js",
+  "package/node_modules/libpg-query/wasm/libpg-query.js",
+  "package/node_modules/libpg-query/wasm/libpg-query.wasm",
 ] as const;
 
 const allowedPackageFiles = [
@@ -80,7 +116,11 @@ export interface QualificationResult {
     readonly architecture: string;
   };
   readonly checks: readonly [
+    "parser-wasm",
+    "public-types",
+    "package-root-import",
     "budget-loop",
+    "policy-runtime",
     "isolation",
     "closure",
     "process-loss",
@@ -152,12 +192,23 @@ export function parseArguments(
 
 export function validatePackageFilePaths(paths: readonly string[]): void {
   const actual = [...paths].sort();
-  const unknown = actual.find((path) => !allowedPackageFiles.includes(path));
+  const unknown = actual.find(
+    (path) =>
+      path.split("/").includes("..") ||
+      (!allowedPackageFiles.includes(path) &&
+        !bundledPackageRoots.some((root) => path.startsWith(`${root}/`))),
+  );
   if (unknown !== undefined)
     throw new Error(`Archive contains forbidden file ${unknown}`);
   const missing = allowedPackageFiles.find((path) => !actual.includes(path));
   if (missing !== undefined)
     throw new Error(`Archive is missing required file ${missing}`);
+  const missingBundledFile = requiredBundledPackageFiles.find(
+    (path) => !actual.includes(path),
+  );
+  if (missingBundledFile !== undefined) {
+    throw new Error(`Archive is missing required file ${missingBundledFile}`);
+  }
   if (new Set(actual).size !== actual.length) {
     throw new Error("Archive contains duplicate file paths");
   }
@@ -168,7 +219,7 @@ export function validateSizes(sizes: {
   readonly productionBytes: number;
 }): void {
   if (sizes.compressedBytes > ARCHIVE_LIMIT_BYTES) {
-    throw new Error("SDK archive exceeds 512 KiB");
+    throw new Error("SDK archive exceeds 1 MiB");
   }
   if (sizes.productionBytes > PRODUCTION_LIMIT_BYTES) {
     throw new Error("Production installation exceeds 35 MiB");
@@ -209,16 +260,13 @@ export async function qualifyArchive(
     );
     const consumer = resolve(external.root, "build/consumer.mjs");
     run(process.execPath, [consumer, "budget-loop"], external.root);
+    run(process.execPath, [consumer, "policy-runtime"], external.root);
     run(process.execPath, [consumer, "isolation"], external.root);
     run(process.execPath, [consumer, "closure"], external.root);
-    const processState = parseProcessState(
+    assertProcessState(
       run(process.execPath, [consumer, "write-then-exit"], external.root),
     );
-    run(
-      process.execPath,
-      [consumer, "read-after-restart", processState.resourceTypeId],
-      external.root,
-    );
+    run(process.execPath, [consumer, "read-after-restart"], external.root);
 
     productionBytes = external.productionBytes;
   } finally {
@@ -257,7 +305,11 @@ export async function qualifyArchive(
       architecture: arch(),
     },
     checks: [
+      "parser-wasm",
+      "public-types",
+      "package-root-import",
       "budget-loop",
+      "policy-runtime",
       "isolation",
       "closure",
       "process-loss",
@@ -316,6 +368,11 @@ export async function installExternalConsumer(
       resolve(compatibilityRoot, "private-imports.mts"),
       resolve(root, "private-imports.mts"),
     );
+    await mkdir(resolve(root, "compatibility"));
+    await cp(
+      resolve(compatibilityRoot, "policy-api.mts"),
+      resolve(root, "compatibility/policy-api.mts"),
+    );
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
     await writeFile(
       resolve(root, "package.json"),
@@ -329,13 +386,50 @@ export async function installExternalConsumer(
         2,
       )}\n`,
     );
-    run(pnpm, ["install", "--prod", "--offline", "--ignore-scripts"], root);
+    const isolatedStore = resolve(root, ".pnpm-store");
+    run(
+      pnpm,
+      [
+        "install",
+        "--prod",
+        "--offline",
+        "--ignore-scripts",
+        "--store-dir",
+        isolatedStore,
+      ],
+      root,
+    );
 
     const installedPackage = await realpath(
       resolve(root, "node_modules/@keynes/sdk"),
     );
+    const installedRequire = createRequire(
+      resolve(installedPackage, "package.json"),
+    );
+    const installedParserEntry = installedRequire.resolve("libpg-query");
+    const installedParserRoot = await realpath(
+      resolve(installedPackage, "node_modules/libpg-query"),
+    );
+    const installedParserTypes = await realpath(
+      installedRequire.resolve("@pgsql/types"),
+    );
+    const installedParserWasm = await realpath(
+      resolve(dirname(installedParserEntry), "libpg-query.wasm"),
+    );
     assertOutsideRepository(repositoryRoot, installedPackage);
-    assertWithin(await realpath(root), installedPackage);
+    const externalRoot = await realpath(root);
+    assertWithin(externalRoot, installedPackage);
+    assertWithin(installedParserRoot, installedParserEntry);
+    assertWithin(installedParserRoot, installedParserWasm);
+    assertWithin(
+      await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
+      installedParserTypes,
+    );
+    assertWithin(externalRoot, installedParserWasm);
+    const parserWasmStat = await stat(installedParserWasm);
+    if (!parserWasmStat.isFile() || parserWasmStat.size === 0) {
+      throw new Error("Installed libpg-query parser WASM is missing or empty");
+    }
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
     validateSizes({ compressedBytes, productionBytes });
 
@@ -389,9 +483,29 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     value.type !== "module" ||
     !isRecord(value.engines) ||
     value.engines.node !== ">=24 <25 || >=26 <27" ||
-    hasPackageDependencies(value)
+    hasInvalidPackageDependencies(value)
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
+  }
+  for (const [name, version] of Object.entries(
+    expectedProductionDependencies,
+  )) {
+    const dependencyManifest = entries.find(
+      (entry) => entry.path === `package/node_modules/${name}/package.json`,
+    );
+    if (dependencyManifest === undefined) {
+      throw new Error(`Archive bundled dependency ${name} is missing`);
+    }
+    const dependencyValue: unknown = JSON.parse(
+      dependencyManifest.body.toString("utf8"),
+    );
+    if (
+      !isRecord(dependencyValue) ||
+      dependencyValue.name !== name ||
+      dependencyValue.version !== version
+    ) {
+      throw new Error(`Archive bundled dependency ${name} is invalid`);
+    }
   }
   const generatedClient = entries.find(
     (entry) => entry.path === "package/dist/generated/client.js",
@@ -436,22 +550,16 @@ async function directoryBytes(root: string): Promise<number> {
   return bytes;
 }
 
-function parseProcessState(source: string): {
-  readonly resourceTypeId: string;
-  readonly budgetId: string;
-} {
+function assertProcessState(source: string): void {
   const value: unknown = JSON.parse(source);
   if (
     !isRecord(value) ||
-    typeof value.resourceTypeId !== "string" ||
-    typeof value.budgetId !== "string"
+    value.resource !== "processMemory" ||
+    value.unit !== "item" ||
+    value.allocated !== 1
   ) {
-    throw new Error("write-then-exit returned invalid process state");
+    throw new Error("write-then-exit returned invalid public Budget state");
   }
-  return {
-    resourceTypeId: value.resourceTypeId,
-    budgetId: value.budgetId,
-  };
 }
 
 function run(command: string, args: readonly string[], cwd: string): string {
@@ -496,12 +604,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasPackageDependencies(manifest: Record<string, unknown>): boolean {
-  for (const field of [
-    "dependencies",
-    "optionalDependencies",
-    "peerDependencies",
-  ]) {
+function hasInvalidPackageDependencies(
+  manifest: Record<string, unknown>,
+): boolean {
+  const dependencies = manifest.dependencies;
+  if (!isRecord(dependencies)) return true;
+  const expectedNames = Object.keys(expectedProductionDependencies).sort();
+  const actualNames = Object.keys(dependencies).sort();
+  if (
+    actualNames.length !== expectedNames.length ||
+    actualNames.some((name, index) => name !== expectedNames[index])
+  ) {
+    return true;
+  }
+  for (const [name, version] of Object.entries(
+    expectedProductionDependencies,
+  )) {
+    if (dependencies[name] !== version) {
+      return true;
+    }
+  }
+  for (const field of ["optionalDependencies", "peerDependencies"]) {
     const value = manifest[field];
     if (
       value !== undefined &&
@@ -510,11 +633,17 @@ function hasPackageDependencies(manifest: Record<string, unknown>): boolean {
       return true;
     }
   }
-  for (const field of ["bundleDependencies", "bundledDependencies"]) {
-    const value = manifest[field];
-    if (value !== undefined && (!Array.isArray(value) || value.length > 0)) {
-      return true;
-    }
+  if (manifest.bundleDependencies !== undefined) return true;
+  const bundledDependencies = manifest.bundledDependencies;
+  if (
+    !Array.isArray(bundledDependencies) ||
+    bundledDependencies.some((value) => typeof value !== "string") ||
+    [...bundledDependencies]
+      .sort()
+      .some((name, index) => name !== expectedBundledDependencies[index]) ||
+    bundledDependencies.length !== expectedBundledDependencies.length
+  ) {
+    return true;
   }
   return false;
 }

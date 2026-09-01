@@ -18,8 +18,8 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
-  "migrationSetDigest": "e1f8c069ffdce5dca0192582a70003f5202147a09be23db4f3ca4825ed577b5b",
+  "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
+  "migrationSetDigest": "c4635559376303f98b35bb91712ec75259f10b57cb6d7dc23dce09b0d2092f72",
   "migrations": [
     {
       "id": "0001-storage",
@@ -29,13 +29,18 @@
     {
       "id": "0002-budget",
       "path": "0002-budget.sql",
-      "sha256": "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b"
+      "sha256": "23b586d2a1ff2eb09dd42e7e9d72d6b6ab2d2fb02163723a2bd91884a9797587"
     },
     {
       "id": "0003-public",
       "path": "0003-public.generated.sql",
-      "sha256": "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
-      "contractDigest": "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6"
+      "sha256": "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753"
+    },
+    {
+      "id": "0004-policy",
+      "path": "0004-policy.sql",
+      "sha256": "5bb9c0e63284dedaf0db2e358ffb26b1dd7cbc56a6945e8c81bd2c8fbc083bb3",
+      "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],
   "expectedTargets": [
@@ -74,7 +79,69 @@
     "function:keynes.create_budget(input jsonb)",
     "function:keynes.request(input jsonb)",
     "function:keynes.settle(input jsonb)",
-    "function:keynes.get_budget(input jsonb)"
+    "function:keynes.get_budget(input jsonb)",
+    "function:keynes_internal.apply_command_legacy(operation_name text,input jsonb)",
+    "function:keynes_internal.policy_canonical_json(value jsonb)",
+    "function:keynes_internal.canonical_policy_set(policies jsonb)",
+    "function:keynes_internal.policy_sum(input_values numeric[])",
+    "function:keynes_internal.policy_avg(input_values numeric[])",
+    "function:keynes_internal.invalid_policy(issue_path text,issue_rule text)",
+    "function:keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
+    "function:keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",
+    "function:keynes_internal.validate_policy_node(node jsonb)",
+    "function:keynes_internal.render_policy_node(node jsonb)",
+    "function:keynes_internal.validate_policy_program(program jsonb)",
+    "function:keynes_internal.render_policy_program(program jsonb)",
+    "function:keynes_internal.canonical_policy_expression(node jsonb)",
+    "function:keynes_internal.canonical_policy_parenthesize(node jsonb)",
+    "function:keynes_internal.canonical_policy_sql(program jsonb)",
+    "function:keynes_internal.policy_work_bound(program jsonb,requested_rows integer,available_rows integer)",
+    "function:keynes_internal.validate_policy_set(policies jsonb)",
+    "function:keynes_internal.validate_policy_context(policies jsonb,context jsonb)",
+    "function:keynes_internal.evaluate_policy_set(selected_tenant uuid,selected_budget uuid,policies jsonb,requested_items jsonb,context jsonb)",
+    "function:keynes_internal.check_policy_canonical_vectors()",
+    "function:keynes_internal.validate_select(node jsonb)",
+    "function:keynes_internal.render_select(node jsonb)",
+    "function:keynes_internal.validate_inner_join(node jsonb)",
+    "function:keynes_internal.render_inner_join(node jsonb)",
+    "function:keynes_internal.validate_cross_join(node jsonb)",
+    "function:keynes_internal.render_cross_join(node jsonb)",
+    "function:keynes_internal.validate_decimal_literal(node jsonb)",
+    "function:keynes_internal.render_decimal_literal(node jsonb)",
+    "function:keynes_internal.validate_text_literal(node jsonb)",
+    "function:keynes_internal.render_text_literal(node jsonb)",
+    "function:keynes_internal.validate_boolean_literal(node jsonb)",
+    "function:keynes_internal.render_boolean_literal(node jsonb)",
+    "function:keynes_internal.validate_null_literal(node jsonb)",
+    "function:keynes_internal.render_null_literal(node jsonb)",
+    "function:keynes_internal.validate_reference(node jsonb)",
+    "function:keynes_internal.render_reference(node jsonb)",
+    "function:keynes_internal.validate_unary_numeric(node jsonb)",
+    "function:keynes_internal.render_unary_numeric(node jsonb)",
+    "function:keynes_internal.validate_binary_numeric(node jsonb)",
+    "function:keynes_internal.render_binary_numeric(node jsonb)",
+    "function:keynes_internal.validate_comparison(node jsonb)",
+    "function:keynes_internal.render_comparison(node jsonb)",
+    "function:keynes_internal.validate_text_in(node jsonb)",
+    "function:keynes_internal.render_text_in(node jsonb)",
+    "function:keynes_internal.validate_is_null(node jsonb)",
+    "function:keynes_internal.render_is_null(node jsonb)",
+    "function:keynes_internal.validate_boolean_binary(node jsonb)",
+    "function:keynes_internal.render_boolean_binary(node jsonb)",
+    "function:keynes_internal.validate_boolean_not(node jsonb)",
+    "function:keynes_internal.render_boolean_not(node jsonb)",
+    "function:keynes_internal.validate_case(node jsonb)",
+    "function:keynes_internal.render_case(node jsonb)",
+    "function:keynes_internal.validate_variadic(node jsonb)",
+    "function:keynes_internal.render_variadic(node jsonb)",
+    "function:keynes_internal.validate_numeric_function(node jsonb)",
+    "function:keynes_internal.render_numeric_function(node jsonb)",
+    "function:keynes_internal.validate_scale_function(node jsonb)",
+    "function:keynes_internal.render_scale_function(node jsonb)",
+    "function:keynes_internal.validate_power(node jsonb)",
+    "function:keynes_internal.render_power(node jsonb)",
+    "function:keynes_internal.validate_aggregate(node jsonb)",
+    "function:keynes_internal.render_aggregate(node jsonb)"
   ],
   "functions": [
     {
@@ -85,7 +152,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "createBudget",
@@ -95,7 +162,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "requestBudget",
@@ -105,7 +172,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "settleBudget",
@@ -115,7 +182,7 @@
       "returnType": "jsonb",
       "language": "sql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
       "operation": "getBudget",
@@ -125,7 +192,7 @@
       "returnType": "jsonb",
       "language": "plpgsql",
       "securityDefiner": true,
-      "searchPath": ["pg_catalog", "keynes_internal"]
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     }
   ]
 }

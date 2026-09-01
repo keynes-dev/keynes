@@ -27,7 +27,100 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
+  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";
+
+const resultFieldRank = new Map(
+  [
+    "kind",
+    "availabilityJoin",
+    "base",
+    "branches",
+    "budget",
+    "code",
+    "details",
+    "else",
+    "entryId",
+    "exponent",
+    "function",
+    "arguments",
+    "history",
+    "name",
+    "operator",
+    "left",
+    "operand",
+    "path",
+    "resource",
+    "resourceType",
+    "allocated",
+    "definitionEvidence",
+    "resourceTypeId",
+    "amount",
+    "canonicalName",
+    "requested",
+    "available",
+    "ceiling",
+    "committed",
+    "directUsage",
+    "policyName",
+    "policyRevision",
+    "reason",
+    "revision",
+    "inputResources",
+    "outputResources",
+    "contextSchema",
+    "right",
+    "rule",
+    "scale",
+    "sequence",
+    "commandId",
+    "definition",
+    "source",
+    "field",
+    "subjectBudgetId",
+    "budgetId",
+    "newlyKnown",
+    "parentBudgetId",
+    "childBudgetId",
+    "reasons",
+    "programVersion",
+    "queryProfileVersion",
+    "rootBudgetId",
+    "depth",
+    "entries",
+    "subtreeObservedUsage",
+    "type",
+    "unit",
+    "accountingBehavior",
+    "unresolved",
+    "deficit",
+    "unresolvedResourceTypeIds",
+    "lifecycle",
+    "isolatedDeficits",
+    "resources",
+    "context",
+    "childPolicies",
+    "policies",
+    "effectiveCeilings",
+    "decision",
+    "policyEvidence",
+    "replayed",
+    "usage",
+    "validatorVersion",
+    "limitsVersion",
+    "policyProfileDigest",
+    "program",
+    "canonicalSql",
+    "sourceDigest",
+    "definitionDigest",
+    "value",
+    "values",
+    "valueType",
+    "nullable",
+    "where",
+    "groupBy",
+    "orderBy",
+  ].map((field, index) => [field, index]),
+);
 
 export interface KeynesClient {
   defineResource(
@@ -79,6 +172,21 @@ function invalidCommand(
   });
 }
 
+function orderResult<Value>(value: Value): Value {
+  if (Array.isArray(value)) return value.map(orderResult) as Value;
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => {
+        const rank =
+          (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) -
+          (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);
+        return rank || left.localeCompare(right);
+      })
+      .map(([key, member]) => [key, orderResult(member)]),
+  ) as Value;
+}
+
 async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
   const wire = await invocation.executor.execute(
     invocation.operation,
@@ -104,12 +212,12 @@ async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
     if (!invocation.validateOutput(result)) {
       throw new Error(`invalid result response for ${invocation.operation}`);
     }
-    return structuredClone(result);
+    return orderResult(result);
   }
   if (!invocation.validateOutput(wire.result)) {
     throw new Error(`invalid result response for ${invocation.operation}`);
   }
-  return structuredClone(wire.result);
+  return orderResult(wire.result);
 }
 
 export function createKeynesClient(executor: CommandExecutor): KeynesClient {

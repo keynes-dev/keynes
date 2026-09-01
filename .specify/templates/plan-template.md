@@ -37,9 +37,11 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 - **Effect boundary**: Identify every external effect and confirm that the host
   application owns execution, idempotency, retry, observation, outcomes, and
   fallback behavior.
-- **Policy and security**: Describe Policy context, the supported query subset,
-  accessible inputs, failure behavior, permissions, tenant isolation, and secret
-  handling when Policy or durable storage is in scope.
+- **Policy and security**: Describe Policy context, Kysely and raw-SQL
+  authoring, parser and normalized Policy-program behavior, semantic ownership,
+  transaction-local authority, selected execution backends, cross-backend
+  conformance, accessible inputs, failure behavior, permissions, tenant
+  isolation, and secret handling when Policy or durable storage is in scope.
 - **Consistent behavior across deployments**: Identify which runtime or
   deployment changes, the affected database procedure, schema, SDK, service,
   migration, and compatibility contracts, the shared Budget behavior tests, and

@@ -93,7 +93,7 @@ During implementation, run the focused test nearest to the changed behavior. Run
 
 Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and the SQLite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
 
-Source gates do not qualify a packed SDK. Build one self-contained archive, run `pnpm test:package:sdk` against that exact archive, and retain its SHA-256 and package-test result. The archive must contain a normalized `dist` tree and no production dependency or PostgreSQL asset.
+Source gates do not qualify a packed SDK. Build one self-contained archive, run `pnpm test:package:sdk` against that exact archive, and retain its SHA-256 and package-test result. The archive must contain a normalized `dist` tree, declare every production dependency, and include every required runtime asset. It must not contain an embedded PostgreSQL server, local migration, database data directory, sidecar, or undeclared workspace fallback.
 
 Dispatch `.github/workflows/sdk-package.yml` only for the exact accepted commit. The manual workflow reuses one archive digest on Ubuntu 24.04 x64, macOS 15 arm64, and Windows 2025 x64 with Node.js 24 and 26. Node.js 25 is unsupported. Retain the workflow URL, all six consumer outcomes, and the SDK package measurement artifact identity. The measurement record includes the archive and contract digests, exact Node.js and SQLite versions, exact archive and production-install byte counts, raw runtime samples, nearest-rank p95 values, and ready RSS strictly below 512 MiB.
 

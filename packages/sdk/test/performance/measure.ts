@@ -51,12 +51,14 @@ export interface QualificationRecordInput {
   readonly method: {
     readonly coldWarmup: number;
     readonly coldProcesses: number;
+    readonly parserInitializationProcesses: number;
     readonly firstRequestProcesses: number;
     readonly steadyWarmup: number;
     readonly steadySamples: number;
     readonly percentile: "nearest-rank";
   };
   readonly samples: {
+    readonly parserInitializationMilliseconds: readonly number[];
     readonly readyRssBytes: readonly number[];
     readonly coldCreateMilliseconds: readonly number[];
     readonly firstRequestMilliseconds: readonly number[];
@@ -133,6 +135,11 @@ export function nearestRankPercentile(
 }
 
 export function createQualificationRecord(input: QualificationRecordInput) {
+  validateSamples(
+    input.samples.parserInitializationMilliseconds,
+    30,
+    "parserInitializationMilliseconds",
+  );
   validateSamples(input.samples.readyRssBytes, 30, "readyRssBytes");
   validateSamples(
     input.samples.coldCreateMilliseconds,
@@ -156,6 +163,9 @@ export function createQualificationRecord(input: QualificationRecordInput) {
   );
 
   const samples = {
+    parserInitializationMilliseconds: [
+      ...input.samples.parserInitializationMilliseconds,
+    ],
     readyRssBytes: [...input.samples.readyRssBytes],
     coldCreateMilliseconds: [...input.samples.coldCreateMilliseconds],
     firstRequestMilliseconds: [...input.samples.firstRequestMilliseconds],
@@ -177,6 +187,9 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     method: { ...input.method },
     samples,
     observed: {
+      parserInitializationMilliseconds: observation(
+        samples.parserInitializationMilliseconds,
+      ),
       readyRssBytes: observation(samples.readyRssBytes),
       coldCreateMilliseconds: observation(samples.coldCreateMilliseconds),
       firstRequestMilliseconds: observation(samples.firstRequestMilliseconds),
@@ -261,6 +274,7 @@ async function measure(
       runColdWorker(worker, external.root);
     }
     const readyRssBytes: number[] = [];
+    const parserInitializationMilliseconds: number[] = [];
     const coldCreateMilliseconds: number[] = [];
     const firstRequestMilliseconds: number[] = [];
     const shutdownMilliseconds: number[] = [];
@@ -269,6 +283,9 @@ async function measure(
       const result = runColdWorker(worker, external.root);
       runtimeIdentity ??= result.runtimeIdentity;
       assertSameRuntimeIdentity(runtimeIdentity, result.runtimeIdentity);
+      parserInitializationMilliseconds.push(
+        result.parserInitializationMilliseconds,
+      );
       readyRssBytes.push(result.readyRssBytes);
       coldCreateMilliseconds.push(result.coldCreateMilliseconds);
       firstRequestMilliseconds.push(result.firstRequestMilliseconds);
@@ -299,12 +316,14 @@ async function measure(
       method: {
         coldWarmup: COLD_WARMUP_PROCESSES,
         coldProcesses: 30,
+        parserInitializationProcesses: 30,
         firstRequestProcesses: 30,
         steadyWarmup: 10,
         steadySamples: 100,
         percentile: "nearest-rank",
       },
       samples: {
+        parserInitializationMilliseconds,
         readyRssBytes,
         coldCreateMilliseconds,
         firstRequestMilliseconds,
@@ -378,6 +397,7 @@ function runColdWorker(
   path: string,
   cwd: string,
 ): {
+  readonly parserInitializationMilliseconds: number;
   readonly readyRssBytes: number;
   readonly coldCreateMilliseconds: number;
   readonly firstRequestMilliseconds: number;
@@ -387,6 +407,7 @@ function runColdWorker(
   const value = workerOutput(path, "cold-first", cwd);
   if (
     value.kind !== "cold-first" ||
+    !isFiniteNonNegative(value.parserInitializationMilliseconds) ||
     !isFiniteNonNegative(value.readyRssBytes) ||
     !isFiniteNonNegative(value.coldCreateMilliseconds) ||
     !isFiniteNonNegative(value.firstRequestMilliseconds) ||
@@ -399,6 +420,7 @@ function runColdWorker(
     throw new Error("Cold measurement worker returned invalid output");
   }
   return {
+    parserInitializationMilliseconds: value.parserInitializationMilliseconds,
     readyRssBytes: value.readyRssBytes,
     coldCreateMilliseconds: value.coldCreateMilliseconds,
     firstRequestMilliseconds: value.firstRequestMilliseconds,

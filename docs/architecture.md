@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, private in-memory SQLite runtime, PostgreSQL migrations and procedures, CLI-only PostgreSQL package, PostgreSQL system tests, and private Cloud service exist. Policy, a public remote SDK, self-hosted packaging, managed Cloud, recovery, security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. Hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -24,7 +24,7 @@ Shared Budget behavior
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. Constructor shape selects the access path: zero arguments selects local SQLite, while a future API-key configuration selects remote discovery. Missing or invalid credentials in a supplied remote configuration never fall back to local state.
+Each Budget is stored in one place. `createKeynes({ resources })` selects local SQLite. Remote discovery is a later feature and cannot fall back to local state.
 
 ## Design principles
 
@@ -67,7 +67,7 @@ This is a command boundary, not a general storage adapter. It does not expose qu
 
 ## Local implementation
 
-`Keynes.create()` is the public local entry point. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`createKeynes({ resources })` is the public local entry point. It returns a frozen capability whose methods close over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -75,7 +75,7 @@ The runtime stores Resources, Budgets, command results, permissions, and history
 
 ### Atomic commands
 
-The executor applies each command in one SQLite transaction. Validation, Policy evaluation when available, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
+The executor applies each command in one SQLite transaction. Validation, Policy evaluation, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
 
 ### Replay and conflicts
 
@@ -110,7 +110,7 @@ The local source and package lanes cover lifecycle, denial, settlement, replay, 
 - returned values cannot mutate SQLite state; and
 - close rejects new work while draining admitted work.
 
-The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Policy, local persistence, browser support, security review, and production support remain `NOT RUN`.
+The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Local Policy source tests pass against the private SQLite backend. Final archive, hosted compatibility, browser support, security qualification, and production support remain `NOT RUN`.
 
 ## PostgreSQL implementation
 
@@ -225,7 +225,7 @@ The canonical command record contains an operation, identity, input digest, resu
 
 ### Public format
 
-A Policy is an immutable restricted PostgreSQL-style query plus:
+A Policy is an immutable normalized query program plus:
 
 - declared Resource inputs and outputs;
 - an exact context schema;
@@ -233,9 +233,9 @@ A Policy is an immutable restricted PostgreSQL-style query plus:
 - a Policy revision and source digest; and
 - the supported query-profile and validator versions.
 
-The supported query subset is the public portable format. It defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; integer and null behavior; deterministic functions; result columns; output limits; and failure behavior.
+The supported SQL query profile is the public authoring contract. Kysely compiles typed queries into that profile, and advanced users may provide SQL directly. The normalized Policy program is the portable runtime format. The profile defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; bounded-decimal, final-integer, and null behavior; deterministic functions; result columns; output limits; and failure behavior.
 
-The parser's internal syntax tree is an implementation detail. It may change without changing a Policy when the public query format, validation result, evaluation result, revision, and digest stay compatible.
+Kysely's operation tree and the parser's syntax tree are implementation details. They may change without changing a Policy when the public query profile, normalized program, evaluation result, revision, and digest stay compatible.
 
 ### Inputs
 
@@ -253,41 +253,44 @@ The application declares and supplies business facts. Keynes validates the exact
 
 ### Authoring and evaluation
 
-The TypeScript builder is the normal authoring path. It knows the available Resources, expected context fields, allowed operations, and result shape. It rejects unsupported expressions before compiling one query in the supported format.
+The TypeScript SDK constructs Policies with a pinned Kysely dependency. It gives Kysely typed logical tables for the available Resources, expected context fields, and required result shape. Kysely compiles one PostgreSQL query and its bound values.
 
-Advanced users may submit raw SQL within the same subset. Builder output and raw SQL pass through the same parser, validator, canonicalization, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
+Advanced users may submit raw SQL within the same profile. Kysely-compiled SQL and raw SQL pass through the same pinned PostgreSQL parser, validator, normalizer, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
 
-`SqliteCommandExecutor` evaluates the parsed query in TypeScript against immutable command inputs. PostgreSQL validates the source and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access.
+Policy evaluation occurs inside the selected Budget authority's atomic command, and Keynes never accepts an application-computed decision. One machine-readable semantic registry defines the normalized program's nodes, typing, null and numeric rules, work costs, canonical forms, backend declarations, and conformance vectors.
 
-If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid source, unsupported syntax, nondeterminism, invalid context, resource limits, or invalid results fail the command.
+The v1 `SqliteCommandExecutor` backend interprets the normalized program in TypeScript against immutable command inputs. The v1 PostgreSQL backend validates the program against generated profile metadata and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access. These are deployment-native execution backends for one semantics contract, not independent Policy languages. A shared executable core remains a valid future option if it preserves caller-owned PostgreSQL transactions and justifies its extension, provider, ABI, security, and operational costs.
+
+If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid definitions, unsupported nodes, nondeterminism, invalid context, resource limits, or invalid results fail the command.
 
 ### Policy evidence
 
-The Policy implementation feature must build the typed builder, parser, local evaluator, and PostgreSQL evaluator together. Its comparison suite covers:
+FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, program normalizer, authoritative semantic registry, generated backend declarations, local backend, and PostgreSQL backend together. Generation rejects a node without both backend declarations. The comparison suite covers:
 
 - Resource limits and denial reasons;
-- integer and null behavior;
+- bounded-decimal, final-integer, and null behavior;
 - ordering and aggregation;
 - unsupported SQL;
 - context validation;
 - deterministic function restrictions;
 - Policy revisions and digests;
 - recorded context and replay behavior; and
-- equivalence between builder output and raw SQL in the supported format.
+- equivalence between Kysely output and raw SQL in the supported profile; and
+- node-level vectors and property-generated programs evaluated through both backends.
 
 ## SDK experience
 
-The public local API remains:
+The public local API is schema-first and functional:
 
 ```ts
-import { Keynes } from "@keynes/sdk";
+import { createKeynes, defineResources } from "@keynes/sdk";
 
-const keynes = await Keynes.create();
-
-await keynes.defineResources({
+const resources = defineResources({
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
+
+await using keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget({
   usdCents: 1000,
@@ -303,13 +306,11 @@ if (result.status === "approved") {
   await runWorkflow(result.budget);
   await result.budget.settle({ usdCents: 19, searchQueries: 2 });
 }
-
-await keynes.close();
 ```
 
-The SQLite replacement preserves `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior.
+`Keynes` and `Budget` are exported readonly interface types, not public classes. Frozen closure-backed objects implement them. The method syntax keeps hidden runtime and Budget identity out of every call, while arrow-function methods avoid `this` binding. `Keynes` supports both `AsyncDisposable` and explicit idempotent `close()`.
 
-The facade has two intended call shapes: `Keynes.create()` selects local SQLite, and future `Keynes.create({ apiKey })` selects remote discovery. The remote service resolves Cloud versus self-hosted deployment metadata. `Keynes.create(undefined)`, `Keynes.create({})`, and `Keynes.create({ apiKey: undefined })` are invalid rather than local fallbacks. Embedded PostgreSQL is not a facade mode; application database code calls the supported SQL boundary inside its own transaction.
+`createKeynes({ resources })` selects local SQLite. Remote SDK access is outside FEAT-0012. Embedded PostgreSQL is not a factory mode; application database code calls the supported SQL boundary inside its own transaction.
 
 ## Generated contracts and compatibility
 
@@ -350,7 +351,7 @@ A pass in one category does not prove another. PGlite evidence from FEAT-0003 th
 
 ## Packaging and installation
 
-The local SDK package contains TypeScript code for the facade, generated client and validators, and `SqliteCommandExecutor`. It contains no PGlite runtime, WebAssembly PostgreSQL build, local migration, database data directory, native Keynes library, sidecar, or daemon.
+The local SDK package contains TypeScript code for the facade, generated client and validators, `SqliteCommandExecutor`, declared production dependencies, and any required parser assets. It contains no PGlite runtime, embedded PostgreSQL server, local migration, database data directory, native Keynes library, sidecar, or daemon. A parser WebAssembly asset is a library implementation detail, not a PostgreSQL runtime.
 
 Durable installation uses the canonical PostgreSQL migrations and generated installation record. The installer verifies the server version, migration IDs and checksums, contract digest, object inventory, ownership, function properties, bootstrap permissions, and ACLs. Exact recheck is read-only and makes no migration, grant, revoke, or repair change. An incompatible target fails with a stable category and check name. The installer does not support upgrades, downgrades, rolling deployment, uninstall, or extension packaging.
 
@@ -389,11 +390,11 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
 2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown for SQLite.
 3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
-4. Compare builder and raw-SQL Policy behavior through the local and PostgreSQL evaluators, including context and replay.
+4. Compare Kysely and raw-SQL Policy behavior through the local and PostgreSQL backends, including generated semantic vectors, context, and replay.
 5. Qualify the remote SDK and public service protocol through authenticated TLS ingress.
 6. Qualify self-hosted packaging, upgrades, backup, recovery, monitoring, security, and customer operations.
 7. Qualify managed Cloud hosting, recovery, failover, incident response, capacity, compliance controls, and support.
 8. Define the supported release contract and compatibility windows.
 9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
 
-The [roadmap](roadmap.md) records completed evidence and this sequence. This documentation feature proves only repository agreement with the target model.
+The [roadmap](roadmap.md) records completed evidence and this sequence. FEAT-0012 source, local package, measurement, private Cloud, and PostgreSQL 18.6 lanes have exact-revision records. Hosted, provider, recovery, and production claims require their own evidence.

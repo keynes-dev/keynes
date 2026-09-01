@@ -117,6 +117,7 @@ describe("SDK package measurement controller", () => {
     expect(Object.keys(record.samples).sort()).toEqual([
       "coldCreateMilliseconds",
       "firstRequestMilliseconds",
+      "parserInitializationMilliseconds",
       "readyRssBytes",
       "shutdownMilliseconds",
       "steadyRequestMilliseconds",
@@ -124,6 +125,7 @@ describe("SDK package measurement controller", () => {
     expect(Object.keys(record.observed).sort()).toEqual([
       "coldCreateMilliseconds",
       "firstRequestMilliseconds",
+      "parserInitializationMilliseconds",
       "readyRssBytes",
       "shutdownMilliseconds",
       "steadyRequestMilliseconds",
@@ -231,12 +233,17 @@ function validRecordInput(): QualificationRecordInput {
     method: {
       coldWarmup: 3,
       coldProcesses: 30,
+      parserInitializationProcesses: 30,
       firstRequestProcesses: 30,
       steadyWarmup: 10,
       steadySamples: 100,
       percentile: "nearest-rank",
     },
     samples: {
+      parserInitializationMilliseconds: Array.from(
+        { length: 30 },
+        (_, index) => index + 1,
+      ),
       readyRssBytes: Array.from({ length: 30 }, (_, index) => index + 1),
       coldCreateMilliseconds: Array.from(
         { length: 30 },

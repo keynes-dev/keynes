@@ -11,8 +11,10 @@ description: "Task list template for feature implementation"
 failing for the expected reason before implementation. For runtime or deployment
 changes, name both the shared Budget behavior tests and the separate local
 lifecycle, PostgreSQL transaction, remote security, recovery, packaging, or
-managed-operations tests that apply. For Policy changes, name context,
-supported-query, local-evaluation, PostgreSQL, evidence, and replay coverage.
+managed-operations tests that apply. For Policy changes, name context, Kysely
+compilation, raw-SQL parsing, Policy-program normalization, shared semantic
+definition or generation, every selected execution backend, cross-backend
+conformance, evidence, and replay coverage.
 Documentation-only, generated-output, or mechanical changes may use focused
 validation instead, but the tasks MUST state why no behavioral test applies and
 which claims remain untested.
@@ -52,8 +54,11 @@ which claims remain untested.
   Add shared Budget behavior, local lifecycle, PostgreSQL transaction, remote
   security, recovery, migration, compatibility, packaging, managed operations,
   fault, performance, or separately authorized live tasks when the plan puts
-  those qualities in scope. Add Policy context and supported-query tasks when
-  Policy behavior changes. List every claim that remains untested.
+  those qualities in scope. Add Policy context, Kysely compilation, raw-SQL
+  parsing, Policy-program normalization, shared semantic definition or
+  generation, backend implementation, and cross-backend conformance tasks when
+  Policy behavior changes.
+  List every claim that remains untested.
 
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================

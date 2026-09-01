@@ -10,7 +10,11 @@
     },
     {
       "id": "0003-public",
-      "path": "0003-public.generated.sql",
+      "path": "0003-public.generated.sql"
+    },
+    {
+      "id": "0004-policy",
+      "path": "0004-policy.sql",
       "contract": true
     }
   ]

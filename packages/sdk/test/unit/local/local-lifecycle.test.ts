@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Keynes } from "../../../src/index.js";
+import { createKeynes, defineResources } from "../../../src/index.js";
+import { openSqliteCommandExecutor as openRealSqliteCommandExecutor } from "../../../src/local/sqlite-command-executor.js";
+
+const workUnitResources = defineResources({
+  workUnits: { unit: "unit", accountingBehavior: "consumable" },
+});
 
 afterEach(() => {
   vi.doUnmock("../../../src/local/runtime.js");
@@ -10,10 +15,7 @@ afterEach(() => {
 
 describe("local runtime lifecycle", () => {
   it("serializes overlapping calls and drains admitted work before close", async () => {
-    const keynes = await Keynes.create();
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
+    const keynes = await createKeynes({ resources: workUnitResources });
     const root = await keynes.createBudget({ workUnits: 10 });
 
     const first = root.request({ workUnits: 7 });
@@ -33,10 +35,7 @@ describe("local runtime lifecycle", () => {
   });
 
   it("shares one close promise and rejects new Keynes and Budget work immediately", async () => {
-    const keynes = await Keynes.create();
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
+    const keynes = await createKeynes({ resources: workUnitResources });
     const root = await keynes.createBudget({ workUnits: 10 });
 
     const firstClose = keynes.close();
@@ -51,10 +50,7 @@ describe("local runtime lifecycle", () => {
   });
 
   it("drains an admitted domain error and inspection before closing", async () => {
-    const keynes = await Keynes.create();
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
+    const keynes = await createKeynes({ resources: workUnitResources });
     const root = await keynes.createBudget({ workUnits: 10 });
     await root.settle({ workUnits: 1 });
 
@@ -77,17 +73,23 @@ describe("local runtime lifecycle", () => {
 
   it("shares one failed close result and remains closed", async () => {
     const closeFailure = new Error("close failed");
-    vi.doMock("../../../src/local/runtime.js", () => ({
-      openLocalRuntime: vi.fn(async () => ({
-        client: {},
-        close: vi.fn(async () => {
+    const executor = openTestExecutor();
+    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor: vi.fn(() => ({
+        execute: (
+          operation: Parameters<typeof executor.execute>[0],
+          input: unknown,
+        ) => executor.execute(operation, input),
+        close: vi.fn(() => {
+          executor.close();
           throw closeFailure;
         }),
       })),
     }));
 
-    const { Keynes: FreshKeynes } = await import("../../../src/keynes.js");
-    const keynes = await FreshKeynes.create();
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    const keynes = await createFreshKeynes({ resources: workUnitResources });
     const firstClose = keynes.close();
 
     expect(keynes.close()).toBe(firstClose);
@@ -99,17 +101,9 @@ describe("local runtime lifecycle", () => {
   });
 
   it("keeps two local runtimes isolated", async () => {
-    const left = await Keynes.create();
-    const right = await Keynes.create();
+    const left = await createKeynes({ resources: workUnitResources });
+    const right = await createKeynes({ resources: workUnitResources });
     try {
-      await Promise.all([
-        left.defineResources({
-          workUnits: { unit: "unit", accountingBehavior: "consumable" },
-        }),
-        right.defineResources({
-          workUnits: { unit: "unit", accountingBehavior: "consumable" },
-        }),
-      ]);
       const [leftRoot, rightRoot] = await Promise.all([
         left.createBudget({ workUnits: 3 }),
         right.createBudget({ workUnits: 9 }),
@@ -126,17 +120,22 @@ describe("local runtime lifecycle", () => {
   }, 15_000);
 
   it("constructs the local runtime with one SQLite command executor", async () => {
-    const close = vi.fn(() => undefined);
+    const executor = openTestExecutor();
+    const close = vi.fn(() => executor.close());
     const openSqliteCommandExecutor = vi.fn(() => ({
-      execute: vi.fn(),
+      execute: (
+        operation: Parameters<typeof executor.execute>[0],
+        input: unknown,
+      ) => executor.execute(operation, input),
       close,
     }));
     vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
       openSqliteCommandExecutor,
     }));
 
-    const { openLocalRuntime } = await import("../../../src/local/runtime.js");
-    const runtime = await openLocalRuntime();
+    const { closeRuntime, openConfiguredRuntime } =
+      await import("../../../src/local/runtime.js");
+    const runtime = await openConfiguredRuntime(workUnitResources);
 
     expect(openSqliteCommandExecutor).toHaveBeenCalledOnce();
     expect(openSqliteCommandExecutor).toHaveBeenCalledWith(
@@ -161,7 +160,7 @@ describe("local runtime lifecycle", () => {
       },
     );
 
-    await runtime.close();
+    await closeRuntime(runtime);
     expect(close).toHaveBeenCalledOnce();
   });
 
@@ -173,8 +172,11 @@ describe("local runtime lifecycle", () => {
       }),
     }));
 
-    const { Keynes: FreshKeynes } = await import("../../../src/keynes.js");
-    await expect(FreshKeynes.create()).rejects.toMatchObject({
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    await expect(
+      createFreshKeynes({ resources: workUnitResources }),
+    ).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: startupFailure,
@@ -194,8 +196,11 @@ describe("local runtime lifecycle", () => {
       }),
     }));
 
-    const { Keynes: FreshKeynes } = await import("../../../src/keynes.js");
-    await expect(FreshKeynes.create()).rejects.toMatchObject({
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    await expect(
+      createFreshKeynes({ resources: workUnitResources }),
+    ).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: {
@@ -206,3 +211,27 @@ describe("local runtime lifecycle", () => {
     });
   });
 });
+
+function openTestExecutor() {
+  return openRealSqliteCommandExecutor(
+    {
+      tenantId: "00000000-0000-4000-8000-000000000002",
+      principals: [
+        {
+          principalId: "00000000-0000-4000-8000-000000000201",
+          permissions: [
+            "define_resource_type",
+            "create_root_budget",
+            "request_budget",
+            "settle_budget",
+            "read_budget",
+          ],
+        },
+      ],
+    },
+    {
+      tenantId: "00000000-0000-4000-8000-000000000002",
+      principalId: "00000000-0000-4000-8000-000000000201",
+    },
+  );
+}

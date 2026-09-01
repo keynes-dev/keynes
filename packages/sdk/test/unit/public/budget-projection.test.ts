@@ -1,0 +1,241 @@
+import { describe, expect, it } from "vitest";
+
+import { createBudgetHandle } from "../../../src/budget.js";
+import type { KeynesClient } from "../../../src/generated/client.js";
+import type {
+  BudgetHistoryEntry,
+  BudgetProjection,
+  GetBudgetResult,
+  RequestDenied,
+  ResourceAmount,
+  SettleBudgetResult,
+} from "../../../src/generated/types.js";
+import { ResourceCatalog } from "../../../src/local/resource-catalog.js";
+import type { LocalRuntime } from "../../../src/local/runtime.js";
+
+const BUDGET_ID = "00000000-0000-4000-8000-000000000010";
+const LOW_RESOURCE_ID = "10000000-0000-4000-8000-000000000001";
+const HIGH_RESOURCE_ID = "90000000-0000-4000-8000-000000000001";
+
+type ResourceName = "alpha" | "zebra";
+
+interface InstalledResource {
+  readonly key: ResourceName;
+  readonly resourceTypeId: string;
+}
+
+describe("public Budget projections", () => {
+  it("orders Resource-bearing output by public key across private identity orders", async () => {
+    const first = await exerciseRuntime([
+      { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
+      { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
+    ]);
+    const second = await exerciseRuntime([
+      { key: "alpha", resourceTypeId: LOW_RESOURCE_ID },
+      { key: "zebra", resourceTypeId: HIGH_RESOURCE_ID },
+    ]);
+
+    expect(first).toEqual(second);
+    expect(
+      first.snapshot.budget.resources.map(({ resource }) => resource),
+    ).toEqual(["alpha", "zebra"]);
+    expect(first.settlement.newlyKnown.map(({ resource }) => resource)).toEqual(
+      ["alpha", "zebra"],
+    );
+    expect(first.settlement.unresolvedResources).toEqual(["alpha", "zebra"]);
+    expect(first.denial).toMatchObject({
+      status: "denied",
+      reasons: [{ resource: "alpha" }, { resource: "zebra" }],
+    });
+
+    const [created, denied, settled] = first.snapshot.history.entries;
+    expect(created).toMatchObject({
+      kind: "budget_created",
+      resources: [{ resource: "alpha" }, { resource: "zebra" }],
+    });
+    expect(denied).toMatchObject({
+      kind: "request_denied",
+      reasons: [{ resource: "alpha" }, { resource: "zebra" }],
+    });
+    expect(settled).toMatchObject({
+      kind: "budget_settlement_recorded",
+      newlyKnown: [{ resource: "alpha" }, { resource: "zebra" }],
+      unresolvedResources: ["alpha", "zebra"],
+      isolatedDeficits: [{ resource: "alpha" }, { resource: "zebra" }],
+    });
+  });
+});
+
+async function exerciseRuntime(resources: readonly InstalledResource[]) {
+  const runtime = createRuntime(resources);
+  const budget = createBudgetHandle<ResourceName>(runtime, BUDGET_ID);
+  const snapshot = await budget.inspect();
+  const settlement = await budget.settle({ alpha: 1, zebra: 2 });
+  const denial = await budget.request({ alpha: 1, zebra: 2 });
+  return { snapshot, settlement, denial };
+}
+
+function createRuntime(resources: readonly InstalledResource[]): LocalRuntime {
+  const catalog = new ResourceCatalog();
+  for (const resource of resources) {
+    catalog.record(
+      {
+        key: resource.key,
+        canonicalName: resource.key,
+        definition: {
+          canonicalName: resource.key,
+          unit: `${resource.key}-unit`,
+          accountingBehavior: "consumable",
+        },
+      },
+      {
+        resourceTypeId: resource.resourceTypeId,
+        canonicalName: resource.key,
+        unit: `${resource.key}-unit`,
+        accountingBehavior: "consumable",
+        definitionDigest: "a".repeat(64),
+      },
+    );
+  }
+
+  const orderedResources = [...resources].sort((left, right) =>
+    left.resourceTypeId.localeCompare(right.resourceTypeId),
+  );
+  const client = createClient(orderedResources);
+  return {
+    client,
+    resources: catalog,
+    state: "open",
+    tail: Promise.resolve(),
+    closePromise: undefined,
+    closeHost: async () => undefined,
+  };
+}
+
+function createClient(resources: readonly InstalledResource[]): KeynesClient {
+  const budget = budgetProjection(resources);
+  const amounts = resourceAmounts(resources);
+  const reasons = requireNonempty(
+    resources.map((resource) => ({
+      code: "insufficient_available" as const,
+      resourceTypeId: resource.resourceTypeId,
+      requested: amountFor(resource.key),
+      available: 0,
+    })),
+  );
+  const history: BudgetHistoryEntry[] = [
+    {
+      kind: "budget_created",
+      entryId: "00000000-0000-4000-8000-000000000101",
+      sequence: 1,
+      commandId: "00000000-0000-4000-8000-000000000201",
+      subjectBudgetId: BUDGET_ID,
+      rootBudgetId: BUDGET_ID,
+      resources: requireNonempty(amounts),
+    },
+    {
+      kind: "request_denied",
+      entryId: "00000000-0000-4000-8000-000000000102",
+      sequence: 2,
+      commandId: "00000000-0000-4000-8000-000000000202",
+      subjectBudgetId: BUDGET_ID,
+      parentBudgetId: BUDGET_ID,
+      reasons,
+    },
+    {
+      kind: "budget_settlement_recorded",
+      entryId: "00000000-0000-4000-8000-000000000103",
+      sequence: 3,
+      commandId: "00000000-0000-4000-8000-000000000203",
+      subjectBudgetId: BUDGET_ID,
+      budgetId: BUDGET_ID,
+      newlyKnown: amounts,
+      unresolvedResourceTypeIds: resources.map(
+        ({ resourceTypeId }) => resourceTypeId,
+      ),
+      lifecycle: "settling",
+      isolatedDeficits: amounts,
+    },
+  ];
+
+  return {
+    async defineResource() {
+      throw new Error("unexpected defineResource call");
+    },
+    async createBudget() {
+      throw new Error("unexpected createBudget call");
+    },
+    async requestBudget(): Promise<RequestDenied> {
+      return {
+        kind: "denied",
+        commandId: "00000000-0000-4000-8000-000000000204",
+        parentBudgetId: BUDGET_ID,
+        reasons,
+        replayed: false,
+      };
+    },
+    async settleBudget(): Promise<SettleBudgetResult> {
+      return {
+        kind: "settling",
+        budget,
+        newlyKnown: amounts,
+        unresolvedResourceTypeIds: resources.map(
+          ({ resourceTypeId }) => resourceTypeId,
+        ),
+        replayed: false,
+      };
+    },
+    async getBudget(): Promise<GetBudgetResult> {
+      return { budget, history: { rootBudgetId: BUDGET_ID, entries: history } };
+    },
+  };
+}
+
+function budgetProjection(
+  resources: readonly InstalledResource[],
+): BudgetProjection {
+  return {
+    budgetId: BUDGET_ID,
+    parentBudgetId: null,
+    rootBudgetId: BUDGET_ID,
+    depth: 0,
+    lifecycle: "settling",
+    resources: requireNonempty(
+      resources.map((resource) => ({
+        resourceType: {
+          resourceTypeId: resource.resourceTypeId,
+          canonicalName: resource.key,
+          unit: `${resource.key}-unit`,
+          accountingBehavior: "consumable" as const,
+          definitionDigest: "a".repeat(64),
+        },
+        allocated: amountFor(resource.key),
+        available: 0,
+        committed: 0,
+        directUsage: amountFor(resource.key),
+        subtreeObservedUsage: 0,
+        unresolved: true,
+        deficit: amountFor(resource.key),
+      })),
+    ),
+  };
+}
+
+function resourceAmounts(
+  resources: readonly InstalledResource[],
+): ResourceAmount[] {
+  return resources.map((resource) => ({
+    resourceTypeId: resource.resourceTypeId,
+    amount: amountFor(resource.key),
+  }));
+}
+
+function amountFor(resource: ResourceName): number {
+  return resource === "alpha" ? 1 : 2;
+}
+
+function requireNonempty<Value>(values: readonly Value[]): [Value, ...Value[]] {
+  const [first, ...rest] = values;
+  if (first === undefined) throw new Error("test fixture must not be empty");
+  return [first, ...rest];
+}

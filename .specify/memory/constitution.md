@@ -1,31 +1,25 @@
 <!--
 Sync Impact Report
-- Version change: 3.0.0 -> 4.0.0
+- Version change: 4.0.0 -> 4.1.0
 - Modified principles:
-  - I. Singular Budget Authority -> I. One source of truth per Budget
-  - III. Narrow, Fail-Closed Resource Policy -> III. Restricted, fail-closed Policies
-  - IV. One Contract Across Runtimes -> IV. Consistent behavior across deployments
+  - III. Restricted, fail-closed Policies: select Kysely for typed authoring, retain raw SQL, and require transaction-local Keynes authority over one versioned semantics contract
 - Modified sections:
-  - Product constraints: replace permanent PGlite and managed-Cloud-only constraints with an in-memory local SQLite runtime and PostgreSQL durable deployments
-  - Delivery and Evidence Gates: require shared behavior tests and deployment-specific qualification
-  - Governance: require a constitutional amendment before another durable database implementation
+  - Delivery and evidence gates: require Kysely compilation, raw-SQL parsing, normalization, backend derivation, and cross-backend conformance coverage
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
   - updated: .specify/templates/plan-template.md
-  - updated: .specify/templates/spec-template.md
   - updated: .specify/templates/tasks-template.md
-  - formatted, no content change: .specify/templates/checklist-template.md
-  - formatted, no content change: .specify/templates/constitution-template.md
+  - validated, no content change: .specify/templates/spec-template.md
+  - validated, no content change: .specify/templates/checklist-template.md
+  - validated, no content change: .specify/templates/constitution-template.md
   - validated, no command templates present: .specify/templates/commands/*.md
 - Runtime guidance reviewed:
   - updated: docs/product.md
   - updated: docs/architecture.md
   - updated: docs/roadmap.md
-  - updated with supersession note only: docs/adr/0001-repository-boundaries.md
-  - added: docs/adr/0003-sqlite-and-postgresql.md
-  - added: docs/adr/0004-apache-2-open-core.md
-  - aligned: docs/workflow.md
+  - updated: docs/features/0012-portable-policy-evaluation/*
+  - updated: docs/workflow.md
   - aligned: AGENTS.md
 - Follow-up TODOs: None
 -->
@@ -73,12 +67,17 @@ available Resources, and one fixed context object supplied by the application.
 It MUST NOT access Keynes private storage, application tables, secrets,
 history, or unrelated requests.
 
-The normal TypeScript authoring path MUST know the declared Resources and
-expected context fields, reject unsupported expressions, and compile to the
-same supported query subset accepted from advanced raw-SQL users. Local mode
-MUST evaluate the parsed query in TypeScript. PostgreSQL MUST validate and run
-the generated SQL against Keynes-provided inputs. The parser's internal syntax
-tree is not a public contract.
+The TypeScript SDK MUST use Kysely as the normal Policy authoring path and MUST
+also accept advanced raw SQL within the same supported profile. Kysely-compiled
+SQL and raw SQL MUST pass through one pinned PostgreSQL parser, validator, and
+normalizer into a versioned Keynes Policy program. Policy evaluation MUST occur
+inside the selected Budget authority's atomic command, and Keynes MUST NOT trust
+an application-supplied Policy decision. Keynes MUST define one versioned
+semantics contract for that program. Deployments MAY use one shared evaluator
+or deployment-native backends when each backend enforces the same contract and
+passes the canonical conformance corpus. Kysely's operation tree, the parser's
+syntax tree, and backend-specific representations are not public or durable
+contracts.
 
 Invalid SQL, forbidden access, nondeterministic behavior, an execution-limit
 failure, invalid context, or an invalid result MUST fail the request. None may
@@ -172,9 +171,9 @@ host, and attempt that produced it.
 - A runtime or deployment change MUST name the shared behavior examples and the
   deployment-specific lifecycle, transaction, security, recovery, packaging, or
   managed-operations tests that apply.
-- A Policy change MUST name changes to context, the supported query subset,
-  builder compilation, local evaluation, PostgreSQL validation and evaluation,
-  evidence, and replay.
+- A Policy change MUST name changes to context, Kysely compilation, raw-SQL
+  parsing, Policy-program normalization, the shared semantic definition, every
+  selected execution backend, cross-backend conformance, evidence, and replay.
 - Provider-free verification MUST pass before any authorized live, paid, or
   externally mutating validation. Authorization MUST bind the exact plan,
   inputs, credential boundary, spend or mutation ceiling, and retained artifact
@@ -209,4 +208,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 4.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-25
+**Version**: 4.1.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-27

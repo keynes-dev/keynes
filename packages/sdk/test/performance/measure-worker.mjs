@@ -1,4 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 const mode = process.argv[2];
 if (mode === "cold-first") await runColdFirst();
@@ -6,16 +8,23 @@ else if (mode === "steady") await runSteady();
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runColdFirst() {
-  const { Keynes } = await import("@keynes/sdk");
+  const sdkEntry = fileURLToPath(import.meta.resolve("@keynes/sdk"));
+  const parserEntry = createRequire(sdkEntry).resolve("libpg-query");
+  const parserInitializationStarted = performance.now();
+  const { loadModule } = await import(parserEntry);
+  await loadModule();
+  const parserInitializationMilliseconds =
+    performance.now() - parserInitializationStarted;
+  const { createKeynes, defineResources } = await import("@keynes/sdk");
+  const resources = defineResources({
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  });
   const createStarted = performance.now();
-  const keynes = await Keynes.create();
+  const keynes = await createKeynes({ resources });
   const coldCreateMilliseconds = performance.now() - createStarted;
   try {
     const readyRssBytes = process.memoryUsage.rss();
     const sqliteVersion = installedSqliteVersion();
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
     const root = await keynes.createBudget({ workUnits: 2 });
     const requestStarted = performance.now();
     const request = await root.request({ workUnits: 1 });
@@ -31,6 +40,7 @@ async function runColdFirst() {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion,
+      parserInitializationMilliseconds,
       readyRssBytes,
       coldCreateMilliseconds,
       firstRequestMilliseconds,
@@ -56,12 +66,12 @@ function installedSqliteVersion() {
 }
 
 async function runSteady() {
-  const { Keynes } = await import("@keynes/sdk");
-  const keynes = await Keynes.create();
+  const { createKeynes, defineResources } = await import("@keynes/sdk");
+  const resources = defineResources({
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  });
+  const keynes = await createKeynes({ resources });
   try {
-    await keynes.defineResources({
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
     const root = await keynes.createBudget({ workUnits: 110 });
     for (let index = 0; index < 10; index += 1) {
       await fundedRequest(root);

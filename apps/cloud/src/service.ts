@@ -238,6 +238,16 @@ function parseRequest(
   ) {
     throw new InvalidRequestError();
   }
+  if (
+    isRecord(value.input) &&
+    ((value.operation === "createBudget" &&
+      Object.hasOwn(value.input, "policies")) ||
+      (value.operation === "requestBudget" &&
+        (Object.hasOwn(value.input, "context") ||
+          Object.hasOwn(value.input, "childPolicies"))))
+  ) {
+    throw new InvalidRequestError();
+  }
   return { identity, operation: value.operation, input: value.input };
 }
 

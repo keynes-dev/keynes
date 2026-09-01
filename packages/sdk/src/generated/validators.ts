@@ -242,7 +242,7 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  RequestDenialReason: {
+  AvailabilityDenialReason: {
     type: "object",
     additionalProperties: false,
     required: ["code", "resourceTypeId", "requested", "available"],
@@ -260,6 +260,16 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/Amount",
       },
     },
+  },
+  RequestDenialReason: {
+    oneOf: [
+      {
+        $ref: "#/$defs/AvailabilityDenialReason",
+      },
+      {
+        $ref: "#/$defs/PolicyCeilingReasonV1",
+      },
+    ],
   },
   BudgetCreatedHistoryEntry: {
     type: "object",
@@ -335,6 +345,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      policyEvidence: {
+        $ref: "#/$defs/PolicyEvidenceV1",
+      },
     },
   },
   RequestDeniedHistoryEntry: {
@@ -375,6 +388,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/RequestDenialReason",
         },
+      },
+      policyEvidence: {
+        $ref: "#/$defs/PolicyEvidenceV1",
       },
     },
   },
@@ -529,6 +545,13 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      policies: {
+        type: "array",
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/PolicyDefinitionV1",
+        },
+      },
     },
   },
   CreateBudgetResult: {
@@ -561,6 +584,16 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      context: {
+        $ref: "#/$defs/PolicyContextV1",
+      },
+      childPolicies: {
+        type: "array",
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/PolicyDefinitionV1",
+        },
+      },
     },
   },
   RequestApproved: {
@@ -590,6 +623,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      policyEvidence: {
+        $ref: "#/$defs/PolicyEvidenceV1",
+      },
       replayed: {
         type: "boolean",
       },
@@ -616,6 +652,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/RequestDenialReason",
         },
+      },
+      policyEvidence: {
+        $ref: "#/$defs/PolicyEvidenceV1",
       },
       replayed: {
         type: "boolean",
@@ -1045,6 +1084,1059 @@ const definitions: Readonly<Record<string, Schema>> = {
             },
           },
         },
+      },
+      {
+        $ref: "#/$defs/InvalidPolicyErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/InvalidPolicyContextErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
+      },
+    ],
+  },
+  PolicyDigest: {
+    type: "string",
+    pattern: "^[0-9a-f]{64}$",
+  },
+  CanonicalIdentifier: {
+    type: "string",
+    minLength: 1,
+    maxLength: 63,
+    pattern: "^[a-z][a-z0-9_]{0,62}$",
+  },
+  PolicyScalarV1: {
+    oneOf: [
+      {
+        type: "string",
+        maxLength: 256,
+        pattern: "^[^\\u0000]*$",
+      },
+      {
+        type: "boolean",
+      },
+      {
+        type: "integer",
+        minimum: 0,
+        maximum: 9007199254740991,
+      },
+      {
+        type: "null",
+      },
+    ],
+  },
+  PolicyContextV1: {
+    type: "object",
+  },
+  PolicyContextFieldV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["name", "type", "nullable"],
+    properties: {
+      name: {
+        type: "string",
+        minLength: 1,
+        maxLength: 63,
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      type: {
+        enum: ["text", "boolean", "integer"],
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  PolicyResultRowV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["resource", "ceiling", "reason"],
+    properties: {
+      resource: {
+        type: "string",
+        minLength: 1,
+        maxLength: 63,
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      ceiling: {
+        type: "integer",
+        minimum: 0,
+        maximum: 9007199254740991,
+      },
+      reason: {
+        type: "string",
+        minLength: 1,
+        maxLength: 63,
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+    },
+  },
+  SelectNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "kind",
+      "availabilityJoin",
+      "resource",
+      "ceiling",
+      "reason",
+      "where",
+      "groupBy",
+      "orderBy",
+    ],
+    properties: {
+      kind: {
+        const: "select",
+      },
+      availabilityJoin: {
+        $ref: "#/$defs/JoinNodeV1",
+      },
+      resource: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      ceiling: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      reason: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      where: {
+        oneOf: [
+          {
+            $ref: "#/$defs/ExpressionNodeV1",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      groupBy: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/ExpressionNodeV1",
+        },
+      },
+      orderBy: {
+        const: ["resource", "reason", "ceiling"],
+      },
+    },
+  },
+  InnerJoinNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind"],
+    properties: {
+      kind: {
+        const: "inner_join",
+      },
+    },
+  },
+  CrossJoinNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind"],
+    properties: {
+      kind: {
+        const: "cross_join",
+      },
+    },
+  },
+  DecimalLiteralNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "value", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "decimal_literal",
+      },
+      value: {
+        type: "string",
+        pattern: "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        const: false,
+      },
+    },
+  },
+  TextLiteralNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "value", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "text_literal",
+      },
+      value: {
+        type: "string",
+        pattern: "^[^\\u0000]*$",
+        maxLength: 256,
+      },
+      valueType: {
+        const: "text",
+      },
+      nullable: {
+        const: false,
+      },
+    },
+  },
+  BooleanLiteralNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "value", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "boolean_literal",
+      },
+      value: {
+        type: "boolean",
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        const: false,
+      },
+    },
+  },
+  NullLiteralNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "value", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "null_literal",
+      },
+      value: {
+        const: null,
+      },
+      valueType: {
+        enum: ["numeric", "text", "boolean"],
+      },
+      nullable: {
+        const: true,
+      },
+    },
+  },
+  ReferenceNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "source", "field", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "reference",
+      },
+      source: {
+        enum: ["requested", "available", "context"],
+      },
+      field: {
+        type: "string",
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      valueType: {
+        enum: ["numeric", "text", "boolean"],
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  UnaryNumericNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operator", "operand", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "unary_numeric",
+      },
+      operator: {
+        enum: ["+", "-"],
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  BinaryNumericNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "binary_numeric",
+      },
+      operator: {
+        enum: ["+", "-", "*", "/", "%"],
+      },
+      left: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      right: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  ComparisonNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "comparison",
+      },
+      operator: {
+        enum: ["=", "<>", "<", "<=", ">", ">="],
+      },
+      left: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      right: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  TextInNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operand", "values", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "text_in",
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      values: {
+        type: "array",
+        items: {
+          type: "string",
+          pattern: "^[^\\u0000]*$",
+          maxLength: 256,
+        },
+        minItems: 1,
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  IsNullNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operator", "operand", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "is_null",
+      },
+      operator: {
+        enum: ["is_null", "is_not_null"],
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        const: false,
+      },
+    },
+  },
+  BooleanBinaryNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "boolean_binary",
+      },
+      operator: {
+        enum: ["and", "or"],
+      },
+      left: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      right: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  BooleanNotNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operand", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "boolean_not",
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "boolean",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  CaseNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "branches", "else", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "case",
+      },
+      branches: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["when", "then"],
+          properties: {
+            when: {
+              $ref: "#/$defs/ExpressionNodeV1",
+            },
+            then: {
+              $ref: "#/$defs/ExpressionNodeV1",
+            },
+          },
+        },
+        minItems: 1,
+      },
+      else: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        enum: ["numeric", "text", "boolean"],
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  VariadicNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "function", "arguments", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "variadic",
+      },
+      function: {
+        enum: ["coalesce", "least", "greatest"],
+      },
+      arguments: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/ExpressionNodeV1",
+        },
+        minItems: 1,
+      },
+      valueType: {
+        enum: ["numeric", "text", "boolean"],
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  NumericFunctionNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "function", "operand", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "numeric_function",
+      },
+      function: {
+        enum: ["abs", "ceil", "floor", "sqrt"],
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  ScaleFunctionNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "function", "operand", "scale", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "scale_function",
+      },
+      function: {
+        enum: ["round", "trunc"],
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      scale: {
+        type: "integer",
+        minimum: 0,
+        maximum: 18,
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  PowerNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "base", "exponent", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "power",
+      },
+      base: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      exponent: {
+        type: "integer",
+        minimum: 0,
+        maximum: 18,
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  AggregateNodeV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "function", "operand", "valueType", "nullable"],
+    properties: {
+      kind: {
+        const: "aggregate",
+      },
+      function: {
+        enum: ["sum", "avg", "min", "max", "count"],
+      },
+      operand: {
+        $ref: "#/$defs/ExpressionNodeV1",
+      },
+      valueType: {
+        const: "numeric",
+      },
+      nullable: {
+        type: "boolean",
+      },
+    },
+  },
+  PolicyNodeV1: {
+    oneOf: [
+      {
+        $ref: "#/$defs/SelectNodeV1",
+      },
+      {
+        $ref: "#/$defs/InnerJoinNodeV1",
+      },
+      {
+        $ref: "#/$defs/CrossJoinNodeV1",
+      },
+      {
+        $ref: "#/$defs/DecimalLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/TextLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/NullLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/ReferenceNodeV1",
+      },
+      {
+        $ref: "#/$defs/UnaryNumericNodeV1",
+      },
+      {
+        $ref: "#/$defs/BinaryNumericNodeV1",
+      },
+      {
+        $ref: "#/$defs/ComparisonNodeV1",
+      },
+      {
+        $ref: "#/$defs/TextInNodeV1",
+      },
+      {
+        $ref: "#/$defs/IsNullNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanBinaryNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanNotNodeV1",
+      },
+      {
+        $ref: "#/$defs/CaseNodeV1",
+      },
+      {
+        $ref: "#/$defs/VariadicNodeV1",
+      },
+      {
+        $ref: "#/$defs/NumericFunctionNodeV1",
+      },
+      {
+        $ref: "#/$defs/ScaleFunctionNodeV1",
+      },
+      {
+        $ref: "#/$defs/PowerNodeV1",
+      },
+      {
+        $ref: "#/$defs/AggregateNodeV1",
+      },
+    ],
+  },
+  ExpressionNodeV1: {
+    oneOf: [
+      {
+        $ref: "#/$defs/DecimalLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/TextLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/NullLiteralNodeV1",
+      },
+      {
+        $ref: "#/$defs/ReferenceNodeV1",
+      },
+      {
+        $ref: "#/$defs/UnaryNumericNodeV1",
+      },
+      {
+        $ref: "#/$defs/BinaryNumericNodeV1",
+      },
+      {
+        $ref: "#/$defs/ComparisonNodeV1",
+      },
+      {
+        $ref: "#/$defs/TextInNodeV1",
+      },
+      {
+        $ref: "#/$defs/IsNullNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanBinaryNodeV1",
+      },
+      {
+        $ref: "#/$defs/BooleanNotNodeV1",
+      },
+      {
+        $ref: "#/$defs/CaseNodeV1",
+      },
+      {
+        $ref: "#/$defs/VariadicNodeV1",
+      },
+      {
+        $ref: "#/$defs/NumericFunctionNodeV1",
+      },
+      {
+        $ref: "#/$defs/ScaleFunctionNodeV1",
+      },
+      {
+        $ref: "#/$defs/PowerNodeV1",
+      },
+      {
+        $ref: "#/$defs/AggregateNodeV1",
+      },
+    ],
+  },
+  JoinNodeV1: {
+    oneOf: [
+      {
+        $ref: "#/$defs/InnerJoinNodeV1",
+      },
+      {
+        $ref: "#/$defs/CrossJoinNodeV1",
+      },
+    ],
+  },
+  PolicyProgramV1: {
+    $ref: "#/$defs/SelectNodeV1",
+  },
+  PolicyDefinitionV1: {
+    type: "object",
+  },
+  PolicySetV1: {
+    oneOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["definitions", "contextSchemaDigest", "setDigest"],
+        properties: {
+          definitions: {
+            type: "array",
+          },
+          contextSchemaDigest: {
+            type: "null",
+          },
+          setDigest: {
+            type: "string",
+            pattern: "^[0-9a-f]{64}$",
+          },
+        },
+      },
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["definitions", "contextSchemaDigest", "setDigest"],
+        properties: {
+          definitions: {
+            type: "array",
+            minItems: 1,
+            items: {
+              $ref: "#/$defs/PolicyDefinitionV1",
+            },
+          },
+          contextSchemaDigest: {
+            type: "string",
+            pattern: "^[0-9a-f]{64}$",
+          },
+          setDigest: {
+            type: "string",
+            pattern: "^[0-9a-f]{64}$",
+          },
+        },
+      },
+    ],
+  },
+  PolicyEvidenceV1: {
+    type: "object",
+    additionalProperties: false,
+    required: ["context", "policies", "effectiveCeilings", "decision"],
+    properties: {
+      context: {
+        $ref: "#/$defs/PolicyContextV1",
+      },
+      policies: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "name",
+            "revision",
+            "sourceDigest",
+            "definitionDigest",
+            "rows",
+          ],
+          properties: {
+            name: {
+              type: "string",
+              minLength: 1,
+              maxLength: 63,
+              pattern: "^[a-z][a-z0-9_]{0,62}$",
+            },
+            revision: {
+              type: "integer",
+              minimum: 1,
+              maximum: 9007199254740991,
+            },
+            sourceDigest: {
+              type: "string",
+              pattern: "^[0-9a-f]{64}$",
+            },
+            definitionDigest: {
+              type: "string",
+              pattern: "^[0-9a-f]{64}$",
+            },
+            rows: {
+              type: "array",
+              items: {
+                $ref: "#/$defs/PolicyResultRowV1",
+              },
+            },
+          },
+        },
+      },
+      effectiveCeilings: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["resourceTypeId", "ceiling", "reasons"],
+          properties: {
+            resourceTypeId: {
+              type: "string",
+              pattern:
+                "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            },
+            ceiling: {
+              type: "integer",
+              minimum: 0,
+              maximum: 9007199254740991,
+            },
+            reasons: {
+              type: "array",
+              minItems: 1,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["policyName", "policyRevision", "reason"],
+                properties: {
+                  policyName: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 63,
+                    pattern: "^[a-z][a-z0-9_]{0,62}$",
+                  },
+                  policyRevision: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 9007199254740991,
+                  },
+                  reason: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 63,
+                    pattern: "^[a-z][a-z0-9_]{0,62}$",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      decision: {
+        enum: ["approved", "denied"],
+      },
+    },
+  },
+  PolicyCeilingReasonV1: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "code",
+      "resourceTypeId",
+      "requested",
+      "ceiling",
+      "policyName",
+      "policyRevision",
+      "reason",
+    ],
+    properties: {
+      code: {
+        const: "policy_ceiling",
+      },
+      resourceTypeId: {
+        type: "string",
+        pattern:
+          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      },
+      requested: {
+        type: "integer",
+        minimum: 0,
+        maximum: 9007199254740991,
+      },
+      ceiling: {
+        type: "integer",
+        minimum: 0,
+        maximum: 9007199254740991,
+      },
+      policyName: {
+        type: "string",
+        minLength: 1,
+        maxLength: 63,
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      policyRevision: {
+        type: "integer",
+        minimum: 1,
+        maximum: 9007199254740991,
+      },
+      reason: {
+        type: "string",
+        minLength: 1,
+        maxLength: 63,
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+    },
+  },
+  InvalidPolicyErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "invalid_policy",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["operation", "path", "rule"],
+        properties: {
+          operation: {
+            enum: ["createBudget", "requestBudget"],
+          },
+          policyName: {
+            type: "string",
+            minLength: 1,
+            maxLength: 63,
+            pattern: "^[a-z][a-z0-9_]{0,62}$",
+          },
+          policyRevision: {
+            type: "integer",
+            minimum: 1,
+            maximum: 9007199254740991,
+          },
+          path: {
+            type: "string",
+            minLength: 1,
+          },
+          rule: {
+            type: "string",
+            minLength: 1,
+          },
+        },
+      },
+    },
+  },
+  InvalidPolicyContextErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "invalid_policy_context",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["operation", "path", "rule"],
+        properties: {
+          operation: {
+            const: "requestBudget",
+          },
+          path: {
+            type: "string",
+            minLength: 1,
+          },
+          rule: {
+            enum: [
+              "required",
+              "additionalProperties",
+              "type",
+              "null",
+              "encoding",
+              "limit",
+            ],
+          },
+        },
+      },
+    },
+  },
+  PolicyEvaluationFailedErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "policy_evaluation_failed",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["operation", "policyName", "policyRevision", "category"],
+        properties: {
+          operation: {
+            const: "requestBudget",
+          },
+          policyName: {
+            type: "string",
+            minLength: 1,
+            maxLength: 63,
+            pattern: "^[a-z][a-z0-9_]{0,62}$",
+          },
+          policyRevision: {
+            type: "integer",
+            minimum: 1,
+            maximum: 9007199254740991,
+          },
+          category: {
+            enum: [
+              "limit_exceeded",
+              "arithmetic_overflow",
+              "numeric_domain",
+              "numeric_precision",
+              "invalid_result",
+              "execution_failed",
+            ],
+          },
+        },
+      },
+    },
+  },
+  PolicyErrorEnvelopeV1: {
+    oneOf: [
+      {
+        $ref: "#/$defs/InvalidPolicyErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/InvalidPolicyContextErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
       },
     ],
   },

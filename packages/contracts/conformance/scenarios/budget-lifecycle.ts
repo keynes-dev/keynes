@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { DefineResourceTypeCommand } from "../../generated/types.ts";
+import type {
+  CreateBudgetCommand,
+  DefineResourceTypeCommand,
+  RequestBudgetCommand,
+} from "../../generated/types.ts";
 import type {
   ContractClient,
   KeynesError,
@@ -143,7 +147,7 @@ export function registerBudgetLifecycleContractTests(
             accountingBehavior: "consumable",
           },
         });
-        const root = await client.createBudget({
+        const createCommand = {
           commandId: "20000000-0000-0000-0000-000000000101",
           resources: [
             {
@@ -151,8 +155,12 @@ export function registerBudgetLifecycleContractTests(
               amount: 100,
             },
           ],
-        });
-        const request = await client.requestBudget({
+        } satisfies CreateBudgetCommand;
+        expect(JSON.stringify(createCommand)).toBe(
+          `{"commandId":"20000000-0000-0000-0000-000000000101","resources":[{"resourceTypeId":"${resource.resourceType.resourceTypeId}","amount":100}]}`,
+        );
+        const root = await client.createBudget(createCommand);
+        const requestCommand = {
           commandId: "30000000-0000-0000-0000-000000000101",
           parentBudgetId: root.budget.budgetId,
           resources: [
@@ -161,12 +169,31 @@ export function registerBudgetLifecycleContractTests(
               amount: 40,
             },
           ],
-        });
+        } satisfies RequestBudgetCommand;
+        const requestCommandBytes = `{"commandId":"30000000-0000-0000-0000-000000000101","parentBudgetId":"${root.budget.budgetId}","resources":[{"resourceTypeId":"${resource.resourceType.resourceTypeId}","amount":40}]}`;
+        expect(JSON.stringify(requestCommand)).toBe(requestCommandBytes);
+        expect(
+          JSON.stringify({ operation: "requestBudget", input: requestCommand }),
+        ).toBe(`{"operation":"requestBudget","input":${requestCommandBytes}}`);
+        const request = await client.requestBudget(requestCommand);
 
         expect(request.kind).toBe("approved");
         if (request.kind !== "approved") {
           throw new Error("the product fixture request must be funded");
         }
+        const expectedRequest = {
+          kind: "approved",
+          commandId: requestCommand.commandId,
+          parentBudgetId: root.budget.budgetId,
+          childBudgetId: requestCommand.commandId,
+          resources: requestCommand.resources,
+          replayed: false,
+        } as const;
+        expect(JSON.stringify(request)).toBe(JSON.stringify(expectedRequest));
+        const replay = await client.requestBudget(requestCommand);
+        expect(JSON.stringify(replay)).toBe(
+          JSON.stringify({ ...expectedRequest, replayed: true }),
+        );
 
         const settlement = await client.settleBudget({
           commandId: "40000000-0000-0000-0000-000000000101",
@@ -203,7 +230,7 @@ export function registerBudgetLifecycleContractTests(
             },
           ],
         });
-        expect(result.history).toEqual({
+        const expectedHistory = {
           rootBudgetId: root.budget.budgetId,
           entries: [
             {
@@ -248,7 +275,17 @@ export function registerBudgetLifecycleContractTests(
               isolatedDeficits: [],
             },
           ],
-        });
+        };
+        expect(result.history).toEqual(expectedHistory);
+        expect(JSON.stringify(result.history)).toBe(
+          JSON.stringify({
+            ...expectedHistory,
+            entries: expectedHistory.entries.map((entry, index) => ({
+              ...entry,
+              entryId: result.history.entries[index]?.entryId,
+            })),
+          }),
+        );
       } finally {
         await local.close();
       }

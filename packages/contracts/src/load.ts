@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import canonicalize from "canonicalize";
@@ -10,6 +10,8 @@ import type {
   JsonObject,
   LoadedContract,
 } from "./model.ts";
+import { buildPolicySchema } from "./generation.ts";
+import { loadPolicyProfile } from "./load-policy-profile.ts";
 
 const EXPECTED_OPERATIONS = [
   {
@@ -61,6 +63,10 @@ const SCHEMA_KEYWORDS = new Set([
   "enum",
   "items",
   "maxLength",
+  "maxItems",
+  "maxProperties",
+  "maxUtf8Bytes",
+  "maxCanonicalUtf8Bytes",
   "maximum",
   "minItems",
   "minLength",
@@ -68,6 +74,7 @@ const SCHEMA_KEYWORDS = new Set([
   "oneOf",
   "pattern",
   "properties",
+  "propertyNames",
   "required",
   "type",
   "uniqueItems",
@@ -75,10 +82,12 @@ const SCHEMA_KEYWORDS = new Set([
 
 export function loadContract(sourceRoot: string): LoadedContract {
   const source = parseContract(parseJson(join(sourceRoot, "contract.json")));
-  const schema = requireObject(
+  const sourceSchema = requireObject(
     parseJson(join(sourceRoot, source.schema)),
     "schema",
   );
+  validateSchemaDefinitions(sourceSchema);
+  const schema = addPolicyDefinitions(sourceRoot, sourceSchema);
   const definitions = validateInputs(source, schema);
   const encoded = canonicalize({ schema, operations: source.operations });
   if (encoded === undefined)
@@ -89,6 +98,55 @@ export function loadContract(sourceRoot: string): LoadedContract {
     definitions,
     digest: createHash("sha256").update(encoded).digest("hex"),
   };
+}
+
+function validateSchemaDefinitions(schema: JsonObject): void {
+  const definitions = requireObject(schema.$defs, "schema $defs");
+  for (const [name, definition] of Object.entries(definitions)) {
+    validateSchemaNode(definition, `#/$defs/${name}`);
+  }
+}
+
+function addPolicyDefinitions(
+  sourceRoot: string,
+  schema: JsonObject,
+): JsonObject {
+  if (!existsSync(join(sourceRoot, "policy-profile.json"))) return schema;
+  const definitions = requireObject(schema.$defs, "schema $defs");
+  const policySchema = buildPolicySchema(loadPolicyProfile(sourceRoot));
+  const policyDefinitions = requireObject(
+    policySchema.$defs,
+    "Policy schema $defs",
+  );
+  const merged = { ...definitions };
+  for (const [sourceName, definition] of Object.entries(policyDefinitions)) {
+    const name = sourceName === "Digest" ? "PolicyDigest" : sourceName;
+    const rewritten = rewritePolicyReferences(definition);
+    const existing = merged[name];
+    if (existing === undefined) {
+      merged[name] = rewritten;
+      continue;
+    }
+    if (canonicalize(existing) !== canonicalize(rewritten)) {
+      fail(
+        `Policy schema definition conflicts with contract definition ${name}`,
+      );
+    }
+  }
+  return { ...schema, $defs: merged };
+}
+
+function rewritePolicyReferences(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(rewritePolicyReferences);
+  if (!isObject(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, member]) => [
+      key,
+      key === "$ref" && member === "#/$defs/Digest"
+        ? "#/$defs/PolicyDigest"
+        : rewritePolicyReferences(member),
+    ]),
+  );
 }
 
 function parseJson(path: string): unknown {
@@ -125,9 +183,7 @@ function validateInputs(
   schema: JsonObject,
 ): JsonObject {
   const definitions = requireObject(schema.$defs, "schema $defs");
-  for (const [name, definition] of Object.entries(definitions)) {
-    validateSchemaNode(definition, `#/$defs/${name}`);
-  }
+  validateSchemaDefinitions(schema);
 
   const targets = new Set<string>();
   for (const operation of source.operations) {
@@ -181,6 +237,14 @@ function validateSchemaNode(node: unknown, location: string): void {
   }
   if (isObject(schema.items))
     validateSchemaNode(schema.items, `${location}/items`);
+  if (isObject(schema.propertyNames))
+    validateSchemaNode(schema.propertyNames, `${location}/propertyNames`);
+  if (isObject(schema.additionalProperties)) {
+    validateSchemaNode(
+      schema.additionalProperties,
+      `${location}/additionalProperties`,
+    );
+  }
   if (Array.isArray(schema.oneOf)) {
     schema.oneOf.forEach((child, index) =>
       validateSchemaNode(child, `${location}/oneOf/${index}`),

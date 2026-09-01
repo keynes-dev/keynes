@@ -52,7 +52,7 @@ This evidence covers only the private loopback service and provider-free Postgre
 
 ## Runtime and deployment model
 
-This feature records the move to a local in-memory SQLite runtime, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It also simplifies the current local facade to `Keynes.create()`; it does not replace PGlite or implement remote discovery.
+This feature records the move to a local in-memory SQLite runtime, PostgreSQL durable deployments, a portable Policy query format, the open-core license, and the implementation sequence. It also simplified the then-current pre-release facade to `Keynes.create()`; it did not replace PGlite or implement remote discovery.
 
 | Feature                                                                                 | Purpose                                                                                                                             | Depends on                | Status   |
 | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | -------- |
@@ -62,18 +62,20 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 
 ## Implementation sequence
 
-| Order | Feature candidate                                                                              | Purpose                                                                                                                                                           | Depends on                                      | Status      |
-| ----- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------- |
-| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md)                             | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.                        | Runtime and deployment model                    | Complete    |
-| 2     | [PostgreSQL transaction integration](features/0009-postgresql-transaction-integration/spec.md) | Install and qualify one supported embedded PostgreSQL profile with exact recheck, incompatible-target rejection, and caller-owned atomic application composition. | SQLite local runtime                            | Complete    |
-| 3     | Policies that work in local mode and PostgreSQL                                                | Implement one restricted query format, typed builder, parser, local evaluator, PostgreSQL evaluator, and comparison suite.                                        | PostgreSQL transaction integration              | Not started |
-| 4     | Remote SDK and public service                                                                  | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback.              | Policies that work in local mode and PostgreSQL | Not started |
-| 5     | Self-hosted deployment                                                                         | Package and qualify the Keynes service and PostgreSQL runtime for customer operation.                                                                             | Remote SDK and public service                   | Not started |
-| 6     | Managed Cloud                                                                                  | Operate the same service and PostgreSQL runtime with Keynes-owned hosting, upgrades, recovery, administration, and support.                                       | Self-hosted deployment                          | Not started |
-| 7     | Release support                                                                                | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.                            | Managed Cloud                                   | Not started |
-| 8     | Production testing                                                                             | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.                | Release support                                 | Not started |
+| Order | Feature candidate                                                                              | Purpose                                                                                                                                                           | Depends on                         | Status      |
+| ----- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ----------- |
+| 1     | [SQLite local runtime](features/0008-sqlite-local-runtime/spec.md)                             | Replace PGlite with a private process-owned `node:sqlite` in-memory database while preserving the complete public Budget API and behavior.                        | Runtime and deployment model       | Complete    |
+| 2     | [PostgreSQL transaction integration](features/0009-postgresql-transaction-integration/spec.md) | Install and qualify one supported embedded PostgreSQL profile with exact recheck, incompatible-target rejection, and caller-owned atomic application composition. | SQLite local runtime               | Complete    |
+| 3     | [Portable Policy evaluation](features/0012-portable-policy-evaluation/spec.md)                 | Implement Kysely and raw-SQL authoring, one parser and semantics profile, transaction-local local/PostgreSQL backends, and differential conformance.              | PostgreSQL transaction integration | Complete    |
+| 4     | Remote SDK and public service                                                                  | Connect the TypeScript SDK to a versioned public protocol through externally authenticated TLS ingress with no database selection or local fallback.              | Portable Policy evaluation         | Not started |
+| 5     | Self-hosted deployment                                                                         | Package and qualify the Keynes service and PostgreSQL runtime for customer operation.                                                                             | Remote SDK and public service      | Not started |
+| 6     | Managed Cloud                                                                                  | Operate the same service and PostgreSQL runtime with Keynes-owned hosting, upgrades, recovery, administration, and support.                                       | Self-hosted deployment             | Not started |
+| 7     | Release support                                                                                | Define supported versions, capabilities, interfaces, compatibility windows, upgrade policy, and support boundaries across deployments.                            | Managed Cloud                      | Not started |
+| 8     | Production testing                                                                             | Run the complete semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational qualification.                | Release support                    | Not started |
 
-`PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes. Later candidates remain unnumbered and `Not started`.
+`PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes.
+
+`Portable Policy evaluation` is complete as FEAT-0012. Accepted source revision `ea621cc567d30e5c685fc40cd907f308e16489bc` supports schema-first handles, Kysely and raw-SQL authoring, generated portable semantics, local and PostgreSQL evaluation, fail-closed rollback, canonical evidence, and exact governed replay. The exact provider-free gates passed 302 tests; the SDK and PostgreSQL archives passed 17 and 21 package tests; PostgreSQL 18.6 passed 132 system scenarios; and private Cloud passed 9 no-Policy scenarios. The hosted Node.js 24/26 matrix, public remote Policy, providers, recovery, and production readiness remain `NOT RUN`. Later candidates remain unnumbered and `Not started`.
 
 ## Standalone repository work
 
@@ -86,13 +88,16 @@ Standalone Spec Kit work can maintain the repository without changing the produc
 
 ### SQLite local runtime
 
-Keep this public API unchanged:
+FEAT-0008 delivered the private SQLite runtime behind the earlier pre-release facade. FEAT-0012 now opens it through the schema-first API:
 
 ```ts
-const keynes = await Keynes.create();
+const resources = defineResources({
+  tokens: { unit: "token", accountingBehavior: "consumable" },
+});
+const keynes = await createKeynes({ resources });
 ```
 
-The feature must preserve `defineResources`, `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, existing public types, structured error details, replay behavior, and close behavior. It must:
+The runtime preserves `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, structured error details, replay behavior, and close behavior. `Keynes` and `Budget` are now readonly interface types implemented by frozen closure-backed handles. FEAT-0008 required the runtime to:
 
 - implement the five current operations in `SqliteCommandExecutor` over a private `node:sqlite` in-memory database;
 - run the existing lifecycle, denial, settlement, replay, history, rollback, isolation, malformed-input, and close tests against it;
@@ -128,20 +133,27 @@ Combine transaction integration and installation support into one embedded previ
 
 This feature supports fresh installation and exact recheck only. Keynes has no released predecessor, so upgrades, downgrades, rolling deployment, broad provider support, recovery support, extension packaging, and production readiness remain out of scope.
 
-### Policies that work in local mode and PostgreSQL
+### Portable Policy evaluation
 
-Implement the typed builder, SQL parser, local evaluator, and PostgreSQL evaluator together. Compare:
+FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, Policy-program normalizer, authoritative machine-readable semantics profile, generated backend declarations, local backend, and PostgreSQL backend together. Evaluation stays inside the selected Budget authority's atomic command. Keynes does not trust application-computed decisions. The comparison covers:
 
 - Resource limits and denial reasons;
-- integer and null behavior;
+- bounded-decimal, final-integer, and null behavior;
 - ordering and aggregation;
 - unsupported SQL;
 - context validation;
 - deterministic function restrictions;
 - Policy revisions and digests; and
-- recorded context and replay behavior.
+- recorded context and replay behavior; and
+- generated node vectors and property-generated programs across both backends.
 
-The SDK builder and raw SQL must compile to the same supported query format. The feature does not choose another durable database or give Policies direct access to application tables.
+Kysely output and raw SQL must pass through the same parser, validator, and normalizer into one versioned Policy program. One semantic registry owns the program rules; deployment-native execution is the v1 choice, not a permanent ban on a shared executable core. The feature does not choose another durable database or give Policies direct access to application tables.
+
+This feature also replaces the pre-release class facade with a schema-first
+functional API. `defineResources(...)` returns a frozen type carrier,
+`createKeynes({ resources })` returns a readonly local capability, and approved
+requests return readonly Budget capabilities. The SDK keeps method calls but
+exports no constructible `Keynes` or `Budget` class and no compatibility alias.
 
 ## Conditional growth
 

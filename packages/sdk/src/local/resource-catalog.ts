@@ -1,100 +1,63 @@
 import { KeynesError } from "../generated/client.js";
 import type {
   OperationName,
-  ResourceDefinition,
   ResourceEnvelope,
   ResourceTypeProjection,
   UsageEnvelope,
 } from "../generated/types.js";
+import type { ResourceInstallationDefinition } from "../resources.js";
 import { KeynesSdkError } from "../sdk-errors.js";
 
-const RESOURCE_NAME = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/;
-
-interface PreparedResourceDefinition {
+export interface CatalogResource {
   readonly key: string;
-  readonly canonicalName: string;
-  readonly definition: ResourceDefinition;
-}
-
-interface ResolvedResources<Name extends string> {
-  readonly envelope: ResourceEnvelope;
-  keyFor(resourceTypeId: string): Name;
-}
-
-type ResourceDefinitions = Readonly<
-  Record<
-    string,
-    {
-      readonly unit: string;
-      readonly accountingBehavior: "consumable" | "reusable";
-    }
-  >
->;
-
-interface CatalogResource {
   readonly resourceTypeId: string;
+  readonly unit: string;
+  readonly accountingBehavior: "consumable" | "reusable";
 }
 
 export class ResourceCatalog {
   readonly #byKey = new Map<string, CatalogResource>();
-
-  prepareDefinitions(
-    definitions: ResourceDefinitions,
-  ): readonly PreparedResourceDefinition[] {
-    if (!isRecord(definitions)) {
-      throw invalidCommand("defineResource", "$.definitions", "type");
-    }
-    const entries = Object.entries(definitions);
-    if (entries.length === 0) {
-      throw invalidCommand("defineResource", "$.definitions", "minProperties");
-    }
-
-    const prepared = entries.map(([key, definition]) => {
-      const canonicalName = canonicalResourceName(key);
-      if (!isRecord(definition)) {
-        throw invalidCommand("defineResource", `$.definitions.${key}`, "type");
-      }
-      const unknownField = Object.keys(definition).find(
-        (field) => field !== "unit" && field !== "accountingBehavior",
-      );
-      if (unknownField !== undefined) {
-        throw invalidCommand(
-          "defineResource",
-          `$.definitions.${key}.${unknownField}`,
-          "additionalProperties",
-        );
-      }
-      return {
-        key,
-        canonicalName,
-        definition: {
-          canonicalName,
-          unit: definition.unit,
-          accountingBehavior: definition.accountingBehavior,
-        },
-      };
-    });
-    return prepared.sort((left, right) =>
-      compareStrings(left.canonicalName, right.canonicalName),
-    );
-  }
+  readonly #byId = new Map<string, CatalogResource>();
+  readonly #byCanonicalName = new Map<string, CatalogResource>();
 
   record(
-    prepared: PreparedResourceDefinition,
+    prepared: ResourceInstallationDefinition,
     resourceType: ResourceTypeProjection,
   ): void {
     if (resourceType.canonicalName !== prepared.canonicalName) {
       throw new Error("Defined Resource name does not match its request");
     }
-    this.#byKey.set(prepared.key, {
+    const resource = Object.freeze({
+      key: prepared.key,
       resourceTypeId: resourceType.resourceTypeId,
+      unit: resourceType.unit,
+      accountingBehavior: resourceType.accountingBehavior,
     });
+    this.#byKey.set(prepared.key, resource);
+    this.#byId.set(resourceType.resourceTypeId, resource);
+    this.#byCanonicalName.set(prepared.canonicalName, resource);
+  }
+
+  resource(resourceTypeId: string): CatalogResource {
+    const resource = this.#byId.get(resourceTypeId);
+    if (resource === undefined) {
+      throw new Error("Database returned an unknown Resource identity");
+    }
+    return resource;
+  }
+
+  resourceByCanonicalName(canonicalName: string): CatalogResource {
+    const resource = this.#byCanonicalName.get(canonicalName);
+    if (resource === undefined) {
+      throw new Error("Database returned an unknown Resource name");
+    }
+    return resource;
   }
 
   resources<Name extends string>(
     input: Readonly<Partial<Record<Name, number>>>,
     operation: "createBudget" | "requestBudget",
-  ): ResolvedResources<Name> {
+  ): ResourceEnvelope {
     const resolved: {
       readonly key: Name;
       readonly resourceTypeId: string;
@@ -111,26 +74,14 @@ export class ResourceCatalog {
     resolved.sort((left, right) =>
       compareStrings(left.resourceTypeId, right.resourceTypeId),
     );
-    const keyById = new Map(
-      resolved.map(({ key, resourceTypeId }) => [resourceTypeId, key]),
+    return requireEnvelope(
+      resolved.map(({ resourceTypeId, amount }) => ({
+        resourceTypeId,
+        amount,
+      })),
+      operation,
+      "$.resources",
     );
-    return {
-      envelope: requireEnvelope(
-        resolved.map(({ resourceTypeId, amount }) => ({
-          resourceTypeId,
-          amount,
-        })),
-        operation,
-        "$.resources",
-      ),
-      keyFor(resourceTypeId) {
-        const key = keyById.get(resourceTypeId);
-        if (key === undefined) {
-          throw new Error("Database returned an unknown Resource identity");
-        }
-        return key;
-      },
-    };
   }
 
   usage(
@@ -180,26 +131,8 @@ function requireUsage(value: unknown, path: string): number | null {
   return value;
 }
 
-function canonicalResourceName(key: string): string {
-  if (!RESOURCE_NAME.test(key)) {
-    throw new KeynesSdkError("invalid_resource_name", { resource: key });
-  }
-  const canonicalName = key.replaceAll(
-    /[A-Z]/g,
-    (letter) => `_${letter.toLowerCase()}`,
-  );
-  if (canonicalName.length > 63) {
-    throw new KeynesSdkError("invalid_resource_name", { resource: key });
-  }
-  return canonicalName;
-}
-
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function requireEnvelope<Item>(

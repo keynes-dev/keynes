@@ -1,7 +1,7 @@
 // Generated from contracts/. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6";
+  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";
 
 export const INSTALLATION_MIGRATIONS = [
   {
@@ -13,15 +13,21 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0002-budget",
     byteChecksum:
-      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+      "23b586d2a1ff2eb09dd42e7e9d72d6b6ab2d2fb02163723a2bd91884a9797587",
     contractDigest: null,
   },
   {
     id: "0003-public",
     byteChecksum:
       "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+    contractDigest: null,
+  },
+  {
+    id: "0004-policy",
+    byteChecksum:
+      "5bb9c0e63284dedaf0db2e358ffb26b1dd7cbc56a6945e8c81bd2c8fbc083bb3",
     contractDigest:
-      "0453c8e661a77bc053254c67b1fb90bf19309bc8af5f5190ecf38c5f205720d6",
+      "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },
 ] as const;
 

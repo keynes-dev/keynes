@@ -1,9 +1,186 @@
-import type { ContractSource as Contract, JsonObject } from "@keynes/contracts";
+import type {
+  ContractSource as Contract,
+  JsonObject,
+  LoadedPolicyProfile,
+} from "@keynes/contracts";
+
+export function renderPolicyProfile(
+  profile: LoadedPolicyProfile,
+  schema: JsonObject,
+): string {
+  const definitions = schema.$defs;
+  if (!isJsonObject(definitions)) {
+    throw new Error("Policy schema must declare definitions");
+  }
+  const mapNodes = <Value>(
+    select: (node: LoadedPolicyProfile["source"]["nodes"][string]) => Value,
+  ): Readonly<Record<string, Value>> =>
+    Object.fromEntries(
+      profile.nodeKinds.map((kind) => [
+        kind,
+        select(profile.source.nodes[kind]!),
+      ]),
+    );
+  const handlers = mapNodes((node) => node.backends.typescript.handler);
+  const validators = mapNodes((node) => node.backends.postgresql.validator);
+  const renderers = mapNodes((node) => node.backends.postgresql.renderer);
+  const work = mapNodes((node) => node.work);
+  const vectors = mapNodes((node) => node.vectors);
+  const semantics = mapNodes((node) => ({
+    typeRule: node.typeRule,
+    nullRule: node.nullRule,
+    decimalBoundary: node.decimalBoundary,
+    canonical: node.canonical,
+  }));
+
+  return `// Generated from packages/contracts/policy-profile.json. Do not edit.
+
+import type { PolicyContextV1, PolicyDefinitionV1, PolicyNodeV1, PolicyProgramV1 } from "./policy-types.js";
+
+export const POLICY_PROGRAM_VERSION = ${JSON.stringify(profile.source.versions.program)} as const;
+export const POLICY_QUERY_PROFILE_VERSION = ${JSON.stringify(profile.source.versions.query)} as const;
+export const POLICY_VALIDATOR_VERSION = ${JSON.stringify(profile.source.versions.validator)} as const;
+export const POLICY_LIMITS_VERSION = ${JSON.stringify(profile.source.versions.limits)} as const;
+export const POLICY_PROFILE_DIGEST = ${JSON.stringify(profile.digest)} as const;
+
+export const POLICY_NODE_KINDS = ${JSON.stringify(profile.nodeKinds)} as const;
+export type PolicyNodeKind = (typeof POLICY_NODE_KINDS)[number];
+export type PolicyNodeDispatch<T> = Readonly<Record<PolicyNodeKind, T>>;
+
+export const POLICY_OPERATOR_SIGNATURES = ${JSON.stringify(profile.source.inventory.operators, null, 2)} as const;
+export const POLICY_FUNCTION_SIGNATURES = ${JSON.stringify(profile.source.inventory.functions, null, 2)} as const;
+
+export const POLICY_TYPESCRIPT_HANDLERS = ${JSON.stringify(handlers, null, 2)} as const satisfies PolicyNodeDispatch<string>;
+export const POLICY_POSTGRESQL_VALIDATORS = ${JSON.stringify(validators, null, 2)} as const satisfies PolicyNodeDispatch<string>;
+export const POLICY_POSTGRESQL_RENDERERS = ${JSON.stringify(renderers, null, 2)} as const satisfies PolicyNodeDispatch<string>;
+export const POLICY_WORK_METADATA = ${JSON.stringify(work, null, 2)} as const satisfies PolicyNodeDispatch<Readonly<Record<string, number>>>;
+export const POLICY_CANONICAL_VECTORS = ${JSON.stringify(vectors, null, 2)} as const satisfies PolicyNodeDispatch<readonly unknown[]>;
+export const POLICY_NODE_SEMANTICS = ${JSON.stringify(semantics, null, 2)} as const satisfies PolicyNodeDispatch<unknown>;
+export const POLICY_LIMITS = ${JSON.stringify(profile.source.limits, null, 2)} as const;
+export const POLICY_NUMERIC_PROFILE = ${JSON.stringify(profile.source.numeric, null, 2)} as const;
+export const POLICY_TEXT_PROFILE = ${JSON.stringify(profile.source.text, null, 2)} as const;
+export const POLICY_CANONICAL_JSON_PROFILE = ${JSON.stringify(profile.source.canonicalJson, null, 2)} as const;
+
+type Schema = {
+  readonly $ref?: string;
+  readonly type?: string;
+  readonly const?: unknown;
+  readonly enum?: readonly unknown[];
+  readonly pattern?: string;
+  readonly minimum?: number;
+  readonly maximum?: number;
+  readonly minLength?: number;
+  readonly maxLength?: number;
+  readonly maxUtf8Bytes?: number;
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly uniqueItems?: boolean;
+  readonly maxProperties?: number;
+  readonly maxCanonicalUtf8Bytes?: number;
+  readonly required?: readonly string[];
+  readonly additionalProperties?: boolean | Schema;
+  readonly propertyNames?: Schema;
+  readonly properties?: Readonly<Record<string, Schema>>;
+  readonly items?: Schema;
+  readonly oneOf?: readonly Schema[];
+};
+
+const definitions: Readonly<Record<string, Schema>> = ${JSON.stringify(definitions, null, 2)};
+
+export function isPolicyNodeV1(value: unknown): value is PolicyNodeV1 {
+  return validateDefinition("PolicyNodeV1", value);
+}
+
+export function isPolicyProgramV1(value: unknown): value is PolicyProgramV1 {
+  return validateDefinition("PolicyProgramV1", value);
+}
+
+export function isPolicyContextV1(value: unknown): value is PolicyContextV1 {
+  return validateDefinition("PolicyContextV1", value);
+}
+
+export function isPolicyDefinitionV1(value: unknown): value is PolicyDefinitionV1 {
+  return validateDefinition("PolicyDefinitionV1", value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((item, index) => sameJson(item, right[index]));
+  }
+  if (!isRecord(left) || !isRecord(right)) return false;
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index] && sameJson(left[key], right[key]));
+}
+
+function validate(schema: Schema, value: unknown): boolean {
+  if (schema.$ref !== undefined) {
+    const definition = definitions[schema.$ref.slice("#/$defs/".length)];
+    return definition !== undefined && validate(definition, value);
+  }
+  if (schema.oneOf !== undefined) {
+    return schema.oneOf.filter((candidate) => validate(candidate, value)).length === 1;
+  }
+  if (Object.hasOwn(schema, "const") && !sameJson(value, schema.const)) return false;
+  if (schema.enum !== undefined && !schema.enum.some((item) => sameJson(item, value))) return false;
+  if (schema.type === "object") {
+    if (!isRecord(value)) return false;
+    const properties = schema.properties ?? {};
+    if (schema.maxCanonicalUtf8Bytes !== undefined && new TextEncoder().encode(JSON.stringify(value)).byteLength > schema.maxCanonicalUtf8Bytes) return false;
+    if (schema.maxProperties !== undefined && Object.keys(value).length > schema.maxProperties) return false;
+    if (schema.propertyNames !== undefined && Object.keys(value).some((name) => !validate(schema.propertyNames!, name))) return false;
+    if ((schema.required ?? []).some((name) => !(name in value))) return false;
+    if (schema.additionalProperties === false && Object.keys(value).some((name) => !(name in properties))) return false;
+    if (isRecord(schema.additionalProperties) && Object.entries(value).some(([name, child]) => !(name in properties) && !validate(schema.additionalProperties as Schema, child))) return false;
+    return Object.entries(properties).every(([name, child]) => !(name in value) || validate(child, value[name]));
+  }
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) return false;
+    if (schema.minItems !== undefined && value.length < schema.minItems) return false;
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) return false;
+    if (schema.uniqueItems === true && value.some((item, index) => value.slice(0, index).some((candidate) => sameJson(candidate, item)))) return false;
+    return schema.items === undefined || value.every((item) => validate(schema.items!, item));
+  }
+  if (schema.type === "string") {
+    return typeof value === "string"
+      && (schema.minLength === undefined || value.length >= schema.minLength)
+      && (schema.maxLength === undefined || value.length <= schema.maxLength)
+      && (schema.maxUtf8Bytes === undefined || new TextEncoder().encode(value).byteLength <= schema.maxUtf8Bytes)
+      && (schema.pattern === undefined || new RegExp(schema.pattern, "u").test(value));
+  }
+  if (schema.type === "integer") {
+    return Number.isSafeInteger(value)
+      && (schema.minimum === undefined || Number(value) >= schema.minimum)
+      && (schema.maximum === undefined || Number(value) <= schema.maximum);
+  }
+  if (schema.type === "number") return typeof value === "number" && Number.isFinite(value);
+  if (schema.type === "boolean") return typeof value === "boolean";
+  if (schema.type === "null") return value === null;
+  return schema.type === undefined;
+}
+
+function validateDefinition(name: string, value: unknown): boolean {
+  const definition = definitions[name];
+  if (definition === undefined) throw new Error(\`missing generated Policy schema definition \${name}\`);
+  return validate(definition, value);
+}
+`;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 export function renderValidators(
-  definitions: JsonObject,
+  sourceDefinitions: JsonObject,
   contract: Contract,
 ): string {
+  const definitions = contractValidatorDefinitions(sourceDefinitions);
   const path = "$" + "{path}";
   const validatorNames = [
     ...new Set(contract.operations.map((operation) => operation.output)),
@@ -35,7 +212,62 @@ export function renderValidators(
   }\n  if (schema.type === "array") {\n    if (!Array.isArray(value)) return issue(path, "type");\n    const issues: ValidationIssue[] = [];\n    if (schema.minItems !== undefined && value.length < schema.minItems) issues.push(...issue(path, "minItems"));\n    if (schema.uniqueItems === true) {\n      if (value.some((item, index) => value.slice(0, index).some((candidate) => sameJson(candidate, item)))) issues.push(...issue(path, "uniqueItems"));\n    }\n    if (schema.items !== undefined) value.forEach((item, index) => issues.push(...validate(schema.items!, item, \`${path}/\${index}\`)));\n    return issues;\n  }\n  if (schema.type === "string") {\n    if (typeof value !== "string") return issue(path, "type");\n    if (schema.minLength !== undefined && value.length < schema.minLength) return issue(path, "minLength");\n    if (schema.maxLength !== undefined && value.length > schema.maxLength) return issue(path, "maxLength");\n    if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(value)) return issue(path, "pattern");\n    return [];\n  }\n  if (schema.type === "integer") {\n    if (!Number.isSafeInteger(value)) return issue(path, "type");\n    if (schema.minimum !== undefined && Number(value) < schema.minimum) return issue(path, "minimum");\n    if (schema.maximum !== undefined && Number(value) > schema.maximum) return issue(path, "maximum");\n    return [];\n  }\n  if (schema.type === "number") return typeof value === "number" && Number.isFinite(value) ? [] : issue(path, "type");\n  if (schema.type === "boolean") return typeof value === "boolean" ? [] : issue(path, "type");\n  if (schema.type === "null") return value === null ? [] : issue(path, "type");\n  return schema.type === undefined ? [] : issue(path, "unsupported-type");\n}\n\nfunction validateDefinition(name: string, value: unknown): ValidationIssue[] {\n  const definition = definitions[name];\n  const issues = definition === undefined ? issue("", "unknown-definition") : validate(definition, value, "");\n  return issues.sort((left, right) =>\n    left.path.localeCompare(right.path) || left.rule.localeCompare(right.rule),\n  );\n}\n\n${validators}\n\n${inputIssues}\n`;
 }
 
-export function renderClient(contract: Contract, digest: string): string {
+function contractValidatorDefinitions(definitions: JsonObject): JsonObject {
+  const unsupported = new Set([
+    "maxCanonicalUtf8Bytes",
+    "maxItems",
+    "maxProperties",
+    "maxUtf8Bytes",
+    "propertyNames",
+  ]);
+
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!isJsonObject(value)) return value;
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([key, member]) => {
+        if (unsupported.has(key)) return [];
+        if (key === "additionalProperties" && isJsonObject(member)) {
+          return [[key, true]];
+        }
+        return [[key, visit(member)]];
+      }),
+    );
+  }
+
+  const supported = visit(definitions);
+  if (!isJsonObject(supported)) {
+    throw new Error("contract validator definitions must be an object");
+  }
+  return {
+    ...supported,
+    PolicyContextV1: { type: "object" },
+    PolicyDefinitionV1: { type: "object" },
+  };
+}
+
+export function renderClient(
+  contract: Contract,
+  digest: string,
+  fieldOrder: readonly string[],
+): string {
+  return renderClientSource(contract, digest)
+    .replace(
+      "\n\nexport interface KeynesClient",
+      `\n\nconst resultFieldRank = new Map(${JSON.stringify(fieldOrder)}.map((field, index) => [field, index]));\n\nexport interface KeynesClient`,
+    )
+    .replace(
+      "\n\nasync function invoke<Output>",
+      `\n\nfunction orderResult<Value>(value: Value): Value {\n  if (Array.isArray(value)) return value.map(orderResult) as Value;\n  if (!isRecord(value)) return value;\n  return Object.fromEntries(\n    Object.entries(value)\n      .sort(([left], [right]) => {\n        const rank = (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) - (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);\n        return rank || left.localeCompare(right);\n      })\n      .map(([key, member]) => [key, orderResult(member)]),\n  ) as Value;\n}\n\nasync function invoke<Output>`,
+    )
+    .replace("return structuredClone(result);", "return orderResult(result);")
+    .replace(
+      "return structuredClone(wire.result);",
+      "return orderResult(wire.result);",
+    );
+}
+
+function renderClientSource(contract: Contract, digest: string): string {
   const typeNames = [
     ...new Set(
       contract.operations.flatMap((operation) => [
