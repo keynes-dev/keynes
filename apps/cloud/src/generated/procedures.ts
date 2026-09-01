@@ -13,7 +13,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0002-budget",
     byteChecksum:
-      "23b586d2a1ff2eb09dd42e7e9d72d6b6ab2d2fb02163723a2bd91884a9797587",
+      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
     contractDigest: null,
   },
   {
@@ -25,7 +25,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0004-policy",
     byteChecksum:
-      "603e1f13cd683db88d835b7387f52bd54d6d08be8c1967b363a4585361892691",
+      "a69468d601f81a23459a37bd869e11aa7e70e64bcc21260dad68ff60079b5c56",
     contractDigest:
       "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },
