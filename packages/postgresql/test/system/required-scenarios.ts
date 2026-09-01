@@ -83,6 +83,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "Budget request denial keeps request, settlement, and read permissions independent",
   ],
   "packages/postgresql/test/system/policy-request.test.ts": [
+    "PostgreSQL governed Policy requests preserves root Policies created with a contract-valid non-RFC UUID",
+    "PostgreSQL governed Policy requests enforces Policies for a contract-valid non-RFC request command UUID",
     "PostgreSQL governed Policy requests approves within the Policy ceiling and records canonical evidence",
     "PostgreSQL governed Policy requests denies above the Policy ceiling without reserving or creating a child",
     "PostgreSQL governed Policy requests attaches only the explicit child Policy set and evaluates it on the next request",
@@ -90,6 +92,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL governed Policy requests rejects a child Policy declaration outside the receiving child holdings",
     "PostgreSQL governed Policy requests approves an ungoverned parent request with child Policies without parent Policy evidence",
     "PostgreSQL governed Policy requests preserves exact no-Policy bytes and legacy Resource UUID ordering",
+    "PostgreSQL governed Policy requests orders effective ceilings and tied reasons by canonical text, not Resource UUID",
     "PostgreSQL governed Policy requests keeps governed state pending until the caller commits",
     "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
     "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",
