@@ -1,5 +1,5 @@
 -- Generated from packages/contracts/policy-profile.json. Do not edit.
--- Policy profile SHA-256: 7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486
+-- Policy profile SHA-256: e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128
 
 CREATE OR REPLACE FUNCTION keynes_internal.invalid_policy(issue_path text, issue_rule text)
 RETURNS void
@@ -72,6 +72,17 @@ BEGIN
     WHEN present = 0 THEN NULL
     ELSE (total / present)::numeric(38,18)
   END;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)
+RETURNS numeric
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  RETURN value;
 END;
 $$;
 
@@ -658,6 +669,9 @@ BEGIN
   LOOP
     PERFORM keynes_internal.validate_policy_descriptor(node->field.key, field.descriptor, '$.program/' || field.key);
   END LOOP;
+  IF jsonb_path_exists(node, 'strict $.** ? (@.kind == "aggregate")') THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'branches') branch
      WHERE branch->'when'->>'valueType' IS DISTINCT FROM 'boolean'
@@ -693,6 +707,14 @@ BEGIN
   LOOP
     PERFORM keynes_internal.validate_policy_descriptor(node->field.key, field.descriptor, '$.program/' || field.key);
   END LOOP;
+  IF node->>'function' = 'coalesce' AND EXISTS (
+    SELECT 1
+      FROM jsonb_array_elements(node->'arguments') WITH ORDINALITY AS argument(value, ordinality)
+     WHERE argument.ordinality > 1
+       AND jsonb_path_exists(argument.value, 'strict $.** ? (@.kind == "aggregate")')
+  ) THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'arguments') argument
      WHERE argument->>'valueType' IS DISTINCT FROM node->>'valueType'
@@ -845,7 +867,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT quote_literal(node->>'value') || '::numeric(38,18)';
+  SELECT 'keynes_internal.policy_runtime_numeric(' || quote_literal(node->>'value') || '::numeric(38,18))';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_text_literal(node jsonb)
@@ -935,7 +957,10 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT '(' || keynes_internal.render_policy_node(node->'left') || ' ' || upper(node->>'operator') || ' ' || keynes_internal.render_policy_node(node->'right') || ')';
+  SELECT CASE node->>'operator'
+        WHEN 'and' THEN '(SELECT CASE lhs.value WHEN FALSE THEN FALSE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' AND lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'
+        WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' OR lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'
+      END;
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_boolean_not(node jsonb)
@@ -1549,12 +1574,6 @@ BEGIN
           ));
         END IF;
       END LOOP;
-      SELECT coalesce(jsonb_agg(reason.value ORDER BY resource_type.canonical_name COLLATE "C"), '[]'::jsonb)
-      INTO denial_reasons
-      FROM jsonb_array_elements(denial_reasons) AS reason(value)
-      JOIN keynes_internal.resource_types AS resource_type
-        ON resource_type.tenant_id = tenant
-        AND resource_type.resource_type_id = (reason.value->>'resourceTypeId')::uuid;
       IF jsonb_array_length(denial_reasons) > 0 THEN
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(
@@ -1856,7 +1875,7 @@ BEGIN
       OR policy->>'queryProfileVersion' IS DISTINCT FROM 'keynes-policy-query/v1'
       OR policy->>'validatorVersion' IS DISTINCT FROM 'keynes-policy-validator/v1'
       OR policy->>'limitsVersion' IS DISTINCT FROM 'keynes-policy-limits/v1'
-      OR policy->>'policyProfileDigest' IS DISTINCT FROM '7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486'
+      OR policy->>'policyProfileDigest' IS DISTINCT FROM 'e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128'
       OR policy->>'sourceDigest' IS DISTINCT FROM encode(sha256(convert_to(policy->>'canonicalSql', 'UTF8')), 'hex')
       OR policy->>'definitionDigest' IS DISTINCT FROM encode(sha256(convert_to(keynes_internal.policy_canonical_json(policy - 'definitionDigest'), 'UTF8')), 'hex')
       OR jsonb_typeof(policy->'inputResources') IS DISTINCT FROM 'array'
@@ -2084,11 +2103,11 @@ BEGIN
   SELECT coalesce(jsonb_agg(jsonb_build_object(
     'resourceTypeId', resource_type.resource_type_id::text, 'ceiling', grouped.ceiling,
     'reasons', grouped.reasons
-  ) ORDER BY resource_type.resource_type_id), '[]'::jsonb)
+  ) ORDER BY grouped.resource COLLATE "C"), '[]'::jsonb)
   INTO effective
   FROM (
     SELECT row->>'resource' resource, min((row->>'ceiling')::numeric) ceiling,
-           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY policy_row->>'name', (policy_row->>'revision')::numeric, row->>'reason') FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
+           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY (policy_row->>'name') COLLATE "C", (policy_row->>'revision')::numeric, (row->>'reason') COLLATE "C") FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
     FROM jsonb_array_elements(policy_rows) policy_row
     CROSS JOIN LATERAL jsonb_array_elements(policy_row->'rows') row
     CROSS JOIN LATERAL (SELECT min((candidate->>'ceiling')::numeric) minimum FROM jsonb_array_elements(policy_rows) p CROSS JOIN LATERAL jsonb_array_elements(p->'rows') candidate WHERE candidate->>'resource' = row->>'resource') minimum
@@ -2133,7 +2152,7 @@ BEGIN
     OR jsonb_typeof(input->'commandId') IS DISTINCT FROM 'string' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input);
   END IF;
-  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
   END IF;
   command_id := (input->>'commandId')::uuid;
@@ -2145,7 +2164,7 @@ BEGIN
     child_policies := keynes_internal.canonical_policy_set(coalesce(input->'childPolicies', '[]'::jsonb));
   END IF;
   IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
-    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
       RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
     END IF;
     parent_id := (input->>'parentBudgetId')::uuid;
@@ -2462,6 +2481,7 @@ REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(value jsonb) FROM P
 REVOKE ALL ON FUNCTION keynes_internal.canonical_policy_set(policies jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_sum(input_values numeric[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_avg(input_values numeric[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.policy_runtime_numeric(value numeric) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.invalid_policy(issue_path text,issue_rule text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text) FROM PUBLIC;

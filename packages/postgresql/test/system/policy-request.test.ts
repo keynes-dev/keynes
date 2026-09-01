@@ -32,6 +32,8 @@ const MODEL_RESOURCE_ID = "11000000-0000-4000-8000-000000000002";
 const ROOT_BUDGET_ID = "21000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "31000000-0000-4000-8000-000000000001";
 const SECOND_REQUEST_ID = "31000000-0000-4000-8000-000000000002";
+const NON_RFC_ROOT_BUDGET_ID = "21000000-0000-0000-0000-000000000003";
+const NON_RFC_REQUEST_ID = "31000000-0000-0000-0000-000000000003";
 
 type OperationName = Parameters<typeof callInstalledProcedure>[2];
 
@@ -127,6 +129,55 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       await expectRootHolding(fixture.owner, {
         committed: 0,
         historyEntries: 2,
+      });
+    });
+
+    it("enforces Policies for a contract-valid non-RFC request command UUID", async () => {
+      fixture = await openPolicyFixture();
+      const policy = requestLimitPolicy("request_ceiling", "request_limit");
+      await seedGovernedRoot(fixture, policy);
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: NON_RFC_REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
+        context: { request_ceiling: 0 },
+      });
+
+      expect(request.result).toMatchObject({
+        kind: "denied",
+        policyEvidence: {
+          decision: "denied",
+          effectiveCeilings: [
+            { resourceTypeId: MODEL_RESOURCE_ID, ceiling: 0 },
+          ],
+        },
+      });
+    });
+
+    it("preserves root Policies created with a contract-valid non-RFC UUID", async () => {
+      fixture = await openPolicyFixture();
+      const policy = requestLimitPolicy("request_ceiling", "request_limit");
+      await definePolicyResources(fixture);
+      await committed(fixture, "createBudget", {
+        commandId: NON_RFC_ROOT_BUDGET_ID,
+        resources: [
+          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
+          { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
+        ],
+        policies: [policy],
+      });
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: NON_RFC_ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
+        context: { request_ceiling: 0 },
+      });
+
+      expect(request.result).toMatchObject({
+        kind: "denied",
+        policyEvidence: { decision: "denied" },
       });
     });
 
@@ -253,7 +304,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(request.result).not.toHaveProperty("policyEvidence");
     });
 
-    it("orders availability denial reasons by canonical Resource name, not Resource UUID", async () => {
+    it("preserves exact no-Policy bytes and legacy Resource UUID ordering", async () => {
       fixture = await openPolicyFixture();
       await definePolicyResources(fixture);
       await committed(fixture, "createBudget", {
@@ -264,21 +315,140 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         ],
       });
 
-      const request = await committed(fixture, "requestBudget", {
+      const command = {
         commandId: REQUEST_ID,
         parentBudgetId: ROOT_BUDGET_ID,
         resources: [
           { resourceTypeId: SEARCH_RESOURCE_ID, amount: 11 },
           { resourceTypeId: MODEL_RESOURCE_ID, amount: 11 },
         ],
+      };
+      const commandBytes = `{"commandId":"${REQUEST_ID}","parentBudgetId":"${ROOT_BUDGET_ID}","resources":[{"resourceTypeId":"${SEARCH_RESOURCE_ID}","amount":11},{"resourceTypeId":"${MODEL_RESOURCE_ID}","amount":11}]}`;
+      expect(JSON.stringify(command)).toBe(commandBytes);
+
+      const request = await committed(fixture, "requestBudget", command);
+      const expectedResult = {
+        kind: "denied",
+        reasons: [
+          {
+            code: "insufficient_available",
+            available: 10,
+            requested: 11,
+            resourceTypeId: SEARCH_RESOURCE_ID,
+          },
+          {
+            code: "insufficient_available",
+            available: 10,
+            requested: 11,
+            resourceTypeId: MODEL_RESOURCE_ID,
+          },
+        ],
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+      };
+      expect(JSON.stringify(request)).toBe(
+        JSON.stringify({ ok: true, result: expectedResult, replayed: false }),
+      );
+
+      const replay = await committed(fixture, "requestBudget", command);
+      expect(JSON.stringify(replay)).toBe(
+        JSON.stringify({ ok: true, result: expectedResult, replayed: true }),
+      );
+
+      const read = await committed(fixture, "getBudget", {
+        budgetId: ROOT_BUDGET_ID,
+      });
+      expect(read.result).toMatchObject({
+        history: {
+          entries: [
+            { kind: "budget_created" },
+            { kind: "request_denied", reasons: expectedResult.reasons },
+          ],
+        },
+      });
+      if (!isRecord(read.result.history)) {
+        throw new Error("expected no-Policy history");
+      }
+      const entries = read.result.history.entries;
+      if (
+        !Array.isArray(entries) ||
+        !isRecord(entries[0]) ||
+        !isRecord(entries[1])
+      ) {
+        throw new Error("expected two no-Policy history entries");
+      }
+      expect(JSON.stringify(read.result.history)).toBe(
+        JSON.stringify({
+          entries: [
+            {
+              kind: "budget_created",
+              entryId: entries[0].entryId,
+              sequence: 1,
+              commandId: ROOT_BUDGET_ID,
+              resources: [
+                { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
+                { amount: 10, resourceTypeId: MODEL_RESOURCE_ID },
+              ],
+              rootBudgetId: ROOT_BUDGET_ID,
+              subjectBudgetId: ROOT_BUDGET_ID,
+            },
+            {
+              kind: "request_denied",
+              entryId: entries[1].entryId,
+              reasons: expectedResult.reasons,
+              sequence: 2,
+              commandId: REQUEST_ID,
+              parentBudgetId: ROOT_BUDGET_ID,
+              subjectBudgetId: ROOT_BUDGET_ID,
+            },
+          ],
+          rootBudgetId: ROOT_BUDGET_ID,
+        }),
+      );
+    });
+
+    it("orders effective ceilings and tied reasons by canonical text, not Resource UUID", async () => {
+      fixture = await openPolicyFixture();
+      const policies = [
+        requestLimitPolicy("request_ceiling", "policy_", "model_tokens"),
+        requestLimitPolicy("request_ceiling", "policy0", "model_tokens"),
+        requestLimitPolicy(
+          "request_ceiling",
+          "search_policy",
+          "search_queries",
+        ),
+      ];
+      await seedGovernedRoot(fixture, policies);
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [
+          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 1 },
+          { resourceTypeId: MODEL_RESOURCE_ID, amount: 1 },
+        ],
+        context: { request_ceiling: 5 },
       });
 
       expect(request.result).toMatchObject({
-        kind: "denied",
-        reasons: [
-          { resourceTypeId: MODEL_RESOURCE_ID },
-          { resourceTypeId: SEARCH_RESOURCE_ID },
-        ],
+        kind: "approved",
+        policyEvidence: {
+          effectiveCeilings: [
+            {
+              resourceTypeId: MODEL_RESOURCE_ID,
+              reasons: [
+                { policyName: "policy0", reason: "policy0" },
+                { policyName: "policy_", reason: "policy_" },
+              ],
+            },
+            {
+              resourceTypeId: SEARCH_RESOURCE_ID,
+              reasons: [
+                { policyName: "search_policy", reason: "search_policy" },
+              ],
+            },
+          ],
+        },
       });
     });
 
@@ -388,7 +558,7 @@ async function openPolicyFixture(): Promise<PolicyFixture> {
 
 async function seedGovernedRoot(
   fixture: PolicyFixture,
-  policy: PolicyDefinitionV1,
+  policy: PolicyDefinitionV1 | readonly PolicyDefinitionV1[],
 ): Promise<void> {
   await definePolicyResources(fixture);
   requireSuccess(
@@ -398,7 +568,7 @@ async function seedGovernedRoot(
         { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
         { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
       ],
-      policies: [policy],
+      policies: Array.isArray(policy) ? policy : [policy],
     }),
   );
 }
@@ -481,6 +651,7 @@ function requireSuccess(value: unknown): SuccessfulWire {
 function requestLimitPolicy(
   contextField: string,
   reason: string,
+  resource?: "model_tokens" | "search_queries",
 ): PolicyDefinitionV1 {
   const program = {
     kind: "select",
@@ -505,7 +676,28 @@ function requestLimitPolicy(
       valueType: "text",
       nullable: false,
     },
-    where: null,
+    where:
+      resource === undefined
+        ? null
+        : {
+            kind: "comparison",
+            operator: "=",
+            left: {
+              kind: "reference",
+              source: "requested",
+              field: "resource",
+              valueType: "text",
+              nullable: false,
+            },
+            right: {
+              kind: "text_literal",
+              value: resource,
+              valueType: "text",
+              nullable: false,
+            },
+            valueType: "boolean",
+            nullable: false,
+          },
     groupBy: [],
     orderBy: ["resource", "reason", "ceiling"],
   } satisfies PolicyProgramV1;
@@ -516,6 +708,9 @@ function requestLimitPolicy(
     "from requested_resources as requested",
     "inner join available_resources as available using (resource)",
     "cross join policy_context as context",
+    ...(resource === undefined
+      ? []
+      : [`where requested.resource = '${resource}'`]),
     "order by resource asc, reason asc, ceiling asc",
     "",
   ].join("\n");
@@ -523,8 +718,9 @@ function requestLimitPolicy(
     kind: "keynes.policy",
     name: reason,
     revision: 1,
-    inputResources: ["model_tokens", "search_queries"],
-    outputResources: ["model_tokens"],
+    inputResources:
+      resource === undefined ? ["model_tokens", "search_queries"] : [resource],
+    outputResources: [resource ?? "model_tokens"],
     contextSchema: [{ name: contextField, type: "integer", nullable: false }],
     reasons: [reason],
     programVersion: POLICY_PROGRAM_VERSION,

@@ -71,8 +71,14 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes.get_budget(input jsonb)",
 ] as const;
 
-const IMMUTABLE_PUBLIC_MIGRATION_SHA256 =
-  "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753";
+const IMMUTABLE_MIGRATION_SHA256 = {
+  "0001-storage.sql":
+    "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
+  "0002-budget.sql":
+    "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+  "0003-public.generated.sql":
+    "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+} as const;
 
 export interface InstallationMigration {
   readonly id: string;
@@ -97,12 +103,12 @@ export async function generatePostgresql(
   options: GeneratePostgresqlOptions,
 ): Promise<PostgresqlInstallationIdentity> {
   const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot();
+  assertImmutableMigrations(repositoryRoot, "before generation");
   const publicMigrationPath = join(
     repositoryRoot,
     "packages/postgresql/migrations/0003-public.generated.sql",
   );
   const publicSql = readFileSync(publicMigrationPath, "utf8");
-  assertImmutablePublicMigration(publicSql, "before generation");
   const legacyBudgetSql = readFileSync(
     join(repositoryRoot, "packages/postgresql/migrations/0002-budget.sql"),
     "utf8",
@@ -163,19 +169,26 @@ export async function generatePostgresql(
       },
     ],
   });
-  assertImmutablePublicMigration(
-    readFileSync(publicMigrationPath, "utf8"),
-    "after generation",
-  );
+  assertImmutableMigrations(repositoryRoot, "after generation");
   return { contractMigrationId, migrations };
 }
 
-function assertImmutablePublicMigration(value: string, phase: string): void {
-  const actual = sha256(value);
-  if (actual !== IMMUTABLE_PUBLIC_MIGRATION_SHA256) {
-    throw new Error(
-      `immutable migration 0003 changed ${phase}: expected ${IMMUTABLE_PUBLIC_MIGRATION_SHA256}, received ${actual}`,
+function assertImmutableMigrations(
+  repositoryRoot: string,
+  phase: string,
+): void {
+  for (const [path, expected] of Object.entries(IMMUTABLE_MIGRATION_SHA256)) {
+    const actual = sha256(
+      readFileSync(
+        join(repositoryRoot, "packages/postgresql/migrations", path),
+        "utf8",
+      ),
     );
+    if (actual !== expected) {
+      throw new Error(
+        `immutable migration ${path} changed ${phase}: expected ${expected}, received ${actual}`,
+      );
+    }
   }
 }
 
@@ -303,6 +316,17 @@ BEGIN
     WHEN present = 0 THEN NULL
     ELSE (total / present)::numeric(38,18)
   END;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)
+RETURNS numeric
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  RETURN value;
 END;
 $$;
 
@@ -1141,11 +1165,11 @@ BEGIN
   SELECT coalesce(jsonb_agg(jsonb_build_object(
     'resourceTypeId', resource_type.resource_type_id::text, 'ceiling', grouped.ceiling,
     'reasons', grouped.reasons
-  ) ORDER BY resource_type.resource_type_id), '[]'::jsonb)
+  ) ORDER BY grouped.resource COLLATE "C"), '[]'::jsonb)
   INTO effective
   FROM (
     SELECT row->>'resource' resource, min((row->>'ceiling')::numeric) ceiling,
-           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY policy_row->>'name', (policy_row->>'revision')::numeric, row->>'reason') FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
+           jsonb_agg(jsonb_build_object('policyName', policy_row->>'name', 'policyRevision', (policy_row->>'revision')::numeric, 'reason', row->>'reason') ORDER BY (policy_row->>'name') COLLATE "C", (policy_row->>'revision')::numeric, (row->>'reason') COLLATE "C") FILTER (WHERE (row->>'ceiling')::numeric = minimum.minimum) reasons
     FROM jsonb_array_elements(policy_rows) policy_row
     CROSS JOIN LATERAL jsonb_array_elements(policy_row->'rows') row
     CROSS JOIN LATERAL (SELECT min((candidate->>'ceiling')::numeric) minimum FROM jsonb_array_elements(policy_rows) p CROSS JOIN LATERAL jsonb_array_elements(p->'rows') candidate WHERE candidate->>'resource' = row->>'resource') minimum
@@ -1190,7 +1214,7 @@ BEGIN
     OR jsonb_typeof(input->'commandId') IS DISTINCT FROM 'string' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input);
   END IF;
-  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+  IF input->>'commandId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
     RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
   END IF;
   command_id := (input->>'commandId')::uuid;
@@ -1202,7 +1226,7 @@ BEGIN
     child_policies := keynes_internal.canonical_policy_set(coalesce(input->'childPolicies', '[]'::jsonb));
   END IF;
   IF operation_name = 'requestBudget' AND jsonb_typeof(input->'parentBudgetId') = 'string' THEN
-    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    IF input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
       RETURN keynes_internal.apply_command_legacy(operation_name, input - ARRAY['policies','childPolicies','context']::text[]);
     END IF;
     parent_id := (input->>'parentBudgetId')::uuid;
@@ -1543,7 +1567,10 @@ function renderPolicySemanticValidation(kind: string): string {
     PERFORM keynes_internal.invalid_policy('$.program/nullable', 'nullability');
   END IF;`;
     case "case":
-      return `  IF EXISTS (
+      return `  IF jsonb_path_exists(node, 'strict $.** ? (@.kind == "aggregate")') THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
+  IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'branches') branch
      WHERE branch->'when'->>'valueType' IS DISTINCT FROM 'boolean'
         OR branch->'then'->>'valueType' IS DISTINCT FROM node->>'valueType'
@@ -1559,7 +1586,15 @@ function renderPolicySemanticValidation(kind: string): string {
     PERFORM keynes_internal.invalid_policy('$.program/nullable', 'nullability');
   END IF;`;
     case "variadic":
-      return `  IF EXISTS (
+      return `  IF node->>'function' = 'coalesce' AND EXISTS (
+    SELECT 1
+      FROM jsonb_array_elements(node->'arguments') WITH ORDINALITY AS argument(value, ordinality)
+     WHERE argument.ordinality > 1
+       AND jsonb_path_exists(argument.value, 'strict $.** ? (@.kind == "aggregate")')
+  ) THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
+  IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'arguments') argument
      WHERE argument->>'valueType' IS DISTINCT FROM node->>'valueType'
   ) THEN
@@ -1611,7 +1646,7 @@ function policyRendererExpression(kind: string): string {
     case "cross_join":
       return `'CROSS JOIN available_resources AS available'`;
     case "decimal_literal":
-      return `quote_literal(node->>'value') || '::numeric(38,18)'`;
+      return `'keynes_internal.policy_runtime_numeric(' || quote_literal(node->>'value') || '::numeric(38,18))'`;
     case "text_literal":
       return `quote_literal(node->>'value') || '::text COLLATE "C"'`;
     case "boolean_literal":
@@ -1631,7 +1666,10 @@ function policyRendererExpression(kind: string): string {
     case "is_null":
       return `'(' || ${child("operand")} || CASE node->>'operator' WHEN 'is_null' THEN ' IS NULL)' ELSE ' IS NOT NULL)' END`;
     case "boolean_binary":
-      return `'(' || ${child("left")} || ' ' || upper(node->>'operator') || ' ' || ${child("right")} || ')'`;
+      return `CASE node->>'operator'
+        WHEN 'and' THEN '(SELECT CASE lhs.value WHEN FALSE THEN FALSE ELSE (' || ${child("right")} || ' AND lhs.value) END FROM (VALUES (' || ${child("left")} || ')) AS lhs(value))'
+        WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || ${child("right")} || ' OR lhs.value) END FROM (VALUES (' || ${child("left")} || ')) AS lhs(value))'
+      END`;
     case "boolean_not":
       return `'(NOT ' || ${child("operand")} || ')'`;
     case "case":
@@ -1760,6 +1798,7 @@ function policyFunctionSignatures(
     "canonical_policy_set(policies jsonb)",
     "policy_sum(input_values numeric[])",
     "policy_avg(input_values numeric[])",
+    "policy_runtime_numeric(value numeric)",
     "invalid_policy(issue_path text,issue_rule text)",
     "policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
     "validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",

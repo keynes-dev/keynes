@@ -242,6 +242,8 @@ export const POLICY_RUNTIME_CONFORMANCE_CASES = Object.freeze([
   ...Array.from({ length: 8 }, (_, index) => nullProgram(index + 1)),
   ...Array.from({ length: 8 }, (_, index) => orderingProgram(index + 1)),
   ...Array.from({ length: 8 }, (_, index) => aggregationProgram(index + 1)),
+  shortCircuitProgram("and"),
+  shortCircuitProgram("or"),
   aggregateTransitionOverflowProgram(),
 ] satisfies readonly PolicyRuntimeConformanceCase[]);
 
@@ -426,6 +428,63 @@ function aggregationProgram(seed: number): PolicyRuntimeConformanceCase {
   };
 }
 
+function shortCircuitProgram(
+  operator: "and" | "or",
+): PolicyRuntimeConformanceCase {
+  const divisionByZero = {
+    kind: "comparison",
+    operator: ">",
+    left: binary("/", decimal(1), decimal(0)),
+    right: decimal(0),
+    valueType: "boolean",
+    nullable: false,
+  } satisfies ExpressionNodeV1;
+  const left = {
+    kind: "comparison",
+    operator: operator === "or" ? ">" : "<",
+    left: reference("requested", "amount", "numeric"),
+    right: decimal(0),
+    valueType: "boolean",
+    nullable: false,
+  } satisfies ExpressionNodeV1;
+  const where = {
+    kind: "boolean_binary",
+    operator,
+    left,
+    right: divisionByZero,
+    valueType: "boolean",
+    nullable: false,
+  } satisfies ExpressionNodeV1;
+  const expectedRow = {
+    resource: "model_tokens",
+    ceiling: 1,
+    reason: "short_circuit_limit",
+  };
+
+  return {
+    name: `${operator} skips a literal division-by-zero right operand`,
+    category: "property",
+    program: {
+      kind: "select",
+      availabilityJoin: { kind: "inner_join" },
+      resource: reference("requested", "resource", "text"),
+      ceiling: decimal(1),
+      reason: textLiteral("short_circuit_limit"),
+      where,
+      groupBy: [],
+      orderBy: ["resource", "reason", "ceiling"],
+    },
+    input: {
+      requested: [{ resource: "model_tokens", amount: 1 }],
+      available: [{ resource: "model_tokens", amount: 1 }],
+      context: {},
+      outputResources: ["model_tokens"],
+      reasons: ["short_circuit_limit"],
+    },
+    expected: operator === "or" ? [expectedRow] : [],
+  };
+}
+
 function aggregateTransitionOverflowProgram(): PolicyRuntimeConformanceCase {
   const amounts = [
     60_000_000_000_000_000_000, 60_000_000_000_000_000_000,
@@ -595,7 +654,7 @@ function nullNumeric(): ExpressionNodeV1 {
 }
 
 function binary(
-  operator: "+" | "*",
+  operator: "+" | "-" | "*" | "/",
   left: ExpressionNodeV1,
   right: ExpressionNodeV1,
 ): ExpressionNodeV1 {
