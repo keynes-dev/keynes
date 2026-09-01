@@ -19,7 +19,7 @@
     ]
   },
   "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  "migrationSetDigest": "21b983807e6f847c82763e825273a3df5a8cb5d6206ff616f205870ec1862d52",
+  "migrationSetDigest": "c91775fd6203227feacfe0b096bb5334bf905e075abf6fca5ae87bf97f460ee3",
   "migrations": [
     {
       "id": "0001-storage",
@@ -39,7 +39,7 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
-      "sha256": "a69468d601f81a23459a37bd869e11aa7e70e64bcc21260dad68ff60079b5c56",
+      "sha256": "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
       "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
     }
   ],
@@ -85,6 +85,7 @@
     "function:keynes_internal.canonical_policy_set(policies jsonb)",
     "function:keynes_internal.policy_sum(input_values numeric[])",
     "function:keynes_internal.policy_avg(input_values numeric[])",
+    "function:keynes_internal.policy_runtime_numeric(value numeric)",
     "function:keynes_internal.invalid_policy(issue_path text,issue_rule text)",
     "function:keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
     "function:keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",

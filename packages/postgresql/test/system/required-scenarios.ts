@@ -99,6 +99,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/system/policy-conformance.test.ts": [
     "PostgreSQL Policy runtime conformance executes every shared runtime conformance program through the installed renderer",
+    "PostgreSQL Policy runtime conformance keeps nested boolean rendering linear",
   ],
   "packages/postgresql/test/system/policy-replay.test.ts": [
     "PostgreSQL governed Policy replay returns the exact stored result, evidence, and Context",

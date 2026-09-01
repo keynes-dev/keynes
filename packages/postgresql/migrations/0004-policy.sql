@@ -75,6 +75,17 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)
+RETURNS numeric
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  RETURN value;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION keynes_internal.policy_assert_exact_keys(
   value jsonb,
   expected_keys text[],
@@ -856,7 +867,7 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
-  SELECT quote_literal(node->>'value') || '::numeric(38,18)';
+  SELECT 'keynes_internal.policy_runtime_numeric(' || quote_literal(node->>'value') || '::numeric(38,18))';
 $$;
 
 CREATE OR REPLACE FUNCTION keynes_internal.render_text_literal(node jsonb)
@@ -947,8 +958,8 @@ IMMUTABLE
 SET search_path = pg_catalog, keynes_internal
 AS $$
   SELECT CASE node->>'operator'
-        WHEN 'and' THEN '(CASE ' || keynes_internal.render_policy_node(node->'left') || ' WHEN FALSE THEN FALSE WHEN TRUE THEN ' || keynes_internal.render_policy_node(node->'right') || ' ELSE ' || keynes_internal.render_policy_node(node->'right') || ' AND NULL END)'
-        WHEN 'or' THEN '(CASE ' || keynes_internal.render_policy_node(node->'left') || ' WHEN TRUE THEN TRUE WHEN FALSE THEN ' || keynes_internal.render_policy_node(node->'right') || ' ELSE ' || keynes_internal.render_policy_node(node->'right') || ' OR NULL END)'
+        WHEN 'and' THEN '(SELECT CASE lhs.value WHEN FALSE THEN FALSE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' AND lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'
+        WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' OR lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'
       END;
 $$;
 
@@ -2470,6 +2481,7 @@ REVOKE ALL ON FUNCTION keynes_internal.policy_canonical_json(value jsonb) FROM P
 REVOKE ALL ON FUNCTION keynes_internal.canonical_policy_set(policies jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_sum(input_values numeric[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_avg(input_values numeric[]) FROM PUBLIC;
+REVOKE ALL ON FUNCTION keynes_internal.policy_runtime_numeric(value numeric) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.invalid_policy(issue_path text,issue_rule text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION keynes_internal.validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text) FROM PUBLIC;
