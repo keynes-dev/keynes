@@ -31,6 +31,23 @@ named evidence passed at the recorded review revision.
 - [x] No-Policy command, result, history, replay, and Cloud behavior remain
       compatible.
 
+### Lazy boolean repair evidence
+
+- [x] PostgreSQL 18.6 skips a literal division-by-zero right operand after a
+      row-dependent decisive `AND` or `OR` left operand.
+- [x] Boolean rendering contains each child once. The depth-10 alternating
+      expression stays below four times the rendered bytes at depth 6.
+- [x] Detached clean snapshot `d1895bdd78ff2170289b421ea47a6dd7bfb64017`
+      passed `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, and
+      `CI=true pnpm test:pr`.
+- [x] The PostgreSQL package lane passed 21 tests for archive SHA-256
+      `f7ddb48d8a19947d1c0e72cbcc7d497e6442d0f644bed9932c6079f7d559ff3a`.
+- [x] The PostgreSQL 18.6 system lane passed 146 tests in 28 suites for its
+      runner-owned archive SHA-256
+      `82d5042ccc17ee65e72cb20f7654c4b984651a1251ec47bdb360212b6c81d7b1`.
+- [ ] Private Cloud, managed-provider, cross-platform, upgrade and downgrade,
+      security-qualification, and production-readiness lanes: `NOT RUN`.
+
 ## Cohesion
 
 - [ ] Contracts parsing, generation, and conformance fixtures have one named

@@ -431,19 +431,19 @@ function aggregationProgram(seed: number): PolicyRuntimeConformanceCase {
 function shortCircuitProgram(
   operator: "and" | "or",
 ): PolicyRuntimeConformanceCase {
-  const requestedAmount = reference("requested", "amount", "numeric");
-  const zero = binary("-", requestedAmount, requestedAmount);
   const divisionByZero = {
     kind: "comparison",
     operator: ">",
-    left: binary("/", requestedAmount, zero),
+    left: binary("/", decimal(1), decimal(0)),
     right: decimal(0),
     valueType: "boolean",
     nullable: false,
   } satisfies ExpressionNodeV1;
   const left = {
-    kind: "boolean_literal",
-    value: operator === "or",
+    kind: "comparison",
+    operator: operator === "or" ? ">" : "<",
+    left: reference("requested", "amount", "numeric"),
+    right: decimal(0),
     valueType: "boolean",
     nullable: false,
   } satisfies ExpressionNodeV1;
@@ -462,7 +462,7 @@ function shortCircuitProgram(
   };
 
   return {
-    name: `${operator} skips a row-dependent division-by-zero right operand`,
+    name: `${operator} skips a literal division-by-zero right operand`,
     category: "property",
     program: {
       kind: "select",

@@ -25,7 +25,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0004-policy",
     byteChecksum:
-      "a69468d601f81a23459a37bd869e11aa7e70e64bcc21260dad68ff60079b5c56",
+      "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
     contractDigest:
       "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },

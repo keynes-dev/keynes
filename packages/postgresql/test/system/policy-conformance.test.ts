@@ -1,4 +1,4 @@
-import type { PolicyResultRowV1 } from "@keynes/contracts";
+import type { ExpressionNodeV1, PolicyResultRowV1 } from "@keynes/contracts";
 import { POLICY_RUNTIME_CONFORMANCE_CASES } from "@keynes/contracts/conformance";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -16,6 +16,11 @@ import {
 
 interface RenderedPolicy {
   readonly sql: string;
+}
+
+interface RenderedPolicySizes {
+  readonly shallow_bytes: number;
+  readonly deep_bytes: number;
 }
 
 interface PostgresqlPolicyRow {
@@ -83,8 +88,62 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         );
       }
     });
+
+    it("keeps nested boolean rendering linear", async () => {
+      fixture = await openInstalledPostgresDatabase(
+        requirePostgresqlSystemAdministratorUrl(),
+        FIXTURE_INSTALLATION,
+        requirePostgresqlSystemCommandPath(),
+      );
+      transaction = await fixture.beginTransaction();
+      const ownerRole = await requirePolicyOwner(transaction);
+      await transaction.connection.exec(
+        `set local role "${ownerRole.replaceAll('"', '""')}"`,
+      );
+
+      const result = await transaction.connection.query<RenderedPolicySizes>(
+        `select
+           octet_length(keynes_internal.render_boolean_binary($1::jsonb))::integer as shallow_bytes,
+           octet_length(keynes_internal.render_boolean_binary($2::jsonb))::integer as deep_bytes`,
+        [
+          JSON.stringify(alternatingBooleanExpression(6)),
+          JSON.stringify(alternatingBooleanExpression(10)),
+        ],
+      );
+      const sizes = result.rows[0];
+      if (sizes === undefined) {
+        throw new Error("PostgreSQL did not return rendered Policy sizes");
+      }
+
+      expect(sizes.deep_bytes).toBeLessThanOrEqual(sizes.shallow_bytes * 4);
+    });
   },
 );
+
+function alternatingBooleanExpression(depth: number): ExpressionNodeV1 {
+  let expression: ExpressionNodeV1 = {
+    kind: "boolean_literal",
+    value: true,
+    valueType: "boolean",
+    nullable: false,
+  };
+  for (let index = 0; index < depth; index += 1) {
+    expression = {
+      kind: "boolean_binary",
+      operator: index % 2 === 0 ? "and" : "or",
+      left: {
+        kind: "boolean_literal",
+        value: index % 2 === 0,
+        valueType: "boolean",
+        nullable: false,
+      },
+      right: expression,
+      valueType: "boolean",
+      nullable: false,
+    };
+  }
+  return expression;
+}
 
 async function requirePolicyOwner(
   transaction: PostgresTransaction,

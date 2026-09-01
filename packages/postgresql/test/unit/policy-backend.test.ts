@@ -66,11 +66,19 @@ describe("generated PostgreSQL Policy backend", () => {
     );
   });
 
-  it("renders boolean operators as ordered lazy CASE expressions", () => {
-    expect(migration).toContain("WHEN 'and' THEN '(CASE '");
-    expect(migration).toContain(" WHEN FALSE THEN FALSE WHEN TRUE THEN ");
-    expect(migration).toContain("WHEN 'or' THEN '(CASE '");
-    expect(migration).toContain(" WHEN TRUE THEN TRUE WHEN FALSE THEN ");
+  it("renders boolean operators once and fences decimal planning", () => {
+    expect(migration).toContain(
+      "WHEN 'and' THEN '(SELECT CASE lhs.value WHEN FALSE THEN FALSE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' AND lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'",
+    );
+    expect(migration).toContain(
+      "WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' OR lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'",
+    );
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)\nRETURNS numeric\nLANGUAGE plpgsql\nVOLATILE",
+    );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION keynes_internal.policy_runtime_numeric(value numeric) FROM PUBLIC",
+    );
   });
 
   it("includes generated work estimation and canonical-vector checks", () => {
