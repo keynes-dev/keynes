@@ -715,6 +715,15 @@ function normalizeCase(
     valueType,
     `${path}/else`,
   );
+  if (
+    otherwise.containsAggregate ||
+    branches.some(
+      (branch) =>
+        branch.when.containsAggregate || branch.then.containsAggregate,
+    )
+  ) {
+    fail(path, "aggregate");
+  }
   const first = branches[0];
   if (first === undefined) fail(`${path}/branches`, "limit");
   return {
@@ -780,6 +789,12 @@ function normalizeVariadic(
   );
   const first = expressions[0];
   if (first === undefined) fail(path, "function_arity");
+  if (
+    name === "coalesce" &&
+    expressions.slice(1).some((expression) => expression.containsAggregate)
+  ) {
+    fail(path, "aggregate");
+  }
   const nullable = expressions.every((expression) => expression.nullable);
   return {
     node: {

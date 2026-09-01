@@ -6,7 +6,12 @@ import {
   defineResources,
 } from "../../../src/index.js";
 import { POLICY_LIMITS } from "../../../src/generated/policy-profile.js";
+import type {
+  ExpressionNodeV1,
+  PolicyProgramV1,
+} from "../../../src/generated/policy-types.js";
 import { parsePolicySql } from "../../../src/policy/parse.js";
+import { validateNormalizedProgram } from "../../../src/policy/validate.js";
 
 const resources = defineResources({
   tokens: { unit: "token", accountingBehavior: "consumable" },
@@ -116,6 +121,92 @@ describe("Policy source rejection", () => {
       "/source",
       "limit",
     );
+  });
+
+  it.each([
+    [
+      "first CASE condition",
+      "case when sum(available.amount) > 0.0 then 1.0 when 1.0 = 1.0 then 2.0 else 3.0 end",
+    ],
+    [
+      "later CASE condition",
+      "case when 1.0 = 1.0 then 1.0 when sum(available.amount) > 0.0 then 2.0 else 3.0 end",
+    ],
+    [
+      "first CASE result",
+      "case when 1.0 = 1.0 then sum(available.amount) when 1.0 = 2.0 then 2.0 else 3.0 end",
+    ],
+    [
+      "later CASE result",
+      "case when 1.0 = 1.0 then 1.0 when 1.0 = 2.0 then sum(available.amount) else 3.0 end",
+    ],
+    [
+      "CASE else result",
+      "case when 1.0 = 1.0 then 1.0 when 1.0 = 2.0 then 2.0 else sum(available.amount) end",
+    ],
+    [
+      "nested second coalesce argument",
+      "coalesce(0.0, least(sum(available.amount), 1.0))",
+    ],
+    [
+      "nested later coalesce argument",
+      "coalesce(0.0, 1.0, greatest(sum(available.amount), 2.0))",
+    ],
+  ])("rejects an aggregate in the %s", (_label, ceiling) => {
+    expectInvalidPolicy(
+      () => defineRaw(aggregateSql(ceiling)),
+      "/select/ceiling",
+      "aggregate",
+    );
+  });
+
+  it.each([
+    ["first coalesce argument", "coalesce(sum(available.amount), 0.0)"],
+    ["least", "coalesce(least(sum(available.amount), 10.0), 0.0)"],
+    ["greatest", "coalesce(greatest(sum(available.amount), 0.0), 0.0)"],
+  ])("accepts an aggregate in %s", (_label, ceiling) => {
+    expect(() => defineRaw(aggregateSql(ceiling))).not.toThrow();
+  });
+
+  it.each([
+    ["CASE condition", caseExpression(aggregateComparison(), decimal(1))],
+    ["CASE result", caseExpression(boolean(true), aggregate())],
+    ["CASE else", caseExpression(boolean(true), decimal(1), aggregate())],
+    [
+      "second coalesce argument",
+      variadic("coalesce", [decimal(0), variadic("least", [aggregate()])]),
+    ],
+  ])("rejects a direct normalized aggregate in a %s", (_label, ceiling) => {
+    expectInvalidPolicy(
+      () => validateNormalizedProgram(programWithCeiling(ceiling)),
+      "/program/ceiling",
+      "aggregate",
+    );
+  });
+
+  it.each([
+    [
+      "first coalesce argument",
+      variadic("coalesce", [aggregate(), decimal(0)]),
+    ],
+    [
+      "least",
+      variadic("coalesce", [
+        variadic("least", [aggregate(), decimal(10)]),
+        decimal(0),
+      ]),
+    ],
+    [
+      "greatest",
+      variadic("coalesce", [
+        variadic("greatest", [aggregate(), decimal(0)]),
+        decimal(0),
+      ]),
+    ],
+  ])("accepts a direct normalized aggregate in %s", (_label, ceiling) => {
+    expect(() =>
+      validateNormalizedProgram(programWithCeiling(ceiling)),
+    ).not.toThrow();
   });
 
   it.each([
@@ -279,6 +370,110 @@ describe("Policy source rejection", () => {
 
 function defineRaw(sql: string) {
   return definePolicySql(resources, { ...DECLARATION, sql });
+}
+
+function aggregateSql(ceiling: string): string {
+  return POLICY_SQL.replace(
+    "available.amount AS ceiling",
+    `${ceiling} AS ceiling`,
+  ).concat("GROUP BY requested.resource\n");
+}
+
+function programWithCeiling(ceiling: ExpressionNodeV1): PolicyProgramV1 {
+  return {
+    kind: "select",
+    availabilityJoin: { kind: "inner_join" },
+    resource: reference("resource", "text"),
+    ceiling,
+    reason: {
+      kind: "text_literal",
+      value: "capacity_limit",
+      valueType: "text",
+      nullable: false,
+    },
+    where: null,
+    groupBy: [reference("resource", "text")],
+    orderBy: ["resource", "reason", "ceiling"],
+  };
+}
+
+function caseExpression(
+  when: ExpressionNodeV1,
+  then: ExpressionNodeV1,
+  otherwise: ExpressionNodeV1 = decimal(0),
+): ExpressionNodeV1 {
+  return {
+    kind: "case",
+    branches: [{ when, then }],
+    else: otherwise,
+    valueType: "numeric",
+    nullable: then.nullable || otherwise.nullable,
+  };
+}
+
+function variadic(
+  name: "coalesce" | "least" | "greatest",
+  arguments_: [ExpressionNodeV1, ...ExpressionNodeV1[]],
+): ExpressionNodeV1 {
+  return {
+    kind: "variadic",
+    function: name,
+    arguments: arguments_,
+    valueType: "numeric",
+    nullable: arguments_.every((argument) => argument.nullable),
+  };
+}
+
+function aggregate(): ExpressionNodeV1 {
+  return {
+    kind: "aggregate",
+    function: "sum",
+    operand: reference("amount", "numeric"),
+    valueType: "numeric",
+    nullable: true,
+  };
+}
+
+function aggregateComparison(): ExpressionNodeV1 {
+  return {
+    kind: "comparison",
+    operator: ">",
+    left: aggregate(),
+    right: decimal(0),
+    valueType: "boolean",
+    nullable: true,
+  };
+}
+
+function reference(
+  field: "resource" | "amount",
+  valueType: "text" | "numeric",
+): ExpressionNodeV1 {
+  return {
+    kind: "reference",
+    source: "requested",
+    field,
+    valueType,
+    nullable: false,
+  };
+}
+
+function decimal(value: number): ExpressionNodeV1 {
+  return {
+    kind: "decimal_literal",
+    value: String(value),
+    valueType: "numeric",
+    nullable: false,
+  };
+}
+
+function boolean(value: boolean): ExpressionNodeV1 {
+  return {
+    kind: "boolean_literal",
+    value,
+    valueType: "boolean",
+    nullable: false,
+  };
 }
 
 function expectInvalidPolicy(

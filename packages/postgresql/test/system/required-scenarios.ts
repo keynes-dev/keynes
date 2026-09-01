@@ -89,7 +89,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL governed Policy requests rejects a root Policy declaration outside the receiving Budget holdings",
     "PostgreSQL governed Policy requests rejects a child Policy declaration outside the receiving child holdings",
     "PostgreSQL governed Policy requests approves an ungoverned parent request with child Policies without parent Policy evidence",
-    "PostgreSQL governed Policy requests orders availability denial reasons by canonical Resource name, not Resource UUID",
+    "PostgreSQL governed Policy requests preserves exact no-Policy bytes and legacy Resource UUID ordering",
     "PostgreSQL governed Policy requests keeps governed state pending until the caller commits",
     "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
     "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",

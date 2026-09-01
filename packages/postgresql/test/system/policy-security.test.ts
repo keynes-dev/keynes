@@ -80,6 +80,98 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(JSON.stringify(wire)).not.toContain("catalog_scan");
     });
 
+    it.each([
+      ["first CASE condition", () => caseAggregateProgram("first_when")],
+      ["later CASE condition", () => caseAggregateProgram("later_when")],
+      ["first CASE result", () => caseAggregateProgram("first_then")],
+      ["later CASE result", () => caseAggregateProgram("later_then")],
+      ["CASE else result", () => caseAggregateProgram("else")],
+      [
+        "nested second coalesce argument",
+        () =>
+          programWithAggregateVariadic("coalesce", [
+            decimalLiteral("0"),
+            aggregateVariadic("least"),
+          ]),
+      ],
+      [
+        "nested later coalesce argument",
+        () =>
+          programWithAggregateVariadic("coalesce", [
+            decimalLiteral("0"),
+            decimalLiteral("1"),
+            aggregateVariadic("greatest"),
+          ]),
+      ],
+    ] as const)(
+      "rejects a direct durable aggregate in the %s",
+      async (_label, program) => {
+        fixture = await openFixture();
+        await defineResource(fixture);
+        const artifact = program();
+        const policy = resealPolicy(basePolicy(), artifact, {
+          canonicalSql: canonicalPolicySql(artifact),
+        });
+
+        const wire = await committedCall(fixture, "createBudget", {
+          commandId: ROOT_ID,
+          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+          policies: [policy],
+        });
+
+        expect(wire).toMatchObject({
+          ok: false,
+          error: { code: "invalid_policy", details: { rule: "aggregate" } },
+        });
+        await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+      },
+    );
+
+    it.each([
+      [
+        "first coalesce argument",
+        () =>
+          programWithAggregateVariadic("coalesce", [
+            aggregateExpression(),
+            decimalLiteral("0"),
+          ]),
+      ],
+      [
+        "least",
+        () =>
+          programWithAggregateVariadic("coalesce", [
+            aggregateVariadic("least"),
+            decimalLiteral("0"),
+          ]),
+      ],
+      [
+        "greatest",
+        () =>
+          programWithAggregateVariadic("coalesce", [
+            aggregateVariadic("greatest"),
+            decimalLiteral("0"),
+          ]),
+      ],
+    ] as const)(
+      "accepts a direct durable aggregate in %s",
+      async (_label, program) => {
+        fixture = await openFixture();
+        await defineResource(fixture);
+        const artifact = program();
+        const policy = resealPolicy(basePolicy(), artifact, {
+          canonicalSql: canonicalPolicySql(artifact),
+        });
+
+        const wire = await committedCall(fixture, "createBudget", {
+          commandId: ROOT_ID,
+          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+          policies: [policy],
+        });
+
+        expect(wire).toMatchObject({ ok: true });
+      },
+    );
+
     it("rejects canonical SQL that does not match the durable program without executing it", async () => {
       fixture = await openFixture();
       const policy = resealPolicy(basePolicy(), baseProgram(), {
@@ -1125,6 +1217,106 @@ function aggregateTransitionProgram(): PolicyProgramV1 {
         nullable: false,
       },
     ],
+  };
+}
+
+function caseAggregateProgram(
+  position: "first_when" | "later_when" | "first_then" | "later_then" | "else",
+): PolicyProgramV1 {
+  const aggregate = aggregateExpression();
+  const aggregateCondition = {
+    kind: "comparison",
+    operator: ">",
+    left: aggregate,
+    right: decimalLiteral("0"),
+    valueType: "boolean",
+    nullable: true,
+  } satisfies ExpressionNodeV1;
+  const truth = {
+    kind: "boolean_literal",
+    value: true,
+    valueType: "boolean",
+    nullable: false,
+  } satisfies ExpressionNodeV1;
+  const branches: [
+    { when: ExpressionNodeV1; then: ExpressionNodeV1 },
+    { when: ExpressionNodeV1; then: ExpressionNodeV1 },
+  ] = [
+    {
+      when: position === "first_when" ? aggregateCondition : truth,
+      then: position === "first_then" ? aggregate : decimalLiteral("1"),
+    },
+    {
+      when: position === "later_when" ? aggregateCondition : truth,
+      then: position === "later_then" ? aggregate : decimalLiteral("2"),
+    },
+  ];
+  return {
+    ...baseProgram(),
+    ceiling: {
+      kind: "case",
+      branches,
+      else: position === "else" ? aggregate : decimalLiteral("3"),
+      valueType: "numeric",
+      nullable:
+        position === "first_then" ||
+        position === "later_then" ||
+        position === "else",
+    },
+    groupBy: [requestedResourceReference()],
+  };
+}
+
+function programWithAggregateVariadic(
+  name: "coalesce" | "least" | "greatest",
+  arguments_: [ExpressionNodeV1, ...ExpressionNodeV1[]],
+): PolicyProgramV1 {
+  return {
+    ...baseProgram(),
+    ceiling: {
+      kind: "variadic",
+      function: name,
+      arguments: arguments_,
+      valueType: "numeric",
+      nullable: arguments_.every((argument) => argument.nullable),
+    },
+    groupBy: [requestedResourceReference()],
+  };
+}
+
+function aggregateVariadic(name: "least" | "greatest"): ExpressionNodeV1 {
+  return {
+    kind: "variadic",
+    function: name,
+    arguments: [aggregateExpression()],
+    valueType: "numeric",
+    nullable: true,
+  };
+}
+
+function aggregateExpression(): ExpressionNodeV1 {
+  return {
+    kind: "aggregate",
+    function: "sum",
+    operand: {
+      kind: "reference",
+      source: "requested",
+      field: "amount",
+      valueType: "numeric",
+      nullable: false,
+    },
+    valueType: "numeric",
+    nullable: true,
+  };
+}
+
+function requestedResourceReference(): ExpressionNodeV1 {
+  return {
+    kind: "reference",
+    source: "requested",
+    field: "resource",
+    valueType: "text",
+    nullable: false,
   };
 }
 

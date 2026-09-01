@@ -71,8 +71,14 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes.get_budget(input jsonb)",
 ] as const;
 
-const IMMUTABLE_PUBLIC_MIGRATION_SHA256 =
-  "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753";
+const IMMUTABLE_MIGRATION_SHA256 = {
+  "0001-storage.sql":
+    "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
+  "0002-budget.sql":
+    "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+  "0003-public.generated.sql":
+    "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+} as const;
 
 export interface InstallationMigration {
   readonly id: string;
@@ -97,12 +103,12 @@ export async function generatePostgresql(
   options: GeneratePostgresqlOptions,
 ): Promise<PostgresqlInstallationIdentity> {
   const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot();
+  assertImmutableMigrations(repositoryRoot, "before generation");
   const publicMigrationPath = join(
     repositoryRoot,
     "packages/postgresql/migrations/0003-public.generated.sql",
   );
   const publicSql = readFileSync(publicMigrationPath, "utf8");
-  assertImmutablePublicMigration(publicSql, "before generation");
   const legacyBudgetSql = readFileSync(
     join(repositoryRoot, "packages/postgresql/migrations/0002-budget.sql"),
     "utf8",
@@ -163,19 +169,26 @@ export async function generatePostgresql(
       },
     ],
   });
-  assertImmutablePublicMigration(
-    readFileSync(publicMigrationPath, "utf8"),
-    "after generation",
-  );
+  assertImmutableMigrations(repositoryRoot, "after generation");
   return { contractMigrationId, migrations };
 }
 
-function assertImmutablePublicMigration(value: string, phase: string): void {
-  const actual = sha256(value);
-  if (actual !== IMMUTABLE_PUBLIC_MIGRATION_SHA256) {
-    throw new Error(
-      `immutable migration 0003 changed ${phase}: expected ${IMMUTABLE_PUBLIC_MIGRATION_SHA256}, received ${actual}`,
+function assertImmutableMigrations(
+  repositoryRoot: string,
+  phase: string,
+): void {
+  for (const [path, expected] of Object.entries(IMMUTABLE_MIGRATION_SHA256)) {
+    const actual = sha256(
+      readFileSync(
+        join(repositoryRoot, "packages/postgresql/migrations", path),
+        "utf8",
+      ),
     );
+    if (actual !== expected) {
+      throw new Error(
+        `immutable migration ${path} changed ${phase}: expected ${expected}, received ${actual}`,
+      );
+    }
   }
 }
 
@@ -1543,7 +1556,10 @@ function renderPolicySemanticValidation(kind: string): string {
     PERFORM keynes_internal.invalid_policy('$.program/nullable', 'nullability');
   END IF;`;
     case "case":
-      return `  IF EXISTS (
+      return `  IF jsonb_path_exists(node, 'strict $.** ? (@.kind == "aggregate")') THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
+  IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'branches') branch
      WHERE branch->'when'->>'valueType' IS DISTINCT FROM 'boolean'
         OR branch->'then'->>'valueType' IS DISTINCT FROM node->>'valueType'
@@ -1559,7 +1575,15 @@ function renderPolicySemanticValidation(kind: string): string {
     PERFORM keynes_internal.invalid_policy('$.program/nullable', 'nullability');
   END IF;`;
     case "variadic":
-      return `  IF EXISTS (
+      return `  IF node->>'function' = 'coalesce' AND EXISTS (
+    SELECT 1
+      FROM jsonb_array_elements(node->'arguments') WITH ORDINALITY AS argument(value, ordinality)
+     WHERE argument.ordinality > 1
+       AND jsonb_path_exists(argument.value, 'strict $.** ? (@.kind == "aggregate")')
+  ) THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
+  IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'arguments') argument
      WHERE argument->>'valueType' IS DISTINCT FROM node->>'valueType'
   ) THEN

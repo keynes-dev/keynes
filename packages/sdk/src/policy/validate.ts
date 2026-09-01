@@ -240,12 +240,50 @@ export function requireType(
 
 export function validateNormalizedProgram(program: PolicyProgramV1): void {
   if (!isPolicyProgramV1(program)) fail("/program", "schema");
+  validateAggregatePlacement(program.resource, "/program/resource");
+  validateAggregatePlacement(program.ceiling, "/program/ceiling");
+  validateAggregatePlacement(program.reason, "/program/reason");
+  if (program.where !== null) {
+    validateAggregatePlacement(program.where, "/program/where");
+  }
+  for (const [index, expression] of program.groupBy.entries()) {
+    validateAggregatePlacement(expression, `/program/groupBy/${index}`);
+  }
   const stats = programStats(program);
   if (stats.nodes > POLICY_LIMITS.programNodes) fail("/program", "node_limit");
   if (stats.depth > POLICY_LIMITS.programDepth) fail("/program", "depth_limit");
   if (stats.work > POLICY_LIMITS.operationsPerPolicy) {
     fail("/program", "work_limit");
   }
+}
+
+function validateAggregatePlacement(value: unknown, path: string): void {
+  if (Array.isArray(value)) {
+    for (const [index, member] of value.entries()) {
+      validateAggregatePlacement(member, `${path}/${index}`);
+    }
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  if (
+    isPolicyNodeV1(value) &&
+    ((value.kind === "case" && containsAggregate(value)) ||
+      (value.kind === "variadic" &&
+        value.function === "coalesce" &&
+        value.arguments.slice(1).some(containsAggregate)))
+  ) {
+    fail(path, "aggregate");
+  }
+  for (const [key, member] of Object.entries(value)) {
+    validateAggregatePlacement(member, `${path}/${key}`);
+  }
+}
+
+function containsAggregate(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsAggregate);
+  if (typeof value !== "object" || value === null) return false;
+  if (isPolicyNodeV1(value) && value.kind === "aggregate") return true;
+  return Object.values(value).some(containsAggregate);
 }
 
 export function validatePolicyProgramScope(

@@ -15,7 +15,7 @@ export const POLICY_QUERY_PROFILE_VERSION = "keynes-policy-query/v1" as const;
 export const POLICY_VALIDATOR_VERSION = "keynes-policy-validator/v1" as const;
 export const POLICY_LIMITS_VERSION = "keynes-policy-limits/v1" as const;
 export const POLICY_PROFILE_DIGEST =
-  "7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486" as const;
+  "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128" as const;
 
 export const POLICY_NODE_KINDS = [
   "select",
@@ -1057,7 +1057,7 @@ export const POLICY_NODE_SEMANTICS = {
   },
   case: {
     typeRule:
-      "when expressions are boolean and every result branch has one compatible scalar type",
+      "when expressions are boolean, every result branch has one compatible scalar type, and aggregates are forbidden anywhere beneath the searched case",
     nullRule:
       "null when does not match; result nullability is the union of result branches",
     decimalBoundary: "numeric results normalize to numeric(38,18)",
@@ -1067,7 +1067,8 @@ export const POLICY_NODE_SEMANTICS = {
     },
   },
   variadic: {
-    typeRule: "all arguments and the result have one compatible scalar type",
+    typeRule:
+      "all arguments and the result have one compatible scalar type; coalesce permits aggregates only beneath its first argument, while least and greatest permit aggregates beneath every argument",
     nullRule:
       "coalesce returns the first non-null; least and greatest ignore null and return null only when all arguments are null",
     decimalBoundary: "numeric arguments and result normalize to numeric(38,18)",

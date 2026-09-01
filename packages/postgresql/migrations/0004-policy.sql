@@ -1,5 +1,5 @@
 -- Generated from packages/contracts/policy-profile.json. Do not edit.
--- Policy profile SHA-256: 7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486
+-- Policy profile SHA-256: e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128
 
 CREATE OR REPLACE FUNCTION keynes_internal.invalid_policy(issue_path text, issue_rule text)
 RETURNS void
@@ -658,6 +658,9 @@ BEGIN
   LOOP
     PERFORM keynes_internal.validate_policy_descriptor(node->field.key, field.descriptor, '$.program/' || field.key);
   END LOOP;
+  IF jsonb_path_exists(node, 'strict $.** ? (@.kind == "aggregate")') THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'branches') branch
      WHERE branch->'when'->>'valueType' IS DISTINCT FROM 'boolean'
@@ -693,6 +696,14 @@ BEGIN
   LOOP
     PERFORM keynes_internal.validate_policy_descriptor(node->field.key, field.descriptor, '$.program/' || field.key);
   END LOOP;
+  IF node->>'function' = 'coalesce' AND EXISTS (
+    SELECT 1
+      FROM jsonb_array_elements(node->'arguments') WITH ORDINALITY AS argument(value, ordinality)
+     WHERE argument.ordinality > 1
+       AND jsonb_path_exists(argument.value, 'strict $.** ? (@.kind == "aggregate")')
+  ) THEN
+    PERFORM keynes_internal.invalid_policy('$.program', 'aggregate');
+  END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(node->'arguments') argument
      WHERE argument->>'valueType' IS DISTINCT FROM node->>'valueType'
@@ -1552,12 +1563,6 @@ BEGIN
           ));
         END IF;
       END LOOP;
-      SELECT coalesce(jsonb_agg(reason.value ORDER BY resource_type.canonical_name COLLATE "C"), '[]'::jsonb)
-      INTO denial_reasons
-      FROM jsonb_array_elements(denial_reasons) AS reason(value)
-      JOIN keynes_internal.resource_types AS resource_type
-        ON resource_type.tenant_id = tenant
-        AND resource_type.resource_type_id = (reason.value->>'resourceTypeId')::uuid;
       IF jsonb_array_length(denial_reasons) > 0 THEN
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(
@@ -1859,7 +1864,7 @@ BEGIN
       OR policy->>'queryProfileVersion' IS DISTINCT FROM 'keynes-policy-query/v1'
       OR policy->>'validatorVersion' IS DISTINCT FROM 'keynes-policy-validator/v1'
       OR policy->>'limitsVersion' IS DISTINCT FROM 'keynes-policy-limits/v1'
-      OR policy->>'policyProfileDigest' IS DISTINCT FROM '7122249f6b0a5402c13cdb54f9af6dfbb454357cfe3e7ff0ca9f036854c0b486'
+      OR policy->>'policyProfileDigest' IS DISTINCT FROM 'e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128'
       OR policy->>'sourceDigest' IS DISTINCT FROM encode(sha256(convert_to(policy->>'canonicalSql', 'UTF8')), 'hex')
       OR policy->>'definitionDigest' IS DISTINCT FROM encode(sha256(convert_to(keynes_internal.policy_canonical_json(policy - 'definitionDigest'), 'UTF8')), 'hex')
       OR jsonb_typeof(policy->'inputResources') IS DISTINCT FROM 'array'

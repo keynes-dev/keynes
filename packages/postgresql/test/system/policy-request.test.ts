@@ -304,7 +304,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(request.result).not.toHaveProperty("policyEvidence");
     });
 
-    it("orders availability denial reasons by canonical Resource name, not Resource UUID", async () => {
+    it("preserves exact no-Policy bytes and legacy Resource UUID ordering", async () => {
       fixture = await openPolicyFixture();
       await definePolicyResources(fixture);
       await committed(fixture, "createBudget", {
@@ -315,22 +315,96 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         ],
       });
 
-      const request = await committed(fixture, "requestBudget", {
+      const command = {
         commandId: REQUEST_ID,
         parentBudgetId: ROOT_BUDGET_ID,
         resources: [
           { resourceTypeId: SEARCH_RESOURCE_ID, amount: 11 },
           { resourceTypeId: MODEL_RESOURCE_ID, amount: 11 },
         ],
-      });
+      };
+      const commandBytes = `{"commandId":"${REQUEST_ID}","parentBudgetId":"${ROOT_BUDGET_ID}","resources":[{"resourceTypeId":"${SEARCH_RESOURCE_ID}","amount":11},{"resourceTypeId":"${MODEL_RESOURCE_ID}","amount":11}]}`;
+      expect(JSON.stringify(command)).toBe(commandBytes);
 
-      expect(request.result).toMatchObject({
+      const request = await committed(fixture, "requestBudget", command);
+      const expectedResult = {
         kind: "denied",
         reasons: [
-          { resourceTypeId: MODEL_RESOURCE_ID },
-          { resourceTypeId: SEARCH_RESOURCE_ID },
+          {
+            code: "insufficient_available",
+            available: 10,
+            requested: 11,
+            resourceTypeId: SEARCH_RESOURCE_ID,
+          },
+          {
+            code: "insufficient_available",
+            available: 10,
+            requested: 11,
+            resourceTypeId: MODEL_RESOURCE_ID,
+          },
         ],
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+      };
+      expect(JSON.stringify(request)).toBe(
+        JSON.stringify({ ok: true, result: expectedResult, replayed: false }),
+      );
+
+      const replay = await committed(fixture, "requestBudget", command);
+      expect(JSON.stringify(replay)).toBe(
+        JSON.stringify({ ok: true, result: expectedResult, replayed: true }),
+      );
+
+      const read = await committed(fixture, "getBudget", {
+        budgetId: ROOT_BUDGET_ID,
       });
+      expect(read.result).toMatchObject({
+        history: {
+          entries: [
+            { kind: "budget_created" },
+            { kind: "request_denied", reasons: expectedResult.reasons },
+          ],
+        },
+      });
+      if (!isRecord(read.result.history)) {
+        throw new Error("expected no-Policy history");
+      }
+      const entries = read.result.history.entries;
+      if (
+        !Array.isArray(entries) ||
+        !isRecord(entries[0]) ||
+        !isRecord(entries[1])
+      ) {
+        throw new Error("expected two no-Policy history entries");
+      }
+      expect(JSON.stringify(read.result.history)).toBe(
+        JSON.stringify({
+          entries: [
+            {
+              kind: "budget_created",
+              entryId: entries[0].entryId,
+              sequence: 1,
+              commandId: ROOT_BUDGET_ID,
+              resources: [
+                { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
+                { amount: 10, resourceTypeId: MODEL_RESOURCE_ID },
+              ],
+              rootBudgetId: ROOT_BUDGET_ID,
+              subjectBudgetId: ROOT_BUDGET_ID,
+            },
+            {
+              kind: "request_denied",
+              entryId: entries[1].entryId,
+              reasons: expectedResult.reasons,
+              sequence: 2,
+              commandId: REQUEST_ID,
+              parentBudgetId: ROOT_BUDGET_ID,
+              subjectBudgetId: ROOT_BUDGET_ID,
+            },
+          ],
+          rootBudgetId: ROOT_BUDGET_ID,
+        }),
+      );
     });
 
     it("orders effective ceilings and tied reasons by canonical text, not Resource UUID", async () => {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import {
@@ -12,6 +13,26 @@ const migration = readFileSync(
 );
 
 describe("generated PostgreSQL Policy backend", () => {
+  it.each([
+    [
+      "0001-storage.sql",
+      "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
+    ],
+    [
+      "0002-budget.sql",
+      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+    ],
+    [
+      "0003-public.generated.sql",
+      "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+    ],
+  ])("keeps immutable migration %s byte exact", (path, expected) => {
+    const contents = readFileSync(
+      new URL(`../../migrations/${path}`, import.meta.url),
+    );
+    expect(createHash("sha256").update(contents).digest("hex")).toBe(expected);
+  });
+
   it("defines every validator and renderer declared by the Policy profile", () => {
     for (const validator of Object.values(POLICY_POSTGRESQL_VALIDATORS)) {
       expect(migration).toContain(`FUNCTION keynes_internal.${validator}(`);
@@ -66,6 +87,10 @@ describe("generated PostgreSQL Policy backend", () => {
     expect(migration).toContain("'nullability'");
     expect(migration).toContain("node_count > 512");
     expect(migration).toContain("node_depth > 32");
+    expect(migration).toContain(
+      "jsonb_path_exists(node, 'strict $.** ? (@.kind == \"aggregate\")')",
+    );
+    expect(migration).toContain("argument.ordinality > 1");
   });
 
   it("uses join-aware SDK-compatible conservative work bounds", () => {
