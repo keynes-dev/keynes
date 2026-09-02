@@ -50,7 +50,7 @@ named evidence passed at the recorded review revision.
 
 ## Cohesion
 
-- [ ] Contracts parsing, generation, and conformance fixtures have one named
+- [x] Contracts parsing, generation, and conformance fixtures have one named
       responsibility per authored module.
 - [ ] The SDK Policy compiler, validator, normalizer, and evaluator retain one
       public facade for each complete operation.
@@ -61,7 +61,7 @@ named evidence passed at the recorded review revision.
       Budget runtime generation, and secure wrappers.
 - [ ] Generated files and `policy-profile.json` remain generated artifacts or
       one authored semantic source rather than refactor targets.
-- [ ] Pure refactors leave generated output, canonical programs, SQL, and digests
+- [x] Pure refactors leave generated output, canonical programs, SQL, and digests
       byte-identical.
 
 ## Test quality

@@ -62,8 +62,10 @@ Allowed constructs are:
 - `=` and `<>` for text and boolean values;
 - text `IN` over a non-empty literal list;
 - `IS NULL`, `IS NOT NULL`, `AND`, `OR`, and `NOT`;
-- searched `CASE` with type-compatible branches;
-- `coalesce`, `least`, and `greatest`;
+- searched `CASE` with type-compatible branches and no aggregate beneath the
+  `CASE`;
+- `coalesce` with aggregates only beneath its first argument, and `least` and
+  `greatest` with aggregates beneath any argument;
 - `abs`, `ceil`, `floor`, `round`, `trunc`, `sqrt`, and bounded integral `power`;
 - `sum`, `avg`, `min`, `max`, and `count` with ordinary grouping rules; and
 - positional parameters whose complete scalar value vector accompanies the submitted query.
@@ -80,6 +82,7 @@ The parser and validator reject:
 - DML, DDL, transaction, session, copy, explain, and procedural statements;
 - casts outside renderer-owned exact casts;
 - arbitrary relations, functions, operators, collations, or order expressions;
+- aggregates beneath `CASE` or beneath any `coalesce` argument after the first;
 - unbound, repeated-with-conflicting-type, non-scalar, or excess positional parameters;
 - dollar-quoted text, escape strings, or more than one statement.
 
@@ -92,6 +95,12 @@ Line and block comments are accepted as syntax trivia and omitted from the canon
 Numeric inputs begin as exact safe integers from 0 through 9,007,199,254,740,991 or bounded decimal literals. Every numeric node produces a `numeric(38,18)` value: at most 20 integer digits and exactly the published 18-digit fractional boundary, rounded half away from zero when reduction is required. Local evaluation uses an immutable decimal.js clone configured for 38 significant digits and `ROUND_HALF_UP`; PostgreSQL emits explicit `numeric(38,18)` casts at the same program-node boundaries. Intermediate negative and fractional values are valid. Division or modulo by zero, a negative square root, an invalid or over-limit power, precision overflow, and a final ceiling that is negative, fractional, or outside the safe-integer Resource range are errors.
 
 `sum` and `avg` use the same decimal boundary after every deterministic aggregate transition and at the final result. `round` follows PostgreSQL numeric half-away-from-zero behavior. `ceil`, `floor`, and `trunc` retain numeric type. Functions that select PostgreSQL `double precision` overloads are invalid even when PostgreSQL could resolve them.
+
+Aggregate placement preserves the same evaluation behavior in both runtimes.
+PostgreSQL evaluates aggregate inputs before the surrounding scalar expression.
+For this reason, `CASE` cannot contain an aggregate, and only the first
+`coalesce` argument can contain one. `least` and `greatest` evaluate every
+argument, so any of their arguments can contain an aggregate.
 
 Boolean expressions use PostgreSQL three-valued logic with deterministic left-to-right lazy evaluation. `NOT NULL` is null. `FALSE AND x` is false without evaluating `x`; `TRUE AND NULL` is null; and `NULL AND FALSE` is false. `TRUE OR x` is true without evaluating `x`; `FALSE OR NULL` is null; and `NULL OR TRUE` is true. Errors in a skipped right operand do not occur.
 
