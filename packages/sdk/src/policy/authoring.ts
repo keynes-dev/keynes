@@ -217,7 +217,7 @@ function prepareDeclaration<
   }
 
   const contextSchema = prepareContextSchema(definition.context);
-  const reasons = canonicalIdentifiers(definition.reasons, "reasons");
+  const reasons = canonicalIdentifiers(definition.reasons);
   return deepFreeze({
     name: definition.name,
     revision: definition.revision,
@@ -233,6 +233,9 @@ function canonicalResources(
   canonicalByKey: ReadonlyMap<string, string>,
   field: "inputs" | "outputs",
 ): readonly string[] {
+  if (!Array.isArray(keys)) {
+    invalidPolicy(`/${field}`, "type");
+  }
   if (keys.length === 0 || keys.length > 64) {
     invalidPolicy(`/${field}`, "limit");
   }
@@ -250,6 +253,9 @@ function canonicalResources(
 function prepareContextSchema(
   schema: PolicyContextSchema,
 ): readonly PolicyContextFieldV1[] {
+  if (!isRecord(schema)) {
+    invalidPolicy("/context", "type");
+  }
   const entries = Object.entries(schema);
   if (entries.length > 32) {
     invalidPolicy("/context", "limit");
@@ -269,17 +275,17 @@ function prepareContextSchema(
   return fields.sort((left, right) => compareStrings(left.name, right.name));
 }
 
-function canonicalIdentifiers(
-  values: readonly string[],
-  field: "reasons",
-): readonly string[] {
+function canonicalIdentifiers(values: readonly string[]): readonly string[] {
+  if (!Array.isArray(values)) {
+    invalidPolicy("/reasons", "type");
+  }
   if (values.length === 0 || values.length > 64) {
-    invalidPolicy(`/${field}`, "limit");
+    invalidPolicy("/reasons", "limit");
   }
   values.forEach((value, index) =>
-    requireIdentifier(value, `/${field}/${index}`),
+    requireIdentifier(value, `/reasons/${index}`),
   );
-  requireUnique(values, `/${field}`);
+  requireUnique(values, "/reasons");
   return [...values].sort(compareStrings);
 }
 
