@@ -13,6 +13,7 @@ export const SDK_PRODUCTION_MODULES = [
   "local/resource-catalog",
   "local/runtime",
   "local/sqlite-command-executor",
+  "local/sqlite-store",
   "policy/authoring",
   "policy/canonicalize",
   "policy/compile",
