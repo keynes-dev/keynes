@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   KeynesError,
   KeynesSdkError,
+  PolicyValidationError,
   ResourceDefinitionError,
   createKeynes,
   definePolicy,
@@ -22,6 +23,7 @@ import {
   type BudgetState,
   type Keynes,
   type NamedResourceAmount,
+  type PolicyEvidence,
   type ResourceAmounts,
   type ResourceDefinition,
   type ResourceDefinitions,
@@ -78,6 +80,7 @@ describe("package-root exports", () => {
     expect(Object.keys(sdk).sort()).toEqual([
       "KeynesError",
       "KeynesSdkError",
+      "PolicyValidationError",
       "ResourceDefinitionError",
       "createKeynes",
       "definePolicy",
@@ -127,6 +130,13 @@ describe("package-root exports", () => {
     expectTypeOf<Settlement<"usdCents">>().toBeObject();
     expectTypeOf<NamedResourceAmount<"usdCents">>().toBeObject();
     expectTypeOf<BudgetHistoryEntry<"usdCents">>().toBeObject();
+    expectTypeOf<
+      PolicyEvidence<
+        "usdCents",
+        { readonly customerTier: string },
+        "customer_tier_limit"
+      >["context"]
+    >().toEqualTypeOf<{ readonly customer_tier: string }>();
     expectTypeOf<RemovedPublicTypes>().toMatchTypeOf<readonly unknown[]>();
     expectTypeOf<Budget<"usdCents">>().toBeObject();
     expect(createKeynes).toBeTypeOf("function");
@@ -139,6 +149,7 @@ describe("package-root exports", () => {
     expect(sdk).not.toHaveProperty("Keynes");
     expect(KeynesError).toBeTypeOf("function");
     expect(KeynesSdkError).toBeTypeOf("function");
+    expect(PolicyValidationError).toBeTypeOf("function");
     expect(ResourceDefinitionError).toBeTypeOf("function");
   });
 

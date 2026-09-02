@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PolicyValidationError,
   definePolicy,
   definePolicySql,
   defineResources,
@@ -121,6 +122,160 @@ describe("Policy authoring", () => {
     expect(definitions.definitions).toEqual([definition]);
     expect(definitions.contextSchemaDigest).toMatch(/^[0-9a-f]{64}$/);
     expect(definitions.setDigest).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("returns public path and rule diagnostics for authoring rejection", () => {
+    let rejection: unknown;
+    try {
+      definePolicySql(resources, {
+        ...declarations(0),
+        sql: RAW_POLICY_SQL,
+      });
+    } catch (error: unknown) {
+      rejection = error;
+    }
+    expect(rejection).toBeInstanceOf(PolicyValidationError);
+    expect(rejection).toMatchObject({
+      name: "PolicyValidationError",
+      code: "invalid_policy",
+      path: "/revision",
+      rule: "positive_safe_integer",
+    });
+
+    const definition = definePolicySql(resources, {
+      ...declarations(7),
+      sql: RAW_POLICY_SQL,
+    });
+    expect(() => policySet(definition, definition)).toThrowError(
+      expect.objectContaining({
+        name: "PolicyValidationError",
+        code: "invalid_policy",
+        path: "/definitions/1/name",
+        rule: "duplicate",
+      }),
+    );
+  });
+
+  it.each([
+    [{ name: "InvalidName" }, "/name", "canonical_identifier"],
+    [{ inputs: undefined }, "/inputs", "type"],
+    [{ outputs: null }, "/outputs", "type"],
+    [{ context: null }, "/context", "type"],
+    [{ reasons: {} }, "/reasons", "type"],
+    [{ inputs: [] }, "/inputs", "limit"],
+    [{ inputs: ["missingResource"] }, "/inputs/0", "resource_not_defined"],
+    [
+      { inputs: ["usdCents"], outputs: ["searchQueries"] },
+      "/outputs/0",
+      "not_input_resource",
+    ],
+    [
+      { context: { invalid_name: { type: "text", nullable: false } } },
+      "/context/invalid_name",
+      "canonical_identifier",
+    ],
+    [{ context: { limit: { type: "text" } } }, "/context/limit", "descriptor"],
+    [{ reasons: ["InvalidReason"] }, "/reasons/0", "canonical_identifier"],
+  ])("rejects malformed declaration %#", (override, path, rule) => {
+    expect(() =>
+      Reflect.apply(definePolicySql, undefined, [
+        resources,
+        { ...declarations(7), ...override, sql: RAW_POLICY_SQL },
+      ]),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "PolicyValidationError",
+        code: "invalid_policy",
+        path,
+        rule,
+      }),
+    );
+  });
+
+  it("rejects malformed declarations before invoking the query callback", () => {
+    let invoked = false;
+    expect(() =>
+      Reflect.apply(definePolicy, undefined, [
+        resources,
+        {
+          ...declarations(7),
+          inputs: undefined,
+          query() {
+            invoked = true;
+            throw new Error("query callback must not run");
+          },
+        },
+      ]),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "PolicyValidationError",
+        code: "invalid_policy",
+        path: "/inputs",
+        rule: "type",
+      }),
+    );
+    expect(invoked).toBe(false);
+  });
+
+  it("preserves errors thrown by the adopter's query callback", () => {
+    const callbackError = new Error("adopter query failed");
+    expect(() =>
+      definePolicy(resources, {
+        ...declarations(7),
+        query() {
+          throw callbackError;
+        },
+      }),
+    ).toThrow(callbackError);
+    expect(callbackError).not.toBeInstanceOf(PolicyValidationError);
+  });
+
+  it("preserves errors thrown while compiling the adopter's Kysely query", () => {
+    const compileError = new Error("adopter compile failed");
+    expect(() =>
+      Reflect.apply(definePolicy, undefined, [
+        resources,
+        {
+          ...declarations(7),
+          query() {
+            return {
+              compile() {
+                throw compileError;
+              },
+            };
+          },
+        },
+      ]),
+    ).toThrow(compileError);
+    expect(compileError).not.toBeInstanceOf(PolicyValidationError);
+  });
+
+  it("reports the exact Kysely parameter path", () => {
+    expect(() =>
+      Reflect.apply(definePolicy, undefined, [
+        resources,
+        {
+          ...declarations(7),
+          query() {
+            return {
+              compile() {
+                return {
+                  sql: RAW_POLICY_SQL.replace("available.amount", "$1"),
+                  parameters: [{}],
+                };
+              },
+            };
+          },
+        },
+      ]),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "PolicyValidationError",
+        code: "invalid_policy",
+        path: "/parameters/0",
+        rule: "type",
+      }),
+    );
   });
 });
 

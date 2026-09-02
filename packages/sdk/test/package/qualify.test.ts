@@ -26,6 +26,7 @@ import {
   writeQualificationResult,
 } from "./qualify.js";
 import { CONTRACT_DIGEST } from "../../src/generated/client.js";
+import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
@@ -76,6 +77,23 @@ afterEach(() => {
 });
 
 describe("SDK package-test runner", () => {
+  it("packs the distribution from the shared production manifest", () => {
+    const paths = [...archiveEntries.keys()];
+    for (const module of SDK_PRODUCTION_MODULES) {
+      expect(paths).toContain(`package/dist/${module}.d.ts`);
+      expect(paths).toContain(`package/dist/${module}.js`);
+    }
+  });
+
+  it("rejects an archive missing a shared-manifest module", () => {
+    const missing = `package/dist/${SDK_PRODUCTION_MODULES[0]}.js`;
+    const paths = [...archiveEntries.keys()].filter(
+      (path) => path !== missing && !path.endsWith("/"),
+    );
+    expect(() => validatePackageFilePaths(paths)).toThrow(
+      `Archive is missing required file ${missing}`,
+    );
+  });
   it("builds the production tree deterministically", () => {
     expect(secondBuild).toEqual(firstBuild);
   });

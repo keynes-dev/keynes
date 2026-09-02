@@ -37,11 +37,9 @@ import {
   PolicyEvaluationError,
   evaluatePolicyProgram,
 } from "../policy/evaluate.js";
-import {
-  PolicyValidationError,
-  validatePolicyProgramScope,
-} from "../policy/validate.js";
+import { validatePolicyProgramScope } from "../policy/validate.js";
 import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
+import { PolicyValidationError } from "../sdk-errors.js";
 export type SqliteMutationStage =
   | "after_command_binding"
   | "after_policy_evaluation"

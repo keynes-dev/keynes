@@ -343,6 +343,97 @@ describe("local governed Budget requests", () => {
     }
   });
 
+  it("attaches only explicitly supplied child Policies", async () => {
+    const { keynes, root } = await openGoverned(policySet(contextLimit));
+    try {
+      const omitted = await root.request({ tokens: 1 }, { context: CONTEXT });
+      const explicitEmpty = await root.request(
+        { tokens: 1 },
+        { context: CONTEXT, childPolicies: policySet() },
+      );
+      const governed = await root.request(
+        { tokens: 1 },
+        { context: CONTEXT, childPolicies: policySet(contextLimit) },
+      );
+
+      for (const result of [omitted, explicitEmpty]) {
+        expect(result.status).toBe("approved");
+        if (result.status !== "approved") continue;
+        await expect(
+          result.budget.request({ tokens: 1 }),
+        ).resolves.toMatchObject({ status: "approved" });
+      }
+
+      expect(governed.status).toBe("approved");
+      if (governed.status !== "approved") return;
+      await expect(
+        governed.budget.request({ tokens: 1 }, { context: CONTEXT }),
+      ).resolves.toMatchObject({ status: "approved" });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("attaches child Policies from an ungoverned Budget", async () => {
+    const keynes = await createKeynes({ resources });
+    try {
+      const root = await keynes.createBudget({ tokens: 10 });
+      const result = await root.request(
+        { tokens: 10 },
+        { childPolicies: policySet(contextLimit) },
+      );
+      expect(result.status).toBe("approved");
+      if (result.status !== "approved") {
+        throw new Error("expected ungoverned approval");
+      }
+
+      await expect(
+        result.budget.request({ tokens: 7 }, { context: CONTEXT }),
+      ).resolves.toMatchObject({
+        status: "denied",
+        reasons: [
+          {
+            code: "policy_ceiling",
+            policyName: "context_limit",
+            reason: "tier_limit",
+          },
+        ],
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("rejects the legacy request key and names invalid child Policies", async () => {
+    const { keynes, root } = await openGoverned(policySet(contextLimit));
+    try {
+      expect(() =>
+        Reflect.apply(root.request, undefined, [
+          { tokens: 1 },
+          { context: CONTEXT, policies: policySet(contextLimit) },
+        ]),
+      ).toThrowError(
+        expect.objectContaining({
+          code: "invalid_configuration",
+          details: { field: "policies", reason: "unsupported" },
+        }),
+      );
+      expect(() =>
+        Reflect.apply(root.request, undefined, [
+          { tokens: 1 },
+          { context: CONTEXT, childPolicies: {} },
+        ]),
+      ).toThrowError(
+        expect.objectContaining({
+          code: "invalid_configuration",
+          details: { field: "childPolicies", reason: "unsupported" },
+        }),
+      );
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("does not inherit parent Policies into an approved child", async () => {
     const { keynes, root } = await openGoverned(policySet(contextLimit));
     try {

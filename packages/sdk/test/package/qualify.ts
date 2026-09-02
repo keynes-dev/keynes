@@ -20,6 +20,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readPackageArchiveBytes } from "@keynes/testkit/archive";
+import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const installRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -28,32 +29,6 @@ const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
-
-const productionModules = [
-  "budget",
-  "command-executor",
-  "generated/client",
-  "generated/policy-profile",
-  "generated/policy-types",
-  "generated/types",
-  "generated/validators",
-  "index",
-  "keynes",
-  "local/resource-catalog",
-  "local/runtime",
-  "local/sqlite-command-executor",
-  "policy/authoring",
-  "policy/canonicalize",
-  "policy/compile",
-  "policy/decimal",
-  "policy/evaluate",
-  "policy/normalize",
-  "policy/parse",
-  "policy/validate",
-  "replay",
-  "resources",
-  "sdk-errors",
-] as const;
 
 const expectedProductionDependencies = {
   "@pgsql/types": "18.0.0",
@@ -82,7 +57,7 @@ const allowedPackageFiles = [
   "package/LICENSE",
   "package/README.md",
   "package/package.json",
-  ...productionModules.flatMap((path) => [
+  ...SDK_PRODUCTION_MODULES.flatMap((path) => [
     `package/dist/${path}.d.ts`,
     `package/dist/${path}.js`,
   ]),

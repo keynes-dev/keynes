@@ -1,8 +1,8 @@
 # Quickstart: Portable Policy evaluation
 
-This walkthrough creates one typed Resource schema, authors the same Policy
-through Kysely and raw SQL, and exercises an approval and a denial in local
-SQLite. It then shows the equivalent embedded PostgreSQL request boundary.
+This walkthrough creates one typed Resource schema, authors a Kysely Policy,
+and exercises an approval and a denial in local SQLite. It then covers child
+governance, authoring errors, raw-SQL equivalence, and embedded PostgreSQL.
 
 The source and PostgreSQL 18.6 system lanes implement this behavior. Final SDK
 and PostgreSQL archives, the hosted Node.js matrix, provider qualification, and
@@ -15,6 +15,7 @@ Import only the SDK package root:
 
 ```ts
 import {
+  PolicyValidationError,
   createKeynes,
   definePolicy,
   definePolicySql,
@@ -34,7 +35,7 @@ const declaration = {
   outputs: ["tokens"],
   context: {
     limit: policyValue.integer(),
-    segment: policyValue.text(),
+    customerTier: policyValue.text(),
   },
   reasons: ["tier_limit"],
 } as const;
@@ -57,36 +58,12 @@ const contextLimit = definePolicy(resources, {
         eb.val("tier_limit").as("reason"),
       ]),
 });
-
-const contextLimitFromSql = definePolicySql(resources, {
-  ...declaration,
-  sql: `
-    SELECT requested.resource AS resource,
-           least(available.amount, context.limit) AS ceiling,
-           'tier_limit' AS reason
-      FROM requested_resources AS requested
-      INNER JOIN available_resources AS available USING (resource)
-      CROSS JOIN policy_context AS context
-  `,
-});
-
-if (
-  contextLimit.canonicalSql !== contextLimitFromSql.canonicalSql ||
-  contextLimit.sourceDigest !== contextLimitFromSql.sourceDigest ||
-  contextLimit.definitionDigest !== contextLimitFromSql.definitionDigest
-) {
-  throw new Error("the Kysely and raw Policy definitions diverged");
-}
 ```
 
-`defineResources(...)`, both Policy definitions, and `policySet(...)` return
-deeply frozen values. Kysely catches ordinary table, column, context, and result
-shape mistakes. The parser and validator remain authoritative for both
-authoring paths. They accept only the published Policy query profile.
-
-The original SQL, comments, whitespace, Kysely tree, and parameter vector do
-not become Policy identity. Both paths produce one canonical SQL string, one
-normalized program, and the same source and definition digests.
+`defineResources(...)`, `definePolicy(...)`, and `policySet(...)` return deeply
+frozen values. Kysely catches ordinary table, column, context, and result-shape
+mistakes. The parser and validator remain authoritative and accept only the
+published Policy query profile.
 
 ## Govern local requests
 
@@ -102,7 +79,7 @@ const root = await keynes.createBudget(
   { policies: policySet(contextLimit) },
 );
 
-const context = { limit: 6, segment: "standard" } as const;
+const context = { limit: 6, customerTier: "standard" } as const;
 const approved = await root.request({ tokens: 4 }, { context });
 const denied = await root.request({ tokens: 7 }, { context });
 
@@ -113,7 +90,11 @@ if (denied.status !== "denied") {
   throw new Error("expected the second request to be denied");
 }
 
-console.log(approved.policyEvidence);
+const customerTier: string = approved.policyEvidence.context.customer_tier;
+const appliedReason: "tier_limit" | undefined =
+  approved.policyEvidence.policies[0]?.rows[0]?.reason;
+
+console.log(customerTier, appliedReason, approved.policyEvidence);
 console.log(denied.reasons);
 console.log(denied.policyEvidence);
 console.log(await root.inspect());
@@ -125,7 +106,7 @@ exact canonical definition.
 
 ```ts
 {
-  context: { limit: 6, segment: "standard" },
+  context: { customer_tier: "standard", limit: 6 },
   policies: [{
     name: "context_limit",
     revision: 1,
@@ -177,9 +158,85 @@ committed tokens. Its history contains `budget_created`, `request_approved`,
 and `request_denied` in that order. The denial creates no child and reserves no
 additional tokens.
 
-A child receives no Policies by inheritance. To govern an approved child, pass
-its complete set as `policies` in that request's options. Omitting the field and
-passing `policySet()` have the same canonical meaning.
+A child receives no Policies by inheritance.
+
+## Govern an approved child
+
+Pass the child's complete Policy set as `childPolicies` on the parent request:
+
+```ts
+const childResult = await root.request(
+  { tokens: 2 },
+  { context, childPolicies: policySet(contextLimit) },
+);
+
+if (childResult.status === "approved") {
+  await childResult.budget.request({ tokens: 1 }, { context });
+}
+```
+
+The parent evaluates `context` against its own Policies. `childPolicies` governs
+only the approved child. Omitting `childPolicies` and passing `policySet()` both
+create an ungoverned child.
+
+Evidence context keys use canonical snake case. The declared `customerTier`
+key appears in evidence as `customer_tier`; evidence reasons retain the
+Policy's declared reason union.
+
+## Handle authoring and runtime errors
+
+Authoring rejection is available as one public error type:
+
+```ts
+try {
+  definePolicySql(resources, {
+    ...declaration,
+    sql: "SELECT 1",
+  });
+} catch (error: unknown) {
+  if (error instanceof PolicyValidationError) {
+    console.error(error.path, error.rule);
+  } else {
+    throw error;
+  }
+}
+```
+
+`PolicyValidationError` reports declaration, parser, normalizer, and validator
+rejection. `KeynesSdkError` reports local configuration and lifecycle failures.
+`KeynesError` reports errors returned by the Budget authority. A Policy ceiling
+returns `status: "denied"`; it is not an exception. Errors thrown by an
+application's Kysely callback remain unchanged.
+
+## Compare raw SQL with Kysely
+
+Advanced callers may author the same Policy with restricted raw SQL:
+
+```ts
+const contextLimitFromSql = definePolicySql(resources, {
+  ...declaration,
+  sql: `
+    SELECT requested.resource AS resource,
+           least(available.amount, context.limit) AS ceiling,
+           'tier_limit' AS reason
+      FROM requested_resources AS requested
+      INNER JOIN available_resources AS available USING (resource)
+      CROSS JOIN policy_context AS context
+  `,
+});
+
+if (
+  contextLimit.canonicalSql !== contextLimitFromSql.canonicalSql ||
+  contextLimit.sourceDigest !== contextLimitFromSql.sourceDigest ||
+  contextLimit.definitionDigest !== contextLimitFromSql.definitionDigest
+) {
+  throw new Error("the Kysely and raw Policy definitions diverged");
+}
+```
+
+The original SQL, comments, whitespace, Kysely tree, and parameter vector do
+not become Policy identity. Both paths produce one canonical SQL string, one
+normalized program, and the same source and definition digests.
 
 ## Run without Policies
 

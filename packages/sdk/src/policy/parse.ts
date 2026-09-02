@@ -2,7 +2,8 @@ import { loadModule, parseSync, scanSync, type SelectStmt } from "libpg-query";
 
 import { POLICY_LIMITS } from "../generated/policy-profile.js";
 import type { PolicyScalarV1 } from "../generated/policy-types.js";
-import { fail, PolicyValidationError } from "./validate.js";
+import { PolicyValidationError } from "../sdk-errors.js";
+import { fail } from "./validate.js";
 
 await loadModule();
 

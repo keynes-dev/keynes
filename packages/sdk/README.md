@@ -92,6 +92,14 @@ const decision = await governed.request(
   { usdCents: 25 },
   { context: { limit: 20 } },
 );
+
+const governedChild = await governed.request(
+  { usdCents: 10 },
+  {
+    context: { limit: 20 },
+    childPolicies: policySet(limit),
+  },
+);
 ```
 
 The request is denied with a `policy_ceiling` reason and canonical Policy
@@ -100,8 +108,19 @@ stable error and change no Budget state. Exact replay returns the stored result
 without parsing or evaluating the Policy again.
 
 A child never inherits its parent's Policies. Pass a complete `policySet(...)`
-as the request option `policies` to govern that child. An ungoverned Budget
-rejects context instead of ignoring it.
+as `childPolicies` to govern that child. Omitting `childPolicies` and passing
+`policySet()` both create an ungoverned child. An ungoverned Budget rejects
+context instead of ignoring it.
+
+Evidence uses canonical snake-case context keys and preserves declared Policy
+reason types. For example, request context `riskClass` is recorded as
+`risk_class`.
+
+`PolicyValidationError` reports SDK authoring rejection through `path` and
+`rule`. `KeynesSdkError` reports local configuration or lifecycle failures.
+`KeynesError` reports errors returned by the Budget authority. A Policy ceiling
+is a normal `denied` result, not an exception. Errors thrown by an application's
+Kysely callback retain their original identity.
 
 See the [portable Policy quickstart](../../docs/features/0012-portable-policy-evaluation/quickstart.md)
 for Kysely and raw-SQL equivalence, approval and denial evidence, embedded
