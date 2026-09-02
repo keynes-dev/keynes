@@ -375,7 +375,16 @@ type RequestArguments<
   ChildNames extends string,
   ChildPolicies extends PolicySetInput | undefined,
 > = [Context] extends [NoPolicyContext]
-  ? AttachPolicyArguments<ChildNames, ChildPolicies>
+  ? [ChildPolicies] extends [undefined]
+    ? readonly []
+    : readonly [
+        {
+          readonly childPolicies: CompatiblePolicySet<
+            ChildNames,
+            ChildPolicies
+          >;
+        },
+      ]
   : [ChildPolicies] extends [undefined]
     ? readonly [{ readonly context: ExactObject<Context, SuppliedContext> }]
     : readonly [

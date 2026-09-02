@@ -374,6 +374,36 @@ describe("local governed Budget requests", () => {
     }
   });
 
+  it("attaches child Policies from an ungoverned Budget", async () => {
+    const keynes = await createKeynes({ resources });
+    try {
+      const root = await keynes.createBudget({ tokens: 10 });
+      const result = await root.request(
+        { tokens: 10 },
+        { childPolicies: policySet(contextLimit) },
+      );
+      expect(result.status).toBe("approved");
+      if (result.status !== "approved") {
+        throw new Error("expected ungoverned approval");
+      }
+
+      await expect(
+        result.budget.request({ tokens: 7 }, { context: CONTEXT }),
+      ).resolves.toMatchObject({
+        status: "denied",
+        reasons: [
+          {
+            code: "policy_ceiling",
+            policyName: "context_limit",
+            reason: "tier_limit",
+          },
+        ],
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("rejects the legacy request key and names invalid child Policies", async () => {
     const { keynes, root } = await openGoverned(policySet(contextLimit));
     try {
