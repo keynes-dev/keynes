@@ -165,6 +165,17 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)
+RETURNS numeric
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  RETURN value;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION keynes_internal.policy_assert_exact_keys(
   value jsonb,
   expected_keys text[],
@@ -806,7 +817,7 @@ function policyRendererExpression(kind: string): string {
     case "cross_join":
       return `'CROSS JOIN available_resources AS available'`;
     case "decimal_literal":
-      return `quote_literal(node->>'value') || '::numeric(38,18)'`;
+      return `'keynes_internal.policy_runtime_numeric(' || quote_literal(node->>'value') || '::numeric(38,18))'`;
     case "text_literal":
       return `quote_literal(node->>'value') || '::text COLLATE "C"'`;
     case "boolean_literal":
@@ -827,8 +838,8 @@ function policyRendererExpression(kind: string): string {
       return `'(' || ${child("operand")} || CASE node->>'operator' WHEN 'is_null' THEN ' IS NULL)' ELSE ' IS NOT NULL)' END`;
     case "boolean_binary":
       return `CASE node->>'operator'
-        WHEN 'and' THEN '(CASE ' || ${child("left")} || ' WHEN FALSE THEN FALSE WHEN TRUE THEN ' || ${child("right")} || ' ELSE ' || ${child("right")} || ' AND NULL END)'
-        WHEN 'or' THEN '(CASE ' || ${child("left")} || ' WHEN TRUE THEN TRUE WHEN FALSE THEN ' || ${child("right")} || ' ELSE ' || ${child("right")} || ' OR NULL END)'
+        WHEN 'and' THEN '(SELECT CASE lhs.value WHEN FALSE THEN FALSE ELSE (' || ${child("right")} || ' AND lhs.value) END FROM (VALUES (' || ${child("left")} || ')) AS lhs(value))'
+        WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || ${child("right")} || ' OR lhs.value) END FROM (VALUES (' || ${child("left")} || ')) AS lhs(value))'
       END`;
     case "boolean_not":
       return `'(NOT ' || ${child("operand")} || ')'`;
@@ -958,6 +969,7 @@ function policyFunctionSignatures(
     "canonical_policy_set(policies jsonb)",
     "policy_sum(input_values numeric[])",
     "policy_avg(input_values numeric[])",
+    "policy_runtime_numeric(value numeric)",
     "invalid_policy(issue_path text,issue_rule text)",
     "policy_assert_exact_keys(value jsonb,expected_keys text[],issue_path text)",
     "validate_policy_descriptor(value jsonb,descriptor jsonb,issue_path text)",
