@@ -64,6 +64,27 @@ declare const childPolicies: PolicySet<
   "workflow_risk_limit"
 >;
 
+const governedChildFromUngovernedResult = await root.request(
+  { usdCents: 10 },
+  { childPolicies },
+);
+if (governedChildFromUngovernedResult.status === "approved") {
+  expectType<
+    Budget<"usdCents", { readonly riskClass: string }, "workflow_risk_limit">
+  >(governedChildFromUngovernedResult.budget);
+  await governedChildFromUngovernedResult.budget.request(
+    { usdCents: 1 },
+    { context: { riskClass: "standard" } },
+  );
+}
+await root.request(
+  { usdCents: 10 },
+  // @ts-expect-error Request-time Policies must be named childPolicies.
+  {
+    policies: childPolicies,
+  },
+);
+
 const governed = await keynes.createBudget(
   { usdCents: 100 },
   { policies: governedPolicies },

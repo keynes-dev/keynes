@@ -158,6 +158,10 @@ describe("Policy authoring", () => {
 
   it.each([
     [{ name: "InvalidName" }, "/name", "canonical_identifier"],
+    [{ inputs: undefined }, "/inputs", "type"],
+    [{ outputs: null }, "/outputs", "type"],
+    [{ context: null }, "/context", "type"],
+    [{ reasons: {} }, "/reasons", "type"],
     [{ inputs: [] }, "/inputs", "limit"],
     [{ inputs: ["missingResource"] }, "/inputs/0", "resource_not_defined"],
     [
@@ -186,6 +190,31 @@ describe("Policy authoring", () => {
         rule,
       }),
     );
+  });
+
+  it("rejects malformed declarations before invoking the query callback", () => {
+    let invoked = false;
+    expect(() =>
+      Reflect.apply(definePolicy, undefined, [
+        resources,
+        {
+          ...declarations(7),
+          inputs: undefined,
+          query() {
+            invoked = true;
+            throw new Error("query callback must not run");
+          },
+        },
+      ]),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "PolicyValidationError",
+        code: "invalid_policy",
+        path: "/inputs",
+        rule: "type",
+      }),
+    );
+    expect(invoked).toBe(false);
   });
 
   it("preserves errors thrown by the adopter's query callback", () => {
