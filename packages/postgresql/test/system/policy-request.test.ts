@@ -74,10 +74,17 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       });
       const evidence = policyEvidence(policy, 5, "approved");
 
-      expect(request.result).toMatchObject({
-        kind: "approved",
-        childBudgetId: REQUEST_ID,
-        policyEvidence: evidence,
+      expect(request).toEqual({
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "approved",
+          commandId: REQUEST_ID,
+          parentBudgetId: ROOT_BUDGET_ID,
+          childBudgetId: REQUEST_ID,
+          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+          policyEvidence: evidence,
+        },
       });
 
       const read = await committed(fixture, "getBudget", {
@@ -110,24 +117,88 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       });
       const evidence = policyEvidence(policy, 5, "denied");
 
-      expect(request.result).toMatchObject({
-        kind: "denied",
-        reasons: [
-          {
-            code: "policy_ceiling",
-            resourceTypeId: MODEL_RESOURCE_ID,
-            requested: 6,
-            ceiling: 5,
-            policyName: policy.name,
-            policyRevision: policy.revision,
-            reason: "request_limit",
-          },
-        ],
-        policyEvidence: evidence,
+      expect(request).toEqual({
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "denied",
+          commandId: REQUEST_ID,
+          parentBudgetId: ROOT_BUDGET_ID,
+          reasons: [
+            {
+              code: "policy_ceiling",
+              resourceTypeId: MODEL_RESOURCE_ID,
+              requested: 6,
+              ceiling: 5,
+              policyName: policy.name,
+              policyRevision: policy.revision,
+              reason: "request_limit",
+            },
+          ],
+          policyEvidence: evidence,
+        },
       });
       await expectBudgetState(fixture.owner, REQUEST_ID, false);
       await expectRootHolding(fixture.owner, {
         committed: 0,
+        historyEntries: 2,
+      });
+    });
+
+    it("evaluates requested, availability, and Context through the installed request path", async () => {
+      fixture = await openPolicyFixture();
+      const policy = inputSensitivePolicy();
+      await seedGovernedRoot(fixture, policy);
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        context: { input_offset: 2 },
+      });
+      const evidence = policyEvidence(policy, 6, "approved", 2);
+
+      expect(request).toEqual({
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "approved",
+          commandId: REQUEST_ID,
+          parentBudgetId: ROOT_BUDGET_ID,
+          childBudgetId: REQUEST_ID,
+          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+          policyEvidence: evidence,
+        },
+      });
+    });
+
+    it("uses available Resources when they are the Policy ceiling", async () => {
+      fixture = await openPolicyFixture();
+      const policy = inputSensitivePolicy();
+      await seedGovernedRoot(fixture, policy, 5);
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        context: { input_offset: 2 },
+      });
+      const evidence = policyEvidence(policy, 5, "approved", 2);
+
+      expect(request).toEqual({
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "approved",
+          commandId: REQUEST_ID,
+          parentBudgetId: ROOT_BUDGET_ID,
+          childBudgetId: REQUEST_ID,
+          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+          policyEvidence: evidence,
+        },
+      });
+      await expectRootHolding(fixture.owner, {
+        committed: 4,
         historyEntries: 2,
       });
     });
@@ -559,6 +630,7 @@ async function openPolicyFixture(): Promise<PolicyFixture> {
 async function seedGovernedRoot(
   fixture: PolicyFixture,
   policy: PolicyDefinitionV1 | readonly PolicyDefinitionV1[],
+  initialModelTokens = 100,
 ): Promise<void> {
   await definePolicyResources(fixture);
   requireSuccess(
@@ -566,7 +638,7 @@ async function seedGovernedRoot(
       commandId: ROOT_BUDGET_ID,
       resources: [
         { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
-        { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
+        { resourceTypeId: MODEL_RESOURCE_ID, amount: initialModelTokens },
       ],
       policies: Array.isArray(policy) ? policy : [policy],
     }),
@@ -634,13 +706,13 @@ function call(
 }
 
 function requireSuccess(value: unknown): SuccessfulWire {
+  if (!isRecord(value) || value.ok !== true) {
+    throw new Error(
+      `expected successful wire response, received ${JSON.stringify(value)}`,
+    );
+  }
   expect(value).toMatchObject({ ok: true, replayed: expect.any(Boolean) });
-  if (
-    !isRecord(value) ||
-    value.ok !== true ||
-    !isRecord(value.result) ||
-    typeof value.replayed !== "boolean"
-  ) {
+  if (!isRecord(value.result) || typeof value.replayed !== "boolean") {
     throw new Error(
       `expected successful wire response, received ${JSON.stringify(value)}`,
     );
@@ -735,6 +807,93 @@ function requestLimitPolicy(
   return { ...document, definitionDigest: digestCanonicalJson(document) };
 }
 
+function inputSensitivePolicy(): PolicyDefinitionV1 {
+  const requestedAmount = {
+    kind: "reference",
+    source: "requested",
+    field: "amount",
+    valueType: "numeric",
+    nullable: false,
+  } satisfies PolicyProgramV1["ceiling"];
+  const program = {
+    kind: "select",
+    availabilityJoin: { kind: "inner_join" },
+    resource: {
+      kind: "reference",
+      source: "requested",
+      field: "resource",
+      valueType: "text",
+      nullable: false,
+    },
+    ceiling: {
+      kind: "variadic",
+      function: "least",
+      arguments: [
+        {
+          kind: "binary_numeric",
+          operator: "+",
+          left: requestedAmount,
+          right: {
+            kind: "reference",
+            source: "context",
+            field: "input_offset",
+            valueType: "numeric",
+            nullable: false,
+          },
+          valueType: "numeric",
+          nullable: false,
+        },
+        {
+          kind: "reference",
+          source: "available",
+          field: "amount",
+          valueType: "numeric",
+          nullable: false,
+        },
+      ],
+      valueType: "numeric",
+      nullable: false,
+    },
+    reason: {
+      kind: "text_literal",
+      value: "input_sensitive_limit",
+      valueType: "text",
+      nullable: false,
+    },
+    where: null,
+    groupBy: [],
+    orderBy: ["resource", "reason", "ceiling"],
+  } satisfies PolicyProgramV1;
+  const canonicalSql = [
+    "select requested.resource as resource,",
+    "       least(requested.amount + context.input_offset, available.amount) as ceiling,",
+    "       'input_sensitive_limit' as reason",
+    "from requested_resources as requested",
+    "inner join available_resources as available using (resource)",
+    "cross join policy_context as context",
+    "order by resource asc, reason asc, ceiling asc",
+    "",
+  ].join("\n");
+  const document = {
+    kind: "keynes.policy",
+    name: "input_sensitive_limit",
+    revision: 1,
+    inputResources: ["model_tokens"],
+    outputResources: ["model_tokens"],
+    contextSchema: [{ name: "input_offset", type: "integer", nullable: false }],
+    reasons: ["input_sensitive_limit"],
+    programVersion: POLICY_PROGRAM_VERSION,
+    queryProfileVersion: POLICY_QUERY_PROFILE_VERSION,
+    validatorVersion: POLICY_VALIDATOR_VERSION,
+    limitsVersion: POLICY_LIMITS_VERSION,
+    policyProfileDigest: POLICY_PROFILE_DIGEST,
+    program,
+    canonicalSql,
+    sourceDigest: digestText(canonicalSql),
+  } satisfies Omit<PolicyDefinitionV1, "definitionDigest">;
+  return { ...document, definitionDigest: digestCanonicalJson(document) };
+}
+
 function resealDeclarations(
   policy: PolicyDefinitionV1,
   inputResources: PolicyDefinitionV1["inputResources"],
@@ -752,12 +911,13 @@ function policyEvidence(
   policy: PolicyDefinitionV1,
   ceiling: number,
   decision: "approved" | "denied",
+  contextValue = ceiling,
 ) {
   const contextField = policy.contextSchema[0]?.name;
   if (contextField === undefined)
     throw new Error("Policy fixture lacks context");
   return {
-    context: { [contextField]: ceiling },
+    context: { [contextField]: contextValue },
     policies: [
       {
         name: policy.name,

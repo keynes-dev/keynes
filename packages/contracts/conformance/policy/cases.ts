@@ -17,7 +17,6 @@ const canonicalVectorCases: readonly PolicyConformanceCase[] = Object.entries(
   vectors.map((vector) => ({
     name: `canonical vector: ${kind}: ${vector.name}`,
     category: "canonical_vector" as const,
-    input: vector.input,
     expected: vector.expected,
   })),
 );

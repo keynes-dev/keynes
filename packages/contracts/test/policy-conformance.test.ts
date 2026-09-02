@@ -6,7 +6,7 @@ import {
 } from "../conformance/policy/cases.ts";
 
 describe("Policy conformance corpus", () => {
-  it("contains at least 50 unique named cases across every required category", () => {
+  it("contains executable fixtures for every declared Policy category", () => {
     expect(POLICY_CONFORMANCE_CASES.length).toBeGreaterThanOrEqual(50);
     expect(new Set(POLICY_CONFORMANCE_CASES.map(({ name }) => name)).size).toBe(
       POLICY_CONFORMANCE_CASES.length,
@@ -30,12 +30,15 @@ describe("Policy conformance corpus", () => {
     );
   });
 
-  it("runs at least 50 programs through both portable runtimes", () => {
+  it("contains at least 50 unique programs executed by both portable runtimes", () => {
     expect(POLICY_RUNTIME_CONFORMANCE_CASES.length).toBeGreaterThanOrEqual(50);
+    expect(
+      new Set(POLICY_RUNTIME_CONFORMANCE_CASES.map(({ name }) => name)).size,
+    ).toBe(POLICY_RUNTIME_CONFORMANCE_CASES.length);
     expect(
       new Set(POLICY_RUNTIME_CONFORMANCE_CASES.map(({ category }) => category)),
     ).toEqual(
-      new Set(["property", "numeric", "null", "ordering", "aggregation"]),
+      new Set(["numeric", "null", "ordering", "aggregation", "property"]),
     );
   });
 });

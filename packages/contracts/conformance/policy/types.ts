@@ -22,8 +22,14 @@ export interface PolicyConformanceCase {
   readonly category: PolicyConformanceCategory;
   readonly source?: string;
   readonly parameters?: readonly (string | boolean | number | null)[];
-  readonly input?: unknown;
+  readonly evaluationInput?: PolicySourceConformanceInput;
   readonly expected: unknown;
+}
+
+export interface PolicySourceConformanceInput {
+  readonly requested: readonly PolicyResourceValue[];
+  readonly available: readonly PolicyResourceValue[];
+  readonly context: Readonly<PolicyContextV1>;
 }
 
 export interface PolicyRuntimeConformanceCase {
@@ -47,7 +53,7 @@ export interface PolicyRuntimeConformanceCase {
     | { readonly error: "arithmetic_overflow" };
 }
 
-interface PolicyResourceValue {
+export interface PolicyResourceValue {
   readonly resource: string;
   readonly amount: number;
 }

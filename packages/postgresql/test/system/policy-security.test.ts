@@ -516,18 +516,23 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       await second.rollback();
     });
 
-    it("rejects invalid generated result rows with stable sanitized details and no mutation", async () => {
+    it("rejects an emitted requested input Resource outside outputResources", async () => {
       fixture = await openFixture();
-      const program = {
-        ...baseProgram(),
-        resource: textLiteral("undeclared_resource"),
-      } satisfies PolicyProgramV1;
-      await seedGovernedRoot(
-        fixture,
-        resealPolicy(basePolicy(), program, {
-          canonicalSql: canonicalPolicySql(program),
-        }),
-      );
+      await defineResource(fixture);
+      await defineSecondResource(fixture);
+      const policy = resealPolicy(basePolicy(), baseProgram(), {
+        inputResources: ["model_tokens", "search_queries"],
+        outputResources: ["search_queries"],
+      });
+      const created = await committedCall(fixture, "createBudget", {
+        commandId: ROOT_ID,
+        resources: [
+          { resourceTypeId: RESOURCE_ID, amount: 100 },
+          { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
+        ],
+        policies: [policy],
+      });
+      expect(created).toMatchObject({ ok: true });
 
       const wire = await committedCall(fixture, "requestBudget", {
         commandId: requestId(2),
@@ -538,7 +543,6 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
 
       expectPolicyFailure(wire, "invalid_result");
       await expectRequestAbsent(fixture.owner, requestId(2));
-      expect(JSON.stringify(wire)).not.toContain("undeclared_resource");
     });
 
     it("maps generated-query failure to stable sanitized details and rolls back", async () => {
@@ -716,7 +720,10 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           ok: false,
           error: {
             code: "invalid_policy",
-            details: { rule: expect.any(String) },
+            details: {
+              path: "$.policies[0].contextSchema",
+              rule: "artifact",
+            },
           },
         });
         await expectNoCommandOrBudget(fixture.owner, ROOT_ID);

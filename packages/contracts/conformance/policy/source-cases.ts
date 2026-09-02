@@ -88,22 +88,16 @@ export const evaluationCases = [
     2,
   ),
   evaluation(
-    "null false and null",
+    "null coalesce availability",
     "null",
-    "1",
-    1,
-    "false AND NULL",
-    undefined,
-    false,
+    "coalesce(available.amount, 1)",
+    100,
   ),
   evaluation(
-    "null true or null",
+    "null coalesce request",
     "null",
-    "1",
+    "coalesce(requested.amount, 1)",
     1,
-    "true OR NULL",
-    undefined,
-    true,
   ),
   evaluation("canonical result ordering", "ordering", "requested.amount", 1),
   evaluation(
@@ -127,43 +121,54 @@ export const evaluationCases = [
 export const mutationCases = [
   rejected(
     "mutation multiple statements",
+    "mutation",
     "SELECT 1; SELECT 2",
-    "statement_count",
+    "count",
   ),
   rejected(
     "mutation insert statement",
+    "mutation",
     "INSERT INTO requested_resources DEFAULT VALUES",
-    "statement",
+    "select",
   ),
   rejected(
     "mutation wildcard projection",
+    "mutation",
     "SELECT * FROM requested_resources",
-    "projection",
+    "columns",
   ),
   rejected(
     "mutation schema-qualified relation",
-    "SELECT * FROM public.requested_resources",
+    "mutation",
+    selectSource("requested.amount", "'test_limit'").replace(
+      "requested_resources AS requested",
+      "public.requested_resources AS requested",
+    ),
     "relation",
   ),
   rejected(
     "mutation quoted identifier",
+    "mutation",
     'SELECT "requested"."resource" FROM requested_resources requested',
-    "identifier",
+    "quoted_identifier",
   ),
   rejected(
     "mutation unknown function",
+    "mutation",
     selectSource("random()", "'random_limit'"),
     "function",
   ),
   rejected(
     "limit clause is outside v1",
-    `${selectSource("1", "'row_limit'")} LIMIT 1`,
     "limit",
+    `${selectSource("1", "'row_limit'")} LIMIT 1`,
+    "shape",
   ),
   rejected(
     "mutation unbound parameter",
+    "mutation",
     selectSource("$1", "'parameter_limit'"),
-    "parameter",
+    "parameter_missing",
   ),
 ] as const satisfies readonly PolicyConformanceCase[];
 
@@ -196,7 +201,7 @@ function evaluation(
     name,
     category,
     source: selectSource(ceiling, "'test_limit'", { where, groupBy }),
-    input: {
+    evaluationInput: {
       requested: [{ resource: "model_tokens", amount: 1 }],
       available: [{ resource: "model_tokens", amount: 100 }],
       context: {},
@@ -218,12 +223,13 @@ function evaluation(
 
 function rejected(
   name: string,
+  category: "limit" | "mutation",
   source: string,
   rule: string,
 ): PolicyConformanceCase {
   return {
     name,
-    category: rule === "limit" ? "limit" : "mutation",
+    category,
     source,
     expected: { outcome: "invalid_policy", rule },
   };

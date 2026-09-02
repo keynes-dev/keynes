@@ -271,6 +271,12 @@
 - Records are retained at `.artifacts/package-tests/sdk/final-ea621cc.json`, `.artifacts/package-tests/sdk/measurement-final-ea621cc.json`, `.artifacts/package-tests/postgresql/final-ea621cc.json`, `.artifacts/system-tests/postgresql/final-ea621cc.json`, and `.artifacts/system-tests/cloud/final-ea621cc.json`. The durable summary is `evidence/policy-acceptance.json`.
 - The hosted six-environment SDK workflow is **NOT RUN** because this branch has not been pushed and no workflow dispatch was authorized. Public ingress, external identity, remote Policy, self-hosted operations, managed Cloud, other PostgreSQL versions, managed providers, hostile-role security qualification, recovery, backup/restore, failover, upgrades/downgrades, rolling deployment, paid infrastructure, registry publication, adopter use, benchmarks, fault campaigns, extension packaging, live exposure, and production readiness remain **NOT RUN**.
 
+### PR #20 review remediation (2026-09-02, Node.js 26.5.0, pnpm 11.21.0)
+
+- P1: `POLICY_CONFORMANCE_CASES` now has a category-and-uniqueness gate. Its source fixtures execute through `definePolicySql`, compare equivalent canonical SQL, reject with their exact public rules, and evaluate every declared row expectation. Generated canonical vectors and the 67-program shared runtime corpus retain their existing local and installed-PostgreSQL owners.
+- P2: the local and PostgreSQL governed-request scenarios now start with 5 available model tokens, request 4 with a computed limit of 6, and assert the effective ceiling remains 5. The PostgreSQL required-scenario inventory includes the exact new title.
+- `CI=true pnpm check:repo` and `CI=true pnpm test:unit` passed (347 unit tests). Focused contracts and SDK tests passed 25 tests. `CI=true pnpm test:pr` and `CI=true pnpm test:system:postgresql` are **NOT RUN** for qualification: their repository-wide Vitest processes discovered unrelated ignored `.claude/worktrees` checkouts, where stale dependencies caused duplicate-suite failures. No native or PR-suite result is claimed for this revision.
+
 ---
 
 ## Dependencies and execution order
