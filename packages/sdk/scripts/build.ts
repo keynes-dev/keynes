@@ -7,6 +7,8 @@ const sdkRoot = fileURLToPath(new URL("..", import.meta.url));
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 const productionFiles = [
+  "budget-projection",
+  "budget-request-options",
   "budget",
   "command-executor",
   "generated/client",
@@ -24,6 +26,7 @@ const productionFiles = [
   "policy/compile",
   "policy/decimal",
   "policy/evaluate",
+  "policy/normalize-expression",
   "policy/normalize",
   "policy/parse",
   "policy/validate",

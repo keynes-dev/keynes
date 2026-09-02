@@ -30,6 +30,8 @@ export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
 const productionModules = [
+  "budget-projection",
+  "budget-request-options",
   "budget",
   "command-executor",
   "generated/client",
@@ -47,6 +49,7 @@ const productionModules = [
   "policy/compile",
   "policy/decimal",
   "policy/evaluate",
+  "policy/normalize-expression",
   "policy/normalize",
   "policy/parse",
   "policy/validate",
