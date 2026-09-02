@@ -14,6 +14,7 @@ import type {
   ReferenceNodeV1,
 } from "../generated/policy-types.js";
 import type { PolicyParseCandidate } from "./parse.js";
+import { PolicyValidationError } from "../sdk-errors.js";
 
 const CANONICAL_IDENTIFIER = /^[a-z][a-z0-9_]{0,62}$/;
 const DECIMAL_TEXT = /^-?(?:0|[1-9][0-9]{0,19})(?:\.[0-9]{1,18})?$/;
@@ -36,19 +37,6 @@ export interface TypedPolicyExpression {
   readonly valueType: PolicyValueType;
   readonly nullable: boolean;
   readonly containsAggregate: boolean;
-}
-
-export class PolicyValidationError extends Error {
-  readonly code = "invalid_policy";
-  readonly path: string;
-  readonly rule: string;
-
-  constructor(path: string, rule: string) {
-    super(`invalid Policy at ${path}: ${rule}`);
-    this.name = "PolicyValidationError";
-    this.path = path;
-    this.rule = rule;
-  }
 }
 
 export class PolicyValidationContext {

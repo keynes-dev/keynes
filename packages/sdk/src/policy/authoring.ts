@@ -4,9 +4,14 @@ import type {
   PolicyScalarV1,
 } from "../generated/policy-types.js";
 import type { Compilable } from "kysely";
-import type { PolicyDefinition, PolicySet } from "../budget.js";
+import type {
+  NoPolicyContext,
+  PolicyDefinition,
+  PolicySet,
+} from "../budget.js";
 import type { ResourceDefinitions, ResourceSchema } from "../resources.js";
 import { canonicalResourceName, resourceInstallation } from "../resources.js";
+import { KeynesSdkError, PolicyValidationError } from "../sdk-errors.js";
 import {
   canonicalPolicyDefinition,
   deepFreeze,
@@ -116,6 +121,17 @@ export function definePolicySql<
   return brandPolicyDefinition(canonicalPolicyDefinition(declaration, program));
 }
 
+export function policySet(): PolicySet<never, NoPolicyContext, never>;
+export function policySet<
+  Names extends string,
+  Context,
+  Reasons extends string,
+>(
+  ...definitions: readonly [
+    PolicyDefinition<Names, Context, Reasons>,
+    ...PolicyDefinition<Names, Context, Reasons>[],
+  ]
+): PolicySet<Names, Context, Reasons>;
 export function policySet<
   Names extends string,
   Context,
@@ -131,26 +147,25 @@ export function policySet<
     });
   }
   if (definitions.length > 16) {
-    throw new TypeError("A Policy set may contain at most 16 definitions");
+    invalidPolicy("/definitions", "limit");
   }
   const ordered = [...definitions].sort(comparePolicies);
   const [first] = ordered;
   if (first === undefined) throw new Error("Expected a non-empty Policy set");
-  const duplicate = ordered.find(
+  const duplicateIndex = ordered.findIndex(
     (definition, index) =>
       index > 0 && definition.name === ordered[index - 1]?.name,
   );
-  if (duplicate !== undefined) {
-    throw new TypeError(`Policy set contains duplicate name ${duplicate.name}`);
+  if (duplicateIndex !== -1) {
+    invalidPolicy(`/definitions/${duplicateIndex}/name`, "duplicate");
   }
   const contextSchemaDigest = digestCanonicalJson(first.contextSchema);
-  if (
-    ordered.some(
-      (definition) =>
-        digestCanonicalJson(definition.contextSchema) !== contextSchemaDigest,
-    )
-  ) {
-    throw new TypeError("Every Policy in a set must use one context schema");
+  const mismatchIndex = ordered.findIndex(
+    (definition) =>
+      digestCanonicalJson(definition.contextSchema) !== contextSchemaDigest,
+  );
+  if (mismatchIndex !== -1) {
+    invalidPolicy(`/definitions/${mismatchIndex}/contextSchema`, "mismatch");
   }
   return deepFreeze({
     definitions: [first, ...ordered.slice(1)],
@@ -172,9 +187,9 @@ function prepareDeclaration<
   readonly name: string;
   readonly revision: number;
 } {
-  requireIdentifier(definition.name, "Policy name");
+  requireIdentifier(definition.name, "/name");
   if (!Number.isSafeInteger(definition.revision) || definition.revision < 1) {
-    throw new TypeError("Policy revision must be a positive safe integer");
+    invalidPolicy("/revision", "positive_safe_integer");
   }
 
   const canonicalByKey = new Map(
@@ -194,8 +209,11 @@ function prepareDeclaration<
     "outputs",
   );
   const inputs = new Set(inputResources);
-  if (outputResources.some((resource) => !inputs.has(resource))) {
-    throw new TypeError("Policy outputs must be a subset of its inputs");
+  const invalidOutputIndex = outputResources.findIndex(
+    (resource) => !inputs.has(resource),
+  );
+  if (invalidOutputIndex !== -1) {
+    invalidPolicy(`/outputs/${invalidOutputIndex}`, "not_input_resource");
   }
 
   const contextSchema = prepareContextSchema(definition.context);
@@ -213,21 +231,19 @@ function prepareDeclaration<
 function canonicalResources(
   keys: readonly string[],
   canonicalByKey: ReadonlyMap<string, string>,
-  field: string,
+  field: "inputs" | "outputs",
 ): readonly string[] {
   if (keys.length === 0 || keys.length > 64) {
-    throw new TypeError(`Policy ${field} must contain 1 through 64 Resources`);
+    invalidPolicy(`/${field}`, "limit");
   }
-  const canonical = keys.map((key) => {
+  const canonical = keys.map((key, index) => {
     const value = canonicalByKey.get(key);
     if (value === undefined) {
-      throw new TypeError(
-        `Policy ${field} contains undeclared Resource ${key}`,
-      );
+      invalidPolicy(`/${field}/${index}`, "resource_not_defined");
     }
     return value;
   });
-  requireUnique(canonical, `Policy ${field}`);
+  requireUnique(canonical, `/${field}`);
   return canonical.sort(compareStrings);
 }
 
@@ -236,46 +252,65 @@ function prepareContextSchema(
 ): readonly PolicyContextFieldV1[] {
   const entries = Object.entries(schema);
   if (entries.length > 32) {
-    throw new TypeError("Policy context may contain at most 32 fields");
+    invalidPolicy("/context", "limit");
   }
   const fields = entries.map(([key, descriptor]) => {
-    const name = canonicalResourceName(key);
+    const path = `/context/${key}`;
+    const name = canonicalContextName(key, path);
     if (!isPolicyValueDescriptor(descriptor)) {
-      throw new TypeError(
-        `Policy context field ${key} has an invalid descriptor`,
-      );
+      invalidPolicy(path, "descriptor");
     }
     return { name, type: descriptor.type, nullable: descriptor.nullable };
   });
   requireUnique(
     fields.map(({ name }) => name),
-    "Policy context",
+    "/context",
   );
   return fields.sort((left, right) => compareStrings(left.name, right.name));
 }
 
 function canonicalIdentifiers(
   values: readonly string[],
-  field: string,
+  field: "reasons",
 ): readonly string[] {
   if (values.length === 0 || values.length > 64) {
-    throw new TypeError(`Policy ${field} must contain 1 through 64 values`);
+    invalidPolicy(`/${field}`, "limit");
   }
-  for (const value of values) requireIdentifier(value, `Policy ${field}`);
-  requireUnique(values, `Policy ${field}`);
+  values.forEach((value, index) =>
+    requireIdentifier(value, `/${field}/${index}`),
+  );
+  requireUnique(values, `/${field}`);
   return [...values].sort(compareStrings);
 }
 
-function requireIdentifier(value: string, field: string): void {
+function requireIdentifier(value: string, path: string): void {
   if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) {
-    throw new TypeError(`${field} must be a canonical identifier`);
+    invalidPolicy(path, "canonical_identifier");
   }
 }
 
-function requireUnique(values: readonly string[], field: string): void {
+function requireUnique(values: readonly string[], path: string): void {
   if (new Set(values).size !== values.length) {
-    throw new TypeError(`${field} must not contain duplicates`);
+    invalidPolicy(path, "duplicate");
   }
+}
+
+function canonicalContextName(key: string, path: string): string {
+  try {
+    return canonicalResourceName(key);
+  } catch (error: unknown) {
+    if (
+      error instanceof KeynesSdkError &&
+      error.code === "invalid_resource_name"
+    ) {
+      invalidPolicy(path, "canonical_identifier");
+    }
+    throw error;
+  }
+}
+
+function invalidPolicy(path: string, rule: string): never {
+  throw new PolicyValidationError(path, rule);
 }
 
 function isPolicyValueDescriptor(

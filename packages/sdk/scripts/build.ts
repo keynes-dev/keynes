@@ -3,41 +3,15 @@ import { access, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { SDK_PRODUCTION_MODULES } from "./production-modules.ts";
+
 const sdkRoot = fileURLToPath(new URL("..", import.meta.url));
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
-const productionFiles = [
-  "budget-projection",
-  "budget-request-options",
-  "budget",
-  "command-executor",
-  "generated/client",
-  "generated/policy-profile",
-  "generated/policy-types",
-  "generated/types",
-  "generated/validators",
-  "index",
-  "keynes",
-  "local/resource-catalog",
-  "local/runtime",
-  "local/sqlite-command-executor",
-  "policy/authoring",
-  "policy/canonicalize",
-  "policy/compile",
-  "policy/decimal",
-  "policy/evaluate",
-  "policy/normalize-expression",
-  "policy/normalize",
-  "policy/parse",
-  "policy/validate",
-  "replay",
-  "resources",
-  "sdk-errors",
-] as const;
-
-const expectedFiles = productionFiles
-  .flatMap((path) => [`${path}.d.ts`, `${path}.js`])
-  .sort();
+const expectedFiles = SDK_PRODUCTION_MODULES.flatMap((path) => [
+  `${path}.d.ts`,
+  `${path}.js`,
+]).sort();
 
 interface BuildSdkOptions {
   readonly root?: string;
@@ -60,12 +34,16 @@ export async function buildSdk(options: BuildSdkOptions = {}): Promise<void> {
 
 export async function validateDistribution(root: string): Promise<void> {
   const actual = await listFiles(root);
-  if (
-    actual.length !== expectedFiles.length ||
-    actual.some((path, index) => path !== expectedFiles[index])
-  ) {
+  const missing = expectedFiles.filter((path) => !actual.includes(path));
+  if (missing.length > 0) {
     throw new Error(
-      `Unexpected SDK distribution:\n${actual.map((path) => `- ${path}`).join("\n")}`,
+      `SDK distribution is missing required files:\n${missing.map((path) => `- ${path}`).join("\n")}`,
+    );
+  }
+  const unexpected = actual.filter((path) => !expectedFiles.includes(path));
+  if (unexpected.length > 0) {
+    throw new Error(
+      `Unexpected SDK distribution files:\n${unexpected.map((path) => `- ${path}`).join("\n")}`,
     );
   }
 }

@@ -4,7 +4,10 @@ import type {
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
-import type { PolicyDefinitionV1 } from "./generated/policy-types.js";
+import type {
+  PolicyDefinitionV1,
+  PolicyScalarV1,
+} from "./generated/policy-types.js";
 import { admit, invokeMutation, type LocalRuntime } from "./local/runtime.js";
 import {
   compareDenialReasons,
@@ -92,8 +95,28 @@ export type BudgetRequestDenialReason<
   | BudgetRequestAvailabilityReason<Name>
   | BudgetRequestPolicyReason<Name, Reason>;
 
-export interface PolicyEvidence<Name extends string = string> {
-  readonly context: Readonly<Record<string, string | boolean | number | null>>;
+type CanonicalContextKey<Value extends string> =
+  Value extends `${infer Head}${infer Tail}`
+    ? Head extends Lowercase<Head>
+      ? `${Head}${CanonicalContextKey<Tail>}`
+      : `_${Lowercase<Head>}${CanonicalContextKey<Tail>}`
+    : Value;
+
+export type CanonicalPolicyContext<Context> =
+  string extends Extract<keyof Context, string>
+    ? Readonly<Record<string, PolicyScalarV1>>
+    : Readonly<{
+        [
+          Key in Extract<keyof Context, string> as CanonicalContextKey<Key>
+        ]: Context[Key];
+      }>;
+
+export interface PolicyEvidence<
+  Name extends string = string,
+  Context = Readonly<Record<string, PolicyScalarV1>>,
+  Reason extends string = string,
+> {
+  readonly context: CanonicalPolicyContext<Context>;
   readonly policies: readonly {
     readonly name: string;
     readonly revision: number;
@@ -102,7 +125,7 @@ export interface PolicyEvidence<Name extends string = string> {
     readonly rows: readonly {
       readonly resource: Name;
       readonly ceiling: number;
-      readonly reason: string;
+      readonly reason: Reason;
     }[];
   }[];
   readonly effectiveCeilings: readonly {
@@ -111,7 +134,7 @@ export interface PolicyEvidence<Name extends string = string> {
     readonly reasons: readonly {
       readonly policyName: string;
       readonly policyRevision: number;
-      readonly reason: string;
+      readonly reason: Reason;
     }[];
   }[];
   readonly decision: "approved" | "denied";
@@ -122,6 +145,7 @@ export type BudgetRequestResult<
   Reasons extends string = never,
   ChildContext = NoPolicyContext,
   ChildReasons extends string = never,
+  ParentContext = Readonly<Record<string, PolicyScalarV1>>,
 > = [Reasons] extends [never]
   ?
       | {
@@ -139,7 +163,11 @@ export type BudgetRequestResult<
       | {
           readonly status: "approved";
           readonly budget: Budget<Names, ChildContext, ChildReasons>;
-          readonly policyEvidence: PolicyEvidence<Names>;
+          readonly policyEvidence: PolicyEvidence<
+            Names,
+            ParentContext,
+            Reasons
+          >;
         }
       | {
           readonly status: "denied";
@@ -147,14 +175,20 @@ export type BudgetRequestResult<
             Names,
             Reasons
           >[];
-          readonly policyEvidence: PolicyEvidence<Names>;
+          readonly policyEvidence: PolicyEvidence<
+            Names,
+            ParentContext,
+            Reasons
+          >;
         };
 
-type PolicyEvidenceField<Names extends string, Reasons extends string> = [
-  Reasons,
-] extends [never]
+type PolicyEvidenceField<
+  Names extends string,
+  Reasons extends string,
+  Context,
+> = [Reasons] extends [never]
   ? object
-  : { readonly policyEvidence: PolicyEvidence<Names> };
+  : { readonly policyEvidence: PolicyEvidence<Names, Context, Reasons> };
 
 export interface BudgetResourceSnapshot<Name extends string = string> {
   readonly resource: Name;
@@ -183,6 +217,7 @@ export interface NamedResourceAmount<Name extends string = string> {
 export type BudgetHistoryEntry<
   Names extends string = string,
   Reasons extends string = never,
+  Context = Readonly<Record<string, PolicyScalarV1>>,
 > =
   | {
       readonly kind: "budget_created";
@@ -193,12 +228,12 @@ export type BudgetHistoryEntry<
       readonly kind: "request_approved";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
-    } & PolicyEvidenceField<Names, Reasons>)
+    } & PolicyEvidenceField<Names, Reasons, Context>)
   | ({
       readonly kind: "request_denied";
       readonly sequence: number;
       readonly reasons: readonly BudgetRequestDenialReason<Names, Reasons>[];
-    } & PolicyEvidenceField<Names, Reasons>)
+    } & PolicyEvidenceField<Names, Reasons, Context>)
   | {
       readonly kind: "budget_settlement_recorded";
       readonly sequence: number;
@@ -211,10 +246,11 @@ export type BudgetHistoryEntry<
 export interface BudgetSnapshot<
   Names extends string = string,
   Reasons extends string = never,
+  Context = Readonly<Record<string, PolicyScalarV1>>,
 > {
   readonly budget: BudgetState<Names>;
   readonly history: {
-    readonly entries: readonly BudgetHistoryEntry<Names, Reasons>[];
+    readonly entries: readonly BudgetHistoryEntry<Names, Reasons, Context>[];
   };
 }
 
@@ -253,13 +289,14 @@ export interface Budget<
       Extract<keyof Resources, Names>,
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>
+      ReasonsOfPolicySet<ChildPolicies>,
+      Context
     >
   >;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
-  readonly inspect: () => Promise<BudgetSnapshot<Names, Reasons>>;
+  readonly inspect: () => Promise<BudgetSnapshot<Names, Reasons, Context>>;
 }
 
 export type ExactResourceAmounts<
@@ -344,7 +381,10 @@ type RequestArguments<
     : readonly [
         {
           readonly context: ExactObject<Context, SuppliedContext>;
-          readonly policies: CompatiblePolicySet<ChildNames, ChildPolicies>;
+          readonly childPolicies: CompatiblePolicySet<
+            ChildNames,
+            ChildPolicies
+          >;
         },
       ];
 
@@ -371,12 +411,12 @@ export function createBudgetHandle<
       return projectSettlement<Names>(runtime, result);
     });
 
-  const inspect = (): Promise<BudgetSnapshot<Names, Reasons>> =>
+  const inspect = (): Promise<BudgetSnapshot<Names, Reasons, Context>> =>
     admit(runtime, async () => {
       const result = await invokeBudgetOperation(runtime, () =>
         runtime.client.getBudget({ budgetId }),
       );
-      return projectSnapshot<Names, Reasons>(runtime, result);
+      return projectSnapshot<Names, Reasons, Context>(runtime, result);
     });
 
   const handle = Object.freeze({
@@ -409,7 +449,8 @@ function requestBudget<
     Extract<keyof Resources, Names>,
     Reasons,
     ContextOfPolicySet<ChildPolicies>,
-    ReasonsOfPolicySet<ChildPolicies>
+    ReasonsOfPolicySet<ChildPolicies>,
+    Context
   >
 > {
   type RequestedName = Extract<keyof Resources, Names>;
@@ -439,10 +480,11 @@ function requestBudget<
         ...(result.policyEvidence === undefined
           ? {}
           : {
-              policyEvidence: projectPolicyEvidence<RequestedName>(
-                runtime,
-                result.policyEvidence,
-              ),
+              policyEvidence: projectPolicyEvidence<
+                RequestedName,
+                Context,
+                Reasons
+              >(runtime, result.policyEvidence),
             }),
       });
     }
@@ -458,10 +500,11 @@ function requestBudget<
       ...(result.policyEvidence === undefined
         ? {}
         : {
-            policyEvidence: projectPolicyEvidence<RequestedName>(
-              runtime,
-              result.policyEvidence,
-            ),
+            policyEvidence: projectPolicyEvidence<
+              RequestedName,
+              Context,
+              Reasons
+            >(runtime, result.policyEvidence),
           }),
     });
   });
@@ -470,7 +513,8 @@ function requestBudget<
       RequestedName,
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>
+      ReasonsOfPolicySet<ChildPolicies>,
+      Context
     >
   >;
 }

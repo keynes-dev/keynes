@@ -7,11 +7,12 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildSdk } from "../../scripts/build.js";
+import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
 const temporaryRoots: string[] = [];
 
@@ -46,7 +47,7 @@ describe("SDK staged build", () => {
     expect((await readdir(root)).sort()).toEqual(["dist"]);
   });
 
-  it("preserves the prior distribution when staged output is invalid", async () => {
+  it("preserves the prior distribution when staged output is missing", async () => {
     const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-build-test-"));
     temporaryRoots.push(root);
     const dist = resolve(root, "dist");
@@ -58,10 +59,32 @@ describe("SDK staged build", () => {
         root,
         async compileDistribution(outDir) {
           await mkdir(outDir, { recursive: true });
+        },
+      }),
+    ).rejects.toThrow("SDK distribution is missing required files");
+
+    expect(await readFile(resolve(dist, "sentinel"), "utf8")).toBe(
+      "previous distribution\n",
+    );
+    expect((await readdir(root)).sort()).toEqual(["dist"]);
+  });
+
+  it("preserves the prior distribution when staged output has an extra file", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-build-test-"));
+    temporaryRoots.push(root);
+    const dist = resolve(root, "dist");
+    await mkdir(dist);
+    await writeFile(resolve(dist, "sentinel"), "previous distribution\n");
+
+    await expect(
+      buildSdk({
+        root,
+        async compileDistribution(outDir) {
+          await writeProductionFiles(outDir);
           await writeFile(resolve(outDir, "unexpected.js"), "export {};\n");
         },
       }),
-    ).rejects.toThrow("Unexpected SDK distribution");
+    ).rejects.toThrow("Unexpected SDK distribution files");
 
     expect(await readFile(resolve(dist, "sentinel"), "utf8")).toBe(
       "previous distribution\n",
@@ -69,3 +92,13 @@ describe("SDK staged build", () => {
     expect((await readdir(root)).sort()).toEqual(["dist"]);
   });
 });
+
+async function writeProductionFiles(root: string): Promise<void> {
+  for (const module of SDK_PRODUCTION_MODULES) {
+    for (const extension of ["d.ts", "js"] as const) {
+      const path = resolve(root, `${module}.${extension}`);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, extension === "js" ? "export {};\n" : "");
+    }
+  }
+}

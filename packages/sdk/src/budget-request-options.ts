@@ -20,7 +20,7 @@ export function attachedPolicyDefinitions(
   if (unknownField !== undefined) {
     throw invalidConfiguration(unknownField, "unsupported");
   }
-  return policyDefinitions(option.policies);
+  return policyDefinitions(option.policies, "policies");
 }
 
 type CreatePolicyDefinitions = NonNullable<CreateBudgetCommand["policies"]>;
@@ -34,7 +34,7 @@ export function prepareRequestPolicyOptions(
     throw invalidConfiguration("options", "unsupported");
   }
   const unknownField = Object.keys(option).find(
-    (field) => field !== "context" && field !== "policies",
+    (field) => field !== "context" && field !== "childPolicies",
   );
   if (unknownField !== undefined) {
     throw invalidConfiguration(unknownField, "unsupported");
@@ -42,7 +42,9 @@ export function prepareRequestPolicyOptions(
   const context =
     "context" in option ? canonicalContext(option.context) : undefined;
   const childPolicies =
-    "policies" in option ? policyDefinitions(option.policies) : undefined;
+    "childPolicies" in option
+      ? policyDefinitions(option.childPolicies, "childPolicies")
+      : undefined;
   return {
     ...(context === undefined ? {} : { context }),
     ...(childPolicies === undefined ? {} : { childPolicies }),
@@ -51,18 +53,19 @@ export function prepareRequestPolicyOptions(
 
 function policyDefinitions(
   value: unknown,
+  field: "policies" | "childPolicies",
 ): CreatePolicyDefinitions | undefined {
   if (!isRecord(value) || !Array.isArray(value.definitions)) {
-    throw invalidConfiguration("policies", "unsupported");
+    throw invalidConfiguration(field, "unsupported");
   }
   if (value.definitions.length === 0) {
     if (!isCanonicalEmptyPolicySet(value)) {
-      throw invalidConfiguration("policies", "unsupported");
+      throw invalidConfiguration(field, "unsupported");
     }
     return undefined;
   }
   if (value.definitions.length > 16) {
-    throw invalidConfiguration("policies", "unsupported");
+    throw invalidConfiguration(field, "unsupported");
   }
   return structuredClone(value.definitions) as CreatePolicyDefinitions;
 }

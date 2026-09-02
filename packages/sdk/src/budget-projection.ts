@@ -14,6 +14,7 @@ import type {
   BudgetRequestDenialReason,
   BudgetSnapshot,
   BudgetState,
+  CanonicalPolicyContext,
   NamedResourceAmount,
   PolicyEvidence,
   Settlement,
@@ -36,16 +37,20 @@ export function projectSettlement<Names extends string>(
   });
 }
 
-export function projectSnapshot<Names extends string, Reasons extends string>(
+export function projectSnapshot<
+  Names extends string,
+  Reasons extends string,
+  Context,
+>(
   runtime: LocalRuntime,
   result: GetBudgetResult,
-): BudgetSnapshot<Names, Reasons> {
+): BudgetSnapshot<Names, Reasons, Context> {
   return Object.freeze({
     budget: projectBudget<Names>(runtime, result.budget),
     history: Object.freeze({
       entries: Object.freeze(
         result.history.entries.map((entry) =>
-          projectHistoryEntry<Names, Reasons>(runtime, entry),
+          projectHistoryEntry<Names, Reasons, Context>(runtime, entry),
         ),
       ),
     }),
@@ -83,10 +88,14 @@ function projectBudget<Names extends string>(
   });
 }
 
-function projectHistoryEntry<Names extends string, Reasons extends string>(
+function projectHistoryEntry<
+  Names extends string,
+  Reasons extends string,
+  Context,
+>(
   runtime: LocalRuntime,
   entry: WireBudgetHistoryEntry,
-): BudgetHistoryEntry<Names, Reasons> {
+): BudgetHistoryEntry<Names, Reasons, Context> {
   switch (entry.kind) {
     case "budget_created":
     case "request_approved":
@@ -97,7 +106,7 @@ function projectHistoryEntry<Names extends string, Reasons extends string>(
         ...(entry.kind === "request_approved" &&
         entry.policyEvidence !== undefined
           ? {
-              policyEvidence: projectPolicyEvidence<Names>(
+              policyEvidence: projectPolicyEvidence<Names, Context, Reasons>(
                 runtime,
                 entry.policyEvidence,
               ),
@@ -118,7 +127,7 @@ function projectHistoryEntry<Names extends string, Reasons extends string>(
         ...(entry.policyEvidence === undefined
           ? {}
           : {
-              policyEvidence: projectPolicyEvidence<Names>(
+              policyEvidence: projectPolicyEvidence<Names, Context, Reasons>(
                 runtime,
                 entry.policyEvidence,
               ),
@@ -267,12 +276,18 @@ export function projectDenialReason<
       });
 }
 
-export function projectPolicyEvidence<Names extends string>(
+export function projectPolicyEvidence<
+  Names extends string,
+  Context,
+  Reasons extends string,
+>(
   runtime: LocalRuntime,
   evidence: WirePolicyEvidenceV1,
-): PolicyEvidence<Names> {
+): PolicyEvidence<Names, Context, Reasons> {
   return Object.freeze({
-    context: Object.freeze({ ...evidence.context }),
+    context: Object.freeze({
+      ...evidence.context,
+    }) as CanonicalPolicyContext<Context>,
     policies: Object.freeze(
       evidence.policies.map((policy) =>
         Object.freeze({
@@ -287,7 +302,7 @@ export function projectPolicyEvidence<Names extends string>(
                   row.resource,
                 ).key as Names,
                 ceiling: row.ceiling,
-                reason: row.reason,
+                reason: row.reason as Reasons,
               }),
             ),
           ),
@@ -300,7 +315,9 @@ export function projectPolicyEvidence<Names extends string>(
           resource: resourceName<Names>(runtime, effective.resourceTypeId),
           ceiling: effective.ceiling,
           reasons: Object.freeze(
-            effective.reasons.map((reason) => Object.freeze({ ...reason })),
+            effective.reasons.map((reason) =>
+              Object.freeze({ ...reason, reason: reason.reason as Reasons }),
+            ),
           ),
         }),
       ),

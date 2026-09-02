@@ -184,11 +184,12 @@ interface Budget<
       Extract<keyof Resources, Names>,
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>
+      ReasonsOfPolicySet<ChildPolicies>,
+      Context
     >
   >;
   settle(usage: ExactResourceUsage<Names>): Promise<Settlement<Names>>;
-  inspect(): Promise<BudgetSnapshot<Names>>;
+  inspect(): Promise<BudgetSnapshot<Names, Reasons, Context>>;
 }
 
 function createKeynes<
@@ -200,10 +201,10 @@ function createKeynes<
 
 `defineResources` fixes the Resource vocabulary before the runtime opens.
 `RequestOptions` requires exact `context` when the parent Budget is governed,
-rejects context when it is not, and optionally accepts the complete `policies`
-set for an approved child. Runtime validation remains authoritative. Resource
-keys use the existing lower-camel-case SDK convention and canonicalize to
-lowercase snake case in artifacts and SQL.
+rejects context when it is not, and optionally accepts the complete
+`childPolicies` set for an approved child. Runtime validation remains
+authoritative. Resource keys use the existing lower-camel-case SDK convention
+and canonicalize to lowercase snake case in artifacts and SQL.
 
 The module implements `Keynes` and `Budget` as frozen method-bearing objects.
 Arrow-function methods close over the local runtime state and the private Budget
@@ -217,17 +218,19 @@ The typed query uses ordinary Kysely methods over only the three virtual Policy 
 
 ## Module ownership
 
-| Owner                               | Responsibility                                                                                                                                                 | Must not own                                      |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `packages/contracts`                | Authoritative semantic registry; program/profile versions; generated node, backend, work-limit, and vector metadata; wire schema; canonical fixtures           | Runtime transactions or database access           |
-| `packages/sdk/src/policy`           | Kysely compilation, PG18 parser adapter, closed validation, normalization, canonical SQL, digests, context validation, and the generated-profile local backend | Budget commit, PostgreSQL access, Cloud routing   |
-| `packages/sdk/src/resources.ts`     | Frozen Resource schema, canonical Resource key mapping, and Resource-name inference                                                                            | Runtime state or Budget identity                  |
-| `packages/sdk/src/keynes.ts`        | `createKeynes`, public `Keynes` interface, and local runtime capability factory                                                                                | Policy semantics or storage                       |
-| `packages/sdk/src/budget.ts`        | Public `Budget` interface, private handle factory, and result projection                                                                                       | Transport or committed Budget state               |
-| `packages/sdk/src/local/runtime.ts` | Process-local SQLite ownership, serialized calls, lifecycle, and executor dispatch                                                                             | Policy semantics or durable storage               |
-| `SqliteCommandExecutor`             | Local replay, snapshot, Policy call, reservation, result/history, commit/rollback                                                                              | General Policy SQL execution                      |
-| `packages/postgresql`               | Generated-profile durable backend, snapshot locks, renderer, generated-SQL evaluation, evidence, installation/recheck                                          | Application-table reads or transaction lifecycle  |
-| `apps/cloud`                        | Authentication, transport, transaction ownership for existing no-Policy calls, Policy-field rejection                                                          | Policy parsing, evaluation, evidence, or fallback |
+| Owner                                        | Responsibility                                                                                                                                                 | Must not own                                      |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `packages/contracts`                         | Authoritative semantic registry; program/profile versions; generated node, backend, work-limit, and vector metadata; wire schema; canonical fixtures           | Runtime transactions or database access           |
+| `packages/sdk/src/policy`                    | Kysely compilation, PG18 parser adapter, closed validation, normalization, canonical SQL, digests, context validation, and the generated-profile local backend | Budget commit, PostgreSQL access, Cloud routing   |
+| `packages/sdk/src/resources.ts`              | Frozen Resource schema, canonical Resource key mapping, and Resource-name inference                                                                            | Runtime state or Budget identity                  |
+| `packages/sdk/src/keynes.ts`                 | `createKeynes`, public `Keynes` interface, and local runtime capability factory                                                                                | Policy semantics or storage                       |
+| `packages/sdk/src/budget.ts`                 | Public `Budget` interface, typed result algebra, and private handle factory                                                                                    | Transport or committed Budget state               |
+| `packages/sdk/src/budget-request-options.ts` | Root and request Policy-option validation and wire preparation                                                                                                 | Policy evaluation or committed state              |
+| `packages/sdk/src/budget-projection.ts`      | Public Resource-name, result, history, evidence, and error projection                                                                                          | Transport or committed Budget state               |
+| `packages/sdk/src/local/runtime.ts`          | Process-local SQLite ownership, serialized calls, lifecycle, and executor dispatch                                                                             | Policy semantics or durable storage               |
+| `SqliteCommandExecutor`                      | Local replay, snapshot, Policy call, reservation, result/history, commit/rollback                                                                              | General Policy SQL execution                      |
+| `packages/postgresql`                        | Generated-profile durable backend, snapshot locks, renderer, generated-SQL evaluation, evidence, installation/recheck                                          | Application-table reads or transaction lifecycle  |
+| `apps/cloud`                                 | Authentication, transport, transaction ownership for existing no-Policy calls, Policy-field rejection                                                          | Policy parsing, evaluation, evidence, or fallback |
 
 No production source imports another Keynes workspace. The contracts build generates backend metadata and canonical vectors for publication into their owning packages. Tests may consume conformance fixtures through existing dev-only edges.
 

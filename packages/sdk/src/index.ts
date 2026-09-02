@@ -78,12 +78,17 @@ export type {
   NamedResourceAmount,
   NoPolicyContext,
   PolicyDefinition,
+  PolicyEvidence,
   PolicySet,
   ResourceAmounts,
   ResourceUsage,
   Settlement,
 } from "./budget.js";
-export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
+export {
+  KeynesSdkError,
+  PolicyValidationError,
+  ResourceDefinitionError,
+} from "./sdk-errors.js";
 export type {
   DefinedResource,
   KeynesSdkErrorCode,

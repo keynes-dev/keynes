@@ -1,5 +1,13 @@
 import { createKeynes, defineResources } from "@keynes/sdk";
-import type { Budget, Keynes, PolicySet, ResourceSchema } from "@keynes/sdk";
+import type {
+  Budget,
+  BudgetHistoryEntry,
+  BudgetRequestResult,
+  BudgetSnapshot,
+  Keynes,
+  PolicySet,
+  ResourceSchema,
+} from "@keynes/sdk";
 import * as sdk from "@keynes/sdk";
 
 function expectType<Value>(_value: Value): void {}
@@ -60,10 +68,27 @@ const governed = await keynes.createBudget(
   { usdCents: 100 },
   { policies: governedPolicies },
 );
-await governed.request(
+const governedResult = await governed.request(
   { usdCents: 10 },
   { context: { customerTier: "standard" } },
 );
+if (governedResult.status === "approved") {
+  expectType<string>(governedResult.policyEvidence.context.customer_tier);
+  expectType<"customer_tier_limit" | undefined>(
+    governedResult.policyEvidence.policies[0]?.rows[0]?.reason,
+  );
+  // @ts-expect-error Evidence records canonical context keys.
+  void governedResult.policyEvidence.context.customerTier;
+}
+const governedSnapshot = await governed.inspect();
+for (const entry of governedSnapshot.history.entries) {
+  if ("policyEvidence" in entry) {
+    expectType<string>(entry.policyEvidence.context.customer_tier);
+    expectType<"customer_tier_limit" | undefined>(
+      entry.policyEvidence.effectiveCeilings[0]?.reasons[0]?.reason,
+    );
+  }
+}
 // @ts-expect-error Governed requests require their complete Context.
 await governed.request({ usdCents: 10 });
 await governed.request(
@@ -101,7 +126,7 @@ const governedChildResult = await governed.request(
   { usdCents: 10 },
   {
     context: { customerTier: "standard" },
-    policies: childPolicies,
+    childPolicies,
   },
 );
 if (governedChildResult.status === "approved") {
@@ -115,6 +140,45 @@ if (governedChildResult.status === "approved") {
   // @ts-expect-error A governed child requires its own complete Context.
   await governedChildResult.budget.request({ usdCents: 1 });
 }
+
+await governed.request(
+  { usdCents: 10 },
+  {
+    context: { customerTier: "standard" },
+    // @ts-expect-error Request-time Policies must be named childPolicies.
+    policies: childPolicies,
+  },
+);
+
+declare const legacyRequestResult: BudgetRequestResult<
+  "usdCents",
+  "parent_limit",
+  { readonly riskClass: string },
+  "child_limit"
+>;
+if (legacyRequestResult.status === "approved") {
+  expectType<Budget<"usdCents", { readonly riskClass: string }, "child_limit">>(
+    legacyRequestResult.budget,
+  );
+  expectType<"parent_limit" | undefined>(
+    legacyRequestResult.policyEvidence.policies[0]?.rows[0]?.reason,
+  );
+}
+
+declare const legacyHistoryEntry: BudgetHistoryEntry<
+  "usdCents",
+  "parent_limit"
+>;
+if ("policyEvidence" in legacyHistoryEntry) {
+  expectType<"parent_limit" | undefined>(
+    legacyHistoryEntry.policyEvidence.policies[0]?.rows[0]?.reason,
+  );
+}
+
+declare const legacySnapshot: BudgetSnapshot<"usdCents", "parent_limit">;
+expectType<readonly BudgetHistoryEntry<"usdCents", "parent_limit">[]>(
+  legacySnapshot.history.entries,
+);
 
 // @ts-expect-error Keynes is a type-only capability with no constructor.
 new Keynes();

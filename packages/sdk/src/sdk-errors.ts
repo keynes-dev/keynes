@@ -36,6 +36,19 @@ export class KeynesSdkError<
   }
 }
 
+export class PolicyValidationError extends Error {
+  readonly code = "invalid_policy";
+  readonly path: string;
+  readonly rule: string;
+
+  constructor(path: string, rule: string) {
+    super(`invalid Policy at ${path}: ${rule}`);
+    this.name = "PolicyValidationError";
+    this.path = path;
+    this.rule = rule;
+  }
+}
+
 export class ResourceDefinitionError extends Error {
   readonly code = "resource_definition_failed";
   readonly failedResource: string;

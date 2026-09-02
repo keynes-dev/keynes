@@ -58,7 +58,9 @@ export function compilePolicyQuery<ContextRow>(
   const compiled = query({ db, sql }).compile();
   return compilePolicySql(
     compiled.sql,
-    compiled.parameters.map(requirePolicyScalar),
+    compiled.parameters.map((value, index) =>
+      requirePolicyScalar(value, index),
+    ),
     scope,
   );
 }
@@ -117,7 +119,7 @@ export function compilePolicySql(
   return normalizePolicy(parsePolicySql(source, parameters), scope);
 }
 
-function requirePolicyScalar(value: unknown): PolicyScalarV1 {
+function requirePolicyScalar(value: unknown, index: number): PolicyScalarV1 {
   if (
     value === null ||
     typeof value === "string" ||
@@ -126,5 +128,5 @@ function requirePolicyScalar(value: unknown): PolicyScalarV1 {
   ) {
     return value;
   }
-  throw new TypeError("Policy parameters must be finite scalar values");
+  fail(`/parameters/${index}`, "type");
 }
