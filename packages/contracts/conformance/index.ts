@@ -19,6 +19,9 @@ export {
 } from "./scenarios/index.ts";
 export { canonicalizePolicyCommand } from "./policy.ts";
 export {
+  POLICY_CONFORMANCE_CASES,
   POLICY_RUNTIME_CONFORMANCE_CASES,
+  type PolicyConformanceCase,
+  type PolicyConformanceCategory,
   type PolicyRuntimeConformanceCase,
 } from "./policy/cases.ts";

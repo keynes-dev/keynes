@@ -4,6 +4,34 @@ import type {
   PolicyResultRowV1,
 } from "../../generated/policy-types.ts";
 
+export type PolicyConformanceCategory =
+  | "kysely"
+  | "kysely_sql"
+  | "raw_sql"
+  | "canonical_vector"
+  | "numeric"
+  | "null"
+  | "ordering"
+  | "aggregation"
+  | "property"
+  | "limit"
+  | "mutation";
+
+export interface PolicyConformanceCase {
+  readonly name: string;
+  readonly category: PolicyConformanceCategory;
+  readonly source?: string;
+  readonly parameters?: readonly (string | boolean | number | null)[];
+  readonly evaluationInput?: PolicySourceConformanceInput;
+  readonly expected: unknown;
+}
+
+export interface PolicySourceConformanceInput {
+  readonly requested: readonly PolicyResourceValue[];
+  readonly available: readonly PolicyResourceValue[];
+  readonly context: Readonly<PolicyContextV1>;
+}
+
 export interface PolicyRuntimeConformanceCase {
   readonly name: string;
   readonly category:
@@ -25,7 +53,7 @@ export interface PolicyRuntimeConformanceCase {
     | { readonly error: "arithmetic_overflow" };
 }
 
-interface PolicyResourceValue {
+export interface PolicyResourceValue {
   readonly resource: string;
   readonly amount: number;
 }

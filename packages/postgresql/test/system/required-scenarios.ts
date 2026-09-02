@@ -86,6 +86,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL governed Policy requests approves within the Policy ceiling and records canonical evidence",
     "PostgreSQL governed Policy requests denies above the Policy ceiling without reserving or creating a child",
     "PostgreSQL governed Policy requests evaluates requested, availability, and Context through the installed request path",
+    "PostgreSQL governed Policy requests uses available Resources when they are the Policy ceiling",
     "PostgreSQL governed Policy requests enforces Policies for a contract-valid non-RFC request command UUID",
     "PostgreSQL governed Policy requests preserves root Policies created with a contract-valid non-RFC UUID",
     "PostgreSQL governed Policy requests attaches only the explicit child Policy set and evaluates it on the next request",

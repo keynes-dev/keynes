@@ -172,6 +172,37 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       });
     });
 
+    it("uses available Resources when they are the Policy ceiling", async () => {
+      fixture = await openPolicyFixture();
+      const policy = inputSensitivePolicy();
+      await seedGovernedRoot(fixture, policy, 5);
+
+      const request = await committed(fixture, "requestBudget", {
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        context: { input_offset: 2 },
+      });
+      const evidence = policyEvidence(policy, 5, "approved", 2);
+
+      expect(request).toEqual({
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "approved",
+          commandId: REQUEST_ID,
+          parentBudgetId: ROOT_BUDGET_ID,
+          childBudgetId: REQUEST_ID,
+          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+          policyEvidence: evidence,
+        },
+      });
+      await expectRootHolding(fixture.owner, {
+        committed: 4,
+        historyEntries: 2,
+      });
+    });
+
     it("enforces Policies for a contract-valid non-RFC request command UUID", async () => {
       fixture = await openPolicyFixture();
       const policy = requestLimitPolicy("request_ceiling", "request_limit");
@@ -599,6 +630,7 @@ async function openPolicyFixture(): Promise<PolicyFixture> {
 async function seedGovernedRoot(
   fixture: PolicyFixture,
   policy: PolicyDefinitionV1 | readonly PolicyDefinitionV1[],
+  initialModelTokens = 100,
 ): Promise<void> {
   await definePolicyResources(fixture);
   requireSuccess(
@@ -606,7 +638,7 @@ async function seedGovernedRoot(
       commandId: ROOT_BUDGET_ID,
       resources: [
         { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
-        { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
+        { resourceTypeId: MODEL_RESOURCE_ID, amount: initialModelTokens },
       ],
       policies: Array.isArray(policy) ? policy : [policy],
     }),
