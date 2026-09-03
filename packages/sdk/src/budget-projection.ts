@@ -20,17 +20,23 @@ import type {
   Settlement,
 } from "./budget.js";
 
-export function projectSettlement<Names extends string>(
-  binding: ResourceBinding<Names>,
+export function projectSettlement<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  binding: ResourceBinding<Names, HistoryNames>,
   result: SettleBudgetResult,
 ): Settlement<Names> {
   return Object.freeze({
     kind: result.kind,
     budget: projectBudget(binding, result.budget),
-    newlyKnown: projectAmounts(binding, result.newlyKnown),
+    newlyKnown: projectAmounts(
+      result.newlyKnown,
+      (resourceTypeId) => binding.visibleResource(resourceTypeId).key,
+    ),
     unresolvedResources: Object.freeze(
       result.unresolvedResourceTypeIds
-        .map((resourceTypeId) => resourceName(binding, resourceTypeId))
+        .map((resourceTypeId) => binding.visibleResource(resourceTypeId).key)
         .sort(compareStrings),
     ),
     replayed: result.replayed,
@@ -41,24 +47,28 @@ export function projectSnapshot<
   Names extends string,
   Reasons extends string,
   Context,
+  HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names>,
+  binding: ResourceBinding<Names, HistoryNames>,
   result: GetBudgetResult,
-): BudgetSnapshot<Names, Reasons, Context> {
+): BudgetSnapshot<Names, Reasons, Context, HistoryNames> {
   return Object.freeze({
     budget: projectBudget(binding, result.budget),
     history: Object.freeze({
       entries: Object.freeze(
         result.history.entries.map((entry) =>
-          projectHistoryEntry<Names, Reasons, Context>(binding, entry),
+          projectHistoryEntry<Names, HistoryNames, Reasons, Context>(
+            binding,
+            entry,
+          ),
         ),
       ),
     }),
   });
 }
 
-function projectBudget<Names extends string>(
-  binding: ResourceBinding<Names>,
+function projectBudget<Names extends string, HistoryNames extends string>(
+  binding: ResourceBinding<Names, HistoryNames>,
   budget: WireBudgetProjection,
 ): BudgetState<Names> {
   return Object.freeze({
@@ -67,9 +77,11 @@ function projectBudget<Names extends string>(
     resources: Object.freeze(
       budget.resources
         .map((value) => {
-          const resource = binding.resource(value.resourceType.resourceTypeId);
+          const resource = binding.visibleResource(
+            value.resourceType.resourceTypeId,
+          );
           return Object.freeze({
-            resource: resource.key as Names,
+            resource: resource.key,
             unit: resource.unit,
             accountingBehavior: resource.accountingBehavior,
             allocated: value.allocated,
@@ -88,26 +100,32 @@ function projectBudget<Names extends string>(
 
 function projectHistoryEntry<
   Names extends string,
+  HistoryNames extends string,
   Reasons extends string,
   Context,
 >(
-  binding: ResourceBinding<Names>,
+  binding: ResourceBinding<Names, HistoryNames>,
   entry: WireBudgetHistoryEntry,
-): BudgetHistoryEntry<Names, Reasons, Context> {
+): BudgetHistoryEntry<HistoryNames, Reasons, Context> {
   switch (entry.kind) {
     case "budget_created":
     case "request_approved":
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
-        resources: projectAmounts(binding, entry.resources),
+        resources: projectAmounts(
+          entry.resources,
+          (resourceTypeId) => binding.resource(resourceTypeId).key,
+        ),
         ...(entry.kind === "request_approved" &&
         entry.policyEvidence !== undefined
           ? {
-              policyEvidence: projectPolicyEvidence<Names, Context, Reasons>(
-                binding,
-                entry.policyEvidence,
-              ),
+              policyEvidence: projectHistoryPolicyEvidence<
+                Names,
+                HistoryNames,
+                Context,
+                Reasons
+              >(binding, entry.policyEvidence),
             }
           : {}),
       });
@@ -118,33 +136,41 @@ function projectHistoryEntry<
         reasons: Object.freeze(
           entry.reasons
             .map((reason) =>
-              projectDenialReason<Names, Reasons>(binding, reason),
+              projectHistoryDenialReason<Names, HistoryNames, Reasons>(
+                binding,
+                reason,
+              ),
             )
             .sort(compareDenialReasons),
         ),
         ...(entry.policyEvidence === undefined
           ? {}
           : {
-              policyEvidence: projectPolicyEvidence<Names, Context, Reasons>(
-                binding,
-                entry.policyEvidence,
-              ),
+              policyEvidence: projectHistoryPolicyEvidence<
+                Names,
+                HistoryNames,
+                Context,
+                Reasons
+              >(binding, entry.policyEvidence),
             }),
       });
     case "budget_settlement_recorded":
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
-        newlyKnown: projectAmounts(binding, entry.newlyKnown),
+        newlyKnown: projectAmounts(
+          entry.newlyKnown,
+          (resourceTypeId) => binding.resource(resourceTypeId).key,
+        ),
         unresolvedResources: Object.freeze(
           entry.unresolvedResourceTypeIds
-            .map((resourceTypeId) => resourceName(binding, resourceTypeId))
+            .map((resourceTypeId) => binding.resource(resourceTypeId).key)
             .sort(compareStrings),
         ),
         lifecycle: entry.lifecycle,
-        isolatedDeficits: projectAmounts<Names>(
-          binding,
+        isolatedDeficits: projectAmounts(
           entry.isolatedDeficits,
+          (resourceTypeId) => binding.resource(resourceTypeId).key,
         ),
       });
     default: {
@@ -155,14 +181,14 @@ function projectHistoryEntry<
 }
 
 function projectAmounts<Names extends string>(
-  binding: ResourceBinding<Names>,
   amounts: readonly ResourceAmount[],
+  resourceName: (resourceTypeId: string) => Names,
 ): readonly NamedResourceAmount<Names>[] {
   return Object.freeze(
     amounts
       .map((amount) =>
         Object.freeze({
-          resource: resourceName(binding, amount.resourceTypeId),
+          resource: resourceName(amount.resourceTypeId),
           amount: amount.amount,
         }),
       )
@@ -170,8 +196,12 @@ function projectAmounts<Names extends string>(
   );
 }
 
-export async function invokeBudgetOperation<Result>(
-  binding: ResourceBinding<string>,
+export async function invokeBudgetOperation<
+  Names extends string,
+  HistoryNames extends string,
+  Result,
+>(
+  binding: ResourceBinding<Names, HistoryNames>,
   operation: () => Promise<Result>,
 ): Promise<Result> {
   try {
@@ -183,8 +213,8 @@ export async function invokeBudgetOperation<Result>(
   }
 }
 
-function projectErrorValue(
-  binding: ResourceBinding<string>,
+function projectErrorValue<Names extends string, HistoryNames extends string>(
+  binding: ResourceBinding<Names, HistoryNames>,
   value: unknown,
 ): unknown {
   if (Array.isArray(value)) {
@@ -206,8 +236,8 @@ function projectErrorValue(
   return Object.freeze(projected);
 }
 
-function knownResourceName(
-  binding: ResourceBinding<string>,
+function knownResourceName<Names extends string, HistoryNames extends string>(
+  binding: ResourceBinding<Names, HistoryNames>,
   value: unknown,
 ): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -253,20 +283,45 @@ function compareStrings(left: string, right: string): number {
 export function projectDenialReason<
   Names extends string,
   Reasons extends string,
+  HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names>,
+  binding: ResourceBinding<Names, HistoryNames>,
   reason: RequestDenialReason,
+): BudgetRequestDenialReason<Names, Reasons> {
+  return projectDenialReasonWith(
+    reason,
+    (resourceTypeId) => binding.visibleResource(resourceTypeId).key,
+  );
+}
+
+function projectHistoryDenialReason<
+  Names extends string,
+  HistoryNames extends string,
+  Reasons extends string,
+>(
+  binding: ResourceBinding<Names, HistoryNames>,
+  reason: RequestDenialReason,
+): BudgetRequestDenialReason<HistoryNames, Reasons> {
+  return projectDenialReasonWith(
+    reason,
+    (resourceTypeId) => binding.resource(resourceTypeId).key,
+  );
+}
+
+function projectDenialReasonWith<Names extends string, Reasons extends string>(
+  reason: RequestDenialReason,
+  resourceName: (resourceTypeId: string) => Names,
 ): BudgetRequestDenialReason<Names, Reasons> {
   return reason.code === "insufficient_available"
     ? Object.freeze({
         code: reason.code,
-        resource: resourceName(binding, reason.resourceTypeId),
+        resource: resourceName(reason.resourceTypeId),
         requested: reason.requested,
         available: reason.available,
       })
     : Object.freeze({
         code: reason.code,
-        resource: resourceName(binding, reason.resourceTypeId),
+        resource: resourceName(reason.resourceTypeId),
         requested: reason.requested,
         ceiling: reason.ceiling,
         policyName: reason.policyName,
@@ -279,9 +334,43 @@ export function projectPolicyEvidence<
   Names extends string,
   Context,
   Reasons extends string,
+  HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names>,
+  binding: ResourceBinding<Names, HistoryNames>,
   evidence: WirePolicyEvidenceV1,
+): PolicyEvidence<Names, Context, Reasons> {
+  return projectPolicyEvidenceWith(
+    evidence,
+    (resourceTypeId) => binding.visibleResource(resourceTypeId).key,
+    (canonicalName) =>
+      binding.visibleResourceByCanonicalName(canonicalName).key,
+  );
+}
+
+function projectHistoryPolicyEvidence<
+  Names extends string,
+  HistoryNames extends string,
+  Context,
+  Reasons extends string,
+>(
+  binding: ResourceBinding<Names, HistoryNames>,
+  evidence: WirePolicyEvidenceV1,
+): PolicyEvidence<HistoryNames, Context, Reasons> {
+  return projectPolicyEvidenceWith(
+    evidence,
+    (resourceTypeId) => binding.resource(resourceTypeId).key,
+    (canonicalName) => binding.resourceByCanonicalName(canonicalName).key,
+  );
+}
+
+function projectPolicyEvidenceWith<
+  Names extends string,
+  Context,
+  Reasons extends string,
+>(
+  evidence: WirePolicyEvidenceV1,
+  resourceName: (resourceTypeId: string) => Names,
+  resourceNameByCanonicalName: (canonicalName: string) => Names,
 ): PolicyEvidence<Names, Context, Reasons> {
   return Object.freeze({
     context: Object.freeze({
@@ -297,8 +386,7 @@ export function projectPolicyEvidence<
           rows: Object.freeze(
             policy.rows.map((row) =>
               Object.freeze({
-                resource: binding.resourceByCanonicalName(row.resource)
-                  .key as Names,
+                resource: resourceNameByCanonicalName(row.resource),
                 ceiling: row.ceiling,
                 reason: row.reason as Reasons,
               }),
@@ -310,7 +398,7 @@ export function projectPolicyEvidence<
     effectiveCeilings: Object.freeze(
       evidence.effectiveCeilings.map((effective) =>
         Object.freeze({
-          resource: resourceName(binding, effective.resourceTypeId),
+          resource: resourceName(effective.resourceTypeId),
           ceiling: effective.ceiling,
           reasons: Object.freeze(
             effective.reasons.map((reason) =>
@@ -322,13 +410,6 @@ export function projectPolicyEvidence<
     ),
     decision: evidence.decision,
   });
-}
-
-function resourceName<Names extends string>(
-  binding: ResourceBinding<Names>,
-  resourceTypeId: string,
-): Names {
-  return binding.resource(resourceTypeId).key as Names;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

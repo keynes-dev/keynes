@@ -17,32 +17,46 @@ export interface BoundResource<Name extends string> {
   readonly definitionDigest: string;
 }
 
-export interface BoundResources<Name extends string> {
+export interface BoundResources<
+  Name extends string,
+  HistoryNames extends string = Name,
+> {
   readonly envelope: ResourceEnvelope;
-  readonly binding: ResourceBinding<Name>;
+  readonly binding: ResourceBinding<Name, HistoryNames>;
 }
 
-interface BindingIndexes {
-  readonly byId: ReadonlyMap<string, BoundResource<string>>;
-  readonly byCanonicalName: ReadonlyMap<string, BoundResource<string>>;
+interface BindingIndexes<Names extends string> {
+  readonly byId: ReadonlyMap<string, BoundResource<Names>>;
+  readonly byCanonicalName: ReadonlyMap<string, BoundResource<Names>>;
 }
 
-export class ResourceBinding<Names extends string> {
-  readonly #indexes: BindingIndexes;
+export class ResourceBinding<
+  Names extends string,
+  HistoryNames extends string = Names,
+> {
+  readonly #indexes: BindingIndexes<HistoryNames>;
   readonly #byKey: ReadonlyMap<string, BoundResource<Names>>;
+  readonly #visibleById: ReadonlyMap<string, BoundResource<Names>>;
+  readonly #visibleByCanonicalName: ReadonlyMap<string, BoundResource<Names>>;
 
   constructor(
-    indexes: BindingIndexes,
+    indexes: BindingIndexes<HistoryNames>,
     visibleResources: readonly BoundResource<Names>[],
   ) {
     this.#indexes = indexes;
     this.#byKey = new Map(
       visibleResources.map((resource) => [resource.key, resource]),
     );
+    this.#visibleById = new Map(
+      visibleResources.map((resource) => [resource.resourceTypeId, resource]),
+    );
+    this.#visibleByCanonicalName = new Map(
+      visibleResources.map((resource) => [resource.canonicalName, resource]),
+    );
     Object.freeze(this);
   }
 
-  resource(resourceTypeId: string): BoundResource<string> {
+  resource(resourceTypeId: string): BoundResource<HistoryNames> {
     const resource = this.#indexes.byId.get(resourceTypeId);
     if (resource === undefined) {
       throw new Error("Database returned an unknown Resource identity");
@@ -50,7 +64,7 @@ export class ResourceBinding<Names extends string> {
     return resource;
   }
 
-  resourceByCanonicalName(canonicalName: string): BoundResource<string> {
+  resourceByCanonicalName(canonicalName: string): BoundResource<HistoryNames> {
     const resource = this.#indexes.byCanonicalName.get(canonicalName);
     if (resource === undefined) {
       throw new Error("Database returned an unknown Resource name");
@@ -58,10 +72,30 @@ export class ResourceBinding<Names extends string> {
     return resource;
   }
 
+  visibleResource(resourceTypeId: string): BoundResource<Names> {
+    const resource = this.#visibleById.get(resourceTypeId);
+    if (resource === undefined) {
+      throw new Error(
+        "Database returned a Resource outside the Budget binding",
+      );
+    }
+    return resource;
+  }
+
+  visibleResourceByCanonicalName(canonicalName: string): BoundResource<Names> {
+    const resource = this.#visibleByCanonicalName.get(canonicalName);
+    if (resource === undefined) {
+      throw new Error(
+        "Database returned a Resource outside the Budget binding",
+      );
+    }
+    return resource;
+  }
+
   resources<Name extends Names>(
     input: Readonly<Partial<Record<Name, number>>>,
     operation: "requestBudget",
-  ): BoundResources<Name> {
+  ): BoundResources<Name, HistoryNames> {
     const resolved: BoundResource<Name>[] = [];
     const amounts: {
       readonly resourceTypeId: string;
@@ -87,7 +121,7 @@ export class ResourceBinding<Names extends string> {
     );
     return Object.freeze({
       envelope: requireEnvelope(amounts, operation, "$.resources"),
-      binding: new ResourceBinding(this.#indexes, resolved),
+      binding: new ResourceBinding<Name, HistoryNames>(this.#indexes, resolved),
     });
   }
 
@@ -142,7 +176,7 @@ export function createResourceBinding<Name extends string>(
     ),
   );
   const visible: BoundResource<Name>[] = [];
-  const shared: BoundResource<string>[] = [];
+  const shared: BoundResource<Name>[] = [];
   const resourceTypeIds = new Set<string>();
   for (let index = 0; index < prepared.length; index += 1) {
     const expected = prepared[index];

@@ -147,11 +147,17 @@ export type BudgetRequestResult<
   ChildContext = NoPolicyContext,
   ChildReasons extends string = never,
   ParentContext = Readonly<Record<string, PolicyScalarV1>>,
+  HistoryNames extends string = Names,
 > = [Reasons] extends [never]
   ?
       | {
           readonly status: "approved";
-          readonly budget: Budget<Names, ChildContext, ChildReasons>;
+          readonly budget: Budget<
+            Names,
+            ChildContext,
+            ChildReasons,
+            HistoryNames
+          >;
         }
       | {
           readonly status: "denied";
@@ -163,7 +169,12 @@ export type BudgetRequestResult<
   :
       | {
           readonly status: "approved";
-          readonly budget: Budget<Names, ChildContext, ChildReasons>;
+          readonly budget: Budget<
+            Names,
+            ChildContext,
+            ChildReasons,
+            HistoryNames
+          >;
           readonly policyEvidence: PolicyEvidence<
             Names,
             ParentContext,
@@ -248,10 +259,15 @@ export interface BudgetSnapshot<
   Names extends string = string,
   Reasons extends string = never,
   Context = Readonly<Record<string, PolicyScalarV1>>,
+  HistoryNames extends string = Names,
 > {
   readonly budget: BudgetState<Names>;
   readonly history: {
-    readonly entries: readonly BudgetHistoryEntry<Names, Reasons, Context>[];
+    readonly entries: readonly BudgetHistoryEntry<
+      HistoryNames,
+      Reasons,
+      Context
+    >[];
   };
 }
 
@@ -271,6 +287,7 @@ export interface Budget<
   Names extends string,
   Context = NoPolicyContext,
   Reasons extends string = never,
+  HistoryNames extends string = Names,
 > {
   readonly [budgetBrand]: undefined;
   readonly request: <
@@ -291,13 +308,16 @@ export interface Budget<
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
       ReasonsOfPolicySet<ChildPolicies>,
-      Context
+      Context,
+      HistoryNames
     >
   >;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
-  readonly inspect: () => Promise<BudgetSnapshot<Names, Reasons, Context>>;
+  readonly inspect: () => Promise<
+    BudgetSnapshot<Names, Reasons, Context, HistoryNames>
+  >;
 }
 
 export type ExactResourceAmounts<
@@ -402,17 +422,20 @@ export function createBudgetHandle<
   Names extends string,
   Context = NoPolicyContext,
   Reasons extends string = never,
+  HistoryNames extends string = Names,
 >(
   runtime: LocalRuntime,
   budgetId: string,
-  binding: ResourceBinding<Names>,
-): Budget<Names, Context, Reasons> {
-  const request: Budget<Names, Context, Reasons>["request"] = (
+  binding: ResourceBinding<Names, HistoryNames>,
+): Budget<Names, Context, Reasons, HistoryNames> {
+  const request: Budget<Names, Context, Reasons, HistoryNames>["request"] = (
     resources,
     ...options
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
-  const settle: Budget<Names, Context, Reasons>["settle"] = (usage) => {
+  const settle: Budget<Names, Context, Reasons, HistoryNames>["settle"] = (
+    usage,
+  ) => {
     const observedUsage = Object.freeze({ ...usage });
     return admit(runtime, async () => {
       const command = {
@@ -427,12 +450,17 @@ export function createBudgetHandle<
     });
   };
 
-  const inspect = (): Promise<BudgetSnapshot<Names, Reasons, Context>> =>
+  const inspect = (): Promise<
+    BudgetSnapshot<Names, Reasons, Context, HistoryNames>
+  > =>
     admit(runtime, async () => {
       const result = await invokeBudgetOperation(binding, () =>
         runtime.client.getBudget({ budgetId }),
       );
-      return projectSnapshot<Names, Reasons, Context>(binding, result);
+      return projectSnapshot<Names, Reasons, Context, HistoryNames>(
+        binding,
+        result,
+      );
     });
 
   const handle = Object.freeze({
@@ -446,6 +474,7 @@ export function createBudgetHandle<
 
 function requestBudget<
   Names extends string,
+  HistoryNames extends string,
   Context,
   Reasons extends string,
   const Resources extends ResourceAmounts<Names>,
@@ -454,7 +483,7 @@ function requestBudget<
 >(
   runtime: LocalRuntime,
   budgetId: string,
-  binding: ResourceBinding<Names>,
+  binding: ResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
   options: RequestArguments<
     Context,
@@ -468,7 +497,8 @@ function requestBudget<
     Reasons,
     ContextOfPolicySet<ChildPolicies>,
     ReasonsOfPolicySet<ChildPolicies>,
-    Context
+    Context,
+    HistoryNames
   >
 > {
   type RequestedName = Extract<keyof Resources, Names>;
@@ -494,7 +524,8 @@ function requestBudget<
         budget: createBudgetHandle<
           RequestedName,
           ContextOfPolicySet<ChildPolicies>,
-          ReasonsOfPolicySet<ChildPolicies>
+          ReasonsOfPolicySet<ChildPolicies>,
+          HistoryNames
         >(runtime, result.childBudgetId, resolved.binding),
         ...(result.policyEvidence === undefined
           ? {}
@@ -502,7 +533,8 @@ function requestBudget<
               policyEvidence: projectPolicyEvidence<
                 RequestedName,
                 Context,
-                Reasons
+                Reasons,
+                HistoryNames
               >(resolved.binding, result.policyEvidence),
             }),
       });
@@ -512,7 +544,7 @@ function requestBudget<
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
-            projectDenialReason<RequestedName, Reasons>(
+            projectDenialReason<RequestedName, Reasons, HistoryNames>(
               resolved.binding,
               reason,
             ),
@@ -525,7 +557,8 @@ function requestBudget<
             policyEvidence: projectPolicyEvidence<
               RequestedName,
               Context,
-              Reasons
+              Reasons,
+              HistoryNames
             >(resolved.binding, result.policyEvidence),
           }),
     });
@@ -536,7 +569,8 @@ function requestBudget<
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
       ReasonsOfPolicySet<ChildPolicies>,
-      Context
+      Context,
+      HistoryNames
     >
   >;
 }

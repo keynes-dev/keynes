@@ -344,6 +344,7 @@ DECLARE
   body_digest_value text;
   prior keynes_internal.commands%ROWTYPE;
   item jsonb;
+  policy jsonb;
   canonical_definition jsonb;
   definition_digest_value text;
   resource_id uuid;
@@ -355,6 +356,9 @@ DECLARE
   domain_error_message text;
 BEGIN
   BEGIN
+    PERFORM set_config('keynes.policy_operation', operation_name, true);
+    PERFORM set_config('keynes.policy_name', '', true);
+    PERFORM set_config('keynes.policy_revision', '', true);
     IF jsonb_typeof(input) IS DISTINCT FROM 'object' THEN
       PERFORM keynes_internal.invalid_command(operation_name, '$', 'type');
     END IF;
@@ -520,31 +524,41 @@ BEGIN
     PERFORM keynes_internal.checkpoint('after_resource_insertion');
 
     PERFORM keynes_internal.validate_policy_set(policies);
-    IF EXISTS (
-      SELECT 1
-      FROM jsonb_array_elements(policies) AS policy(value)
-      CROSS JOIN LATERAL (
-        SELECT input_name.value AS name
-        FROM jsonb_array_elements_text(
-          policy.value->'inputResources'
-        ) AS input_name(value)
-        UNION ALL
-        SELECT output_name.value AS name
-        FROM jsonb_array_elements_text(
-          policy.value->'outputResources'
-        ) AS output_name(value)
-      ) AS referenced
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(items) AS root_resource(value)
-        WHERE root_resource.value->'definition'->>'canonicalName'
-          = referenced.name
-      )
-    ) THEN
-      PERFORM keynes_internal.invalid_policy(
-        '$.policies', 'allocatedResourceTypes'
+    FOR policy IN
+      SELECT member.value
+      FROM jsonb_array_elements(policies) AS member(value)
+    LOOP
+      PERFORM set_config(
+        'keynes.policy_name', coalesce(policy->>'name', ''), true
       );
-    END IF;
+      PERFORM set_config(
+        'keynes.policy_revision', coalesce(policy->>'revision', ''), true
+      );
+      IF EXISTS (
+        SELECT 1
+        FROM (
+          SELECT input_name.value AS name
+          FROM jsonb_array_elements_text(
+            policy->'inputResources'
+          ) AS input_name(value)
+          UNION ALL
+          SELECT output_name.value AS name
+          FROM jsonb_array_elements_text(
+            policy->'outputResources'
+          ) AS output_name(value)
+        ) AS referenced
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(items) AS root_resource(value)
+          WHERE root_resource.value->'definition'->>'canonicalName'
+            = referenced.name
+        )
+      ) THEN
+        PERFORM keynes_internal.invalid_policy(
+          '$.policies', 'allocatedResourceTypes'
+        );
+      END IF;
+    END LOOP;
     INSERT INTO keynes_internal.budgets (
       tenant_id, budget_id, parent_budget_id, root_budget_id,
       depth, lifecycle, policies

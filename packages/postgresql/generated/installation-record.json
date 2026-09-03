@@ -19,7 +19,7 @@
     ]
   },
   "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
-  "migrationSetDigest": "291d0c17687bbf76e7b8b7b49a98b354b4a2d6ebbb6a6b1e0d5ba084725064fe",
+  "migrationSetDigest": "b99e0c03b080428e37abe4e4d40ca8d8f7b4187f3c4c8105b74cf0215b112e68",
   "migrations": [
     {
       "id": "0001-storage",
@@ -45,7 +45,7 @@
     {
       "id": "0005-resource-bound-budget",
       "path": "0005-resource-bound-budget.sql",
-      "sha256": "4ce2f2eaf9a9e0c892f27311fe436334dfdbf2529482299ac6c3bfb9e67b8929",
+      "sha256": "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
       "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5"
     }
   ],

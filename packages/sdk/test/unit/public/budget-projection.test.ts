@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { createBudgetHandle } from "../../../src/budget.js";
+import {
+  createBudgetHandle,
+  type BudgetSnapshot,
+  type NoPolicyContext,
+} from "../../../src/budget.js";
 import type { KeynesClient } from "../../../src/generated/client.js";
 import type {
   BudgetHistoryEntry,
@@ -69,9 +73,11 @@ describe("public Budget projections", () => {
       { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
       { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
     ]);
+    expectTypeOf(narrowed).toEqualTypeOf<
+      BudgetSnapshot<"alpha", never, NoPolicyContext, ResourceName>
+    >();
     expect(narrowed.budget.resources.map(({ resource }) => resource)).toEqual([
       "alpha",
-      "zebra",
     ]);
     expect(narrowed.history.entries[0]).toMatchObject({
       kind: "budget_created",
@@ -96,7 +102,10 @@ async function exerciseRuntime(resources: readonly InstalledResource[]) {
 async function exerciseNarrowedProjection(
   resources: readonly InstalledResource[],
 ) {
-  const runtime = createRuntime(resources);
+  const runtime = createRuntime(
+    resources,
+    resources.filter(({ key }) => key === "alpha"),
+  );
   const rootBinding = createResourceBinding(
     preparedResources(resources),
     budgetProjection(resources, "initial"),
@@ -105,14 +114,17 @@ async function exerciseNarrowedProjection(
     { alpha: 1 },
     "requestBudget",
   );
-  return createBudgetHandle<"alpha">(runtime, BUDGET_ID, binding).inspect();
+  return createBudgetHandle(runtime, BUDGET_ID, binding).inspect();
 }
 
-function createRuntime(resources: readonly InstalledResource[]): LocalRuntime {
+function createRuntime(
+  resources: readonly InstalledResource[],
+  budgetResources: readonly InstalledResource[] = resources,
+): LocalRuntime {
   const orderedResources = [...resources].sort((left, right) =>
     left.resourceTypeId.localeCompare(right.resourceTypeId),
   );
-  const client = createClient(orderedResources);
+  const client = createClient(orderedResources, budgetResources);
   return {
     client,
     state: "open",
@@ -122,8 +134,11 @@ function createRuntime(resources: readonly InstalledResource[]): LocalRuntime {
   };
 }
 
-function createClient(resources: readonly InstalledResource[]): KeynesClient {
-  const budget = budgetProjection(resources);
+function createClient(
+  resources: readonly InstalledResource[],
+  budgetResources: readonly InstalledResource[],
+): KeynesClient {
+  const budget = budgetProjection(budgetResources);
   const amounts = resourceAmounts(resources);
   const reasons = requireNonempty(
     resources.map((resource) => ({

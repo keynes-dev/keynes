@@ -32,7 +32,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0005-resource-bound-budget",
     byteChecksum:
-      "4ce2f2eaf9a9e0c892f27311fe436334dfdbf2529482299ac6c3bfb9e67b8929",
+      "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
     contractDigest:
       "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
   },

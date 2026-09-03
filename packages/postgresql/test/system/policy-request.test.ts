@@ -312,12 +312,24 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
     it("rejects a root Policy declaration outside the receiving Budget holdings", async () => {
       fixture = await openPolicyFixture();
       await definePolicyResources(fixture);
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
+      const invalidPolicy = requestLimitPolicy(
+        "request_ceiling",
+        "a_outside_root",
+        "search_queries",
+      );
+      const validPolicy = requestLimitPolicy(
+        "request_ceiling",
+        "z_inside_root",
+        "model_tokens",
+      );
       const transaction = await beginApplicationAttempt(fixture);
+      await transaction.connection.query(
+        "select set_config('keynes.policy_operation', 'requestBudget', true)",
+      );
       const wire = await call(transaction, "createBudget", {
         commandId: ROOT_BUDGET_ID,
         resources: [rootResource(MODEL_RESOURCE_ID, 100)],
-        policies: [policy],
+        policies: [invalidPolicy, validPolicy],
       });
       await transaction.commit();
 
@@ -325,7 +337,13 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         ok: false,
         error: {
           code: "invalid_policy",
-          details: { path: "$.policies", rule: "allocatedResourceTypes" },
+          details: {
+            operation: "createBudget",
+            policyName: "a_outside_root",
+            policyRevision: 1,
+            path: "$.policies",
+            rule: "allocatedResourceTypes",
+          },
         },
       });
       await expectBudgetState(fixture.owner, ROOT_BUDGET_ID, false);
