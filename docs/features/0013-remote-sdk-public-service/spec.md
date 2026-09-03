@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0013-remote-sdk-public-service`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-01
-**Status**: Implementation complete; acceptance remains in progress because the authorized external-database lane and timed walkthrough are `NOT RUN`
+**Status**: Implementation complete; acceptance remains in progress because provider-free positive TLS qualification and the timed clean-user walkthrough are `NOT RUN`. External-provider qualification is optional deployment evidence.
 **Input**: User description: "Let server-side TypeScript applications use durable Keynes Budgets through direct PostgreSQL access."
 
 ## Feature story _(mandatory)_
@@ -142,7 +142,7 @@ As an operator, I can grant each server-side application only the remote Keynes 
 - **Application boundary**: The application owns external work, provider recovery, usage evidence, and business outcomes. Keynes never performs or attests to that work.
 - **Policy and security**: Remote Policy source and context remain untrusted and fail closed. Database authentication, protected principal mapping, least-privilege procedures, tenant isolation, secret exclusion, and cross-tenant probes are acceptance requirements.
 - **Contracts and deployments**: Shared local and PostgreSQL behavior must pass before remote-specific direct, pooled, identity, TLS, recovery, package, and lifecycle evidence. Self-hosted and managed operations remain later features.
-- **Evidence classification**: Repository, package, and local PostgreSQL lanes are provider-free. Any remote database, managed provider, hostile-role assessment, recovery exercise, fault campaign, benchmark, or production claim requires its named lane and authorization. Unrun lanes remain `NOT RUN`.
+- **Evidence classification**: Repository, package, and local PostgreSQL lanes are provider-free. A disposable local PostgreSQL target with a test certificate authority can qualify Keynes-owned certificate-chain and hostname verification. Managed-provider, public-network, hostile-role assessment, recovery exercise, fault campaign, benchmark, and production claims require their named lanes and authorization. Unrun lanes remain `NOT RUN` and do not block this feature unless a success criterion requires them.
 
 ### Key entities
 

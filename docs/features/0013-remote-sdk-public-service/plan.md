@@ -101,4 +101,4 @@ pnpm pack:postgresql
 pnpm test:package:postgresql -- --archive <exact-archive>
 ```
 
-Dispatch hosted package compatibility only for the accepted revision. Run an authorized remote-database lane only after the user approves the external endpoint and credential scope. Record unavailable lanes as `NOT RUN`.
+Dispatch hosted package compatibility only for the accepted revision. Qualify positive certificate-chain and hostname verification against a disposable local PostgreSQL TLS target. Run the optional external-provider lane only after the user approves the endpoint and credential scope. Record unavailable lanes as `NOT RUN`; unavailable provider evidence does not block FEAT-0013 software acceptance.

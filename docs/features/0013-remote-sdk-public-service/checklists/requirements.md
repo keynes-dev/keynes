@@ -29,7 +29,3 @@
 - [x] User stories cover the primary remote loop, recovery, and operations
 - [x] Provider-free and separately authorized evidence lanes remain distinct
 - [x] The feature is ready for technical planning
-
-## Notes
-
-The specification records accepted product behavior and consumes FEAT-0014 as its prerequisite. FEAT-0013 is now implemented with provider-free package, hosted consumer, and embedded PostgreSQL evidence. Authorized external-database and timed walkthrough acceptance remain `NOT RUN`.

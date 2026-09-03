@@ -2,17 +2,17 @@
 
 ## Decision
 
-The authorized external-database lane uses one provider-neutral qualification
-scenario suite with a target adapter. An external target attaches to an
-operator-prepared PostgreSQL 18.6 database. It never creates, resizes,
-restarts, or deletes provider infrastructure. A later local target may let
-FEAT-0015 supply PostgreSQL and PgBouncer through Testcontainers without
-changing the scenario contract.
+The optional external-provider lane uses the same provider-neutral
+qualification scenarios as the required local TLS lane. Its target adapter
+attaches to an operator-prepared PostgreSQL 18.6 database and never creates,
+resizes, restarts, or deletes provider infrastructure. A local target can
+supply PostgreSQL, PgBouncer, and test certificates through Testcontainers
+without changing the scenario contract.
 
-The qualifier is separate from the SDK package runner's narrow
+The external qualifier is separate from the SDK package runner's narrow
 `--authorized-database` walkthrough. That walkthrough remains the timed
-clean-user path for T049 and continues to report the complete external lane as
-`NOT RUN`.
+clean-user path for T049 and runs against a fresh local TLS target. It continues
+to report external-provider evidence as `NOT RUN` unless that optional lane ran.
 
 ## Inputs and ownership
 
@@ -74,10 +74,8 @@ exclusive creation with mode `0600`. A missing prerequisite or scenario is a
 failed qualification, not a skipped passing case.
 
 `packages/postgresql/test/qualification/required-scenarios.ts` owns the shared
-scenario bodies and their order. It depends only on the `DatabaseTarget`
-capabilities, not environment variables or the external adapter. The external
-adapter owns the prepared URLs; a later Testcontainers adapter can own local
-lifecycle while executing the same suite.
+scenarios. The local adapter owns lifecycle and certificates; the external
+adapter owns prepared URLs and provider facts.
 
 ## Rejected alternatives
 
@@ -85,7 +83,8 @@ lifecycle while executing the same suite.
   human walkthrough, and full external acceptance.
 - Provider SDKs or provider-resource automation would require broad authority
   and make a provider-neutral evidence lane own infrastructure lifecycle.
-- A second PostgreSQL driver, custom SSLRequest implementation, certificate
-  generator, or proxy would duplicate existing runtime behavior.
+- A second PostgreSQL driver, custom SSLRequest implementation, proxy, or
+  certificate generator inside the attach-only external adapter would duplicate
+  existing runtime or target-lifecycle behavior.
 - Copying remote test bodies would create competing owners for scenario
   identity. Shared scenarios must remain behind the target adapter.

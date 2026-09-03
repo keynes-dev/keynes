@@ -1,10 +1,8 @@
 # FEAT-0013 evidence
 
-Phase 6 provider-free and embedded PostgreSQL evidence is accepted at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The authorized external-database lane and timed live walkthrough remain `NOT RUN`.
+Phase 6 provider-free and embedded PostgreSQL evidence is accepted at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. Provider-free positive TLS qualification and the timed clean-user walkthrough remain `NOT RUN`. External-provider qualification is optional deployment evidence and remains `NOT RUN`.
 
 Retain only exact-revision records required by [the acceptance contract](../contracts/acceptance-record.md). Keep local archives and unsuccessful attempts under ignored `.artifacts/` paths. Provider-free repository, native PostgreSQL, SDK package, authorized remote-database, self-hosted, managed, recovery, security, fault, benchmark, and production lanes remain separate.
-
-FEAT-0014 owns the accepted Resource-bound local and PostgreSQL prerequisite evidence. FEAT-0013 adds revision-scoped direct PostgreSQL, package, and hosted-consumer evidence below. Positive external TLS and provider operation, self-hosted and managed deployment, broad security qualification, fault campaigns, and production behavior remain separate `NOT RUN` lanes.
 
 ## Prerequisite baseline
 
@@ -129,4 +127,4 @@ Revision `52da617be4f77ef5913955e397c3bc6ff2423ae6` is the final Phase 6 impleme
 - The Phase 6 adversarial review found and drove repairs for secret-environment inheritance, dedicated-target authorization, a stale evidence boundary, and missing cross-tenant mutation denial. The required read-only Ponytail reviews derived the bundled package inventory from one dependency authority and table-drove duplicated tenant assertions. A final review of the hosted timeout repair reported no findings.
 - `apps/cloud` and its generator, workspace, root commands, lock importer, tests, and active documentation edges are removed. The [retirement map](../contracts/cloud-retirement.md) accounts for all nine retained FEAT-0006 assertions without using historical records as direct-SDK proof.
 
-The authorized external-database lane is `NOT RUN`: no dedicated endpoint, provider profile, certificate identity, or credentials were explicitly approved. The timed clean-user walkthrough is also `NOT RUN` because it depends on that authority. The provider-free package record therefore lists its narrower optional walkthrough separately and does not claim the full authorized lane. Other PostgreSQL versions, positive external TLS and pooler downstream TLS, registry publication, upgrade/downgrade, backup recovery, failover, broad hostile-role security qualification, fault campaigns, benchmarks beyond the retained reference measurement, self-hosted operation, managed Cloud, and production readiness remain `NOT RUN`.
+Provider-free positive TLS qualification is `NOT RUN`, so the timed clean-user walkthrough against a fresh disposable TLS target is also `NOT RUN`. The optional external-provider lane remains `NOT RUN`: no dedicated endpoint, provider profile, certificate identity, or credentials were explicitly approved. That absence does not block FEAT-0013 software acceptance. Other PostgreSQL versions, external-provider and public-network behavior, pooler downstream TLS, registry publication, upgrade/downgrade, backup recovery, failover, broad hostile-role security qualification, fault campaigns, benchmarks beyond the retained reference measurement, self-hosted operation, managed Cloud, and production readiness remain `NOT RUN`.
