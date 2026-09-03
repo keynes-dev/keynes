@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK. The shared Resource-binding prerequisite and the remote access path are not implemented. Hosted compatibility, remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, Resource-bound local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Resource-bound and Policy procedures, a historically qualified SDK archive, a Phase 5 qualified PostgreSQL archive, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. FEAT-0014 Phase 6 acceptance remains open. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK, but that remote path is not implemented. Hosted compatibility, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -77,7 +77,7 @@ This is a command boundary, not a general storage adapter. It does not expose qu
 
 ## Local implementation
 
-`createKeynes({ resources })` is the current public local entry point. The prerequisite Resource-binding feature will replace it with `createKeynes()` and move Resource installation into atomic root Budget creation. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`createKeynes()` is the public local entry point. `defineResources(...)` creates a frozen type carrier, and `createBudget(schema, allocation, options?)` atomically reconciles the allocated definitions and creates one root with an immutable Resource binding. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -124,14 +124,14 @@ The SDK contains no PGlite dependency, local migration asset, PostgreSQL impleme
 
 ## PostgreSQL implementation
 
-The existing migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
+The five-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes root creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
 
 The five current procedures are:
 
 | SDK operation    | PostgreSQL procedure                 | Purpose                                                 |
 | ---------------- | ------------------------------------ | ------------------------------------------------------- |
 | `defineResource` | `keynes.define_resource_type(jsonb)` | Define one immutable Resource type                      |
-| `createBudget`   | `keynes.create_budget(jsonb)`        | Allocate selected Resources to a root Budget            |
+| `createBudget`   | `keynes.create_budget(jsonb)`        | Reconcile definitions and allocate one root atomically  |
 | `requestBudget`  | `keynes.request(jsonb)`              | Deny or atomically reserve Resources and create a child |
 | `settleBudget`   | `keynes.settle(jsonb)`               | Record direct usage and derive settlement state         |
 | `getBudget`      | `keynes.get_budget(jsonb)`           | Return the authorized Budget projection and history     |
@@ -140,7 +140,7 @@ The five current procedures are:
 
 ### Embedded PostgreSQL
 
-An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
+An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical five-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
 
 An embedded application calls supported `keynes.*` functions from its existing database code. The application owns the connection, transaction, roles, upgrades, backup, recovery, and incident response.
 
@@ -148,7 +148,7 @@ The defining advantage is transaction composition. Caller-owned database code ca
 
 Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
 
-The PostgreSQL transaction integration feature must prove:
+At Phase 5 revision `1b0563616d17299d9a5c57e1fbe7523d4f6e4b68`, the packed PostgreSQL archive passed all 159 PostgreSQL 18.6 scenarios, including Resource-bound creation, exact definition reuse, conflicting-definition rollback, Policy validation, replay, permissions, and caller-owned transaction composition. That revision-scoped result proves:
 
 - one clean database can install the exact migrations;
 - an application role can call only supported Keynes functions;
@@ -184,12 +184,12 @@ It does not prove the accepted direct PostgreSQL SDK, database-role identity, TL
 
 ### Resource type
 
-A Resource type is an immutable definition for a countable quantity, such as `usd_cents`, `search_queries`, or `review_seats`. It has a stable identifier, a canonical application-defined name and unit, and one accounting behavior:
+A Resource type is an immutable definition for a countable quantity, such as `usd_cents`, `search_queries`, or `review_seats`. PostgreSQL assigns its opaque stable identifier; the caller supplies a canonical name, unit, and accounting behavior:
 
 - `consumable`: recorded usage consumes quantity permanently and known unused quantity returns after settlement;
 - `reusable`: quantity stays reserved while the relevant descendant subtree is active and returns in full when it settles.
 
-Defining a Resource type creates no quantity. Repeating the same name and definition is idempotent. Reusing the name with a different definition is a conflict.
+`definition_command_id` records the command provenance separately from Resource identity. Defining a Resource type creates no quantity. Repeating the same name and definition is idempotent and returns the authority-issued identity. Reusing the name with a different definition is a conflict. Resource-bound root creation applies that same reconciliation and its allocation in one transaction.
 
 ### Budget
 
@@ -300,9 +300,9 @@ const resources = defineResources({
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
 
-await using keynes = await createKeynes({ resources });
+await using keynes = await createKeynes();
 
-const root = await keynes.createBudget({
+const root = await keynes.createBudget(resources, {
   usdCents: 1000,
   searchQueries: 100,
 });
@@ -320,7 +320,7 @@ if (result.status === "approved") {
 
 `Keynes` and `Budget` are exported readonly interface types, not public classes. Frozen closure-backed objects implement them. The method syntax keeps hidden runtime and Budget identity out of every call, while arrow-function methods avoid `this` binding. `Keynes` supports both `AsyncDisposable` and explicit idempotent `close()`.
 
-`createKeynes({ resources })` currently selects local SQLite. The prerequisite feature will change local setup to `createKeynes()` and bind Resource types during atomic root Budget creation. FEAT-0013 will add `createKeynes({ databaseUrl })` for direct PostgreSQL access. Embedded PostgreSQL remains outside the factory because application database code owns its existing transaction.
+`createKeynes()` selects local SQLite and accepts no configuration. FEAT-0013 will add `createKeynes({ databaseUrl })` for direct PostgreSQL access while retaining Resource-bound root creation. Embedded PostgreSQL remains outside the factory because application database code owns its existing transaction.
 
 Only the remote SDK exposes a durable `BudgetReference` and reopen operation. Reopen requires the caller's expected Resource types and names, then PostgreSQL checks that binding before returning a handle. Local handles remain process-scoped. `inspect()` keeps its current result shape in both modes; the remote executor may assemble bounded history pages internally. The planned PostgreSQL contract adds read-only operation recovery and history-page procedures without moving replay or history ownership into the SDK.
 

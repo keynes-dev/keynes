@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0013-remote-sdk-public-service`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-01
-**Status**: Draft, blocked by Resource-bound Budget creation
+**Status**: Draft, blocked until its branch is refreshed from FEAT-0014
 **Input**: User description: "Let server-side TypeScript applications use durable Keynes Budgets through direct PostgreSQL access."
 
 ## Feature story _(mandatory)_
@@ -35,7 +35,7 @@ Local and remote handles keep the same Budget request, settlement, Policy, error
 
 ### What this feature does not include
 
-This feature does not implement the prerequisite Resource-bound Budget creation contract. It does not add an HTTP Budget data path, a browser or mobile client, another SDK language, caller-selected identity, arbitrary SQL, self-hosted packaging, managed Cloud operations, upgrades, backup restoration, disaster recovery, failover, multi-region routing, support, or production readiness.
+This feature consumes the FEAT-0014 Resource-bound Budget creation contract without reimplementing it. It does not add an HTTP Budget data path, a browser or mobile client, another SDK language, caller-selected identity, arbitrary SQL, self-hosted packaging, managed Cloud operations, upgrades, backup restoration, disaster recovery, failover, multi-region routing, support, or production readiness.
 
 The feature removes the private Cloud service from active product, generation, and qualification paths only after direct PostgreSQL tests own the required replacement assertions. Historical FEAT-0006 records remain unchanged.
 
@@ -169,7 +169,7 @@ As an operator, I can grant each server-side application only the remote Keynes 
 
 ## Assumptions
 
-- The prerequisite Resource-bound Budget creation feature lands before FEAT-0013 implementation begins.
+- FEAT-0014 is the completed Resource-bound Budget creation prerequisite and its accepted merge is the baseline for FEAT-0013 implementation.
 - The first remote client is a trusted server-side Node.js process. Browsers, mobile clients, and untrusted end-user devices are excluded.
 - PostgreSQL 18.6 remains the only qualified server profile until Release Support accepts another profile.
 - Managed and self-hosted operators deliver credentials outside the Budget command path.

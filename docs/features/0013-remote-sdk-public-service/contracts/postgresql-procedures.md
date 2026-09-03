@@ -10,7 +10,7 @@ PostgreSQL alone owns durable validation, transactions, permissions, Policy eval
 
 The remote profile exposes versioned wrappers for:
 
-- root Budget creation using the prerequisite Resource-binding contract;
+- root Budget creation using [FEAT-0014's](../../0014-resource-bound-budget/spec.md) Resource-binding contract;
 - child Budget request;
 - settlement;
 - Budget inspection without unbounded history;

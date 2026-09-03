@@ -1,6 +1,6 @@
 # Quickstart: Planned remote PostgreSQL flow
 
-> **Status:** Contract example only. The Resource-binding prerequisite and FEAT-0013 runtime are not implemented. Commands in this guide are `NOT RUN` until their tasks complete.
+> **Status:** Contract example only. FEAT-0014 owns the implemented Resource-bound root signature; the FEAT-0013 remote runtime and every command in this guide remain `NOT RUN`.
 
 ## Provision one scoped credential
 
@@ -26,13 +26,13 @@ await using keynes = await createKeynes({
   databaseUrl: process.env.KEYNES_DATABASE_URL!,
 });
 
-const root = await keynes.createBudget({
-  resourceTypes,
-  allocation: { usdCents: 1_000, searchQueries: 100 },
+const root = await keynes.createBudget(resourceTypes, {
+  usdCents: 1_000,
+  searchQueries: 100,
 });
 ```
 
-The prerequisite feature owns the final root-creation signature. FEAT-0013 must consume it without adding another Resource-registration path.
+FEAT-0014 owns this root-creation signature. FEAT-0013 consumes it without adding another Resource-registration path.
 
 ## Request, inspect, and settle
 

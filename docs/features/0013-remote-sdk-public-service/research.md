@@ -12,7 +12,7 @@
 
 **Decision**: The accepted SDK forms are `createKeynes()` and `createKeynes({ databaseUrl })`. Resource definitions do not select the connection.
 
-**Rationale**: One factory keeps connection lifecycle separate from durable Resource authority. The prerequisite Resource-bound Budget creation feature will make root creation bind Resources atomically for both local and PostgreSQL paths.
+**Rationale**: One factory keeps connection lifecycle separate from durable Resource authority. FEAT-0014 makes root creation bind Resources atomically for both local and PostgreSQL paths.
 
 **Alternatives considered**: Separate local and remote factories; a deployment-mode discriminator; retain `createKeynes({ resources })`. Each exposes deployment mechanics or prevents reopening an existing authority before a Resource schema is known.
 

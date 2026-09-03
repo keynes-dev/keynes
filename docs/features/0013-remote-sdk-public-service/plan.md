@@ -5,13 +5,13 @@
 
 ## Summary
 
-Add direct PostgreSQL access to the server-side TypeScript SDK after the unnumbered Resource-bound Budget creation prerequisite lands. The SDK will normalize one strict `databaseUrl`, own a `pg` pool, check procedure compatibility, and project generated requests and results through the existing Keynes and Budget handles. PostgreSQL will authenticate scoped roles, derive one principal, and remain the only owner of durable Budget state, replay, recovery, and history.
+Add direct PostgreSQL access to the server-side TypeScript SDK from the completed FEAT-0014 Resource-bound Budget creation baseline. The SDK will normalize one strict `databaseUrl`, own a `pg` pool, check procedure compatibility, and project generated requests and results through the existing Keynes and Budget handles. PostgreSQL will authenticate scoped roles, derive one principal, and remain the only owner of durable Budget state, replay, recovery, and history.
 
 FEAT-0013 adds remote-only Budget references, reopen, and read-only operation recovery while preserving the current `inspect()` result. It replaces active `apps/cloud` coverage only after equivalent direct PostgreSQL assertions pass. This plan creates no HTTP Budget protocol.
 
 ## Technical context
 
-**Language/version**: TypeScript 5.9 on Node.js 24 and 26; SQL and PL/pgSQL on PostgreSQL 18.6
+**Language/version**: TypeScript 7.0.2 on Node.js 24 and 26; SQL and PL/pgSQL on PostgreSQL 18.6
 **Primary dependencies**: existing generated contract pipeline, `pg` 8.23.x, `pg-connection-string`, Node.js TLS; both PostgreSQL libraries become declared SDK runtime and packed-production dependencies
 **Storage**: private in-memory SQLite for local Budgets; PostgreSQL for every remote Budget
 **Testing**: Vitest, shared contract conformance, native PostgreSQL system tests, packed SDK consumers, hosted Node.js matrix
@@ -33,24 +33,24 @@ FEAT-0013 adds remote-only Budget references, reopen, and read-only operation re
 
 ### After design
 
-The design preserves the same conclusions. No constitutional exception is required. The prerequisite changes the shared Resource-binding API before this feature starts implementation; FEAT-0013 does not duplicate that work.
+The design preserves the same conclusions. No constitutional exception is required. FEAT-0014 owns the shared Resource-binding API; FEAT-0013 does not duplicate that work.
 
 ## Prerequisite gate
 
 Do not implement any FEAT-0013 source task until all of these conditions hold on `main`:
 
-1. Spec Kit has allocated the current unnumbered `Resource-bound Budget creation` candidate.
+1. FEAT-0014 is merged on `main`, and T001 records its accepted revision.
 2. Its accepted implementation provides `createKeynes()` for local connection setup and atomic Resource binding during root creation.
 3. Shared local and native PostgreSQL conformance passes for root creation, Policy binding, replay, settlement, and current `inspect()` behavior.
 4. Its public SDK types and generated contracts are the baseline consumed by this plan.
 
-The prerequisite gets its own branch, specification, plan, tasks, review, evidence, and merge. FEAT-0013 remains planning-only while the gate is open.
+FEAT-0014 owns its branch, specification, plan, tasks, review, evidence, and merge. FEAT-0013 remains planning-only until its canonical branch is refreshed from that merge and T001 through T004 close the gate.
 
 ## Design
 
 ### Public SDK boundary
 
-`packages/sdk/src/keynes.ts` keeps one `createKeynes` factory. The zero-argument overload comes from the prerequisite. FEAT-0013 adds the `{ databaseUrl }` overload and returns a remote-capable Keynes handle. Shared Budget methods continue to use the generated client and public projection code.
+`packages/sdk/src/keynes.ts` keeps one `createKeynes` factory. The zero-argument overload comes from FEAT-0014. FEAT-0013 adds the `{ databaseUrl }` overload and returns a remote-capable Keynes handle. Shared Budget methods continue to use the generated client and public projection code.
 
 Remote-only types live in focused SDK modules and exports. `BudgetReference` is not an alias for `OperationKey`. Remote reopen checks expected Resource types through PostgreSQL before constructing a handle. `Budget.inspect()` keeps its existing result; the remote executor obtains current state and bounded history pages internally.
 

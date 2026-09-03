@@ -76,7 +76,9 @@ On August 25, 2026, FEAT-0007 passed its focused SDK tests, feature-identity, pr
 
 `PostgreSQL transaction integration` is complete for its supported PostgreSQL 18.6 preview boundary and has feature identity FEAT-0009. Repaired revision `7edb1ee723c39b10c0dc864673fb9cb1f5d00b3e` passed the Docker-free PR lane, all 85 fixed provider-free PostgreSQL scenarios, and all 9 Cloud native blast-radius scenarios. A direct adopter walkthrough on older revision `75fb60cf6e4df399b3c71ac28173e0ce769a42e7` completed install, exact recheck, application-role request, and outbox commit in 195 milliseconds after database and role preparation. The timed walkthrough was `NOT RUN` after the later configuration, migration-asset-loading, and CLI-entrypoint changes.
 
-`Portable Policy evaluation` is complete as FEAT-0012. Accepted source revision `ea621cc567d30e5c685fc40cd907f308e16489bc` supports schema-first handles, Kysely and raw-SQL authoring, generated portable semantics, local and PostgreSQL evaluation, fail-closed rollback, canonical evidence, and exact governed replay. The exact provider-free gates passed 302 tests; the SDK and PostgreSQL archives passed 17 and 21 package tests; PostgreSQL 18.6 passed 132 system scenarios; and private Cloud passed 9 no-Policy scenarios. The hosted Node.js 24/26 matrix, public remote Policy, providers, recovery, and production readiness remain `NOT RUN`. FEAT-0014 is in progress; FEAT-0013 remains blocked on it. All later incomplete candidates remain unnumbered and `Not started`.
+`Portable Policy evaluation` is complete as FEAT-0012. Accepted source revision `ea621cc567d30e5c685fc40cd907f308e16489bc` supports schema-first handles, Kysely and raw-SQL authoring, generated portable semantics, local and PostgreSQL evaluation, fail-closed rollback, canonical evidence, and exact governed replay. The exact provider-free gates passed 302 tests; the SDK and PostgreSQL archives passed 17 and 21 package tests; PostgreSQL 18.6 passed 132 system scenarios; and private Cloud passed 9 no-Policy scenarios. The hosted Node.js 24/26 matrix, public remote Policy, providers, recovery, and production readiness remain `NOT RUN`.
+
+`Resource-bound Budget creation` is in Phase 6 acceptance as FEAT-0014. One local connection now creates independent typed roots by atomically reconciling the allocated Resource definitions, quantities, optional Policies, replay record, and history. PostgreSQL migration `0005-resource-bound-budget` implements the same command while preserving migrations `0001` through `0004`. Phase 5 revision `1b0563616d17299d9a5c57e1fbe7523d4f6e4b68` passed 159 PostgreSQL 18.6 scenarios through its packed PostgreSQL archive; Phase 6 package and exact-candidate acceptance remain open. The [evidence ledger](features/0014-resource-bound-budget/evidence/README.md) keeps provider-free, package, native PostgreSQL, and private Cloud regression results separate from unexecuted deployment claims. FEAT-0013 remains blocked until FEAT-0014 is accepted, merged, and its canonical branch is refreshed from that merge. All later incomplete candidates remain unnumbered and `Not started`.
 
 ## Standalone repository work
 
@@ -89,13 +91,14 @@ Standalone Spec Kit work can maintain the repository without changing the produc
 
 ### SQLite local runtime
 
-FEAT-0008 delivered the private SQLite runtime behind the earlier pre-release facade. FEAT-0012 now opens it through the schema-first API:
+FEAT-0008 delivered the private SQLite runtime behind the earlier pre-release facade. FEAT-0014 now separates local connection setup from Resource-bound root creation:
 
 ```ts
 const resources = defineResources({
   tokens: { unit: "token", accountingBehavior: "consumable" },
 });
-const keynes = await createKeynes({ resources });
+const keynes = await createKeynes();
+const root = await keynes.createBudget(resources, { tokens: 1000 });
 ```
 
 The runtime preserves `createBudget`, `Budget.request`, `settle`, `inspect`, `close`, structured error details, replay behavior, and close behavior. `Keynes` and `Budget` are now readonly interface types implemented by frozen closure-backed handles. FEAT-0008 required the runtime to:
@@ -150,11 +153,13 @@ FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, Po
 
 Kysely output and raw SQL must pass through the same parser, validator, and normalizer into one versioned Policy program. One semantic registry owns the program rules; deployment-native execution is the v1 choice, not a permanent ban on a shared executable core. The feature does not choose another durable database or give Policies direct access to application tables.
 
-This feature also replaces the pre-release class facade with a schema-first
-functional API. `defineResources(...)` returns a frozen type carrier,
-`createKeynes({ resources })` returns a readonly local capability, and approved
-requests return readonly Budget capabilities. The SDK keeps method calls but
-exports no constructible `Keynes` or `Budget` class and no compatibility alias.
+At its accepted revision, this feature also replaced the pre-release class
+facade with a schema-first functional API. FEAT-0014 later separated connection
+setup from Resource binding: `defineResources(...)` returns a frozen type
+carrier, `createKeynes()` returns a readonly local capability, and
+`createBudget(schema, allocation, options?)` binds each root. Approved requests
+return readonly Budget capabilities. The SDK keeps method calls but exports no
+constructible `Keynes` or `Budget` class and no compatibility alias.
 
 ## Conditional growth
 

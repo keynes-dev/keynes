@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through qualified installed procedures. The private Cloud service supports only the historical no-Policy transport and rejects Policy fields. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK, but that path and its prerequisite Resource-binding API are not implemented. Hosted compatibility, remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
+> **Status:** The SDK opens private in-memory SQLite without a Resource schema and creates typed root Budgets by binding definitions, quantities, and optional Policies atomically. PostgreSQL 18.6 implements the same Resource-bound root and Policy contracts through installed procedures. The private Cloud service remains a historical no-Policy transport. Direct remote PostgreSQL access, hosted compatibility, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unimplemented or unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
 
 ## Thesis
 
@@ -14,7 +14,7 @@ Budget -> request -> child Budget -> settle -> evidence
 
 ## Budgets and Resources
 
-Before a Budget can hold a Resource, the application defines an immutable Resource type. The type has a stable identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Defining a type creates no quantity and grants no permission to spend.
+Before a Budget can hold a Resource, the application describes an immutable Resource type. Root creation reconciles that definition and introduces its selected quantity in one atomic command. The type has an authority-issued identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Embedded PostgreSQL callers may still define a type separately; defining a type creates no quantity and grants no permission to spend.
 
 An authorized root allocation creates quantity for selected Resource types. A root holds only those allocations. It does not declare every type the application may use. By default, a Budget funds its own children. It can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
 
@@ -103,7 +103,7 @@ Shared Budget behavior
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. The current SDK uses `defineResources(...)` and `createKeynes({ resources })` to open the process-local SQLite runtime. The accepted next API separates connection setup from Resource binding: `createKeynes()` opens local SQLite, `createKeynes({ databaseUrl })` opens one PostgreSQL authority, and root Budget creation binds the Resource schema atomically. A prerequisite feature will implement that shared creation contract before FEAT-0013 adds remote PostgreSQL access.
+Each Budget is stored in one place. The current SDK uses `defineResources(...)` as a pure typed authoring step, `createKeynes()` to open local SQLite, and `createBudget(schema, allocation, options?)` to bind the allocated Resource definitions atomically. FEAT-0013 will add `createKeynes({ databaseUrl })` for one PostgreSQL authority without changing that root-creation contract.
 
 ### Local mode
 
@@ -117,7 +117,7 @@ The `@keynes/postgresql` package installs the canonical migrations and procedure
 
 The application's existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, acquire a connection, retry, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
 
-Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. The exact PostgreSQL archive and 132 PostgreSQL 18.6 system scenarios passed for the FEAT-0012 accepted source revision. Provider, hostile-role, recovery, and production qualification remain `NOT RUN`.
+Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. FEAT-0014 Phase 5 revision `1b0563616d17299d9a5c57e1fbe7523d4f6e4b68` passed 159 PostgreSQL 18.6 scenarios, including Resource-bound root creation, through one packed archive. Phase 6 acceptance, providers, hostile roles, recovery, and production qualification remain `NOT RUN`.
 
 ### Self-hosted Keynes
 
@@ -169,7 +169,7 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - PostgreSQL is the only durable database implementation.
 - Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
 - TypeScript is the only supported SDK.
-- The current SDK uses `defineResources(...)` and `createKeynes({ resources })` for local SQLite. The accepted next API uses `createKeynes()` for local SQLite and `createKeynes({ databaseUrl })` for one remote PostgreSQL authority; it binds Resource types during root Budget creation. Neither change is implemented.
+- The current SDK uses `defineResources(...)`, `createKeynes()`, and Resource-bound `createBudget(...)` for local SQLite. The accepted remote extension adds `createKeynes({ databaseUrl })` for one PostgreSQL authority without changing root Budget semantics; remote access is not implemented.
 - Only remote handles gain durable Budget references and reopen. Reopen validates the caller's expected Resource binding. Local handles remain process-scoped and cannot reopen a Budget.
 - `inspect()` keeps its current public result shape in both modes. A remote implementation may fetch bounded history pages internally.
 - Supporting another durable database requires a later constitution and product decision.

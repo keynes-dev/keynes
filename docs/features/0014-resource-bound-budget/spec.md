@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0014-resource-bound-budget`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-02
-**Status**: Draft
+**Status**: In progress, Phase 6 acceptance
 **Input**: User description: "Separate connection setup from Resource binding, provide one typed local and PostgreSQL root-creation contract, make root creation atomic, and qualify shared local and native PostgreSQL behavior. Exclude remote TLS, credentials, private administration, recovery, and Cloud retirement."
 
 ## Feature story
@@ -39,7 +39,7 @@ This feature does not add a remote SDK connection, TLS rules, credentials, datab
 
 ### Where this leads
 
-FEAT-0014 is the Resource-bound Budget creation prerequisite in the implementation sequence. FEAT-0013 remains blocked until FEAT-0014 lands with accepted local and native PostgreSQL evidence.
+FEAT-0014 is the completed Resource-bound Budget creation prerequisite in the implementation sequence. FEAT-0013 consumes this contract after its canonical branch is refreshed from the accepted merge.
 
 ## User Scenarios & Testing
 
