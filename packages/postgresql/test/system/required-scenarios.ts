@@ -22,6 +22,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   "packages/postgresql/test/integration/recheck.test.ts": [
     "PostgreSQL exact recheck and application-role conformance rechecks the exact graph read-only",
     "PostgreSQL exact recheck and application-role conformance checks the server, checksums, contract, and complete object inventory",
+    "PostgreSQL exact recheck and application-role conformance rejects an otherwise exact target that lacks the final migration",
     "PostgreSQL exact recheck and application-role conformance checks owners, bodies, languages, security, and fixed search paths",
     "PostgreSQL exact recheck and application-role conformance checks bootstrap permissions and schema and function ACLs",
     "PostgreSQL exact recheck and application-role conformance allows the application role to call exactly the five public functions",
