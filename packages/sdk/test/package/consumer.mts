@@ -1,12 +1,17 @@
 import {
   createKeynes,
+  createOperationKey,
   definePolicySql,
   defineResources,
   policySet,
   policyValue,
 } from "@keynes/sdk";
+import type { BudgetReference } from "@keynes/sdk";
 
-declare const process: { readonly argv: readonly string[] };
+declare const process: {
+  readonly argv: readonly string[];
+  readonly env: Readonly<Record<string, string | undefined>>;
+};
 
 const mode = process.argv[2] ?? "budget-loop";
 switch (mode) {
@@ -15,6 +20,18 @@ switch (mode) {
     break;
   case "policy-runtime":
     await runPolicyRuntime();
+    break;
+  case "remote-exports":
+    runRemoteExports();
+    break;
+  case "configuration-rejection":
+    await runConfigurationRejection();
+    break;
+  case "environment-isolation":
+    runEnvironmentIsolation();
+    break;
+  case "authorized-database":
+    await runAuthorizedDatabase();
     break;
   case "isolation":
     await runIsolation();
@@ -30,6 +47,118 @@ switch (mode) {
     break;
   default:
     throw new Error(`Unknown consumer mode ${mode}`);
+}
+
+function runRemoteExports(): void {
+  const operationKey = createOperationKey();
+  if (!/^kop_v1_[A-Za-z0-9_-]{43}$/u.test(operationKey)) {
+    throw new Error("createOperationKey returned an invalid public key");
+  }
+}
+
+async function runConfigurationRejection(): Promise<void> {
+  await assertRejectsCode(
+    createKeynes({
+      databaseUrl:
+        "postgresql://application:secret@db.example.test/keynes?sslmode=disable",
+    }),
+    "invalid_configuration",
+  );
+}
+
+function runEnvironmentIsolation(): void {
+  if (
+    process.env.KEYNES_DATABASE_URL !== undefined ||
+    process.env.KEYNES_QUALIFICATION_TARGET !== undefined
+  ) {
+    throw new Error("provider-free consumer received authorized credentials");
+  }
+}
+
+async function runAuthorizedDatabase(): Promise<void> {
+  const databaseUrl = process.env.KEYNES_DATABASE_URL;
+  if (databaseUrl === undefined) {
+    throw new Error("KEYNES_DATABASE_URL is required for authorized-database");
+  }
+  const authorizedDatabaseUrl = databaseUrl;
+  requireQualificationTarget(authorizedDatabaseUrl);
+  const resources = defineResources({
+    packageQualificationUnits: {
+      unit: "unit",
+      accountingBehavior: "consumable",
+    },
+  });
+  const rootReference = await createAndClose();
+  await using reconnected = await createKeynes({
+    databaseUrl: authorizedDatabaseUrl,
+  });
+  const reopened = await reconnected.openBudget({
+    reference: rootReference,
+    resourceTypes: resources,
+  });
+  const [resource] = (await reopened.inspect()).budget.resources;
+  assertEqual(
+    {
+      resource: resource?.resource,
+      allocated: resource?.allocated,
+      available: resource?.available,
+      subtreeObservedUsage: resource?.subtreeObservedUsage,
+    },
+    {
+      resource: "packageQualificationUnits",
+      allocated: 5,
+      available: 3,
+      subtreeObservedUsage: 2,
+    },
+  );
+
+  async function createAndClose(): Promise<BudgetReference> {
+    await using keynes = await createKeynes({
+      databaseUrl: authorizedDatabaseUrl,
+    });
+    const root = await keynes.createBudget(
+      resources,
+      { packageQualificationUnits: 5 },
+      { operationKey: createOperationKey() },
+    );
+    const request = await root.request(
+      { packageQualificationUnits: 2 },
+      { operationKey: createOperationKey() },
+    );
+    if (request.status !== "approved") {
+      throw new Error("authorized package request was denied");
+    }
+    assertEqual(
+      (await request.budget.inspect()).budget.resources[0]?.allocated,
+      2,
+    );
+    await request.budget.settle(
+      { packageQualificationUnits: 2 },
+      { operationKey: createOperationKey() },
+    );
+    return root.reference;
+  }
+}
+
+function requireQualificationTarget(databaseUrl: string): void {
+  const expected = process.env.KEYNES_QUALIFICATION_TARGET;
+  if (expected === undefined) {
+    throw new Error(
+      "KEYNES_QUALIFICATION_TARGET is required for authorized-database",
+    );
+  }
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    throw new Error("authorized-database target is invalid");
+  }
+  const actual = `${decodeURIComponent(url.username)}@${url.hostname}:${url.port || "5432"}${decodeURIComponent(url.pathname)}`;
+  if (actual !== expected) {
+    throw new Error(
+      "authorized-database does not match the dedicated qualification target",
+    );
+  }
 }
 
 async function runBudgetLoop(): Promise<void> {

@@ -1,6 +1,6 @@
 # FEAT-0013 evidence
 
-No FEAT-0013 runtime evidence is accepted yet.
+Phase 6 acceptance evidence is not accepted yet.
 
 Retain only exact-revision records required by [the acceptance contract](../contracts/acceptance-record.md). Keep local archives and unsuccessful attempts under ignored `.artifacts/` paths. Provider-free repository, native PostgreSQL, SDK package, authorized remote-database, self-hosted, managed, recovery, security, fault, benchmark, and production lanes remain separate.
 

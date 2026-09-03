@@ -25,6 +25,20 @@ afterEach(async () => {
 });
 
 describe("SDK staged build", () => {
+  it("includes every remote runtime module in the production manifest", () => {
+    expect(SDK_PRODUCTION_MODULES).toEqual(
+      expect.arrayContaining([
+        "remote/budget",
+        "remote/connection-options",
+        "remote/errors",
+        "remote/postgresql-command-executor",
+        "remote/public-types",
+        "remote/references",
+        "remote/retry",
+      ]),
+    );
+  });
+
   it("preserves the prior distribution after compilation fails", async () => {
     const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-build-test-"));
     temporaryRoots.push(root);

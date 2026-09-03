@@ -112,15 +112,15 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 **Purpose**: Qualify exact artifacts, then remove the obsolete active service path.
 
-- [ ] T038 Add failing extracted-package assertions for every new SDK runtime module in `packages/sdk/test/package/build.test.ts`
-- [ ] T039 Add every new SDK runtime module to `packages/sdk/scripts/production-modules.ts`
-- [ ] T040 Add failing clean-consumer remote-export, configuration-rejection, and authorized-database assertions in `packages/sdk/test/package/qualify.test.ts`
-- [ ] T041 Implement the clean-consumer modes in `packages/sdk/test/package/consumer.mts` and `packages/sdk/test/package/qualify.ts`, then add the provider-free hosted matrix to `.github/workflows/sdk-package.yml`
+- [x] T038 Add failing extracted-package assertions for every new SDK runtime module in `packages/sdk/test/package/build.test.ts`
+- [x] T039 Add every new SDK runtime module to `packages/sdk/scripts/production-modules.ts`
+- [x] T040 Add failing clean-consumer remote-export, configuration-rejection, and authorized-database assertions in `packages/sdk/test/package/qualify.test.ts`
+- [x] T041 Implement the clean-consumer modes in `packages/sdk/test/package/consumer.mts` and `packages/sdk/test/package/qualify.ts`, then add the provider-free hosted matrix to `.github/workflows/sdk-package.yml`
 - [ ] T042 Build one SDK archive with `pnpm pack:sdk`, run `pnpm test:package:sdk -- --archive <exact-archive>`, and retain its digest and result in `docs/features/0013-remote-sdk-public-service/evidence/`
 - [ ] T043 Build one PostgreSQL archive with `pnpm pack:postgresql`, run `pnpm test:package:postgresql -- --archive <exact-archive>`, and retain its digest and result in `docs/features/0013-remote-sdk-public-service/evidence/`
 - [ ] T044 Dispatch the hosted SDK Node.js 24 and 26 matrix for remote exports and provider-free configuration rejection against the exact archive, then retain the workflow identity in `docs/features/0013-remote-sdk-public-service/evidence/`
-- [ ] T045 Map every retained Cloud assertion to replacement coverage or an obsolete-service disposition in `docs/features/0013-remote-sdk-public-service/contracts/cloud-retirement.md`
-- [ ] T046 Remove `apps/cloud` only after T045 passes, including its generator, workspace, root-script, structural-test, and active-documentation edges in `apps/cloud/`, `scripts/generate.ts`, `package.json`, `pnpm-workspace.yaml`, and `scripts/repository-organization.test.ts`
+- [x] T045 Map every retained Cloud assertion to replacement coverage or an obsolete-service disposition in `docs/features/0013-remote-sdk-public-service/contracts/cloud-retirement.md`
+- [x] T046 Remove `apps/cloud` only after T045 passes, including its generator, workspace, root-script, structural-test, and active-documentation edges in `apps/cloud/`, `scripts/generate.ts`, `package.json`, `pnpm-workspace.yaml`, and `scripts/repository-organization.test.ts`
 - [ ] T047 Run `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, `CI=true pnpm test:pr`, and `pnpm test:system:postgresql`; record exact results and every `NOT RUN` lane in `docs/features/0013-remote-sdk-public-service/evidence/`
 - [ ] T048 Run the authorized remote-database lane only after explicit approval and retain its redacted exact-revision record in `docs/features/0013-remote-sdk-public-service/evidence/`
 - [ ] T049 Run a timed clean-user quickstart walkthrough and require completion in under 15 minutes; record its inputs, duration, source revision, archive digest, and outcome, then update `docs/features/0013-remote-sdk-public-service/quickstart.md` and `docs/features/0013-remote-sdk-public-service/evidence/`

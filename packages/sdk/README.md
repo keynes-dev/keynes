@@ -1,8 +1,8 @@
 # TypeScript SDK
 
 `@keynes/sdk` is a private, unpublished ESM package. It owns the schema-first
-local API, portable Policy authoring, generated contracts, and one private
-in-memory SQLite runtime.
+local and remote API, portable Policy authoring, generated contracts, one
+private in-memory SQLite runtime, and the direct PostgreSQL client.
 
 ## Install the private archive
 
@@ -13,10 +13,10 @@ CI=true pnpm pack:sdk
 ```
 
 Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
-The package has six pinned production dependencies: Kysely for typed Policy
-queries, `libpg-query` and `@pgsql/types` for the PostgreSQL 18 parser and its
-types, `decimal.js` for local bounded-decimal evaluation, and `pg` plus
-`pg-connection-string` for direct remote PostgreSQL access. It contains no
+The package pins and bundles Kysely for typed Policy queries, `libpg-query`
+and `@pgsql/types` for the PostgreSQL 18 parser and its types, `decimal.js`
+for local bounded-decimal evaluation, and the complete `pg` runtime closure
+for direct remote PostgreSQL access. It contains no
 PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
 library. The package remains private and has no registry publication command.
 
@@ -32,8 +32,8 @@ const resources = defineResources({
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 });
 
-await using keynes = await createKeynes({ resources });
-const root = await keynes.createBudget({
+await using keynes = await createKeynes();
+const root = await keynes.createBudget(resources, {
   usdCents: 100,
   searchQueries: 10,
 });
@@ -45,8 +45,8 @@ if (request.status === "approved") {
 ```
 
 `defineResources(...)` copies, orders, digests, and freezes the complete
-Resource schema. `createKeynes({ resources })` installs that schema before it
-returns. Resource keys flow through root creation, requests, settlement,
+Resource schema. Root creation binds that schema and its selected allocation
+atomically. Resource keys flow through root creation, requests, settlement,
 inspection, denial reasons, and Policy authoring as exact TypeScript types.
 
 `Keynes` and `Budget` are exported readonly interface types, not classes.
@@ -86,6 +86,7 @@ const limit = definePolicy(resources, {
 });
 
 const governed = await keynes.createBudget(
+  resources,
   { usdCents: 100 },
   { policies: policySet(limit) },
 );
@@ -142,23 +143,28 @@ or credential. It provides no durable storage, daemon, socket server, or public
 database interface. Deep imports, package metadata imports, replay controls,
 and direct Policy-program construction are private.
 
-The private Cloud service does not accept Policies. Embedded PostgreSQL uses
-the separate `@keynes/postgresql` installer and direct `keynes.*(jsonb)` calls;
+Remote mode accepts one `postgresql:` URL with exactly one
+`sslmode=verify-full`, owns a bounded pool, and invokes only generated remote
+procedures. PostgreSQL derives identity from the authenticated login role.
+Remote handles expose durable references, reopen, caller-owned operation keys,
+and read-only operation recovery. Embedded PostgreSQL uses the separate
+`@keynes/postgresql` installer and caller-owned `keynes.*(jsonb)` transactions;
 it is not a `createKeynes(...)` mode.
 
 ## Compatibility and evidence
 
 The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS
 arm64, and Windows x64. Node.js 25 is unsupported. Browsers, bundlers, CommonJS,
-Bun, Deno, other architectures, remote SDK access, and registry publication are
-outside the package contract.
+Bun, Deno, other architectures, and registry publication are outside the
+package contract.
 
-Provider-free source tests do not qualify an archive. The Phase 7 package lane
-must install one exact archive outside the workspace, import its package root,
-load the parser without a workspace fallback, exercise the public Policy and
-Budget API, and record the archive identity. The separate measurement lane
-records archive and install bytes, ready RSS, creation, request, and shutdown.
+Provider-free source tests do not qualify an archive. The package lane installs
+one exact archive outside the workspace, imports its package root, loads the
+parser without a workspace fallback, and exercises the public Policy, local
+Budget, remote-export, and fail-closed configuration API. The separate
+measurement lane records archive and install bytes, ready RSS, creation,
+request, and shutdown.
 
-Final SDK archive qualification, the hosted Node.js matrix, provider
-qualification, security qualification, recovery, managed operations, adopter
-use, and production readiness remain `NOT RUN` for FEAT-0012.
+An authorized external database, provider qualification, broad security
+qualification, managed operations, adopter use, and production readiness need
+their own evidence.

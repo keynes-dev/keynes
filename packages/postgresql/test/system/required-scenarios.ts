@@ -134,6 +134,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/system/remote-security.test.ts": [
     "remote PostgreSQL identity and security derives tenant and principal from the authenticated role on every call",
+    "remote PostgreSQL identity and security scopes overlapping Resource names and operation keys to each authenticated tenant",
     "remote PostgreSQL identity and security checks enabled mappings again on an already-open session",
     "remote PostgreSQL identity and security validates the exact input shape of all eight wrappers before mutation",
     "remote PostgreSQL identity and security returns authorization-safe errors before validating an unmapped caller",

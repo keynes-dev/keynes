@@ -96,6 +96,139 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       ]);
     });
 
+    it("scopes overlapping Resource names and operation keys to each authenticated tenant", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      await fixture.register(fixture.secondary);
+      const primary = await fixture.connect(fixture.primary);
+      const secondary = await fixture.connect(fixture.secondary);
+      const primaryResult = await completeTenantLifecycle(primary, 7, 3);
+      const secondaryResult = await completeTenantLifecycle(secondary, 11, 4);
+      expect(secondaryResult.rootReference).not.toBe(
+        primaryResult.rootReference,
+      );
+      expect(secondaryResult.childReference).not.toBe(
+        primaryResult.childReference,
+      );
+
+      for (const { client, result, allocated, available } of [
+        { client: primary, result: primaryResult, allocated: 7, available: 4 },
+        {
+          client: secondary,
+          result: secondaryResult,
+          allocated: 11,
+          available: 7,
+        },
+      ]) {
+        expect(
+          await queryResponse(
+            client,
+            "keynes.remote_create_budget",
+            result.createInput,
+          ),
+        ).toMatchObject({
+          ok: true,
+          result: {
+            kind: "created",
+            replayed: true,
+            budget: { budgetReference: result.rootReference },
+          },
+        });
+        expect(
+          await queryResponse(client, "keynes.remote_get_budget", {
+            budgetReference: result.rootReference,
+          }),
+        ).toMatchObject({
+          ok: true,
+          result: { budget: { resources: [{ allocated, available }] } },
+        });
+        expect(
+          await queryResponse(client, "keynes.remote_get_budget", {
+            budgetReference: result.childReference,
+          }),
+        ).toMatchObject({
+          ok: true,
+          result: { budget: { lifecycle: "settled" } },
+        });
+      }
+      const primaryBefore = await Promise.all([
+        queryResponse(primary, "keynes.remote_get_budget", {
+          budgetReference: primaryResult.rootReference,
+        }),
+        queryResponse(primary, "keynes.remote_get_budget", {
+          budgetReference: primaryResult.childReference,
+        }),
+      ]);
+      const crossTenant = await queryResponse(
+        secondary,
+        "keynes.remote_get_budget",
+        { budgetReference: primaryResult.rootReference },
+      );
+      expect(crossTenant).toMatchObject({
+        ok: false,
+        error: { code: "unauthorized" },
+      });
+      expectSafeRemoteResponse(crossTenant);
+      for (const crossTenantMutation of [
+        await queryResponse(secondary, "keynes.remote_request", {
+          operationKey: operationKey("w"),
+          parentBudgetReference: primaryResult.rootReference,
+          resources: [{ resource: "shared_tenant_tokens", amount: 1 }],
+        }),
+        await queryResponse(secondary, "keynes.remote_settle", {
+          operationKey: operationKey("x"),
+          budgetReference: primaryResult.childReference,
+          usage: [{ resource: "shared_tenant_tokens", amount: 1 }],
+        }),
+      ]) {
+        expect(crossTenantMutation).toMatchObject({
+          ok: false,
+          error: { code: "unauthorized" },
+        });
+        expectSafeRemoteResponse(crossTenantMutation);
+      }
+      await expect(
+        Promise.all([
+          queryResponse(primary, "keynes.remote_get_budget", {
+            budgetReference: primaryResult.rootReference,
+          }),
+          queryResponse(primary, "keynes.remote_get_budget", {
+            budgetReference: primaryResult.childReference,
+          }),
+        ]),
+      ).resolves.toEqual(primaryBefore);
+
+      const counts = await fixture.administrator.query<{
+        readonly tenant_id: string;
+        readonly budget_count: string;
+        readonly operation_count: string;
+      }>(
+        `select tenants.tenant_id::text,
+                count(distinct budgets.budget_id)::text as budget_count,
+                count(distinct operations.operation_key)::text as operation_count
+           from (values ($1::uuid), ($2::uuid)) as tenants(tenant_id)
+           left join keynes_internal.budgets as budgets
+             on budgets.tenant_id = tenants.tenant_id
+           left join keynes_internal.remote_operations as operations
+             on operations.tenant_id = tenants.tenant_id
+          group by tenants.tenant_id
+          order by tenants.tenant_id`,
+        [fixture.primary.tenantId, fixture.secondary.tenantId],
+      );
+      expect(counts.rows).toEqual([
+        {
+          tenant_id: fixture.primary.tenantId,
+          budget_count: "2",
+          operation_count: "3",
+        },
+        {
+          tenant_id: fixture.secondary.tenantId,
+          budget_count: "2",
+          operation_count: "5",
+        },
+      ]);
+    });
+
     it("checks enabled mappings again on an already-open session", async () => {
       fixture = await openRemoteIdentityFixture();
       await fixture.register(fixture.primary);
@@ -478,6 +611,84 @@ function budgetReference(suffix: string): string {
 
 function resource(canonicalName: string): Record<string, string> {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
+}
+
+function requireCreatedReference(response: unknown): string {
+  if (
+    typeof response !== "object" ||
+    response === null ||
+    !("result" in response) ||
+    typeof response.result !== "object" ||
+    response.result === null ||
+    !("budget" in response.result) ||
+    typeof response.result.budget !== "object" ||
+    response.result.budget === null ||
+    !("budgetReference" in response.result.budget) ||
+    typeof response.result.budget.budgetReference !== "string"
+  ) {
+    throw new Error("remote creation did not return a Budget reference");
+  }
+  return response.result.budget.budgetReference;
+}
+
+async function completeTenantLifecycle(
+  client: Parameters<typeof queryResponse>[0],
+  allocation: number,
+  requestAmount: number,
+): Promise<{
+  readonly createInput: Record<string, unknown>;
+  readonly rootReference: string;
+  readonly childReference: string;
+}> {
+  const canonicalName = "shared_tenant_tokens";
+  const createInput = {
+    operationKey: operationKey("t"),
+    resources: [{ definition: resource(canonicalName), amount: allocation }],
+  };
+  const created = await queryResponse(
+    client,
+    "keynes.remote_create_budget",
+    createInput,
+  );
+  const rootReference = requireCreatedReference(created);
+  const requested = await queryResponse(client, "keynes.remote_request", {
+    operationKey: operationKey("u"),
+    parentBudgetReference: rootReference,
+    resources: [{ resource: canonicalName, amount: requestAmount }],
+  });
+  const childReference = requireResultReference(
+    requested,
+    "childBudgetReference",
+  );
+  expect(requested).toMatchObject({
+    ok: true,
+    result: { kind: "approved" },
+  });
+  expect(
+    await queryResponse(client, "keynes.remote_settle", {
+      operationKey: operationKey("v"),
+      budgetReference: childReference,
+      usage: [{ resource: canonicalName, amount: requestAmount }],
+    }),
+  ).toMatchObject({ ok: true, result: { kind: "settled" } });
+  return { createInput, rootReference, childReference };
+}
+
+function requireResultReference(response: unknown, field: string): string {
+  if (
+    typeof response !== "object" ||
+    response === null ||
+    !("result" in response) ||
+    typeof response.result !== "object" ||
+    response.result === null
+  ) {
+    throw new Error(`remote mutation did not return ${field}`);
+  }
+  const reference = Reflect.get(response.result, field);
+  if (typeof reference !== "string") {
+    throw new Error(`remote mutation did not return ${field}`);
+  }
+  return reference;
 }
 
 function expectInvalidCommand(response: unknown, operation: string): void {
