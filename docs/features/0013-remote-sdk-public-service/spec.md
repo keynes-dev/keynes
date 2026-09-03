@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0013-remote-sdk-public-service`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-01
-**Status**: Draft, blocked until its branch is refreshed from FEAT-0014
+**Status**: In progress, Phase 1 prerequisite baseline
 **Input**: User description: "Let server-side TypeScript applications use durable Keynes Budgets through direct PostgreSQL access."
 
 ## Feature story _(mandatory)_
@@ -169,7 +169,7 @@ As an operator, I can grant each server-side application only the remote Keynes 
 
 ## Assumptions
 
-- FEAT-0014 is the completed Resource-bound Budget creation prerequisite and its accepted merge is the baseline for FEAT-0013 implementation.
+- FEAT-0014 is the completed Resource-bound Budget creation prerequisite. Accepted source revision `b25a491de6831fc8f3b014ffdf15ab73b236029a` merged as `09eba82d868759375144b14b5971a7a257f0a9e6` and is the FEAT-0013 implementation baseline.
 - The first remote client is a trusted server-side Node.js process. Browsers, mobile clients, and untrusted end-user devices are excluded.
 - PostgreSQL 18.6 remains the only qualified server profile until Release Support accepts another profile.
 - Managed and self-hosted operators deliver credentials outside the Budget command path.

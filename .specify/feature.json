@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0014",
-  "slug": "resource-bound-budget",
-  "branch": "feat/0014-resource-bound-budget",
-  "feature_directory": "docs/features/0014-resource-bound-budget",
+  "feature_id": "FEAT-0013",
+  "slug": "remote-sdk-public-service",
+  "branch": "feat/0013-remote-sdk-public-service",
+  "feature_directory": "docs/features/0013-remote-sdk-public-service",
   "roadmap_stage": "Implementation sequence"
 }
