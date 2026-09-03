@@ -6,6 +6,7 @@ import type {
   CreateBudgetCommand,
   PolicyDefinitionV1,
   ResourceDefinition,
+  RootResourceInput,
 } from "../../generated/types.ts";
 import type { PolicyProgramV1 } from "../../generated/policy-types.ts";
 import {
@@ -17,15 +18,6 @@ import {
 } from "../../generated/policy-profile.ts";
 import { canonicalJson } from "../../src/generation.ts";
 import type { ContractClient, OpenContractTestHost } from "../host.ts";
-
-type RootResourceInput = {
-  readonly definition: ResourceDefinition;
-  readonly amount: number;
-};
-
-type ResourceBoundRootCommand = Omit<CreateBudgetCommand, "resources"> & {
-  readonly resources: [RootResourceInput, ...RootResourceInput[]];
-};
 
 export function registerResourceBoundRootContractTests(
   openTestKeynes: OpenContractTestHost,
@@ -220,7 +212,7 @@ export function registerResourceBoundRootContractTests(
 
 function createResourceBoundRoot(
   client: ContractClient,
-  command: ResourceBoundRootCommand,
+  command: CreateBudgetCommand,
 ) {
   return client.createBudget(command);
 }
@@ -229,7 +221,7 @@ function rootCommand(
   commandId: string,
   resources: [RootResourceInput, ...RootResourceInput[]],
   policies?: [PolicyDefinitionV1, ...PolicyDefinitionV1[]],
-): ResourceBoundRootCommand {
+): CreateBudgetCommand {
   return {
     commandId,
     resources,

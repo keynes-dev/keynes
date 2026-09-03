@@ -22,6 +22,7 @@ export const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 export const FIXTURE_PRINCIPALS = {
   "definer-fixture": "00000000-0000-4000-8000-000000000101",
   "allocator-fixture": "00000000-0000-4000-8000-000000000102",
+  "root-fixture": "00000000-0000-4000-8000-000000000108",
   "requester-fixture": "00000000-0000-4000-8000-000000000103",
   "settlement-fixture": "00000000-0000-4000-8000-000000000104",
   "reader-fixture": "00000000-0000-4000-8000-000000000105",
@@ -39,6 +40,10 @@ export const FIXTURE_INSTALLATION = {
     {
       principalId: FIXTURE_PRINCIPALS["allocator-fixture"],
       permissions: ["create_root_budget"],
+    },
+    {
+      principalId: FIXTURE_PRINCIPALS["root-fixture"],
+      permissions: ["define_resource_type", "create_root_budget"],
     },
     {
       principalId: FIXTURE_PRINCIPALS["requester-fixture"],

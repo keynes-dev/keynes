@@ -5,7 +5,7 @@ export type JsonObject = { readonly [key: string]: unknown };
 export interface ContractOperation {
   readonly method: string;
   readonly target: string;
-  readonly permission: string;
+  readonly permissions: readonly [string, ...string[]];
   readonly replay: boolean;
   readonly input: string;
   readonly output: string;

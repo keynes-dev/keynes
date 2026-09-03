@@ -60,7 +60,7 @@ function renderCloudProcedures(
   const procedures = contract.operations
     .map(
       (operation) =>
-        `  ${operation.method}: {\n    target: ${JSON.stringify(operation.target)},\n    statement: ${JSON.stringify(`select ${operation.target}($1::jsonb) as response`)},\n    permission: ${JSON.stringify(operation.permission)},\n    replay: ${String(operation.replay)},\n  },`,
+        `  ${operation.method}: {\n    target: ${JSON.stringify(operation.target)},\n    statement: ${JSON.stringify(`select ${operation.target}($1::jsonb) as response`)},\n    permissions: ${JSON.stringify(operation.permissions)},\n    replay: ${String(operation.replay)},\n  },`,
     )
     .join("\n");
 

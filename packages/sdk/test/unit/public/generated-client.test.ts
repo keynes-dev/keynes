@@ -24,7 +24,11 @@ const commands = {
     commandId: "20000000-0000-0000-0000-000000000001",
     resources: [
       {
-        resourceTypeId: "10000000-0000-0000-0000-000000000001",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
         amount: 100,
       },
     ],
@@ -178,14 +182,18 @@ describe("generated client bindings", () => {
   });
 
   it("rejects structurally duplicate resource entries regardless of property order", () => {
-    const resourceTypeId = "10000000-0000-0000-0000-000000000001";
+    const definition = {
+      canonicalName: "model_tokens",
+      unit: "token",
+      accountingBehavior: "consumable",
+    };
 
     expect(
       validateCreateBudgetCommandIssues({
         commandId: "20000000-0000-0000-0000-000000000001",
         resources: [
-          { resourceTypeId, amount: 1 },
-          { amount: 1, resourceTypeId },
+          { definition, amount: 1 },
+          { amount: 1, definition },
         ],
       }),
     ).toEqual([{ path: "/resources", rule: "uniqueItems" }]);

@@ -27,7 +27,7 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";
+  "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5";
 
 const resultFieldRank = new Map(
   [
@@ -54,7 +54,6 @@ const resultFieldRank = new Map(
     "allocated",
     "definitionEvidence",
     "resourceTypeId",
-    "amount",
     "canonicalName",
     "requested",
     "available",
@@ -74,6 +73,7 @@ const resultFieldRank = new Map(
     "sequence",
     "commandId",
     "definition",
+    "amount",
     "source",
     "field",
     "subjectBudgetId",

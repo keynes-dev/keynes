@@ -12,6 +12,7 @@ import type {
   OpenContractTestHost,
   RollbackCheckpoint,
 } from "../host.ts";
+import { rootResource } from "./root-resource.ts";
 const MUTATION_CHECKPOINTS = [
   ["after_command_binding", "01"],
   ["after_domain_mutation", "02"],
@@ -78,15 +79,11 @@ export function registerRollbackContractTests(
         const commandId = `24000000-0000-0000-0000-0000000000${suffix}`;
         const command = {
           commandId,
-          resources: [
-            { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
-          ],
+          resources: [rootResource(defined.resourceType, 10)],
         } satisfies CreateBudgetCommand;
 
         await expect(
-          local
-            .clientFor("allocator-fixture", { checkpoint })
-            .createBudget(command),
+          local.clientFor("root-fixture", { checkpoint }).createBudget(command),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
         await expectKeynesError(
           client.getBudget({ budgetId: commandId }),
@@ -95,7 +92,7 @@ export function registerRollbackContractTests(
         );
 
         const retry = await local
-          .clientFor("allocator-fixture")
+          .clientFor("root-fixture")
           .createBudget(command);
         expect(retry).toMatchObject({
           kind: "created",
@@ -119,9 +116,7 @@ export function registerRollbackContractTests(
       });
       const root = await client.createBudget({
         commandId: "24000000-0000-0000-0000-000000000021",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       });
 
       for (const [
@@ -183,9 +178,7 @@ export function registerRollbackContractTests(
       });
       const root = await client.createBudget({
         commandId: "24000000-0000-0000-0000-000000000031",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       });
       const children: string[] = [];
       for (const [, suffix] of MUTATION_CHECKPOINTS) {

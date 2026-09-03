@@ -10,6 +10,7 @@ import type {
   KeynesError,
   OpenContractTestHost,
 } from "../host.ts";
+import { rootResource } from "./root-resource.ts";
 export function registerBudgetLifecycleContractTests(
   openTestKeynes: OpenContractTestHost,
 ): void {
@@ -149,15 +150,10 @@ export function registerBudgetLifecycleContractTests(
         });
         const createCommand = {
           commandId: "20000000-0000-0000-0000-000000000101",
-          resources: [
-            {
-              resourceTypeId: resource.resourceType.resourceTypeId,
-              amount: 100,
-            },
-          ],
+          resources: [rootResource(resource.resourceType, 100)],
         } satisfies CreateBudgetCommand;
         expect(JSON.stringify(createCommand)).toBe(
-          `{"commandId":"20000000-0000-0000-0000-000000000101","resources":[{"resourceTypeId":"${resource.resourceType.resourceTypeId}","amount":100}]}`,
+          '{"commandId":"20000000-0000-0000-0000-000000000101","resources":[{"definition":{"canonicalName":"model_tokens","unit":"token","accountingBehavior":"consumable"},"amount":100}]}',
         );
         const root = await client.createBudget(createCommand);
         const requestCommand = {

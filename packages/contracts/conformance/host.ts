@@ -21,6 +21,7 @@ import {
 export type FixturePrincipal =
   | "definer-fixture"
   | "allocator-fixture"
+  | "root-fixture"
   | "requester-fixture"
   | "settlement-fixture"
   | "reader-fixture"

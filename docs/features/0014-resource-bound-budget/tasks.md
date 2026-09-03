@@ -49,7 +49,7 @@
 - [ ] T009 Change `CreateBudgetCommand` to a non-empty definition-and-amount envelope and add `RootResourceInput` in `packages/contracts/schema.json`.
 - [ ] T010 Change ordered operation permission metadata to non-empty permission lists and assign `define_resource_type` then `create_root_budget` to `createBudget` in `packages/contracts/contract.json` and `packages/contracts/src/load.ts`.
 - [ ] T011 Update canonical field ordering, validators, fixtures, and conformance host types for the revised root input in `packages/contracts/src/generation/contract-field-order.ts`, `packages/contracts/fixtures/source.json`, `packages/contracts/fixtures/expectations.json`, and `packages/contracts/conformance/host.ts`.
-- [ ] T012 Regenerate TypeScript contracts, SDK generated clients, PostgreSQL metadata, and Cloud generated consumers with `pnpm generate`, then inspect every generated diff against `docs/features/0014-resource-bound-budget/contracts/root-creation.md`.
+- [ ] T012 Regenerate TypeScript contracts and SDK generated clients, then inspect every generated diff against `docs/features/0014-resource-bound-budget/contracts/root-creation.md`. Keep PostgreSQL installation metadata and its coupled Cloud consumer on the accepted `0004` contract until T031 adds migration `0005`.
 - [ ] T013 Run `pnpm --filter @keynes/contracts test` and the generated-client unit tests, then record exact contract digest and results in `docs/features/0014-resource-bound-budget/tasks.md`.
 - [ ] T014 Run a read-only Ponytail review over the Phase 2 diff, apply accepted contract simplifications, rerun the focused contract checks, and commit the Phase 2 boundary.
 
@@ -110,7 +110,7 @@
 
 - [ ] T029 [US3] Add and backfill `definition_command_id`, move the provenance foreign key, and preserve all existing rows in `packages/postgresql/migrations/0005-resource-bound-budget.sql`.
 - [ ] T030 [US3] Implement fixed two-permission checks, definition lookup-or-insert, absent-name contention handling, Policy attachment, root creation, replay, history, and rollback in the generated `0005` root procedure source under `packages/postgresql/scripts/`.
-- [ ] T031 [US3] Preserve the accepted `0004` checksum and historical contract digest while marking `0005` as the current contract migration in `packages/postgresql/migrations/manifest.json` and `packages/postgresql/scripts/generate.ts`.
+- [ ] T031 [US3] Preserve the accepted `0004` checksum and historical contract digest while marking `0005` as the current contract migration in `packages/postgresql/migrations/manifest.json` and `packages/postgresql/scripts/generate.ts`, then regenerate PostgreSQL installation metadata and the coupled Cloud consumer.
 - [ ] T032 [US3] Regenerate `packages/postgresql/migrations/0005-resource-bound-budget.sql`, `packages/postgresql/generated/installation-record.json`, expected objects, and procedure metadata, then verify that migrations `0001` through `0004` are byte-for-byte unchanged.
 - [ ] T033 [US3] Update the native conformance host and required scenario inventory for definition-bearing roots and two permissions in `packages/postgresql/test/system/support/test-keynes.ts`, `packages/postgresql/test/system/support/postgres-database.ts`, and `packages/postgresql/test/system/required-scenarios.ts`.
 - [ ] T034 [US3] Make the Phase 1 PostgreSQL installation, permission, transaction, contention, replay, rollback, Policy, and shared parity tests pass in `packages/postgresql/test/`.

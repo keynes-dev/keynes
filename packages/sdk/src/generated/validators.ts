@@ -69,6 +69,27 @@ const definitions: Readonly<Record<string, Schema>> = {
       $ref: "#/$defs/ResourceAmount",
     },
   },
+  RootResourceInput: {
+    type: "object",
+    additionalProperties: false,
+    required: ["definition", "amount"],
+    properties: {
+      definition: {
+        $ref: "#/$defs/ResourceDefinition",
+      },
+      amount: {
+        $ref: "#/$defs/Amount",
+      },
+    },
+  },
+  RootResourceEnvelope: {
+    type: "array",
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      $ref: "#/$defs/RootResourceInput",
+    },
+  },
   UsageAmount: {
     type: "object",
     additionalProperties: false,
@@ -543,7 +564,7 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/Uuid",
       },
       resources: {
-        $ref: "#/$defs/ResourceEnvelope",
+        $ref: "#/$defs/RootResourceEnvelope",
       },
       policies: {
         type: "array",

@@ -31,6 +31,21 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/ResourceAmount" }
     },
+    "RootResourceInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["definition", "amount"],
+      "properties": {
+        "definition": { "$ref": "#/$defs/ResourceDefinition" },
+        "amount": { "$ref": "#/$defs/Amount" }
+      }
+    },
+    "RootResourceEnvelope": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/RootResourceInput" }
+    },
     "UsageAmount": {
       "type": "object",
       "additionalProperties": false,
@@ -337,7 +352,7 @@
       "required": ["commandId", "resources"],
       "properties": {
         "commandId": { "$ref": "#/$defs/Uuid" },
-        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
+        "resources": { "$ref": "#/$defs/RootResourceEnvelope" },
         "policies": {
           "type": "array",
           "maxItems": 16,

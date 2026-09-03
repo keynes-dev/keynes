@@ -26,6 +26,13 @@ export type ResourceEnvelope = [ResourceAmount, ...ResourceAmount[]];
  * @minItems 1
  *
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RootResourceEnvelope".
+ */
+export type RootResourceEnvelope = [RootResourceInput, ...RootResourceInput[]];
+/**
+ * @minItems 1
+ *
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "UsageEnvelope".
  */
 export type UsageEnvelope = [UsageAmount, ...UsageAmount[]];
@@ -285,11 +292,11 @@ export interface ResourceAmount {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "UsageAmount".
+ * via the `definition` "RootResourceInput".
  */
-export interface UsageAmount {
-  resourceTypeId: Uuid;
-  amount: Amount | null;
+export interface RootResourceInput {
+  definition: ResourceDefinition;
+  amount: Amount;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -299,6 +306,14 @@ export interface ResourceDefinition {
   canonicalName: string;
   unit: string;
   accountingBehavior: "consumable" | "reusable";
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "UsageAmount".
+ */
+export interface UsageAmount {
+  resourceTypeId: Uuid;
+  amount: Amount | null;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -534,7 +549,7 @@ export interface DefineResourceTypeResult {
  */
 export interface CreateBudgetCommand {
   commandId: Uuid;
-  resources: ResourceEnvelope;
+  resources: RootResourceEnvelope;
   /**
    * @maxItems 16
    */

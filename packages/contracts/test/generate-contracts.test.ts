@@ -34,6 +34,15 @@ describe("contract source", () => {
     expect(contract.source.operations.map(({ target }) => target)).toEqual(
       expectations.installedTargets,
     );
+    expect(
+      contract.source.operations.map(({ permissions }) => permissions),
+    ).toEqual([
+      ["define_resource_type"],
+      ["define_resource_type", "create_root_budget"],
+      ["request_budget"],
+      ["settle_budget"],
+      ["read_budget"],
+    ]);
     expect(contract.digest).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -126,13 +135,26 @@ describe("contract source", () => {
     writeFileSync(
       path,
       readFileSync(path, "utf8").replace(
-        '"permission": "read_budget"',
-        '"permission": "settle_budget"',
+        '"permissions": ["read_budget"]',
+        '"permissions": ["settle_budget"]',
       ),
     );
     expect(() => loadContract(root)).toThrow(
-      /operation metadata mismatch.*permission/i,
+      /operation metadata mismatch.*permissions/i,
     );
+  });
+
+  it("rejects an empty operation permission list", () => {
+    const root = copyContractPackage();
+    const path = join(root, "contract.json");
+    writeFileSync(
+      path,
+      readFileSync(path, "utf8").replace(
+        '"permissions": ["read_budget"]',
+        '"permissions": []',
+      ),
+    );
+    expect(() => loadContract(root)).toThrow(/permissions.*non-empty/i);
   });
 
   it.each([
