@@ -22,7 +22,14 @@ const fixtureSource = {
     createRoot: {
       commandId: "20000000-0000-0000-0000-000000000001",
       resources: [
-        { resourceTypeId: "10000000-0000-0000-0000-000000000001", amount: 100 },
+        {
+          definition: {
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 100,
+        },
       ],
     },
     requestChild: {
@@ -373,31 +380,31 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           "select set_config('keynes.principal_id', $1, true)",
           [principalId],
         );
-        await expect(
-          client.query("select keynes.define_resource_type($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.defineConsumable),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.create_budget($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.createRoot),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.request($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.requestChild),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.settle($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.settleChild),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.get_budget($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.getChild),
-          ]),
-        ).resolves.toBeDefined();
+        await expectPublicSuccess(
+          client,
+          "keynes.define_resource_type",
+          fixtureSource.commands.defineConsumable,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.create_budget",
+          fixtureSource.commands.createRoot,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.request",
+          fixtureSource.commands.requestChild,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.settle",
+          fixtureSource.commands.settleChild,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.get_budget",
+          fixtureSource.commands.getChild,
+        );
         await client.query("rollback");
       } finally {
         await client.end();
@@ -485,6 +492,23 @@ async function connect(connectionString: string): Promise<Client> {
   const client = new Client({ connectionString });
   await client.connect();
   return client;
+}
+
+async function expectPublicSuccess(
+  client: Client,
+  target:
+    | "keynes.define_resource_type"
+    | "keynes.create_budget"
+    | "keynes.request"
+    | "keynes.settle"
+    | "keynes.get_budget",
+  input: unknown,
+): Promise<void> {
+  const result = await client.query<{ readonly response: unknown }>(
+    `select ${target}($1::jsonb) as response`,
+    [JSON.stringify(input)],
+  );
+  expect(result.rows[0]?.response).toMatchObject({ ok: true });
 }
 
 async function scalar(client: Client, statement: string): Promise<string> {

@@ -1,7 +1,7 @@
 // Generated from contracts/. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7";
+  "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5";
 
 export const INSTALLATION_MIGRATIONS = [
   {
@@ -29,37 +29,44 @@ export const INSTALLATION_MIGRATIONS = [
     contractDigest:
       "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },
+  {
+    id: "0005-resource-bound-budget",
+    byteChecksum:
+      "4ce2f2eaf9a9e0c892f27311fe436334dfdbf2529482299ac6c3bfb9e67b8929",
+    contractDigest:
+      "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
+  },
 ] as const;
 
 export const PROCEDURES = {
   defineResource: {
     target: "keynes.define_resource_type",
     statement: "select keynes.define_resource_type($1::jsonb) as response",
-    permission: "define_resource_type",
+    permissions: ["define_resource_type"],
     replay: true,
   },
   createBudget: {
     target: "keynes.create_budget",
     statement: "select keynes.create_budget($1::jsonb) as response",
-    permission: "create_root_budget",
+    permissions: ["define_resource_type", "create_root_budget"],
     replay: true,
   },
   requestBudget: {
     target: "keynes.request",
     statement: "select keynes.request($1::jsonb) as response",
-    permission: "request_budget",
+    permissions: ["request_budget"],
     replay: true,
   },
   settleBudget: {
     target: "keynes.settle",
     statement: "select keynes.settle($1::jsonb) as response",
-    permission: "settle_budget",
+    permissions: ["settle_budget"],
     replay: true,
   },
   getBudget: {
     target: "keynes.get_budget",
     statement: "select keynes.get_budget($1::jsonb) as response",
-    permission: "read_budget",
+    permissions: ["read_budget"],
     replay: false,
   },
 } as const;

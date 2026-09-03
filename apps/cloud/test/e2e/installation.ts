@@ -185,14 +185,16 @@ async function installControlledPermissions(client: Client): Promise<void> {
     CONTROLLED_IDENTITIES["tenant-a-product"],
     CONTROLLED_IDENTITIES["tenant-b-product"],
   ]) {
-    for (const { permission } of Object.values(PROCEDURES)) {
-      await client.query(
-        `insert into keynes_internal.principal_permissions
-           (tenant_id, principal_id, permission)
-         values ($1, $2, $3)
-         on conflict do nothing`,
-        [identity.tenantId, identity.principalId, permission],
-      );
+    for (const { permissions } of Object.values(PROCEDURES)) {
+      for (const permission of permissions) {
+        await client.query(
+          `insert into keynes_internal.principal_permissions
+             (tenant_id, principal_id, permission)
+           values ($1, $2, $3)
+           on conflict do nothing`,
+          [identity.tenantId, identity.principalId, permission],
+        );
+      }
     }
   }
 }
