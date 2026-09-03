@@ -126,6 +126,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",
     "remote PostgreSQL recovery and bounded reads returns known-failure and expired recovery states without mutation",
     "remote PostgreSQL recovery and bounded reads reports an in-flight mutation as unresolved without changing authority state",
+    "remote PostgreSQL recovery and bounded reads converges concurrent exact retries on one committed mutation",
     "remote PostgreSQL recovery and bounded reads reopens a Budget only for the mapped tenant and exact Resource binding",
     "remote PostgreSQL recovery and bounded reads paginates one bounded history snapshot with expiring single-use cursors",
   ],
