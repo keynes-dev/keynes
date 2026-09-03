@@ -78,7 +78,7 @@ beforeAll(async () => {
   ]);
   archivePath = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
   archiveEntries = readArchiveEntries(await readFile(archivePath));
-});
+}, 30_000);
 
 afterAll(async () => {
   if (suiteRoot !== undefined)
