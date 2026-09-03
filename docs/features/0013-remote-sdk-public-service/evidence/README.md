@@ -37,3 +37,14 @@ The Phase 2 implementation was qualified in the FEAT-0013 working tree before it
 - The Phase 2 adversarial review's identity, privilege, recovery-lock, history-cursor, role-recreation, and pooler-cleanup findings were repaired and rechecked. The required read-only Ponytail review then removed the unused pool fixture and run identifier, simplified remote connection ownership, and replaced six generated string rewrites with direct schema-keyword support.
 
 Phase 2 proves generated procedure agreement, installation and exact recheck, least-privilege PostgreSQL wrappers, private administration, recovery classification, bounded history paging, and real direct/session/transaction pooler execution in the native harness. Only fail-closed TLS rejection was exercised. Positive TLS, PgBouncer downstream TLS, an authorized external remote database, hosted workflows, Cloud retirement, package-consumer acceptance, and production behavior remain `NOT RUN`.
+
+### Exact-revision qualification
+
+Revision `4145b43e059c895583c4df794bcae3a7092adfef` contains the Phase 2 implementation commit `20df3708c455fd7280e7902977c720bd184f836e` and the fixed acceptance inventory for the real PgBouncer mode proof.
+
+- `CI=true pnpm check:repo`: passed at `20df3708c455fd7280e7902977c720bd184f836e`; generation, formatting, lint, type checks, and dependency boundaries were green. The source changed only by adding the already-passing pooler-mode scenario to the acceptance inventory before the retained native run below.
+- `CI=true pnpm test:unit`: passed 51 contract, 44 Cloud, 29 PostgreSQL, and 247 SDK unit and conformance tests at `20df3708c455fd7280e7902977c720bd184f836e`.
+- The first retained native attempt at `20df3708c455fd7280e7902977c720bd184f836e` refused publication after all tests ran because the new real-PgBouncer mode assertion was absent from the fixed scenario inventory. The runner unit lane passed 15 tests after that inventory was repaired.
+- `pnpm test:system:postgresql -- --output .artifacts/acceptance/feat0013-phase2-4145b43.json`: passed 196 tests and 37 report suites on PostgreSQL 18.6. The retained record names source revision `4145b43e059c895583c4df794bcae3a7092adfef` with `cleanBefore: true` and `cleanAfter: true`.
+- PostgreSQL package archive SHA-256: `b5d54c188d0d9f8681531c67d4ae59b70167a9ae253d587d20062f5734c8f8b3`. Installation-record SHA-256: `97671214484be4fd69ef2cdbf52e2e50ab1e696d555888512af9890b58ad77db`. Local acceptance-record SHA-256: `75580d1324dadf404041b13e897b14e16113e554cb2492bef3720eb108421850`.
+- The record explicitly leaves other PostgreSQL versions, managed providers, upgrade/downgrade, rolling deployment, extension packaging, backup/recovery, failover, security qualification, fault campaign, benchmark, self-hosted, managed Cloud, and production readiness `NOT RUN`.
