@@ -25,6 +25,7 @@ const expectedFiles = [
   "package/migrations/0002-budget.sql",
   "package/migrations/0003-public.generated.sql",
   "package/migrations/0004-policy.sql",
+  "package/migrations/0005-resource-bound-budget.sql",
   "package/migrations/manifest.json",
   "package/package.json",
 ] as const;
@@ -68,7 +69,7 @@ describe("@keynes/postgresql packed archive", () => {
     }
   });
 
-  it("publishes exactly four ordered migrations with only 0004 contract-bound", () => {
+  it("publishes five ordered migrations with historical and current contracts", () => {
     const manifest: unknown = JSON.parse(
       entry("package/migrations/manifest.json").body.toString("utf8"),
     );
@@ -77,7 +78,17 @@ describe("@keynes/postgresql packed archive", () => {
         { id: "0001-storage", path: "0001-storage.sql" },
         { id: "0002-budget", path: "0002-budget.sql" },
         { id: "0003-public", path: "0003-public.generated.sql" },
-        { id: "0004-policy", path: "0004-policy.sql", contract: true },
+        {
+          id: "0004-policy",
+          path: "0004-policy.sql",
+          contractDigest:
+            "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
+        },
+        {
+          id: "0005-resource-bound-budget",
+          path: "0005-resource-bound-budget.sql",
+          contract: true,
+        },
       ],
     });
 
@@ -103,6 +114,11 @@ describe("@keynes/postgresql packed archive", () => {
       [
         "0004-policy",
         "0004-policy.sql",
+        expect.stringMatching(/^[a-f0-9]{64}$/u),
+      ],
+      [
+        "0005-resource-bound-budget",
+        "0005-resource-bound-budget.sql",
         expect.stringMatching(/^[a-f0-9]{64}$/u),
       ],
     ]);

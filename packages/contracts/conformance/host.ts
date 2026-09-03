@@ -21,6 +21,7 @@ import {
 export type FixturePrincipal =
   | "definer-fixture"
   | "allocator-fixture"
+  | "root-fixture"
   | "requester-fixture"
   | "settlement-fixture"
   | "reader-fixture"
@@ -29,6 +30,7 @@ export type FixturePrincipal =
 
 export type RollbackCheckpoint =
   | "after_command_binding"
+  | "after_resource_insertion"
   | "after_domain_mutation"
   | "after_history_insertion"
   | "after_result_storage";

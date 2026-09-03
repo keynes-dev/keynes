@@ -11,6 +11,10 @@ const ROOT_BUDGET_ID = "25000000-0000-4000-8000-000000000001";
 const FIRST_REQUEST_ID = "35000000-0000-4000-8000-000000000001";
 const SECOND_REQUEST_ID = "35000000-0000-4000-8000-000000000002";
 const SETTLEMENT_ID = "45000000-0000-4000-8000-000000000001";
+const COMPETING_ROOT_ID = "25000000-0000-4000-8000-000000000002";
+const ZETA_DEFINITION_ID = "11000000-0000-4000-8000-000000000001";
+const ALPHA_DEFINITION_ID = "91000000-0000-4000-8000-000000000001";
+const CANONICAL_ORDER_ROOT_ID = "27000000-0000-4000-8000-000000000001";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
@@ -164,7 +168,117 @@ describe("native PostgreSQL contention", () => {
       await keynes.close();
     }
   });
+
+  it("converges concurrent absent-name roots on one Resource", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const first = await keynes.beginAttempt("product-fixture");
+      const second = await keynes.beginAttempt("product-fixture");
+
+      const firstRoot = await createResourceBoundBudget(
+        first.client,
+        ROOT_BUDGET_ID,
+      );
+      const competing = createResourceBoundBudget(
+        second.client,
+        COMPETING_ROOT_ID,
+      );
+
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      const secondRoot = await competing;
+      await second.commit();
+
+      const firstResource = firstRoot.budget.resources[0]?.resourceType;
+      const secondResource = secondRoot.budget.resources[0]?.resourceType;
+      expect(firstResource).toBeDefined();
+      expect(secondResource).toBeDefined();
+      expect(secondResource?.resourceTypeId).toBe(
+        firstResource?.resourceTypeId,
+      );
+      expect(firstResource?.resourceTypeId).not.toBe(ROOT_BUDGET_ID);
+      expect(firstResource?.resourceTypeId).not.toBe(COMPETING_ROOT_ID);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("returns root Resources in canonical name order despite opposite standalone UUID order", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const client = keynes.clientFor("product-fixture");
+      const zeta = await client.defineResource({
+        commandId: ZETA_DEFINITION_ID,
+        definition: {
+          canonicalName: "zeta_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const alpha = await client.defineResource({
+        commandId: ALPHA_DEFINITION_ID,
+        definition: {
+          canonicalName: "alpha_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      expect(zeta.resourceType.resourceTypeId).toBe(ZETA_DEFINITION_ID);
+      expect(alpha.resourceType.resourceTypeId).toBe(ALPHA_DEFINITION_ID);
+
+      const root = await client.createBudget({
+        commandId: CANONICAL_ORDER_ROOT_ID,
+        resources: [
+          {
+            definition: {
+              canonicalName: "zeta_tokens",
+              unit: "token",
+              accountingBehavior: "consumable",
+            },
+            amount: 10,
+          },
+          {
+            definition: {
+              canonicalName: "alpha_tokens",
+              unit: "token",
+              accountingBehavior: "consumable",
+            },
+            amount: 10,
+          },
+        ],
+      });
+
+      expect(
+        root.budget.resources.map(
+          ({ resourceType }) => resourceType.canonicalName,
+        ),
+      ).toEqual(["alpha_tokens", "zeta_tokens"]);
+    } finally {
+      await keynes.close();
+    }
+  });
 });
+
+function createResourceBoundBudget(
+  client: ContractClient,
+  commandId: string,
+): ReturnType<ContractClient["createBudget"]> {
+  return Reflect.apply(client.createBudget, client, [
+    {
+      commandId,
+      resources: [
+        {
+          definition: {
+            canonicalName: "contended_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ],
+    },
+  ]);
+}
 
 async function seedRoot(
   keynes: NativeTestKeynes,
@@ -181,7 +295,14 @@ async function seedRoot(
   await client.createBudget({
     commandId: ROOT_BUDGET_ID,
     resources: [
-      { resourceTypeId: resource.resourceType.resourceTypeId, amount: 10 },
+      {
+        definition: {
+          canonicalName: "native_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+        amount: 10,
+      },
     ],
   });
   return { resourceTypeId: resource.resourceType.resourceTypeId };

@@ -4,6 +4,7 @@ import { createKeynesClient } from "../../../src/generated/client.js";
 import type {
   CreateBudgetCommand,
   PolicyDefinitionV1,
+  ResourceDefinition,
   RequestBudgetCommand,
 } from "../../../src/generated/types.js";
 import { definePolicySql, policyValue } from "../../../src/policy/authoring.js";
@@ -15,6 +16,11 @@ import { defineResources } from "../../../src/resources.js";
 const resources = defineResources({
   tokens: { unit: "token", accountingBehavior: "consumable" },
 });
+const tokensResource = {
+  canonicalName: "tokens",
+  unit: "token",
+  accountingBehavior: "consumable",
+} satisfies ResourceDefinition;
 
 const contextSchema = {
   factor: policyValue.integer(),
@@ -101,7 +107,7 @@ describe("local governed request replay", () => {
       );
       await harness.client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000002",
-        resources: [{ resourceTypeId: harness.resourceTypeId, amount: 10 }],
+        resources: [{ definition: tokensResource, amount: 10 }],
         policies: [ceilingPolicy("root_limit", 2)],
       });
       const mutationCalls = harness.observe.mock.calls.length;
@@ -247,20 +253,15 @@ async function openHarness() {
     observe,
   );
   const client = createKeynesClient(executor);
-  const defined = await client.defineResource({
-    commandId: "10000000-0000-4000-8000-000000000001",
-    definition: {
-      canonicalName: "tokens",
-      unit: "token",
-      accountingBehavior: "consumable",
-    },
-  });
-  const resourceTypeId = defined.resourceType.resourceTypeId;
   const root = await client.createBudget({
     commandId: "20000000-0000-4000-8000-000000000001",
-    resources: [{ resourceTypeId, amount: 10 }],
+    resources: [{ definition: tokensResource, amount: 10 }],
     policies: [ceilingPolicy("root_limit", 1)],
   } satisfies CreateBudgetCommand);
+  const resourceTypeId = root.budget.resources[0]?.resourceType.resourceTypeId;
+  if (resourceTypeId === undefined) {
+    throw new Error("root must project its Resource");
+  }
   return {
     client,
     resourceTypeId,

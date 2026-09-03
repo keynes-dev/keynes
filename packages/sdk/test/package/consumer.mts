@@ -37,9 +37,9 @@ async function runBudgetLoop(): Promise<void> {
     usdCents: { unit: "cent", accountingBehavior: "consumable" },
     searchQueries: { unit: "query", accountingBehavior: "consumable" },
   });
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   try {
-    const root = await keynes.createBudget({
+    const root = await keynes.createBudget(resources, {
       usdCents: 100,
       searchQueries: 10,
     });
@@ -108,9 +108,10 @@ async function runPolicyRuntime(): Promise<void> {
         CROSS JOIN policy_context AS context
     `,
   });
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   try {
     const root = await keynes.createBudget(
+      resources,
       { modelTokens: 10 },
       { policies: policySet(limit) },
     );
@@ -135,12 +136,12 @@ async function runIsolation(): Promise<void> {
   const resources = defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
-  const left = await createKeynes({ resources });
-  const right = await createKeynes({ resources });
+  const left = await createKeynes();
+  const right = await createKeynes();
   try {
     const [leftRoot, rightRoot] = await Promise.all([
-      left.createBudget({ workUnits: 3 }),
-      right.createBudget({ workUnits: 9 }),
+      left.createBudget(resources, { workUnits: 3 }),
+      right.createBudget(resources, { workUnits: 9 }),
     ]);
     assertEqual((await leftRoot.inspect()).budget.resources[0].allocated, 3);
     assertEqual((await rightRoot.inspect()).budget.resources[0].allocated, 9);
@@ -155,12 +156,15 @@ async function runClosure(): Promise<void> {
   const resources = defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
-  const keynes = await createKeynes({ resources });
-  const root = await keynes.createBudget({ workUnits: 1 });
+  const keynes = await createKeynes();
+  const root = await keynes.createBudget(resources, { workUnits: 1 });
   const firstClose = keynes.close();
   assertEqual(keynes.close() === firstClose, true);
   await Promise.all([
-    assertRejectsCode(keynes.createBudget({ workUnits: 1 }), "runtime_closed"),
+    assertRejectsCode(
+      keynes.createBudget(resources, { workUnits: 1 }),
+      "runtime_closed",
+    ),
     assertRejectsCode(root.inspect(), "runtime_closed"),
   ]);
   await firstClose;
@@ -170,8 +174,8 @@ async function writeThenExit(): Promise<void> {
   const resources = defineResources({
     processMemory: { unit: "item", accountingBehavior: "consumable" },
   });
-  const keynes = await createKeynes({ resources });
-  const root = await keynes.createBudget({ processMemory: 1 });
+  const keynes = await createKeynes();
+  const root = await keynes.createBudget(resources, { processMemory: 1 });
   const [resource] = (await root.inspect()).budget.resources;
   if (resource === undefined)
     throw new Error("expected processMemory Resource");
@@ -182,9 +186,9 @@ async function readAfterRestart(): Promise<void> {
   const resources = defineResources({
     processMemory: { unit: "byte", accountingBehavior: "consumable" },
   });
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   try {
-    const root = await keynes.createBudget({ processMemory: 2 });
+    const root = await keynes.createBudget(resources, { processMemory: 2 });
     const [resource] = (await root.inspect()).budget.resources;
     assertEqual(resource?.resource, "processMemory");
     assertEqual(resource?.unit, "byte");

@@ -15,6 +15,11 @@
     {
       "id": "0004-policy",
       "path": "0004-policy.sql",
+      "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
+    },
+    {
+      "id": "0005-resource-bound-budget",
+      "path": "0005-resource-bound-budget.sql",
       "contract": true
     }
   ]

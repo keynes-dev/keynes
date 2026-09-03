@@ -12,6 +12,7 @@ import type {
   KeynesError,
   OpenContractTestHost,
 } from "../host.ts";
+import { rootResource } from "./root-resource.ts";
 const MAX_SAFE_AMOUNT = 9_007_199_254_740_991;
 
 export function registerSettlementContractTests(
@@ -37,7 +38,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000001",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 100 }],
+        resources: [rootResource(resource, 100)],
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000001",
@@ -128,7 +129,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000011",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
 
       const missing = await client.settleBudget({
@@ -218,7 +219,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000021",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 100 }],
+        resources: [rootResource(resource, 100)],
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000021",
@@ -259,7 +260,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000031",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 100 }],
+        resources: [rootResource(resource, 100)],
       });
       const overdrawn = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000031",
@@ -315,7 +316,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000071",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 100 }],
+        resources: [rootResource(resource, 100)],
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000071",
@@ -373,10 +374,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000051",
-        resources: [
-          { resourceTypeId: first.resourceTypeId, amount: 10 },
-          { resourceTypeId: second.resourceTypeId, amount: 20 },
-        ],
+        resources: [rootResource(first, 10), rootResource(second, 20)],
       });
 
       const partial = await client.settleBudget({
@@ -436,10 +434,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000061",
-        resources: [
-          { resourceTypeId: lower.resourceTypeId, amount: 5 },
-          { resourceTypeId: higher.resourceTypeId, amount: 7 },
-        ],
+        resources: [rootResource(lower, 5), rootResource(higher, 7)],
       });
 
       await client.settleBudget({
@@ -471,9 +466,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000041",
-        resources: [
-          { resourceTypeId: resource.resourceTypeId, amount: MAX_SAFE_AMOUNT },
-        ],
+        resources: [rootResource(resource, MAX_SAFE_AMOUNT)],
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000041",

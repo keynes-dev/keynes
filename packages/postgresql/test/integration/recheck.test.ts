@@ -22,7 +22,14 @@ const fixtureSource = {
     createRoot: {
       commandId: "20000000-0000-0000-0000-000000000001",
       resources: [
-        { resourceTypeId: "10000000-0000-0000-0000-000000000001", amount: 100 },
+        {
+          definition: {
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 100,
+        },
       ],
     },
     requestChild: {
@@ -48,6 +55,29 @@ const principalId = "00000000-0000-4000-8000-000000000101";
 
 const expectedObjects = installationRecord.expectedObjects;
 const expectedFunctions = installationRecord.functions;
+const HISTORICAL_MIGRATIONS = [
+  {
+    id: "0001-storage",
+    sha256: "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
+    contractDigest: null,
+  },
+  {
+    id: "0002-budget",
+    sha256: "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+    contractDigest: null,
+  },
+  {
+    id: "0003-public",
+    sha256: "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+    contractDigest: null,
+  },
+  {
+    id: "0004-policy",
+    sha256: "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
+    contractDigest:
+      "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
+  },
+] as const;
 const config: InstallationConfig = {
   ownerRole: `keynes_owner_${randomUUID().replaceAll("-", "")}`,
   applicationRole: `keynes_app_${randomUUID().replaceAll("-", "")}`,
@@ -122,8 +152,17 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         }>(
           `select migration_id, byte_checksum, contract_digest
              from keynes_internal.schema_migrations
-            order by migration_id`,
+          order by migration_id`,
         );
+        expect(
+          installationRecord.migrations
+            .slice(0, HISTORICAL_MIGRATIONS.length)
+            .map((migration) => ({
+              id: migration.id,
+              sha256: migration.sha256,
+              contractDigest: migration.contractDigest ?? null,
+            })),
+        ).toEqual(HISTORICAL_MIGRATIONS);
         expect(migrations.rows).toEqual(
           installationRecord.migrations.map((migration) => ({
             migration_id: migration.id,
@@ -159,6 +198,47 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
             "select contract_digest as value from keynes_internal.installation_identity",
           ),
         ).toBe(installationRecord.contractDigest);
+      } finally {
+        await client.end();
+      }
+    });
+
+    it("rejects an otherwise exact target that lacks the final migration", async () => {
+      const client = await connect(target.databaseUrl);
+      try {
+        const removed = await client.query<{
+          readonly migration_id: string;
+          readonly byte_checksum: string;
+          readonly contract_digest: string | null;
+        }>(
+          `delete from keynes_internal.schema_migrations
+            where migration_id = '0005-resource-bound-budget'
+            returning migration_id, byte_checksum, contract_digest`,
+        );
+        const migration = removed.rows[0];
+        if (migration === undefined) {
+          throw new Error("final migration must be present before recheck");
+        }
+
+        try {
+          await expect(
+            recheckInstallation({ client, config }),
+          ).rejects.toMatchObject({
+            code: "incompatible_target",
+            check: "migration:0005-resource-bound-budget",
+          });
+        } finally {
+          await client.query(
+            `insert into keynes_internal.schema_migrations
+              (migration_id, byte_checksum, contract_digest)
+             values ($1, $2, $3)`,
+            [
+              migration.migration_id,
+              migration.byte_checksum,
+              migration.contract_digest,
+            ],
+          );
+        }
       } finally {
         await client.end();
       }
@@ -300,31 +380,31 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           "select set_config('keynes.principal_id', $1, true)",
           [principalId],
         );
-        await expect(
-          client.query("select keynes.define_resource_type($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.defineConsumable),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.create_budget($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.createRoot),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.request($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.requestChild),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.settle($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.settleChild),
-          ]),
-        ).resolves.toBeDefined();
-        await expect(
-          client.query("select keynes.get_budget($1::jsonb)", [
-            JSON.stringify(fixtureSource.commands.getChild),
-          ]),
-        ).resolves.toBeDefined();
+        await expectPublicSuccess(
+          client,
+          "keynes.define_resource_type",
+          fixtureSource.commands.defineConsumable,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.create_budget",
+          fixtureSource.commands.createRoot,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.request",
+          fixtureSource.commands.requestChild,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.settle",
+          fixtureSource.commands.settleChild,
+        );
+        await expectPublicSuccess(
+          client,
+          "keynes.get_budget",
+          fixtureSource.commands.getChild,
+        );
         await client.query("rollback");
       } finally {
         await client.end();
@@ -412,6 +492,23 @@ async function connect(connectionString: string): Promise<Client> {
   const client = new Client({ connectionString });
   await client.connect();
   return client;
+}
+
+async function expectPublicSuccess(
+  client: Client,
+  target:
+    | "keynes.define_resource_type"
+    | "keynes.create_budget"
+    | "keynes.request"
+    | "keynes.settle"
+    | "keynes.get_budget",
+  input: unknown,
+): Promise<void> {
+  const result = await client.query<{ readonly response: unknown }>(
+    `select ${target}($1::jsonb) as response`,
+    [JSON.stringify(input)],
+  );
+  expect(result.rows[0]?.response).toMatchObject({ ok: true });
 }
 
 async function scalar(client: Client, statement: string): Promise<string> {

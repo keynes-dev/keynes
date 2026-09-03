@@ -24,11 +24,19 @@ const fixture = {
       commandId: "20000000-0000-0000-0000-000000000001",
       resources: [
         {
-          resourceTypeId: "10000000-0000-0000-0000-000000000002",
+          definition: {
+            canonicalName: "worker_slots",
+            unit: "slot",
+            accountingBehavior: "reusable",
+          },
           amount: 2,
         },
         {
-          resourceTypeId: "10000000-0000-0000-0000-000000000001",
+          definition: {
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
           amount: 100,
         },
       ],

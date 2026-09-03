@@ -1,27 +1,13 @@
-import { randomUUID } from "node:crypto";
-
 import type { KeynesClient } from "../generated/client.js";
 import { createKeynesClient } from "../generated/client.js";
-import type {
-  DefineResourceTypeCommand,
-  ResourceTypeProjection,
-} from "../generated/types.js";
 import { CommittedResponseLostError } from "../replay.js";
-import type { ResourceSchema } from "../resources.js";
-import { resourceInstallation } from "../resources.js";
-import {
-  KeynesSdkError,
-  ResourceDefinitionError,
-  type DefinedResource,
-} from "../sdk-errors.js";
-import { ResourceCatalog } from "./resource-catalog.js";
+import { KeynesSdkError } from "../sdk-errors.js";
 import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
 
 type RuntimeState = "open" | "closing" | "closed";
 
 export interface LocalRuntime {
   readonly client: KeynesClient;
-  readonly resources: ResourceCatalog;
   state: RuntimeState;
   tail: Promise<void>;
   closePromise: Promise<void> | undefined;
@@ -51,10 +37,7 @@ const PRODUCT_INSTALLATION = {
   ],
 } as const;
 
-export async function openConfiguredRuntime(
-  schema: ResourceSchema,
-): Promise<LocalRuntime> {
-  const installation = resourceInstallation(schema);
+export async function openConfiguredRuntime(): Promise<LocalRuntime> {
   let host: LocalRuntimeHost;
   try {
     host = openLocalRuntimeHost();
@@ -64,31 +47,13 @@ export async function openConfiguredRuntime(
 
   const runtime: LocalRuntime = {
     client: host.client,
-    resources: new ResourceCatalog(),
     state: "open",
     tail: Promise.resolve(),
     closePromise: undefined,
     closeHost: host.close,
   };
 
-  try {
-    await installResources(runtime, installation);
-    return runtime;
-  } catch (cause: unknown) {
-    runtime.state = "closing";
-    try {
-      await host.close();
-    } catch (cleanupFailure: unknown) {
-      runtime.state = "closed";
-      throw new AggregateError(
-        [cause, cleanupFailure],
-        "Resource installation and cleanup failed",
-        { cause },
-      );
-    }
-    runtime.state = "closed";
-    throw cause;
-  }
+  return runtime;
 }
 
 export function admit<Result>(
@@ -130,51 +95,6 @@ export function closeRuntime(runtime: LocalRuntime): Promise<void> {
     runtime.state = "closed";
   });
   return runtime.closePromise;
-}
-
-async function installResources(
-  runtime: LocalRuntime,
-  installation: ReturnType<typeof resourceInstallation>,
-): Promise<void> {
-  const definedResources: DefinedResource[] = [];
-  for (const resource of installation) {
-    try {
-      const command = {
-        commandId: randomUUID(),
-        definition: resource.definition,
-      } satisfies DefineResourceTypeCommand;
-      const result = await invokeMutation(() =>
-        runtime.client.defineResource(command),
-      );
-      runtime.resources.record(resource, result.resourceType);
-      definedResources.push(publicResource(resource.key, result.resourceType));
-    } catch (cause: unknown) {
-      if (
-        cause instanceof KeynesSdkError &&
-        cause.code === "operation_interrupted"
-      ) {
-        throw cause;
-      }
-      throw new ResourceDefinitionError(
-        resource.key,
-        Object.freeze([...definedResources]),
-        cause,
-      );
-    }
-  }
-}
-
-function publicResource(
-  resource: string,
-  projection: ResourceTypeProjection,
-): DefinedResource {
-  return Object.freeze({
-    resource,
-    canonicalName: projection.canonicalName,
-    unit: projection.unit,
-    accountingBehavior: projection.accountingBehavior,
-    definitionDigest: projection.definitionDigest,
-  });
 }
 
 function openLocalRuntimeHost(): LocalRuntimeHost {

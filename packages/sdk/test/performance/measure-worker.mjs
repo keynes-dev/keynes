@@ -20,12 +20,12 @@ async function runColdFirst() {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
   const createStarted = performance.now();
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   const coldCreateMilliseconds = performance.now() - createStarted;
   try {
     const readyRssBytes = process.memoryUsage.rss();
     const sqliteVersion = installedSqliteVersion();
-    const root = await keynes.createBudget({ workUnits: 2 });
+    const root = await keynes.createBudget(resources, { workUnits: 2 });
     const requestStarted = performance.now();
     const request = await root.request({ workUnits: 1 });
     const firstRequestMilliseconds = performance.now() - requestStarted;
@@ -70,9 +70,9 @@ async function runSteady() {
   const resources = defineResources({
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   });
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   try {
-    const root = await keynes.createBudget({ workUnits: 110 });
+    const root = await keynes.createBudget(resources, { workUnits: 110 });
     for (let index = 0; index < 10; index += 1) {
       await fundedRequest(root);
     }

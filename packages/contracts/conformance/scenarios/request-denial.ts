@@ -10,6 +10,7 @@ import type {
   KeynesError,
   OpenContractTestHost,
 } from "../host.ts";
+import { rootResource } from "./root-resource.ts";
 export function registerRequestDenialContractTests(
   openTestKeynes: OpenContractTestHost,
 ): void {
@@ -33,7 +34,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000001",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
       const commandId = "31000000-0000-0000-0000-000000000001";
 
@@ -116,10 +117,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000011",
-        resources: [
-          { resourceTypeId: tokens.resourceTypeId, amount: 10 },
-          { resourceTypeId: seats.resourceTypeId, amount: 10 },
-        ],
+        resources: [rootResource(tokens, 10), rootResource(seats, 10)],
       });
 
       const denied = await client.requestBudget({
@@ -170,7 +168,7 @@ export function registerRequestDenialContractTests(
       for (let attempt = 1; attempt <= 100; attempt += 1) {
         const root = await client.createBudget({
           commandId: attemptCommandId("21", attempt),
-          resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+          resources: [rootResource(resource, 10)],
         });
         const requests = await Promise.all([
           requesterA.requestBudget({
@@ -224,7 +222,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000031",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
 
       await expectInvalidRequest(client, {
@@ -258,7 +256,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000041",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
       const unknownResourceTypeId = "99000000-0000-0000-0000-000000000041";
 
@@ -282,7 +280,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000051",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
       await client.settleBudget({
         commandId: "41000000-0000-0000-0000-000000000051",
@@ -310,7 +308,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await product.createBudget({
         commandId: "21000000-0000-0000-0000-000000000061",
-        resources: [{ resourceTypeId: resource.resourceTypeId, amount: 10 }],
+        resources: [rootResource(resource, 10)],
       });
 
       await expectKeynesError(

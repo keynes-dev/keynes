@@ -11,7 +11,7 @@ The current repository has three implemented paths. The TypeScript SDK runs loca
 
 The draft FEAT-0013 design proposed an API key, service discovery, and an HTTPS Budget protocol. That design would add a second public protocol, compatibility boundary, error mapping, retry owner, and limits model around the existing PostgreSQL authority. Keynes has no browser or mobile SDK that requires that data path. Server-side TypeScript applications can use PostgreSQL's authenticated TLS protocol and the same versioned procedures that already own durable Budget behavior.
 
-The current local factory also binds one Resource schema during connection setup. Durable PostgreSQL needs Resource binding during root creation and reopen, after the SDK has connected to an existing authority. That shared API change affects local behavior and must land as a prerequisite feature before remote access relies on it.
+The earlier local factory bound one Resource schema during connection setup. Durable PostgreSQL needs Resource binding during root creation and reopen, after the SDK has connected to an existing authority. FEAT-0014 now supplies that shared local and PostgreSQL prerequisite before remote access relies on it.
 
 ## Decision
 
@@ -24,7 +24,7 @@ createKeynes({ databaseUrl });
 
 The zero-argument form opens private local SQLite. The `databaseUrl` form opens one PostgreSQL authority. Configuration never selects a deployment label, HTTP endpoint, API key, Resource schema, or fallback.
 
-A prerequisite feature will move Resource binding and root Budget creation out of connection setup. It will preserve one public creation model across local SQLite and PostgreSQL. FEAT-0013 will consume that contract; it will not hide a local API change inside remote transport work.
+FEAT-0014 moves Resource binding and root Budget creation out of connection setup and preserves one public creation model across local SQLite and PostgreSQL. FEAT-0013 consumes that contract; it does not add another Resource-registration path or hide a local API change inside remote transport work.
 
 The remote SDK owns its PostgreSQL pool and calls only supported versioned procedures. PostgreSQL remains the sole durable owner of validation, Policy decisions, conservation, transactions, replay, settlement, history, and recovery records. FEAT-0013 adds no HTTP Budget data plane and no second replay ledger.
 

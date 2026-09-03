@@ -16,6 +16,14 @@ import {
 } from "./migrations.js";
 import { runPackedPostgresql } from "../../support/packed-package.js";
 
+const BOOTSTRAP_PERMISSIONS = [
+  "define_resource_type",
+  "create_root_budget",
+  "request_budget",
+  "settle_budget",
+  "read_budget",
+] as const;
+
 interface Queryable {
   query<Row extends QueryResultRow>(
     statement: string,
@@ -365,8 +373,10 @@ export async function openInstalledPostgresDatabase(
     [applicationRole, ownerRole],
   );
   try {
-    const principal = installation.principals.find(
-      ({ permissions }) => permissions.length === 5,
+    const principal = installation.principals.find(({ permissions }) =>
+      BOOTSTRAP_PERMISSIONS.every((permission) =>
+        permissions.includes(permission),
+      ),
     );
     if (principal === undefined) {
       throw new Error(

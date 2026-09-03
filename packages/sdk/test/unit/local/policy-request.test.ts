@@ -343,9 +343,10 @@ describe("local governed Budget requests", () => {
       "reason_",
     );
     const policyDigit = orderingPolicy(orderingResources, "policy0", "reason0");
-    const keynes = await createKeynes({ resources: orderingResources });
+    const keynes = await createKeynes();
     try {
       const root = await keynes.createBudget(
+        orderingResources,
         { a0thing: 10, aThing: 10 },
         { policies: policySet(policyUnderscore, policyDigit) },
       );
@@ -457,9 +458,9 @@ describe("local governed Budget requests", () => {
   });
 
   it("attaches child Policies from an ungoverned Budget", async () => {
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({ tokens: 10 });
+      const root = await keynes.createBudget(resources, { tokens: 10 });
       const result = await root.request(
         { tokens: 10 },
         { childPolicies: policySet(contextLimit) },
@@ -640,9 +641,10 @@ async function openGoverned<Reasons extends string>(
   policies: PolicySet<"tokens", TestContext, Reasons>,
   initialTokens = 10,
 ) {
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes();
   try {
     const root = await keynes.createBudget(
+      resources,
       { tokens: initialTokens },
       { policies },
     );

@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/0013-remote-sdk-public-service/plan.md`.
+`docs/features/0014-resource-bound-budget/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow

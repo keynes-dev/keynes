@@ -30,14 +30,14 @@ describe("schema-first public API", () => {
     const resources = defineResources({
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     });
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
 
     try {
       expect(Object.isFrozen(keynes)).toBe(true);
       expect(keynes).not.toHaveProperty("defineResources");
 
       const { createBudget } = keynes;
-      const root = await createBudget({ usdCents: 100 });
+      const root = await createBudget(resources, { usdCents: 100 });
       expect(Object.isFrozen(root)).toBe(true);
 
       const { request, inspect } = root;

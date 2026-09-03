@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { KeynesError } from "./generated/client.js";
 import type {
   OperationName,
+  RootResourceEnvelope,
   ResourceDefinition as WireResourceDefinition,
 } from "./generated/types.js";
 import { validateDefineResourceTypeCommandIssues } from "./generated/validators.js";
@@ -32,6 +33,14 @@ export interface ResourceInstallationDefinition {
   readonly key: string;
   readonly canonicalName: string;
   readonly definition: WireResourceDefinition;
+}
+
+export interface PreparedRootResource<
+  Name extends string,
+> extends ResourceInstallationDefinition {
+  readonly key: Name;
+  readonly amount: number;
+  readonly definitionDigest: string;
 }
 
 interface PreparedResourceDefinition extends ResourceInstallationDefinition {
@@ -74,6 +83,73 @@ export function resourceInstallation(
       Object.freeze({ key, canonicalName, definition }),
     ),
   );
+}
+
+export function prepareRootResources<
+  const Definitions extends ResourceDefinitions,
+  Name extends Extract<keyof Definitions, string>,
+>(
+  schema: ResourceSchema<Definitions>,
+  allocation: Readonly<Partial<Record<Name, number>>>,
+): readonly [PreparedRootResource<Name>, ...PreparedRootResource<Name>[]] {
+  const installation = resourceInstallation(schema);
+  if (!isRecord(allocation)) {
+    throw invalidCommand("createBudget", "$.resources", "type");
+  }
+  const byKey = new Map(
+    installation.map((resource) => [resource.key, resource]),
+  );
+  const prepared: PreparedRootResource<Name>[] = [];
+  for (const key in allocation) {
+    if (!Object.hasOwn(allocation, key)) continue;
+    const resource = byKey.get(key);
+    if (resource === undefined) {
+      const details: {
+        readonly operation: "createBudget";
+        readonly resource: string;
+      } = Object.freeze({
+        operation: "createBudget",
+        resource: key,
+      });
+      throw new KeynesSdkError("resource_not_defined", details);
+    }
+    prepared.push(
+      Object.freeze({
+        ...resource,
+        key,
+        amount: requireAmount(
+          allocation[key],
+          "createBudget",
+          `$.resources.${key}`,
+        ),
+        definitionDigest: resourceDefinitionDigest(resource.definition),
+      }),
+    );
+  }
+  prepared.sort((left, right) =>
+    compareStrings(left.canonicalName, right.canonicalName),
+  );
+  return requireNonEmpty(prepared, "createBudget", "$.resources");
+}
+
+export function rootResourceEnvelope(
+  resources: readonly [
+    PreparedRootResource<string>,
+    ...PreparedRootResource<string>[],
+  ],
+): RootResourceEnvelope {
+  const [first, ...rest] = resources;
+  return [
+    { definition: first.definition, amount: first.amount },
+    ...rest.map(({ definition, amount }) => ({ definition, amount })),
+  ];
+}
+
+export function resourceDefinitionDigest(
+  definition: WireResourceDefinition,
+): string {
+  const jsonbText = `{"unit": ${JSON.stringify(definition.unit)}, "canonicalName": ${JSON.stringify(definition.canonicalName)}, "accountingBehavior": ${JSON.stringify(definition.accountingBehavior)}}`;
+  return `resource-definition:${createHash("sha256").update(jsonbText).digest("hex")}`;
 }
 
 export function canonicalResourceName(key: string): string {
@@ -187,6 +263,27 @@ function resourceSchemaDigest(
 
 function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function requireAmount(
+  value: unknown,
+  operation: OperationName,
+  path: string,
+): number {
+  if (typeof value !== "number") {
+    throw invalidCommand(operation, path, "type");
+  }
+  return value;
+}
+
+function requireNonEmpty<Value>(
+  values: readonly Value[],
+  operation: OperationName,
+  path: string,
+): readonly [Value, ...Value[]] {
+  const [first, ...rest] = values;
+  if (first === undefined) throw invalidCommand(operation, path, "minItems");
+  return Object.freeze([first, ...rest]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

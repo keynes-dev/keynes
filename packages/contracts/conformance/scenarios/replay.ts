@@ -7,6 +7,7 @@ import type {
   SettleBudgetCommand,
 } from "../../generated/types.ts";
 import type { ContractTestHost, OpenContractTestHost } from "../host.ts";
+import { rootResource } from "./root-resource.ts";
 export function registerReplayContractTests(
   openTestKeynes: OpenContractTestHost,
 ): void {
@@ -39,13 +40,11 @@ export function registerReplayContractTests(
 
       const createCommand = {
         commandId: "23000000-0000-0000-0000-000000000001",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       } satisfies CreateBudgetCommand;
       const created = await product.createBudget(createCommand);
       const createdReplay = await local
-        .clientFor("allocator-fixture")
+        .clientFor("root-fixture")
         .createBudget(createCommand);
       expect(createdReplay).toEqual({ ...created, replayed: true });
 
@@ -162,9 +161,7 @@ export function registerReplayContractTests(
       });
       const command = {
         commandId: "23000000-0000-0000-0000-000000000051",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       } satisfies CreateBudgetCommand;
 
       await expect(
@@ -174,7 +171,7 @@ export function registerReplayContractTests(
       ).rejects.toThrow();
 
       const recovered = await local
-        .clientFor("allocator-fixture")
+        .clientFor("root-fixture")
         .createBudget(command);
       expect(recovered).toMatchObject({
         kind: "created",
@@ -198,9 +195,7 @@ export function registerReplayContractTests(
       });
       const root = await product.createBudget({
         commandId: "23000000-0000-0000-0000-000000000061",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       });
       const command = {
         commandId: "33000000-0000-0000-0000-000000000061",
@@ -250,9 +245,7 @@ export function registerReplayContractTests(
       });
       const root = await product.createBudget({
         commandId: "23000000-0000-0000-0000-000000000071",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       });
       const request = await product.requestBudget({
         commandId: "33000000-0000-0000-0000-000000000071",
@@ -327,16 +320,12 @@ export function registerReplayContractTests(
 
       const root = await product.createBudget({
         commandId: "23000000-0000-0000-0000-000000000011",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 100 },
-        ],
+        resources: [rootResource(defined.resourceType, 100)],
       });
       await expectCommandConflict(
-        local.clientFor("allocator-fixture").createBudget({
+        local.clientFor("root-fixture").createBudget({
           commandId: root.budget.budgetId,
-          resources: [
-            { resourceTypeId: defined.resourceType.resourceTypeId, amount: 99 },
-          ],
+          resources: [rootResource(defined.resourceType, 99)],
         }),
         root.budget.budgetId,
         "createBudget",
@@ -405,9 +394,7 @@ export function registerReplayContractTests(
       });
       const root = await client.createBudget({
         commandId: "23000000-0000-0000-0000-000000000021",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
-        ],
+        resources: [rootResource(defined.resourceType, 10)],
       });
 
       await expectCommandConflict(
@@ -442,9 +429,7 @@ export function registerReplayContractTests(
       });
       const root = await client.createBudget({
         commandId: "23000000-0000-0000-0000-000000000031",
-        resources: [
-          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 20 },
-        ],
+        resources: [rootResource(defined.resourceType, 20)],
       });
       const first = await client.requestBudget({
         commandId: "33000000-0000-0000-0000-000000000031",

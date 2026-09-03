@@ -29,6 +29,18 @@ import {
 
 const SEARCH_RESOURCE_ID = "11000000-0000-4000-8000-000000000001";
 const MODEL_RESOURCE_ID = "11000000-0000-4000-8000-000000000002";
+const RESOURCE_DEFINITIONS_BY_ID = {
+  [SEARCH_RESOURCE_ID]: {
+    canonicalName: "search_queries",
+    unit: "query",
+    accountingBehavior: "consumable",
+  },
+  [MODEL_RESOURCE_ID]: {
+    canonicalName: "model_tokens",
+    unit: "token",
+    accountingBehavior: "consumable",
+  },
+} as const;
 const ROOT_BUDGET_ID = "21000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "31000000-0000-4000-8000-000000000001";
 const SECOND_REQUEST_ID = "31000000-0000-4000-8000-000000000002";
@@ -233,8 +245,8 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       await committed(fixture, "createBudget", {
         commandId: NON_RFC_ROOT_BUDGET_ID,
         resources: [
-          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
-          { resourceTypeId: MODEL_RESOURCE_ID, amount: 100 },
+          rootResource(SEARCH_RESOURCE_ID, 100),
+          rootResource(MODEL_RESOURCE_ID, 100),
         ],
         policies: [policy],
       });
@@ -300,12 +312,24 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
     it("rejects a root Policy declaration outside the receiving Budget holdings", async () => {
       fixture = await openPolicyFixture();
       await definePolicyResources(fixture);
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
+      const invalidPolicy = requestLimitPolicy(
+        "request_ceiling",
+        "a_outside_root",
+        "search_queries",
+      );
+      const validPolicy = requestLimitPolicy(
+        "request_ceiling",
+        "z_inside_root",
+        "model_tokens",
+      );
       const transaction = await beginApplicationAttempt(fixture);
+      await transaction.connection.query(
+        "select set_config('keynes.policy_operation', 'requestBudget', true)",
+      );
       const wire = await call(transaction, "createBudget", {
         commandId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 100 }],
-        policies: [policy],
+        resources: [rootResource(MODEL_RESOURCE_ID, 100)],
+        policies: [invalidPolicy, validPolicy],
       });
       await transaction.commit();
 
@@ -313,7 +337,13 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         ok: false,
         error: {
           code: "invalid_policy",
-          details: { path: "$.policies", rule: "allocatedResourceTypes" },
+          details: {
+            operation: "createBudget",
+            policyName: "a_outside_root",
+            policyRevision: 1,
+            path: "$.policies",
+            rule: "allocatedResourceTypes",
+          },
         },
       });
       await expectBudgetState(fixture.owner, ROOT_BUDGET_ID, false);
@@ -358,7 +388,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       );
       await committed(fixture, "createBudget", {
         commandId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 100 }],
+        resources: [rootResource(MODEL_RESOURCE_ID, 100)],
       });
 
       const request = await committed(fixture, "requestBudget", {
@@ -375,14 +405,14 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(request.result).not.toHaveProperty("policyEvidence");
     });
 
-    it("preserves exact no-Policy bytes and legacy Resource UUID ordering", async () => {
+    it("preserves exact no-Policy request bytes and canonical root history", async () => {
       fixture = await openPolicyFixture();
       await definePolicyResources(fixture);
       await committed(fixture, "createBudget", {
         commandId: ROOT_BUDGET_ID,
         resources: [
-          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 10 },
-          { resourceTypeId: MODEL_RESOURCE_ID, amount: 10 },
+          rootResource(SEARCH_RESOURCE_ID, 10),
+          rootResource(MODEL_RESOURCE_ID, 10),
         ],
       });
 
@@ -457,8 +487,8 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
               sequence: 1,
               commandId: ROOT_BUDGET_ID,
               resources: [
-                { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
                 { amount: 10, resourceTypeId: MODEL_RESOURCE_ID },
+                { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
               ],
               rootBudgetId: ROOT_BUDGET_ID,
               subjectBudgetId: ROOT_BUDGET_ID,
@@ -637,8 +667,8 @@ async function seedGovernedRoot(
     await committed(fixture, "createBudget", {
       commandId: ROOT_BUDGET_ID,
       resources: [
-        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
-        { resourceTypeId: MODEL_RESOURCE_ID, amount: initialModelTokens },
+        rootResource(SEARCH_RESOURCE_ID, 100),
+        rootResource(MODEL_RESOURCE_ID, initialModelTokens),
       ],
       policies: Array.isArray(policy) ? policy : [policy],
     }),
@@ -648,20 +678,19 @@ async function seedGovernedRoot(
 async function definePolicyResources(fixture: PolicyFixture): Promise<void> {
   await committed(fixture, "defineResource", {
     commandId: SEARCH_RESOURCE_ID,
-    definition: {
-      canonicalName: "search_queries",
-      unit: "query",
-      accountingBehavior: "consumable",
-    },
+    definition: RESOURCE_DEFINITIONS_BY_ID[SEARCH_RESOURCE_ID],
   });
   await committed(fixture, "defineResource", {
     commandId: MODEL_RESOURCE_ID,
-    definition: {
-      canonicalName: "model_tokens",
-      unit: "token",
-      accountingBehavior: "consumable",
-    },
+    definition: RESOURCE_DEFINITIONS_BY_ID[MODEL_RESOURCE_ID],
   });
+}
+
+function rootResource(
+  resourceTypeId: keyof typeof RESOURCE_DEFINITIONS_BY_ID,
+  amount: number,
+) {
+  return { definition: RESOURCE_DEFINITIONS_BY_ID[resourceTypeId], amount };
 }
 
 async function committed(

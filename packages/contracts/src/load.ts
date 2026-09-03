@@ -17,7 +17,7 @@ const EXPECTED_OPERATIONS = [
   {
     method: "defineResource",
     target: "keynes.define_resource_type",
-    permission: "define_resource_type",
+    permissions: ["define_resource_type"],
     replay: true,
     input: "DefineResourceTypeCommand",
     output: "DefineResourceTypeResult",
@@ -25,7 +25,7 @@ const EXPECTED_OPERATIONS = [
   {
     method: "createBudget",
     target: "keynes.create_budget",
-    permission: "create_root_budget",
+    permissions: ["define_resource_type", "create_root_budget"],
     replay: true,
     input: "CreateBudgetCommand",
     output: "CreateBudgetResult",
@@ -33,7 +33,7 @@ const EXPECTED_OPERATIONS = [
   {
     method: "requestBudget",
     target: "keynes.request",
-    permission: "request_budget",
+    permissions: ["request_budget"],
     replay: true,
     input: "RequestBudgetCommand",
     output: "RequestBudgetResult",
@@ -41,7 +41,7 @@ const EXPECTED_OPERATIONS = [
   {
     method: "settleBudget",
     target: "keynes.settle",
-    permission: "settle_budget",
+    permissions: ["settle_budget"],
     replay: true,
     input: "SettleBudgetCommand",
     output: "SettleBudgetResult",
@@ -49,7 +49,7 @@ const EXPECTED_OPERATIONS = [
   {
     method: "getBudget",
     target: "keynes.get_budget",
-    permission: "read_budget",
+    permissions: ["read_budget"],
     replay: false,
     input: "GetBudgetQuery",
     output: "GetBudgetResult",
@@ -171,7 +171,7 @@ function parseOperation(value: unknown): ContractOperation {
   return {
     method: requireString(operation, "method"),
     target: requireString(operation, "target"),
-    permission: requireString(operation, "permission"),
+    permissions: requireNonEmptyStrings(operation, "permissions"),
     replay: operation.replay,
     input: requireString(operation, "input"),
     output: requireString(operation, "output"),
@@ -206,7 +206,10 @@ function validateInputs(
       fail(`undeclared input ${operation.input}`);
     if (!(operation.output in definitions))
       fail(`undeclared output ${operation.output}`);
-    for (const field of ["permission", "replay", "input", "output"] as const) {
+    if (!sameStrings(operation.permissions, expected.permissions)) {
+      fail(`operation metadata mismatch for ${operation.method}: permissions`);
+    }
+    for (const field of ["replay", "input", "output"] as const) {
       if (operation[field] !== expected[field]) {
         fail(`operation metadata mismatch for ${operation.method}: ${field}`);
       }
@@ -216,6 +219,31 @@ function validateInputs(
     fail("contract must declare exactly the five allowlisted operations");
   }
   return definitions;
+}
+
+function requireNonEmptyStrings(
+  object: JsonObject,
+  key: string,
+): [string, ...string[]] {
+  const value = object[key];
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((member) => typeof member !== "string")
+  ) {
+    fail(`contract operation ${key} must be a non-empty string array`);
+  }
+  return [value[0], ...value.slice(1)];
+}
+
+function sameStrings(
+  actual: readonly string[],
+  expected: readonly string[],
+): boolean {
+  return (
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index])
+  );
 }
 
 function validateSchemaNode(node: unknown, location: string): void {

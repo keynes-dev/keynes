@@ -9,10 +9,10 @@ import {
 import { format } from "oxfmt";
 
 export interface CloudInstallationIdentity {
-  readonly contractMigrationId: string;
   readonly migrations: readonly {
     readonly id: string;
     readonly sha256: string;
+    readonly contractDigest?: string;
   }[];
 }
 
@@ -52,15 +52,13 @@ function renderCloudProcedures(
 ): string {
   const installationMigrations = installation.migrations
     .map((migration) => {
-      const contractDigest =
-        migration.id === installation.contractMigrationId ? digest : null;
-      return `  {\n    id: ${JSON.stringify(migration.id)},\n    byteChecksum: ${JSON.stringify(migration.sha256)},\n    contractDigest: ${JSON.stringify(contractDigest)},\n  },`;
+      return `  {\n    id: ${JSON.stringify(migration.id)},\n    byteChecksum: ${JSON.stringify(migration.sha256)},\n    contractDigest: ${JSON.stringify(migration.contractDigest ?? null)},\n  },`;
     })
     .join("\n");
   const procedures = contract.operations
     .map(
       (operation) =>
-        `  ${operation.method}: {\n    target: ${JSON.stringify(operation.target)},\n    statement: ${JSON.stringify(`select ${operation.target}($1::jsonb) as response`)},\n    permission: ${JSON.stringify(operation.permission)},\n    replay: ${String(operation.replay)},\n  },`,
+        `  ${operation.method}: {\n    target: ${JSON.stringify(operation.target)},\n    statement: ${JSON.stringify(`select ${operation.target}($1::jsonb) as response`)},\n    permissions: ${JSON.stringify(operation.permissions)},\n    replay: ${String(operation.replay)},\n  },`,
     )
     .join("\n");
 

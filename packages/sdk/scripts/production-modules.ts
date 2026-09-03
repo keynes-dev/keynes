@@ -10,7 +10,6 @@ export const SDK_PRODUCTION_MODULES = [
   "generated/validators",
   "index",
   "keynes",
-  "local/resource-catalog",
   "local/runtime",
   "local/sqlite-command-executor",
   "local/sqlite-store",
@@ -24,6 +23,7 @@ export const SDK_PRODUCTION_MODULES = [
   "policy/parse",
   "policy/validate",
   "replay",
+  "resource-binding",
   "resources",
   "sdk-errors",
 ] as const;

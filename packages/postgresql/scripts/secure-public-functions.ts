@@ -40,7 +40,7 @@ export function installationFunctions(
 ): readonly JsonObject[] {
   return contract.operations.map((operation) => ({
     operation: operation.method,
-    permission: operation.permission,
+    permissions: operation.permissions,
     target: operation.target,
     argumentType: "jsonb",
     returnType: "jsonb",

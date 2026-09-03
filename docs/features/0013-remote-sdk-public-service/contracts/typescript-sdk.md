@@ -9,17 +9,17 @@ export function createKeynes(options: {
 }): Promise<RemoteKeynes>;
 ```
 
-The prerequisite feature owns `LocalKeynes`, shared root creation, and Resource binding. FEAT-0013 adds only the remote configuration and remote-only capabilities.
+[FEAT-0014](../../0014-resource-bound-budget/spec.md) owns `LocalKeynes`, shared root creation, and Resource binding. FEAT-0013 adds only the remote configuration and remote-only capabilities.
 
 The factory rejects unknown keys, mixed local and remote intent, malformed URLs, unsupported parameters, unsafe TLS, authentication failure, incompatible installations, and unavailable databases. It never falls back.
 
 ## Shared Budget behavior
 
-`RemoteKeynes` preserves the shared methods and results established by the prerequisite. Root creation accepts Resource types, allocation, and optional Policies atomically. Requests, settlement, Policy behavior, close behavior, and public errors keep their local meanings.
+`RemoteKeynes` preserves the shared methods and results established by FEAT-0014. Root creation accepts Resource types, allocation, and optional Policies atomically. Requests, settlement, Policy behavior, close behavior, and public errors keep their local meanings.
 
 ## Remote-only capabilities
 
-The exact generic method signatures must follow the prerequisite's public types. These invariants do not change:
+The exact generic method signatures follow FEAT-0014's public types. These invariants do not change:
 
 - local handles expose neither `reference` nor `openBudget`;
 - `BudgetReference` and `OperationKey` are distinct branded values and wire prefixes;

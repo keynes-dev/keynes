@@ -32,4 +32,4 @@
 
 ## Notes
 
-The specification records accepted product behavior. It does not claim that the prerequisite or FEAT-0013 runtime exists. Implementation and all remote qualification remain `NOT RUN`.
+The specification records accepted product behavior and consumes FEAT-0014 as its prerequisite. It does not claim that the FEAT-0013 runtime exists. Implementation and all remote qualification remain `NOT RUN`.
