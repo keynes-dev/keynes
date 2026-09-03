@@ -505,7 +505,14 @@ async function seedRoot(
     const root = await client.createBudget({
       commandId: "20000000-0000-4000-8000-000000000001",
       resources: [
-        { resourceTypeId: resource.resourceType.resourceTypeId, amount: 10 },
+        {
+          definition: {
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
       ],
     });
     await transaction.commit();

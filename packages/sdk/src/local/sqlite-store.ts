@@ -30,6 +30,7 @@ export interface SqliteHoldingRow {
 
 export interface SqliteResourceRow {
   readonly resourceTypeId: string;
+  readonly definitionCommandId: string;
   readonly canonicalName: string;
   readonly unit: string;
   readonly accountingBehavior: "consumable" | "reusable";
@@ -69,6 +70,7 @@ CREATE TABLE commands (
 CREATE TABLE resource_types (
   tenant_id TEXT NOT NULL,
   resource_type_id TEXT NOT NULL,
+  definition_command_id TEXT NOT NULL,
   canonical_name TEXT NOT NULL,
   unit TEXT NOT NULL,
   accounting_behavior TEXT NOT NULL,
@@ -235,6 +237,7 @@ export class SqliteStore {
     this.#statements.insertResource.run(
       resource.tenantId,
       resource.resourceTypeId,
+      resource.definitionCommandId,
       resource.canonicalName,
       resource.unit,
       resource.accountingBehavior,
@@ -373,13 +376,13 @@ function prepareStatements(database: DatabaseSync) {
       "UPDATE commands SET result_json = ? WHERE tenant_id = ? AND command_id = ?",
     ),
     resourceByName: prepareRead(
-      "SELECT resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND canonical_name = ?",
+      "SELECT resource_type_id, definition_command_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND canonical_name = ?",
     ),
     resource: prepareRead(
-      "SELECT resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND resource_type_id = ?",
+      "SELECT resource_type_id, definition_command_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND resource_type_id = ?",
     ),
     insertResource: database.prepare(
-      "INSERT INTO resource_types (tenant_id, resource_type_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO resource_types (tenant_id, resource_type_id, definition_command_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     ),
     budget: prepareRead(
       "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND budget_id = ?",
@@ -475,6 +478,7 @@ function resourceRow(value: unknown): SqliteResourceRow {
   }
   return {
     resourceTypeId: stringColumn(row, "resource_type_id"),
+    definitionCommandId: stringColumn(row, "definition_command_id"),
     canonicalName: stringColumn(row, "canonical_name"),
     unit: stringColumn(row, "unit"),
     accountingBehavior,

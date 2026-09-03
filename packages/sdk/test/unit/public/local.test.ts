@@ -110,9 +110,9 @@ describe("local Keynes facade", () => {
     const resources = defineResources({
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     });
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({ usdCents: 5 });
+      const root = await keynes.createBudget(resources, { usdCents: 5 });
       await root.settle({ usdCents: 1 });
 
       let conflict: unknown;
@@ -148,9 +148,9 @@ describe("local Keynes facade", () => {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       searchQueries: { unit: "query", accountingBehavior: "consumable" },
     });
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({
+      const root = await keynes.createBudget(resources, {
         usdCents: 100,
         searchQueries: 10,
       });
@@ -220,12 +220,12 @@ describe("local Keynes facade", () => {
     });
     expect(conflict.digest).not.toBe(first.digest);
 
-    const firstKeynes = await createKeynes({ resources: first });
-    const conflictingKeynes = await createKeynes({ resources: conflict });
+    const firstKeynes = await createKeynes();
+    const conflictingKeynes = await createKeynes();
     try {
       const [firstRoot, conflictingRoot] = await Promise.all([
-        firstKeynes.createBudget({ usdCents: 1 }),
-        conflictingKeynes.createBudget({ usdCents: 1 }),
+        firstKeynes.createBudget(first, { usdCents: 1 }),
+        conflictingKeynes.createBudget(conflict, { usdCents: 1 }),
       ]);
       expect((await firstRoot.inspect()).budget.resources[0]?.unit).toBe(
         "cent",
@@ -313,9 +313,9 @@ describe("local Keynes facade", () => {
     const resources = defineResources(definitions);
     Reflect.set(definitions.usdCents, "unit", "dollar");
 
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({ usdCents: 5 });
+      const root = await keynes.createBudget(resources, { usdCents: 5 });
       expect((await root.inspect()).budget.resources[0]).toMatchObject({
         resource: "usdCents",
         unit: "cent",
@@ -329,9 +329,9 @@ describe("local Keynes facade", () => {
     const resources = defineResources({
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     });
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({ usdCents: 5 });
+      const root = await keynes.createBudget(resources, { usdCents: 5 });
       const returned = await root.settle({ usdCents: 3 });
       const returnedResource = returned.budget.resources[0];
       const returnedUsage = returned.newlyKnown[0];
@@ -366,26 +366,20 @@ describe("local Keynes facade", () => {
     }
   });
 
-  it("leaves Budget membership decisions to the database", async () => {
+  it("rejects Resources outside the root binding", async () => {
     const resources = defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
     });
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes();
     try {
-      const root = await keynes.createBudget({ workUnits: 5 });
-      const denied: unknown = await Reflect.apply(root.request, root, [
-        { workUnits: 1, tokens: 1 },
-      ]);
-      expect(denied).toMatchObject({
-        status: "denied",
-        reasons: [
-          {
-            code: "insufficient_available",
-            resource: "tokens",
-            available: 0,
-          },
-        ],
+      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      await expect(
+        Reflect.apply(root.request, root, [{ workUnits: 1, tokens: 1 }]),
+      ).rejects.toMatchObject({
+        name: "KeynesSdkError",
+        code: "resource_not_defined",
+        details: { operation: "requestBudget", resource: "tokens" },
       });
 
       const approved = await root.request({ workUnits: 1 });

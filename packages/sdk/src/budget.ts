@@ -18,10 +18,11 @@ import {
   projectSnapshot,
 } from "./budget-projection.js";
 import { prepareRequestPolicyOptions } from "./budget-request-options.js";
+import type { ResourceBinding } from "./resource-binding.js";
 
 export { attachedPolicyDefinitions } from "./budget-request-options.js";
 
-declare const budgetBrand: unique symbol;
+const budgetBrand: unique symbol = Symbol("Budget");
 declare const noPolicyContextBrand: unique symbol;
 declare const policyDefinitionBrand: unique symbol;
 
@@ -271,7 +272,7 @@ export interface Budget<
   Context = NoPolicyContext,
   Reasons extends string = never,
 > {
-  readonly [budgetBrand]: void;
+  readonly [budgetBrand]: undefined;
   readonly request: <
     const Resources extends ResourceAmounts<Names>,
     const SuppliedContext extends Context = Context,
@@ -401,39 +402,44 @@ export function createBudgetHandle<
   Names extends string,
   Context = NoPolicyContext,
   Reasons extends string = never,
->(runtime: LocalRuntime, budgetId: string): Budget<Names, Context, Reasons> {
+>(
+  runtime: LocalRuntime,
+  budgetId: string,
+  binding: ResourceBinding<Names>,
+): Budget<Names, Context, Reasons> {
   const request: Budget<Names, Context, Reasons>["request"] = (
     resources,
     ...options
-  ) => requestBudget(runtime, budgetId, resources, options);
+  ) => requestBudget(runtime, budgetId, binding, resources, options);
 
   const settle: Budget<Names, Context, Reasons>["settle"] = (usage) =>
     admit(runtime, async () => {
       const command = {
         commandId: randomUUID(),
         budgetId,
-        usage: runtime.resources.usage(usage),
+        usage: binding.usage(usage),
       } satisfies SettleBudgetCommand;
-      const result = await invokeBudgetOperation(runtime, () =>
+      const result = await invokeBudgetOperation(binding, () =>
         invokeMutation(() => runtime.client.settleBudget(command)),
       );
-      return projectSettlement<Names>(runtime, result);
+      return projectSettlement(binding, result);
     });
 
   const inspect = (): Promise<BudgetSnapshot<Names, Reasons, Context>> =>
     admit(runtime, async () => {
-      const result = await invokeBudgetOperation(runtime, () =>
+      const result = await invokeBudgetOperation(binding, () =>
         runtime.client.getBudget({ budgetId }),
       );
-      return projectSnapshot<Names, Reasons, Context>(runtime, result);
+      return projectSnapshot<Names, Reasons, Context>(binding, result);
     });
 
   const handle = Object.freeze({
+    [budgetBrand]: undefined,
     request,
     settle,
     inspect,
   });
-  return handle as Budget<Names, Context, Reasons>;
+  return handle;
 }
 
 function requestBudget<
@@ -446,6 +452,7 @@ function requestBudget<
 >(
   runtime: LocalRuntime,
   budgetId: string,
+  binding: ResourceBinding<Names>,
   resources: ExactResourceAmounts<Names, Resources>,
   options: RequestArguments<
     Context,
@@ -465,17 +472,17 @@ function requestBudget<
   type RequestedName = Extract<keyof Resources, Names>;
   const preparedOptions = prepareRequestPolicyOptions(options);
   const pending = admit(runtime, async () => {
-    const resolved = runtime.resources.resources<RequestedName>(
+    const resolved = binding.resources<RequestedName>(
       resources,
       "requestBudget",
     );
     const command: RequestBudgetCommand = {
       commandId: randomUUID(),
       parentBudgetId: budgetId,
-      resources: resolved,
+      resources: resolved.envelope,
       ...preparedOptions,
     };
-    const result = await invokeBudgetOperation(runtime, () =>
+    const result = await invokeBudgetOperation(resolved.binding, () =>
       invokeMutation(() => runtime.client.requestBudget(command)),
     );
     if (result.kind === "approved") {
@@ -485,7 +492,7 @@ function requestBudget<
           RequestedName,
           ContextOfPolicySet<ChildPolicies>,
           ReasonsOfPolicySet<ChildPolicies>
-        >(runtime, result.childBudgetId),
+        >(runtime, result.childBudgetId, resolved.binding),
         ...(result.policyEvidence === undefined
           ? {}
           : {
@@ -493,7 +500,7 @@ function requestBudget<
                 RequestedName,
                 Context,
                 Reasons
-              >(runtime, result.policyEvidence),
+              >(resolved.binding, result.policyEvidence),
             }),
       });
     }
@@ -502,7 +509,10 @@ function requestBudget<
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
-            projectDenialReason<RequestedName, Reasons>(runtime, reason),
+            projectDenialReason<RequestedName, Reasons>(
+              resolved.binding,
+              reason,
+            ),
           )
           .sort(compareDenialReasons),
       ),
@@ -513,7 +523,7 @@ function requestBudget<
               RequestedName,
               Context,
               Reasons
-            >(runtime, result.policyEvidence),
+            >(resolved.binding, result.policyEvidence),
           }),
     });
   });

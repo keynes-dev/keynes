@@ -10,8 +10,9 @@ import type {
   ResourceAmount,
   SettleBudgetResult,
 } from "../../../src/generated/types.js";
-import { ResourceCatalog } from "../../../src/local/resource-catalog.js";
 import type { LocalRuntime } from "../../../src/local/runtime.js";
+import { createResourceBinding } from "../../../src/resource-binding.js";
+import type { PreparedRootResource } from "../../../src/resources.js";
 
 const BUDGET_ID = "00000000-0000-4000-8000-000000000010";
 const LOW_RESOURCE_ID = "10000000-0000-4000-8000-000000000001";
@@ -63,48 +64,57 @@ describe("public Budget projections", () => {
       unresolvedResources: ["alpha", "zebra"],
       isolatedDeficits: [{ resource: "alpha" }, { resource: "zebra" }],
     });
+
+    const narrowed = await exerciseNarrowedProjection([
+      { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
+      { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
+    ]);
+    expect(narrowed.budget.resources.map(({ resource }) => resource)).toEqual([
+      "alpha",
+      "zebra",
+    ]);
+    expect(narrowed.history.entries[0]).toMatchObject({
+      kind: "budget_created",
+      resources: [{ resource: "alpha" }, { resource: "zebra" }],
+    });
   });
 });
 
 async function exerciseRuntime(resources: readonly InstalledResource[]) {
   const runtime = createRuntime(resources);
-  const budget = createBudgetHandle<ResourceName>(runtime, BUDGET_ID);
+  const binding = createResourceBinding(
+    preparedResources(resources),
+    budgetProjection(resources, "initial"),
+  );
+  const budget = createBudgetHandle<ResourceName>(runtime, BUDGET_ID, binding);
   const snapshot = await budget.inspect();
   const settlement = await budget.settle({ alpha: 1, zebra: 2 });
   const denial = await budget.request({ alpha: 1, zebra: 2 });
   return { snapshot, settlement, denial };
 }
 
-function createRuntime(resources: readonly InstalledResource[]): LocalRuntime {
-  const catalog = new ResourceCatalog();
-  for (const resource of resources) {
-    catalog.record(
-      {
-        key: resource.key,
-        canonicalName: resource.key,
-        definition: {
-          canonicalName: resource.key,
-          unit: `${resource.key}-unit`,
-          accountingBehavior: "consumable",
-        },
-      },
-      {
-        resourceTypeId: resource.resourceTypeId,
-        canonicalName: resource.key,
-        unit: `${resource.key}-unit`,
-        accountingBehavior: "consumable",
-        definitionDigest: "a".repeat(64),
-      },
-    );
-  }
+async function exerciseNarrowedProjection(
+  resources: readonly InstalledResource[],
+) {
+  const runtime = createRuntime(resources);
+  const rootBinding = createResourceBinding(
+    preparedResources(resources),
+    budgetProjection(resources, "initial"),
+  );
+  const { binding } = rootBinding.resources<"alpha">(
+    { alpha: 1 },
+    "requestBudget",
+  );
+  return createBudgetHandle<"alpha">(runtime, BUDGET_ID, binding).inspect();
+}
 
+function createRuntime(resources: readonly InstalledResource[]): LocalRuntime {
   const orderedResources = [...resources].sort((left, right) =>
     left.resourceTypeId.localeCompare(right.resourceTypeId),
   );
   const client = createClient(orderedResources);
   return {
     client,
-    resources: catalog,
     state: "open",
     tail: Promise.resolve(),
     closePromise: undefined,
@@ -193,13 +203,15 @@ function createClient(resources: readonly InstalledResource[]): KeynesClient {
 
 function budgetProjection(
   resources: readonly InstalledResource[],
+  state: "initial" | "current" = "current",
 ): BudgetProjection {
+  const initial = state === "initial";
   return {
     budgetId: BUDGET_ID,
     parentBudgetId: null,
     rootBudgetId: BUDGET_ID,
     depth: 0,
-    lifecycle: "settling",
+    lifecycle: initial ? "active" : "settling",
     resources: requireNonempty(
       resources.map((resource) => ({
         resourceType: {
@@ -210,15 +222,36 @@ function budgetProjection(
           definitionDigest: "a".repeat(64),
         },
         allocated: amountFor(resource.key),
-        available: 0,
+        available: initial ? amountFor(resource.key) : 0,
         committed: 0,
-        directUsage: amountFor(resource.key),
+        directUsage: initial ? null : amountFor(resource.key),
         subtreeObservedUsage: 0,
         unresolved: true,
-        deficit: amountFor(resource.key),
+        deficit: initial ? 0 : amountFor(resource.key),
       })),
     ),
   };
+}
+
+function preparedResources(
+  resources: readonly InstalledResource[],
+): readonly [
+  PreparedRootResource<ResourceName>,
+  ...PreparedRootResource<ResourceName>[],
+] {
+  return requireNonempty(
+    resources.map((resource): PreparedRootResource<ResourceName> => ({
+      key: resource.key,
+      canonicalName: resource.key,
+      definition: {
+        canonicalName: resource.key,
+        unit: `${resource.key}-unit`,
+        accountingBehavior: "consumable",
+      },
+      amount: amountFor(resource.key),
+      definitionDigest: "a".repeat(64),
+    })),
+  );
 }
 
 function resourceAmounts(

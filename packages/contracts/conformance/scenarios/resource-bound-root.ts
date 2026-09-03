@@ -60,6 +60,18 @@ export function registerResourceBoundRootContractTests(
           },
           replayed: false,
         });
+        const [modelTokens] = created.budget.resources;
+        if (modelTokens === undefined) {
+          throw new Error("created root must project its bound Resources");
+        }
+        expect(modelTokens.resourceType.resourceTypeId).not.toBe(
+          command.commandId,
+        );
+        const definition = await client.defineResource({
+          commandId: "15000000-0000-0000-0000-000000000002",
+          definition: command.resources[0].definition,
+        });
+        expect(definition.definitionEvidence.commandId).toBe(command.commandId);
         const read = await client.getBudget({
           budgetId: created.budget.budgetId,
         });
@@ -150,6 +162,7 @@ export function registerResourceBoundRootContractTests(
           resources: [
             { resourceTypeId: resource.resourceType.resourceTypeId, amount: 6 },
           ],
+          context: {},
         });
 
         expect(result).toMatchObject({
@@ -180,11 +193,13 @@ export function registerResourceBoundRootContractTests(
         await expect(
           createResourceBoundRoot(
             local.clientFor("product-fixture", {
-              checkpoint: "after_domain_mutation",
+              checkpoint: "after_resource_insertion",
             }),
             command,
           ),
-        ).rejects.toThrow("private rollback checkpoint: after_domain_mutation");
+        ).rejects.toThrow(
+          "private rollback checkpoint: after_resource_insertion",
+        );
 
         const client = local.clientFor("product-fixture");
         await expect(

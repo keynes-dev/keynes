@@ -237,7 +237,14 @@ async function seedRoot(
   await client.createBudget({
     commandId: ROOT_BUDGET_ID,
     resources: [
-      { resourceTypeId: resource.resourceType.resourceTypeId, amount: 10 },
+      {
+        definition: {
+          canonicalName: "native_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+        amount: 10,
+      },
     ],
   });
   return { resourceTypeId: resource.resourceType.resourceTypeId };

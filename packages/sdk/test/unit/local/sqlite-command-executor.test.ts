@@ -44,9 +44,10 @@ const OPERATIONS = [
 
 const ROLLBACK_CHECKPOINTS = [
   ["after_command_binding", "01"],
-  ["after_domain_mutation", "02"],
-  ["after_history_insertion", "03"],
-  ["after_result_storage", "04"],
+  ["after_resource_insertion", "02"],
+  ["after_domain_mutation", "03"],
+  ["after_history_insertion", "04"],
+  ["after_result_storage", "05"],
 ] as const satisfies readonly (readonly [SqliteMutationStage, string])[];
 
 async function openExecutor(observeMutation?: SqliteMutationObserver) {
@@ -69,29 +70,30 @@ describe("SQLite command executor", () => {
     const unit = "unit'); drop table budget; --";
 
     try {
-      const resource = await client.defineResource({
-        commandId: "10000000-0000-0000-0000-000000000001",
-        definition: {
-          canonicalName: "work_units",
-          unit,
-          accountingBehavior: "consumable",
-        },
-      });
       const root = await client.createBudget({
         commandId: "20000000-0000-0000-0000-000000000001",
         resources: [
           {
-            resourceTypeId: resource.resourceType.resourceTypeId,
+            definition: {
+              canonicalName: "work_units",
+              unit,
+              accountingBehavior: "consumable",
+            },
             amount: 10,
           },
         ],
       });
+      const resourceTypeId =
+        root.budget.resources[0]?.resourceType.resourceTypeId;
+      if (resourceTypeId === undefined) {
+        throw new Error("root must project its Resource");
+      }
       const requested = await client.requestBudget({
         commandId: "30000000-0000-0000-0000-000000000001",
         parentBudgetId: root.budget.budgetId,
         resources: [
           {
-            resourceTypeId: resource.resourceType.resourceTypeId,
+            resourceTypeId,
             amount: 4,
           },
         ],
@@ -106,7 +108,7 @@ describe("SQLite command executor", () => {
         budgetId: requested.childBudgetId,
         usage: [
           {
-            resourceTypeId: resource.resourceType.resourceTypeId,
+            resourceTypeId,
             amount: 3,
           },
         ],
@@ -134,19 +136,15 @@ describe("SQLite command executor", () => {
     const client = createKeynesClient(executor);
 
     try {
-      const resource = await client.defineResource({
-        commandId: "10000000-0000-0000-0000-000000000002",
-        definition: {
-          canonicalName: "safe_units",
-          unit: "unit",
-          accountingBehavior: "consumable",
-        },
-      });
       const root = await client.createBudget({
         commandId: "20000000-0000-0000-0000-000000000002",
         resources: [
           {
-            resourceTypeId: resource.resourceType.resourceTypeId,
+            definition: {
+              canonicalName: "safe_units",
+              unit: "unit",
+              accountingBehavior: "consumable",
+            },
             amount: Number.MAX_SAFE_INTEGER,
           },
         ],
@@ -225,20 +223,16 @@ describe("SQLite command executor", () => {
       const fault = failAtMutationStage(checkpoint);
       const executor = await openExecutor(fault.observe);
       const client = createKeynesClient(executor);
-      const resource = await client.defineResource({
-        commandId: "10000000-0000-0000-0000-000000000010",
-        definition: {
-          canonicalName: "rollback_units",
-          unit: "unit",
-          accountingBehavior: "consumable",
-        },
-      });
       const transaction = vi.spyOn(DatabaseSync.prototype, "exec");
       const command = {
         commandId: `20000000-0000-0000-0000-0000000000${suffix}`,
         resources: [
           {
-            resourceTypeId: resource.resourceType.resourceTypeId,
+            definition: {
+              canonicalName: "rollback_units",
+              unit: "unit",
+              accountingBehavior: "consumable",
+            },
             amount: 10,
           },
         ],
@@ -271,19 +265,15 @@ describe("SQLite command executor", () => {
       const client = createKeynesClient(executor);
 
       try {
-        const resource = await client.defineResource({
-          commandId: "10000000-0000-0000-0000-000000000003",
-          definition: {
-            canonicalName: "guard_units",
-            unit: "unit",
-            accountingBehavior: "consumable",
-          },
-        });
         const root = await client.createBudget({
           commandId: "20000000-0000-0000-0000-000000000003",
           resources: [
             {
-              resourceTypeId: resource.resourceType.resourceTypeId,
+              definition: {
+                canonicalName: "guard_units",
+                unit: "unit",
+                accountingBehavior: "consumable",
+              },
               amount: 7,
             },
           ],

@@ -19,90 +19,115 @@ import {
   type LocalRuntime,
   openConfiguredRuntime,
 } from "./local/runtime.js";
-import type { ResourceDefinitions, ResourceSchema } from "./resources.js";
+import { createResourceBinding } from "./resource-binding.js";
+import {
+  prepareRootResources,
+  rootResourceEnvelope,
+  type ResourceDefinitions,
+  type ResourceSchema,
+} from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
 
-declare const keynesBrand: unique symbol;
+const keynesBrand: unique symbol = Symbol("Keynes");
 
-export interface Keynes<Names extends string> extends AsyncDisposable {
-  readonly [keynesBrand]: void;
-  readonly createBudget: <
-    const Resources extends ResourceAmounts<Names>,
+type ResourceNames<Definitions extends ResourceDefinitions> = Extract<
+  keyof Definitions,
+  string
+>;
+
+interface RootBudgetCreator {
+  <
+    const Definitions extends ResourceDefinitions,
+    const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
     const Policies extends PolicySetInput | undefined = undefined,
   >(
-    resources: ExactResourceAmounts<Names, Resources>,
-    ...options: AttachPolicyArguments<Extract<keyof Resources, Names>, Policies>
-  ) => Promise<
+    schema: ResourceSchema<Definitions>,
+    allocation: ExactResourceAmounts<ResourceNames<Definitions>, Allocation>,
+    ...options: AttachPolicyArguments<
+      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Policies
+    >
+  ): Promise<
     Budget<
-      Extract<keyof Resources, Names>,
+      Extract<keyof Allocation, ResourceNames<Definitions>>,
       ContextOfPolicySet<Policies>,
       ReasonsOfPolicySet<Policies>
     >
   >;
+}
+
+export interface Keynes extends AsyncDisposable {
+  readonly [keynesBrand]: undefined;
+  readonly createBudget: RootBudgetCreator;
   readonly close: () => Promise<void>;
   readonly [Symbol.asyncDispose]: () => Promise<void>;
 }
 
-export function createKeynes<
-  const Schema extends ResourceSchema<ResourceDefinitions>,
->(options: {
-  readonly resources: Schema;
-}): Promise<Keynes<Extract<keyof Schema["definitions"], string>>>;
-export async function createKeynes(options: unknown): Promise<Keynes<string>> {
-  const resources = requireCreateOptions(options);
-  const runtime = await openConfiguredRuntime(resources);
+export type LocalKeynes = Keynes;
+
+export function createKeynes(): Promise<LocalKeynes>;
+export async function createKeynes(
+  ...arguments_: readonly unknown[]
+): Promise<LocalKeynes> {
+  if (arguments_.length !== 0) {
+    throw invalidConfiguration("options", "unsupported");
+  }
+  const runtime = await openConfiguredRuntime();
   return createKeynesHandle(runtime);
 }
 
-function createKeynesHandle<Names extends string>(
-  runtime: LocalRuntime,
-): Keynes<Names> {
-  const createBudget: Keynes<Names>["createBudget"] = (resources, ...options) =>
-    createRootBudget(runtime, resources, ...options);
+function createKeynesHandle(runtime: LocalRuntime): LocalKeynes {
+  const createBudget: RootBudgetCreator = (schema, allocation, ...options) =>
+    createRootBudget(runtime, schema, allocation, ...options);
   const close = (): Promise<void> => closeRuntime(runtime);
-  const handle = Object.freeze({
+  return Object.freeze({
+    [keynesBrand]: undefined,
     createBudget,
     close,
     [Symbol.asyncDispose]: close,
   });
-  return handle as Keynes<Names>;
 }
 
 function createRootBudget<
-  Names extends string,
-  const Resources extends ResourceAmounts<Names>,
+  const Definitions extends ResourceDefinitions,
+  const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
   const Policies extends PolicySetInput | undefined = undefined,
 >(
   runtime: LocalRuntime,
-  resources: ExactResourceAmounts<Names, Resources>,
-  ...options: AttachPolicyArguments<Extract<keyof Resources, Names>, Policies>
+  schema: ResourceSchema<Definitions>,
+  allocation: ExactResourceAmounts<ResourceNames<Definitions>, Allocation>,
+  ...options: AttachPolicyArguments<
+    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    Policies
+  >
 ): Promise<
   Budget<
-    Extract<keyof Resources, Names>,
+    Extract<keyof Allocation, ResourceNames<Definitions>>,
     ContextOfPolicySet<Policies>,
     ReasonsOfPolicySet<Policies>
   >
 > {
-  type BudgetName = Extract<keyof Resources, Names>;
+  type BudgetName = Extract<keyof Allocation, ResourceNames<Definitions>>;
+  const resources = prepareRootResources<Definitions, BudgetName>(
+    schema,
+    allocation,
+  );
   const policies = attachedPolicyDefinitions(options);
   return admit(runtime, async () => {
-    const resolved = runtime.resources.resources<BudgetName>(
-      resources,
-      "createBudget",
-    );
     const command: CreateBudgetCommand = {
       commandId: randomUUID(),
-      resources: resolved,
+      resources: rootResourceEnvelope(resources),
       ...(policies === undefined ? {} : { policies }),
     };
     const result = await invokeMutation(() =>
       runtime.client.createBudget(command),
     );
+    const binding = createResourceBinding(resources, result.budget);
     return createBudgetHandle<
       BudgetName,
       ContextOfPolicySet<Policies>,
       ReasonsOfPolicySet<Policies>
-    >(runtime, result.budget.budgetId);
+    >(runtime, result.budget.budgetId, binding);
   });
 }
 
@@ -112,29 +137,9 @@ type PolicySetInput = {
   readonly setDigest: string;
 };
 
-function requireCreateOptions(value: unknown): ResourceSchema {
-  if (!isRecord(value)) {
-    throw invalidConfiguration("options", "missing");
-  }
-  const unknownField = Object.keys(value).find(
-    (field) => field !== "resources",
-  );
-  if (unknownField !== undefined) {
-    throw invalidConfiguration(unknownField, "unknown");
-  }
-  if (!("resources" in value)) {
-    throw invalidConfiguration("resources", "missing");
-  }
-  return value.resources as ResourceSchema;
-}
-
 function invalidConfiguration(
   field: string,
   reason: "missing" | "unknown" | "unsupported",
 ): KeynesSdkError<"invalid_configuration"> {
   return new KeynesSdkError("invalid_configuration", { field, reason });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

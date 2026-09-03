@@ -19,8 +19,10 @@ afterEach(() => {
 
 describe("local runtime lifecycle", () => {
   it("serializes overlapping calls and drains admitted work before close", async () => {
-    const keynes = await createKeynes({ resources: workUnitResources });
-    const root = await keynes.createBudget({ workUnits: 10 });
+    const keynes = await createKeynes();
+    const root = await keynes.createBudget(workUnitResources, {
+      workUnits: 10,
+    });
 
     const first = root.request({ workUnits: 7 });
     const second = root.request({ workUnits: 7 });
@@ -39,14 +41,16 @@ describe("local runtime lifecycle", () => {
   });
 
   it("shares one close promise and rejects new Keynes and Budget work immediately", async () => {
-    const keynes = await createKeynes({ resources: workUnitResources });
-    const root = await keynes.createBudget({ workUnits: 10 });
+    const keynes = await createKeynes();
+    const root = await keynes.createBudget(workUnitResources, {
+      workUnits: 10,
+    });
 
     const firstClose = keynes.close();
     expect(keynes.close()).toBe(firstClose);
-    await expect(keynes.createBudget({ workUnits: 1 })).rejects.toMatchObject({
-      code: "runtime_closed",
-    });
+    await expect(
+      keynes.createBudget(workUnitResources, { workUnits: 1 }),
+    ).rejects.toMatchObject({ code: "runtime_closed" });
     await expect(root.request({ workUnits: 1 })).rejects.toMatchObject({
       code: "runtime_closed",
     });
@@ -54,8 +58,10 @@ describe("local runtime lifecycle", () => {
   });
 
   it("drains an admitted domain error and inspection before closing", async () => {
-    const keynes = await createKeynes({ resources: workUnitResources });
-    const root = await keynes.createBudget({ workUnits: 10 });
+    const keynes = await createKeynes();
+    const root = await keynes.createBudget(workUnitResources, {
+      workUnits: 10,
+    });
     await root.settle({ workUnits: 1 });
 
     const domainError = root.settle({ workUnits: 2 });
@@ -93,24 +99,26 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    const keynes = await createFreshKeynes({ resources: workUnitResources });
+    const keynes = await createFreshKeynes();
     const firstClose = keynes.close();
 
     expect(keynes.close()).toBe(firstClose);
     await expect(firstClose).rejects.toBe(closeFailure);
-    await expect(keynes.createBudget({ workUnits: 1 })).rejects.toMatchObject({
+    await expect(
+      keynes.createBudget(workUnitResources, { workUnits: 1 }),
+    ).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "runtime_closed",
     });
   });
 
   it("keeps two local runtimes isolated", async () => {
-    const left = await createKeynes({ resources: workUnitResources });
-    const right = await createKeynes({ resources: workUnitResources });
+    const left = await createKeynes();
+    const right = await createKeynes();
     try {
       const [leftRoot, rightRoot] = await Promise.all([
-        left.createBudget({ workUnits: 3 }),
-        right.createBudget({ workUnits: 9 }),
+        left.createBudget(workUnitResources, { workUnits: 3 }),
+        right.createBudget(workUnitResources, { workUnits: 9 }),
       ]);
       expect((await leftRoot.inspect()).budget.resources[0].allocated).toBe(3);
       expect((await rightRoot.inspect()).budget.resources[0].allocated).toBe(9);
@@ -139,7 +147,7 @@ describe("local runtime lifecycle", () => {
 
     const { closeRuntime, openConfiguredRuntime } =
       await import("../../../src/local/runtime.js");
-    const runtime = await openConfiguredRuntime(workUnitResources);
+    const runtime = await openConfiguredRuntime();
 
     expect(openSqliteCommandExecutor).toHaveBeenCalledOnce();
     expect(openSqliteCommandExecutor).toHaveBeenCalledWith(
@@ -238,9 +246,7 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    await expect(
-      createFreshKeynes({ resources: workUnitResources }),
-    ).rejects.toMatchObject({
+    await expect(createFreshKeynes()).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: startupFailure,
@@ -262,9 +268,7 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    await expect(
-      createFreshKeynes({ resources: workUnitResources }),
-    ).rejects.toMatchObject({
+    await expect(createFreshKeynes()).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: {
