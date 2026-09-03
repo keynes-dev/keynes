@@ -110,16 +110,27 @@
 
 ### Tests for User Story 2
 
-- [ ] T024 [US2] Add mutation-resistance and child-name isolation tests in `packages/sdk/test/unit/public/local.test.ts`, and observe them fail before changing binding behavior.
+- [x] T024 [US2] Add mutation-resistance and child-name isolation tests in `packages/sdk/test/unit/public/local.test.ts`, and observe them fail before changing binding behavior.
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Narrow child bindings without copying or widening root state and freeze all binding results in `packages/sdk/src/resource-binding.ts` and `packages/sdk/src/budget.ts`.
-- [ ] T026 [US2] Cover identical canonical definition reuse, conflicting unit and accounting behavior, unallocated schema entries, and independent root inspection in `packages/sdk/test/unit/public/local.test.ts` and `packages/sdk/test/unit/local/local-replay.test.ts`.
-- [ ] T027 [US2] Run the complete SDK unit suite and `CI=true pnpm test:unit`, then record exact provider-free results in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T028 [US2] Run a read-only Ponytail review over the Phase 4 diff, apply accepted simplifications, rerun the focused checks, and commit the Phase 4 boundary.
+- [x] T025 [US2] Narrow child bindings without copying or widening root state and freeze all binding results in `packages/sdk/src/resource-binding.ts` and `packages/sdk/src/budget.ts`.
+- [x] T026 [US2] Cover identical canonical definition reuse, conflicting unit and accounting behavior, unallocated schema entries, and independent root inspection in `packages/sdk/test/unit/public/local.test.ts` and `packages/sdk/test/unit/local/local-replay.test.ts`.
+- [x] T027 [US2] Run the complete SDK unit suite and `CI=true pnpm test:unit`, then record exact provider-free results in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T028 [US2] Run a read-only Ponytail review over the Phase 4 diff, apply accepted simplifications, rerun the focused checks, and commit the Phase 4 boundary.
 
 **Checkpoint**: One local connection supports independent roots without a global Resource schema or mutable cross-root binding.
+
+**Provider-free evidence (`cf8e5e2b189a57c39ccd649b543cd5dc54bd35ce`)**:
+
+- Red request evidence (`764f19b5aa84731eff7b072a5e8ff9c8fef4eb9b`): the focused mutation cases failed, 2 tests failed and 17 were skipped. Deferred admission observed a caller-mutated amount and widened a child's Resource set.
+- Red settlement evidence (`3f325c26066ed405928b4bfba8de385e957ba902`): the focused settlement cases failed, 2 tests failed and 20 were skipped. Deferred admission observed a caller-mutated usage amount and a later sibling-Resource insertion.
+- `pnpm --filter @keynes/sdk exec vitest run test/unit/public/local.test.ts --maxWorkers=1`: passed, 23 tests. The suite covers one-connection root isolation, exact reuse, unit and accounting conflicts, unallocated definitions, child request and settlement isolation, caller mutation, and asynchronous structured errors.
+- `pnpm --filter @keynes/sdk test:unit`: passed, 207 tests across 17 files.
+- `CI=true pnpm test:unit`: passed: 48 contract tests, 44 Cloud tests, 29 PostgreSQL unit tests, and 244 SDK unit and conformance tests.
+- `pnpm --filter @keynes/sdk typecheck` and `pnpm exec tsc --project packages/sdk/test/package/tsconfig.json --noEmit`: passed.
+- Native PostgreSQL and deployment-specific lanes: `NOT RUN` in Phase 4.
+- Phase 4 Ponytail review: `Lean already. Ship.` No production or test code was removed after the review.
 
 ---
 
