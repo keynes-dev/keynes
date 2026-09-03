@@ -77,6 +77,65 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(await authorityCounts(fixture)).toEqual(before);
     });
 
+    it("recovers a committed mutation after its transport response is lost", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const mutationClient = await fixture.connect(fixture.primary);
+      const recoveryClient = await fixture.connect(fixture.primary);
+      const key = operationKey("l");
+      const transportErrors: Error[] = [];
+      mutationClient.once("error", (error) => transportErrors.push(error));
+
+      mutationClient.connection.stream.pause();
+      const mutation = queryResponse(
+        mutationClient,
+        "keynes.remote_create_budget",
+        createRoot(key, "lost_response_tokens"),
+      );
+      await expect
+        .poll(
+          async () => {
+            const response = await queryResponse(
+              recoveryClient,
+              "keynes.remote_recover_operation",
+              { operationKey: key },
+            );
+            return isRecord(response) && isRecord(response.result)
+              ? response.result.kind
+              : undefined;
+          },
+          { interval: 20, timeout: 2_000 },
+        )
+        .toBe("committed");
+      const recoveredBeforeLoss = await queryResponse(
+        recoveryClient,
+        "keynes.remote_recover_operation",
+        { operationKey: key },
+      );
+      const lostResponse = expect(mutation).rejects.toBeInstanceOf(Error);
+      mutationClient.connection.stream.destroy();
+      await lostResponse;
+      expect(transportErrors).toHaveLength(1);
+      const before = await authorityCounts(fixture);
+
+      const recoveredAfterLoss = await queryResponse(
+        recoveryClient,
+        "keynes.remote_recover_operation",
+        { operationKey: key },
+      );
+
+      expect(recoveredAfterLoss).toEqual(recoveredBeforeLoss);
+      expect(recoveredAfterLoss).toMatchObject({
+        ok: true,
+        result: {
+          kind: "committed",
+          operationKey: key,
+          operation: "createBudget",
+        },
+      });
+      expect(await authorityCounts(fixture)).toEqual(before);
+    });
+
     it("returns known-failure and expired recovery states without mutation", async () => {
       fixture = await openRemoteIdentityFixture();
       await fixture.register(fixture.primary);

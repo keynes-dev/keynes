@@ -124,6 +124,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   "packages/postgresql/test/system/remote-recovery.test.ts": [
     "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
     "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",
+    "remote PostgreSQL recovery and bounded reads recovers a committed mutation after its transport response is lost",
     "remote PostgreSQL recovery and bounded reads returns known-failure and expired recovery states without mutation",
     "remote PostgreSQL recovery and bounded reads reports an in-flight mutation as unresolved without changing authority state",
     "remote PostgreSQL recovery and bounded reads converges concurrent exact retries on one committed mutation",
