@@ -85,6 +85,7 @@ describe("package-root exports", () => {
       "PolicyValidationError",
       "ResourceDefinitionError",
       "createKeynes",
+      "createOperationKey",
       "definePolicy",
       "definePolicySql",
       "defineResources",

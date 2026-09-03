@@ -120,22 +120,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       const recoveryClient = await fixture.connect(fixture.primary);
       let mutation: Promise<unknown> | undefined;
 
-      await fixture.administrator.query(
-        `create function keynes_internal.pause_remote_operation_test_v0006()
-         returns trigger language plpgsql
-         set search_path = pg_catalog, keynes_internal
-         as $function$
-         begin
-           if new.operation_key = current_setting('keynes.test_inflight_operation', true) then
-             perform pg_advisory_xact_lock(${gate});
-           end if;
-           return new;
-         end;
-         $function$;
-         create trigger pause_remote_operation_test_v0006
-         before insert on keynes_internal.remote_operations
-         for each row execute function keynes_internal.pause_remote_operation_test_v0006()`,
-      );
+      await installOperationPauseTrigger(fixture, gate);
       await blocker.query("begin");
       await blocker.query(`select pg_advisory_xact_lock(${gate})`);
       await mutationClient.query(
@@ -173,6 +158,85 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       } finally {
         await blocker.query("commit");
         await mutation;
+      }
+    });
+
+    it("converges concurrent exact retries on one committed mutation", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const operation = operationKey("j");
+      const gate = 13_007;
+      const blocker = await fixture.connect();
+      const firstClient = await fixture.connect(fixture.primary);
+      const retryClient = await fixture.connect(fixture.primary);
+      let first: Promise<unknown> | undefined;
+      let retry: Promise<unknown> | undefined;
+      let gateReleased = false;
+
+      await installOperationPauseTrigger(fixture, gate);
+      await blocker.query("begin");
+      await blocker.query(`select pg_advisory_xact_lock(${gate})`);
+      await firstClient.query(
+        "select set_config('application_name', 'keynes-concurrent-first', false)",
+      );
+      await retryClient.query(
+        "select set_config('application_name', 'keynes-concurrent-retry', false)",
+      );
+      for (const client of [firstClient, retryClient]) {
+        await client.query(
+          "select set_config('keynes.test_inflight_operation', $1, false)",
+          [operation],
+        );
+      }
+      const before = await authorityCounts(fixture);
+
+      try {
+        const command = createRoot(operation, "concurrent_retry_tokens");
+        first = queryResponse(
+          firstClient,
+          "keynes.remote_create_budget",
+          command,
+        );
+        await waitForAdvisoryWait(fixture, "keynes-concurrent-first");
+        retry = queryResponse(
+          retryClient,
+          "keynes.remote_create_budget",
+          command,
+        );
+        await waitForAdvisoryWait(fixture, "keynes-concurrent-retry");
+
+        await blocker.query("commit");
+        gateReleased = true;
+        const [created, replayed] = await Promise.all([first, retry]);
+
+        expect(created).toMatchObject({
+          ok: true,
+          result: { kind: "created", replayed: false },
+        });
+        expect(replayed).toMatchObject({
+          ok: true,
+          result: { kind: "created", replayed: true },
+        });
+        expect(requireBudgetReference(replayed)).toBe(
+          requireBudgetReference(created),
+        );
+        const after = await authorityCounts(fixture);
+        for (const field of ["commands", "budgets", "history", "operations"]) {
+          expect(
+            authorityCount(after, field) - authorityCount(before, field),
+          ).toBe(1);
+        }
+        expect(
+          authorityCount(after, "cursors") - authorityCount(before, "cursors"),
+        ).toBe(0);
+      } finally {
+        if (!gateReleased) await blocker.query("commit");
+        await Promise.allSettled(
+          [first, retry].filter(
+            (operationPromise): operationPromise is Promise<unknown> =>
+              operationPromise !== undefined,
+          ),
+        );
       }
     });
 
@@ -232,7 +296,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       );
       const budgetReference = requireBudgetReference(created);
 
-      for (let index = 0; index < 257; index += 1) {
+      for (let index = 0; index < 512; index += 1) {
         const response = await queryResponse(client, "keynes.remote_request", {
           operationKey: indexedOperationKey(index),
           parentBudgetReference: budgetReference,
@@ -280,7 +344,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
 
       expect(
         await queryResponse(client, "keynes.remote_request", {
-          operationKey: indexedOperationKey(257),
+          operationKey: indexedOperationKey(512),
           parentBudgetReference: budgetReference,
           resources: [{ resource: "history_tokens", amount: 1 }],
         }),
@@ -291,15 +355,27 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           cursor,
         }),
       );
-      expect(second.entries).toHaveLength(2);
-      expect(second.nextCursor).toBeNull();
-      expect([...first.entries, ...second.entries].map(entrySequence)).toEqual(
-        Array.from({ length: 258 }, (_, index) => index + 1),
-      );
+      expect(second.entries).toHaveLength(256);
+      expect(second.nextCursor).toEqual(expect.any(String));
+      const secondCursor = requireCursor(second.nextCursor);
       const expiredAfter = await expiredCursorCount(fixture);
       expect(expiredBefore - expiredAfter).toBeGreaterThan(0);
       expect(expiredBefore - expiredAfter).toBeLessThanOrEqual(256);
       expect(expiredAfter).toBeGreaterThan(0);
+
+      const third = requirePage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: secondCursor,
+        }),
+      );
+      expect(third.entries).toHaveLength(1);
+      expect(third.nextCursor).toBeNull();
+      expect(
+        [...first.entries, ...second.entries, ...third.entries].map(
+          entrySequence,
+        ),
+      ).toEqual(Array.from({ length: 513 }, (_, index) => index + 1));
 
       for (const invalidCursor of [cursor, expiredCursor]) {
         expect(
@@ -408,6 +484,39 @@ async function authorityCounts(
        (select count(*)::text from keynes_internal.remote_history_cursors) as cursors`,
   );
   return result.rows;
+}
+
+function authorityCount(
+  counts: readonly Record<string, string>[],
+  field: string,
+): number {
+  const value = counts[0]?.[field];
+  if (value === undefined || !/^\d+$/u.test(value)) {
+    throw new Error(`authority count ${field} is unavailable`);
+  }
+  return Number(value);
+}
+
+async function installOperationPauseTrigger(
+  fixture: RemoteIdentityFixture,
+  gate: number,
+): Promise<void> {
+  await fixture.administrator.query(
+    `create function keynes_internal.pause_remote_operation_test_v0006()
+     returns trigger language plpgsql
+     set search_path = pg_catalog, keynes_internal
+     as $function$
+     begin
+       if new.operation_key = current_setting('keynes.test_inflight_operation', true) then
+         perform pg_advisory_xact_lock(${gate});
+       end if;
+       return new;
+     end;
+     $function$;
+     create trigger pause_remote_operation_test_v0006
+     before insert on keynes_internal.remote_operations
+     for each row execute function keynes_internal.pause_remote_operation_test_v0006()`,
+  );
 }
 
 async function waitForAdvisoryWait(

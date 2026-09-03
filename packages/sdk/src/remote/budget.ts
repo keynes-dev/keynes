@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 import { KeynesError, type RemoteKeynesClient } from "../generated/client.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
@@ -26,33 +24,40 @@ import {
   projectSnapshot,
 } from "../budget-projection.js";
 import { prepareRequestPolicyOptions } from "../budget-request-options.js";
+import { budgetBrand } from "../budget.js";
 import type {
-  Budget,
-  BudgetRequestResult,
   ContextOfPolicySet,
   ExactResourceAmounts,
   NoPolicyContext,
-  PolicyDefinition,
+  PolicySetInput,
   ReasonsOfPolicySet,
   ResourceAmounts,
 } from "../budget.js";
 import { ResourceBinding } from "../resource-binding.js";
-import type { PreparedRootResource } from "../resources.js";
+import {
+  resourceDefinitionDigest,
+  type PreparedRootResource,
+  type ResourceInstallationDefinition,
+} from "../resources.js";
+import type {
+  RemoteBudget,
+  RemoteBudgetRequestResult,
+} from "./public-types.js";
+import {
+  requireBudgetReference,
+  splitRemoteMutationOptions,
+  type BudgetReference,
+} from "./references.js";
+import { invokeRemoteMutation } from "./retry.js";
 
 const PRIVATE_UUID = "00000000-0000-4000-8000-000000000000";
 const MAX_HISTORY_PAGES = 128;
 const HISTORY_DEADLINE_MILLISECONDS = 30_000;
 
-type PolicySetInput = {
-  readonly definitions: readonly PolicyDefinition<string, unknown, string>[];
-  readonly contextSchemaDigest: string | null;
-  readonly setDigest: string;
-};
-
 interface RemoteBudgetIdentity {
-  readonly budgetReference: string;
-  readonly parentBudgetReference: string | null;
-  readonly rootBudgetReference: string;
+  readonly budgetReference: BudgetReference;
+  readonly parentBudgetReference: BudgetReference | null;
+  readonly rootBudgetReference: BudgetReference;
   readonly depth: number;
 }
 
@@ -87,6 +92,34 @@ export function createRemoteResourceBinding<Name extends string>(
   );
 }
 
+export function createOpenedRemoteResourceBinding<Name extends string>(
+  resources: readonly ResourceInstallationDefinition[],
+  budget: RemoteBudgetProjection,
+): ResourceBinding<Name> {
+  assertOpenedBudget(resources, budget);
+  const bound = resources.map((resource) =>
+    Object.freeze({
+      key: resource.key as Name,
+      resourceTypeId: resource.canonicalName,
+      canonicalName: resource.canonicalName,
+      unit: resource.definition.unit,
+      accountingBehavior: resource.definition.accountingBehavior,
+      definitionDigest: resourceDefinitionDigest(resource.definition),
+    }),
+  );
+  return new ResourceBinding(
+    {
+      byId: new Map(
+        bound.map((resource) => [resource.resourceTypeId, resource]),
+      ),
+      byCanonicalName: new Map(
+        bound.map((resource) => [resource.canonicalName, resource]),
+      ),
+    },
+    bound,
+  );
+}
+
 export function createRemoteBudgetHandle<
   Names extends string,
   Context = NoPolicyContext,
@@ -96,36 +129,49 @@ export function createRemoteBudgetHandle<
   client: RemoteKeynesClient,
   identity: RemoteBudgetIdentity,
   binding: ResourceBinding<Names, HistoryNames>,
-): Budget<Names, Context, Reasons, HistoryNames> {
+): RemoteBudget<Names, Context, Reasons, HistoryNames> {
   const { budgetReference } = identity;
-  const request: Budget<Names, Context, Reasons, HistoryNames>["request"] = (
-    resources,
-    ...options
-  ) => requestRemoteBudget(client, identity, binding, resources, options);
+  const request = <const Resources extends ResourceAmounts<Names>>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    ...options: readonly unknown[]
+  ) =>
+    requestRemoteBudget<Names, HistoryNames, Context, Reasons, Resources>(
+      client,
+      identity,
+      binding,
+      resources,
+      options,
+    );
 
-  const settle: Budget<
+  const settle: RemoteBudget<
     Names,
     Context,
     Reasons,
     HistoryNames
-  >["settle"] = async (usage) => {
+  >["settle"] = async (usage, ...options) => {
+    const { operationKey } = splitRemoteMutationOptions(
+      options,
+      new Set<string>(),
+    );
     const result = await invokeBudgetOperation(binding, () =>
-      client.settleBudget({
-        operationKey: createInternalOperationKey(),
-        budgetReference,
-        usage: binding
-          .usage(Object.freeze({ ...usage }))
-          .map(({ resourceTypeId, amount }) => ({
-            resource: binding.visibleResource(resourceTypeId).canonicalName,
-            amount,
-          })) as RemoteUsageEnvelope,
-      }),
+      invokeRemoteMutation("settleBudget", operationKey, () =>
+        client.settleBudget({
+          operationKey,
+          budgetReference,
+          usage: binding
+            .usage(Object.freeze({ ...usage }))
+            .map(({ resourceTypeId, amount }) => ({
+              resource: binding.visibleResource(resourceTypeId).canonicalName,
+              amount,
+            })) as RemoteUsageEnvelope,
+        }),
+      ),
     );
     assertRemoteBudget(binding, identity, result.budget);
     return projectSettlement(binding, remoteSettlement(result));
   };
 
-  const inspect: Budget<
+  const inspect: RemoteBudget<
     Names,
     Context,
     Reasons,
@@ -168,12 +214,13 @@ export function createRemoteBudgetHandle<
     });
   };
 
-  return Object.freeze({ request, settle, inspect }) as Budget<
-    Names,
-    Context,
-    Reasons,
-    HistoryNames
-  >;
+  return Object.freeze({
+    [budgetBrand]: undefined,
+    reference: budgetReference,
+    request,
+    settle,
+    inspect,
+  }) as RemoteBudget<Names, Context, Reasons, HistoryNames>;
 }
 
 function requestRemoteBudget<
@@ -190,7 +237,7 @@ function requestRemoteBudget<
   resources: ExactResourceAmounts<Names, Resources>,
   options: readonly unknown[],
 ): Promise<
-  BudgetRequestResult<
+  RemoteBudgetRequestResult<
     Extract<keyof Resources, Names>,
     Reasons,
     ContextOfPolicySet<ChildPolicies>,
@@ -205,7 +252,11 @@ function requestRemoteBudget<
     Object.freeze({ ...resources }),
     "requestBudget",
   );
-  const preparedOptions = prepareRequestPolicyOptions(options);
+  const { operationKey, remainingOptions } = splitRemoteMutationOptions(
+    options,
+    new Set(["context", "childPolicies"]),
+  );
+  const preparedOptions = prepareRequestPolicyOptions(remainingOptions);
   const requestedResources = resolved.envelope.map(
     ({ resourceTypeId, amount }) => ({
       resource: binding.visibleResource(resourceTypeId).canonicalName,
@@ -213,12 +264,17 @@ function requestRemoteBudget<
     }),
   ) as [RemoteResourceAmount, ...RemoteResourceAmount[]];
   return invokeBudgetOperation(resolved.binding, async () => {
-    const result = await client.requestBudget({
-      operationKey: createInternalOperationKey(),
-      parentBudgetReference: budgetReference,
-      resources: requestedResources,
-      ...preparedOptions,
-    });
+    const result = await invokeRemoteMutation(
+      "requestBudget",
+      operationKey,
+      () =>
+        client.requestBudget({
+          operationKey,
+          parentBudgetReference: budgetReference,
+          resources: requestedResources,
+          ...preparedOptions,
+        }),
+    );
     if (result.parentBudgetReference !== budgetReference) {
       throw remoteResultMismatch();
     }
@@ -237,7 +293,9 @@ function requestRemoteBudget<
         >(
           client,
           {
-            budgetReference: result.childBudgetReference,
+            budgetReference: requireBudgetReference(
+              result.childBudgetReference,
+            ),
             parentBudgetReference: budgetReference,
             rootBudgetReference: identity.rootBudgetReference,
             depth: identity.depth + 1,
@@ -280,7 +338,7 @@ function requestRemoteBudget<
           }),
     });
   }) as Promise<
-    BudgetRequestResult<
+    RemoteBudgetRequestResult<
       RequestedName,
       Reasons,
       ContextOfPolicySet<ChildPolicies>,
@@ -433,10 +491,6 @@ function remotePolicyEvidence(
   };
 }
 
-export function createInternalOperationKey(): string {
-  return `kop_v1_${randomBytes(32).toString("base64url")}`;
-}
-
 function assertCreatedRoot<Name extends string>(
   expected: readonly [
     PreparedRootResource<Name>,
@@ -473,6 +527,30 @@ function assertCreatedRoot<Name extends string>(
       actual.subtreeObservedUsage !== 0 ||
       actual.unresolved !== true ||
       actual.deficit !== 0
+    ) {
+      throw remoteResultMismatch();
+    }
+  }
+}
+
+function assertOpenedBudget(
+  expected: readonly ResourceInstallationDefinition[],
+  budget: RemoteBudgetProjection,
+): void {
+  if (budget.resources.length !== expected.length) throw remoteResultMismatch();
+  const returned = [...budget.resources].sort((left, right) =>
+    compareStrings(left.resource.canonicalName, right.resource.canonicalName),
+  );
+  for (let index = 0; index < expected.length; index += 1) {
+    const prepared = expected[index];
+    const actual = returned[index];
+    if (
+      prepared === undefined ||
+      actual === undefined ||
+      actual.resource.canonicalName !== prepared.canonicalName ||
+      actual.resource.unit !== prepared.definition.unit ||
+      actual.resource.accountingBehavior !==
+        prepared.definition.accountingBehavior
     ) {
       throw remoteResultMismatch();
     }

@@ -7,12 +7,15 @@ import {
   type Budget,
   type ContextOfPolicySet,
   type ExactResourceAmounts,
-  type PolicyDefinition,
+  type PolicySetInput,
   type ReasonsOfPolicySet,
   type ResourceAmounts,
 } from "./budget.js";
-import type { CreateBudgetCommand } from "./generated/types.js";
-import { createRemoteKeynesClient } from "./generated/client.js";
+import type {
+  CreateBudgetCommand,
+  RemoteBudgetProjection,
+} from "./generated/types.js";
+import { createRemoteKeynesClient, KeynesError } from "./generated/client.js";
 import {
   admit,
   closeRuntime,
@@ -22,14 +25,29 @@ import {
 } from "./local/runtime.js";
 import { createResourceBinding } from "./resource-binding.js";
 import {
-  createInternalOperationKey,
+  createOpenedRemoteResourceBinding,
   createRemoteBudgetHandle,
   createRemoteResourceBinding,
 } from "./remote/budget.js";
 import { normalizeDatabaseUrl } from "./remote/connection-options.js";
 import { openPostgresqlCommandExecutor } from "./remote/postgresql-command-executor.js";
+import type {
+  RemoteBudget,
+  RemoteAttachPolicyArguments,
+} from "./remote/public-types.js";
+import {
+  projectRecoverOperationResult,
+  requireBudgetReference,
+  requireOperationKey,
+  splitRemoteMutationOptions,
+  type BudgetReference,
+  type OperationKey,
+  type RecoverOperationResult,
+} from "./remote/references.js";
+import { invokeRemoteMutation } from "./remote/retry.js";
 import {
   prepareRootResources,
+  resourceInstallation,
   rootResourceEnvelope,
   type ResourceDefinitions,
   type ResourceSchema,
@@ -77,7 +95,41 @@ export interface RemoteKeynesOptions {
   readonly databaseUrl: string;
 }
 
-export type RemoteKeynes = Keynes;
+interface RemoteRootBudgetCreator {
+  <
+    const Definitions extends ResourceDefinitions,
+    const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+    const Policies extends PolicySetInput | undefined = undefined,
+  >(
+    schema: ResourceSchema<Definitions>,
+    allocation: ExactResourceAmounts<ResourceNames<Definitions>, Allocation>,
+    ...options: RemoteAttachPolicyArguments<
+      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Policies
+    >
+  ): Promise<
+    RemoteBudget<
+      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      ContextOfPolicySet<Policies>,
+      ReasonsOfPolicySet<Policies>
+    >
+  >;
+}
+
+interface RemoteBudgetOpener {
+  <const Definitions extends ResourceDefinitions>(options: {
+    readonly reference: BudgetReference;
+    readonly resourceTypes: ResourceSchema<Definitions>;
+  }): Promise<RemoteBudget<Extract<keyof Definitions, string>>>;
+}
+
+export interface RemoteKeynes extends Omit<Keynes, "createBudget"> {
+  readonly createBudget: RemoteRootBudgetCreator;
+  readonly openBudget: RemoteBudgetOpener;
+  readonly recoverOperation: (
+    operationKey: OperationKey,
+  ) => Promise<RecoverOperationResult>;
+}
 
 export function createKeynes(): Promise<LocalKeynes>;
 export function createKeynes(
@@ -105,15 +157,57 @@ export async function createKeynes(
   const poolConfig = normalizeDatabaseUrl(options.databaseUrl);
   const executor = await openPostgresqlCommandExecutor(poolConfig);
   const client = createRemoteKeynesClient(executor);
-  const createBudget: RootBudgetCreator = (
+  const createBudget: RemoteRootBudgetCreator = (
     schema,
     allocation,
     ...createOptions
   ) => createRemoteRootBudget(client, schema, allocation, ...createOptions);
+  const openBudget: RemoteBudgetOpener = async ({
+    reference,
+    resourceTypes,
+  }) => {
+    const budgetReference = requireBudgetReference(reference);
+    const resources = resourceInstallation(resourceTypes);
+    const first = resources[0];
+    if (first === undefined) {
+      throw new KeynesSdkError("invalid_configuration", {
+        field: "resources",
+        reason: "unsupported",
+      });
+    }
+    const result = await client.openBudget({
+      budgetReference,
+      expectedResources: [
+        first.definition,
+        ...resources.slice(1).map(({ definition }) => definition),
+      ],
+    });
+    if (
+      result.budgetReference !== budgetReference ||
+      result.budget.budgetReference !== budgetReference
+    ) {
+      throw remoteResultMismatch();
+    }
+    return createRemoteBudgetHandle(
+      client,
+      remoteBudgetIdentity(result.budget),
+      createOpenedRemoteResourceBinding(resources, result.budget),
+    );
+  };
+  const recoverOperation = async (
+    suppliedOperationKey: OperationKey,
+  ): Promise<RecoverOperationResult> => {
+    const operationKey = requireOperationKey(suppliedOperationKey);
+    const result = await client.recoverOperation({ operationKey });
+    if (result.operationKey !== operationKey) throw remoteResultMismatch();
+    return projectRecoverOperationResult(result);
+  };
   const close = (): Promise<void> => executor.close();
   return Object.freeze({
     [keynesBrand]: undefined,
     createBudget,
+    openBudget,
+    recoverOperation,
     close,
     [Symbol.asyncDispose]: close,
   });
@@ -174,12 +268,6 @@ function createRootBudget<
   });
 }
 
-type PolicySetInput = {
-  readonly definitions: readonly PolicyDefinition<string, unknown, string>[];
-  readonly contextSchemaDigest: string | null;
-  readonly setDigest: string;
-};
-
 async function createRemoteRootBudget<
   const Definitions extends ResourceDefinitions,
   const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
@@ -188,12 +276,12 @@ async function createRemoteRootBudget<
   client: ReturnType<typeof createRemoteKeynesClient>,
   schema: ResourceSchema<Definitions>,
   allocation: ExactResourceAmounts<ResourceNames<Definitions>, Allocation>,
-  ...options: AttachPolicyArguments<
+  ...options: RemoteAttachPolicyArguments<
     Extract<keyof Allocation, ResourceNames<Definitions>>,
     Policies
   >
 ): Promise<
-  Budget<
+  RemoteBudget<
     Extract<keyof Allocation, ResourceNames<Definitions>>,
     ContextOfPolicySet<Policies>,
     ReasonsOfPolicySet<Policies>
@@ -204,12 +292,19 @@ async function createRemoteRootBudget<
     schema,
     allocation,
   );
-  const policies = attachedPolicyDefinitions(options);
-  const result = await client.createBudget({
-    operationKey: createInternalOperationKey(),
-    resources: rootResourceEnvelope(resources),
-    ...(policies === undefined ? {} : { policies }),
-  });
+  const { operationKey, remainingOptions } = splitRemoteMutationOptions(
+    options,
+    new Set(["policies"]),
+  );
+  const policies = attachedPolicyDefinitions(remainingOptions);
+  const result = await invokeRemoteMutation("createBudget", operationKey, () =>
+    client.createBudget({
+      operationKey,
+      resources: rootResourceEnvelope(resources),
+      ...(policies === undefined ? {} : { policies }),
+    }),
+  );
+  const budgetReference = requireBudgetReference(result.budget.budgetReference);
   return createRemoteBudgetHandle<
     BudgetName,
     ContextOfPolicySet<Policies>,
@@ -217,13 +312,34 @@ async function createRemoteRootBudget<
   >(
     client,
     {
-      budgetReference: result.budget.budgetReference,
+      budgetReference,
       parentBudgetReference: null,
-      rootBudgetReference: result.budget.budgetReference,
+      rootBudgetReference: budgetReference,
       depth: 0,
     },
     createRemoteResourceBinding(resources, result.budget),
   );
+}
+
+function remoteBudgetIdentity(budget: RemoteBudgetProjection): {
+  readonly budgetReference: BudgetReference;
+  readonly parentBudgetReference: BudgetReference | null;
+  readonly rootBudgetReference: BudgetReference;
+  readonly depth: number;
+} {
+  return {
+    budgetReference: requireBudgetReference(budget.budgetReference),
+    parentBudgetReference:
+      budget.parentBudgetReference === null
+        ? null
+        : requireBudgetReference(budget.parentBudgetReference),
+    rootBudgetReference: requireBudgetReference(budget.rootBudgetReference),
+    depth: budget.depth,
+  };
+}
+
+function remoteResultMismatch(): KeynesError {
+  return new KeynesError({ kind: "error", code: "unknown", details: {} });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

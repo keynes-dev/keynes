@@ -22,7 +22,7 @@ import type { ResourceBinding } from "./resource-binding.js";
 
 export { attachedPolicyDefinitions } from "./budget-request-options.js";
 
-const budgetBrand: unique symbol = Symbol("Budget");
+export const budgetBrand: unique symbol = Symbol("Budget");
 declare const noPolicyContextBrand: unique symbol;
 declare const policyDefinitionBrand: unique symbol;
 
@@ -63,7 +63,7 @@ export type PolicySet<Names extends string, Context, Reasons extends string> =
 
 type AnyPolicyDefinition = PolicyDefinition<string, unknown, string>;
 
-type PolicySetInput = {
+export type PolicySetInput = {
   readonly definitions: readonly AnyPolicyDefinition[];
   readonly contextSchemaDigest: string | null;
   readonly setDigest: string;
@@ -369,7 +369,7 @@ type PolicyDefinitionOf<Policies> = Policies extends {
   ? Definition
   : never;
 
-type PolicyNames<Policies> =
+export type PolicyNames<Policies> =
   PolicyDefinitionOf<Policies> extends PolicyDefinition<
     infer Names,
     unknown,
@@ -378,10 +378,10 @@ type PolicyNames<Policies> =
     ? Names
     : never;
 
-type ExactObject<Expected, Supplied extends Expected> = Supplied &
+export type ExactObject<Expected, Supplied extends Expected> = Supplied &
   Readonly<Record<Exclude<keyof Supplied, keyof Expected>, never>>;
 
-type CompatiblePolicySet<
+export type CompatiblePolicySet<
   Names extends string,
   Policies extends PolicySetInput | undefined,
 > = [Policies] extends [undefined]
@@ -390,7 +390,7 @@ type CompatiblePolicySet<
     ? Policies
     : never;
 
-type RequestArguments<
+export type RequestArguments<
   Context,
   SuppliedContext extends Context,
   ChildNames extends string,
