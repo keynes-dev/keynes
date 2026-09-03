@@ -13,12 +13,12 @@
 
 - [x] T001 Validate the canonical feature identity and prerequisite paths with `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` and record the baseline revision in `docs/features/0014-resource-bound-budget/tasks.md`.
 - [x] T002 Run the current provider-free contract, SDK, PostgreSQL unit, repository, and pull-request gates and record exact passing or failing baseline results in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T003 [P] Add compile-time tests for zero-argument `createKeynes()`, rejected setup arguments, `createBudget(schema, allocation, options?)`, allocated-name narrowing, and Policy inference in `packages/sdk/test/unit/public/public-exports.test.ts` and `packages/sdk/test/package/compatibility/policy-api.mts`.
-- [ ] T004 [P] Add public runtime tests for zero-argument setup, atomic schema binding, exact definition reuse, definition conflict, and rollback in `packages/sdk/test/unit/public/local.test.ts` and `packages/sdk/test/unit/local/local-lifecycle.test.ts`.
-- [ ] T005 [P] Add shared root-binding, replay, command-conflict, Policy, and rollback scenarios in `packages/contracts/conformance/scenarios/resource-bound-root.ts` and register them in `packages/contracts/conformance/scenarios/index.ts`.
-- [ ] T006 [P] Add PostgreSQL migration, permission, absent-name contention, caller-owned rollback, and definition-provenance expectations in `packages/postgresql/test/integration/installation.test.ts`, `packages/postgresql/test/system/embedded-transactions.test.ts`, `packages/postgresql/test/system/contention.test.ts`, and `packages/postgresql/test/system/rollback.test.ts`.
-- [ ] T007 Run the focused new tests, confirm that they fail only because the combined contract and implementations are missing, and record the red evidence in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T008 Run a read-only Ponytail review over the Phase 1 diff, apply accepted test simplifications without weakening acceptance, rerun the red tests, and commit the Phase 1 boundary.
+- [x] T003 [P] Add compile-time tests for zero-argument `createKeynes()`, rejected setup arguments, `createBudget(schema, allocation, options?)`, allocated-name narrowing, and Policy inference in `packages/sdk/test/unit/public/public-exports.test.ts` and `packages/sdk/test/package/compatibility/policy-api.mts`.
+- [x] T004 [P] Add public runtime tests for zero-argument setup, atomic schema binding, exact definition reuse, definition conflict, and rollback in `packages/sdk/test/unit/public/local.test.ts` and `packages/sdk/test/unit/local/local-lifecycle.test.ts`.
+- [x] T005 [P] Add shared root-binding, replay, command-conflict, Policy, and rollback scenarios in `packages/contracts/conformance/scenarios/resource-bound-root.ts` and register them in `packages/contracts/conformance/scenarios/index.ts`.
+- [x] T006 [P] Add PostgreSQL migration, permission, absent-name contention, caller-owned rollback, and definition-provenance expectations in `packages/postgresql/test/integration/installation.test.ts`, `packages/postgresql/test/system/embedded-transactions.test.ts`, `packages/postgresql/test/system/contention.test.ts`, and `packages/postgresql/test/system/rollback.test.ts`.
+- [x] T007 Run the focused new tests, confirm that they fail only because the combined contract and implementations are missing, and record the red evidence in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T008 Run a read-only Ponytail review over the Phase 1 diff, apply accepted test simplifications without weakening acceptance, rerun the red tests, and commit the Phase 1 boundary.
 
 **Checkpoint**: The exact public, shared, and PostgreSQL gaps are executable and fail for the expected reason.
 
@@ -30,6 +30,15 @@
 - `pnpm --filter @keynes/postgresql test`: passed, 29 tests.
 - `CI=true pnpm check:repo`: passed; seven quality and typecheck tasks and all package boundaries passed. Lint retained 15 existing warnings and reported no errors.
 - `CI=true pnpm test:pr`: the ambient checkout was `NOT RUN` as qualifying evidence because repository discovery included an unrelated `.claude/worktrees/responsive-ascii-designs-a901db` checkout and failed its stale workspace assertion. The same command passed in a clean detached checkout at the exact baseline revision: 8 feature-identity tests, 47 contract tests, 8 repository-organization tests, 44 Cloud tests, 29 PostgreSQL unit tests, 227 SDK tests, all typechecks, and all package boundaries.
+
+**Red evidence (`10d96b228c62c10be2c5d5db96de1349593db20e`)**:
+
+- `pnpm --filter @keynes/contracts typecheck`: failed at the new shared scenario because the current `CreateBudgetCommand` still requires `resourceTypeId` instead of a Resource definition.
+- `pnpm --filter @keynes/sdk exec vitest run test/unit/public/public-exports.test.ts test/unit/public/local.test.ts test/unit/local/local-lifecycle.test.ts test/conformance/budget.test.ts --maxWorkers=1`: expected red, 9 failed and 57 passed. The failures identify the required zero-argument factory, definition-bearing root command, rejected legacy setup, and post-Resource rollback behavior.
+- `pnpm exec tsc --project packages/sdk/test/package/tsconfig.json --noEmit`: failed at the package-consumer boundary because `LocalKeynes`, the non-generic connection, the root schema argument, allocated-name narrowing, and Policy inference are not implemented.
+- `pnpm --filter @keynes/postgresql test`: passed, 29 tests; the provider-free PostgreSQL behavior is unchanged.
+- `pnpm --filter @keynes/postgresql test:system`: expected red in a clean detached checkout on PostgreSQL 18.6, run `7ba1015f-42d1-411c-93c0-0a92c409e3e5`; 7 failed and 148 passed. The failures identify missing migration `0005`, missing definition provenance, the old permission contract, rejection of definition-bearing roots, and the missing post-Resource rollback checkpoint.
+- Phase 1 Ponytail review: `Lean already. Ship.` No test case or support code was removed.
 
 ---
 
