@@ -27,17 +27,17 @@ phase disposition.
 
 ## Review stack
 
-| Phase                           | Original subject              | Bot threads | Review branch                                 | Status      | Verdict          | Accepted repair | Evidence                                                 |
-| ------------------------------- | ----------------------------- | ----------: | --------------------------------------------- | ----------- | ---------------- | --------------- | -------------------------------------------------------- |
-| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | `review/0013-01-architecture`                 | Repairing   | Changes accepted | P1-001, P1-002  | Phase 1 result below and `evidence/review-decisions.tsv` |
-| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | `review/0014-02-resource-bound-root`          | Not started | Open             | None            | Pending                                                  |
-| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | `review/0013-03-procedure-authority`          | Not started | Open             | None            | Pending                                                  |
-| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | `review/0013-04-remote-budget-loop`           | Not started | Open             | None            | Pending                                                  |
-| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | `review/0013-05-recovery-and-history`         | Not started | Open             | None            | Pending                                                  |
-| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | `review/0013-06-identity-and-security`        | Not started | Open             | None            | Pending                                                  |
-| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | `review/0013-07-package-and-cloud-retirement` | Not started | Open             | None            | Pending                                                  |
-| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | `review/0013-08-tls-qualifier`                | Not started | Open             | None            | Pending                                                  |
-| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | `review/0013-09-acceptance-boundary`          | Not started | Open             | None            | Pending                                                  |
+| Phase                           | Original subject              | Bot threads | Review branch                                 | Status      | Verdict  | Accepted repair | Evidence                                            |
+| ------------------------------- | ----------------------------- | ----------: | --------------------------------------------- | ----------- | -------- | --------------- | --------------------------------------------------- |
+| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | `review/0013-01-architecture`                 | Verified    | Approved | P1-001, P1-002  | Repair `d410af6`, result below, and decision ledger |
+| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | `review/0014-02-resource-bound-root`          | Not started | Open     | None            | Pending                                             |
+| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | `review/0013-03-procedure-authority`          | Not started | Open     | None            | Pending                                             |
+| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | `review/0013-04-remote-budget-loop`           | Not started | Open     | None            | Pending                                             |
+| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | `review/0013-05-recovery-and-history`         | Not started | Open     | None            | Pending                                             |
+| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | `review/0013-06-identity-and-security`        | Not started | Open     | None            | Pending                                             |
+| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | `review/0013-07-package-and-cloud-retirement` | Not started | Open     | None            | Pending                                             |
+| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | `review/0013-08-tls-qualifier`                | Not started | Open     | None            | Pending                                             |
+| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | `review/0013-09-acceptance-boundary`          | Not started | Open     | None            | Pending                                             |
 
 ## Bot comment intake
 
@@ -60,17 +60,20 @@ posted after their pull requests merged.
 - [x] Reproduce and classify the PR #23 arbitrary-SQL comment against both the original head and the review baseline.
 - [x] Record the independent adversarial review and lead verdict.
 - [x] Post the findings to issue #22 and move the phase to `Awaiting decision` before any repair.
+- [x] Apply the user-accepted P1-001 and P1-002 documentation repairs without changing runtime code.
+- [x] Verify the repaired artifacts and move Phase 1 to `Verified`.
 
 ### Phase 1 result
 
-**Status**: `Repairing`
-**Lead verdict**: Changes accepted. The user accepted the P1-001 SQL-boundary
-repair and the P1-002 FEAT-0015 ownership repair. Runtime code remains unchanged.
+**Status**: `Verified`
+**Lead verdict**: Approved after documentation repair. P1-001 remains a
+`CONFIRMED` disposition for the original bot comment. The accepted repair
+resolves both findings without changing runtime code.
 
-| ID     | Severity | Result      | Evidence-backed finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1-001 | High     | `CONFIRMED` | PR #23 says a remote runtime role cannot execute arbitrary application-selected SQL in `spec.md:92,121`, while `identity-and-tls.md:40` narrows the realizable boundary to SQL exposed through the SDK. The same broad specification text remains at review baseline `6da26221075dc2b1a8e94a829ab490988a3f9d63`. A disposable `LOGIN NOINHERIT` role on the repository's exact PostgreSQL 18.6 image executed `SELECT current_user, session_user, 1` and returned `keynes_phase1_runtime\|keynes_phase1_runtime\|1`. Current `remote-security.test.ts:374-395` proves denial of private objects, canonical and administrative procedures, role assumption, and `CREATE` in the `keynes` schema; it does not prohibit arbitrary SQL submission. |
-| P1-002 | Medium   | Open        | PR #23 requires positive chain and hostname verification in `spec.md:119,165`, but its provider-free commands in `plan.md:89-102` had no positive TLS target and T048 in `tasks.md:125` depended on separately approved external access. Baseline `6da26221075dc2b1a8e94a829ab490988a3f9d63` correctly makes external T048 optional and requires a disposable local TLS target in `plan.md:104`, but `spec.md`, `plan.md`, and `tasks.md:126-137` still do not name the FEAT-0015 owner that issue #22 says supplies that blocking prerequisite. T049 therefore depends on work with no owner in the core Spec Kit artifacts.                                                                                                                  |
+| ID     | Severity | Result      | Evidence-backed finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------ | -------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1-001 | High     | `CONFIRMED` | PR #23 says a remote runtime role cannot execute arbitrary application-selected SQL in `spec.md:92,121`, while `identity-and-tls.md:40` narrows the realizable boundary to SQL exposed through the SDK. The same broad specification text remains at review baseline `6da26221075dc2b1a8e94a829ab490988a3f9d63`. A disposable `LOGIN NOINHERIT` role on the repository's exact PostgreSQL 18.6 image executed `SELECT current_user, session_user, 1` and returned `keynes_phase1_runtime\|keynes_phase1_runtime\|1`. Current `remote-security.test.ts:374-395` proves denial of private objects, canonical and administrative procedures, role assumption, and `CREATE` in the `keynes` schema; it does not prohibit arbitrary SQL submission. Repair `d410af6` narrows the normative boundary to no general SQL SDK operation and no unauthorized effect on Keynes state, roles, administration, identity, or another tenant. |
+| P1-002 | Medium   | Resolved    | PR #23 requires positive chain and hostname verification in `spec.md:119,165`, but its provider-free commands in `plan.md:89-102` had no positive TLS target and T048 in `tasks.md:125` depended on separately approved external access. Baseline `6da26221075dc2b1a8e94a829ab490988a3f9d63` correctly makes external T048 optional and requires a disposable local TLS target in `plan.md:104`, but the core Spec Kit artifacts did not name the FEAT-0015 owner. Repair `d410af6` names FEAT-0015 in `spec.md`, `plan.md`, and `tasks.md` as the owner of the disposable local TLS target and provider-free positive TLS qualification that block T049.                                                                                                                                                                                                                                                                      |
 
 The direct-PostgreSQL authority choice, single `createKeynes` factory,
 PostgreSQL-only durable state, FEAT-0014 dependency order, and delayed Cloud
@@ -85,21 +88,22 @@ branch itself is intentionally rejected by the feature-identity guard. The
 analysis found 25 functional requirements, 8 success criteria, and the complete
 T001-T050 task sequence.
 
-| Requirement group | Has task? | Task coverage                                                   | Result                                                 |
-| ----------------- | --------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| FR-001-FR-004     | Yes       | T017-T023                                                       | Adequate                                               |
-| FR-005-FR-006     | Yes       | T006-T009, T020, T025                                           | Adequate                                               |
-| FR-007            | Yes       | T013, T017, T037                                                | Incomplete positive TLS ownership; P1-002              |
-| FR-008-FR-012     | Yes       | T010-T016, T037                                                 | Adequate except the overbroad FR-009 assertion; P1-001 |
-| FR-013-FR-019     | Yes       | T006-T009, T027-T034                                            | Adequate                                               |
-| FR-020-FR-023     | Yes       | T006-T009, T018-T025, T036, T047                                | Adequate                                               |
-| FR-024-FR-025     | Yes       | T004, T007, T020, T025, T045-T047                               | Adequate                                               |
-| SC-001-SC-004     | Yes       | T007, T011-T012, T020, T025, T029, T032, T034, T037, T047, T049 | Adequate                                               |
-| SC-005            | Yes       | T013, T017, T037, T049                                          | Incomplete positive TLS ownership; P1-002              |
-| SC-006-SC-008     | Yes       | T007, T028-T034, T038-T050                                      | Adequate                                               |
+| Requirement group | Has task? | Task coverage                                                   | Result                       |
+| ----------------- | --------- | --------------------------------------------------------------- | ---------------------------- |
+| FR-001-FR-004     | Yes       | T017-T023                                                       | Adequate                     |
+| FR-005-FR-006     | Yes       | T006-T009, T020, T025                                           | Adequate                     |
+| FR-007            | Yes       | T013, T017, T037                                                | Adequate after P1-002 repair |
+| FR-008-FR-012     | Yes       | T010-T016, T037                                                 | Adequate after P1-001 repair |
+| FR-013-FR-019     | Yes       | T006-T009, T027-T034                                            | Adequate                     |
+| FR-020-FR-023     | Yes       | T006-T009, T018-T025, T036, T047                                | Adequate                     |
+| FR-024-FR-025     | Yes       | T004, T007, T020, T025, T045-T047                               | Adequate                     |
+| SC-001-SC-004     | Yes       | T007, T011-T012, T020, T025, T029, T032, T034, T037, T047, T049 | Adequate                     |
+| SC-005            | Yes       | T013, T017, T037, T049                                          | Adequate after P1-002 repair |
+| SC-006-SC-008     | Yes       | T007, T028-T034, T038-T050                                      | Adequate                     |
 
 - Nominal coverage: 33 of 33 requirements and success criteria have at least one task.
-- Adequacy findings: 2. Ambiguity findings: 0. Duplication findings: 0.
+- Original adequacy findings: 2. Remaining after repair: 0.
+- Ambiguity findings: 0. Duplication findings: 0.
 - Constitution conflicts: 0. Unmapped tasks: 0. Critical findings: 0.
 
 #### Ponytail review
@@ -114,7 +118,10 @@ flexibility without also removing an approved requirement or evidence owner.
 - `git diff --check af355f6d3e651353c6d94c789bb4898bdc65d429...446898ceb67d08fb90896234b5384f35c7d83d8e`: passed.
 - `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`: passed at `6da2622` on the canonical feature branch and resolved the full design set.
 - Disposable PostgreSQL 18.6 role probe: passed and cleaned up; arbitrary SQL submission remained available to the login role.
-- Runtime, package, hosted, provider, TLS qualification, and production lanes: `NOT RUN`; Phase 1 is a review-only change.
+- `CI=true pnpm check:repo`: passed at repair `d410af6`; generation, formatting, lint, types, dependency policy, and package boundaries passed with 19 existing lint warnings and no errors.
+- Direct post-repair analysis found 25 functional requirements, 8 success criteria, all 50 task IDs, nominal 33 of 33 coverage, no remaining adequacy finding, no ambiguity, no duplication, no constitution conflict, and no unmapped task.
+- The canonical Spec Kit prerequisite command at repair `d410af6`: `NOT RUN`; the command rejects review branches before resolving feature paths.
+- Runtime, unit, package, hosted, provider, TLS qualification, and production lanes: `NOT RUN`; the accepted repair changes documentation only.
 
 #### Accepted repair
 
@@ -129,8 +136,7 @@ flexibility without also removing an approved requirement or evidence owner.
 - P1-002 names FEAT-0015 as the owner of the disposable local TLS target and
   provider-free positive TLS qualification that block T049.
 
-Phase 2 remains blocked until this repair passes its focused checks and Phase 1
-moves to `Verified`.
+Phase 1 is verified. Phase 2 remains `Not started`.
 
 ## Remaining phase acceptance
 
