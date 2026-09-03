@@ -76,17 +76,29 @@
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Remove eager Resource installation from `packages/sdk/src/local/runtime.ts` so local connection setup opens only the private authority and lifecycle state.
-- [ ] T016 [US1] Add `definitionCommandId` storage and Resource lookup-or-insert support without changing standalone definition behavior in `packages/sdk/src/local/sqlite-store.ts`.
-- [ ] T017 [US1] Implement two-permission checks, canonical definition reconciliation, authority-issued Resource identity, Policy validation, root allocation, replay, history, and the post-Resource rollback checkpoint inside one `createBudget` transaction in `packages/sdk/src/local/sqlite-command-executor.ts`.
-- [ ] T018 [US1] Replace `Keynes<Names>` with shared `Keynes` and `LocalKeynes`, implement zero-argument `createKeynes()`, and add typed `createBudget(schema, allocation, options?)` in `packages/sdk/src/keynes.ts` and `packages/sdk/src/index.ts`.
-- [ ] T019 [US1] Add immutable per-root Resource binding and result verification in `packages/sdk/src/resource-binding.ts` and `packages/sdk/src/resources.ts`.
-- [ ] T020 [US1] Pass the root binding through request, settlement, inspection, history, errors, and child handles in `packages/sdk/src/budget.ts` and `packages/sdk/src/budget-projection.ts`.
-- [ ] T021 [US1] Make the Phase 1 public, local lifecycle, Policy, replay, rollback, and shared SQLite scenarios pass in `packages/sdk/test/` and `packages/contracts/conformance/`.
-- [ ] T022 [US1] Run the focused SDK unit and conformance suites plus `CI=true pnpm check:repo`, and record exact provider-free results in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T023 [US1] Run a read-only Ponytail review over the Phase 3 diff, apply accepted simplifications, rerun the focused checks, and commit the Phase 3 boundary.
+- [x] T015 [US1] Remove eager Resource installation from `packages/sdk/src/local/runtime.ts` so local connection setup opens only the private authority and lifecycle state.
+- [x] T016 [US1] Add `definitionCommandId` storage and Resource lookup-or-insert support without changing standalone definition behavior in `packages/sdk/src/local/sqlite-store.ts`.
+- [x] T017 [US1] Implement two-permission checks, canonical definition reconciliation, authority-issued Resource identity, Policy validation, root allocation, replay, history, and the post-Resource rollback checkpoint inside one `createBudget` transaction in `packages/sdk/src/local/sqlite-command-executor.ts`.
+- [x] T018 [US1] Replace `Keynes<Names>` with shared `Keynes` and `LocalKeynes`, implement zero-argument `createKeynes()`, and add typed `createBudget(schema, allocation, options?)` in `packages/sdk/src/keynes.ts` and `packages/sdk/src/index.ts`.
+- [x] T019 [US1] Add immutable per-root Resource binding and result verification in `packages/sdk/src/resource-binding.ts` and `packages/sdk/src/resources.ts`.
+- [x] T020 [US1] Pass the root binding through request, settlement, inspection, history, errors, and child handles in `packages/sdk/src/budget.ts` and `packages/sdk/src/budget-projection.ts`.
+- [x] T021 [US1] Make the Phase 1 public, local lifecycle, Policy, replay, rollback, and shared SQLite scenarios pass in `packages/sdk/test/` and `packages/contracts/conformance/`.
+- [x] T022 [US1] Run the focused SDK unit and conformance suites plus `CI=true pnpm check:repo`, and record exact provider-free results in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T023 [US1] Run a read-only Ponytail review over the Phase 3 diff, apply accepted simplifications, rerun the focused checks, and commit the Phase 3 boundary.
 
 **Checkpoint**: User Story 1 works through local SQLite with exact typing and all-or-nothing root creation.
+
+**Provider-free evidence (`93468bb0dbcb701fc9e10d570debcf3019dc1d04`)**:
+
+- `pnpm --filter @keynes/sdk typecheck`: passed.
+- `pnpm --filter @keynes/sdk test`: passed, 238 tests across 18 files.
+- The focused public, lifecycle, replay, Policy, SQLite executor, and shared conformance command passed, 121 tests across 11 files.
+- `pnpm --filter @keynes/contracts test`: passed, 48 tests. `pnpm --filter @keynes/contracts generate:check` and `pnpm --filter @keynes/sdk generate:check`: passed.
+- `pnpm --filter @keynes/sdk build`, `pnpm exec tsc --project packages/sdk/test/package/tsconfig.json --noEmit`, and `pnpm --filter @keynes/sdk test:package:unit`: passed; the package-unit lane ran 20 tests.
+- `CI=true pnpm check:repo`: expected deferred failure only at `packages/postgresql/generated/installation-record.json`, which remains on the accepted `0004` contract until T031 adds migration `0005`. The remaining repository constituents were run directly: `pnpm turbo run quality typecheck` passed all seven tasks with the existing 15 lint warnings and no errors, and `pnpm check:deps` passed all package boundaries.
+- Native PostgreSQL, remote, hosted, security, recovery, fault, benchmark, self-hosted, managed, and production evidence: `NOT RUN` in Phase 3.
+- The correctness review found no SQLite authority defect. It identified two missing witnesses; the shared suite now fires the exact post-Resource checkpoint and asserts opaque Resource identity separately from definition-command provenance.
+- Phase 3 Ponytail review: `Lean already. Ship.` No production or test code was removed after the review.
 
 ---
 
