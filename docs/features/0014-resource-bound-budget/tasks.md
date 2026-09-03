@@ -175,7 +175,7 @@
 - [x] T040 Reconcile delivered behavior and evidence without changing accepted architecture in `docs/product.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/0007-direct-postgresql-remote-access.md`, and `docs/features/0013-remote-sdk-public-service/`.
 - [x] T041 Mark every unexecuted remote, hosted, upgrade, recovery, security, fault, benchmark, self-hosted, managed, and production claim `NOT RUN` in `docs/features/0014-resource-bound-budget/evidence/acceptance.json`.
 - [x] T042 Run a read-only Ponytail review over the complete feature diff, apply accepted simplifications, rerun every affected gate, and commit the Phase 6 acceptance boundary.
-- [ ] T043 Update the one evolving pull request with the complete repository-specific description, exact commands, outcomes, revision, `NOT RUN` boundaries, design choices, rejected alternatives, and ordered review guide using `.github/PULL_REQUEST_TEMPLATE.md`.
+- [x] T043 Update the one evolving pull request with the complete repository-specific description, exact commands, outcomes, revision, `NOT RUN` boundaries, design choices, rejected alternatives, and ordered review guide using `.github/PULL_REQUEST_TEMPLATE.md`.
 - [ ] T044 Confirm pull-request CI on the exact accepted revision, merge the one canonical FEAT-0014 pull request, record the merge revision in issue #22, and leave FEAT-0013 blocked until its branch is refreshed from that new `main`.
 
 **Checkpoint**: FEAT-0014 is merged with exact local, package, and native PostgreSQL evidence. Issue #22 records the accepted revision.
