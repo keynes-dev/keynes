@@ -97,12 +97,12 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 ### Tests
 
-- [ ] T035 [US3] Add failing SDK error-projection and secret-redaction tests in `packages/sdk/test/unit/remote/errors.test.ts`
+- [x] T035 [US3] Add failing SDK error-projection and secret-redaction tests in `packages/sdk/test/unit/remote/errors.test.ts`
 
 ### Implementation
 
-- [ ] T036 [US3] Implement stable allowlisted remote error projection in `packages/sdk/src/remote/errors.ts`
-- [ ] T037 [US3] Run identity, TLS, connection-profile, redaction, credential-lifecycle, and two-tenant tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
+- [x] T036 [US3] Implement stable allowlisted remote error projection in `packages/sdk/src/remote/errors.ts`
+- [x] T037 [US3] Run identity, TLS, connection-profile, redaction, credential-lifecycle, and two-tenant tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 
 **Checkpoint**: Runtime credentials can use only the authorized remote contract, and operator administration stays private.
 
