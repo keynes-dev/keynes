@@ -27,17 +27,17 @@ phase disposition.
 
 ## Review stack
 
-| Phase                           | Original subject              | Bot threads | Review branch                                 | Status            | Verdict           | Accepted repair | Evidence                                                 |
-| ------------------------------- | ----------------------------- | ----------: | --------------------------------------------- | ----------------- | ----------------- | --------------- | -------------------------------------------------------- |
-| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | `review/0013-01-architecture`                 | Awaiting decision | Changes requested | None            | Phase 1 result below and `evidence/review-decisions.tsv` |
-| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | `review/0014-02-resource-bound-root`          | Not started       | Open              | None            | Pending                                                  |
-| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | `review/0013-03-procedure-authority`          | Not started       | Open              | None            | Pending                                                  |
-| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | `review/0013-04-remote-budget-loop`           | Not started       | Open              | None            | Pending                                                  |
-| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | `review/0013-05-recovery-and-history`         | Not started       | Open              | None            | Pending                                                  |
-| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | `review/0013-06-identity-and-security`        | Not started       | Open              | None            | Pending                                                  |
-| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | `review/0013-07-package-and-cloud-retirement` | Not started       | Open              | None            | Pending                                                  |
-| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | `review/0013-08-tls-qualifier`                | Not started       | Open              | None            | Pending                                                  |
-| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | `review/0013-09-acceptance-boundary`          | Not started       | Open              | None            | Pending                                                  |
+| Phase                           | Original subject              | Bot threads | Review branch                                 | Status      | Verdict          | Accepted repair | Evidence                                                 |
+| ------------------------------- | ----------------------------- | ----------: | --------------------------------------------- | ----------- | ---------------- | --------------- | -------------------------------------------------------- |
+| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | `review/0013-01-architecture`                 | Repairing   | Changes accepted | P1-001, P1-002  | Phase 1 result below and `evidence/review-decisions.tsv` |
+| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | `review/0014-02-resource-bound-root`          | Not started | Open             | None            | Pending                                                  |
+| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | `review/0013-03-procedure-authority`          | Not started | Open             | None            | Pending                                                  |
+| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | `review/0013-04-remote-budget-loop`           | Not started | Open             | None            | Pending                                                  |
+| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | `review/0013-05-recovery-and-history`         | Not started | Open             | None            | Pending                                                  |
+| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | `review/0013-06-identity-and-security`        | Not started | Open             | None            | Pending                                                  |
+| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | `review/0013-07-package-and-cloud-retirement` | Not started | Open             | None            | Pending                                                  |
+| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | `review/0013-08-tls-qualifier`                | Not started | Open             | None            | Pending                                                  |
+| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | `review/0013-09-acceptance-boundary`          | Not started | Open             | None            | Pending                                                  |
 
 ## Bot comment intake
 
@@ -63,10 +63,9 @@ posted after their pull requests merged.
 
 ### Phase 1 result
 
-**Status**: `Awaiting decision`
-**Lead verdict**: Changes requested. One confirmed high-severity architecture
-claim and one medium-severity Spec Kit ownership gap remain unresolved. No
-repair is accepted or applied.
+**Status**: `Repairing`
+**Lead verdict**: Changes accepted. The user accepted the P1-001 SQL-boundary
+repair and the P1-002 FEAT-0015 ownership repair. Runtime code remains unchanged.
 
 | ID     | Severity | Result      | Evidence-backed finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -117,8 +116,21 @@ flexibility without also removing an approved requirement or evidence owner.
 - Disposable PostgreSQL 18.6 role probe: passed and cleaned up; arbitrary SQL submission remained available to the login role.
 - Runtime, package, hosted, provider, TLS qualification, and production lanes: `NOT RUN`; Phase 1 is a review-only change.
 
-The user must accept or reject P1-001 and P1-002 before any repair or Phase 2
-review begins.
+#### Accepted repair
+
+- P1-001 narrows the contract from prohibiting SQL submission to prohibiting a
+  general SQL SDK operation and unauthorized effects on Keynes state, roles,
+  administration, identity, and tenant boundaries.
+- The deployment operator owns database-wide SQL privileges and resource
+  controls. The customer is the operator for embedded and self-hosted
+  PostgreSQL. Keynes is the operator for Keynes Cloud.
+- A deployment that prohibits SQL submission must withhold PostgreSQL
+  credentials and adopt a separately approved constrained data path.
+- P1-002 names FEAT-0015 as the owner of the disposable local TLS target and
+  provider-free positive TLS qualification that block T049.
+
+Phase 2 remains blocked until this repair passes its focused checks and Phase 1
+moves to `Verified`.
 
 ## Remaining phase acceptance
 

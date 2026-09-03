@@ -32,6 +32,8 @@ Every remote TCP connection requires TLS 1.2 or newer with certificate-chain and
 
 PostgreSQL authenticates a scoped login role. Protected role mappings bind that login to one Keynes principal, and remote procedures derive identity from `session_user`. Separate owner, execution, and administration roles preserve least privilege. Private administrative procedures own credential creation, rotation, and revocation. Ordinary SDK roles cannot invoke them.
 
+The scoped credential remains a PostgreSQL login and can submit SQL through another client. The SDK exposes no general SQL operation or database handle. PostgreSQL grants prevent submitted SQL from gaining unauthorized access to Keynes state, privileged roles, administration, mapped identity, or another tenant. The deployment operator owns database-wide privileges and resource controls. A deployment that prohibits SQL submission must withhold PostgreSQL credentials and adopt a constrained data path through a later architecture decision.
+
 Self-hosted and managed deployments use the same required PostgreSQL procedure and semantic contracts. They require separate operational evidence for credential delivery, TLS termination, poolers, upgrades, backup, recovery, capacity, incident response, and support. A later control plane may provision credentials or deployments, but it does not carry Budget commands or own Budget state.
 
 The private FEAT-0006 service remains historical evidence. FEAT-0013 moved the assertions that still matter into direct PostgreSQL coverage and removed `apps/cloud` from active product, generation, and qualification paths. Historical feature documents and retained records remain unchanged.
@@ -40,6 +42,7 @@ The private FEAT-0006 service remains historical evidence. FEAT-0013 moved the a
 
 - The SDK and PostgreSQL procedure contract form the public remote data path.
 - Server-side applications receive scoped PostgreSQL credentials and cannot select identity fields or call private tables and administrative procedures.
+- Direct PostgreSQL credentials are not RPC-only credentials. Self-hosted customers own database-wide SQL and resource controls; Keynes owns them for managed Cloud.
 - Direct and supported pooled connections require separate TLS, session, transaction, identity, and recovery evidence.
 - FEAT-0013 contracts own the exact reference, reopen, inspection, recovery, retry, compatibility, and error shapes within these boundaries.
 - The repository retains no active HTTP Budget protocol after replacement coverage passes.
