@@ -46,14 +46,25 @@
 
 **Purpose**: Establish one generated root command and permission contract before either authority implements it.
 
-- [ ] T009 Change `CreateBudgetCommand` to a non-empty definition-and-amount envelope and add `RootResourceInput` in `packages/contracts/schema.json`.
-- [ ] T010 Change ordered operation permission metadata to non-empty permission lists and assign `define_resource_type` then `create_root_budget` to `createBudget` in `packages/contracts/contract.json` and `packages/contracts/src/load.ts`.
-- [ ] T011 Update canonical field ordering, validators, fixtures, and conformance host types for the revised root input in `packages/contracts/src/generation/contract-field-order.ts`, `packages/contracts/fixtures/source.json`, `packages/contracts/fixtures/expectations.json`, and `packages/contracts/conformance/host.ts`.
-- [ ] T012 Regenerate TypeScript contracts and SDK generated clients, then inspect every generated diff against `docs/features/0014-resource-bound-budget/contracts/root-creation.md`. Keep PostgreSQL installation metadata and its coupled Cloud consumer on the accepted `0004` contract until T031 adds migration `0005`.
-- [ ] T013 Run `pnpm --filter @keynes/contracts test` and the generated-client unit tests, then record exact contract digest and results in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T014 Run a read-only Ponytail review over the Phase 2 diff, apply accepted contract simplifications, rerun the focused contract checks, and commit the Phase 2 boundary.
+- [x] T009 Change `CreateBudgetCommand` to a non-empty definition-and-amount envelope and add `RootResourceInput` in `packages/contracts/schema.json`.
+- [x] T010 Change ordered operation permission metadata to non-empty permission lists and assign `define_resource_type` then `create_root_budget` to `createBudget` in `packages/contracts/contract.json` and `packages/contracts/src/load.ts`.
+- [x] T011 Update canonical field ordering, validators, fixtures, and conformance host types for the revised root input in `packages/contracts/src/generation/contract-field-order.ts`, `packages/contracts/fixtures/source.json`, `packages/contracts/fixtures/expectations.json`, and `packages/contracts/conformance/host.ts`.
+- [x] T012 Regenerate TypeScript contracts and SDK generated clients, then inspect every generated diff against `docs/features/0014-resource-bound-budget/contracts/root-creation.md`. Keep PostgreSQL installation metadata and its coupled Cloud consumer on the accepted `0004` contract until T031 adds migration `0005`.
+- [x] T013 Run `pnpm --filter @keynes/contracts test` and the generated-client unit tests, then record exact contract digest and results in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T014 Run a read-only Ponytail review over the Phase 2 diff, apply accepted contract simplifications, rerun the focused contract checks, and commit the Phase 2 boundary.
 
 **Checkpoint**: One generated command owns definition-bearing root creation. Authority tests remain red for the expected missing behavior.
+
+**Contract evidence (`5f4c2d53ab004461398b3c83ed93398d98797cec`)**:
+
+- Contract digest: `cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5`.
+- `pnpm --filter @keynes/contracts typecheck`: passed.
+- `pnpm --filter @keynes/contracts test`: passed, 48 tests.
+- `pnpm --filter @keynes/contracts generate:check` and `pnpm --filter @keynes/sdk generate:check`: passed.
+- `pnpm --filter @keynes/sdk exec vitest run test/unit/public/generated-client.test.ts --maxWorkers=1`: passed, 11 tests.
+- `pnpm --filter @keynes/cloud typecheck`: passed against the updated generator source. The coupled generated Cloud installation record remains on the accepted `0004` contract until T031.
+- `pnpm generate:check`: expected deferred failure at `packages/postgresql/generated/installation-record.json`; PostgreSQL generation remains `NOT RUN` until migration `0005` can own the new contract digest without rewriting `0004`.
+- Phase 2 Ponytail review: `Lean already. Ship.` No contract or fixture code was removed.
 
 ---
 
