@@ -11,7 +11,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 - [x] T001 Verify that FEAT-0014 Resource-bound Budget creation is complete on `main` and record its accepted revision in `docs/features/0013-remote-sdk-public-service/plan.md`
 - [x] T002 Record FEAT-0014's accepted baseline and the exact FEAT-0013 branch-refresh and migration path in `docs/roadmap.md`, `docs/features/0013-remote-sdk-public-service/spec.md`, `docs/features/0013-remote-sdk-public-service/plan.md`, and `docs/features/0013-remote-sdk-public-service/tasks.md`
-- [ ] T003 Run the prerequisite's shared local and native PostgreSQL acceptance commands and record the exact baseline or `NOT RUN` result in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
+- [x] T003 Run the prerequisite's shared local and native PostgreSQL acceptance commands and record the exact baseline or `NOT RUN` result in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 - [x] T004 Populate the active `apps/cloud` generation, test, workspace, layout, and documentation inventory in `docs/features/0013-remote-sdk-public-service/contracts/cloud-retirement.md`
 
 **Checkpoint**: Stop if the prerequisite is absent, incompatible, or unqualified.
