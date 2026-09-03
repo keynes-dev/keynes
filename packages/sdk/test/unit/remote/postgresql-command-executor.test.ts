@@ -201,6 +201,29 @@ describe("PostgreSQL remote command executor", () => {
     await executor.close();
   });
 
+  it("preserves mutation uncertainty for an uncoded node-postgres disconnect", async () => {
+    const pool = createFakePool(async ({ text }) => {
+      if (text.includes("remote_get_compatibility")) {
+        return compatibilityResponse();
+      }
+      throw new Error("Connection terminated unexpectedly");
+    });
+    pgMock.constructPool.mockReturnValue(pool);
+    const executor = await openPostgresqlCommandExecutor(poolConfig);
+
+    await expect(
+      executor.execute(createBudgetProcedure, { operationKey, resources: [] }),
+    ).resolves.toEqual({
+      ok: false,
+      error: {
+        kind: "error",
+        code: "uncertain_outcome",
+        details: { operation: "createBudget", operationKey },
+      },
+    });
+    await executor.close();
+  });
+
   it("rejects the 101st waiting caller without acquiring a connection", async () => {
     const pool = createFakePool(async () => compatibilityResponse());
     pgMock.constructPool.mockReturnValue(pool);

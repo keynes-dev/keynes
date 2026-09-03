@@ -1383,7 +1383,9 @@ BEGIN
     FROM keynes_internal.remote_role_mappings
    WHERE role_oid = current_oid;
 
-  IF existing_name.role_oid IS NOT NULL
+  IF existing_name.status = 'revoked' THEN
+    RAISE EXCEPTION 'remote login role is revoked';
+  ELSIF existing_name.role_oid IS NOT NULL
     AND existing_name.tenant_id = mapped_tenant
     AND existing_name.principal_id = mapped_principal
     AND existing_name.role_oid = current_oid THEN
@@ -1546,6 +1548,40 @@ AS $function$
     'updatedAt', mapping.updated_at
   ) FROM keynes_internal.remote_role_mappings mapping
   WHERE mapping.role_name = login_role;
+$function$;
+
+CREATE FUNCTION keynes_internal.audit_remote_role_v0006(
+  login_role name,
+  entry_limit integer
+) RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $function$
+DECLARE events jsonb;
+BEGIN
+  IF entry_limit IS NULL OR entry_limit < 1 OR entry_limit > 100 THEN
+    RAISE EXCEPTION 'remote credential audit limit is out of range';
+  END IF;
+  SELECT coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'action', audit.action,
+        'occurredAt', audit.occurred_at
+      ) ORDER BY audit.occurred_at DESC, audit.audit_id DESC
+    ),
+    '[]'::jsonb
+  ) INTO events
+  FROM (
+    SELECT record.audit_id, record.action, record.occurred_at
+      FROM keynes_internal.remote_credential_audit record
+     WHERE record.role_name = login_role
+     ORDER BY record.occurred_at DESC, record.audit_id DESC
+     LIMIT entry_limit
+  ) audit;
+  RETURN jsonb_build_object('roleName', login_role, 'events', events);
+END;
 $function$;
 
 CREATE FUNCTION keynes_internal.remote_dispatch_v0006(

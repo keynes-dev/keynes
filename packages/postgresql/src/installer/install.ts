@@ -32,6 +32,7 @@ const REMOTE_ADMIN_TARGETS = [
   "keynes_internal.set_remote_role_enabled_v0006(name,boolean)",
   "keynes_internal.revoke_remote_role_v0006(name)",
   "keynes_internal.inspect_remote_role_v0006(name)",
+  "keynes_internal.audit_remote_role_v0006(name,integer)",
 ] as const;
 const REMOTE_EXECUTION_TARGETS = [
   "keynes_internal.apply_command(text,jsonb)",

@@ -21,7 +21,7 @@
   "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43",
-  "migrationSetDigest": "9f75b75918842333d5fe5ca744db180098e6d2b0ba8b9f8197c46ad374af144a",
+  "migrationSetDigest": "2bb8ba560ba260c4fcaed121cd255e133d5b3a952d9458b2b62ee213b9704b72",
   "migrations": [
     {
       "id": "0001-storage",
@@ -53,7 +53,7 @@
     {
       "id": "0006-remote-access",
       "path": "0006-remote-access.sql",
-      "sha256": "e1b295ef1a1dcb7a00958b87f01382c597301324f6b70eab6b77022a6a855918",
+      "sha256": "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
       "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
     }
   ],
@@ -132,6 +132,7 @@
     "function:keynes_internal.set_remote_role_enabled_v0006(login_role name,next_enabled boolean)",
     "function:keynes_internal.revoke_remote_role_v0006(login_role name)",
     "function:keynes_internal.inspect_remote_role_v0006(login_role name)",
+    "function:keynes_internal.audit_remote_role_v0006(login_role name,entry_limit integer)",
     "function:keynes_internal.remote_dispatch_v0006(operation_name text,input jsonb)",
     "function:keynes_internal.get_budget(input jsonb)",
     "function:keynes.define_resource_type(input jsonb)",

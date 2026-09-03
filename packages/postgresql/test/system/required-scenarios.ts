@@ -97,6 +97,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
     "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",
     "remote PostgreSQL installation and administration lets the private administration role manage metadata but not run Budget calls",
+    "remote PostgreSQL installation and administration exposes bounded credential audit without table access",
     "remote PostgreSQL installation and administration rejects 'INHERIT' candidates for registration and rotation",
     "remote PostgreSQL installation and administration rejects 'ownerRole membership' candidates for registration and rotation",
     "remote PostgreSQL installation and administration rejects 'executionRole membership' candidates for registration and rotation",
@@ -139,6 +140,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL identity and security rejects a recreated login until an operator explicitly registers the stale name and new OID",
     "remote PostgreSQL identity and security rotates mappings atomically and disables the old pooled credential",
     "remote PostgreSQL identity and security revokes an existing session and records no reusable credential",
+    "remote PostgreSQL identity and security keeps a revoked credential terminal when registration is retried",
     "remote PostgreSQL identity and security denies private objects, canonical procedures, role assumption, and public SQL creation",
   ],
   "packages/postgresql/test/system/policy-request.test.ts": [

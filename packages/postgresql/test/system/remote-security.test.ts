@@ -212,6 +212,32 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(audit.rows).toEqual([{ action: "revoked", leaked: false }]);
     });
 
+    it("keeps a revoked credential terminal when registration is retried", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const runtime = await fixture.connect(fixture.primary);
+      const administrator = await fixture.connect({
+        role: fixture.administrationRole,
+        password: fixture.administrationPassword,
+      });
+
+      await administrator.query(
+        "select keynes_internal.revoke_remote_role_v0006($1::name)",
+        [fixture.primary.role],
+      );
+      await expect(fixture.register(fixture.primary)).rejects.toThrow(
+        "remote login role is revoked",
+      );
+      expect(await compatibility(runtime)).toMatchObject({
+        ok: false,
+        error: { code: "unauthorized" },
+      });
+      await fixture.recreate(fixture.primary);
+      await expect(fixture.register(fixture.primary)).rejects.toThrow(
+        "remote login role is revoked",
+      );
+    });
+
     it("denies private objects, canonical procedures, role assumption, and public SQL creation", async () => {
       fixture = await openRemoteIdentityFixture();
       await fixture.register(fixture.primary);

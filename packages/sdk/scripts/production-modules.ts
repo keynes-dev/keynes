@@ -27,6 +27,7 @@ export const SDK_PRODUCTION_MODULES = [
   "resources",
   "remote/budget",
   "remote/connection-options",
+  "remote/errors",
   "remote/postgresql-command-executor",
   "remote/public-types",
   "remote/references",

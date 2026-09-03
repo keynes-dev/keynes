@@ -58,6 +58,7 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes_internal.set_remote_role_enabled_v0006(login_role name,next_enabled boolean)",
   "function:keynes_internal.revoke_remote_role_v0006(login_role name)",
   "function:keynes_internal.inspect_remote_role_v0006(login_role name)",
+  "function:keynes_internal.audit_remote_role_v0006(login_role name,entry_limit integer)",
   "function:keynes_internal.remote_dispatch_v0006(operation_name text,input jsonb)",
   "function:keynes_internal.get_budget(input jsonb)",
   "function:keynes.define_resource_type(input jsonb)",

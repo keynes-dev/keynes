@@ -39,7 +39,7 @@ export const INSTALLATION_MIGRATIONS = [
   {
     id: "0006-remote-access",
     byteChecksum:
-      "e1b295ef1a1dcb7a00958b87f01382c597301324f6b70eab6b77022a6a855918",
+      "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
     contractDigest:
       "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
   },

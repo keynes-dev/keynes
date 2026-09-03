@@ -242,6 +242,56 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       ).rejects.toThrow();
     });
 
+    it("exposes bounded credential audit without table access", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const administrator = await fixture.connect({
+        role: fixture.administrationRole,
+        password: fixture.administrationPassword,
+      });
+
+      const result = await administrator.query<{
+        readonly response: unknown;
+      }>(
+        "select keynes_internal.audit_remote_role_v0006($1::name, $2::integer) as response",
+        [fixture.primary.role, 10],
+      );
+      expect(result.rows).toMatchObject([
+        {
+          response: {
+            roleName: fixture.primary.role,
+            events: expect.arrayContaining([
+              expect.objectContaining({ action: "registered" }),
+            ]),
+          },
+        },
+      ]);
+      expect(JSON.stringify(result.rows)).not.toMatch(
+        new RegExp(
+          [
+            fixture.primary.password,
+            fixture.primary.tenantId,
+            fixture.primary.principalId,
+            fixture.administrationRole,
+          ].join("|"),
+          "u",
+        ),
+      );
+      await expect(
+        administrator.query(
+          "select * from keynes_internal.remote_credential_audit",
+        ),
+      ).rejects.toThrow();
+      for (const invalidLimit of [null, 0, 101]) {
+        await expect(
+          administrator.query(
+            "select keynes_internal.audit_remote_role_v0006($1::name, $2::integer)",
+            [fixture.primary.role, invalidLimit],
+          ),
+        ).rejects.toThrow("remote credential audit limit is out of range");
+      }
+    });
+
     it("makes remote privilege and schema CREATE drift fail exact recheck", async () => {
       fixture = await openRemoteIdentityFixture();
       await fixture.administrator.query(
