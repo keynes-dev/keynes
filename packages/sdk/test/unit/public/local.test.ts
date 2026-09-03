@@ -366,6 +366,58 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it("snapshots requested amounts before asynchronous admission", async () => {
+    const resources = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const requested = { workUnits: 1 };
+      const pending = root.request(requested);
+      requested.workUnits = 2;
+
+      const approved = await pending;
+      if (approved.status !== "approved") {
+        throw new Error("expected approved request");
+      }
+      expect((await approved.budget.inspect()).budget.resources).toMatchObject([
+        { resource: "workUnits", allocated: 1 },
+      ]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("does not widen child Resource names from a later input mutation", async () => {
+    const resources = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      tokens: { unit: "token", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const root = await keynes.createBudget(resources, {
+        workUnits: 5,
+        tokens: 5,
+      });
+      const requested = { workUnits: 1 };
+      const pending = root.request(requested);
+      expect(Reflect.set(requested, "tokens", 1)).toBe(true);
+
+      const approved = await pending;
+      if (approved.status !== "approved") {
+        throw new Error("expected approved request");
+      }
+      expect(
+        (await approved.budget.inspect()).budget.resources.map(
+          ({ resource }) => resource,
+        ),
+      ).toEqual(["workUnits"]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("rejects Resources outside the root binding", async () => {
     const resources = defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
