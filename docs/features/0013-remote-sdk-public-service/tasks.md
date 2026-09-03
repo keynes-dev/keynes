@@ -59,7 +59,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 - [x] T023 [US1] Add the `createKeynes({ databaseUrl })` overload and remote handle construction in `packages/sdk/src/keynes.ts`
 - [x] T024 [US1] Export only the accepted remote public types and errors from `packages/sdk/src/index.ts`
 - [x] T025 [US1] Run shared conformance against local SQLite and the remote executor through `packages/sdk/test/conformance/test-host.ts`
-- [ ] T026 [US1] Run focused SDK unit and native PostgreSQL full-loop tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
+- [x] T026 [US1] Run focused SDK unit and native PostgreSQL full-loop tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 
 **Checkpoint**: User story 1 works without reopen or automatic recovery.
 

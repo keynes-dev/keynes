@@ -53,7 +53,7 @@ The exact record above remains valid only for revision `4145b43e059c895583c4df79
 
 ## Phase 3: durable remote Budget loop
 
-The Phase 3 implementation is qualified in the FEAT-0013 working tree below. T026 and exact-revision acceptance remain open until the implementation boundary is committed and the clean-revision commands are rerun.
+The Phase 3 implementation was first qualified in the FEAT-0013 working tree below. Its exact committed-revision rerun is retained separately rather than treating the working-tree commands as release evidence.
 
 - Current contract SHA-256: `774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27`.
 - Current remote-procedure SHA-256: `77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43`.
@@ -71,3 +71,13 @@ The Phase 3 implementation is qualified in the FEAT-0013 working tree below. T02
 - The required read-only Phase 3 Ponytail review identified 25 removable lines. The accepted simplifications removed a Phase 4 `openBudget` assertion from the Phase 3 native loop, replaced a manual URL-character scan with one regular expression, and removed executor degradation bookkeeping that did not change admission or error projection. The focused SDK lane and all 198 native PostgreSQL tests passed after those deletions.
 
 This working-tree evidence proves the single `createKeynes({ databaseUrl })` entrypoint, fail-closed URL normalization, generated procedure dispatch, bounded pool and close behavior, exact Budget response binding, and the shared create/request/inspect/settle loop through native PostgreSQL. Positive TLS, PgBouncer downstream TLS, stateful SDK reopen and recovery, caller-owned operation keys, package consumers, hosted workflows, an authorized external remote database, Cloud retirement, self-hosted and managed operations, and production behavior remain `NOT RUN`.
+
+### Exact-revision qualification
+
+Revision `7f282fc55f89bde82500c7568c52575ff4c8933b` is the Phase 3 implementation boundary.
+
+- `CI=true pnpm check:repo`: passed generation, formatting, lint, type checks, dependency checks, and boundaries at the exact revision. Boundary analysis covered 237 files with no violations; lint reported 18 existing warnings and no errors.
+- `CI=true pnpm test:unit`: passed 51 contract, 44 Cloud, 29 PostgreSQL, and 318 SDK unit and conformance tests at the exact revision.
+- `pnpm test:system:postgresql -- --output .artifacts/acceptance/feat0013-phase3-7f282fc.json`: passed 198 tests and 39 report suites on PostgreSQL 18.6. The retained local record names source revision `7f282fc55f89bde82500c7568c52575ff4c8933b` with `cleanBefore: true` and `cleanAfter: true`.
+- PostgreSQL package archive SHA-256: `ed006c99841d80367ed7fbd847de34e4408675a88f74ed5ea08a011cd5b614f7`. Installation-record SHA-256: `bb672963840bfabbede1f9232adeffcb80603fbc1c6c76967cc97747ee1ec043`. Local acceptance-record SHA-256: `c2f0dd539526bafd057631a672f8161ce032d100ccac20d22f0654d2390af4f6`.
+- The record keeps other PostgreSQL versions, managed providers, upgrade/downgrade, rolling deployment, extension packaging, backup/recovery, failover, security qualification, fault campaign, benchmark, self-hosted, managed Cloud, and production readiness `NOT RUN`. Positive TLS, PgBouncer downstream TLS, the authorized external remote-database lane, hosted SDK workflows, package-consumer qualification, SDK reopen and recovery, and Cloud retirement also remain `NOT RUN` for Phase 3.
