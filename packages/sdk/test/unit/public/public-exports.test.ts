@@ -217,7 +217,6 @@ describe("package-root exports", () => {
       void createKeynes({ resources });
       // @ts-expect-error Explicit undefined is still an argument.
       void createKeynes(undefined);
-      // @ts-expect-error FEAT-0014 does not add remote connection options.
       void createKeynes({ databaseUrl: "postgresql://example.invalid/keynes" });
     }
 

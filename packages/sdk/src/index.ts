@@ -38,7 +38,12 @@ export type {
   VariadicNodeV1,
 } from "./generated/policy-types.js";
 export { createKeynes } from "./keynes.js";
-export type { Keynes, LocalKeynes } from "./keynes.js";
+export type {
+  Keynes,
+  LocalKeynes,
+  RemoteKeynes,
+  RemoteKeynesOptions,
+} from "./keynes.js";
 export {
   definePolicy,
   definePolicySql,

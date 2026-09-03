@@ -12,6 +12,11 @@ export type Uuid = string;
 export type Digest = string;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "Sha256Digest".
+ */
+export type Sha256Digest = string;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "Amount".
  */
 export type Amount = number;
@@ -325,8 +330,8 @@ export type ErrorEnvelope =
       kind: "error";
       code: "contract_mismatch";
       details: {
-        clientDigest: Digest;
-        installedDigest: Digest;
+        clientDigest: Sha256Digest;
+        installedDigest: Sha256Digest;
       };
     }
   | {
@@ -1562,9 +1567,9 @@ export interface RemoteProcedureCapability {
  */
 export interface GetCompatibilityResult {
   installationId: string;
-  contractDigest: Digest;
-  policyProfileDigest: Digest;
-  remoteProceduresDigest: Digest;
+  contractDigest: Sha256Digest;
+  policyProfileDigest: Sha256Digest;
+  remoteProceduresDigest: Sha256Digest;
   semanticGeneration: number;
   minimumSdkGeneration: number;
   /**

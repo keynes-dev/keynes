@@ -117,6 +117,10 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles rejects the native plaintext endpoint when verified TLS is required",
     "remote PostgreSQL connection profiles fails closed when the database is unavailable",
   ],
+  "packages/postgresql/test/system/remote-budget.test.ts": [
+    "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
+    "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
+  ],
   "packages/postgresql/test/system/remote-recovery.test.ts": [
     "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
     "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",

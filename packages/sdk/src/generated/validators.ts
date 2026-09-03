@@ -57,6 +57,10 @@ const definitions: Readonly<Record<string, Schema>> = {
     type: "string",
     pattern: "^[a-z][a-z0-9_-]*:[0-9a-f]{64}$",
   },
+  Sha256Digest: {
+    type: "string",
+    pattern: "^[0-9a-f]{64}$",
+  },
   Amount: {
     type: "integer",
     minimum: 0,
@@ -1734,13 +1738,13 @@ const definitions: Readonly<Record<string, Schema>> = {
         maxLength: 128,
       },
       contractDigest: {
-        $ref: "#/$defs/Digest",
+        $ref: "#/$defs/Sha256Digest",
       },
       policyProfileDigest: {
-        $ref: "#/$defs/Digest",
+        $ref: "#/$defs/Sha256Digest",
       },
       remoteProceduresDigest: {
-        $ref: "#/$defs/Digest",
+        $ref: "#/$defs/Sha256Digest",
       },
       semanticGeneration: {
         type: "integer",
@@ -2369,10 +2373,10 @@ const definitions: Readonly<Record<string, Schema>> = {
             required: ["clientDigest", "installedDigest"],
             properties: {
               clientDigest: {
-                $ref: "#/$defs/Digest",
+                $ref: "#/$defs/Sha256Digest",
               },
               installedDigest: {
-                $ref: "#/$defs/Digest",
+                $ref: "#/$defs/Sha256Digest",
               },
             },
           },

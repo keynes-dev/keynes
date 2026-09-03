@@ -12,6 +12,7 @@ import {
   type ResourceAmounts,
 } from "./budget.js";
 import type { CreateBudgetCommand } from "./generated/types.js";
+import { createRemoteKeynesClient } from "./generated/client.js";
 import {
   admit,
   closeRuntime,
@@ -20,6 +21,13 @@ import {
   openConfiguredRuntime,
 } from "./local/runtime.js";
 import { createResourceBinding } from "./resource-binding.js";
+import {
+  createInternalOperationKey,
+  createRemoteBudgetHandle,
+  createRemoteResourceBinding,
+} from "./remote/budget.js";
+import { normalizeDatabaseUrl } from "./remote/connection-options.js";
+import { openPostgresqlCommandExecutor } from "./remote/postgresql-command-executor.js";
 import {
   prepareRootResources,
   rootResourceEnvelope,
@@ -65,18 +73,50 @@ export interface Keynes extends AsyncDisposable {
 
 export type LocalKeynes = Keynes;
 
+export interface RemoteKeynesOptions {
+  readonly databaseUrl: string;
+}
+
+export type RemoteKeynes = Keynes;
+
 export function createKeynes(): Promise<LocalKeynes>;
+export function createKeynes(
+  options: RemoteKeynesOptions,
+): Promise<RemoteKeynes>;
 export async function createKeynes(
   ...arguments_: readonly unknown[]
-): Promise<LocalKeynes> {
-  if (arguments_.length !== 0) {
+): Promise<LocalKeynes | RemoteKeynes> {
+  if (arguments_.length === 0) {
+    const runtime = await openConfiguredRuntime();
+    return createKeynesHandle(runtime);
+  }
+  const options = arguments_[0];
+  if (
+    arguments_.length !== 1 ||
+    !isRecord(options) ||
+    Object.keys(options).length !== 1 ||
+    typeof options.databaseUrl !== "string"
+  ) {
     throw new KeynesSdkError("invalid_configuration", {
       field: "options",
       reason: "unsupported",
     });
   }
-  const runtime = await openConfiguredRuntime();
-  return createKeynesHandle(runtime);
+  const poolConfig = normalizeDatabaseUrl(options.databaseUrl);
+  const executor = await openPostgresqlCommandExecutor(poolConfig);
+  const client = createRemoteKeynesClient(executor);
+  const createBudget: RootBudgetCreator = (
+    schema,
+    allocation,
+    ...createOptions
+  ) => createRemoteRootBudget(client, schema, allocation, ...createOptions);
+  const close = (): Promise<void> => executor.close();
+  return Object.freeze({
+    [keynesBrand]: undefined,
+    createBudget,
+    close,
+    [Symbol.asyncDispose]: close,
+  });
 }
 
 function createKeynesHandle(runtime: LocalRuntime): LocalKeynes {
@@ -139,3 +179,53 @@ type PolicySetInput = {
   readonly contextSchemaDigest: string | null;
   readonly setDigest: string;
 };
+
+async function createRemoteRootBudget<
+  const Definitions extends ResourceDefinitions,
+  const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+  const Policies extends PolicySetInput | undefined = undefined,
+>(
+  client: ReturnType<typeof createRemoteKeynesClient>,
+  schema: ResourceSchema<Definitions>,
+  allocation: ExactResourceAmounts<ResourceNames<Definitions>, Allocation>,
+  ...options: AttachPolicyArguments<
+    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    Policies
+  >
+): Promise<
+  Budget<
+    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    ContextOfPolicySet<Policies>,
+    ReasonsOfPolicySet<Policies>
+  >
+> {
+  type BudgetName = Extract<keyof Allocation, ResourceNames<Definitions>>;
+  const resources = prepareRootResources<Definitions, BudgetName>(
+    schema,
+    allocation,
+  );
+  const policies = attachedPolicyDefinitions(options);
+  const result = await client.createBudget({
+    operationKey: createInternalOperationKey(),
+    resources: rootResourceEnvelope(resources),
+    ...(policies === undefined ? {} : { policies }),
+  });
+  return createRemoteBudgetHandle<
+    BudgetName,
+    ContextOfPolicySet<Policies>,
+    ReasonsOfPolicySet<Policies>
+  >(
+    client,
+    {
+      budgetReference: result.budget.budgetReference,
+      parentBudgetReference: null,
+      rootBudgetReference: result.budget.budgetReference,
+      depth: 0,
+    },
+    createRemoteResourceBinding(resources, result.budget),
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

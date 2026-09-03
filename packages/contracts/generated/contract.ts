@@ -1,7 +1,7 @@
 // Generated from packages/contracts. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "85b6193ade401110325fb22569c52c72f298d52effd4e52dcc518cf10ea46a5b";
+  "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27";
 export const REMOTE_PROCEDURES_DIGEST =
   "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43";
 export const REMOTE_CONTRACT = {

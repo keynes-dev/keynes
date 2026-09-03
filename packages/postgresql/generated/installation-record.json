@@ -18,10 +18,10 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "85b6193ade401110325fb22569c52c72f298d52effd4e52dcc518cf10ea46a5b",
+  "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43",
-  "migrationSetDigest": "e4fd733d8cf4bfad1604d4d392504f3d924b76eb053ebcb931903457fbfd2e65",
+  "migrationSetDigest": "9f75b75918842333d5fe5ca744db180098e6d2b0ba8b9f8197c46ad374af144a",
   "migrations": [
     {
       "id": "0001-storage",
@@ -54,7 +54,7 @@
       "id": "0006-remote-access",
       "path": "0006-remote-access.sql",
       "sha256": "e1b295ef1a1dcb7a00958b87f01382c597301324f6b70eab6b77022a6a855918",
-      "contractDigest": "85b6193ade401110325fb22569c52c72f298d52effd4e52dcc518cf10ea46a5b"
+      "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
     }
   ],
   "expectedTargets": [

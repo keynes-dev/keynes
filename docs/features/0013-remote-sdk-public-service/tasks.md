@@ -47,18 +47,18 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 ### Tests
 
-- [ ] T017 [P] [US1] Add failing URL and TLS normalization tests for valid, malformed, duplicate, unknown, and unsafe parameters in `packages/sdk/test/unit/remote/connection-options.test.ts`
-- [ ] T018 [P] [US1] Add failing remote pool lifecycle and no-fallback tests in `packages/sdk/test/unit/remote/postgresql-command-executor.test.ts`
-- [ ] T019 [P] [US1] Add failing public factory, export, close, and shared-handle tests in `packages/sdk/test/unit/public/remote.test.ts`
-- [ ] T020 [US1] Add failing native PostgreSQL full-loop and Policy conformance scenarios in `packages/postgresql/test/system/remote-budget.test.ts`
+- [x] T017 [P] [US1] Add failing URL and TLS normalization tests for valid, malformed, duplicate, unknown, and unsafe parameters in `packages/sdk/test/unit/remote/connection-options.test.ts`
+- [x] T018 [P] [US1] Add failing remote pool lifecycle and no-fallback tests in `packages/sdk/test/unit/remote/postgresql-command-executor.test.ts`
+- [x] T019 [P] [US1] Add failing public factory, export, close, and shared-handle tests in `packages/sdk/test/unit/public/remote.test.ts`
+- [x] T020 [US1] Add failing native PostgreSQL full-loop and Policy conformance scenarios in `packages/postgresql/test/system/remote-budget.test.ts`
 
 ### Implementation
 
-- [ ] T021 [US1] Implement strict one-pass URL normalization and `pg.PoolConfig` construction in `packages/sdk/src/remote/connection-options.ts`
-- [ ] T022 [US1] Implement pool acquisition, compatibility checks, generated command execution, and bounded close in `packages/sdk/src/remote/postgresql-command-executor.ts`
-- [ ] T023 [US1] Add the `createKeynes({ databaseUrl })` overload and remote handle construction in `packages/sdk/src/keynes.ts`
-- [ ] T024 [US1] Export only the accepted remote public types and errors from `packages/sdk/src/index.ts`
-- [ ] T025 [US1] Run shared conformance against local SQLite and the remote executor through `packages/sdk/test/conformance/test-host.ts`
+- [x] T021 [US1] Implement strict one-pass URL normalization and `pg.PoolConfig` construction in `packages/sdk/src/remote/connection-options.ts`
+- [x] T022 [US1] Implement pool acquisition, compatibility checks, generated command execution, and bounded close in `packages/sdk/src/remote/postgresql-command-executor.ts`
+- [x] T023 [US1] Add the `createKeynes({ databaseUrl })` overload and remote handle construction in `packages/sdk/src/keynes.ts`
+- [x] T024 [US1] Export only the accepted remote public types and errors from `packages/sdk/src/index.ts`
+- [x] T025 [US1] Run shared conformance against local SQLite and the remote executor through `packages/sdk/test/conformance/test-host.ts`
 - [ ] T026 [US1] Run focused SDK unit and native PostgreSQL full-loop tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 
 **Checkpoint**: User story 1 works without reopen or automatic recovery.
