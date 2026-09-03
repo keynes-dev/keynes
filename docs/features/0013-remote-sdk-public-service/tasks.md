@@ -122,8 +122,8 @@ Behavioral tests must be written and observed failing for the expected reason be
 - [x] T045 Map every retained Cloud assertion to replacement coverage or an obsolete-service disposition in `docs/features/0013-remote-sdk-public-service/contracts/cloud-retirement.md`
 - [x] T046 Remove `apps/cloud` only after T045 passes, including its generator, workspace, root-script, structural-test, and active-documentation edges in `apps/cloud/`, `scripts/generate.ts`, `package.json`, `pnpm-workspace.yaml`, and `scripts/repository-organization.test.ts`
 - [x] T047 Run `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, `CI=true pnpm test:pr`, and `pnpm test:system:postgresql`; record exact results and every `NOT RUN` lane in `docs/features/0013-remote-sdk-public-service/evidence/`
-- [ ] T048 Run the authorized remote-database lane only after explicit approval and retain its redacted exact-revision record in `docs/features/0013-remote-sdk-public-service/evidence/`
-- [ ] T049 Run a timed clean-user quickstart walkthrough and require completion in under 15 minutes; record its inputs, duration, source revision, archive digest, and outcome, then update `docs/features/0013-remote-sdk-public-service/quickstart.md` and `docs/features/0013-remote-sdk-public-service/evidence/`
+- [ ] T048 Optionally run the authorized external-provider lane after explicit approval and retain its redacted exact-revision record in `docs/features/0013-remote-sdk-public-service/evidence/`; this deployment evidence does not block FEAT-0013 acceptance
+- [ ] T049 After provider-free positive TLS qualification, run a timed clean-user quickstart walkthrough against a fresh disposable TLS target and require completion in under 15 minutes; record its inputs, duration, source revision, archive digest, and outcome, then update `docs/features/0013-remote-sdk-public-service/quickstart.md` and `docs/features/0013-remote-sdk-public-service/evidence/`
 - [x] T050 Reconcile product, architecture, roadmap status, ADR links, feature checklist, and accepted evidence in `docs/product.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/0007-direct-postgresql-remote-access.md`, and `docs/features/0013-remote-sdk-public-service/`
 
 ## Dependencies and execution order
@@ -134,6 +134,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 4. User story 2 depends on user story 1's executor and handles.
 5. User story 3 depends on the procedure and connection foundations but its test authoring can overlap user story 2.
 6. Package qualification and Cloud retirement follow all three stories. T046 cannot begin until T045 proves replacement coverage.
+7. Provider-free positive TLS qualification blocks T049. T048 is optional deployment evidence and does not block T049 or FEAT-0013 acceptance.
 
 ## Parallel opportunities
 

@@ -1,6 +1,6 @@
 # Quickstart: Remote PostgreSQL flow
 
-> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The authorized external qualification and timed walkthrough remain `NOT RUN` until an operator-prepared dedicated endpoint and credentials are supplied.
+> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. Provider-free positive TLS qualification and the timed walkthrough remain `NOT RUN`. External-provider qualification is optional deployment evidence.
 
 ## Provision one scoped credential
 
@@ -83,7 +83,7 @@ The result is committed, known failure, unresolved, or expired. Completed operat
 
 Use the private administrative procedure boundary from an operator-controlled session. Ordinary SDK credentials cannot call it. Validate the published behavior for already-open pooled connections before treating rotation or revocation as qualified.
 
-## Run the full external qualification
+## Optionally run external-provider qualification
 
 Use a dedicated, disposable PostgreSQL 18.6 database. Before running the
 qualifier, prepare these roles on that database server:
@@ -151,9 +151,14 @@ tenant-isolation observations. This first qualifier accepts only a direct
 topology. Pooler qualification needs separate client-to-pooler and
 pooler-to-PostgreSQL observations and remains `NOT RUN`.
 
-## Run the authorized package walkthrough
+## Run the timed package walkthrough
 
-Only run this lane with explicit approval for a dedicated TLS endpoint. Set the secret URL outside shell history and supply a separate non-secret target identity so the runner cannot reach a different database accidentally:
+Run this lane against a fresh disposable PostgreSQL 18.6 target with verified
+TLS after the provider-free TLS qualifier passes. Set the secret URL outside
+shell history and supply a separate non-secret target identity so the runner
+cannot reach a different database accidentally. Do not reuse a qualification
+target whose credential-lifecycle scenarios changed or revoked its runtime
+credentials:
 
 ```sh
 export KEYNES_QUALIFICATION_TARGET='application@db.example.test:5432/keynes'
@@ -162,8 +167,4 @@ pnpm test:package:sdk -- \
   --authorized-database
 ```
 
-The runner requires `KEYNES_DATABASE_URL`, creates a five-unit root, requests and settles two units, closes the first client, reconnects, reopens the root, and verifies the durable result. It does not retain or print the URL. Passing this narrow walkthrough does not replace the full authorized remote-database acceptance contract, which also requires provider, certificate, topology, identity, credential-lifecycle, and TLS evidence.
-
-Run the timed walkthrough against a fresh prepared target after T048. The full
-qualification rotates and revokes credentials, so reusing its database would
-not represent a clean-user path.
+The runner requires `KEYNES_DATABASE_URL`, creates a five-unit root, requests and settles two units, closes the first client, reconnects, reopens the root, and verifies the durable result. It does not retain or print the URL. Passing this walkthrough proves the clean-user path against the supported local TLS profile. It does not prove the facts owned by an external provider, public network, or production deployment.
