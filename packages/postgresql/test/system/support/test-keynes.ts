@@ -97,8 +97,12 @@ export async function openPostgresqlContractTestHost(): Promise<ContractTestHost
 }
 
 export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
+  const context = parsePostgresqlSystemContext(
+    requirePostgresqlSystemContext(),
+  );
   const owner = await openPostgresOwner(
-    requirePostgresqlSystemAdministratorUrl(),
+    context.administratorUrl,
+    context.commandPath,
   );
   const application = await owner.createApplicationRole();
   return {

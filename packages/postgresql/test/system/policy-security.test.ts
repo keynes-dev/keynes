@@ -56,7 +56,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         resource: { kind: "catalog_scan" },
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [malformed],
@@ -113,7 +113,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           canonicalSql: canonicalPolicySql(artifact),
         });
 
-        const wire = await committedCall(fixture, "createBudget", {
+        const wire = await committedCreateBudget(fixture, {
           commandId: ROOT_ID,
           resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
           policies: [policy],
@@ -162,7 +162,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           canonicalSql: canonicalPolicySql(artifact),
         });
 
-        const wire = await committedCall(fixture, "createBudget", {
+        const wire = await committedCreateBudget(fixture, {
           commandId: ROOT_ID,
           resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
           policies: [policy],
@@ -179,7 +179,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           "create table keynes_internal.submitted_sql_executed(value text)",
       });
       await defineResource(fixture);
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -205,7 +205,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         name: "Request_Limit",
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -223,7 +223,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       await defineResource(fixture);
       const policy = resealPolicy(basePolicy(), baseProgram(), { revision: 0 });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -248,7 +248,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         canonicalSql: canonicalPolicySql(program),
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -270,7 +270,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       const first = basePolicy();
       const second = resealPolicy(first, baseProgram(), { revision: 2 });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [first, second],
@@ -294,7 +294,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         outputResources: ["search_queries"],
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [
           { resourceTypeId: RESOURCE_ID, amount: 100 },
@@ -330,7 +330,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         canonicalSql: canonicalPolicySql(program),
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -354,7 +354,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         Buffer.byteLength(String(policy.canonicalSql), "utf8"),
       ).toBeGreaterThan(16_384);
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -386,7 +386,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       ).toBe(true);
       expect(sourceBytes).toBeGreaterThan(65_536);
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies,
@@ -422,7 +422,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         program,
         { canonicalSql: canonicalPolicySql(program) },
       );
-      const created = await committedCall(fixture, "createBudget", {
+      const created = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [
           { resourceTypeId: RESOURCE_ID, amount: 100 },
@@ -455,7 +455,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         program,
         { canonicalSql: canonicalPolicySql(program) },
       );
-      const created = await committedCall(fixture, "createBudget", {
+      const created = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [
           { resourceTypeId: RESOURCE_ID, amount: 100 },
@@ -524,7 +524,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         inputResources: ["model_tokens", "search_queries"],
         outputResources: ["search_queries"],
       });
-      const created = await committedCall(fixture, "createBudget", {
+      const created = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [
           { resourceTypeId: RESOURCE_ID, amount: 100 },
@@ -617,7 +617,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         inputResources: ["model_tokens", "search_queries"],
         canonicalSql: canonicalPolicySql(program),
       });
-      const created = await committedCall(fixture, "createBudget", {
+      const created = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [
           { resourceTypeId: RESOURCE_ID, amount: 9_007_199_254_740_991 },
@@ -652,7 +652,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         canonicalSql: canonicalPolicySql(program),
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -710,7 +710,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           contextSchema,
         });
 
-        const wire = await committedCall(fixture, "createBudget", {
+        const wire = await committedCreateBudget(fixture, {
           commandId: ROOT_ID,
           resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
           policies: [policy],
@@ -745,7 +745,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         canonicalSql: canonicalPolicySql(program),
       });
 
-      const wire = await committedCall(fixture, "createBudget", {
+      const wire = await committedCreateBudget(fixture, {
         commandId: ROOT_ID,
         resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
         policies: [policy],
@@ -759,7 +759,16 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         "createBudget",
         {
           commandId: "not-a-uuid",
-          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+          resources: [
+            {
+              definition: {
+                canonicalName: "model_tokens",
+                unit: "token",
+                accountingBehavior: "consumable",
+              },
+              amount: 100,
+            },
+          ],
           policies: [basePolicy()],
         },
       ],
@@ -896,12 +905,51 @@ async function defineSecondResource(fixture: SecurityFixture): Promise<void> {
   expect(wire).toMatchObject({ ok: true });
 }
 
+const ROOT_RESOURCE_DEFINITIONS = {
+  [RESOURCE_ID]: {
+    canonicalName: "model_tokens",
+    unit: "token",
+    accountingBehavior: "consumable",
+  },
+  [SECOND_RESOURCE_ID]: {
+    canonicalName: "search_queries",
+    unit: "query",
+    accountingBehavior: "consumable",
+  },
+} as const;
+
+type RootResourceId = keyof typeof ROOT_RESOURCE_DEFINITIONS;
+
+interface RootFixtureResource {
+  readonly resourceTypeId: RootResourceId;
+  readonly amount: number;
+}
+
+interface RootFixtureCommand {
+  readonly commandId: string;
+  readonly resources: readonly RootFixtureResource[];
+  readonly policies?: readonly unknown[];
+}
+
+function committedCreateBudget(
+  fixture: SecurityFixture,
+  input: RootFixtureCommand,
+): Promise<unknown> {
+  return committedCall(fixture, "createBudget", {
+    ...input,
+    resources: input.resources.map(({ resourceTypeId, amount }) => ({
+      definition: ROOT_RESOURCE_DEFINITIONS[resourceTypeId],
+      amount,
+    })),
+  });
+}
+
 async function seedGovernedRoot(
   fixture: SecurityFixture,
   policy: Readonly<Record<string, unknown>> | PolicyDefinitionV1,
 ): Promise<void> {
   await defineResource(fixture);
-  const wire = await committedCall(fixture, "createBudget", {
+  const wire = await committedCreateBudget(fixture, {
     commandId: ROOT_ID,
     resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
     policies: [policy],

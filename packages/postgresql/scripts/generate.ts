@@ -16,10 +16,8 @@ import {
 } from "@keynes/contracts";
 import { format } from "oxfmt";
 
-import {
-  expectedPostgresObjects,
-  renderPolicyMigration,
-} from "./policy-migration.ts";
+import { expectedPostgresObjects } from "./policy-migration.ts";
+import { renderResourceBoundBudgetMigration } from "./resource-bound-budget-migration.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
 
 const POSTGRES_PROFILE = {
@@ -51,6 +49,8 @@ const IMMUTABLE_MIGRATION_SHA256 = {
     "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
   "0003-public.generated.sql":
     "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+  "0004-policy.sql":
+    "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
 } as const;
 
 interface InstallationMigration {
@@ -79,11 +79,17 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     join(repositoryRoot, "packages/postgresql/migrations/0002-budget.sql"),
     "utf8",
   );
-  const policySql = renderPolicyMigration(
-    options.policyProfile,
-    legacyBudgetSql,
-    options.contract.source,
+  const policySql = readFileSync(
+    join(repositoryRoot, "packages/postgresql/migrations/0004-policy.sql"),
+    "utf8",
   );
+  const resourceBoundBudgetSql =
+    renderResourceBoundBudgetMigration(legacyBudgetSql);
+  const migrationSources = new Map<string, string>([
+    ["0003-public.generated.sql", publicSql],
+    ["0004-policy.sql", policySql],
+    ["0005-resource-bound-budget.sql", resourceBoundBudgetSql],
+  ]);
   const manifest = readMigrationManifest(repositoryRoot);
   const contractMigrations = manifest.filter(
     (migration) => migration.contract === true,
@@ -94,8 +100,7 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
   const contractMigrationId = requireString(contractMigrations[0], "id");
   const migrations = migrationRecords(
     repositoryRoot,
-    publicSql,
-    policySql,
+    migrationSources,
     manifest,
   ).map((migration) =>
     migration.id === contractMigrationId
@@ -123,15 +128,18 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     outputRoot: join(repositoryRoot, "packages/postgresql"),
     outputs: new Map([
       ["generated/installation-record.json", formattedInstallationRecord],
-      ["migrations/0003-public.generated.sql", publicSql],
-      ["migrations/0004-policy.sql", policySql],
+      ...[...migrationSources].map(
+        ([path, source]) => [`migrations/${path}`, source] as const,
+      ),
     ]),
     generatedDirectories: [
       { path: "generated", accepts: () => true },
       {
         path: "migrations",
         accepts: (fileName) =>
-          fileName.endsWith(".generated.sql") || fileName === "0004-policy.sql",
+          fileName.endsWith(".generated.sql") ||
+          fileName === "0004-policy.sql" ||
+          fileName === "0005-resource-bound-budget.sql",
       },
     ],
   });
@@ -179,23 +187,32 @@ function readMigrationManifest(repositoryRoot: string): readonly JsonObject[] {
 
 function migrationRecords(
   repositoryRoot: string,
-  publicSql: string,
-  policySql: string,
+  migrationSources: ReadonlyMap<string, string>,
   migrations: readonly JsonObject[],
 ): readonly InstallationMigration[] {
   return migrations.map((migration) => {
     const id = requireString(migration, "id");
     const path = requireString(migration, "path");
     const contents =
-      path === "0003-public.generated.sql"
-        ? publicSql
-        : path === "0004-policy.sql"
-          ? policySql
-          : readFileSync(
-              join(repositoryRoot, "packages/postgresql/migrations", path),
-              "utf8",
-            );
-    return { id, path, sha256: sha256(contents) };
+      migrationSources.get(path) ??
+      readFileSync(
+        join(repositoryRoot, "packages/postgresql/migrations", path),
+        "utf8",
+      );
+    const contractDigest = migration.contractDigest;
+    if (
+      contractDigest !== undefined &&
+      (typeof contractDigest !== "string" ||
+        !/^[0-9a-f]{64}$/u.test(contractDigest))
+    ) {
+      throw new Error("migration field contractDigest must be a digest");
+    }
+    return {
+      id,
+      path,
+      sha256: sha256(contents),
+      ...(typeof contractDigest === "string" ? { contractDigest } : {}),
+    };
   });
 }
 

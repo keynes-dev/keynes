@@ -32,6 +32,16 @@ const SEARCH_RESOURCE_ID = "13000000-0000-4000-8000-000000000002";
 const ROOT_ID = "23000000-0000-4000-8000-000000000001";
 const OTHER_ROOT_ID = "23000000-0000-4000-8000-000000000002";
 const REQUEST_ID = "33000000-0000-4000-8000-000000000001";
+const MODEL_TOKENS = {
+  canonicalName: "model_tokens",
+  unit: "token",
+  accountingBehavior: "consumable",
+};
+const SEARCH_QUERIES = {
+  canonicalName: "search_queries",
+  unit: "query",
+  accountingBehavior: "consumable",
+};
 
 interface ReplayFixture {
   readonly owner: PostgresDatabase;
@@ -239,29 +249,21 @@ async function seedGovernedRoot(
   requireSuccess(
     await committedRawCall(fixture, "defineResource", {
       commandId: RESOURCE_ID,
-      definition: {
-        canonicalName: "model_tokens",
-        unit: "token",
-        accountingBehavior: "consumable",
-      },
+      definition: MODEL_TOKENS,
     }),
   );
   requireSuccess(
     await committedRawCall(fixture, "defineResource", {
       commandId: SEARCH_RESOURCE_ID,
-      definition: {
-        canonicalName: "search_queries",
-        unit: "query",
-        accountingBehavior: "consumable",
-      },
+      definition: SEARCH_QUERIES,
     }),
   );
   requireSuccess(
     await committedRawCall(fixture, "createBudget", {
       commandId: ROOT_ID,
       resources: [
-        { resourceTypeId: RESOURCE_ID, amount: 100 },
-        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 100 },
+        { definition: MODEL_TOKENS, amount: 100 },
+        { definition: SEARCH_QUERIES, amount: 100 },
       ],
       policies: [policy],
     }),
@@ -276,8 +278,8 @@ async function createOtherGovernedRoot(
     await committedRawCall(fixture, "createBudget", {
       commandId: OTHER_ROOT_ID,
       resources: [
-        { resourceTypeId: RESOURCE_ID, amount: 1 },
-        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 1 },
+        { definition: MODEL_TOKENS, amount: 1 },
+        { definition: SEARCH_QUERIES, amount: 1 },
       ],
       policies: [policy],
     }),

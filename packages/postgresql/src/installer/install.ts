@@ -362,10 +362,35 @@ function parseFunctions(
   assets: readonly InstallationAssets[],
 ): ReadonlyMap<string, ExpectedFunction> {
   const functions = new Map<string, ExpectedFunction>();
-  const pattern =
+  const createPattern =
     /CREATE(?: OR REPLACE)? FUNCTION\s+([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\)\s*RETURNS\s+([^\n]+)\n([\s\S]*?)\nAS\s+(\$[a-z_]*\$)([\s\S]*?)\5;/giu;
+  const renamePattern =
+    /ALTER FUNCTION\s+([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\)\s+RENAME TO\s+([a-z_][a-z0-9_]*);/giu;
   for (const asset of assets) {
-    for (const match of asset.sql.matchAll(pattern)) {
+    for (const match of asset.sql.matchAll(renamePattern)) {
+      const [, target, rawArguments, replacement] = match;
+      if (
+        target === undefined ||
+        rawArguments === undefined ||
+        replacement === undefined
+      ) {
+        throw new Error(
+          `could not parse migration function rename: ${asset.id}`,
+        );
+      }
+      const sourceName = functionObjectName(target, rawArguments);
+      const definition = functions.get(sourceName);
+      if (definition === undefined) {
+        throw new Error(`missing migration function rename source: ${target}`);
+      }
+      functions.delete(sourceName);
+      const schema = target.slice(0, target.indexOf("."));
+      functions.set(
+        functionObjectName(`${schema}.${replacement}`, rawArguments),
+        definition,
+      );
+    }
+    for (const match of asset.sql.matchAll(createPattern)) {
       const [, target, rawArguments, rawReturnType, attributes, , body] = match;
       if (
         target === undefined ||
@@ -383,10 +408,7 @@ function parseFunctions(
       const searchPath = /(?:^|\n)SET search_path\s*=\s*([^\n]+)/iu.exec(
         attributes,
       )?.[1];
-      const objectName = `function:${target}(${rawArguments
-        .split(",")
-        .map((argument) => argument.trim().replace(/\s+/gu, " "))
-        .join(",")})`;
+      const objectName = functionObjectName(target, rawArguments);
       functions.set(objectName, {
         body: body.trim(),
         language: language.toLowerCase(),
@@ -403,6 +425,14 @@ function parseFunctions(
     }
   }
   return functions;
+}
+
+function functionObjectName(target: string, rawArguments: string): string {
+  const arguments_ = rawArguments
+    .split(",")
+    .map((argument) => argument.trim().replace(/\s+/gu, " "))
+    .join(",");
+  return `function:${target}(${arguments_})`;
 }
 
 async function checkPermissions(

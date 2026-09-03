@@ -18,8 +18,8 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  "migrationSetDigest": "c91775fd6203227feacfe0b096bb5334bf905e075abf6fca5ae87bf97f460ee3",
+  "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
+  "migrationSetDigest": "291d0c17687bbf76e7b8b7b49a98b354b4a2d6ebbb6a6b1e0d5ba084725064fe",
   "migrations": [
     {
       "id": "0001-storage",
@@ -41,6 +41,12 @@
       "path": "0004-policy.sql",
       "sha256": "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
       "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
+    },
+    {
+      "id": "0005-resource-bound-budget",
+      "path": "0005-resource-bound-budget.sql",
+      "sha256": "4ce2f2eaf9a9e0c892f27311fe436334dfdbf2529482299ac6c3bfb9e67b8929",
+      "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5"
     }
   ],
   "expectedTargets": [
@@ -74,6 +80,11 @@
     "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
     "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
     "function:keynes_internal.apply_command(operation_name text,input jsonb)",
+    "function:keynes_internal.apply_command_v0004(operation_name text,input jsonb)",
+    "function:keynes_internal.canonical_resource_definition_v0005(operation_name text,value jsonb,issue_path text)",
+    "function:keynes_internal.canonical_root_resources_v0005(operation_name text,value jsonb,issue_path text)",
+    "function:keynes_internal.apply_define_resource_v0005(input jsonb)",
+    "function:keynes_internal.apply_create_budget_v0005(input jsonb)",
     "function:keynes_internal.get_budget(input jsonb)",
     "function:keynes.define_resource_type(input jsonb)",
     "function:keynes.create_budget(input jsonb)",
@@ -147,7 +158,7 @@
   "functions": [
     {
       "operation": "defineResource",
-      "permission": "define_resource_type",
+      "permissions": ["define_resource_type"],
       "target": "keynes.define_resource_type",
       "argumentType": "jsonb",
       "returnType": "jsonb",
@@ -157,7 +168,7 @@
     },
     {
       "operation": "createBudget",
-      "permission": "create_root_budget",
+      "permissions": ["define_resource_type", "create_root_budget"],
       "target": "keynes.create_budget",
       "argumentType": "jsonb",
       "returnType": "jsonb",
@@ -167,7 +178,7 @@
     },
     {
       "operation": "requestBudget",
-      "permission": "request_budget",
+      "permissions": ["request_budget"],
       "target": "keynes.request",
       "argumentType": "jsonb",
       "returnType": "jsonb",
@@ -177,7 +188,7 @@
     },
     {
       "operation": "settleBudget",
-      "permission": "settle_budget",
+      "permissions": ["settle_budget"],
       "target": "keynes.settle",
       "argumentType": "jsonb",
       "returnType": "jsonb",
@@ -187,7 +198,7 @@
     },
     {
       "operation": "getBudget",
-      "permission": "read_budget",
+      "permissions": ["read_budget"],
       "target": "keynes.get_budget",
       "argumentType": "jsonb",
       "returnType": "jsonb",
