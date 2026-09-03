@@ -412,18 +412,20 @@ export function createBudgetHandle<
     ...options
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
-  const settle: Budget<Names, Context, Reasons>["settle"] = (usage) =>
-    admit(runtime, async () => {
+  const settle: Budget<Names, Context, Reasons>["settle"] = (usage) => {
+    const observedUsage = Object.freeze({ ...usage });
+    return admit(runtime, async () => {
       const command = {
         commandId: randomUUID(),
         budgetId,
-        usage: binding.usage(usage),
+        usage: binding.usage(observedUsage),
       } satisfies SettleBudgetCommand;
       const result = await invokeBudgetOperation(binding, () =>
         invokeMutation(() => runtime.client.settleBudget(command)),
       );
       return projectSettlement(binding, result);
     });
+  };
 
   const inspect = (): Promise<BudgetSnapshot<Names, Reasons, Context>> =>
     admit(runtime, async () => {
@@ -471,9 +473,10 @@ function requestBudget<
 > {
   type RequestedName = Extract<keyof Resources, Names>;
   const preparedOptions = prepareRequestPolicyOptions(options);
+  const requestedResources = Object.freeze({ ...resources });
   const pending = admit(runtime, async () => {
     const resolved = binding.resources<RequestedName>(
-      resources,
+      requestedResources,
       "requestBudget",
     );
     const command: RequestBudgetCommand = {

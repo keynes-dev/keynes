@@ -464,6 +464,15 @@ describe("local Keynes facade", () => {
           ({ resource }) => resource,
         ),
       ).toEqual(["workUnits"]);
+      await expect(
+        Reflect.apply(approved.budget.request, approved.budget, [
+          { workUnits: 1, tokens: 1 },
+        ]),
+      ).rejects.toMatchObject({
+        name: "KeynesSdkError",
+        code: "resource_not_defined",
+        details: { operation: "requestBudget", resource: "tokens" },
+      });
     } finally {
       await keynes.close();
     }
@@ -516,6 +525,49 @@ describe("local Keynes facade", () => {
 
       await expect(pending).resolves.toMatchObject({
         budget: { resources: [{ resource: "workUnits" }] },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("keeps malformed child inputs inside the asynchronous error boundary", async () => {
+    const resources = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: () => 1 },
+      ]);
+      expect(requested).toBeInstanceOf(Promise);
+      await expect(requested).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "invalid_command",
+        details: {
+          operation: "requestBudget",
+          issues: [{ path: "$.resources.workUnits", rule: "type" }],
+        },
+      });
+
+      const approved = await root.request({ workUnits: 1 });
+      if (approved.status !== "approved") {
+        throw new Error("expected approved request");
+      }
+      const settled: unknown = Reflect.apply(
+        approved.budget.settle,
+        approved.budget,
+        [{ workUnits: () => 1 }],
+      );
+      expect(settled).toBeInstanceOf(Promise);
+      await expect(settled).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "invalid_command",
+        details: {
+          operation: "settleBudget",
+          issues: [{ path: "$.usage.workUnits", rule: "type" }],
+        },
       });
     } finally {
       await keynes.close();
