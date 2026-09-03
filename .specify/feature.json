@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "feature_id": "FEAT-0012",
-  "slug": "portable-policy-evaluation",
-  "branch": "feat/0012-portable-policy-evaluation",
-  "feature_directory": "docs/features/0012-portable-policy-evaluation",
+  "feature_id": "FEAT-0013",
+  "slug": "remote-sdk-public-service",
+  "branch": "feat/0013-remote-sdk-public-service",
+  "feature_directory": "docs/features/0013-remote-sdk-public-service",
   "roadmap_stage": "Implementation sequence"
 }

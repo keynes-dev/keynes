@@ -1,15 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 4.0.0 -> 4.1.0
+- Version change: 4.1.0 -> 5.0.0
 - Modified principles:
-  - III. Restricted, fail-closed Policies: select Kysely for typed authoring, retain raw SQL, and require transaction-local Keynes authority over one versioned semantics contract
-- Modified sections:
-  - Delivery and evidence gates: require Kysely compilation, raw-SQL parsing, normalization, backend derivation, and cross-backend conformance coverage
+  - I. One source of truth per Budget: replace the obsolete constructor signature with a configuration-level access-path and no-fallback rule
+- Modified sections: None
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
-  - updated: .specify/templates/plan-template.md
-  - updated: .specify/templates/tasks-template.md
+  - validated, no content change: .specify/templates/plan-template.md
+  - validated, no content change: .specify/templates/tasks-template.md
   - validated, no content change: .specify/templates/spec-template.md
   - validated, no content change: .specify/templates/checklist-template.md
   - validated, no content change: .specify/templates/constitution-template.md
@@ -18,10 +17,14 @@ Sync Impact Report
   - updated: docs/product.md
   - updated: docs/architecture.md
   - updated: docs/roadmap.md
-  - updated: docs/features/0012-portable-policy-evaluation/*
-  - updated: docs/workflow.md
+  - validated, no content change: docs/workflow.md
+  - updated: docs/adr/0003-sqlite-and-postgresql.md
+  - added: docs/adr/0007-direct-postgresql-remote-access.md
+  - updated: docs/features/0013-remote-sdk-public-service/spec.md
+  - updated: docs/features/0013-remote-sdk-public-service/checklists/requirements.md
   - aligned: AGENTS.md
-- Follow-up TODOs: None
+- Follow-up TODOs:
+  - allocate the unnumbered Resource-bound Budget creation prerequisite only after this planning work reaches main
 -->
 
 # Keynes Constitution
@@ -41,9 +44,10 @@ A command MUST publish one complete result atomically or change no state.
 Resource conservation, availability, settlement, exact replay, conflicting
 command reuse, missing usage, overage, and unresolved work MUST retain one
 unambiguous meaning. Keynes MUST NOT copy a live Budget between deployments or
-write it to two places. Zero constructor arguments MUST select local SQLite. A
-supplied API-key configuration MUST select remote discovery, and invalid remote
-credentials MUST NOT fall back to another store.
+write it to two places. Public SDK configuration MUST select exactly one access
+path. A remote access path MUST authenticate and resolve to exactly one trusted
+Budget authority. Missing, invalid, or incompatible remote configuration MUST
+fail and MUST NOT select local state, another service, or another database.
 
 ### II. Application-owned effects
 
@@ -141,8 +145,8 @@ host, and attempt that produced it.
 - Local mode MUST run privately inside one Node.js process, expose no persistence
   or database handle, and lose its state when the process exits.
 - PostgreSQL MUST be the only durable database implementation. It MAY be
-  installed in an application's database, operated by a customer behind the
-  Keynes service, or operated by Keynes as managed Cloud.
+  installed in an application's database, reached directly by the SDK in a
+  customer-operated deployment, or operated by Keynes as managed Cloud.
 - Supporting MySQL, SQLite, or another durable database implementation requires
   a later constitution amendment and its own behavior, migration, concurrency,
   security, recovery, packaging, and operations evidence.
@@ -208,4 +212,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 4.1.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-27
+**Version**: 5.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-02
