@@ -110,6 +110,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles derives the same identity through the direct profile",
     "remote PostgreSQL connection profiles derives the same identity through the session-pool profile",
     "remote PostgreSQL connection profiles derives the same identity through the transaction-pool profile",
+    "remote PostgreSQL connection profiles proves the runner routes through the requested PgBouncer modes",
     "remote PostgreSQL connection profiles clears transaction-local identity after a direct call",
     "remote PostgreSQL connection profiles clears transaction-local identity after a session-pool call",
     "remote PostgreSQL connection profiles clears transaction-local identity after a transaction-pool call",
