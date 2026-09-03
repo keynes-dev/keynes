@@ -1,6 +1,6 @@
 # Quickstart: Remote PostgreSQL flow
 
-> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The timed walkthrough against an authorized external database remains `NOT RUN` because no dedicated endpoint was approved.
+> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The authorized external qualification and timed walkthrough remain `NOT RUN` until an operator-prepared dedicated endpoint and credentials are supplied.
 
 ## Provision one scoped credential
 
@@ -83,6 +83,74 @@ The result is committed, known failure, unresolved, or expired. Completed operat
 
 Use the private administrative procedure boundary from an operator-controlled session. Ordinary SDK credentials cannot call it. Validate the published behavior for already-open pooled connections before treating rotation or revocation as qualified.
 
+## Run the full external qualification
+
+Use a dedicated, disposable PostgreSQL 18.6 database. Before running the
+qualifier, prepare these roles on that database server:
+
+- `keynes_owner` as `NOLOGIN`;
+- `keynes_execution` as `NOLOGIN NOINHERIT`;
+- distinct `NOINHERIT LOGIN` roles for administration, the primary runtime,
+  its replacement, and a second tenant; and
+- an operator login that can install Keynes, assume `keynes_owner`, grant the
+  runtime procedures, and recreate the replacement role.
+
+The runner may install Keynes into an empty target or exactly recheck an
+existing installation. It never creates or deletes a provider database,
+instance, project, endpoint, or network rule. Dispose of the database after the
+run; credential rotation and terminal revocation intentionally leave test
+state behind.
+
+Create a secret-free profile. Obtain the expected leaf fingerprint from the
+approved provider endpoint through a separate operator channel:
+
+```json
+{
+  "schemaVersion": "keynes.external-postgresql-profile/v1",
+  "authorizationReference": "user-approved-2026-09-03",
+  "provider": "provider-slug",
+  "serverProfile": "postgresql-18.6",
+  "hostClass": "public-dns",
+  "topology": "direct",
+  "downstreamTlsOwner": "provider",
+  "expectedLeafCertificateSha256": "<64-lowercase-hex-characters>"
+}
+```
+
+Have the approved secret manager inject these seven variables directly into a
+non-interactive qualifier process. Do not write them to a retained file or
+paste them into an interactive shell. The wrong-CA URL must address the primary
+endpoint and name an unrelated local CA file through `sslrootcert`. The
+hostname-mismatch URL must route to the same endpoint through a name or address
+that is absent from the certificate. Both must fail for the intended TLS
+reason, not for routing or authentication.
+
+```text
+KEYNES_EXTERNAL_OPERATOR_URL
+KEYNES_EXTERNAL_ADMIN_URL
+KEYNES_EXTERNAL_PRIMARY_URL
+KEYNES_EXTERNAL_REPLACEMENT_URL
+KEYNES_EXTERNAL_SECONDARY_URL
+KEYNES_EXTERNAL_UNTRUSTED_CA_URL
+KEYNES_EXTERNAL_HOSTNAME_MISMATCH_URL
+```
+
+In that injected process, run:
+
+```sh
+pnpm test:external:postgresql -- \
+  --profile .artifacts/external/provider-profile.json \
+  --sdk-archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz \
+  --postgresql-archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz \
+  --output .artifacts/acceptance/feat0013-external.json
+```
+
+The create-once mode-`0600` result binds the clean source revision and both
+archive digests to the live server, semantic, procedure, TLS, credential, and
+tenant-isolation observations. This first qualifier accepts only a direct
+topology. Pooler qualification needs separate client-to-pooler and
+pooler-to-PostgreSQL observations and remains `NOT RUN`.
+
 ## Run the authorized package walkthrough
 
 Only run this lane with explicit approval for a dedicated TLS endpoint. Set the secret URL outside shell history and supply a separate non-secret target identity so the runner cannot reach a different database accidentally:
@@ -95,3 +163,7 @@ pnpm test:package:sdk -- \
 ```
 
 The runner requires `KEYNES_DATABASE_URL`, creates a five-unit root, requests and settles two units, closes the first client, reconnects, reopens the root, and verifies the durable result. It does not retain or print the URL. Passing this narrow walkthrough does not replace the full authorized remote-database acceptance contract, which also requires provider, certificate, topology, identity, credential-lifecycle, and TLS evidence.
+
+Run the timed walkthrough against a fresh prepared target after T048. The full
+qualification rotates and revokes credentials, so reusing its database would
+not represent a clean-user path.

@@ -24,6 +24,7 @@
     "test:package:sdk": "pnpm --filter @keynes/sdk test:package",
     "measure:package:sdk": "pnpm --filter @keynes/sdk measure:package",
     "test:package:postgresql": "pnpm --filter @keynes/postgresql test:package",
+    "test:external:postgresql": "pnpm --filter @keynes/postgresql test:external",
     "test:system:postgresql": "pnpm --filter @keynes/postgresql test:system",
     "check:feature-identity": "node .specify/scripts/feature-identity.mjs check-repository --json",
     "typecheck": "turbo run typecheck && tsc --project tsconfig.tests.json --noEmit",

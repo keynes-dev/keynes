@@ -22,10 +22,24 @@ keynes-postgresql install --config <path>
 ```
 
 The command accepts exactly one readable JSON configuration file containing
-`ownerRole`, `applicationRole`, `tenantId`, and `principalId`. The roles and
-database must already exist. The command supports only an absent target (fresh
-install) or an already exact target (read-only recheck). It never creates or
-alters PostgreSQL roles or databases.
+`ownerRole`, `executionRole`, `administrationRole`, `applicationRole`,
+`tenantId`, and `principalId`. All four roles and the database must already
+exist. The command supports only an absent target (fresh install) or an already
+exact target (read-only recheck). It never creates or alters PostgreSQL roles or
+databases.
+
+For example:
+
+```json
+{
+  "ownerRole": "keynes_owner",
+  "executionRole": "keynes_execution",
+  "administrationRole": "keynes_admin",
+  "applicationRole": "keynes_application",
+  "tenantId": "00000000-0000-4000-8000-000000000001",
+  "principalId": "00000000-0000-4000-8000-000000000101"
+}
+```
 
 The package has no JavaScript import surface. Use only the installed
 `keynes-postgresql` executable. Root, deep, ESM, CommonJS, and TypeScript
@@ -39,22 +53,29 @@ including `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, and
 adopter's normal secret-management system. Connection settings belong in the
 environment, not the configuration JSON.
 
-The operator must already be able to connect and assume a pre-existing
-`NOLOGIN` `keynes_owner` role. A pre-existing application role receives
-`USAGE` on `keynes` and `EXECUTE` on exactly the five supported functions:
+The operator must already be able to connect and assume the pre-existing
+`NOLOGIN` owner role. The execution role is also `NOLOGIN`; the administration
+role and application role are distinct `NOINHERIT` roles. The application role
+receives `USAGE` on `keynes` and `EXECUTE` on exactly the eight supported remote
+functions:
 
-- `keynes.define_resource_type(jsonb)`
-- `keynes.create_budget(jsonb)`
-- `keynes.request(jsonb)`
-- `keynes.settle(jsonb)`
-- `keynes.get_budget(jsonb)`
+- `keynes.remote_create_budget(jsonb)`
+- `keynes.remote_request(jsonb)`
+- `keynes.remote_settle(jsonb)`
+- `keynes.remote_get_budget(jsonb)`
+- `keynes.remote_get_budget_history_page(jsonb)`
+- `keynes.remote_open_budget(jsonb)`
+- `keynes.remote_recover_operation(jsonb)`
+- `keynes.remote_get_compatibility(jsonb)`
 
-Applications call these functions through one checked-out client and own
-`BEGIN`, `COMMIT`, and `ROLLBACK`. The application sets the installed tenant
-and principal with transaction-local settings. The preview trusts that
-assertion from the application role. It is not end-user authentication and
-does not qualify hostile-role isolation. Keynes does not acquire connections,
-manage the surrounding transaction, retry it, or read application tables.
+The authenticated application role is mapped to one tenant and principal.
+Every remote wrapper derives that identity from the PostgreSQL session and
+checks that the mapping remains enabled. Applications do not set tenant or
+principal session variables. The private administration procedures manage
+role mappings; runtime credentials cannot invoke them or read Keynes tables.
+The administration role can invoke the versioned private register, rotate,
+enable or disable, revoke, inspect, and audit procedures. Secret creation and
+delivery remain operator-owned and outside this package.
 
 ## Credential redaction
 

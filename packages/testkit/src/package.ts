@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
@@ -16,6 +16,7 @@ export interface InstallPackageArchiveOptions {
   readonly archivePath: string;
   readonly consumerName: string;
   readonly executable: string;
+  readonly environment?: NodeJS.ProcessEnv;
   readonly packageManager?: string;
   readonly workspace?: string;
   readonly consumerRoot?: string;
@@ -57,6 +58,7 @@ export async function packAndInstallWorkspacePackage(
 export async function installPackageArchive(
   options: InstallPackageArchiveOptions,
 ): Promise<InstalledPackage> {
+  const archivePath = resolve(options.archivePath);
   const workspace =
     options.workspace ??
     (await mkdtemp(join(tmpdir(), "keynes-installed-package-")));
@@ -76,13 +78,10 @@ export async function installPackageArchive(
         2,
       )}\n`,
     );
-    run(
-      PNPM,
-      ["install", "--ignore-scripts", "--offline", options.archivePath],
-      {
-        cwd: consumerRoot,
-      },
-    );
+    run(PNPM, ["install", "--ignore-scripts", "--offline", archivePath], {
+      cwd: consumerRoot,
+      environment: options.environment,
+    });
     const commandPath = join(
       consumerRoot,
       "node_modules",
@@ -93,7 +92,7 @@ export async function installPackageArchive(
     );
     await access(commandPath);
     return {
-      archivePath: options.archivePath,
+      archivePath,
       commandPath,
       consumerRoot,
       close: () => rm(workspace, { recursive: true, force: true }),
@@ -102,6 +101,23 @@ export async function installPackageArchive(
     await rm(workspace, { recursive: true, force: true });
     throw error;
   }
+}
+
+export function providerFreeEnvironment(
+  environment: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(
+      Object.entries(environment).filter(
+        ([name]) =>
+          name !== "KEYNES_DATABASE_URL" &&
+          name !== "KEYNES_QUALIFICATION_TARGET" &&
+          name !== "PGPASSWORD" &&
+          !name.startsWith("KEYNES_EXTERNAL_"),
+      ),
+    ),
+    CI: "true",
+  };
 }
 
 export function runInstalledCommand(
@@ -129,11 +145,15 @@ export function runInstalledCommand(
 function run(
   executable: string,
   arguments_: readonly string[],
-  options: { readonly cwd: string },
+  options: {
+    readonly cwd: string;
+    readonly environment?: NodeJS.ProcessEnv;
+  },
 ): void {
   const result = spawnSync(executable, [...arguments_], {
     cwd: options.cwd,
     encoding: "utf8",
+    env: options.environment,
   });
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) {
