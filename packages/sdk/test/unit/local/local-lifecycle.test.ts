@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createKeynes, defineResources } from "../../../src/index.js";
-import { openSqliteCommandExecutor as openRealSqliteCommandExecutor } from "../../../src/local/sqlite-command-executor.js";
+import {
+  openSqliteCommandExecutor as openRealSqliteCommandExecutor,
+  type SqliteMutationObserver,
+} from "../../../src/local/sqlite-command-executor.js";
+import { failAtMutationStage } from "../support/sqlite-faults.js";
 
 const workUnitResources = defineResources({
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -164,6 +168,66 @@ describe("local runtime lifecycle", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
+  it("rolls back a Resource definition when root creation fails", async () => {
+    const fault = failAtMutationStage("after_resource_insertion");
+    const executor = openTestExecutor(fault.observe);
+    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor: vi.fn(() => executor),
+    }));
+
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    const failedSchema = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const replacementSchema = defineResources({
+      workUnits: {
+        unit: "replacement-unit",
+        accountingBehavior: "consumable",
+      },
+    });
+    let keynes: Record<string, unknown> | undefined;
+    try {
+      keynes = requireRecord(
+        await invokeAsync(createFreshKeynes, undefined, []),
+        "Keynes handle",
+      );
+      fault.arm();
+      await expect(
+        invokeAsync(keynes.createBudget, keynes, [
+          failedSchema,
+          { workUnits: 10 },
+        ]),
+      ).rejects.toThrow("test rollback checkpoint: after_resource_insertion");
+
+      const root = requireRecord(
+        await invokeAsync(keynes.createBudget, keynes, [
+          replacementSchema,
+          { workUnits: 4 },
+        ]),
+        "Budget handle",
+      );
+      await expect(invokeAsync(root.inspect, root, [])).resolves.toMatchObject({
+        budget: {
+          resources: [
+            {
+              resource: "workUnits",
+              unit: "replacement-unit",
+              allocated: 4,
+            },
+          ],
+        },
+        history: { entries: [{ kind: "budget_created" }] },
+      });
+    } finally {
+      if (keynes === undefined) {
+        executor.close();
+      } else {
+        await invokeAsync(keynes.close, keynes, []);
+      }
+    }
+  });
+
   it("retains a SQLite schema initialization failure", async () => {
     const startupFailure = new Error("schema initialization failed");
     vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
@@ -212,7 +276,7 @@ describe("local runtime lifecycle", () => {
   });
 });
 
-function openTestExecutor() {
+function openTestExecutor(observeMutation?: SqliteMutationObserver) {
   return openRealSqliteCommandExecutor(
     {
       tenantId: "00000000-0000-4000-8000-000000000002",
@@ -233,5 +297,32 @@ function openTestExecutor() {
       tenantId: "00000000-0000-4000-8000-000000000002",
       principalId: "00000000-0000-4000-8000-000000000201",
     },
+    observeMutation,
   );
+}
+
+async function invokeAsync(
+  target: unknown,
+  receiver: unknown,
+  args: readonly unknown[],
+): Promise<unknown> {
+  if (typeof target !== "function") {
+    throw new TypeError("expected a callable test boundary");
+  }
+  const result: unknown = Reflect.apply(target, receiver, args);
+  return await Promise.resolve(result);
+}
+
+function requireRecord(
+  value: unknown,
+  description: string,
+): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new TypeError(`expected ${description}`);
+  }
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -21,6 +21,8 @@ import {
 const ROOT_BUDGET_ID = "21000000-0000-4000-8000-000000000001";
 const REQUEST_COMMAND_ID = "31000000-0000-4000-8000-000000000001";
 const OUTBOX_ID = "41000000-0000-4000-8000-000000000001";
+const BOUND_ROOT_ID = "22000000-0000-4000-8000-000000000001";
+const REDEFINITION_ID = "12000000-0000-4000-8000-000000000001";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
@@ -189,6 +191,100 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(statements.join("\n")).not.toMatch(/\b(begin|commit|rollback)\b/i);
     });
 
+    it("rolls back a Resource-bound root with caller-owned application work", async () => {
+      database = await openFixture();
+      const transaction = await database.beginTransaction();
+      const created = await createResourceBoundBudget(
+        createTransactionClient(transaction),
+        BOUND_ROOT_ID,
+        "rollback_tokens",
+      );
+
+      await transaction.connection.query(
+        `insert into application_outbox
+          (outbox_id, command_id, child_budget_id)
+         values ($1::uuid, $2::uuid, $3::uuid)`,
+        [OUTBOX_ID, BOUND_ROOT_ID, created.budget.budgetId],
+      );
+      await transaction.rollback();
+
+      const state = await database.database.query<{
+        readonly commands: string;
+        readonly resources: string;
+        readonly budgets: string;
+        readonly holdings: string;
+        readonly streams: string;
+        readonly history: string;
+        readonly outbox: string;
+      }>(
+        `select
+           (select count(*)::text from keynes_internal.commands
+             where command_id = $1::uuid) as commands,
+           (select count(*)::text from keynes_internal.resource_types
+             where canonical_name = 'rollback_tokens') as resources,
+           (select count(*)::text from keynes_internal.budgets
+             where budget_id = $1::uuid) as budgets,
+           (select count(*)::text from keynes_internal.budget_resources
+             where budget_id = $1::uuid) as holdings,
+           (select count(*)::text from keynes_internal.budget_history_streams
+             where stream_id = $1::uuid) as streams,
+           (select count(*)::text from keynes_internal.budget_history_entries
+             where command_id = $1::uuid) as history,
+           (select count(*)::text from application_outbox
+             where command_id = $1::uuid) as outbox`,
+        [BOUND_ROOT_ID],
+      );
+      expect(state.rows[0]).toEqual({
+        commands: "0",
+        resources: "0",
+        budgets: "0",
+        holdings: "0",
+        streams: "0",
+        history: "0",
+        outbox: "0",
+      });
+    });
+
+    it("preserves the original definition provenance for later definition", async () => {
+      database = await openFixture();
+      const transaction = await database.beginTransaction();
+      const created = await createResourceBoundBudget(
+        createTransactionClient(transaction),
+        BOUND_ROOT_ID,
+        "provenance_tokens",
+      );
+      await transaction.commit();
+
+      const resource = created.budget.resources[0]?.resourceType;
+      expect(resource).toBeDefined();
+      if (resource === undefined) return;
+      expect(resource.resourceTypeId).not.toBe(BOUND_ROOT_ID);
+
+      const provenance = await database.database.query<{
+        readonly definition_command_id: string;
+      }>(
+        `select definition_command_id::text
+           from keynes_internal.resource_types
+          where resource_type_id = $1::uuid`,
+        [resource.resourceTypeId],
+      );
+      expect(provenance.rows[0]?.definition_command_id).toBe(BOUND_ROOT_ID);
+
+      const redefineTransaction = await database.beginTransaction();
+      const redefined = await createTransactionClient(
+        redefineTransaction,
+      ).defineResource({
+        commandId: REDEFINITION_ID,
+        definition: resourceDefinition("provenance_tokens"),
+      });
+      await redefineTransaction.commit();
+      expect(redefined).toMatchObject({
+        resourceType: { resourceTypeId: resource.resourceTypeId },
+        definitionEvidence: { commandId: BOUND_ROOT_ID },
+        replayed: false,
+      });
+    });
+
     it("keeps a pending child and outbox row invisible to another session", async () => {
       database = await openFixture();
       const { resourceTypeId, budgetId } = await seedRoot(database);
@@ -342,6 +438,29 @@ function createTransactionClient(transaction: PostgresTransaction) {
       principalId: FIXTURE_PRINCIPALS["product-fixture"],
     }),
   );
+}
+
+function createResourceBoundBudget(
+  client: ContractClient,
+  commandId: string,
+  canonicalName: string,
+): ReturnType<ContractClient["createBudget"]> {
+  return Reflect.apply(client.createBudget, client, [
+    {
+      commandId,
+      resources: [
+        { definition: resourceDefinition(canonicalName), amount: 10 },
+      ],
+    },
+  ]);
+}
+
+function resourceDefinition(canonicalName: string) {
+  return {
+    canonicalName,
+    unit: "token",
+    accountingBehavior: "consumable" as const,
+  };
 }
 
 async function openFixture(): Promise<EmbeddedFixture> {

@@ -11,6 +11,7 @@ const ROOT_BUDGET_ID = "25000000-0000-4000-8000-000000000001";
 const FIRST_REQUEST_ID = "35000000-0000-4000-8000-000000000001";
 const SECOND_REQUEST_ID = "35000000-0000-4000-8000-000000000002";
 const SETTLEMENT_ID = "45000000-0000-4000-8000-000000000001";
+const COMPETING_ROOT_ID = "25000000-0000-4000-8000-000000000002";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
@@ -164,7 +165,62 @@ describe("native PostgreSQL contention", () => {
       await keynes.close();
     }
   });
+
+  it("converges concurrent absent-name roots on one Resource", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const first = await keynes.beginAttempt("product-fixture");
+      const second = await keynes.beginAttempt("product-fixture");
+
+      const firstRoot = await createResourceBoundBudget(
+        first.client,
+        ROOT_BUDGET_ID,
+      );
+      const competing = createResourceBoundBudget(
+        second.client,
+        COMPETING_ROOT_ID,
+      );
+
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      const secondRoot = await competing;
+      await second.commit();
+
+      const firstResource = firstRoot.budget.resources[0]?.resourceType;
+      const secondResource = secondRoot.budget.resources[0]?.resourceType;
+      expect(firstResource).toBeDefined();
+      expect(secondResource).toBeDefined();
+      expect(secondResource?.resourceTypeId).toBe(
+        firstResource?.resourceTypeId,
+      );
+      expect(firstResource?.resourceTypeId).not.toBe(ROOT_BUDGET_ID);
+      expect(firstResource?.resourceTypeId).not.toBe(COMPETING_ROOT_ID);
+    } finally {
+      await keynes.close();
+    }
+  });
 });
+
+function createResourceBoundBudget(
+  client: ContractClient,
+  commandId: string,
+): ReturnType<ContractClient["createBudget"]> {
+  return Reflect.apply(client.createBudget, client, [
+    {
+      commandId,
+      resources: [
+        {
+          definition: {
+            canonicalName: "contended_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ],
+    },
+  ]);
+}
 
 async function seedRoot(
   keynes: NativeTestKeynes,

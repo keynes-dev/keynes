@@ -11,8 +11,8 @@
 
 **Purpose**: Prove the current implementation lacks the approved root-binding contract before changing production code.
 
-- [ ] T001 Validate the canonical feature identity and prerequisite paths with `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` and record the baseline revision in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T002 Run the current provider-free contract, SDK, PostgreSQL unit, repository, and pull-request gates and record exact passing or failing baseline results in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T001 Validate the canonical feature identity and prerequisite paths with `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` and record the baseline revision in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T002 Run the current provider-free contract, SDK, PostgreSQL unit, repository, and pull-request gates and record exact passing or failing baseline results in `docs/features/0014-resource-bound-budget/tasks.md`.
 - [ ] T003 [P] Add compile-time tests for zero-argument `createKeynes()`, rejected setup arguments, `createBudget(schema, allocation, options?)`, allocated-name narrowing, and Policy inference in `packages/sdk/test/unit/public/public-exports.test.ts` and `packages/sdk/test/package/compatibility/policy-api.mts`.
 - [ ] T004 [P] Add public runtime tests for zero-argument setup, atomic schema binding, exact definition reuse, definition conflict, and rollback in `packages/sdk/test/unit/public/local.test.ts` and `packages/sdk/test/unit/local/local-lifecycle.test.ts`.
 - [ ] T005 [P] Add shared root-binding, replay, command-conflict, Policy, and rollback scenarios in `packages/contracts/conformance/scenarios/resource-bound-root.ts` and register them in `packages/contracts/conformance/scenarios/index.ts`.
@@ -21,6 +21,15 @@
 - [ ] T008 Run a read-only Ponytail review over the Phase 1 diff, apply accepted test simplifications without weakening acceptance, rerun the red tests, and commit the Phase 1 boundary.
 
 **Checkpoint**: The exact public, shared, and PostgreSQL gaps are executable and fail for the expected reason.
+
+**Baseline evidence (`6df55ff5598ed8603e521479293b101324a813a7`)**:
+
+- `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`: passed; resolved FEAT-0014 and its complete task set.
+- `pnpm --filter @keynes/contracts test`: passed, 47 tests.
+- `pnpm --filter @keynes/sdk test`: passed, 227 tests.
+- `pnpm --filter @keynes/postgresql test`: passed, 29 tests.
+- `CI=true pnpm check:repo`: passed; seven quality and typecheck tasks and all package boundaries passed. Lint retained 15 existing warnings and reported no errors.
+- `CI=true pnpm test:pr`: the ambient checkout was `NOT RUN` as qualifying evidence because repository discovery included an unrelated `.claude/worktrees/responsive-ascii-designs-a901db` checkout and failed its stale workspace assertion. The same command passed in a clean detached checkout at the exact baseline revision: 8 feature-identity tests, 47 contract tests, 8 repository-organization tests, 44 Cloud tests, 29 PostgreSQL unit tests, 227 SDK tests, all typechecks, and all package boundaries.
 
 ---
 

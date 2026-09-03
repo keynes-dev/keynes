@@ -22,8 +22,10 @@ import {
   type BudgetSnapshot,
   type BudgetState,
   type Keynes,
+  type LocalKeynes,
   type NamedResourceAmount,
   type PolicyEvidence,
+  type PolicySet,
   type ResourceAmounts,
   type ResourceDefinition,
   type ResourceDefinitions,
@@ -166,21 +168,57 @@ describe("package-root exports", () => {
     expectTypeOf(checkRequestTypes).toBeFunction();
   });
 
-  it("requires one complete Resource schema when opening a local runtime", () => {
-    async function checkCreateTypes() {
+  it("opens without a schema and infers each root from its allocated schema entries", () => {
+    async function checkCreateTypes(
+      governedPolicies: PolicySet<
+        "usdCents",
+        { readonly customerTier: string },
+        "customer_tier_limit"
+      >,
+      searchPolicies: PolicySet<
+        "searchQueries",
+        { readonly region: string },
+        "regional_limit"
+      >,
+    ) {
       const resources = defineResources({
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
+        searchQueries: { unit: "query", accountingBehavior: "reusable" },
       });
-      const keynes = await createKeynes({ resources });
-      expectTypeOf(keynes).toEqualTypeOf<Keynes<"usdCents">>();
-      // @ts-expect-error The schema-first factory requires options.
-      void createKeynes();
-      // @ts-expect-error Remote API-key discovery is not implemented yet.
-      void createKeynes({ resources, apiKey: "keynes_test" });
-      // @ts-expect-error Resource definitions must be sealed into a schema first.
-      void createKeynes({ resources: resources.definitions });
-      // @ts-expect-error Explicit undefined is not a creation-options object.
+      const keynes = await createKeynes();
+      expectTypeOf(keynes).toEqualTypeOf<LocalKeynes>();
+      expectTypeOf(keynes).toEqualTypeOf<Keynes>();
+
+      const root = await keynes.createBudget(resources, { usdCents: 100 });
+      expectTypeOf(root).toEqualTypeOf<Budget<"usdCents">>();
+      // @ts-expect-error The root binds only allocated Resource names.
+      void root.request({ searchQueries: 1 });
+      // @ts-expect-error Allocation keys must belong to the supplied schema.
+      void keynes.createBudget(resources, { storageBytes: 1 });
+
+      const governed = await keynes.createBudget(
+        resources,
+        { usdCents: 100 },
+        { policies: governedPolicies },
+      );
+      expectTypeOf(governed).toEqualTypeOf<
+        Budget<
+          "usdCents",
+          { readonly customerTier: string },
+          "customer_tier_limit"
+        >
+      >();
+      const usdAllocation = { usdCents: 100 };
+      const incompatibleOptions = { policies: searchPolicies };
+      // @ts-expect-error Root Policies may refer only to allocated Resources.
+      void keynes.createBudget(resources, usdAllocation, incompatibleOptions);
+
+      // @ts-expect-error Connection setup accepts no Resource schema.
+      void createKeynes({ resources });
+      // @ts-expect-error Explicit undefined is still an argument.
       void createKeynes(undefined);
+      // @ts-expect-error FEAT-0014 does not add remote connection options.
+      void createKeynes({ databaseUrl: "postgresql://example.invalid/keynes" });
     }
 
     expectTypeOf(checkCreateTypes).toBeFunction();

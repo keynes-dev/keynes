@@ -83,6 +83,69 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(after).toEqual(before);
     });
 
+    it("installs the additive Resource-bound Budget migration", async () => {
+      const target = await openTarget();
+      await install(target);
+
+      const migrations = await query(
+        target,
+        `select migration_id, contract_digest
+           from keynes_internal.schema_migrations
+          order by migration_id`,
+      );
+      expect(migrations.rows.map(({ migration_id }) => migration_id)).toEqual([
+        "0001-storage",
+        "0002-budget",
+        "0003-public",
+        "0004-policy",
+        "0005-resource-bound-budget",
+      ]);
+      expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
+      expect(migrations.rows.at(-1)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
+      expect(migrations.rows.at(-1)?.contract_digest).not.toBe(
+        migrations.rows.at(-2)?.contract_digest,
+      );
+    });
+
+    it("moves Resource provenance to the defining command", async () => {
+      const target = await openTarget();
+      await install(target);
+
+      const provenance = await query(
+        target,
+        `select
+           exists (
+             select 1
+               from information_schema.columns
+              where table_schema = 'keynes_internal'
+                and table_name = 'resource_types'
+                and column_name = 'definition_command_id'
+                and is_nullable = 'NO'
+           ) as definition_command_id,
+           exists (
+             select 1
+               from pg_constraint
+              where conrelid = 'keynes_internal.resource_types'::regclass
+                and contype = 'f'
+                and pg_get_constraintdef(oid) like
+                  'FOREIGN KEY (tenant_id, definition_command_id) REFERENCES keynes_internal.commands%'
+           ) as definition_command_reference,
+           not exists (
+             select 1
+               from pg_constraint
+              where conrelid = 'keynes_internal.resource_types'::regclass
+                and contype = 'f'
+                and pg_get_constraintdef(oid) like
+                  'FOREIGN KEY (tenant_id, resource_type_id) REFERENCES keynes_internal.commands%'
+           ) as independent_resource_identity`,
+      );
+      expect(provenance.rows[0]).toEqual({
+        definition_command_id: true,
+        definition_command_reference: true,
+        independent_resource_identity: true,
+      });
+    });
+
     it("rejects an unsupported PostgreSQL version before mutation", async () => {
       const target = await openTarget();
       mockServerVersion("170000");
