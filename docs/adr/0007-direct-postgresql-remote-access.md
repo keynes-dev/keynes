@@ -1,0 +1,69 @@
+# ADR-0007: Use direct PostgreSQL access for the remote TypeScript SDK
+
+- **Status:** Accepted
+- **Date:** 2026-09-02
+- **Deciders:** Keynes maintainers
+- **Supersedes in part:** [ADR-0003](0003-sqlite-and-postgresql.md) for remote SDK access
+
+## Context
+
+The current repository has three implemented paths. The TypeScript SDK runs local Budgets in private SQLite. Embedded adopters call `keynes.*` procedures inside caller-owned PostgreSQL transactions. The private FEAT-0006 service carries a no-Policy HTTP protocol to PostgreSQL for retained test evidence.
+
+The draft FEAT-0013 design proposed an API key, service discovery, and an HTTPS Budget protocol. That design would add a second public protocol, compatibility boundary, error mapping, retry owner, and limits model around the existing PostgreSQL authority. Keynes has no browser or mobile SDK that requires that data path. Server-side TypeScript applications can use PostgreSQL's authenticated TLS protocol and the same versioned procedures that already own durable Budget behavior.
+
+The current local factory also binds one Resource schema during connection setup. Durable PostgreSQL needs Resource binding during root creation and reopen, after the SDK has connected to an existing authority. That shared API change affects local behavior and must land as a prerequisite feature before remote access relies on it.
+
+## Decision
+
+The future TypeScript SDK has one factory with two connection forms:
+
+```ts
+createKeynes();
+createKeynes({ databaseUrl });
+```
+
+The zero-argument form opens private local SQLite. The `databaseUrl` form opens one PostgreSQL authority. Configuration never selects a deployment label, HTTP endpoint, API key, Resource schema, or fallback.
+
+A prerequisite feature will move Resource binding and root Budget creation out of connection setup. It will preserve one public creation model across local SQLite and PostgreSQL. FEAT-0013 will consume that contract; it will not hide a local API change inside remote transport work.
+
+The remote SDK owns its PostgreSQL pool and calls only supported versioned procedures. PostgreSQL remains the sole durable owner of validation, Policy decisions, conservation, transactions, replay, settlement, history, and recovery records. FEAT-0013 adds no HTTP Budget data plane and no second replay ledger.
+
+Every remote TCP connection requires TLS 1.2 or newer with certificate-chain and hostname verification. The SDK parses `databaseUrl` once, accepts a closed parameter set, requires exactly one `sslmode=verify-full`, and constructs one normalized pool configuration. It never combines an untrusted raw connection string with separate SSL settings or falls back to plaintext, local SQLite, another endpoint, or another database.
+
+PostgreSQL authenticates a scoped login role. Protected role mappings bind that login to one Keynes principal, and remote procedures derive identity from `session_user`. Separate owner, execution, and administration roles preserve least privilege. Private administrative procedures own credential creation, rotation, and revocation. Ordinary SDK roles cannot invoke them.
+
+Self-hosted and managed deployments use the same required PostgreSQL procedure and semantic contracts. They require separate operational evidence for credential delivery, TLS termination, poolers, upgrades, backup, recovery, capacity, incident response, and support. A later control plane may provision credentials or deployments, but it does not carry Budget commands or own Budget state.
+
+The private FEAT-0006 service remains historical evidence until FEAT-0013 moves the assertions that still matter into direct PostgreSQL coverage. FEAT-0013 then removes `apps/cloud` from active product, generation, and qualification paths. Historical feature documents and retained records remain unchanged.
+
+## Consequences
+
+- The SDK and PostgreSQL procedure contract form the public remote data path.
+- Server-side applications receive scoped PostgreSQL credentials and cannot select identity fields or call private tables and administrative procedures.
+- Direct and supported pooled connections require separate TLS, session, transaction, identity, and recovery evidence.
+- FEAT-0013 contracts own the exact reference, reopen, inspection, recovery, retry, compatibility, and error shapes within these boundaries.
+- The repository retains no active HTTP Budget protocol after replacement coverage passes.
+
+## Rejected alternatives
+
+### Keep the HTTPS Budget service
+
+This path duplicates PostgreSQL authentication, compatibility, retries, limits, error projection, and procedure routing without a current non-PostgreSQL client requirement.
+
+### Add separate local and remote factories
+
+Two factories expose deployment mechanics in the public API and make connection lifecycle harder to explain. One factory can select the authority from the presence of `databaseUrl` without changing Budget semantics.
+
+### Accept an arbitrary endpoint or deployment selector
+
+Caller-selected endpoints and labels create routing and fallback behavior outside the authenticated database authority. A literal PostgreSQL URL identifies one authority and fails closed.
+
+### Reuse an operation key as a Budget reference
+
+Operation recovery and durable Budget lookup are different capabilities. Separate types allow their validation, retention, and authorization rules to evolve independently.
+
+## Links
+
+- [Product direction](../product.md)
+- [Runtime architecture](../architecture.md)
+- [Implementation roadmap](../roadmap.md)

@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through qualified installed procedures. The private Cloud service supports only the no-Policy transport and rejects Policy fields. Hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from retained evidence and future design.
+> **Status:** The SDK implements schema-first local Budget handles and portable Policy authoring and evaluation on private in-memory SQLite. PostgreSQL 18.6 implements the same Policy contract through qualified installed procedures. The private Cloud service supports only the historical no-Policy transport and rejects Policy fields. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK, but that path and its prerequisite Resource-binding API are not implemented. Hosted compatibility, remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
 
 ## Thesis
 
@@ -99,15 +99,15 @@ Shared Budget behavior
 |
 `-- PostgreSQL runtime
     +-- Installed in the application's database
-    +-- Self-hosted behind the Keynes service
+    +-- Reached by the remote TypeScript SDK
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. `defineResources(...)` creates one frozen Resource schema, and `createKeynes({ resources })` opens the process-local SQLite runtime. Remote SDK access is outside FEAT-0012.
+Each Budget is stored in one place. The current SDK uses `defineResources(...)` and `createKeynes({ resources })` to open the process-local SQLite runtime. The accepted next API separates connection setup from Resource binding: `createKeynes()` opens local SQLite, `createKeynes({ databaseUrl })` opens one PostgreSQL authority, and root Budget creation binds the Resource schema atomically. A prerequisite feature will implement that shared creation contract before FEAT-0013 adds remote PostgreSQL access.
 
 ### Local mode
 
-Local mode runs inside one Node.js process through `createKeynes({ resources })`. It needs no account, API key, service, database installation, daemon, or network. The runtime uses Node's built-in `node:sqlite` with a private in-memory database. It loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
+Local mode needs no account, credential, service, database installation, daemon, or network. The runtime uses Node's built-in `node:sqlite` with a private in-memory database. It loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
 
 Local mode is for evaluation, tests, local development, short-lived workflows, and applications that do not need a Budget after process exit. It does not provide persistence, multi-process coordination, database transactions, remote access, backup, or recovery.
 
@@ -121,19 +121,19 @@ Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic com
 
 ### Self-hosted Keynes
 
-The customer runs the Keynes service with a separate PostgreSQL database. The service handles authentication, tenant selection, transport, and connection management. The customer controls data placement and operations but also owns deployment, upgrades, backup, recovery, monitoring, and incident response.
+The customer runs a Keynes PostgreSQL deployment and gives server-side applications a scoped `databaseUrl`. The TypeScript SDK owns its connection pool and calls versioned Keynes procedures. PostgreSQL derives the Keynes principal from the authenticated login role and enforces procedure permissions. The customer controls data placement and owns deployment, credential administration, upgrades, backup, recovery, monitoring, and incident response.
 
-Self-hosting suits customers that need durable remote Budgets and operational control without installing Keynes into an application database. FEAT-0006 is the code basis for this deployment, but self-hosted packaging and operations are unproved.
+Self-hosting suits customers that need durable remote Budgets and operational control without installing Keynes into an application's existing database. Self-hosted packaging and operations are unproved. The private FEAT-0006 service remains historical evidence and is not the accepted remote data path.
 
 ### Keynes Cloud
 
-Keynes runs the same service and a Keynes-specific PostgreSQL database. Keynes takes responsibility for hosting, upgrades, recovery, administration, and support. The customer uses the remote TypeScript SDK and does not receive database credentials or select a database.
+Keynes operates a Keynes-specific PostgreSQL deployment and issues scoped database credentials to server-side applications. The same TypeScript SDK and versioned procedures serve self-hosted and managed deployments. Keynes takes responsibility for hosting, credential administration, upgrades, recovery, capacity, and support. A later control plane may provision credentials and deployments, but it does not carry Budget commands or own Budget state.
 
 Cloud suits teams that want durable remote Budgets without operating Keynes. The current private service is not managed Cloud. Public access, production identity, recovery, managed operations, support, and production readiness remain unproved.
 
 ### Applications that use another database
 
-The planned path for an application that stores its own data in MySQL, MongoDB, SQLite, or another database is a remote SDK call to self-hosted Keynes or Keynes Cloud. Keynes would still store its own durable Budget data in PostgreSQL. The application reads its business facts and sends the fixed Policy context with the request. Remote access is not implemented, and another durable database implementation requires a later decision.
+The planned path for an application that stores its own data in MySQL, MongoDB, SQLite, or another database is the TypeScript SDK connected to a separate self-hosted or managed Keynes PostgreSQL deployment. Keynes still stores its durable Budget data in PostgreSQL. The application reads its business facts and sends the fixed Policy context with the request. Remote access is not implemented, and another durable database implementation requires a later decision.
 
 ## Open core
 
@@ -145,7 +145,7 @@ Keynes may charge for hosting, upgrades, recovery, administration, enterprise co
 
 The application owns workflow validity, request construction, Policy context, external effects, provider retries, usage observation, outcomes, fallback behavior, and analysis of completed evidence.
 
-Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, direct and subtree accounting, unresolved usage, isolated deficits, canonical evidence, the TypeScript SDK contract, and the remote service protocol.
+Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, direct and subtree accounting, unresolved usage, isolated deficits, canonical evidence, the TypeScript SDK contract, and the versioned PostgreSQL procedure contract.
 
 Keynes does not design studies, score results, calculate statistics, make recommendations, or make operating decisions for the application. An application-owned harness may consume Keynes evidence, but that harness is outside the Keynes runtime and product contract.
 
@@ -169,7 +169,9 @@ Keynes does not design studies, score results, calculate statistics, make recomm
 - PostgreSQL is the only durable database implementation.
 - Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
 - TypeScript is the only supported SDK.
-- `defineResources(...)` creates one frozen Resource schema. `createKeynes({ resources })` opens one local SQLite capability. Remote discovery is not implemented.
+- The current SDK uses `defineResources(...)` and `createKeynes({ resources })` for local SQLite. The accepted next API uses `createKeynes()` for local SQLite and `createKeynes({ databaseUrl })` for one remote PostgreSQL authority; it binds Resource types during root Budget creation. Neither change is implemented.
+- Only remote handles gain durable Budget references and reopen. Reopen validates the caller's expected Resource binding. Local handles remain process-scoped and cannot reopen a Budget.
+- `inspect()` keeps its current public result shape in both modes. A remote implementation may fetch bounded history pages internally.
 - Supporting another durable database requires a later constitution and product decision.
 - Keynes will qualify subtree issuance before same-database multi-source funding. Both use explicit contracts and preserve the parent-funded default.
 - Product direction can promote optional capabilities without making external adoption evidence a delivery gate.

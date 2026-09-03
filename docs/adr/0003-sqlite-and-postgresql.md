@@ -4,6 +4,12 @@
 - **Date:** 2026-08-25
 - **Deciders:** Keynes maintainers
 
+> **Superseded in part:** FEAT-0012 replaced the local `Keynes.create()` call
+> shape with schema-first `createKeynes({ resources })`. [ADR-0007](0007-direct-postgresql-remote-access.md)
+> replaces the planned API-key discovery and service data path with direct
+> PostgreSQL access. This ADR still owns the local SQLite and durable PostgreSQL
+> storage decision.
+
 ## Context
 
 Keynes currently runs the same PostgreSQL procedures in local PGlite and native PostgreSQL. That choice let the first product slice establish Budget semantics once and reuse the migrations and generated procedure client in both environments. FEAT-0003 through FEAT-0005 proved the PGlite path, and FEAT-0006 added a private service over native PostgreSQL.
@@ -29,7 +35,9 @@ Keynes will not define a generic storage adapter. Another durable database would
 - Local installation, startup, memory, and shutdown can become substantially smaller and simpler after PGlite and copied migrations are removed from the SDK package.
 - Keynes must maintain two implementations of the Budget rules instead of one. Every semantic change must update and compare both implementations.
 - PostgreSQL remains the source of truth for durable Budgets and the only supported path for same-transaction application integration.
-- Each Budget remains in one place. Zero constructor arguments select local SQLite; an API-key configuration selects remote discovery. Invalid remote credentials do not fall back to local state.
+- Each Budget remains in one place. Public SDK configuration selects one access
+  path. Remote access authenticates and resolves one trusted Budget authority,
+  and invalid remote configuration does not fall back to local state.
 - Local mode remains ephemeral and process-scoped. It gains no persistence, database handle, migration step, network listener, or general storage interface.
 - PGlite stays in the current implementation until the SQLite local runtime feature passes its replacement, package, compatibility, memory, and performance gates.
 

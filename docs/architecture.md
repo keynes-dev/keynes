@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. Hosted compatibility, public remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, schema-first local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK. The shared Resource-binding prerequisite and the remote access path are not implemented. Hosted compatibility, remote access, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -20,11 +20,11 @@ Shared Budget behavior
 |
 `-- PostgreSQL runtime
     +-- Installed in the application's database
-    +-- Self-hosted behind the Keynes service
+    +-- Reached by the remote TypeScript SDK
     `-- Keynes Cloud
 ```
 
-Each Budget is stored in one place. `createKeynes({ resources })` selects local SQLite. Remote discovery is a later feature and cannot fall back to local state.
+Each Budget is stored in one place. Local SQLite is the current SDK path, and direct PostgreSQL is the accepted remote path. Invalid remote configuration cannot fall back to local state or another database. The remote path is not implemented.
 
 ## Design principles
 
@@ -41,13 +41,22 @@ Each Budget is stored in one place. `createKeynes({ resources })` selects local 
 
 ## Runtime topology
 
-The current repository has three product paths:
+The current repository has three implemented paths:
 
 ```text
 Local TypeScript application -> @keynes/sdk -> SqliteCommandExecutor
 Embedded database code      -> keynes.* PostgreSQL procedures
 Private remote caller       -> Cloud service -> PostgreSQL procedures
 ```
+
+The accepted remote path replaces the private service as the Budget command data path:
+
+```text
+Server-side TypeScript application -> @keynes/sdk -> PostgreSQL TLS connection
+                                                `-> versioned keynes.* procedures
+```
+
+The SDK owns the remote connection pool. PostgreSQL owns authentication, principal derivation, permissions, transactions, replay, and durable state.
 
 The local SDK boundary is deliberately small:
 
@@ -62,12 +71,13 @@ interface CommandExecutor {
 - `SqliteCommandExecutor` executes commands against process-owned state.
 - Embedded applications call the supported `keynes.*` procedures through caller-owned database code.
 - The private Cloud service authenticates a caller and invokes one allowlisted procedure through `PostgresDatabase`.
+- The planned remote SDK connects directly to PostgreSQL and invokes only its supported versioned procedures.
 
 This is a command boundary, not a general storage adapter. It does not expose queries, transactions, tables, persistence, migrations, or an extension point for arbitrary databases.
 
 ## Local implementation
 
-`createKeynes({ resources })` is the public local entry point. It returns a frozen capability whose methods close over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`createKeynes({ resources })` is the current public local entry point. The prerequisite Resource-binding feature will replace it with `createKeynes()` and move Resource installation into atomic root Budget creation. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -154,21 +164,21 @@ The application role sets `keynes.tenant_id` and `keynes.principal_id` with tran
 
 ### Self-hosted Keynes
 
-The customer runs the Keynes service with a separate PostgreSQL database. The service authenticates the caller, selects the tenant, validates the transport command, manages connections, invokes one PostgreSQL procedure, and returns the result. It does not reimplement availability, reservation, settlement, replay, or evidence.
+The customer runs a Keynes PostgreSQL deployment and issues scoped login credentials to server-side applications. The TypeScript SDK validates one `databaseUrl`, owns its connection pool, and invokes only supported versioned procedures. PostgreSQL derives the Keynes principal from the authenticated login role and enforces both wrapper and core procedure permissions.
 
-The customer owns deployment, database and service upgrades, backups, recovery, monitoring, network security, incident response, and capacity. Keynes must provide supported packaging and operational contracts before this is a product claim.
+The customer owns deployment, credential administration, database upgrades, backups, recovery, monitoring, network security, incident response, and capacity. Keynes must provide supported packaging and operational contracts before this is a product claim.
 
 ### Keynes Cloud
 
-Keynes operates the same service code and PostgreSQL implementation. Keynes owns hosting, upgrades, backups, recovery, administration, capacity, incident response, and support. Future remote clients receive no database credentials and cannot select a database or execute arbitrary SQL.
+Keynes operates the same PostgreSQL procedure contract and issues scoped credentials to server-side applications. Keynes owns hosting, credential administration, upgrades, backups, recovery, capacity, incident response, and support. A later control plane may provision deployments and credentials, but it does not carry Budget commands or own replay state.
 
-Managed Cloud is an operating model, not another Budget implementation. It needs separate evidence for external identity, TLS ingress, tenant isolation, backup restoration, recovery, failover, upgrades, monitoring, incident operations, performance, and support.
+Managed Cloud is an operating model, not another Budget implementation. It needs separate evidence for credential issuance, TLS, tenant isolation, backup restoration, recovery, failover, upgrades, monitoring, incident operations, performance, and support.
 
 ### Current service evidence
 
 FEAT-0006 proves only the current private loopback service against native PostgreSQL for its exact retained revision and artifact. It covers the implemented private RPC contract, two-tenant isolation, limited roles, restart, response-loss replay, conflict handling, and explicit database unavailability in that test environment.
 
-It does not prove a public protocol, remote SDK, external identity, TLS, self-hosted packaging, managed-provider deployment, backup restoration, recovery, failover, multi-region behavior, production security, performance, support, or production readiness.
+It does not prove the accepted direct PostgreSQL SDK, database-role identity, TLS, self-hosted packaging, managed-provider deployment, backup restoration, recovery, failover, multi-region behavior, production security, performance, support, or production readiness. FEAT-0013 will retire this service from active product, generation, and qualification paths only after the direct PostgreSQL path owns the required replacement coverage.
 
 ## Public domain model
 
@@ -310,7 +320,9 @@ if (result.status === "approved") {
 
 `Keynes` and `Budget` are exported readonly interface types, not public classes. Frozen closure-backed objects implement them. The method syntax keeps hidden runtime and Budget identity out of every call, while arrow-function methods avoid `this` binding. `Keynes` supports both `AsyncDisposable` and explicit idempotent `close()`.
 
-`createKeynes({ resources })` selects local SQLite. Remote SDK access is outside FEAT-0012. Embedded PostgreSQL is not a factory mode; application database code calls the supported SQL boundary inside its own transaction.
+`createKeynes({ resources })` currently selects local SQLite. The prerequisite feature will change local setup to `createKeynes()` and bind Resource types during atomic root Budget creation. FEAT-0013 will add `createKeynes({ databaseUrl })` for direct PostgreSQL access. Embedded PostgreSQL remains outside the factory because application database code owns its existing transaction.
+
+Only the remote SDK exposes a durable `BudgetReference` and reopen operation. Reopen requires the caller's expected Resource types and names, then PostgreSQL checks that binding before returning a handle. Local handles remain process-scoped. `inspect()` keeps its current result shape in both modes; the remote executor may assemble bounded history pages internally. The planned PostgreSQL contract adds read-only operation recovery and history-page procedures without moving replay or history ownership into the SDK.
 
 ## Generated contracts and compatibility
 
@@ -343,7 +355,7 @@ The shared suite includes lifecycle, availability, denial, consumable depletion,
 
 - **Local**: lifecycle, memory release, serialized call order, return-value isolation, process isolation, close and drain, package contents, supported Node.js and operating systems, package size, install size, ready memory, startup, request latency, and shutdown.
 - **PostgreSQL**: independent-client contention, row locks, transactions, caller-owned transaction composition, roles and procedure permissions, installation compatibility, migrations, drift detection, and rollback boundaries.
-- **Remote service**: authentication, tenant selection, protocol validation, connection management, response-loss replay, service restart, rate and input limits, TLS ingress, and tenant isolation.
+- **Remote PostgreSQL SDK**: URL normalization, TLS verification, database-role identity, procedure permissions, direct and supported pooler connections, response-loss replay, recovery, operational limits, and tenant isolation.
 - **Self-hosted**: packaging, configuration, upgrades, backup and restoration, monitoring, recovery runbooks, and customer-operated failure handling.
 - **Managed Cloud**: provider deployment, high availability, recovery, failover, capacity, incident response, vulnerability response, compliance controls, support, and production operations.
 
@@ -357,7 +369,7 @@ Durable installation uses the canonical PostgreSQL migrations and generated inst
 
 Other PostgreSQL releases, managed-provider qualification, backup, recovery, failover, self-hosting, managed Cloud, hostile-role security qualification, performance qualification, and production support remain `NOT RUN`.
 
-The self-hosted and Cloud service use the same service code. Packaging and operating ownership differ. A customer-operated container and a Keynes-operated deployment require separate release and support evidence even when the image contents match.
+Self-hosted and managed deployments use the same versioned PostgreSQL procedures. Packaging and operating ownership differ. Customer-operated and Keynes-operated deployments require separate release and support evidence even when their database contract matches.
 
 ## Security and recovery boundaries
 
@@ -365,7 +377,7 @@ Local mode protects state from accidental mutation through a private SQLite conn
 
 Embedded PostgreSQL uses database roles and supported functions to prevent application roles from writing private Keynes state. The application database operator is inside the deployment's trust boundary.
 
-Remote deployments treat clients and Policy source as untrusted. The service must authenticate the caller, select one tenant, constrain request size and rate, invoke only supported procedures, avoid logging secrets or arbitrary context, and return stable errors without leaking another tenant or database internals.
+Remote deployments treat database credentials, client inputs, and Policy source as untrusted. PostgreSQL authenticates the login role. Protected mappings bind that role to one Keynes principal, and remote wrappers derive identity from `session_user`. The SDK invokes only supported procedures, applies bounded client-side inputs and deadlines, avoids logging credentials or arbitrary context, and returns stable errors without leaking another tenant or database internals. Private administrative procedures own credential creation, rotation, and revocation; ordinary SDK roles cannot call them.
 
 Recovery cannot assume that a restored database contains every command whose external work may have run. Durable recovery design must fence old writers, identify the exact command and evidence interval, and leave unresolved work visible when it cannot be reconstructed. Self-hosted and managed Cloud need separate recovery evidence because their operators and failure domains differ.
 
@@ -373,11 +385,11 @@ Recovery cannot assume that a restored database contains every command whose ext
 
 Canonical history records operation, command identity, target, result, Policy revision when relevant, and contract version. Deployment telemetry may add duration, trace, process, database, routing, and retry data outside canonical command evidence. Telemetry cannot grant permission, change a Policy result, or affect replay.
 
-Local diagnostics must remain optional and must not add a runtime service. Remote services need metrics and traces for authentication failures, database availability, transaction retries, command latency, denial reasons, unresolved Budgets, installation drift, recovery state, and delivery lag. Managed operations require runbooks and retained evidence before readiness claims.
+Local diagnostics must remain optional and must not add a runtime service. Remote PostgreSQL deployments need metrics and traces for authentication failures, database availability, transaction retries, command latency, denial reasons, unresolved Budgets, installation drift, recovery state, and delivery lag. Managed operations require runbooks and retained evidence before readiness claims.
 
 ## Product boundary
 
-Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, subtree accounting, unresolved usage, deficits, canonical history and evidence, the TypeScript SDK contract, PostgreSQL procedures, and the remote protocol.
+Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, subtree accounting, unresolved usage, deficits, canonical history and evidence, the TypeScript SDK contract, and the versioned PostgreSQL procedures.
 
 The application owns workflow validity, request construction, Policy context, external effects, provider idempotency and retries, usage observation, business outcomes, fallback behavior, application transaction rows, and application evidence.
 
@@ -391,7 +403,7 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown for SQLite.
 3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
 4. Compare Kysely and raw-SQL Policy behavior through the local and PostgreSQL backends, including generated semantic vectors, context, and replay.
-5. Qualify the remote SDK and public service protocol through authenticated TLS ingress.
+5. Qualify the remote SDK against supported direct and pooled PostgreSQL TLS profiles with database-role identity.
 6. Qualify self-hosted packaging, upgrades, backup, recovery, monitoring, security, and customer operations.
 7. Qualify managed Cloud hosting, recovery, failover, incident response, capacity, compliance controls, and support.
 8. Define the supported release contract and compatibility windows.
