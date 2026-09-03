@@ -11,6 +11,8 @@ const PRINCIPAL_ID = "00000000-0000-4000-8000-000000000101";
 
 interface InstallationConfig {
   readonly ownerRole: string;
+  readonly executionRole: string;
+  readonly administrationRole: string;
   readonly applicationRole: string;
   readonly tenantId: string;
   readonly principalId: string;
@@ -26,6 +28,8 @@ interface Target {
   readonly databaseUrl: string;
   readonly databaseName: string;
   readonly ownerRole: string;
+  readonly executionRole: string;
+  readonly administrationRole: string;
   readonly applicationRole: string;
   readonly applicationPassword: string;
   readonly operatorRole: string;
@@ -83,7 +87,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(after).toEqual(before);
     });
 
-    it("installs the additive Resource-bound Budget migration", async () => {
+    it("installs the additive Resource-bound Budget and remote access migrations", async () => {
       const target = await openTarget();
       await install(target);
 
@@ -99,7 +103,9 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         "0003-public",
         "0004-policy",
         "0005-resource-bound-budget",
+        "0006-remote-access",
       ]);
+      expect(migrations.rows.at(-3)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
       expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
       expect(migrations.rows.at(-1)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
       expect(migrations.rows.at(-1)?.contract_digest).not.toBe(
@@ -174,7 +180,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(await schemasExist(target)).toBe(false);
     });
 
-    it("rejects missing owner and application roles", async () => {
+    it("rejects missing prepared owner, execution, administration, and application roles", async () => {
       const target = await openTarget({ createRoles: false });
 
       await expect(install(target)).rejects.toMatchObject({
@@ -200,10 +206,45 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
             ),
         },
         {
+          check: "execution-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.executionRole)} login`,
+            ),
+        },
+        {
+          check: "execution-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.executionRole)} inherit`,
+            ),
+        },
+        {
+          check: "administration-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.administrationRole)} nologin`,
+            ),
+        },
+        {
+          check: "administration-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.administrationRole)} inherit`,
+            ),
+        },
+        {
           check: "application-role",
           mutate: (target: Target) =>
             target.administrator.query(
               `alter role ${identifier(target.applicationRole)} nologin`,
+            ),
+        },
+        {
+          check: "application-role",
+          mutate: (target: Target) =>
+            target.administrator.query(
+              `alter role ${identifier(target.applicationRole)} inherit`,
             ),
         },
         {
@@ -237,17 +278,23 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       }
     });
 
-    it("rejects an application role with inherited owner-role access", async () => {
-      const target = await openTarget();
-      await target.administrator.query(
-        `grant ${identifier(target.ownerRole)} to ${identifier(target.applicationRole)}`,
-      );
+    it("rejects an application role with membership in any privileged role", async () => {
+      for (const privilegedRole of [
+        "ownerRole",
+        "executionRole",
+        "administrationRole",
+      ] as const) {
+        const target = await openTarget();
+        await target.administrator.query(
+          `grant ${identifier(target[privilegedRole])} to ${identifier(target.applicationRole)}`,
+        );
 
-      await expect(install(target)).rejects.toMatchObject({
-        code: "insufficient_privilege",
-        check: "application-private-access",
-      });
-      expect(await schemasExist(target)).toBe(false);
+        await expect(install(target)).rejects.toMatchObject({
+          code: "insufficient_privilege",
+          check: "application-private-access",
+        });
+        expect(await schemasExist(target)).toBe(false);
+      }
     });
 
     it("rejects an incompatible partial target without repairing it", async () => {
@@ -412,6 +459,18 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
 
       await query(
         target,
+        `alter function keynes.remote_get_budget(jsonb) owner to ${identifier(target.operatorRole)}`,
+      );
+      await expect(install(target)).rejects.toMatchObject({
+        check: "object-owners",
+      });
+      await query(
+        target,
+        `alter function keynes.remote_get_budget(jsonb) owner to ${identifier(target.executionRole)}`,
+      );
+
+      await query(
+        target,
         `grant usage on schema keynes_internal to ${identifier(target.applicationRole)}`,
       );
       await expect(install(target)).rejects.toMatchObject({
@@ -478,6 +537,8 @@ async function openTarget(options: { readonly createRoles?: boolean } = {}) {
   const suffix = randomUUID().replaceAll("-", "");
   const databaseName = `keynes_install_${suffix}`;
   const ownerRole = `keynes_owner_${suffix}`;
+  const executionRole = `keynes_execution_${suffix}`;
+  const administrationRole = `keynes_admin_${suffix}`;
   const applicationRole = `keynes_app_${suffix}`;
   const operatorRole = `keynes_operator_${suffix}`;
   const applicationPassword = randomUUID();
@@ -486,13 +547,19 @@ async function openTarget(options: { readonly createRoles?: boolean } = {}) {
   if (options.createRoles !== false) {
     await administrator.query(`create role ${identifier(ownerRole)} nologin`);
     await administrator.query(
-      `create role ${identifier(applicationRole)} login password ${literal(applicationPassword)}`,
+      `create role ${identifier(executionRole)} nologin noinherit`,
+    );
+    await administrator.query(
+      `create role ${identifier(administrationRole)} login noinherit password ${literal(randomUUID())}`,
+    );
+    await administrator.query(
+      `create role ${identifier(applicationRole)} login noinherit password ${literal(applicationPassword)}`,
     );
     await administrator.query(
       `create role ${identifier(operatorRole)} login password ${literal(operatorPassword)}`,
     );
     await administrator.query(
-      `grant connect on database ${identifier(databaseName)} to ${identifier(applicationRole)}, ${identifier(operatorRole)}`,
+      `grant connect on database ${identifier(databaseName)} to ${identifier(administrationRole)}, ${identifier(applicationRole)}, ${identifier(operatorRole)}`,
     );
     await administrator.query(
       `grant create on database ${identifier(databaseName)} to ${identifier(ownerRole)}`,
@@ -506,6 +573,8 @@ async function openTarget(options: { readonly createRoles?: boolean } = {}) {
     databaseUrl: databaseUrl.toString(),
     databaseName,
     ownerRole,
+    executionRole,
+    administrationRole,
     applicationRole,
     applicationPassword,
     operatorRole,
@@ -513,6 +582,8 @@ async function openTarget(options: { readonly createRoles?: boolean } = {}) {
     administrator,
     config: {
       ownerRole,
+      executionRole,
+      administrationRole,
       applicationRole,
       tenantId: TENANT_ID,
       principalId: PRINCIPAL_ID,
@@ -529,6 +600,8 @@ async function closeTarget(target: Target): Promise<void> {
     );
     for (const role of [
       target.applicationRole,
+      target.administrationRole,
+      target.executionRole,
       target.operatorRole,
       target.ownerRole,
     ]) {

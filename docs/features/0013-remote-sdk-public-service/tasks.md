@@ -22,18 +22,18 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 **Purpose**: Establish generated meanings and PostgreSQL authority before SDK consumers.
 
-- [ ] T005 Add `pg` and `pg-connection-string` as SDK runtime dependencies in `packages/sdk/package.json` and `pnpm-lock.yaml`
-- [ ] T006 Add failing generator tests for remote procedure names, semantic identities, `OperationKey`, `BudgetReference`, recovery results, history pages, and public errors in `packages/contracts/test/generate-contracts.test.ts`
-- [ ] T007 Add failing conformance scenarios for remote creation, recovery, reopen binding, paged inspection, and safe errors in `packages/contracts/conformance/`
-- [ ] T008 Extend authored operation and schema definitions in `packages/contracts/contract.json` and `packages/contracts/schema.json`
-- [ ] T009 Regenerate and inspect TypeScript and PostgreSQL metadata through `packages/contracts/scripts/generate.ts` and `scripts/generate.ts`
-- [ ] T010 Add operator-controlled credential-lifecycle, role-recreation, direct-connection, and pooler test fixtures in `packages/postgresql/test/system/support/remote-identity.ts` and `packages/postgresql/test/system/support/remote-connections.ts`, then register the profiles in `packages/postgresql/test/system/run.ts`
-- [ ] T011 Add failing installation, recheck, privilege, and private-administration tests in `packages/postgresql/test/integration/remote-identity.test.ts`
-- [ ] T012 Add failing role-mapping, OID-reuse, revocation, cross-tenant, private-object, arbitrary-SQL, identity-override, recovery, and history-page scenarios in `packages/postgresql/test/system/remote-security.test.ts` and `packages/postgresql/test/system/remote-recovery.test.ts`
-- [ ] T013 Add failing direct, session-pooler, transaction-pooler, TLS-rejection, session-reset, and database-unavailable scenarios in `packages/postgresql/test/system/remote-connections.test.ts`
-- [ ] T014 Add the next immutable PostgreSQL migration for remote identity, wrappers, recovery, history paging, and private administration under `packages/postgresql/migrations/`
-- [ ] T015 Update installation inventory, checksums, diagnostics, and exact recheck in `packages/postgresql/src/installer/`
-- [ ] T016 Run focused generator, contract, installation, security, connection-profile, and recheck tests and record the exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
+- [x] T005 Add `pg` and `pg-connection-string` as SDK runtime dependencies in `packages/sdk/package.json` and `pnpm-lock.yaml`
+- [x] T006 Add failing generator tests for remote procedure names, semantic identities, `OperationKey`, `BudgetReference`, recovery results, history pages, and public errors in `packages/contracts/test/generate-contracts.test.ts`
+- [x] T007 Add failing conformance scenarios for remote creation, recovery, reopen binding, paged inspection, and safe errors in `packages/contracts/conformance/`
+- [x] T008 Extend authored operation and schema definitions in `packages/contracts/contract.json` and `packages/contracts/schema.json`
+- [x] T009 Regenerate and inspect TypeScript and PostgreSQL metadata through `packages/contracts/scripts/generate.ts` and `scripts/generate.ts`
+- [x] T010 Add operator-controlled credential-lifecycle, role-recreation, direct-connection, and pooler test fixtures in `packages/postgresql/test/system/support/remote-identity.ts` and `packages/postgresql/test/system/support/remote-connections.ts`, then register the profiles in `packages/postgresql/test/system/run.ts`
+- [x] T011 Add failing installation, recheck, privilege, and private-administration tests in `packages/postgresql/test/integration/remote-identity.test.ts`
+- [x] T012 Add failing role-mapping, OID-reuse, revocation, cross-tenant, private-object, arbitrary-SQL, identity-override, recovery, and history-page scenarios in `packages/postgresql/test/system/remote-security.test.ts` and `packages/postgresql/test/system/remote-recovery.test.ts`
+- [x] T013 Add failing direct, session-pooler, transaction-pooler, TLS-rejection, session-reset, and database-unavailable scenarios in `packages/postgresql/test/system/remote-connections.test.ts`
+- [x] T014 Add the next immutable PostgreSQL migration for remote identity, wrappers, recovery, history paging, and private administration under `packages/postgresql/migrations/`
+- [x] T015 Update installation inventory, checksums, diagnostics, and exact recheck in `packages/postgresql/src/installer/`
+- [x] T016 Run focused generator, contract, installation, security, connection-profile, and recheck tests and record the exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 
 **Checkpoint**: Generated consumers agree and PostgreSQL owns every remote transition and read.
 

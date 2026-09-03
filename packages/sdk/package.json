@@ -33,11 +33,14 @@
     "@pgsql/types": "18.0.0",
     "decimal.js": "10.6.0",
     "kysely": "0.29.5",
-    "libpg-query": "18.1.4"
+    "libpg-query": "18.1.4",
+    "pg": "8.23.0",
+    "pg-connection-string": "2.14.0"
   },
   "devDependencies": {
     "@keynes/contracts": "workspace:*",
     "@keynes/testkit": "workspace:*",
+    "@types/pg": "8.23.1",
     "json-schema-to-typescript": "15.0.4",
     "oxfmt": "0.64.0",
     "vitest": "4.1.11"
@@ -46,7 +49,9 @@
     "@pgsql/types",
     "decimal.js",
     "kysely",
-    "libpg-query"
+    "libpg-query",
+    "pg",
+    "pg-connection-string"
   ],
   "engines": {
     "node": ">=24 <25 || >=26 <27"

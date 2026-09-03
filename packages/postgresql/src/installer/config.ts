@@ -1,5 +1,7 @@
 export type InstallationConfig = {
   readonly ownerRole: string;
+  readonly executionRole: string;
+  readonly administrationRole: string;
   readonly applicationRole: string;
   readonly tenantId: string;
   readonly principalId: string;
@@ -7,6 +9,8 @@ export type InstallationConfig = {
 
 const CONFIG_KEYS = [
   "ownerRole",
+  "executionRole",
+  "administrationRole",
   "applicationRole",
   "tenantId",
   "principalId",
@@ -31,11 +35,42 @@ export function parseInstallationConfig(value: unknown): InstallationConfig {
   ) {
     invalid("keys");
   }
-  const config = value as InstallationConfig;
-  if (!ROLE.test(config.ownerRole) || !ROLE.test(config.applicationRole))
+  const ownerRole = value.ownerRole;
+  const executionRole = value.executionRole;
+  const administrationRole = value.administrationRole;
+  const applicationRole = value.applicationRole;
+  const tenantId = value.tenantId;
+  const principalId = value.principalId;
+  if (
+    typeof ownerRole !== "string" ||
+    typeof executionRole !== "string" ||
+    typeof administrationRole !== "string" ||
+    typeof applicationRole !== "string" ||
+    typeof tenantId !== "string" ||
+    typeof principalId !== "string"
+  ) {
+    invalid("keys");
+  }
+  if (
+    !ROLE.test(ownerRole) ||
+    !ROLE.test(executionRole) ||
+    !ROLE.test(administrationRole) ||
+    !ROLE.test(applicationRole)
+  )
     invalid("role");
-  if (config.ownerRole === config.applicationRole) invalid("roles");
-  if (!UUID.test(config.tenantId) || !UUID.test(config.principalId))
-    invalid("uuid");
-  return config;
+  if (
+    new Set([ownerRole, executionRole, administrationRole, applicationRole])
+      .size !== 4
+  ) {
+    invalid("roles");
+  }
+  if (!UUID.test(tenantId) || !UUID.test(principalId)) invalid("uuid");
+  return {
+    ownerRole,
+    executionRole,
+    administrationRole,
+    applicationRole,
+    tenantId,
+    principalId,
+  };
 }

@@ -7,6 +7,9 @@ export {
   type ContractTestHost,
   type FixturePrincipal,
   type OpenContractTestHost,
+  type OpenRemoteContractTestHost,
+  type RemoteContractClient,
+  type RemoteContractTestHost,
   type RollbackCheckpoint,
 } from "./host.ts";
 export { registerBudgetContractTests } from "./scenarios/index.ts";
@@ -16,6 +19,7 @@ export {
   registerRequestDenialContractTests,
   registerRollbackContractTests,
   registerSettlementContractTests,
+  registerRemoteContractTests,
 } from "./scenarios/index.ts";
 export { canonicalizePolicyCommand } from "./policy.ts";
 export {

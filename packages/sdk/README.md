@@ -13,9 +13,10 @@ CI=true pnpm pack:sdk
 ```
 
 Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
-The package has four pinned production dependencies: Kysely for typed Policy
+The package has six pinned production dependencies: Kysely for typed Policy
 queries, `libpg-query` and `@pgsql/types` for the PostgreSQL 18 parser and its
-types, and `decimal.js` for local bounded-decimal evaluation. It contains no
+types, `decimal.js` for local bounded-decimal evaluation, and `pg` plus
+`pg-connection-string` for direct remote PostgreSQL access. It contains no
 PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
 library. The package remains private and has no registry publication command.
 

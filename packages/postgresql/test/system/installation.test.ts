@@ -61,6 +61,12 @@ const MIGRATIONS = [
     tableName: null,
     procedureName: null,
   },
+  {
+    id: "0006-remote-access",
+    path: "0006-remote-access.sql",
+    tableName: "keynes_internal.remote_role_mappings",
+    procedureName: "keynes.remote_get_compatibility(jsonb)",
+  },
 ] as const;
 
 type FileContents = string | Buffer;
@@ -166,6 +172,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           { migration_id: "0003-public" },
           { migration_id: "0004-policy" },
           { migration_id: "0005-resource-bound-budget" },
+          { migration_id: "0006-remote-access" },
         ]);
       });
     });

@@ -35,6 +35,8 @@ const expectedProductionDependencies = {
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
   "libpg-query": "18.1.4",
+  pg: "8.23.0",
+  "pg-connection-string": "2.14.0",
 } as const;
 const expectedBundledDependencies = Object.keys(
   expectedProductionDependencies,
@@ -47,6 +49,8 @@ const requiredBundledPackageFiles = [
   "package/node_modules/decimal.js/package.json",
   "package/node_modules/kysely/package.json",
   "package/node_modules/libpg-query/package.json",
+  "package/node_modules/pg/package.json",
+  "package/node_modules/pg-connection-string/package.json",
   "package/node_modules/libpg-query/wasm/index.cjs",
   "package/node_modules/libpg-query/wasm/index.js",
   "package/node_modules/libpg-query/wasm/libpg-query.js",
@@ -388,6 +392,10 @@ export async function installExternalConsumer(
     const installedParserTypes = await realpath(
       installedRequire.resolve("@pgsql/types"),
     );
+    const installedPg = await realpath(installedRequire.resolve("pg"));
+    const installedPgConnectionString = await realpath(
+      installedRequire.resolve("pg-connection-string"),
+    );
     const installedParserWasm = await realpath(
       resolve(dirname(installedParserEntry), "libpg-query.wasm"),
     );
@@ -396,6 +404,8 @@ export async function installExternalConsumer(
     assertWithin(externalRoot, installedPackage);
     assertWithin(installedParserRoot, installedParserEntry);
     assertWithin(installedParserRoot, installedParserWasm);
+    assertWithin(externalRoot, installedPg);
+    assertWithin(externalRoot, installedPgConnectionString);
     assertWithin(
       await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
       installedParserTypes,

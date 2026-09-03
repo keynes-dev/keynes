@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
+  PGBOUNCER_IMAGE,
   POSTGRES_IMAGE,
   runPostgresqlSystemTests,
   type PostgresqlSystemRuntime,
@@ -27,6 +28,10 @@ interface FakeRuntime {
   readonly probeUrls: string[];
   readonly childTerminations: { count: number };
   readonly packagePreparations: { count: number };
+  readonly poolerPermissions: {
+    readonly directories: number[];
+    readonly files: number[];
+  };
 }
 
 function fakeRuntime(options?: {
@@ -42,6 +47,10 @@ function fakeRuntime(options?: {
   const probeUrls: string[] = [];
   const childTerminations = { count: 0 };
   const packagePreparations = { count: 0 };
+  const poolerPermissions = {
+    directories: [] as number[],
+    files: [] as number[],
+  };
   let clock = 1_000;
   let probeAttempt = 0;
   let statusAttempt = 0;
@@ -52,6 +61,7 @@ function fakeRuntime(options?: {
     probeUrls,
     childTerminations,
     packagePreparations,
+    poolerPermissions,
     runtime: {
       randomUUID: () => RUN_ID,
       randomPassword: () => PASSWORD,
@@ -83,6 +93,18 @@ function fakeRuntime(options?: {
         }
         if (executable === "docker" && arguments_[0] === "port") {
           return { stdout: "127.0.0.1:49152\n" };
+        }
+        if (executable === "docker" && arguments_.includes(PGBOUNCER_IMAGE)) {
+          for (const argument of arguments_) {
+            const [source, target] = argument.split(":/etc/pgbouncer/");
+            if (source === undefined || target === undefined) continue;
+            const [directory, file] = await Promise.all([
+              stat(dirname(source)),
+              stat(source),
+            ]);
+            poolerPermissions.directories.push(directory.mode & 0o777);
+            poolerPermissions.files.push(file.mode & 0o777);
+          }
         }
         return { stdout: "" };
       },
@@ -151,25 +173,53 @@ describe("PostgreSQL system-test runner", () => {
 
     expect(fake.commands[0]).toEqual({
       executable: "docker",
-      arguments: [
-        "run",
-        "--detach",
-        "--rm",
-        "--name",
+      arguments: ["network", "create", RUN_ID],
+      environment: {},
+    });
+    const postgres = fake.commands.find(({ arguments: commandArguments }) =>
+      commandArguments.includes(POSTGRES_IMAGE),
+    );
+    expect(postgres?.arguments).toEqual(
+      expect.arrayContaining([
+        "--network",
         RUN_ID,
-        "--env",
-        "POSTGRES_PASSWORD",
+        "--network-alias",
+        "postgres",
         "--publish",
         "127.0.0.1::5432",
-        POSTGRES_IMAGE,
-      ],
-      environment: expect.objectContaining({ POSTGRES_PASSWORD: PASSWORD }),
-    });
-    expect(fake.commands[0]?.arguments).not.toContain("--volume");
-    expect(fake.commands[0]?.arguments).not.toContain(PASSWORD);
-    expect(fake.probeUrls).toEqual([
-      `postgresql://postgres:${PASSWORD}@127.0.0.1:49152/postgres`,
-    ]);
+      ]),
+    );
+    expect(postgres?.environment).toEqual(
+      expect.objectContaining({ POSTGRES_PASSWORD: PASSWORD }),
+    );
+    const poolers = fake.commands.filter(({ arguments: commandArguments }) =>
+      commandArguments.some((argument) =>
+        argument.startsWith("edoburu/pgbouncer@"),
+      ),
+    );
+    expect(poolers).toHaveLength(2);
+    expect(new Set(fake.poolerPermissions.directories)).toEqual(
+      new Set([0o700]),
+    );
+    expect(new Set(fake.poolerPermissions.files)).toEqual(new Set([0o644]));
+    expect(
+      poolers.every(({ arguments: commandArguments }) =>
+        commandArguments.includes("127.0.0.1::5432"),
+      ),
+    ).toBe(true);
+    expect(
+      poolers.every(({ arguments: commandArguments }) =>
+        commandArguments.includes("--volume"),
+      ),
+    ).toBe(true);
+    expect(
+      poolers.flatMap(({ arguments: commandArguments }) => commandArguments),
+    ).not.toContain(PASSWORD);
+    expect(fake.probeUrls).toEqual(
+      Array(3).fill(
+        `postgresql://postgres:${PASSWORD}@127.0.0.1:49152/postgres`,
+      ),
+    );
 
     const child = fake.commands.find(({ executable }) => executable === "pnpm");
     expect(child?.environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT).toContain(
@@ -178,9 +228,10 @@ describe("PostgreSQL system-test runner", () => {
     expect(child?.environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT).toContain(
       PASSWORD,
     );
-    expect(fake.commands.at(-1)).toMatchObject({
+    expect(fake.commands).toContainEqual({
       executable: "docker",
-      arguments: ["stop", RUN_ID],
+      arguments: ["network", "rm", RUN_ID],
+      environment: {},
     });
     expect(fake.childTerminations.count).toBe(1);
   });
@@ -198,10 +249,11 @@ describe("PostgreSQL system-test runner", () => {
 
     expect(fake.probeUrls.length).toBeGreaterThan(1);
     expect(fake.probeUrls.length).toBeLessThanOrEqual(301);
-    expect(fake.commands.at(-1)).toMatchObject({
-      executable: "docker",
-      arguments: ["stop", RUN_ID],
-    });
+    expect(
+      fake.commands.some(
+        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+      ),
+    ).toBe(true);
   });
 
   it("rejects the wrong PostgreSQL server version and cleans up", async () => {
@@ -211,10 +263,11 @@ describe("PostgreSQL system-test runner", () => {
       `PostgreSQL system run ${RUN_ID} failed during version-check`,
     );
 
-    expect(fake.commands.at(-1)).toMatchObject({
-      executable: "docker",
-      arguments: ["stop", RUN_ID],
-    });
+    expect(
+      fake.commands.some(
+        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+      ),
+    ).toBe(true);
   });
 
   it("cleans up after the test child fails without leaking diagnostics", async () => {
@@ -236,10 +289,11 @@ describe("PostgreSQL system-test runner", () => {
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(String(failure)).not.toContain(privateUrl);
-    expect(fake.commands.at(-1)).toMatchObject({
-      executable: "docker",
-      arguments: ["stop", RUN_ID],
-    });
+    expect(
+      fake.commands.some(
+        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+      ),
+    ).toBe(true);
     expect(fake.childTerminations.count).toBe(1);
   });
 
@@ -256,7 +310,7 @@ describe("PostgreSQL system-test runner", () => {
     }
 
     expect(String(failure)).toBe(
-      `Error: PostgreSQL system run ${RUN_ID} failed during container-start`,
+      `Error: PostgreSQL system run ${RUN_ID} failed during network-create`,
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(fake.commands).toHaveLength(1);

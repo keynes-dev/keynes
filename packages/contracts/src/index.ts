@@ -12,7 +12,11 @@ export type {
 } from "./generation.ts";
 export { loadContract } from "./load.ts";
 export { loadPolicyProfile } from "./load-policy-profile.ts";
-export { CONTRACT_DIGEST } from "../generated/contract.ts";
+export {
+  CONTRACT_DIGEST,
+  REMOTE_CONTRACT,
+  REMOTE_PROCEDURES_DIGEST,
+} from "../generated/contract.ts";
 export {
   isPolicyNodeV1,
   isPolicyContextV1,
@@ -61,4 +65,7 @@ export type {
   PolicyProfileVersions,
   PolicyTextProfile,
   PolicySemanticSignature,
+  RemoteContractMetadata,
+  RemoteContractProcedure,
+  RemoteProcedureMode,
 } from "./model.ts";

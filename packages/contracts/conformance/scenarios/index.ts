@@ -6,6 +6,7 @@ import { registerRequestDenialContractTests } from "./request-denial.ts";
 import { registerResourceBoundRootContractTests } from "./resource-bound-root.ts";
 import { registerRollbackContractTests } from "./rollback.ts";
 import { registerSettlementContractTests } from "./settlement.ts";
+import { registerRemoteContractTests } from "./remote.ts";
 
 export {
   registerBudgetLifecycleContractTests,
@@ -14,6 +15,7 @@ export {
   registerResourceBoundRootContractTests,
   registerRollbackContractTests,
   registerSettlementContractTests,
+  registerRemoteContractTests,
 };
 
 export function registerBudgetContractTests(

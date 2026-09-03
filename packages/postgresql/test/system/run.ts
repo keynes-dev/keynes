@@ -23,6 +23,8 @@ import { REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS } from "./required-scenarios.ts";
 
 export const POSTGRES_IMAGE =
   "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941";
+export const PGBOUNCER_IMAGE =
+  "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340";
 
 export const POSTGRESQL_SYSTEM_CONTEXT_ENV = "KEYNES_POSTGRESQL_SYSTEM_CONTEXT";
 
@@ -42,9 +44,13 @@ const POSTGRESQL_SYSTEM_TEST_FILES = [
   "packages/postgresql/test/system/budget-lifecycle.test.ts",
   "packages/postgresql/test/system/replay.test.ts",
   "packages/postgresql/test/system/request-denial.test.ts",
+  "packages/postgresql/test/system/remote-connections.test.ts",
+  "packages/postgresql/test/system/remote-recovery.test.ts",
+  "packages/postgresql/test/system/remote-security.test.ts",
   "packages/postgresql/test/system/rollback.test.ts",
   "packages/postgresql/test/system/settlement.test.ts",
   "packages/postgresql/test/integration/installation.test.ts",
+  "packages/postgresql/test/integration/remote-identity.test.ts",
   "packages/postgresql/test/integration/recheck.test.ts",
 ] as const;
 
@@ -110,6 +116,9 @@ export async function runPostgresqlSystemTests(
       ? undefined
       : await prepareAcceptanceRecord(runtime, outputPath);
   let containerStarted = false;
+  let networkCreated = false;
+  let poolerWorkspace: PoolerWorkspace | undefined;
+  const poolerContainers: string[] = [];
   let child: RunningTestChild | undefined;
   let packed: PackedPostgresqlPackage | undefined;
   let testedDistribution: AcceptanceDistribution | undefined;
@@ -122,6 +131,10 @@ export async function runPostgresqlSystemTests(
     if (recordWorkspace !== undefined) {
       testedDistribution = await readTestedDistribution(packed.archivePath);
     }
+    await stage(runId, "network-create", () =>
+      runtime.run("docker", ["network", "create", runId], environment),
+    );
+    networkCreated = true;
     await stage(runId, "container-start", () =>
       runtime.run(
         "docker",
@@ -131,6 +144,10 @@ export async function runPostgresqlSystemTests(
           "--rm",
           "--name",
           runId,
+          "--network",
+          runId,
+          "--network-alias",
+          "postgres",
           "--env",
           "POSTGRES_PASSWORD",
           "--publish",
@@ -155,12 +172,22 @@ export async function runPostgresqlSystemTests(
     if (serverVersion !== EXPECTED_SERVER_VERSION) {
       throw postgresqlSystemFailure(runId, "version-check");
     }
+    poolerWorkspace = await createPoolerWorkspace(password);
+    const poolers = await startPoolers({
+      runtime,
+      environment,
+      runId,
+      password,
+      workspace: poolerWorkspace,
+      containers: poolerContainers,
+    });
 
     child = runtime.spawnTests({
       ...environment,
       [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify({
         runId,
         administratorUrl: connectionUrl,
+        poolers,
         commandPath: packed.commandPath,
       }),
       ...(recordWorkspace === undefined
@@ -180,9 +207,30 @@ export async function runPostgresqlSystemTests(
       cleanupFailed = true;
     }
   }
+  for (const pooler of poolerContainers.reverse()) {
+    try {
+      await runtime.run("docker", ["stop", pooler], environment);
+    } catch {
+      cleanupFailed = true;
+    }
+  }
   if (containerStarted) {
     try {
       await runtime.run("docker", ["stop", runId], environment);
+    } catch {
+      cleanupFailed = true;
+    }
+  }
+  if (networkCreated) {
+    try {
+      await runtime.run("docker", ["network", "rm", runId], environment);
+    } catch {
+      cleanupFailed = true;
+    }
+  }
+  if (poolerWorkspace !== undefined) {
+    try {
+      await rm(poolerWorkspace.root, { recursive: true, force: true });
     } catch {
       cleanupFailed = true;
     }
@@ -213,6 +261,129 @@ export async function runPostgresqlSystemTests(
   }
   if (failure !== undefined) throw failure;
   if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
+}
+
+interface PoolerWorkspace {
+  readonly root: string;
+  readonly sessionConfigPath: string;
+  readonly transactionConfigPath: string;
+  readonly userlistPath: string;
+}
+
+interface PoolerUrls {
+  readonly sessionUrl: string;
+  readonly transactionUrl: string;
+}
+
+async function createPoolerWorkspace(
+  password: string,
+): Promise<PoolerWorkspace> {
+  const root = await mkdtemp(join(tmpdir(), "keynes-pgbouncer-"));
+  const sessionConfigPath = join(root, "session.ini");
+  const transactionConfigPath = join(root, "transaction.ini");
+  const userlistPath = join(root, "userlist.txt");
+  const writes = await Promise.allSettled([
+    writeFile(sessionConfigPath, poolerConfig("session"), { mode: 0o644 }),
+    writeFile(transactionConfigPath, poolerConfig("transaction"), {
+      mode: 0o644,
+    }),
+    writeFile(userlistPath, `"postgres" "${password}"\n`, { mode: 0o644 }),
+  ]);
+  const writeFailure = writes.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+  if (writeFailure !== undefined) {
+    try {
+      await rm(root, { recursive: true, force: true });
+    } catch (cleanupError: unknown) {
+      throw new AggregateError(
+        [writeFailure.reason, cleanupError],
+        "PgBouncer workspace creation and cleanup failed",
+      );
+    }
+    throw writeFailure.reason;
+  }
+  return { root, sessionConfigPath, transactionConfigPath, userlistPath };
+}
+
+async function startPoolers(input: {
+  readonly runtime: PostgresqlSystemRuntime;
+  readonly environment: NodeJS.ProcessEnv;
+  readonly runId: string;
+  readonly password: string;
+  readonly workspace: PoolerWorkspace;
+  readonly containers: string[];
+}): Promise<PoolerUrls> {
+  const session = `${input.runId}-session-pool`;
+  const transaction = `${input.runId}-transaction-pool`;
+  const sessionPort = await startPooler({
+    ...input,
+    name: session,
+    mode: "session",
+  });
+  const transactionPort = await startPooler({
+    ...input,
+    name: transaction,
+    mode: "transaction",
+  });
+  const sessionUrl = postgresUrl(input.password, sessionPort);
+  const transactionUrl = postgresUrl(input.password, transactionPort);
+  await Promise.all([
+    waitForPostgres(input.runtime, input.runId, sessionUrl),
+    waitForPostgres(input.runtime, input.runId, transactionUrl),
+  ]);
+  return { sessionUrl, transactionUrl };
+}
+
+async function startPooler(input: {
+  readonly runtime: PostgresqlSystemRuntime;
+  readonly environment: NodeJS.ProcessEnv;
+  readonly runId: string;
+  readonly workspace: PoolerWorkspace;
+  readonly containers: string[];
+  readonly name: string;
+  readonly mode: "session" | "transaction";
+}): Promise<number> {
+  await stage(input.runId, `${input.mode}-pooler-start`, () =>
+    input.runtime.run(
+      "docker",
+      [
+        "run",
+        "--detach",
+        "--rm",
+        "--name",
+        input.name,
+        "--network",
+        input.runId,
+        "--volume",
+        `${input.mode === "session" ? input.workspace.sessionConfigPath : input.workspace.transactionConfigPath}:/etc/pgbouncer/pgbouncer.ini:ro`,
+        "--volume",
+        `${input.workspace.userlistPath}:/etc/pgbouncer/userlist.txt:ro`,
+        "--publish",
+        "127.0.0.1::5432",
+        PGBOUNCER_IMAGE,
+      ],
+      input.environment,
+    ),
+  );
+  input.containers.push(input.name);
+  const port = await stage(
+    input.runId,
+    `${input.mode}-pooler-port`,
+    async () => {
+      const result = await input.runtime.run(
+        "docker",
+        ["port", input.name, "5432/tcp"],
+        input.environment,
+      );
+      return parseLoopbackPort(result.stdout);
+    },
+  );
+  return port;
+}
+
+function poolerConfig(mode: "session" | "transaction"): string {
+  return `[databases]\n* = host=postgres port=5432\n\n[pgbouncer]\nlisten_addr = 0.0.0.0\nlisten_port = 5432\npool_mode = ${mode}\nauth_file = /etc/pgbouncer/userlist.txt\nauth_type = scram-sha-256\nauth_user = postgres\nauth_query = SELECT usename, passwd FROM pg_shadow WHERE usename=$1\nadmin_users = postgres\nserver_reset_query = DISCARD ALL\n`;
 }
 
 interface AcceptanceWorkspace {
@@ -331,15 +502,21 @@ async function writeAcceptanceRecord(
         name: "keynes_owner",
         privileges: ["NOLOGIN", "database CREATE"],
       },
+      execution: {
+        name: "keynes_execution",
+        privileges: ["NOLOGIN", "NOINHERIT", "remote wrapper ownership"],
+      },
+      administration: {
+        name: "keynes_admin",
+        privileges: ["LOGIN", "NOINHERIT"],
+        grants: ["EXECUTE ON five private administration functions"],
+      },
       application: {
         name: "keynes_app",
+        privileges: ["LOGIN", "NOINHERIT"],
         grants: [
           "USAGE ON SCHEMA keynes",
-          "EXECUTE ON keynes.define_resource_type(jsonb)",
-          "EXECUTE ON keynes.create_budget(jsonb)",
-          "EXECUTE ON keynes.request(jsonb)",
-          "EXECUTE ON keynes.settle(jsonb)",
-          "EXECUTE ON keynes.get_budget(jsonb)",
+          "EXECUTE ON eight remote wrapper functions",
         ],
       },
       privateAccessDenials: [
@@ -598,6 +775,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
         "run",
         "--passWithNoTests=false",
         "--root=.",
+        "--exclude=.claude/**",
         ...(environment[POSTGRESQL_SYSTEM_REPORT_ENV] === undefined
           ? []
           : [

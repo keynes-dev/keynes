@@ -57,6 +57,7 @@ export async function generateSdk(options: GenerateSdkOptions): Promise<void> {
     renderClient(
       options.contract.source,
       options.contract.digest,
+      options.contract.remoteDigest,
       contractFieldOrder(options.contract.definitions),
     ),
   );

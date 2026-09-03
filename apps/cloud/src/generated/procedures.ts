@@ -1,7 +1,7 @@
 // Generated from contracts/. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5";
+  "85b6193ade401110325fb22569c52c72f298d52effd4e52dcc518cf10ea46a5b";
 
 export const INSTALLATION_MIGRATIONS = [
   {
@@ -35,6 +35,13 @@ export const INSTALLATION_MIGRATIONS = [
       "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
     contractDigest:
       "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
+  },
+  {
+    id: "0006-remote-access",
+    byteChecksum:
+      "e1b295ef1a1dcb7a00958b87f01382c597301324f6b70eab6b77022a6a855918",
+    contractDigest:
+      "85b6193ade401110325fb22569c52c72f298d52effd4e52dcc518cf10ea46a5b",
   },
 ] as const;
 
