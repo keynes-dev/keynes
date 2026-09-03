@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, Resource-bound local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Resource-bound and Policy procedures, a historically qualified SDK archive, a Phase 5 qualified PostgreSQL archive, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. FEAT-0014 Phase 6 acceptance remains open. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK, but that remote path is not implemented. Hosted compatibility, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, Resource-bound local handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, PostgreSQL Resource-bound and Policy procedures, qualified SDK and PostgreSQL archives, PostgreSQL 18.6 system tests, local SDK measurements, and private no-Policy Cloud service exist. FEAT-0014 is accepted at revision `b25a491de6831fc8f3b014ffdf15ab73b236029a`. Keynes has accepted direct PostgreSQL access for the future remote TypeScript SDK, but that remote path is not implemented. Hosted compatibility, self-hosted packaging, managed Cloud, recovery, provider qualification, and production support remain unproved.
 
 ## Purpose
 

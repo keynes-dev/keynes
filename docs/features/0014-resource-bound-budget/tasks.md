@@ -169,16 +169,29 @@
 
 **Purpose**: Qualify exact artifacts, reconcile durable records, and land the prerequisite without claiming later deployment work.
 
-- [ ] T037 Build one SDK archive, record its SHA-256, and run `pnpm test:package:sdk -- --archive <archive>` against that exact archive.
-- [ ] T038 Build one PostgreSQL archive, record its SHA-256, and run `pnpm test:package:postgresql -- --archive <archive>` against that exact archive.
-- [ ] T039 Run `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, and `CI=true pnpm test:pr` at the candidate revision and record exact results in `docs/features/0014-resource-bound-budget/evidence/acceptance.json` and `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T040 Reconcile delivered behavior and evidence without changing accepted architecture in `docs/product.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/0007-direct-postgresql-remote-access.md`, and `docs/features/0013-remote-sdk-public-service/`.
-- [ ] T041 Mark every unexecuted remote, hosted, upgrade, recovery, security, fault, benchmark, self-hosted, managed, and production claim `NOT RUN` in `docs/features/0014-resource-bound-budget/evidence/acceptance.json`.
-- [ ] T042 Run a read-only Ponytail review over the complete feature diff, apply accepted simplifications, rerun every affected gate, and commit the Phase 6 acceptance boundary.
+- [x] T037 Build one SDK archive, record its SHA-256, and run `pnpm test:package:sdk -- --archive <archive>` against that exact archive.
+- [x] T038 Build one PostgreSQL archive, record its SHA-256, and run `pnpm test:package:postgresql -- --archive <archive>` against that exact archive.
+- [x] T039 Run `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, and `CI=true pnpm test:pr` at the candidate revision and record exact results in `docs/features/0014-resource-bound-budget/evidence/acceptance.json` and `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T040 Reconcile delivered behavior and evidence without changing accepted architecture in `docs/product.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/0007-direct-postgresql-remote-access.md`, and `docs/features/0013-remote-sdk-public-service/`.
+- [x] T041 Mark every unexecuted remote, hosted, upgrade, recovery, security, fault, benchmark, self-hosted, managed, and production claim `NOT RUN` in `docs/features/0014-resource-bound-budget/evidence/acceptance.json`.
+- [x] T042 Run a read-only Ponytail review over the complete feature diff, apply accepted simplifications, rerun every affected gate, and commit the Phase 6 acceptance boundary.
 - [ ] T043 Update the one evolving pull request with the complete repository-specific description, exact commands, outcomes, revision, `NOT RUN` boundaries, design choices, rejected alternatives, and ordered review guide using `.github/PULL_REQUEST_TEMPLATE.md`.
 - [ ] T044 Confirm pull-request CI on the exact accepted revision, merge the one canonical FEAT-0014 pull request, record the merge revision in issue #22, and leave FEAT-0013 blocked until its branch is refreshed from that new `main`.
 
 **Checkpoint**: FEAT-0014 is merged with exact local, package, and native PostgreSQL evidence. Issue #22 records the accepted revision.
+
+**Acceptance evidence (`b25a491de6831fc8f3b014ffdf15ab73b236029a`)**:
+
+- `CI=true pnpm check:repo`: passed all seven quality and typecheck tasks plus generation and package boundaries; lint retained 15 existing warnings and reported no errors.
+- `CI=true pnpm test:unit`: passed 48 contract, 44 Cloud, 29 PostgreSQL, and 244 SDK unit and conformance tests.
+- `CI=true pnpm test:pr`: passed feature identity, generation, 48 contract tests, 8 repository tests, all workspace quality, typecheck, and test tasks, package consumer typecheck, and package boundaries.
+- SDK package: Node.js 26.5.0, 20 tests passed, archive SHA-256 `237baf18142d4e08e1c6f225269e413826c0ac36285da3bd7837cf3f7e72ee84`.
+- PostgreSQL package: Node.js 26.5.0, 21 tests passed, archive SHA-256 `fa294976c1106bad4f03ba7905db144fc6b0197cf80a35b6272edae4e09fe71b`.
+- Native PostgreSQL: 159 tests passed on PostgreSQL 18.6; contract digest `cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5`; migration-set digest `b99e0c03b080428e37abe4e4d40ca8d8f7b4187f3c4c8105b74cf0215b112e68`.
+- Private Cloud regression: 9 no-Policy scenarios passed against the same packed PostgreSQL archive. This is blast-radius evidence for the historical service, not FEAT-0013 remote SDK evidence.
+- The complete-feature Ponytail review accepted four simplifications and removed 39 net lines: one duplicate digest implementation, one duplicate binding array, one single-use error factory, and reflective test facades. Focused SDK and PostgreSQL checks passed before the complete acceptance run.
+- Spec Kit analysis found no requirement coverage, ambiguity, placeholder, ordering, or constitution issue across the feature specification, plan, and task ledger.
+- Remote database access, TLS, credentials, private administration, operation recovery, remote reopen, hosted compatibility, registry publication, migration upgrade and downgrade, rolling deployment, uninstall, backup and restoration, failover, hostile-role security qualification, external fault campaigns, benchmarks, self-hosted operations, managed Cloud, and production readiness: `NOT RUN`.
 
 ---
 

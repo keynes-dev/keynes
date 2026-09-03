@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0014-resource-bound-budget`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-02
-**Status**: In progress, Phase 6 acceptance
+**Status**: Complete
 **Input**: User description: "Separate connection setup from Resource binding, provide one typed local and PostgreSQL root-creation contract, make root creation atomic, and qualify shared local and native PostgreSQL behavior. Exclude remote TLS, credentials, private administration, recovery, and Cloud retirement."
 
 ## Feature story
