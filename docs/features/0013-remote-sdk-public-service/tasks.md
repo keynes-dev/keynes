@@ -29,7 +29,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 - [x] T009 Regenerate and inspect TypeScript and PostgreSQL metadata through `packages/contracts/scripts/generate.ts` and `scripts/generate.ts`
 - [x] T010 Add operator-controlled credential-lifecycle, role-recreation, direct-connection, and pooler test fixtures in `packages/postgresql/test/system/support/remote-identity.ts` and `packages/postgresql/test/system/support/remote-connections.ts`, then register the profiles in `packages/postgresql/test/system/run.ts`
 - [x] T011 Add failing installation, recheck, privilege, and private-administration tests in `packages/postgresql/test/integration/remote-identity.test.ts`
-- [x] T012 Add failing role-mapping, OID-reuse, revocation, cross-tenant, private-object, arbitrary-SQL, identity-override, recovery, and history-page scenarios in `packages/postgresql/test/system/remote-security.test.ts` and `packages/postgresql/test/system/remote-recovery.test.ts`
+- [x] T012 Add failing role-mapping, OID-reuse, revocation, cross-tenant, private-object, privileged-procedure, role-assumption, identity-override, recovery, and history-page scenarios in `packages/postgresql/test/system/remote-security.test.ts` and `packages/postgresql/test/system/remote-recovery.test.ts`
 - [x] T013 Add failing direct, session-pooler, transaction-pooler, TLS-rejection, session-reset, and database-unavailable scenarios in `packages/postgresql/test/system/remote-connections.test.ts`
 - [x] T014 Add the next immutable PostgreSQL migration for remote identity, wrappers, recovery, history paging, and private administration under `packages/postgresql/migrations/`
 - [x] T015 Update installation inventory, checksums, diagnostics, and exact recheck in `packages/postgresql/src/installer/`
@@ -123,7 +123,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 - [x] T046 Remove `apps/cloud` only after T045 passes, including its generator, workspace, root-script, structural-test, and active-documentation edges in `apps/cloud/`, `scripts/generate.ts`, `package.json`, `pnpm-workspace.yaml`, and `scripts/repository-organization.test.ts`
 - [x] T047 Run `CI=true pnpm check:repo`, `CI=true pnpm test:unit`, `CI=true pnpm test:pr`, and `pnpm test:system:postgresql`; record exact results and every `NOT RUN` lane in `docs/features/0013-remote-sdk-public-service/evidence/`
 - [ ] T048 Optionally run the authorized external-provider lane after explicit approval and retain its redacted exact-revision record in `docs/features/0013-remote-sdk-public-service/evidence/`; this deployment evidence does not block FEAT-0013 acceptance
-- [ ] T049 After provider-free positive TLS qualification, run a timed clean-user quickstart walkthrough against a fresh disposable TLS target and require completion in under 15 minutes; record its inputs, duration, source revision, archive digest, and outcome, then update `docs/features/0013-remote-sdk-public-service/quickstart.md` and `docs/features/0013-remote-sdk-public-service/evidence/`
+- [ ] T049 After FEAT-0015 passes provider-free positive TLS qualification, run a timed clean-user quickstart walkthrough against a fresh disposable TLS target and require completion in under 15 minutes; record its inputs, duration, source revision, archive digest, and outcome, then update `docs/features/0013-remote-sdk-public-service/quickstart.md` and `docs/features/0013-remote-sdk-public-service/evidence/`
 - [x] T050 Reconcile product, architecture, roadmap status, ADR links, feature checklist, and accepted evidence in `docs/product.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/0007-direct-postgresql-remote-access.md`, and `docs/features/0013-remote-sdk-public-service/`
 
 ## Dependencies and execution order
@@ -134,7 +134,7 @@ Behavioral tests must be written and observed failing for the expected reason be
 4. User story 2 depends on user story 1's executor and handles.
 5. User story 3 depends on the procedure and connection foundations but its test authoring can overlap user story 2.
 6. Package qualification and Cloud retirement follow all three stories. T046 cannot begin until T045 proves replacement coverage.
-7. Provider-free positive TLS qualification blocks T049. T048 is optional deployment evidence and does not block T049 or FEAT-0013 acceptance.
+7. FEAT-0015 owns provider-free positive TLS qualification and blocks T049 until that evidence passes. T048 is optional deployment evidence and does not block T049 or FEAT-0013 acceptance.
 
 ## Parallel opportunities
 

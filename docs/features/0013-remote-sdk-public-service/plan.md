@@ -18,7 +18,7 @@ FEAT-0013 adds remote-only Budget references, reopen, and read-only operation re
 **Target platform**: trusted server-side Node.js on declared Linux, macOS, and Windows profiles; PostgreSQL 18.6 direct, session pooler, and transaction pooler profiles
 **Project type**: monorepo library plus PostgreSQL installation package
 **Performance goals**: publish bounded connect, acquire, command, retry, history-page, and shutdown limits before acceptance; performance qualification beyond those safety bounds remains `NOT RUN`
-**Constraints**: strict TLS, no HTTP data path, no fallback, no SDK replay ledger, no public arbitrary SQL, no local reopen, no change to the public `inspect()` result
+**Constraints**: strict TLS, no HTTP data path, no fallback, no SDK replay ledger, no general SQL SDK operation or database handle, no local reopen, no change to the public `inspect()` result
 **Scale/scope**: one TypeScript SDK, one PostgreSQL server profile, two tenants in isolation tests, and histories spanning at least three internal pages
 
 ## Constitution check
@@ -62,6 +62,8 @@ A new remote connection module parses the URL once with `pg-connection-string`, 
 
 The remote executor owns acquire, transaction, statement, retry, and shutdown boundaries. It supports only the connection profiles proved by native tests. The SDK never accepts a caller pool or raw database handle in this feature.
 
+The scoped credential remains a PostgreSQL login and can submit SQL through another client. Keynes-owned grants prevent that SQL from reaching private state, privileged roles, administration, mapped identity, or another tenant's Keynes state. The deployment operator owns database-wide SQL privileges and resource controls. The customer is the operator for self-hosted Keynes; Keynes is the operator for Keynes Cloud.
+
 ### Contract and procedure ownership
 
 `packages/contracts` remains the authored neutral owner for operation names, public inputs and results, error categories, semantic identities, and conformance cases. Generation adds remote procedure metadata and validators. `packages/postgresql` owns migrations, remote wrappers, credential administration, installation checks, and native tests.
@@ -101,4 +103,4 @@ pnpm pack:postgresql
 pnpm test:package:postgresql -- --archive <exact-archive>
 ```
 
-Dispatch hosted package compatibility only for the accepted revision. Qualify positive certificate-chain and hostname verification against a disposable local PostgreSQL TLS target. Run the optional external-provider lane only after the user approves the endpoint and credential scope. Record unavailable lanes as `NOT RUN`; unavailable provider evidence does not block FEAT-0013 software acceptance.
+Dispatch hosted package compatibility only for the accepted revision. FEAT-0015 owns the disposable local PostgreSQL TLS target and provider-free positive certificate-chain and hostname qualification. T049 remains blocked until that evidence passes. Run the optional external-provider lane only after the user approves the endpoint and credential scope. Record unavailable lanes as `NOT RUN`; unavailable provider evidence does not block FEAT-0013 software acceptance.

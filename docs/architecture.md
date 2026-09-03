@@ -376,7 +376,11 @@ Local mode protects state from accidental mutation through a private SQLite conn
 
 Embedded PostgreSQL uses database roles and supported functions to prevent application roles from writing private Keynes state. The application database operator is inside the deployment's trust boundary.
 
+The embedded installer owns only Keynes schemas, functions, and grants. The customer owns privileges on application objects and every database-wide SQL and resource-control policy.
+
 Remote deployments treat database credentials, client inputs, and Policy source as untrusted. PostgreSQL authenticates the login role. Protected mappings bind that role to one Keynes principal, and remote wrappers derive identity from `session_user`. The SDK invokes only supported procedures, applies bounded client-side inputs and deadlines, avoids logging credentials or arbitrary context, and returns stable errors without leaking another tenant or database internals. Private administrative procedures own credential creation, rotation, and revocation; ordinary SDK roles cannot call them.
+
+A remote credential remains a PostgreSQL login and can submit SQL outside the SDK. The SDK exposes no general SQL operation, transaction, pool, or database handle. PostgreSQL grants prevent submitted SQL from reading or writing private Keynes state, invoking administration, assuming privileged roles, overriding mapped identity, or crossing tenant boundaries. The deployment operator owns database-wide privileges and resource controls. The customer is that operator for self-hosted Keynes; Keynes is the operator for Keynes Cloud. A deployment that prohibits SQL submission must use a constrained data path that does not issue PostgreSQL credentials.
 
 Recovery cannot assume that a restored database contains every command whose external work may have run. Durable recovery design must fence old writers, identify the exact command and evidence interval, and leave unresolved work visible when it cannot be reconstructed. Self-hosted and managed Cloud need separate recovery evidence because their operators and failure domains differ.
 

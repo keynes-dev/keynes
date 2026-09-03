@@ -34,10 +34,18 @@ The caller cannot submit tenant or principal identity. A missing, duplicated, st
 
 - The owner role owns private schema objects and does not log in.
 - The execution role can invoke canonical core procedures and does not log in.
-- A runtime login can connect and invoke only supported remote wrappers.
+- Within Keynes-owned schemas, a runtime login can invoke only supported remote wrappers.
 - An administrative role can invoke private credential procedures but cannot act as an ordinary application principal by default.
 
-Runtime logins cannot select private tables, call core procedures directly, assume privileged roles, change role mappings, execute arbitrary caller-selected SQL through the SDK, or invoke private administration.
+Runtime logins cannot select private tables, call core procedures directly, assume privileged roles, change role mappings, submit general SQL through the SDK, invoke private administration, override mapped identity, or disclose or mutate another tenant's Keynes state.
+
+## SQL and operator boundary
+
+A runtime credential remains a PostgreSQL login and can submit SQL through another client. The credential is not an RPC-only capability. Keynes owns the grants and procedures that protect Keynes state, roles, administration, mapped identity, and tenant boundaries.
+
+Raw Policy SQL is a separate authoring input. The SDK passes it through the restricted Policy parser and never exposes the PostgreSQL connection.
+
+The deployment operator owns privileges and resource controls outside Keynes-owned objects. The customer owns them for embedded and self-hosted PostgreSQL. Keynes owns them for Keynes Cloud. A deployment that prohibits SQL submission must withhold PostgreSQL credentials and use a separately approved constrained data path.
 
 ## Credential administration
 

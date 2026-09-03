@@ -29,13 +29,15 @@ Operators can issue, rotate, and revoke scoped credentials without giving applic
 
 PostgreSQL alone owns durable validation, Resource conservation, Policy evaluation, atomic changes, settlement, replay, recovery records, and canonical history. The SDK owns connection lifecycle and public value projection, not Budget state.
 
+The SDK exposes only Keynes operations, but a scoped remote credential remains a PostgreSQL login. Keynes protects Keynes-owned state and procedure authority. The deployment operator owns database-wide SQL privileges and resource controls.
+
 The application owns Policy context construction, external work, provider retries, usage observation, outcomes, and fallback choices. A successful Budget command never claims that application work ran.
 
 Local and remote handles keep the same Budget request, settlement, Policy, error, and inspection meanings. Durable Budget references and reopen remain remote-only because local state disappears with its process.
 
 ### What this feature does not include
 
-This feature consumes the FEAT-0014 Resource-bound Budget creation contract without reimplementing it. It does not add an HTTP Budget data path, a browser or mobile client, another SDK language, caller-selected identity, arbitrary SQL, self-hosted packaging, managed Cloud operations, upgrades, backup restoration, disaster recovery, failover, multi-region routing, support, or production readiness.
+This feature consumes the FEAT-0014 Resource-bound Budget creation contract without reimplementing it. It does not add an HTTP Budget data path, a browser or mobile client, another SDK language, caller-selected identity, a general SQL SDK operation, a database handle, self-hosted packaging, managed Cloud operations, upgrades, backup restoration, disaster recovery, failover, multi-region routing, support, or production readiness.
 
 The feature removes the private Cloud service from active product, generation, and qualification paths only after direct PostgreSQL tests own the required replacement assertions. Historical FEAT-0006 records remain unchanged.
 
@@ -89,7 +91,7 @@ As an operator, I can grant each server-side application only the remote Keynes 
 **Acceptance scenarios**:
 
 1. **Given** a valid scoped credential, **when** a caller invokes a supported operation, **then** the authority derives one principal from the authenticated database role and authorizes the operation.
-2. **Given** an ordinary SDK credential, **when** it attempts administration, private-table access, arbitrary SQL, or identity override, **then** access fails and no protected state changes.
+2. **Given** an ordinary SDK credential, **when** it submits SQL through another PostgreSQL client, **then** it cannot read or write private Keynes state, invoke administration, assume privileged roles, override its mapped identity, or disclose or mutate another tenant's Keynes state.
 3. **Given** a rotated or revoked credential, **when** old and new connections are exercised, **then** the published lifecycle rule takes effect without changing Budget ownership or replay identity.
 4. **Given** any remote failure, **when** diagnostics are emitted, **then** they classify the failure without recording credentials, raw Policy context, connection strings, private identifiers, or cross-tenant data.
 
@@ -118,7 +120,7 @@ As an operator, I can grant each server-side application only the remote Keynes 
 - **FR-006**: PostgreSQL MUST remain the only durable Budget authority. The SDK MUST NOT create a second ledger, cache authoritative state, or reproduce Budget transitions.
 - **FR-007**: Every remote TCP connection MUST use authenticated encryption with certificate-chain and hostname verification. Weaker or ambiguous modes MUST fail before credentials or commands are sent.
 - **FR-008**: The authority MUST derive one Keynes principal from the authenticated database role. Callers MUST NOT supply or override tenant and principal identity.
-- **FR-009**: Remote runtime roles MUST invoke only supported remote procedures. They MUST NOT read or write private tables, assume owner or execution roles, call administrative procedures, or execute arbitrary application-selected SQL.
+- **FR-009**: Within Keynes-owned schemas, remote runtime roles MUST have access only to the supported remote procedures. SQL submitted outside the SDK MUST NOT read or write private Keynes state, assume owner or execution roles, call administrative procedures, override mapped identity, or disclose or mutate another tenant's state. Database-wide SQL privileges and resource controls belong to the deployment operator.
 - **FR-010**: Operators MUST have private administrative operations for credential creation, rotation, disablement, revocation, and audit. Runtime credentials MUST NOT have those permissions.
 - **FR-011**: Credential mappings MUST detect role deletion and recreation so a reused database role identifier cannot inherit an earlier Keynes principal.
 - **FR-012**: Direct and supported pooled connections MUST preserve authentication, identity, transaction, replay, recovery, and cleanup behavior within their declared profile.
@@ -140,8 +142,8 @@ As an operator, I can grant each server-side application only the remote Keynes 
 
 - **Budget behavior and storage**: One PostgreSQL authority stores each remote Budget and atomically owns conservation, Policy evaluation, settlement, replay, recovery records, history, and errors. The SDK owns no durable Budget state.
 - **Application boundary**: The application owns external work, provider recovery, usage evidence, and business outcomes. Keynes never performs or attests to that work.
-- **Policy and security**: Remote Policy source and context remain untrusted and fail closed. Database authentication, protected principal mapping, least-privilege procedures, tenant isolation, secret exclusion, and cross-tenant probes are acceptance requirements.
-- **Contracts and deployments**: Shared local and PostgreSQL behavior must pass before remote-specific direct, pooled, identity, TLS, recovery, package, and lifecycle evidence. Self-hosted and managed operations remain later features.
+- **Policy and security**: Remote Policy source and context remain untrusted and fail closed. Database authentication, protected principal mapping, least-privilege procedures, protected-state isolation, secret exclusion, and cross-tenant probes are acceptance requirements. The deployment operator owns database-wide SQL privileges and resource controls.
+- **Contracts and deployments**: Shared local and PostgreSQL behavior must pass before remote-specific direct, pooled, identity, TLS, recovery, package, and lifecycle evidence. FEAT-0015 owns the disposable local PostgreSQL TLS target and provider-free positive TLS qualification that block T049. Self-hosted and managed operations remain later features.
 - **Evidence classification**: Repository, package, and local PostgreSQL lanes are provider-free. A disposable local PostgreSQL target with a test certificate authority can qualify Keynes-owned certificate-chain and hostname verification. Managed-provider, public-network, hostile-role assessment, recovery exercise, fault campaign, benchmark, and production claims require their named lanes and authorization. Unrun lanes remain `NOT RUN` and do not block this feature unless a success criterion requires them.
 
 ### Key entities
@@ -173,4 +175,5 @@ As an operator, I can grant each server-side application only the remote Keynes 
 - The first remote client is a trusted server-side Node.js process. Browsers, mobile clients, and untrusted end-user devices are excluded.
 - PostgreSQL 18.6 remains the only qualified server profile until Release Support accepts another profile.
 - Managed and self-hosted operators deliver credentials outside the Budget command path.
+- FEAT-0015 owns the disposable local PostgreSQL TLS target and shared positive and negative qualification scenarios required before T049.
 - Multi-generation rolling upgrades beyond the first bounded compatibility check belong to Release Support.

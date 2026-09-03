@@ -41,8 +41,9 @@ The fixed scenario inventory covers:
 - create, request, inspect, settle, reconnect, reopen, and recovery;
 - two-tenant isolation with overlapping Resource names and operation keys;
 - disablement, enablement, rotation, revocation, and recreated-role rejection;
-- denial of private objects, administration, role assumption, identity
-  override, and arbitrary SQL from runtime credentials;
+- denial of private objects, administration, privileged role assumption,
+  identity override, cross-tenant access, and object creation in Keynes-owned
+  schemas from runtime credentials;
 - positive certificate-chain and hostname verification;
 - rejection of unsafe TLS modes, an untrusted chain, and a hostname mismatch;
   and
