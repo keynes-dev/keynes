@@ -32,4 +32,4 @@
 
 ## Notes
 
-The specification records accepted product behavior and consumes FEAT-0014 as its prerequisite. It does not claim that the FEAT-0013 runtime exists. Implementation and all remote qualification remain `NOT RUN`.
+The specification records accepted product behavior and consumes FEAT-0014 as its prerequisite. FEAT-0013 is now implemented with provider-free package, hosted consumer, and embedded PostgreSQL evidence. Authorized external-database and timed walkthrough acceptance remain `NOT RUN`.

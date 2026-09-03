@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, Resource-bound local and remote handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, direct PostgreSQL SDK, PostgreSQL procedures, exact local archives, and PostgreSQL 18.6 direct and pooled system tests exist. Remote references, reopen, operation recovery, scoped role identity, credential lifecycle, and safe errors have local evidence. Hosted compatibility, an authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved.
+> **Status:** The generated TypeScript client, Resource-bound local and remote handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, direct PostgreSQL SDK, PostgreSQL procedures, exact local archives, and PostgreSQL 18.6 direct and pooled system tests exist. Remote references, reopen, operation recovery, scoped role identity, credential lifecycle, and safe errors have local evidence. The packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved.
 
 ## Purpose
 
@@ -119,13 +119,13 @@ The local source and package lanes cover lifecycle, denial, settlement, replay, 
 - returned values cannot mutate SQLite state; and
 - close rejects new work while draining admitted work.
 
-The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Local Policy source tests pass against the private SQLite backend. Final archive, hosted compatibility, browser support, security qualification, and production support remain `NOT RUN`.
+The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Local Policy source tests pass against the private SQLite backend. The final archive passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. Browser support, security qualification, and production support remain `NOT RUN`.
 
 ## PostgreSQL implementation
 
-The five-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes root creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
+The six-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes root creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. Migration `0006-remote-access` adds role-derived identity, private credential administration, recovery records, and eight versioned remote wrappers without creating another Budget authority. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
 
-The five current procedures are:
+The five canonical embedded procedures are:
 
 | SDK operation    | PostgreSQL procedure                 | Purpose                                                 |
 | ---------------- | ------------------------------------ | ------------------------------------------------------- |
@@ -135,11 +135,11 @@ The five current procedures are:
 | `settleBudget`   | `keynes.settle(jsonb)`               | Record direct usage and derive settlement state         |
 | `getBudget`      | `keynes.get_budget(jsonb)`           | Return the authorized Budget projection and history     |
 
-`keynes_internal` owns private tables, unversioned implementation functions, command records, permissions, history, and migration metadata. Application roles never write those tables directly. The supported `keynes` procedures are the mutation and inspection boundary.
+`keynes_internal` owns private tables, unversioned implementation functions, command records, permissions, history, credential mappings, administration, and migration metadata. Application roles never write those tables directly. Embedded callers use the five canonical procedures. Remote credentials can execute only the eight versioned wrappers for compatibility, create, request, settle, inspect, recovery, and bounded history paging.
 
 ### Embedded PostgreSQL
 
-An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical five-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
+An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical six-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
 
 An embedded application calls supported `keynes.*` functions from its existing database code. The application owns the connection, transaction, roles, upgrades, backup, recovery, and incident response.
 
@@ -147,7 +147,7 @@ The defining advantage is transaction composition. Caller-owned database code ca
 
 Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
 
-At Phase 5 revision `1b0563616d17299d9a5c57e1fbe7523d4f6e4b68`, the packed PostgreSQL archive passed all 159 PostgreSQL 18.6 scenarios, including Resource-bound creation, exact definition reuse, conflicting-definition rollback, Policy validation, replay, permissions, and caller-owned transaction composition. That revision-scoped result proves:
+At FEAT-0013 revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`, the packed PostgreSQL archive passed all 203 PostgreSQL 18.6 tests across 39 suites, including Resource-bound creation, exact definition reuse, conflicting-definition rollback, Policy validation, replay, permissions, caller-owned transaction composition, remote identity, recovery, and credential lifecycle. That revision-scoped result proves:
 
 - one clean database can install the exact migrations;
 - an application role can call only supported Keynes functions;
@@ -408,4 +408,4 @@ No deployment may claim compatibility, security, recovery, footprint, performanc
 8. Define the supported release contract and compatibility windows.
 9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
 
-The [roadmap](roadmap.md) records completed evidence and this sequence. Historical private Cloud evidence remains bound to FEAT-0006 and is not current-path proof. Hosted, provider, self-hosted, managed, broad security, and production claims require their own evidence.
+The [roadmap](roadmap.md) records completed evidence and this sequence. Historical private Cloud evidence remains bound to FEAT-0006 and is not current-path proof. The SDK's hosted consumer matrix is qualified; authorized providers, self-hosted operation, managed deployment, broad security, and production claims require their own evidence.

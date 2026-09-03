@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The TypeScript SDK opens either private in-memory SQLite or one direct PostgreSQL authority and creates typed root Budgets by binding definitions, quantities, and optional Policies atomically. Remote handles add durable references, reopen, bounded retries, and read-only operation recovery. PostgreSQL 18.6 direct and pooled behavior has local native evidence. Hosted compatibility, an authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
+> **Status:** The TypeScript SDK opens either private in-memory SQLite or one direct PostgreSQL authority and creates typed root Budgets by binding definitions, quantities, and optional Policies atomically. Remote handles add durable references, reopen, bounded retries, and read-only operation recovery. PostgreSQL 18.6 direct and pooled behavior has local native evidence, and the packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
 
 ## Thesis
 

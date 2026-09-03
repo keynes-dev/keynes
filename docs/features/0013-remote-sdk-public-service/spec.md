@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0013-remote-sdk-public-service`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-01
-**Status**: In progress, Phase 6 package qualification and Cloud retirement
+**Status**: Implementation complete; acceptance remains in progress because the authorized external-database lane and timed walkthrough are `NOT RUN`
 **Input**: User description: "Let server-side TypeScript applications use durable Keynes Budgets through direct PostgreSQL access."
 
 ## Feature story _(mandatory)_

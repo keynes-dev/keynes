@@ -1,6 +1,6 @@
-# Quickstart: Planned remote PostgreSQL flow
+# Quickstart: Remote PostgreSQL flow
 
-> **Status:** Contract example only. FEAT-0014 owns the implemented Resource-bound root signature; the FEAT-0013 remote runtime and every command in this guide remain `NOT RUN`.
+> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The timed walkthrough against an authorized external database remains `NOT RUN` because no dedicated endpoint was approved.
 
 ## Provision one scoped credential
 
@@ -82,3 +82,16 @@ The result is committed, known failure, unresolved, or expired. Completed operat
 ## Rotate or revoke access
 
 Use the private administrative procedure boundary from an operator-controlled session. Ordinary SDK credentials cannot call it. Validate the published behavior for already-open pooled connections before treating rotation or revocation as qualified.
+
+## Run the authorized package walkthrough
+
+Only run this lane with explicit approval for a dedicated TLS endpoint. Set the secret URL outside shell history and supply a separate non-secret target identity so the runner cannot reach a different database accidentally:
+
+```sh
+export KEYNES_QUALIFICATION_TARGET='application@db.example.test:5432/keynes'
+pnpm test:package:sdk -- \
+  --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz \
+  --authorized-database
+```
+
+The runner requires `KEYNES_DATABASE_URL`, creates a five-unit root, requests and settles two units, closes the first client, reconnects, reopens the root, and verifies the durable result. It does not retain or print the URL. Passing this narrow walkthrough does not replace the full authorized remote-database acceptance contract, which also requires provider, certificate, topology, identity, credential-lifecycle, and TLS evidence.
