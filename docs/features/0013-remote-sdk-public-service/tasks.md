@@ -73,17 +73,17 @@ Behavioral tests must be written and observed failing for the expected reason be
 
 ### Tests
 
-- [ ] T027 [P] [US2] Add failing public type tests for pre-dispatch operation-key creation, remote mutation options, remote-only references and reopen, and distinct key brands in `packages/sdk/test/package/compatibility/remote-api.mts`
-- [ ] T028 [P] [US2] Add failing unit tests for caller-supplied operation keys, binding-checked reopen, four-state read-only recovery, retry deadlines, and three-page inspection in `packages/sdk/test/unit/remote/recovery.test.ts`
-- [ ] T029 [US2] Add failing PostgreSQL response-loss, concurrent-retry, expired-recovery, cross-tenant-reference, and history-page scenarios in `packages/postgresql/test/system/remote-recovery.test.ts`
+- [x] T027 [P] [US2] Add failing public type tests for pre-dispatch operation-key creation, remote mutation options, remote-only references and reopen, and distinct key brands in `packages/sdk/test/package/compatibility/remote-api.mts`
+- [x] T028 [P] [US2] Add failing unit tests for caller-supplied operation keys, binding-checked reopen, four-state read-only recovery, retry deadlines, and three-page inspection in `packages/sdk/test/unit/remote/recovery.test.ts`
+- [x] T029 [US2] Add failing PostgreSQL response-loss, concurrent-retry, expired-recovery, cross-tenant-reference, and history-page scenarios in `packages/postgresql/test/system/remote-recovery.test.ts`
 
 ### Implementation
 
-- [ ] T030 [US2] Implement synchronous operation-key creation plus opaque `OperationKey` and `BudgetReference` parsing and public projection in `packages/sdk/src/remote/references.ts`
-- [ ] T031 [US2] Implement remote-only `openBudget` and `recoverOperation` handle methods in `packages/sdk/src/keynes.ts`
-- [ ] T032 [US2] Implement outcome-based bounded retry and uncertain-result preservation in `packages/sdk/src/remote/retry.ts`
-- [ ] T033 [US2] Implement bounded internal history paging without changing `Budget.inspect()` in `packages/sdk/src/remote/postgresql-command-executor.ts`
-- [ ] T034 [US2] Run focused SDK, native recovery, replay, and conformance tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
+- [x] T030 [US2] Implement synchronous operation-key creation plus opaque `OperationKey` and `BudgetReference` parsing and public projection in `packages/sdk/src/remote/references.ts`
+- [x] T031 [US2] Implement remote-only `openBudget` and `recoverOperation` handle methods in `packages/sdk/src/keynes.ts`
+- [x] T032 [US2] Implement outcome-based bounded retry and uncertain-result preservation in `packages/sdk/src/remote/retry.ts`
+- [x] T033 [US2] Implement bounded internal history paging without changing `Budget.inspect()` in `packages/sdk/src/remote/postgresql-command-executor.ts`
+- [x] T034 [US2] Run focused SDK, native recovery, replay, and conformance tests and record exact outcomes in `docs/features/0013-remote-sdk-public-service/evidence/README.md`
 
 **Checkpoint**: Reconnect, reopen, recovery, retry, and inspection preserve one transition and one public result.
 
