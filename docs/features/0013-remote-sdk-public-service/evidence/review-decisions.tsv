@@ -1,3 +1,4 @@
 ts	phase	decision	why	evidence	result
 2026-09-03T20:23:29Z	frame	froze the review campaign at main revision 6da2622	the nine phases need one shared baseline before review findings or repairs are recorded	issue #22; commit 6da26221075dc2b1a8e94a829ab490988a3f9d63	phase 1 reviewing
 2026-09-03T20:26:16Z	frame	paused before phase 1 review	the campaign setup is separate from the manual review sessions	user direction; PR #28	phase 1 not started
+2026-09-03T20:32:17Z	phase 1	started architecture review	the user authorized review of PR #23 at the frozen subject range without repair	issue #22; af355f6d3e651353c6d94c789bb4898bdc65d429...446898ceb67d08fb90896234b5384f35c7d83d8e	phase 1 reviewing

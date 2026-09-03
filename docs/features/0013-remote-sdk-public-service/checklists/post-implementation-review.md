@@ -29,7 +29,7 @@ phase disposition.
 
 | Phase | Original subject | Bot threads | Review branch | Status | Verdict | Accepted repair | Evidence |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
-| 1. Architecture | PR #23, `af355f6d...446898ce` | 1 | `review/0013-01-architecture` | Not started | Open | None | This checklist and `evidence/review-decisions.tsv` |
+| 1. Architecture | PR #23, `af355f6d...446898ce` | 1 | `review/0013-01-architecture` | Reviewing | Open | None | This checklist and `evidence/review-decisions.tsv` |
 | 2. Resource-bound root | PR #24, `48ab9895...2fa8be43` | 0 | `review/0014-02-resource-bound-root` | Not started | Open | None | Pending |
 | 3. Procedure authority | `09eba82d...e85b7dbe` | 0 | `review/0013-03-procedure-authority` | Not started | Open | None | Pending |
 | 4. Remote Budget loop | `e85b7dbe...4dcb2423` | 0 | `review/0013-04-remote-budget-loop` | Not started | Open | None | Pending |
