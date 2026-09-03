@@ -142,16 +142,26 @@
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Add and backfill `definition_command_id`, move the provenance foreign key, and preserve all existing rows in `packages/postgresql/migrations/0005-resource-bound-budget.sql`.
-- [ ] T030 [US3] Implement fixed two-permission checks, definition lookup-or-insert, absent-name contention handling, Policy attachment, root creation, replay, history, and rollback in the generated `0005` root procedure source under `packages/postgresql/scripts/`.
-- [ ] T031 [US3] Preserve the accepted `0004` checksum and historical contract digest while marking `0005` as the current contract migration in `packages/postgresql/migrations/manifest.json` and `packages/postgresql/scripts/generate.ts`, then regenerate PostgreSQL installation metadata and the coupled Cloud consumer.
-- [ ] T032 [US3] Regenerate `packages/postgresql/migrations/0005-resource-bound-budget.sql`, `packages/postgresql/generated/installation-record.json`, expected objects, and procedure metadata, then verify that migrations `0001` through `0004` are byte-for-byte unchanged.
-- [ ] T033 [US3] Update the native conformance host and required scenario inventory for definition-bearing roots and two permissions in `packages/postgresql/test/system/support/test-keynes.ts`, `packages/postgresql/test/system/support/postgres-database.ts`, and `packages/postgresql/test/system/required-scenarios.ts`.
-- [ ] T034 [US3] Make the Phase 1 PostgreSQL installation, permission, transaction, contention, replay, rollback, Policy, and shared parity tests pass in `packages/postgresql/test/`.
-- [ ] T035 [US3] Run `pnpm --filter @keynes/postgresql test` and `pnpm test:system:postgresql`, then record the exact PostgreSQL version, source revision, contract digest, migration-set digest, and results in `docs/features/0014-resource-bound-budget/tasks.md`.
-- [ ] T036 [US3] Run a read-only Ponytail review over the Phase 5 diff, apply accepted simplifications, rerun the focused and native checks, and commit the Phase 5 boundary.
+- [x] T029 [US3] Add and backfill `definition_command_id`, move the provenance foreign key, and preserve all existing rows in `packages/postgresql/migrations/0005-resource-bound-budget.sql`.
+- [x] T030 [US3] Implement fixed two-permission checks, definition lookup-or-insert, absent-name contention handling, Policy attachment, root creation, replay, history, and rollback in the generated `0005` root procedure source under `packages/postgresql/scripts/`.
+- [x] T031 [US3] Preserve the accepted `0004` checksum and historical contract digest while marking `0005` as the current contract migration in `packages/postgresql/migrations/manifest.json` and `packages/postgresql/scripts/generate.ts`, then regenerate PostgreSQL installation metadata and the coupled Cloud consumer.
+- [x] T032 [US3] Regenerate `packages/postgresql/migrations/0005-resource-bound-budget.sql`, `packages/postgresql/generated/installation-record.json`, expected objects, and procedure metadata, then verify that migrations `0001` through `0004` are byte-for-byte unchanged.
+- [x] T033 [US3] Update the native conformance host and required scenario inventory for definition-bearing roots and two permissions in `packages/postgresql/test/system/support/test-keynes.ts`, `packages/postgresql/test/system/support/postgres-database.ts`, and `packages/postgresql/test/system/required-scenarios.ts`.
+- [x] T034 [US3] Make the Phase 1 PostgreSQL installation, permission, transaction, contention, replay, rollback, Policy, and shared parity tests pass in `packages/postgresql/test/`.
+- [x] T035 [US3] Run `pnpm --filter @keynes/postgresql test` and `pnpm test:system:postgresql`, then record the exact PostgreSQL version, source revision, contract digest, migration-set digest, and results in `docs/features/0014-resource-bound-budget/tasks.md`.
+- [x] T036 [US3] Run a read-only Ponytail review over the Phase 5 diff, apply accepted simplifications, rerun the focused and native checks, and commit the Phase 5 boundary.
 
 **Checkpoint**: SQLite and native PostgreSQL implement the same atomic Resource-bound root command with separate evidence.
+
+**Native PostgreSQL evidence (`1b0563616d17299d9a5c57e1fbe7523d4f6e4b68`)**:
+
+- `pnpm --filter @keynes/postgresql test`: passed, 29 tests across 5 files.
+- `pnpm test:system:postgresql -- --output /tmp/feat0014-phase5-postgresql-system.json`: passed from a clean detached checkout, 159 tests across 14 files, against PostgreSQL 18.6 server version `180006` and image digest `sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941`.
+- Contract digest: `cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5`. Migration-set digest: `291d0c17687bbf76e7b8b7b49a98b354b4a2d6ebbb6a6b1e0d5ba084725064fe`.
+- Migrations `0001` through `0004` retain their accepted bytes. Migration `0004` retains historical contract digest `f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7`; migration `0005` owns the current contract digest and has SHA-256 `4ce2f2eaf9a9e0c892f27311fe436334dfdbf2529482299ac6c3bfb9e67b8929`.
+- The packed PostgreSQL archive used by the native runner has SHA-256 `6b06b8118577c642ff541978ad7fba7b259975b6fa2fc807b66c6d49bb8c1ac0`; its installation record has SHA-256 `244885f83b70e349b3ca84b9109666b91f7c37ce849f343b87be9c9b6d028506`. The retained record is `evidence/postgresql-system.json`.
+- Phase 5 Ponytail review removed the unreachable historical migration renderer and simplified migration rename parsing and source selection, deleting 1,574 dead lines without changing the tested SQL or installation-record bytes. It retained explicit permission ordering and lookup-before-insert reconciliation because those encode authority and contention behavior.
+- Remote, hosted, upgrade, recovery, security qualification, fault, benchmark, self-hosted, managed, and production evidence: `NOT RUN` in Phase 5.
 
 ---
 
