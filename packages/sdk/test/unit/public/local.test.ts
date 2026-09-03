@@ -62,6 +62,9 @@ describe("local Keynes facade", () => {
     const conflicting = defineResources({
       usdCents: { unit: "dollar", accountingBehavior: "consumable" },
     });
+    const conflictingBehavior = defineResources({
+      usdCents: { unit: "cent", accountingBehavior: "reusable" },
+    });
     const keynes = requireRecord(
       await invokeAsync(createKeynes, undefined, []),
       "Keynes handle",
@@ -92,6 +95,15 @@ describe("local Keynes facade", () => {
         code: "resource_type_conflict",
       });
       await expect(
+        invokeAsync(keynes.createBudget, keynes, [
+          conflictingBehavior,
+          { usdCents: 11 },
+        ]),
+      ).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "resource_type_conflict",
+      });
+      await expect(
         invokeAsync(first.inspect, first, []),
       ).resolves.toMatchObject({
         budget: { resources: [{ unit: "cent", allocated: 5 }] },
@@ -103,6 +115,45 @@ describe("local Keynes facade", () => {
       });
     } finally {
       await invokeAsync(keynes.close, keynes, []);
+    }
+  });
+
+  it("keeps independent roots isolated and ignores unallocated schema entries", async () => {
+    const firstSchema = defineResources({
+      usdCents: { unit: "cent", accountingBehavior: "consumable" },
+      deferredCapacity: { unit: "seat", accountingBehavior: "reusable" },
+    });
+    const secondSchema = defineResources({
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+      deferredCapacity: { unit: "minute", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const first = await keynes.createBudget(firstSchema, { usdCents: 5 });
+      const second = await keynes.createBudget(secondSchema, {
+        modelTokens: 7,
+        deferredCapacity: 3,
+      });
+
+      expect(
+        (await first.inspect()).budget.resources.map(
+          ({ resource }) => resource,
+        ),
+      ).toEqual(["usdCents"]);
+      expect(
+        (await second.inspect()).budget.resources.map(
+          ({ resource }) => resource,
+        ),
+      ).toEqual(["deferredCapacity", "modelTokens"]);
+      await expect(
+        Reflect.apply(first.request, first, [{ modelTokens: 1 }]),
+      ).rejects.toMatchObject({
+        name: "KeynesSdkError",
+        code: "resource_not_defined",
+        details: { operation: "requestBudget", resource: "modelTokens" },
+      });
+    } finally {
+      await keynes.close();
     }
   });
 
@@ -413,6 +464,59 @@ describe("local Keynes facade", () => {
           ({ resource }) => resource,
         ),
       ).toEqual(["workUnits"]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots settlement usage before asynchronous admission", async () => {
+    const resources = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const approved = await root.request({ workUnits: 3 });
+      if (approved.status !== "approved") {
+        throw new Error("expected approved request");
+      }
+      const usage = { workUnits: 1 };
+      const pending = approved.budget.settle(usage);
+      usage.workUnits = 2;
+
+      await expect(pending).resolves.toMatchObject({
+        newlyKnown: [{ resource: "workUnits", amount: 1 }],
+      });
+      await expect(approved.budget.inspect()).resolves.toMatchObject({
+        budget: { resources: [{ resource: "workUnits", directUsage: 1 }] },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("does not widen settlement Resources from a later input mutation", async () => {
+    const resources = defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      tokens: { unit: "token", accountingBehavior: "consumable" },
+    });
+    const keynes = await createKeynes();
+    try {
+      const root = await keynes.createBudget(resources, {
+        workUnits: 5,
+        tokens: 5,
+      });
+      const approved = await root.request({ workUnits: 3 });
+      if (approved.status !== "approved") {
+        throw new Error("expected approved request");
+      }
+      const usage = { workUnits: 1 };
+      const pending = approved.budget.settle(usage);
+      expect(Reflect.set(usage, "tokens", 0)).toBe(true);
+
+      await expect(pending).resolves.toMatchObject({
+        budget: { resources: [{ resource: "workUnits" }] },
+      });
     } finally {
       await keynes.close();
     }
