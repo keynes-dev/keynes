@@ -43,6 +43,7 @@ import {
 } from "../policy/evaluate.js";
 import { validatePolicyProgramScope } from "../policy/validate.js";
 import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
+import { resourceDefinitionDigest } from "../resources.js";
 import { PolicyValidationError } from "../sdk-errors.js";
 import {
   SqliteStore,
@@ -1467,13 +1468,6 @@ function fail(envelope: ErrorEnvelope): never {
 
 function digest(prefix: string, value: unknown): string {
   return digestText(prefix, JSON.stringify(value));
-}
-
-function resourceDefinitionDigest(
-  definition: DefineResourceTypeCommand["definition"],
-): string {
-  const jsonbText = `{"unit": ${JSON.stringify(definition.unit)}, "canonicalName": ${JSON.stringify(definition.canonicalName)}, "accountingBehavior": ${JSON.stringify(definition.accountingBehavior)}}`;
-  return digestText("resource-definition", jsonbText);
 }
 
 function digestText(prefix: string, value: string): string {

@@ -70,7 +70,10 @@ export async function createKeynes(
   ...arguments_: readonly unknown[]
 ): Promise<LocalKeynes> {
   if (arguments_.length !== 0) {
-    throw invalidConfiguration("options", "unsupported");
+    throw new KeynesSdkError("invalid_configuration", {
+      field: "options",
+      reason: "unsupported",
+    });
   }
   const runtime = await openConfiguredRuntime();
   return createKeynesHandle(runtime);
@@ -136,10 +139,3 @@ type PolicySetInput = {
   readonly contextSchemaDigest: string | null;
   readonly setDigest: string;
 };
-
-function invalidConfiguration(
-  field: string,
-  reason: "missing" | "unknown" | "unsupported",
-): KeynesSdkError<"invalid_configuration"> {
-  return new KeynesSdkError("invalid_configuration", { field, reason });
-}

@@ -176,7 +176,6 @@ export function createResourceBinding<Name extends string>(
     ),
   );
   const visible: BoundResource<Name>[] = [];
-  const shared: BoundResource<Name>[] = [];
   const resourceTypeIds = new Set<string>();
   for (let index = 0; index < prepared.length; index += 1) {
     const expected = prepared[index];
@@ -210,15 +209,14 @@ export function createResourceBinding<Name extends string>(
       definitionDigest: actual.resourceType.definitionDigest,
     });
     visible.push(resource);
-    shared.push(resource);
   }
 
   const indexes = Object.freeze({
     byId: new Map(
-      shared.map((resource) => [resource.resourceTypeId, resource]),
+      visible.map((resource) => [resource.resourceTypeId, resource]),
     ),
     byCanonicalName: new Map(
-      shared.map((resource) => [resource.canonicalName, resource]),
+      visible.map((resource) => [resource.canonicalName, resource]),
     ),
   });
   return new ResourceBinding(indexes, visible);

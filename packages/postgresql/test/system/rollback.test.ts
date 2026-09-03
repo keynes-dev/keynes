@@ -36,7 +36,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
     const command = resourceBoundRoot(ROOT_COMMAND_ID, "permission_tokens");
 
     await expect(
-      createResourceBoundBudget(keynes.clientFor("allocator-fixture"), command),
+      keynes.clientFor("allocator-fixture").createBudget(command),
     ).rejects.toMatchObject({
       code: "unauthorized",
       details: {
@@ -45,7 +45,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
       },
     });
     await expect(
-      createResourceBoundBudget(keynes.clientFor("definer-fixture"), command),
+      keynes.clientFor("definer-fixture").createBudget(command),
     ).rejects.toMatchObject({
       code: "unauthorized",
       details: {
@@ -58,9 +58,11 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
   it("rolls back an inserted Resource at its private checkpoint", async () => {
     keynes = await openPostgresqlContractTestHost();
     const command = resourceBoundRoot(ROOT_COMMAND_ID, "checkpoint_tokens");
-    const product = clientForPostResourceCheckpoint(keynes);
+    const product = keynes.clientFor("product-fixture", {
+      checkpoint: "after_resource_insertion",
+    });
 
-    await expect(createResourceBoundBudget(product, command)).rejects.toThrow(
+    await expect(product.createBudget(command)).rejects.toThrow(
       "private rollback checkpoint: after_resource_insertion",
     );
 
@@ -103,8 +105,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
           }),
         );
         await expect(
-          createResourceBoundBudget(
-            client,
+          client.createBudget(
             resourceBoundRoot(
               MALFORMED_PROJECTION_ROOT_ID,
               "malformed_projection_tokens",
@@ -153,19 +154,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
   });
 });
 
-interface ResourceBoundRootCommand {
-  readonly commandId: string;
-  readonly resources: readonly [
-    {
-      readonly definition: {
-        readonly canonicalName: string;
-        readonly unit: string;
-        readonly accountingBehavior: "consumable";
-      };
-      readonly amount: number;
-    },
-  ];
-}
+type ResourceBoundRootCommand = Parameters<ContractClient["createBudget"]>[0];
 
 function resourceBoundRoot(
   commandId: string,
@@ -184,20 +173,4 @@ function resourceBoundRoot(
       },
     ],
   };
-}
-
-function createResourceBoundBudget(
-  client: ContractClient,
-  command: ResourceBoundRootCommand,
-): ReturnType<ContractClient["createBudget"]> {
-  return Reflect.apply(client.createBudget, client, [command]);
-}
-
-function clientForPostResourceCheckpoint(
-  keynes: ContractTestHost,
-): ContractClient {
-  return Reflect.apply(keynes.clientFor, keynes, [
-    "product-fixture",
-    { checkpoint: "after_resource_insertion" },
-  ]);
 }
