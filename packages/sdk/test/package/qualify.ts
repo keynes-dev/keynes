@@ -20,6 +20,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readPackageArchiveBytes } from "@keynes/testkit/archive";
+import { providerFreeEnvironment } from "@keynes/testkit/package";
 import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -592,7 +593,7 @@ function run(command: string, args: readonly string[], cwd: string): string {
   const result = spawnSync(command, [...args], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, CI: "true" },
+    env: providerFreeEnvironment(process.env),
     maxBuffer: 10 * 1024 * 1024,
     shell: process.platform === "win32",
     timeout: 60_000,

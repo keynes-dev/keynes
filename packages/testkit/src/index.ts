@@ -6,6 +6,7 @@ export {
 export {
   installPackageArchive,
   packAndInstallWorkspacePackage,
+  providerFreeEnvironment,
   runInstalledCommand,
   type InstallPackageArchiveOptions,
   type InstalledPackage,

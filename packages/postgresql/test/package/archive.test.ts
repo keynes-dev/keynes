@@ -146,6 +146,34 @@ describe("@keynes/postgresql packed archive", () => {
     expect(entry("package/dist/cli.js").mode & 0o111).not.toBe(0);
   });
 
+  it("documents the current six-key, four-role installation and eight remote procedures", () => {
+    const readme = entry("package/README.md").body.toString("utf8");
+
+    for (const key of [
+      "ownerRole",
+      "executionRole",
+      "administrationRole",
+      "applicationRole",
+      "tenantId",
+      "principalId",
+    ]) {
+      expect(readme).toContain(`\`${key}\``);
+    }
+    for (const procedure of [
+      "remote_create_budget",
+      "remote_request",
+      "remote_settle",
+      "remote_get_budget",
+      "remote_get_budget_history_page",
+      "remote_open_budget",
+      "remote_recover_operation",
+      "remote_get_compatibility",
+    ]) {
+      expect(readme).toContain(`keynes.${procedure}(jsonb)`);
+    }
+    expect(readme).not.toContain("exactly the five supported functions");
+  });
+
   it("contains no SDK production import or credential material", () => {
     const content = Buffer.concat(
       entries

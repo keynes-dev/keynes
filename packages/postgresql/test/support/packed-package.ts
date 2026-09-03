@@ -27,6 +27,7 @@ export async function installPostgresqlArchive(
   archivePath: string,
   suppliedWorkspace?: string,
   suppliedConsumerRoot?: string,
+  environment?: NodeJS.ProcessEnv,
 ): Promise<PackedPostgresqlPackage> {
   return installPackageArchive({
     archivePath,
@@ -34,6 +35,7 @@ export async function installPostgresqlArchive(
     executable: "keynes-postgresql",
     workspace: suppliedWorkspace,
     consumerRoot: suppliedConsumerRoot,
+    environment,
   });
 }
 
