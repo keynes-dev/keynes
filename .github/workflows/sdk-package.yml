@@ -12,7 +12,7 @@ env:
 
 jobs:
   build:
-    name: Build self-contained SQLite archive
+    name: Build self-contained SDK archive
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -115,7 +115,7 @@ jobs:
           if (actual !== expected) throw new Error('archive digest mismatch');
           console.log(actual);"
 
-      - name: Qualify clean SQLite consumer
+      - name: Qualify clean provider-free SDK consumer
         run: pnpm test:package:sdk -- --archive "${{ env.ARCHIVE_PATH }}"
 
   measurement:

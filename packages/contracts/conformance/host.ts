@@ -11,6 +11,23 @@ import type {
   RequestBudgetResult,
   SettleBudgetCommand,
   SettleBudgetResult,
+  GetBudgetHistoryPageQuery,
+  GetBudgetHistoryPageResult,
+  GetCompatibilityQuery,
+  GetCompatibilityResult,
+  OpenBudgetQuery,
+  OpenBudgetResult,
+  RecoverOperationQuery,
+  RecoverOperationResult,
+  RemoteCreateBudgetCommand,
+  RemoteCreateBudgetResult,
+  RemoteErrorEnvelope,
+  RemoteGetBudgetQuery,
+  RemoteGetBudgetResult,
+  RemoteRequestBudgetCommand,
+  RemoteRequestBudgetResult,
+  RemoteSettleBudgetCommand,
+  RemoteSettleBudgetResult,
 } from "../generated/types.ts";
 import {
   orderContractResult,
@@ -60,15 +77,48 @@ export interface ContractTestHost {
 
 export type OpenContractTestHost = () => Promise<ContractTestHost>;
 
+export interface RemoteContractClient {
+  createBudget(
+    input: RemoteCreateBudgetCommand,
+  ): Promise<RemoteCreateBudgetResult>;
+  requestBudget(
+    input: RemoteRequestBudgetCommand,
+  ): Promise<RemoteRequestBudgetResult>;
+  settleBudget(
+    input: RemoteSettleBudgetCommand,
+  ): Promise<RemoteSettleBudgetResult>;
+  getBudget(input: RemoteGetBudgetQuery): Promise<RemoteGetBudgetResult>;
+  getBudgetHistoryPage(
+    input: GetBudgetHistoryPageQuery,
+  ): Promise<GetBudgetHistoryPageResult>;
+  openBudget(input: OpenBudgetQuery): Promise<OpenBudgetResult>;
+  recoverOperation(
+    input: RecoverOperationQuery,
+  ): Promise<RecoverOperationResult>;
+  getCompatibility(
+    input: GetCompatibilityQuery,
+  ): Promise<GetCompatibilityResult>;
+}
+
+export interface RemoteContractTestHost {
+  clientFor(
+    fixture: FixturePrincipal,
+    options?: ContractClientOptions,
+  ): RemoteContractClient;
+  close(): Promise<void>;
+}
+
+export type OpenRemoteContractTestHost = () => Promise<RemoteContractTestHost>;
+
 export interface ContractExecutor {
   execute(operation: OperationName, input: unknown): Promise<unknown>;
 }
 
 export class KeynesError extends Error {
-  readonly code: ErrorEnvelope["code"];
-  readonly details: ErrorEnvelope["details"];
+  readonly code: (ErrorEnvelope | RemoteErrorEnvelope)["code"];
+  readonly details: (ErrorEnvelope | RemoteErrorEnvelope)["details"];
 
-  constructor(error: ErrorEnvelope) {
+  constructor(error: ErrorEnvelope | RemoteErrorEnvelope) {
     super(error.code);
     this.name = "KeynesError";
     this.code = error.code;

@@ -6,6 +6,10 @@ import { install, recheckInstallation } from "../../src/installer/install.ts";
 import type { InstallationConfig } from "../../src/installer/config.ts";
 import { Client } from "pg";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
+import {
+  REMOTE_ADMIN_PROCEDURES,
+  REMOTE_RUNTIME_PROCEDURES,
+} from "../system/support/remote-identity.js";
 
 const POSTGRESQL_SYSTEM_CONTEXT_ENV = "KEYNES_POSTGRESQL_SYSTEM_CONTEXT";
 
@@ -77,9 +81,17 @@ const HISTORICAL_MIGRATIONS = [
     contractDigest:
       "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
   },
+  {
+    id: "0005-resource-bound-budget",
+    sha256: "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
+    contractDigest:
+      "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
+  },
 ] as const;
 const config: InstallationConfig = {
   ownerRole: `keynes_owner_${randomUUID().replaceAll("-", "")}`,
+  executionRole: `keynes_execution_${randomUUID().replaceAll("-", "")}`,
+  administrationRole: `keynes_admin_${randomUUID().replaceAll("-", "")}`,
   applicationRole: `keynes_app_${randomUUID().replaceAll("-", "")}`,
   tenantId,
   principalId,
@@ -112,6 +124,12 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         );
         await administrator.query(
           `drop role if exists ${quoteIdentifier(config.applicationRole)}`,
+        );
+        await administrator.query(
+          `drop role if exists ${quoteIdentifier(config.administrationRole)}`,
+        );
+        await administrator.query(
+          `drop role if exists ${quoteIdentifier(config.executionRole)}`,
         );
         await administrator.query(
           `drop role if exists ${quoteIdentifier(config.ownerRole)}`,
@@ -212,7 +230,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           readonly contract_digest: string | null;
         }>(
           `delete from keynes_internal.schema_migrations
-            where migration_id = '0005-resource-bound-budget'
+            where migration_id = '0006-remote-access'
             returning migration_id, byte_checksum, contract_digest`,
         );
         const migration = removed.rows[0];
@@ -225,7 +243,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
             recheckInstallation({ client, config }),
           ).rejects.toMatchObject({
             code: "incompatible_target",
-            check: "migration:0005-resource-bound-budget",
+            check: "migration:0006-remote-access",
           });
         } finally {
           await client.query(
@@ -266,7 +284,11 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
              ) owned(owner)
             order by owner`,
         );
-        expect(owners.rows).toEqual([{ owner: config.ownerRole }]);
+        expect(owners.rows).toEqual(
+          [config.executionRole, config.ownerRole]
+            .sort()
+            .map((owner) => ({ owner })),
+        );
 
         const functions = await client.query<{
           readonly target: string;
@@ -294,6 +316,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
              left join lateral unnest(p.proconfig) as config(cfg) on config.cfg like 'search_path=%'
             where n.nspname = 'keynes'
               and p.proargtypes = '3802'::oidvector
+              and p.proname not like 'remote\_%' escape '\\'
             order by target`,
         );
 
@@ -345,67 +368,83 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           readonly application_schema: boolean;
           readonly private_schema: boolean;
           readonly public_execute: boolean;
-          readonly application_execute: boolean;
+          readonly application_remote_execute: boolean;
+          readonly application_canonical_execute: boolean;
+          readonly administration_execute: boolean;
+          readonly administration_remote_execute: boolean;
+          readonly execution_owns_remote: boolean;
         }>(
           `select has_schema_privilege('public', 'keynes', 'USAGE') as public_schema,
                   has_schema_privilege($1, 'keynes', 'USAGE') as application_schema,
                   has_schema_privilege($1, 'keynes_internal', 'USAGE') as private_schema,
-                  bool_and(has_function_privilege('public', p.oid, 'EXECUTE')) as public_execute,
-                  bool_and(has_function_privilege($1, p.oid, 'EXECUTE')) as application_execute
+                  bool_or(has_function_privilege('public', p.oid, 'EXECUTE')) as public_execute,
+                  bool_and(coalesce(has_function_privilege($1, to_regprocedure(remote), 'EXECUTE'), false))
+                    as application_remote_execute,
+                  bool_or(has_function_privilege($1, p.oid, 'EXECUTE')) filter (
+                    where n.nspname = 'keynes' and p.proname not like 'remote\_%' escape '\\'
+                  ) as application_canonical_execute,
+                  bool_and(coalesce(has_function_privilege($2, to_regprocedure(admin), 'EXECUTE'), false))
+                    as administration_execute,
+                  bool_or(has_function_privilege($2, p.oid, 'EXECUTE')) filter (
+                    where n.nspname = 'keynes'
+                  ) as administration_remote_execute,
+                  bool_and(p.proowner = (select oid from pg_roles where rolname = $3)) filter (
+                    where n.nspname = 'keynes' and p.proname like 'remote\_%' escape '\\'
+                  ) as execution_owns_remote
              from pg_proc p
              join pg_namespace n on n.oid = p.pronamespace
-            where n.nspname = 'keynes'`,
-          [config.applicationRole],
+             cross join unnest($4::text[]) remote
+             cross join unnest($5::text[]) admin
+            where n.nspname in ('keynes', 'keynes_internal')`,
+          [
+            config.applicationRole,
+            config.administrationRole,
+            config.executionRole,
+            REMOTE_RUNTIME_PROCEDURES,
+            REMOTE_ADMIN_PROCEDURES,
+          ],
         );
         expect(acl.rows[0]).toEqual({
           public_schema: false,
           application_schema: true,
           private_schema: false,
           public_execute: false,
-          application_execute: true,
+          application_remote_execute: true,
+          application_canonical_execute: false,
+          administration_execute: true,
+          administration_remote_execute: false,
+          execution_owns_remote: true,
         });
       } finally {
         await client.end();
       }
     });
 
-    it("allows the application role to call exactly the five public functions", async () => {
-      const client = await connect(target.applicationUrl);
+    it("allows the application role to call exactly the eight remote functions", async () => {
+      const client = await connect(target.databaseUrl);
       try {
-        await client.query("begin");
-        await client.query("select set_config('keynes.tenant_id', $1, true)", [
-          tenantId,
-        ]);
-        await client.query(
-          "select set_config('keynes.principal_id', $1, true)",
-          [principalId],
+        const privileges = await client.query<{
+          readonly target: string;
+          readonly permitted: boolean;
+        }>(
+          `select target,
+                  coalesce(has_function_privilege($2, to_regprocedure(target), 'EXECUTE'), false)
+                    as permitted
+             from unnest($1::text[]) target
+            order by target collate "C"`,
+          [
+            [...REMOTE_RUNTIME_PROCEDURES, ...REMOTE_ADMIN_PROCEDURES],
+            config.applicationRole,
+          ],
         );
-        await expectPublicSuccess(
-          client,
-          "keynes.define_resource_type",
-          fixtureSource.commands.defineConsumable,
+        expect(privileges.rows).toEqual(
+          [...REMOTE_ADMIN_PROCEDURES, ...REMOTE_RUNTIME_PROCEDURES]
+            .sort()
+            .map((target) => ({
+              target,
+              permitted: new Set<string>(REMOTE_RUNTIME_PROCEDURES).has(target),
+            })),
         );
-        await expectPublicSuccess(
-          client,
-          "keynes.create_budget",
-          fixtureSource.commands.createRoot,
-        );
-        await expectPublicSuccess(
-          client,
-          "keynes.request",
-          fixtureSource.commands.requestChild,
-        );
-        await expectPublicSuccess(
-          client,
-          "keynes.settle",
-          fixtureSource.commands.settleChild,
-        );
-        await expectPublicSuccess(
-          client,
-          "keynes.get_budget",
-          fixtureSource.commands.getChild,
-        );
-        await client.query("rollback");
       } finally {
         await client.end();
       }
@@ -415,6 +454,11 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       const client = await connect(target.applicationUrl);
       try {
         const before = await stateDigest(target.databaseUrl);
+        await expect(
+          client.query("select keynes.create_budget($1::jsonb)", [
+            JSON.stringify(fixtureSource.commands.createRoot),
+          ]),
+        ).rejects.toThrow();
         await expect(
           client.query(
             "select count(*) from keynes_internal.schema_migrations",
@@ -458,13 +502,19 @@ async function createExactShapeTarget(): Promise<NativeTarget> {
       `create role ${quoteIdentifier(config.ownerRole)} nologin`,
     );
     await administrator.query(
-      `create role ${quoteIdentifier(config.applicationRole)} login password ${quoteLiteral("recheck-test-password")}`,
+      `create role ${quoteIdentifier(config.executionRole)} nologin noinherit`,
+    );
+    await administrator.query(
+      `create role ${quoteIdentifier(config.administrationRole)} login noinherit password ${quoteLiteral("recheck-admin-password")}`,
+    );
+    await administrator.query(
+      `create role ${quoteIdentifier(config.applicationRole)} login noinherit password ${quoteLiteral("recheck-test-password")}`,
     );
     await administrator.query(
       `create database ${quoteIdentifier(databaseName)}`,
     );
     await administrator.query(
-      `grant connect on database ${quoteIdentifier(databaseName)} to ${quoteIdentifier(config.applicationRole)}`,
+      `grant connect on database ${quoteIdentifier(databaseName)} to ${quoteIdentifier(config.administrationRole)}, ${quoteIdentifier(config.applicationRole)}`,
     );
     await administrator.query(
       `grant create on database ${quoteIdentifier(databaseName)} to ${quoteIdentifier(config.ownerRole)}`,
@@ -492,23 +542,6 @@ async function connect(connectionString: string): Promise<Client> {
   const client = new Client({ connectionString });
   await client.connect();
   return client;
-}
-
-async function expectPublicSuccess(
-  client: Client,
-  target:
-    | "keynes.define_resource_type"
-    | "keynes.create_budget"
-    | "keynes.request"
-    | "keynes.settle"
-    | "keynes.get_budget",
-  input: unknown,
-): Promise<void> {
-  const result = await client.query<{ readonly response: unknown }>(
-    `select ${target}($1::jsonb) as response`,
-    [JSON.stringify(input)],
-  );
-  expect(result.rows[0]?.response).toMatchObject({ ok: true });
 }
 
 async function scalar(client: Client, statement: string): Promise<string> {

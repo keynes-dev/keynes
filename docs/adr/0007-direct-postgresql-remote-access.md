@@ -7,7 +7,7 @@
 
 ## Context
 
-The current repository has three implemented paths. The TypeScript SDK runs local Budgets in private SQLite. Embedded adopters call `keynes.*` procedures inside caller-owned PostgreSQL transactions. The private FEAT-0006 service carries a no-Policy HTTP protocol to PostgreSQL for retained test evidence.
+Before FEAT-0013, the repository had three implemented paths. The TypeScript SDK ran local Budgets in private SQLite. Embedded adopters called `keynes.*` procedures inside caller-owned PostgreSQL transactions. The private FEAT-0006 service carried a no-Policy HTTP protocol to PostgreSQL.
 
 The draft FEAT-0013 design proposed an API key, service discovery, and an HTTPS Budget protocol. That design would add a second public protocol, compatibility boundary, error mapping, retry owner, and limits model around the existing PostgreSQL authority. Keynes has no browser or mobile SDK that requires that data path. Server-side TypeScript applications can use PostgreSQL's authenticated TLS protocol and the same versioned procedures that already own durable Budget behavior.
 
@@ -34,7 +34,7 @@ PostgreSQL authenticates a scoped login role. Protected role mappings bind that 
 
 Self-hosted and managed deployments use the same required PostgreSQL procedure and semantic contracts. They require separate operational evidence for credential delivery, TLS termination, poolers, upgrades, backup, recovery, capacity, incident response, and support. A later control plane may provision credentials or deployments, but it does not carry Budget commands or own Budget state.
 
-The private FEAT-0006 service remains historical evidence until FEAT-0013 moves the assertions that still matter into direct PostgreSQL coverage. FEAT-0013 then removes `apps/cloud` from active product, generation, and qualification paths. Historical feature documents and retained records remain unchanged.
+The private FEAT-0006 service remains historical evidence. FEAT-0013 moved the assertions that still matter into direct PostgreSQL coverage and removed `apps/cloud` from active product, generation, and qualification paths. Historical feature documents and retained records remain unchanged.
 
 ## Consequences
 

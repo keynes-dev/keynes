@@ -44,7 +44,9 @@ Do not implement any FEAT-0013 source task until all of these conditions hold on
 3. Shared local and native PostgreSQL conformance passes for root creation, Policy binding, replay, settlement, and current `inspect()` behavior.
 4. Its public SDK types and generated contracts are the baseline consumed by this plan.
 
-FEAT-0014 owns its branch, specification, plan, tasks, review, evidence, and merge. FEAT-0013 remains planning-only until its canonical branch is refreshed from that merge and T001 through T004 close the gate.
+FEAT-0014 owns its branch, specification, plan, tasks, review, evidence, and merge. Its accepted source revision is `b25a491de6831fc8f3b014ffdf15ab73b236029a`; PR #24 merged it on `main` as `09eba82d868759375144b14b5971a7a257f0a9e6`. The existing FEAT-0013 branch fast-forwarded from commit `446898ceb67d08fb90896234b5384f35c7d83d8e` to that merge without rerunning the feature-allocation hook. FEAT-0013 owns the next immutable PostgreSQL migration at `packages/postgresql/migrations/0006-remote-access.sql`.
+
+T001 and T002 are satisfied by that accepted and refreshed baseline. T003 must rerun the shared local and native PostgreSQL acceptance commands on the FEAT-0013 branch, and T004 must inventory every active private Cloud edge before source implementation begins.
 
 ## Design
 

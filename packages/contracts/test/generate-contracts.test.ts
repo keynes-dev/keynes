@@ -44,6 +44,7 @@ describe("contract source", () => {
       ["read_budget"],
     ]);
     expect(contract.digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(contract.remoteDigest).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("validates the canonical command fixtures", () => {
@@ -80,6 +81,186 @@ describe("contract source", () => {
       );
       expect(validate?.(fixture), JSON.stringify(validate?.errors)).toBe(true);
     }
+  });
+
+  it("loads the remote procedure and semantic compatibility metadata", () => {
+    const contract = loadContract(packageRoot);
+
+    expect(contract.source.remote).toEqual({
+      semanticGeneration: 1,
+      minimumSdkGeneration: 1,
+      semanticIdentities: [
+        "installation",
+        "command_contract",
+        "policy_profile",
+        "remote_procedures",
+      ],
+      procedures: [
+        {
+          method: "createBudget",
+          target: "keynes.remote_create_budget",
+          revision: 1,
+          mode: "mutation",
+          input: "RemoteCreateBudgetCommand",
+          output: "RemoteCreateBudgetResult",
+        },
+        {
+          method: "requestBudget",
+          target: "keynes.remote_request",
+          revision: 1,
+          mode: "mutation",
+          input: "RemoteRequestBudgetCommand",
+          output: "RemoteRequestBudgetResult",
+        },
+        {
+          method: "settleBudget",
+          target: "keynes.remote_settle",
+          revision: 1,
+          mode: "mutation",
+          input: "RemoteSettleBudgetCommand",
+          output: "RemoteSettleBudgetResult",
+        },
+        {
+          method: "getBudget",
+          target: "keynes.remote_get_budget",
+          revision: 1,
+          mode: "read",
+          input: "RemoteGetBudgetQuery",
+          output: "RemoteGetBudgetResult",
+        },
+        {
+          method: "getBudgetHistoryPage",
+          target: "keynes.remote_get_budget_history_page",
+          revision: 1,
+          mode: "read",
+          input: "GetBudgetHistoryPageQuery",
+          output: "GetBudgetHistoryPageResult",
+        },
+        {
+          method: "openBudget",
+          target: "keynes.remote_open_budget",
+          revision: 1,
+          mode: "read",
+          input: "OpenBudgetQuery",
+          output: "OpenBudgetResult",
+        },
+        {
+          method: "recoverOperation",
+          target: "keynes.remote_recover_operation",
+          revision: 1,
+          mode: "read",
+          input: "RecoverOperationQuery",
+          output: "RecoverOperationResult",
+        },
+        {
+          method: "getCompatibility",
+          target: "keynes.remote_get_compatibility",
+          revision: 1,
+          mode: "read",
+          input: "GetCompatibilityQuery",
+          output: "GetCompatibilityResult",
+        },
+      ],
+    });
+  });
+
+  it("validates remote references, recovery, history pages, and safe errors", () => {
+    const contract = loadContract(packageRoot);
+    const schema = contract.schema;
+    const ajv = new Ajv2020({ strict: true });
+    ajv.addKeyword({
+      keyword: "maxUtf8Bytes",
+      type: "string",
+      schemaType: "number",
+      validate: (limit: number, value: string) =>
+        new TextEncoder().encode(value).byteLength <= limit,
+    });
+    ajv.addKeyword({
+      keyword: "maxCanonicalUtf8Bytes",
+      type: "object",
+      schemaType: "number",
+      validate: (limit: number, value: unknown) =>
+        new TextEncoder().encode(JSON.stringify(value)).byteLength <= limit,
+    });
+    ajv.addSchema(schema, contractSource.schema);
+
+    const operationKey = `kop_v1_${"a".repeat(43)}`;
+    const budgetReference = `kbr_v1_${"b".repeat(43)}`;
+    const cursor = `khc_v1_${"c".repeat(43)}`;
+    for (const [definition, value] of [
+      ["OperationKey", operationKey],
+      ["BudgetReference", budgetReference],
+      ["HistoryCursor", cursor],
+      [
+        "RecoverOperationResult",
+        { kind: "unresolved", operationKey, retryAfterMilliseconds: 100 },
+      ],
+      [
+        "GetBudgetHistoryPageResult",
+        { budgetReference, entries: [], nextCursor: cursor },
+      ],
+      [
+        "RemoteErrorEnvelope",
+        {
+          kind: "error",
+          code: "uncertain_outcome",
+          details: { operation: "createBudget", operationKey },
+        },
+      ],
+    ] as const) {
+      const validate = ajv.getSchema(
+        `${contractSource.schema}#/$defs/${definition}`,
+      );
+      expect(validate, `missing schema definition ${definition}`).toBeTypeOf(
+        "function",
+      );
+      expect(validate?.(value), JSON.stringify(validate?.errors)).toBe(true);
+    }
+
+    const validateOperationKey = ajv.getSchema(
+      `${contractSource.schema}#/$defs/OperationKey`,
+    );
+    const validateBudgetReference = ajv.getSchema(
+      `${contractSource.schema}#/$defs/BudgetReference`,
+    );
+    expect(validateOperationKey?.(budgetReference)).toBe(false);
+    expect(validateBudgetReference?.(operationKey)).toBe(false);
+    expect(contract.remoteDigest).not.toBe(contract.digest);
+  });
+
+  it("keeps private database identities out of remote results", () => {
+    const definitions = loadContract(packageRoot).definitions;
+    const remoteResultDefinitions = Object.fromEntries(
+      [
+        "RemoteBudgetProjection",
+        "RemoteBudgetResourceProjection",
+        "RemoteCreateBudgetResult",
+        "RemoteRequestApprovedResult",
+        "RemoteRequestDeniedResult",
+        "RemoteSettleBudgetResult",
+        "RemoteBudgetCreatedHistoryEntry",
+        "RemoteRequestApprovedHistoryEntry",
+        "RemoteRequestDeniedHistoryEntry",
+        "RemoteBudgetSettlementHistoryEntry",
+        "RemotePolicyEvidence",
+      ].map((name) => [name, definitions[name]]),
+    );
+
+    expect(JSON.stringify(remoteResultDefinitions)).not.toMatch(
+      /(?:budget|command|principal|resourceType)Id/u,
+    );
+    expect(definitions.RemoteCreateBudgetResult).toMatchObject({
+      properties: {
+        budget: { $ref: "#/$defs/RemoteBudgetProjection" },
+      },
+    });
+    expect(definitions.RemoteMutationResult).toMatchObject({
+      oneOf: expect.arrayContaining([
+        { $ref: "#/$defs/RemoteCreateBudgetResult" },
+        { $ref: "#/$defs/RemoteRequestBudgetResult" },
+        { $ref: "#/$defs/RemoteSettleBudgetResult" },
+      ]),
+    });
   });
 
   it("wires Policy commands, evidence, reasons, and errors into the Budget contract", () => {

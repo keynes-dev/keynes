@@ -14,6 +14,8 @@ import {
 
 const config = {
   ownerRole: "keynes_owner",
+  executionRole: "keynes_execution",
+  administrationRole: "keynes_admin",
   applicationRole: "keynes_app",
   tenantId: "00000000-0000-4000-8000-000000000001",
   principalId: "00000000-0000-4000-8000-000000000101",

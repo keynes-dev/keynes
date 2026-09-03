@@ -2,10 +2,15 @@ import type {
   ContractClientOptions,
   ContractTestHost,
   FixturePrincipal,
+  RemoteContractTestHost,
   RollbackCheckpoint,
 } from "@keynes/contracts/conformance";
 
-import { createKeynesClient } from "../../src/generated/client.js";
+import {
+  createKeynesClient,
+  createRemoteKeynesClient,
+  type RemoteCommandExecutor,
+} from "../../src/generated/client.js";
 import { openSqliteCommandExecutor } from "../../src/local/sqlite-command-executor.js";
 import { CommittedResponseLostError } from "../../src/replay.js";
 
@@ -108,6 +113,17 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
       );
     },
     close: async () => executor.close(),
+  };
+}
+
+export async function openRemoteContractTestHost(
+  executor: RemoteCommandExecutor,
+  closeExecutor: () => Promise<void> = async () => undefined,
+): Promise<RemoteContractTestHost> {
+  const client = createRemoteKeynesClient(executor);
+  return {
+    clientFor: () => client,
+    close: closeExecutor,
   };
 }
 

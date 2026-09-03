@@ -37,6 +37,20 @@ const expectedProductionDependencies = {
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
   "libpg-query": "18.1.4",
+  pg: "8.23.0",
+  "pg-cloudflare": "1.4.0",
+  "pg-connection-string": "2.14.0",
+  "pg-int8": "1.0.1",
+  "pg-pool": "3.14.0",
+  "pg-protocol": "1.16.0",
+  "pg-types": "2.2.0",
+  pgpass: "1.0.5",
+  "postgres-array": "2.0.0",
+  "postgres-bytea": "1.0.1",
+  "postgres-date": "1.0.7",
+  "postgres-interval": "1.2.0",
+  split2: "4.2.0",
+  xtend: "4.0.2",
 } as const;
 const expectedBundledDependencies = Object.keys(
   expectedProductionDependencies,
@@ -64,7 +78,7 @@ beforeAll(async () => {
   ]);
   archivePath = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
   archiveEntries = readArchiveEntries(await readFile(archivePath));
-});
+}, 30_000);
 
 afterAll(async () => {
   if (suiteRoot !== undefined)
@@ -115,6 +129,15 @@ describe("SDK package-test runner", () => {
     expect(() =>
       parseArguments(["--archive", "first.tgz", "--archive", "second.tgz"]),
     ).toThrow("once");
+    expect(
+      parseArguments(["--archive", "sdk.tgz", "--authorized-database"]),
+    ).toEqual({
+      archivePath: resolve(repositoryRoot, "sdk.tgz"),
+      authorizedDatabase: true,
+    });
+    expect(() =>
+      parseArguments(["--archive", "sdk.tgz", "--authorized-database=false"]),
+    ).toThrow("Unknown argument");
   });
 
   it("writes an immutable secret-safe evidence record", async () => {
@@ -319,6 +342,9 @@ describe("SDK package-test runner", () => {
         "parser-wasm",
         "public-types",
         "package-root-import",
+        "remote-exports",
+        "configuration-rejection",
+        "environment-isolation",
         "budget-loop",
         "policy-runtime",
         "isolation",
@@ -326,6 +352,9 @@ describe("SDK package-test runner", () => {
         "process-loss",
         "deep-imports-blocked",
       ],
+      exclusions: {
+        authorizedRemoteDatabase: "NOT RUN",
+      },
     });
     expect(await readdir(consumerRoot)).toEqual([]);
   }, 30_000);

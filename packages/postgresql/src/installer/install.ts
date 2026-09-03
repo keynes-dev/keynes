@@ -16,6 +16,35 @@ const BOOTSTRAP_PERMISSIONS = [
   "request_budget",
   "settle_budget",
 ] as const;
+const REMOTE_TARGETS = [
+  "keynes.remote_create_budget",
+  "keynes.remote_request",
+  "keynes.remote_settle",
+  "keynes.remote_get_budget",
+  "keynes.remote_get_budget_history_page",
+  "keynes.remote_open_budget",
+  "keynes.remote_recover_operation",
+  "keynes.remote_get_compatibility",
+] as const;
+const REMOTE_ADMIN_TARGETS = [
+  "keynes_internal.register_remote_role_v0006(name,uuid,uuid)",
+  "keynes_internal.rotate_remote_role_v0006(name,name)",
+  "keynes_internal.set_remote_role_enabled_v0006(name,boolean)",
+  "keynes_internal.revoke_remote_role_v0006(name)",
+  "keynes_internal.inspect_remote_role_v0006(name)",
+  "keynes_internal.audit_remote_role_v0006(name,integer)",
+] as const;
+const REMOTE_EXECUTION_TARGETS = [
+  "keynes_internal.apply_command(text,jsonb)",
+  "keynes_internal.get_budget(jsonb)",
+  "keynes_internal.remote_apply_command_v0006(text,jsonb)",
+  "keynes_internal.remote_get_budget_v0006(jsonb)",
+  "keynes_internal.remote_get_budget_history_page_v0006(jsonb)",
+  "keynes_internal.remote_open_budget_v0006(jsonb)",
+  "keynes_internal.remote_recover_operation_v0006(jsonb)",
+  "keynes_internal.remote_get_compatibility_v0006(jsonb)",
+  "keynes_internal.remote_dispatch_v0006(text,jsonb)",
+] as const;
 
 type QueryClient = Pick<Client, "query">;
 
@@ -80,14 +109,7 @@ export async function install(input: {
       await client.query(`set local role ${identifier(config.ownerRole)}`);
       for (const asset of assets) await client.query(asset.sql);
       await recordInstallation(client, config);
-      await client.query(
-        `grant usage on schema keynes to ${identifier(config.applicationRole)}`,
-      );
-      for (const target of installationRecord.expectedTargets) {
-        await client.query(
-          `grant execute on function ${target}(jsonb) to ${identifier(config.applicationRole)}`,
-        );
-      }
+      await configureRemoteAccess(client, config);
       await checkExactTarget(client, config, assets);
       await client.query("commit");
     } catch (error: unknown) {
@@ -149,6 +171,66 @@ async function rollback(client: QueryClient, error: unknown): Promise<never> {
   throw error;
 }
 
+async function configureRemoteAccess(
+  client: QueryClient,
+  config: InstallationConfig,
+): Promise<void> {
+  const applicationRole = identifier(config.applicationRole);
+  const administrationRole = identifier(config.administrationRole);
+  const executionRole = identifier(config.executionRole);
+  const roles = `${applicationRole}, ${administrationRole}, ${executionRole}`;
+
+  await client.query(`revoke all on schema keynes from ${roles}`);
+  await client.query(`revoke all on schema keynes_internal from ${roles}`);
+  await client.query(
+    `revoke all on all functions in schema keynes from ${roles}`,
+  );
+  await client.query(
+    `revoke all on all functions in schema keynes_internal from ${roles}`,
+  );
+  await client.query(
+    `revoke all on all tables in schema keynes_internal from ${roles}`,
+  );
+
+  await client.query(
+    `grant usage, create on schema keynes to ${executionRole}`,
+  );
+  await client.query("reset role");
+  for (const target of REMOTE_TARGETS) {
+    await client.query(
+      `alter function ${target}(jsonb) owner to ${executionRole}`,
+    );
+  }
+  await client.query(`set local role ${executionRole}`);
+  for (const target of REMOTE_TARGETS) {
+    await client.query(
+      `grant execute on function ${target}(jsonb) to ${applicationRole}`,
+    );
+  }
+  await client.query("reset role");
+  await client.query(`set local role ${identifier(config.ownerRole)}`);
+  await client.query(`revoke create on schema keynes from ${executionRole}`);
+
+  await client.query(`grant usage on schema keynes to ${applicationRole}`);
+  await client.query(`grant usage on schema keynes to ${executionRole}`);
+  await client.query(
+    `grant usage on schema keynes_internal to ${administrationRole}`,
+  );
+  await client.query(
+    `grant usage on schema keynes_internal to ${executionRole}`,
+  );
+  for (const target of REMOTE_ADMIN_TARGETS) {
+    await client.query(
+      `grant execute on function ${target} to ${administrationRole}`,
+    );
+  }
+  for (const target of REMOTE_EXECUTION_TARGETS) {
+    await client.query(
+      `grant execute on function ${target} to ${executionRole}`,
+    );
+  }
+}
+
 async function checkExactTarget(
   client: QueryClient,
   config: InstallationConfig,
@@ -156,11 +238,13 @@ async function checkExactTarget(
 ): Promise<void> {
   await checkObjects(client);
   await checkIdentity(client, config);
+  await checkInitialRemoteMapping(client, config);
   await checkMigrations(client);
   await checkOwners(client, config);
   await checkFunctions(client, assets);
   await checkPermissions(client, config);
   await checkAccess(client, config);
+  await checkMappedRoles(client, config);
 }
 
 async function checkIdentity(
@@ -171,14 +255,20 @@ async function checkIdentity(
     readonly profile_id: string;
     readonly server_version_num: string;
     readonly contract_digest: string;
+    readonly policy_profile_digest: string;
+    readonly remote_procedures_digest: string;
     readonly migration_set_digest: string;
     readonly owner_role: string;
+    readonly execution_role: string;
+    readonly administration_role: string;
     readonly application_role: string;
     readonly tenant_id: string;
     readonly principal_id: string;
   }>(
     `select profile_id, server_version_num, contract_digest,
-            migration_set_digest, owner_role::text, application_role::text,
+            policy_profile_digest, remote_procedures_digest,
+            migration_set_digest, owner_role::text, execution_role::text,
+            administration_role::text, application_role::text,
             tenant_id::text, principal_id::text
        from keynes_internal.installation_identity
       where singleton = true`,
@@ -196,11 +286,27 @@ async function checkIdentity(
     ],
     ["contract_digest", installationRecord.contractDigest, "contract-digest"],
     [
+      "policy_profile_digest",
+      installationRecord.policyProfileDigest,
+      "policy-profile-digest",
+    ],
+    [
+      "remote_procedures_digest",
+      installationRecord.remoteProceduresDigest,
+      "remote-procedures-digest",
+    ],
+    [
       "migration_set_digest",
       installationRecord.migrationSetDigest,
       "migration-set-digest",
     ],
     ["owner_role", config.ownerRole, "owner-role-identity"],
+    ["execution_role", config.executionRole, "execution-role-identity"],
+    [
+      "administration_role",
+      config.administrationRole,
+      "administration-role-identity",
+    ],
     ["application_role", config.applicationRole, "application-role-identity"],
     ["tenant_id", config.tenantId, "tenant-identity"],
     ["principal_id", config.principalId, "principal-identity"],
@@ -208,6 +314,44 @@ async function checkIdentity(
   const mismatch = expected.find(([key, value]) => actual[key] !== value);
   if (mismatch !== undefined) {
     throw new InstallationError("incompatible_target", mismatch[2]);
+  }
+}
+
+async function checkInitialRemoteMapping(
+  client: QueryClient,
+  config: InstallationConfig,
+): Promise<void> {
+  const result = await client.query<{
+    readonly role_name: string;
+    readonly tenant_id: string;
+    readonly principal_id: string;
+    readonly status: string;
+    readonly oid_matches: boolean;
+  }>(
+    `select mapping.role_name::text,
+            mapping.tenant_id::text,
+            mapping.principal_id::text,
+            mapping.status,
+            mapping.role_oid = role.oid as oid_matches
+       from keynes_internal.remote_role_mappings mapping
+       join pg_roles role on role.rolname = mapping.role_name
+      where mapping.role_name = $1`,
+    [config.applicationRole],
+  );
+  const mapping = result.rows[0];
+  if (
+    result.rows.length !== 1 ||
+    mapping === undefined ||
+    mapping.role_name !== config.applicationRole ||
+    mapping.tenant_id !== config.tenantId ||
+    mapping.principal_id !== config.principalId ||
+    mapping.status !== "enabled" ||
+    !mapping.oid_matches
+  ) {
+    throw new InstallationError(
+      "incompatible_target",
+      "initial-remote-mapping",
+    );
   }
 }
 
@@ -277,27 +421,41 @@ async function checkOwners(
   client: QueryClient,
   config: InstallationConfig,
 ): Promise<void> {
-  const owners = await client.query<{ readonly owner: string }>(
-    `select distinct owner
+  const owners = await client.query<{
+    readonly object_name: string;
+    readonly owner: string;
+  }>(
+    `select object_name, owner
        from (
-         select pg_get_userbyid(nspowner) as owner
+         select 'schema:' || nspname as object_name,
+                pg_get_userbyid(nspowner) as owner
            from pg_namespace
           where nspname in ('keynes', 'keynes_internal')
          union all
-         select pg_get_userbyid(c.relowner)
+         select 'relation:' || n.nspname || '.' || c.relname,
+                pg_get_userbyid(c.relowner)
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
           where n.nspname in ('keynes', 'keynes_internal')
             and c.relkind in ('r', 'p', 'v', 'm', 'S', 'f')
          union all
-         select pg_get_userbyid(p.proowner)
+         select 'function:' || n.nspname || '.' || p.proname,
+                pg_get_userbyid(p.proowner)
            from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace
           where n.nspname in ('keynes', 'keynes_internal')
-       ) owned(owner)
-      order by owner`,
+       ) owned(object_name, owner)
+      order by object_name`,
   );
-  if (owners.rows.length !== 1 || owners.rows[0]?.owner !== config.ownerRole) {
+  const mismatch = owners.rows.find(({ object_name, owner }) => {
+    const expected = REMOTE_TARGETS.some(
+      (target) => object_name === `function:${target}`,
+    )
+      ? config.executionRole
+      : config.ownerRole;
+    return owner !== expected;
+  });
+  if (mismatch !== undefined) {
     throw new InstallationError("incompatible_target", "object-owners");
   }
 }
@@ -461,87 +619,203 @@ async function checkAccess(
   config: InstallationConfig,
 ): Promise<void> {
   const result = await client.query<{
-    readonly public_schema: boolean;
-    readonly public_private_schema: boolean;
-    readonly application_schema: boolean;
-    readonly application_create: boolean;
-    readonly private_schema: boolean;
-    readonly public_execute: boolean;
-    readonly public_private_execute: boolean;
-    readonly application_execute: boolean;
-    readonly private_execute: boolean;
+    readonly public_access: boolean;
+    readonly application_public_usage: boolean;
+    readonly application_public_create: boolean;
+    readonly application_private_usage: boolean;
+    readonly application_private_create: boolean;
+    readonly administration_public_usage: boolean;
+    readonly administration_public_create: boolean;
+    readonly administration_private_usage: boolean;
+    readonly administration_private_create: boolean;
+    readonly execution_public_usage: boolean;
+    readonly execution_public_create: boolean;
+    readonly execution_private_usage: boolean;
+    readonly execution_private_create: boolean;
+    readonly application_functions_exact: boolean;
+    readonly administration_functions_exact: boolean;
+    readonly execution_functions_exact: boolean;
     readonly private_table_access: boolean;
-    readonly public_private_table_access: boolean;
     readonly unexpected_grantee: boolean;
   }>(
-    `select
-       has_schema_privilege('public', 'keynes', 'USAGE') as public_schema,
-       has_schema_privilege('public', 'keynes_internal', 'USAGE') as public_private_schema,
-       has_schema_privilege($1, 'keynes', 'USAGE') as application_schema,
-       has_schema_privilege($1, 'keynes', 'CREATE') as application_create,
-       has_schema_privilege($1, 'keynes_internal', 'USAGE') as private_schema,
-       coalesce((select bool_or(has_function_privilege('public', p.oid, 'EXECUTE'))
-                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'keynes'), false) as public_execute,
-       coalesce((select bool_or(has_function_privilege('public', p.oid, 'EXECUTE'))
-                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'keynes_internal'), false) as public_private_execute,
-       coalesce((select bool_and(has_function_privilege($1, p.oid, 'EXECUTE'))
-                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'keynes'), false) as application_execute,
-       coalesce((select bool_or(has_function_privilege($1, p.oid, 'EXECUTE'))
-                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'keynes_internal'), false) as private_execute,
-       coalesce((select bool_or(has_table_privilege($1, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'))
-                   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-                  where n.nspname = 'keynes_internal' and c.relkind in ('r', 'p')), false)
-         as private_table_access,
-       coalesce((select bool_or(has_table_privilege('public', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'))
-                   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-                  where n.nspname = 'keynes_internal' and c.relkind in ('r', 'p')), false)
-         as public_private_table_access,
+    `with functions as (
+       select p.oid,
+              n.nspname || '.' || p.proname || '(' ||
+                replace(oidvectortypes(p.proargtypes), ', ', ',') || ')' as target
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname in ('keynes', 'keynes_internal')
+     ), access as (
+       select
+         target,
+         has_function_privilege($1, oid, 'EXECUTE') as application_execute,
+         has_function_privilege($2, oid, 'EXECUTE') as administration_execute,
+         has_function_privilege($3, oid, 'EXECUTE') as execution_execute
+       from functions
+     )
+     select
+       has_schema_privilege('public', 'keynes', 'USAGE')
+         or has_schema_privilege('public', 'keynes', 'CREATE')
+         or has_schema_privilege('public', 'keynes_internal', 'USAGE')
+         or has_schema_privilege('public', 'keynes_internal', 'CREATE')
+         or exists (select 1 from functions where has_function_privilege('public', oid, 'EXECUTE'))
+         as public_access,
+       has_schema_privilege($1, 'keynes', 'USAGE') as application_public_usage,
+       has_schema_privilege($1, 'keynes', 'CREATE') as application_public_create,
+       has_schema_privilege($1, 'keynes_internal', 'USAGE') as application_private_usage,
+       has_schema_privilege($1, 'keynes_internal', 'CREATE') as application_private_create,
+       has_schema_privilege($2, 'keynes', 'USAGE') as administration_public_usage,
+       has_schema_privilege($2, 'keynes', 'CREATE') as administration_public_create,
+       has_schema_privilege($2, 'keynes_internal', 'USAGE') as administration_private_usage,
+       has_schema_privilege($2, 'keynes_internal', 'CREATE') as administration_private_create,
+       has_schema_privilege($3, 'keynes', 'USAGE') as execution_public_usage,
+       has_schema_privilege($3, 'keynes', 'CREATE') as execution_public_create,
+       has_schema_privilege($3, 'keynes_internal', 'USAGE') as execution_private_usage,
+       has_schema_privilege($3, 'keynes_internal', 'CREATE') as execution_private_create,
+       coalesce((select bool_and(application_execute = (target = any($5::text[]))) from access), false)
+         as application_functions_exact,
+       coalesce((select bool_and(administration_execute = (target = any($6::text[]))) from access), false)
+         as administration_functions_exact,
+       coalesce((select bool_and(execution_execute = (target = any($7::text[]))) from access), false)
+         as execution_functions_exact,
        exists (
-         select 1
-           from (
-             select acl.grantee
-               from pg_namespace n,
-                    lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) acl
-              where n.nspname in ('keynes', 'keynes_internal')
-             union all
-             select acl.grantee
-               from pg_class c
-               join pg_namespace n on n.oid = c.relnamespace,
-                    lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl
-              where n.nspname in ('keynes', 'keynes_internal') and c.relkind in ('r', 'p')
-             union all
-             select acl.grantee
-               from pg_proc p
-               join pg_namespace n on n.oid = p.pronamespace,
-                    lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
-              where n.nspname in ('keynes', 'keynes_internal')
-           ) grants
-          where grants.grantee not in (0, (select oid from pg_roles where rolname = $1),
-                                          (select oid from pg_roles where rolname = $2))
+         select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'keynes_internal' and c.relkind in ('r', 'p')
+            and (
+              has_table_privilege($1, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+              or has_table_privilege($2, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+              or has_table_privilege($3, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+              or has_table_privilege('public', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+            )
+       ) as private_table_access,
+       exists (
+         select 1 from (
+           select acl.grantee from pg_namespace n,
+             lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) acl
+            where n.nspname in ('keynes', 'keynes_internal')
+           union all
+           select acl.grantee from pg_class c
+             join pg_namespace n on n.oid = c.relnamespace,
+             lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl
+            where n.nspname in ('keynes', 'keynes_internal') and c.relkind in ('r', 'p')
+           union all
+           select acl.grantee from pg_proc p
+             join pg_namespace n on n.oid = p.pronamespace,
+             lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+            where n.nspname in ('keynes', 'keynes_internal')
+         ) grants
+         where grants.grantee <> 0
+           and grants.grantee not in (
+             (select oid from pg_roles where rolname = $1),
+             (select oid from pg_roles where rolname = $2),
+             (select oid from pg_roles where rolname = $3),
+             (select oid from pg_roles where rolname = $4)
+           )
+           and not exists (
+             select 1 from keynes_internal.remote_role_mappings mapping
+              where mapping.role_oid = grants.grantee
+           )
        ) as unexpected_grantee`,
-    [config.applicationRole, config.ownerRole],
+    [
+      config.applicationRole,
+      config.administrationRole,
+      config.executionRole,
+      config.ownerRole,
+      REMOTE_TARGETS.map((target) => `${target}(jsonb)`),
+      REMOTE_ADMIN_TARGETS,
+      [
+        ...REMOTE_TARGETS.map((target) => `${target}(jsonb)`),
+        ...REMOTE_EXECUTION_TARGETS,
+      ],
+    ],
   );
   const row = result.rows[0];
   if (
     row === undefined ||
-    row.public_schema ||
-    row.public_private_schema ||
-    !row.application_schema ||
-    row.application_create ||
-    row.private_schema ||
-    row.public_execute ||
-    row.public_private_execute ||
-    !row.application_execute ||
-    row.private_execute ||
+    row.public_access ||
+    !row.application_public_usage ||
+    row.application_public_create ||
+    row.application_private_usage ||
+    row.application_private_create ||
+    row.administration_public_usage ||
+    row.administration_public_create ||
+    !row.administration_private_usage ||
+    row.administration_private_create ||
+    !row.execution_public_usage ||
+    row.execution_public_create ||
+    !row.execution_private_usage ||
+    row.execution_private_create ||
+    !row.application_functions_exact ||
+    !row.administration_functions_exact ||
+    !row.execution_functions_exact ||
     row.private_table_access ||
-    row.public_private_table_access ||
     row.unexpected_grantee
   ) {
     throw new InstallationError("incompatible_target", "access-boundary");
+  }
+}
+
+async function checkMappedRoles(
+  client: QueryClient,
+  config: InstallationConfig,
+): Promise<void> {
+  const result = await client.query<{ readonly exact: boolean }>(
+    `with functions as (
+       select p.oid,
+              n.nspname || '.' || p.proname || '(' ||
+                replace(oidvectortypes(p.proargtypes), ', ', ',') || ')' as target
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname in ('keynes', 'keynes_internal')
+     )
+     select coalesce(bool_and(
+       role.oid is not null
+       and role.rolcanlogin
+       and not role.rolinherit
+       and not role.rolsuper
+       and not role.rolcreaterole
+       and not role.rolcreatedb
+       and not role.rolreplication
+       and not role.rolbypassrls
+       and has_database_privilege(role.oid, current_database(), 'CONNECT')
+       and not has_database_privilege(role.oid, current_database(), 'CREATE')
+       and not pg_has_role(role.oid, owner_role.oid, 'MEMBER')
+       and not pg_has_role(role.oid, execution_role.oid, 'MEMBER')
+       and not pg_has_role(role.oid, administration_role.oid, 'MEMBER')
+       and has_schema_privilege(role.oid, 'keynes', 'USAGE')
+       and not has_schema_privilege(role.oid, 'keynes', 'CREATE')
+       and not has_schema_privilege(role.oid, 'keynes_internal', 'USAGE')
+       and not has_schema_privilege(role.oid, 'keynes_internal', 'CREATE')
+       and coalesce((
+         select bool_and(
+           has_function_privilege(role.oid, functions.oid, 'EXECUTE') =
+             (functions.target = any($1::text[]))
+         ) from functions
+       ), false)
+       and not exists (
+         select 1 from pg_class class
+         join pg_namespace namespace on namespace.oid = class.relnamespace
+          where namespace.nspname = 'keynes_internal'
+            and class.relkind in ('r', 'p')
+            and has_table_privilege(
+              role.oid, class.oid,
+              'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+            )
+       )
+     ), false) as exact
+       from keynes_internal.remote_role_mappings mapping
+       left join pg_roles role
+         on role.oid = mapping.role_oid and role.rolname = mapping.role_name
+       join pg_roles owner_role on owner_role.rolname = $2
+       join pg_roles execution_role on execution_role.rolname = $3
+       join pg_roles administration_role on administration_role.rolname = $4`,
+    [
+      REMOTE_TARGETS.map((target) => `${target}(jsonb)`),
+      config.ownerRole,
+      config.executionRole,
+      config.administrationRole,
+    ],
+  );
+  if (result.rows[0]?.exact !== true) {
+    throw new InstallationError("incompatible_target", "mapped-role-boundary");
   }
 }
 
@@ -563,48 +837,135 @@ async function checkRoles(
   const result = await client.query<{
     readonly rolname: string;
     readonly rolcanlogin: boolean;
+    readonly rolinherit: boolean;
     readonly rolsuper: boolean;
+    readonly rolcreaterole: boolean;
+    readonly rolcreatedb: boolean;
+    readonly rolreplication: boolean;
+    readonly rolbypassrls: boolean;
     readonly database_create: boolean;
     readonly database_connect: boolean;
   }>(
-    `select rolname, rolcanlogin, rolsuper,
+    `select rolname, rolcanlogin, rolinherit, rolsuper, rolcreaterole,
+            rolcreatedb, rolreplication, rolbypassrls,
             has_database_privilege(rolname, current_database(), 'CREATE') as database_create,
             has_database_privilege(rolname, current_database(), 'CONNECT') as database_connect
        from pg_roles
       where rolname = any($1::text[])`,
-    [[config.ownerRole, config.applicationRole]],
+    [
+      [
+        config.ownerRole,
+        config.executionRole,
+        config.administrationRole,
+        config.applicationRole,
+      ],
+    ],
   );
   const owner = result.rows.find(({ rolname }) => rolname === config.ownerRole);
+  const execution = result.rows.find(
+    ({ rolname }) => rolname === config.executionRole,
+  );
+  const administration = result.rows.find(
+    ({ rolname }) => rolname === config.administrationRole,
+  );
   const application = result.rows.find(
     ({ rolname }) => rolname === config.applicationRole,
   );
-  if (owner === undefined || application === undefined) {
+  if (
+    owner === undefined ||
+    execution === undefined ||
+    administration === undefined ||
+    application === undefined
+  ) {
     throw new InstallationError("missing_role", "roles");
   }
-  if (owner.rolcanlogin || !owner.database_create) {
+  if (owner.rolcanlogin || owner.rolsuper || !owner.database_create) {
     throw new InstallationError("insufficient_privilege", "owner-role");
   }
-  if (!application.rolcanlogin || !application.database_connect) {
+  if (execution.rolcanlogin || execution.rolinherit || privileged(execution)) {
+    throw new InstallationError("insufficient_privilege", "execution-role");
+  }
+  if (
+    !administration.rolcanlogin ||
+    administration.rolinherit ||
+    privileged(administration) ||
+    !administration.database_connect
+  ) {
+    throw new InstallationError(
+      "insufficient_privilege",
+      "administration-role",
+    );
+  }
+  if (
+    !application.rolcanlogin ||
+    application.rolinherit ||
+    !application.database_connect
+  ) {
     throw new InstallationError("insufficient_privilege", "application-role");
   }
-  const membership = await client.query<{
-    readonly private_access: boolean;
-  }>("select pg_has_role($1, $2, 'USAGE') as private_access", [
-    config.applicationRole,
-    config.ownerRole,
-  ]);
-  if (application.rolsuper || membership.rows[0]?.private_access !== false) {
+  if (privileged(application)) {
     throw new InstallationError(
       "insufficient_privilege",
       "application-private-access",
     );
   }
+  const membership = await client.query<{
+    readonly application_owner: boolean;
+    readonly application_execution: boolean;
+    readonly application_administration: boolean;
+    readonly administration_owner: boolean;
+    readonly administration_execution: boolean;
+  }>(
+    `select pg_has_role($1, $3, 'MEMBER') as application_owner,
+            pg_has_role($1, $4, 'MEMBER') as application_execution,
+            pg_has_role($1, $2, 'MEMBER') as application_administration,
+            pg_has_role($2, $3, 'MEMBER') as administration_owner,
+            pg_has_role($2, $4, 'MEMBER') as administration_execution`,
+    [
+      config.applicationRole,
+      config.administrationRole,
+      config.ownerRole,
+      config.executionRole,
+    ],
+  );
+  const memberships = membership.rows[0];
+  if (memberships === undefined) {
+    throw new InstallationError("insufficient_privilege", "role-membership");
+  }
+  if (
+    memberships.application_owner ||
+    memberships.application_execution ||
+    memberships.application_administration
+  ) {
+    throw new InstallationError(
+      "insufficient_privilege",
+      "application-private-access",
+    );
+  }
+  if (memberships.administration_owner || memberships.administration_execution)
+    throw new InstallationError("insufficient_privilege", "role-membership");
   try {
     await client.query(`set role ${identifier(config.ownerRole)}`);
     await client.query("reset role");
   } catch {
     throw new InstallationError("insufficient_privilege", "owner-role");
   }
+}
+
+function privileged(role: {
+  readonly rolsuper: boolean;
+  readonly rolcreaterole: boolean;
+  readonly rolcreatedb: boolean;
+  readonly rolreplication: boolean;
+  readonly rolbypassrls: boolean;
+}): boolean {
+  return (
+    role.rolsuper ||
+    role.rolcreaterole ||
+    role.rolcreatedb ||
+    role.rolreplication ||
+    role.rolbypassrls
+  );
 }
 
 async function classifyTarget(
@@ -636,21 +997,36 @@ async function recordInstallation(
     );
   }
   await client.query(
-    "insert into keynes_internal.installation_identity (singleton, profile_id, server_version_num, contract_digest, migration_set_digest, owner_role, application_role, tenant_id, principal_id) values (true, $1, $2, $3, $4, $5, $6, $7, $8)",
+    `insert into keynes_internal.installation_identity (
+       singleton, profile_id, server_version_num, contract_digest,
+       migration_set_digest, owner_role, execution_role, administration_role,
+       application_role, tenant_id, principal_id,
+       policy_profile_digest, remote_procedures_digest
+     ) values (
+       true, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+     )`,
     [
       installationRecord.profileId,
       installationRecord.serverVersionNum,
       installationRecord.contractDigest,
       installationRecord.migrationSetDigest,
       config.ownerRole,
+      config.executionRole,
+      config.administrationRole,
       config.applicationRole,
       config.tenantId,
       config.principalId,
+      installationRecord.policyProfileDigest,
+      installationRecord.remoteProceduresDigest,
     ],
   );
   await client.query(
     "insert into keynes_internal.principal_permissions (tenant_id, principal_id, permission) select $1, $2, unnest($3::text[])",
     [config.tenantId, config.principalId, BOOTSTRAP_PERMISSIONS],
+  );
+  await client.query(
+    "select keynes_internal.register_remote_role_v0006($1::name, $2::uuid, $3::uuid)",
+    [config.applicationRole, config.tenantId, config.principalId],
   );
 }
 
@@ -686,8 +1062,10 @@ function success(
       contractDigest: installationRecord.contractDigest,
       migrationSetDigest: installationRecord.migrationSetDigest,
       ownerRole: config.ownerRole,
+      executionRole: config.executionRole,
+      administrationRole: config.administrationRole,
       applicationRole: config.applicationRole,
-      functions: installationRecord.expectedTargets,
+      functions: REMOTE_TARGETS,
     },
   };
 }

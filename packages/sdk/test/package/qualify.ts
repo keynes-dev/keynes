@@ -35,6 +35,20 @@ const expectedProductionDependencies = {
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
   "libpg-query": "18.1.4",
+  pg: "8.23.0",
+  "pg-cloudflare": "1.4.0",
+  "pg-connection-string": "2.14.0",
+  "pg-int8": "1.0.1",
+  "pg-pool": "3.14.0",
+  "pg-protocol": "1.16.0",
+  "pg-types": "2.2.0",
+  pgpass: "1.0.5",
+  "postgres-array": "2.0.0",
+  "postgres-bytea": "1.0.1",
+  "postgres-date": "1.0.7",
+  "postgres-interval": "1.2.0",
+  split2: "4.2.0",
+  xtend: "4.0.2",
 } as const;
 const expectedBundledDependencies = Object.keys(
   expectedProductionDependencies,
@@ -43,10 +57,9 @@ const bundledPackageRoots = expectedBundledDependencies.map(
   (name) => `package/node_modules/${name}`,
 );
 const requiredBundledPackageFiles = [
-  "package/node_modules/@pgsql/types/package.json",
-  "package/node_modules/decimal.js/package.json",
-  "package/node_modules/kysely/package.json",
-  "package/node_modules/libpg-query/package.json",
+  ...expectedBundledDependencies.map(
+    (name) => `package/node_modules/${name}/package.json`,
+  ),
   "package/node_modules/libpg-query/wasm/index.cjs",
   "package/node_modules/libpg-query/wasm/index.js",
   "package/node_modules/libpg-query/wasm/libpg-query.js",
@@ -66,7 +79,27 @@ const allowedPackageFiles = [
 export interface QualificationArguments {
   readonly archivePath: string;
   readonly outputPath?: string;
+  readonly authorizedDatabase?: true;
 }
+
+const PROVIDER_FREE_PACKAGE_CHECKS = [
+  "parser-wasm",
+  "public-types",
+  "package-root-import",
+  "remote-exports",
+  "configuration-rejection",
+  "environment-isolation",
+  "budget-loop",
+  "policy-runtime",
+  "isolation",
+  "closure",
+  "process-loss",
+  "deep-imports-blocked",
+] as const;
+
+type PackageCheck =
+  | (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number]
+  | "authorized-database-walkthrough";
 
 export interface QualificationResult {
   readonly schemaVersion: "keynes.package-test.sdk/v1";
@@ -90,20 +123,11 @@ export interface QualificationResult {
     readonly osRelease: string;
     readonly architecture: string;
   };
-  readonly checks: readonly [
-    "parser-wasm",
-    "public-types",
-    "package-root-import",
-    "budget-loop",
-    "policy-runtime",
-    "isolation",
-    "closure",
-    "process-loss",
-    "deep-imports-blocked",
-  ];
+  readonly checks: readonly PackageCheck[];
   readonly outcome: "passed";
   readonly exclusions: {
     readonly hostedMatrix: "NOT RUN";
+    readonly authorizedRemoteDatabase: "NOT RUN";
     readonly registry: "NOT RUN";
     readonly securityQualification: "NOT RUN";
     readonly productionReadiness: "NOT RUN";
@@ -129,7 +153,11 @@ export function parseArguments(
   const normalized = args[0] === "--" ? args.slice(1) : args;
   const { tokens } = parseArgs({
     args: normalized,
-    options: { archive: { type: "string" }, output: { type: "string" } },
+    options: {
+      archive: { type: "string" },
+      output: { type: "string" },
+      "authorized-database": { type: "boolean" },
+    },
     allowPositionals: true,
     strict: false,
     tokens: true,
@@ -138,10 +166,15 @@ export function parseArguments(
     if (token.kind === "positional")
       throw new Error(`Unknown argument ${token.value}`);
     if (token.kind !== "option") continue;
-    if (token.name !== "archive" && token.name !== "output")
+    if (
+      token.name !== "archive" &&
+      token.name !== "output" &&
+      token.name !== "authorized-database"
+    )
       throw new Error(`Unknown argument ${token.rawName}`);
     if (token.inlineValue === true)
       throw new Error(`Unknown argument ${normalized[token.index]}`);
+    if (token.name === "authorized-database") continue;
     if (token.value === undefined || token.value.startsWith("--"))
       throw new Error(`${token.rawName} requires a path`);
   }
@@ -150,10 +183,15 @@ export function parseArguments(
     (token) => token.name === "archive",
   );
   const outputTokens = optionTokens.filter((token) => token.name === "output");
+  const authorizedDatabaseTokens = optionTokens.filter(
+    (token) => token.name === "authorized-database",
+  );
   if (archiveTokens.length > 1)
     throw new Error("--archive may be provided only once");
   if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
+  if (authorizedDatabaseTokens.length > 1)
+    throw new Error("--authorized-database may be provided only once");
   const archive = archiveTokens[0]?.value;
   const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
@@ -162,6 +200,9 @@ export function parseArguments(
     ...(output === undefined
       ? {}
       : { outputPath: resolve(repositoryRoot, output) }),
+    ...(authorizedDatabaseTokens.length === 0
+      ? {}
+      : { authorizedDatabase: true as const }),
   };
 }
 
@@ -234,14 +275,18 @@ export async function qualifyArchive(
       external.root,
     );
     const consumer = resolve(external.root, "build/consumer.mjs");
-    run(process.execPath, [consumer, "budget-loop"], external.root);
-    run(process.execPath, [consumer, "policy-runtime"], external.root);
-    run(process.execPath, [consumer, "isolation"], external.root);
-    run(process.execPath, [consumer, "closure"], external.root);
-    assertProcessState(
-      run(process.execPath, [consumer, "write-then-exit"], external.root),
-    );
-    run(process.execPath, [consumer, "read-after-restart"], external.root);
+    runConsumer(consumer, "remote-exports", external.root);
+    runConsumer(consumer, "configuration-rejection", external.root);
+    runConsumer(consumer, "environment-isolation", external.root);
+    runConsumer(consumer, "budget-loop", external.root);
+    runConsumer(consumer, "policy-runtime", external.root);
+    runConsumer(consumer, "isolation", external.root);
+    runConsumer(consumer, "closure", external.root);
+    assertProcessState(runConsumer(consumer, "write-then-exit", external.root));
+    runConsumer(consumer, "read-after-restart", external.root);
+    if (args.authorizedDatabase === true) {
+      runConsumer(consumer, "authorized-database", external.root, true);
+    }
 
     productionBytes = external.productionBytes;
   } finally {
@@ -280,19 +325,15 @@ export async function qualifyArchive(
       architecture: arch(),
     },
     checks: [
-      "parser-wasm",
-      "public-types",
-      "package-root-import",
-      "budget-loop",
-      "policy-runtime",
-      "isolation",
-      "closure",
-      "process-loss",
-      "deep-imports-blocked",
+      ...PROVIDER_FREE_PACKAGE_CHECKS,
+      ...(args.authorizedDatabase === true
+        ? (["authorized-database-walkthrough"] as const)
+        : []),
     ],
     outcome: "passed",
     exclusions: {
       hostedMatrix: "NOT RUN",
+      authorizedRemoteDatabase: "NOT RUN",
       registry: "NOT RUN",
       securityQualification: "NOT RUN",
       productionReadiness: "NOT RUN",
@@ -348,6 +389,10 @@ export async function installExternalConsumer(
       resolve(compatibilityRoot, "policy-api.mts"),
       resolve(root, "compatibility/policy-api.mts"),
     );
+    await cp(
+      resolve(compatibilityRoot, "remote-api.mts"),
+      resolve(root, "compatibility/remote-api.mts"),
+    );
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
     await writeFile(
       resolve(root, "package.json"),
@@ -388,6 +433,10 @@ export async function installExternalConsumer(
     const installedParserTypes = await realpath(
       installedRequire.resolve("@pgsql/types"),
     );
+    const installedPg = await realpath(installedRequire.resolve("pg"));
+    const installedPgConnectionString = await realpath(
+      installedRequire.resolve("pg-connection-string"),
+    );
     const installedParserWasm = await realpath(
       resolve(dirname(installedParserEntry), "libpg-query.wasm"),
     );
@@ -396,6 +445,8 @@ export async function installExternalConsumer(
     assertWithin(externalRoot, installedPackage);
     assertWithin(installedParserRoot, installedParserEntry);
     assertWithin(installedParserRoot, installedParserWasm);
+    assertWithin(externalRoot, installedPg);
+    assertWithin(externalRoot, installedPgConnectionString);
     assertWithin(
       await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
       installedParserTypes,
@@ -555,11 +606,50 @@ function run(command: string, args: readonly string[], cwd: string): string {
   return result.stdout;
 }
 
+function runConsumer(
+  modulePath: string,
+  mode: string,
+  cwd: string,
+  authorized = false,
+): string {
+  const databaseUrl = authorized ? process.env.KEYNES_DATABASE_URL : undefined;
+  const qualificationTarget = authorized
+    ? process.env.KEYNES_QUALIFICATION_TARGET
+    : undefined;
+  const result = spawnSync(process.execPath, [modulePath, mode], {
+    cwd,
+    encoding: "utf8",
+    env: {
+      CI: "true",
+      ...(databaseUrl === undefined
+        ? {}
+        : { KEYNES_DATABASE_URL: databaseUrl }),
+      ...(qualificationTarget === undefined
+        ? {}
+        : { KEYNES_QUALIFICATION_TARGET: qualificationTarget }),
+    },
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 60_000,
+  });
+  if (result.error !== undefined) throw result.error;
+  if (result.status !== 0) {
+    const output =
+      databaseUrl === undefined
+        ? result.stderr || result.stdout
+        : `${result.stderr || result.stdout}`.replaceAll(
+            databaseUrl,
+            "[REDACTED]",
+          );
+    throw new Error(`SDK consumer ${mode} failed\n${output}`);
+  }
+  return result.stdout;
+}
+
 function runExpectedPackagePathFailure(modulePath: string, cwd: string): void {
   const result = spawnSync(process.execPath, [modulePath], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, CI: "true" },
+    env: { CI: "true" },
     maxBuffer: 10 * 1024 * 1024,
     shell: process.platform === "win32",
     timeout: 60_000,

@@ -25,5 +25,12 @@ export const SDK_PRODUCTION_MODULES = [
   "replay",
   "resource-binding",
   "resources",
+  "remote/budget",
+  "remote/connection-options",
+  "remote/errors",
+  "remote/postgresql-command-executor",
+  "remote/public-types",
+  "remote/references",
+  "remote/retry",
   "sdk-errors",
 ] as const;

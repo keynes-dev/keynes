@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "keynes.package-test.sdk/v1",
+  "subject": "@keynes/sdk",
+  "sourceRevision": {
+    "commit": "52da617be4f77ef5913955e397c3bc6ff2423ae6",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "archive": {
+    "sha256": "28a3245cade0069ec801b7054c93da8784d337510b3d89c528b27e29306f5656",
+    "compressedBytes": 1007567,
+    "productionBytes": 4995914,
+    "packageVersion": "0.0.0",
+    "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+  },
+  "environment": {
+    "node": "v26.5.0",
+    "pnpm": "11.21.0",
+    "os": "darwin",
+    "osRelease": "25.5.0",
+    "architecture": "arm64"
+  },
+  "checks": [
+    "parser-wasm",
+    "public-types",
+    "package-root-import",
+    "remote-exports",
+    "configuration-rejection",
+    "environment-isolation",
+    "budget-loop",
+    "policy-runtime",
+    "isolation",
+    "closure",
+    "process-loss",
+    "deep-imports-blocked"
+  ],
+  "outcome": "passed",
+  "exclusions": {
+    "hostedMatrix": "NOT RUN",
+    "authorizedRemoteDatabase": "NOT RUN",
+    "registry": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}

@@ -67,7 +67,7 @@ export async function generateContracts(
   );
   const contractIdentity = await formatSource(
     "contract.ts",
-    `// Generated from packages/contracts. Do not edit.\n\nexport const CONTRACT_DIGEST = ${JSON.stringify(contract.digest)};\n`,
+    `// Generated from packages/contracts. Do not edit.\n\nexport const CONTRACT_DIGEST = ${JSON.stringify(contract.digest)};\nexport const REMOTE_PROCEDURES_DIGEST = ${JSON.stringify(contract.remoteDigest)};\nexport const REMOTE_CONTRACT = ${JSON.stringify(contract.source.remote, null, 2)} as const;\n`,
   );
   applyGeneratedOutputs({
     check: options.check,
@@ -78,6 +78,10 @@ export async function generateContracts(
       [
         "generated/contract-digest.json",
         jsonFile({ algorithm: "sha256", digest: contract.digest }),
+      ],
+      [
+        "generated/remote-procedures-digest.json",
+        jsonFile({ algorithm: "sha256", digest: contract.remoteDigest }),
       ],
       ["generated/types.ts", formattedTypes],
       ["generated/policy-types.ts", formattedPolicyTypes],

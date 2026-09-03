@@ -337,14 +337,23 @@ export async function openInstalledPostgresDatabase(
   const suffix = randomUUID().replaceAll("-", "");
   const databaseName = `keynes_test_${suffix}`;
   const ownerRole = `keynes_owner_${suffix}`;
+  const executionRole = `keynes_execution_${suffix}`;
+  const administrationRole = `keynes_admin_${suffix}`;
   const applicationRole = `keynes_app_${suffix}`;
+  const administrationPassword = randomUUID();
   const applicationPassword = randomUUID();
   const administrator = new Client({ connectionString: administratorUrl });
   await administrator.connect();
   try {
     await administrator.query(`create role "${ownerRole}" nologin`);
     await administrator.query(
-      `create role "${applicationRole}" login password '${applicationPassword}'`,
+      `create role "${executionRole}" nologin noinherit`,
+    );
+    await administrator.query(
+      `create role "${administrationRole}" login noinherit password '${administrationPassword}'`,
+    );
+    await administrator.query(
+      `create role "${applicationRole}" login noinherit password '${applicationPassword}'`,
     );
     await administrator.query(`create database "${databaseName}"`);
     const administratorRole = new URL(administratorUrl).username;
@@ -352,11 +361,16 @@ export async function openInstalledPostgresDatabase(
     await administrator.query(
       `grant create on database "${databaseName}" to "${ownerRole}"`,
     );
+    await administrator.query(
+      `grant connect on database "${databaseName}" to "${administrationRole}", "${applicationRole}"`,
+    );
   } catch (error: unknown) {
     await administrator.query(
       `drop database if exists "${databaseName}" with (force)`,
     );
     await administrator.query(`drop role if exists "${applicationRole}"`);
+    await administrator.query(`drop role if exists "${administrationRole}"`);
+    await administrator.query(`drop role if exists "${executionRole}"`);
     await administrator.query(`drop role if exists "${ownerRole}"`);
     throw error;
   } finally {
@@ -370,7 +384,7 @@ export async function openInstalledPostgresDatabase(
     administratorUrl,
     databaseName,
     databaseUrl.toString(),
-    [applicationRole, ownerRole],
+    [applicationRole, administrationRole, executionRole, ownerRole],
   );
   try {
     const principal = installation.principals.find(({ permissions }) =>
@@ -390,7 +404,7 @@ export async function openInstalledPostgresDatabase(
       const configPath = join(configurationRoot, "installation.json");
       await writeFile(
         configPath,
-        `${JSON.stringify({ ownerRole, applicationRole, tenantId: installation.tenantId, principalId: principal.principalId })}\n`,
+        `${JSON.stringify({ ownerRole, executionRole, administrationRole, applicationRole, tenantId: installation.tenantId, principalId: principal.principalId })}\n`,
       );
       const environment = postgresEnvironment(databaseUrl);
       requireInstallationOutcome(

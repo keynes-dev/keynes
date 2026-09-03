@@ -27,28 +27,6 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
 
-  apps/cloud:
-    dependencies:
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
-    devDependencies:
-      '@keynes/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@keynes/testkit':
-        specifier: workspace:*
-        version: link:../../packages/testkit
-      '@types/pg':
-        specifier: 8.23.1
-        version: 8.23.1
-      oxfmt:
-        specifier: 0.64.0
-        version: 0.64.0
-      vitest:
-        specifier: 4.1.11
-        version: 4.1.11(@types/node@24.13.3)(vite@8.2.2(@types/node@24.13.3))
-
   packages/contracts:
     dependencies:
       ajv:
@@ -104,6 +82,48 @@ importers:
       libpg-query:
         specifier: 18.1.4
         version: 18.1.4
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+      pg-cloudflare:
+        specifier: 1.4.0
+        version: 1.4.0
+      pg-connection-string:
+        specifier: 2.14.0
+        version: 2.14.0
+      pg-int8:
+        specifier: 1.0.1
+        version: 1.0.1
+      pg-pool:
+        specifier: 3.14.0
+        version: 3.14.0(pg@8.23.0)
+      pg-protocol:
+        specifier: 1.16.0
+        version: 1.16.0
+      pg-types:
+        specifier: 2.2.0
+        version: 2.2.0
+      pgpass:
+        specifier: 1.0.5
+        version: 1.0.5
+      postgres-array:
+        specifier: 2.0.0
+        version: 2.0.0
+      postgres-bytea:
+        specifier: 1.0.1
+        version: 1.0.1
+      postgres-date:
+        specifier: 1.0.7
+        version: 1.0.7
+      postgres-interval:
+        specifier: 1.2.0
+        version: 1.2.0
+      split2:
+        specifier: 4.2.0
+        version: 4.2.0
+      xtend:
+        specifier: 4.0.2
+        version: 4.0.2
     devDependencies:
       '@keynes/contracts':
         specifier: workspace:*
@@ -111,6 +131,9 @@ importers:
       '@keynes/testkit':
         specifier: workspace:*
         version: link:../testkit
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       json-schema-to-typescript:
         specifier: 15.0.4
         version: 15.0.4
@@ -1626,8 +1649,7 @@ snapshots:
 
   pathe@2.0.3: {}
 
-  pg-cloudflare@1.4.0:
-    optional: true
+  pg-cloudflare@1.4.0: {}
 
   pg-connection-string@2.14.0: {}
 

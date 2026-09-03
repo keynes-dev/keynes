@@ -92,6 +92,16 @@ export class ResourceBinding<
     return resource;
   }
 
+  findVisibleResourceByCanonicalName(
+    canonicalName: string,
+  ): BoundResource<Names> | undefined {
+    return this.#visibleByCanonicalName.get(canonicalName);
+  }
+
+  visibleResourceCount(): number {
+    return this.#visibleByCanonicalName.size;
+  }
+
   resources<Name extends Names>(
     input: Readonly<Partial<Record<Name, number>>>,
     operation: "requestBudget",

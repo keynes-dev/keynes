@@ -9,6 +9,8 @@ import type {
   ContractSource,
   JsonObject,
   LoadedContract,
+  RemoteContractMetadata,
+  RemoteContractProcedure,
 } from "./model.ts";
 import { buildPolicySchema } from "./generation.ts";
 import { loadPolicyProfile } from "./load-policy-profile.ts";
@@ -56,6 +58,83 @@ const EXPECTED_OPERATIONS = [
   },
 ] as const satisfies readonly ContractOperation[];
 
+const EXPECTED_REMOTE = {
+  semanticGeneration: 1,
+  minimumSdkGeneration: 1,
+  semanticIdentities: [
+    "installation",
+    "command_contract",
+    "policy_profile",
+    "remote_procedures",
+  ],
+  procedures: [
+    {
+      method: "createBudget",
+      target: "keynes.remote_create_budget",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteCreateBudgetCommand",
+      output: "RemoteCreateBudgetResult",
+    },
+    {
+      method: "requestBudget",
+      target: "keynes.remote_request",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteRequestBudgetCommand",
+      output: "RemoteRequestBudgetResult",
+    },
+    {
+      method: "settleBudget",
+      target: "keynes.remote_settle",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteSettleBudgetCommand",
+      output: "RemoteSettleBudgetResult",
+    },
+    {
+      method: "getBudget",
+      target: "keynes.remote_get_budget",
+      revision: 1,
+      mode: "read",
+      input: "RemoteGetBudgetQuery",
+      output: "RemoteGetBudgetResult",
+    },
+    {
+      method: "getBudgetHistoryPage",
+      target: "keynes.remote_get_budget_history_page",
+      revision: 1,
+      mode: "read",
+      input: "GetBudgetHistoryPageQuery",
+      output: "GetBudgetHistoryPageResult",
+    },
+    {
+      method: "openBudget",
+      target: "keynes.remote_open_budget",
+      revision: 1,
+      mode: "read",
+      input: "OpenBudgetQuery",
+      output: "OpenBudgetResult",
+    },
+    {
+      method: "recoverOperation",
+      target: "keynes.remote_recover_operation",
+      revision: 1,
+      mode: "read",
+      input: "RecoverOperationQuery",
+      output: "RecoverOperationResult",
+    },
+    {
+      method: "getCompatibility",
+      target: "keynes.remote_get_compatibility",
+      revision: 1,
+      mode: "read",
+      input: "GetCompatibilityQuery",
+      output: "GetCompatibilityResult",
+    },
+  ],
+} as const satisfies RemoteContractMetadata;
+
 const SCHEMA_KEYWORDS = new Set([
   "$ref",
   "additionalProperties",
@@ -92,11 +171,16 @@ export function loadContract(sourceRoot: string): LoadedContract {
   const encoded = canonicalize({ schema, operations: source.operations });
   if (encoded === undefined)
     fail("contract contains a value that cannot be canonicalized");
+  const encodedRemote = canonicalize(source.remote);
+  if (encodedRemote === undefined) {
+    fail("remote contract metadata cannot be canonicalized");
+  }
   return {
     source,
     schema,
     definitions,
     digest: createHash("sha256").update(encoded).digest("hex"),
+    remoteDigest: createHash("sha256").update(encodedRemote).digest("hex"),
   };
 }
 
@@ -160,6 +244,42 @@ function parseContract(value: unknown): ContractSource {
   return {
     schema: requireString(source, "schema"),
     operations: source.operations.map(parseOperation),
+    remote: parseRemoteMetadata(source.remote),
+  };
+}
+
+function parseRemoteMetadata(value: unknown): RemoteContractMetadata {
+  const remote = requireObject(value, "remote contract metadata");
+  if (!Array.isArray(remote.procedures) || remote.procedures.length === 0) {
+    fail("remote contract procedures must be a non-empty array");
+  }
+  return {
+    semanticGeneration: requirePositiveInteger(remote, "semanticGeneration"),
+    minimumSdkGeneration: requirePositiveInteger(
+      remote,
+      "minimumSdkGeneration",
+    ),
+    semanticIdentities: requireNonEmptyStrings(remote, "semanticIdentities"),
+    procedures: [
+      parseRemoteProcedure(remote.procedures[0]),
+      ...remote.procedures.slice(1).map(parseRemoteProcedure),
+    ],
+  };
+}
+
+function parseRemoteProcedure(value: unknown): RemoteContractProcedure {
+  const procedure = requireObject(value, "remote contract procedure");
+  const mode = requireString(procedure, "mode");
+  if (mode !== "mutation" && mode !== "read") {
+    fail("remote contract procedure mode must be mutation or read");
+  }
+  return {
+    method: requireString(procedure, "method"),
+    target: requireString(procedure, "target"),
+    revision: requirePositiveInteger(procedure, "revision"),
+    mode,
+    input: requireString(procedure, "input"),
+    output: requireString(procedure, "output"),
   };
 }
 
@@ -218,7 +338,59 @@ function validateInputs(
   if (source.operations.length !== EXPECTED_OPERATIONS.length) {
     fail("contract must declare exactly the five allowlisted operations");
   }
+  validateRemoteMetadata(source.remote, definitions);
   return definitions;
+}
+
+function validateRemoteMetadata(
+  remote: RemoteContractMetadata,
+  definitions: JsonObject,
+): void {
+  for (const field of ["semanticGeneration", "minimumSdkGeneration"] as const) {
+    if (remote[field] !== EXPECTED_REMOTE[field]) {
+      fail(`remote metadata mismatch: ${field}`);
+    }
+  }
+  if (
+    !sameStrings(remote.semanticIdentities, EXPECTED_REMOTE.semanticIdentities)
+  ) {
+    fail("remote metadata mismatch: semanticIdentities");
+  }
+
+  const targets = new Set<string>();
+  for (const [index, procedure] of remote.procedures.entries()) {
+    const expected = EXPECTED_REMOTE.procedures[index];
+    if (expected === undefined) {
+      fail("contract declares more than eight remote procedures");
+    }
+    if (targets.has(procedure.target)) {
+      fail(`duplicate remote procedure target ${procedure.target}`);
+    }
+    targets.add(procedure.target);
+    for (const field of [
+      "method",
+      "target",
+      "revision",
+      "mode",
+      "input",
+      "output",
+    ] as const) {
+      if (procedure[field] !== expected[field]) {
+        fail(
+          `remote procedure metadata mismatch for ${expected.method}: ${field}`,
+        );
+      }
+    }
+    if (!(procedure.input in definitions)) {
+      fail(`undeclared remote input ${procedure.input}`);
+    }
+    if (!(procedure.output in definitions)) {
+      fail(`undeclared remote output ${procedure.output}`);
+    }
+  }
+  if (remote.procedures.length !== EXPECTED_REMOTE.procedures.length) {
+    fail("contract must declare exactly the eight remote procedures");
+  }
 }
 
 function requireNonEmptyStrings(
@@ -289,6 +461,14 @@ function requireString(object: JsonObject, key: string): string {
   const value = object[key];
   if (typeof value !== "string") fail(`contract field ${key} must be a string`);
   return value;
+}
+
+function requirePositiveInteger(object: JsonObject, key: string): number {
+  const value = object[key];
+  if (!Number.isSafeInteger(value) || Number(value) < 1) {
+    fail(`contract field ${key} must be a positive integer`);
+  }
+  return Number(value);
 }
 
 function isObject(value: unknown): value is JsonObject {

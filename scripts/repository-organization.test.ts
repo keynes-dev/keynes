@@ -8,7 +8,6 @@ import { describe, expect, it } from "vitest";
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 const targetDirectories = [
-  "apps/cloud",
   "packages/contracts",
   "packages/sdk",
   "packages/postgresql",
@@ -19,7 +18,6 @@ const targetDirectories = [
   "packages/postgresql/test/integration",
   "packages/postgresql/test/package",
   "packages/postgresql/test/system",
-  "apps/cloud/test/e2e",
   "scripts",
   ".specify/scripts",
   ".specify/tests",
@@ -43,7 +41,6 @@ const requiredCommands = [
   "pack:postgresql",
   "test:package:postgresql",
   "test:system:postgresql",
-  "test:system:cloud",
 ] as const;
 
 const removedCommands = [
@@ -71,7 +68,7 @@ describe("repository organization", () => {
       .filter((entry): entry is string => entry !== undefined)
       .sort();
 
-    expect(workspaces).toEqual(['"apps/*"', '"packages/*"']);
+    expect(workspaces).toEqual(['"packages/*"']);
   });
 
   it("removes every obsolete root owner", () => {
@@ -126,10 +123,23 @@ describe("repository organization", () => {
           "decimal.js": "10.6.0",
           kysely: "0.29.5",
           "libpg-query": "18.1.4",
+          pg: "8.23.0",
+          "pg-cloudflare": "1.4.0",
+          "pg-connection-string": "2.14.0",
+          "pg-int8": "1.0.1",
+          "pg-pool": "3.14.0",
+          "pg-protocol": "1.16.0",
+          "pg-types": "2.2.0",
+          pgpass: "1.0.5",
+          "postgres-array": "2.0.0",
+          "postgres-bytea": "1.0.1",
+          "postgres-date": "1.0.7",
+          "postgres-interval": "1.2.0",
+          split2: "4.2.0",
+          xtend: "4.0.2",
         },
       ],
       ["packages/postgresql", { pg: "8.23.0" }],
-      ["apps/cloud", { pg: "8.23.0" }],
     ] as const;
 
     for (const [directory, expectedDependencies] of subjects) {
