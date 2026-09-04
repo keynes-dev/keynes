@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import {
   parseSpecIdentity,
   resolveActiveFeature,
+  validateActionTitle,
 } from "./feature-identity.mjs";
 
 export class PhaseStackError extends Error {}
@@ -30,6 +31,12 @@ function findRepoRoot(start = process.cwd()) {
 
 export function publicationMarker(parentIdentifier, phaseNumber) {
   return `${parentIdentifier}/Phase-${phaseNumber}`;
+}
+
+export function pullRequestTitle(phase) {
+  if (phase.state !== "published")
+    fail(`Phase ${phase.number} has no published Linear issue`);
+  return `${phase.issue.identifier} ${phase.title}`;
 }
 
 export function parsePhases(contents) {
@@ -98,6 +105,9 @@ export function validatePhases(identity, phases, { allowLegacy = false } = {}) {
   }
   if (phases.some((phase) => phase.state === "legacy"))
     fail("Every phase must declare a binding");
+  for (const phase of phases) {
+    validateActionTitle(phase.title, `Phase ${phase.number} title`);
+  }
   const first = phases[0];
   if (first.title !== identity.feature_title)
     fail("Phase 1 title must equal the parent Linear title");
@@ -159,6 +169,60 @@ function runGh(repoRoot, args, dryRun) {
   return { command: ["gh", "stack", ...args] };
 }
 
+function syncPullRequestTitles(repoRoot, phases) {
+  const updated = [];
+  for (const phase of phases.filter(
+    (candidate) => candidate.state === "published",
+  )) {
+    const expected = pullRequestTitle(phase);
+    const result = spawnSync(
+      "gh",
+      [
+        "pr",
+        "list",
+        "--head",
+        phase.branch,
+        "--state",
+        "open",
+        "--json",
+        "number,title",
+        "--limit",
+        "2",
+      ],
+      { cwd: repoRoot, encoding: "utf8" },
+    );
+    if (result.status !== 0)
+      fail(`Could not inspect the PR for ${phase.branch}`);
+    const pullRequests = JSON.parse(result.stdout);
+    if (pullRequests.length > 1)
+      fail(`Multiple open PRs use branch ${phase.branch}`);
+    const pullRequest = pullRequests[0];
+    if (!pullRequest || pullRequest.title === expected) continue;
+    const edit = spawnSync(
+      "gh",
+      ["pr", "edit", String(pullRequest.number), "--title", expected],
+      { cwd: repoRoot, encoding: "utf8", stdio: "inherit" },
+    );
+    if (edit.status !== 0)
+      fail(`Could not set PR #${pullRequest.number} title to ${expected}`);
+    updated.push({ number: pullRequest.number, title: expected });
+  }
+  return updated;
+}
+
+function submitStack(repoRoot, phases, dryRun) {
+  const titles = phases
+    .filter((phase) => phase.state === "published")
+    .map((phase) => ({ branch: phase.branch, title: pullRequestTitle(phase) }));
+  if (dryRun) return { command: ["gh", "stack", "submit"], titles };
+  runGh(repoRoot, ["submit"], false);
+  return {
+    command: ["gh", "stack", "submit"],
+    titles,
+    updated: syncPullRequestTitles(repoRoot, phases),
+  };
+}
+
 function checkRepository(repoRoot) {
   const root = join(repoRoot, "docs/features");
   const issues = new Map();
@@ -197,8 +261,12 @@ function checkRepository(repoRoot) {
 
 function output(value, json) {
   if (json) process.stdout.write(`${JSON.stringify(value)}\n`);
-  else if (value.command) process.stdout.write(`${value.command.join(" ")}\n`);
-  else process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+  else if (value.command) {
+    process.stdout.write(`${value.command.join(" ")}\n`);
+    for (const mapping of value.titles ?? []) {
+      process.stdout.write(`${mapping.branch}: ${mapping.title}\n`);
+    }
+  } else process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
 function main() {
@@ -229,7 +297,17 @@ function main() {
     return output({ feature: identity.feature_id, phase }, values.json);
   }
   if (command === "check")
-    return output({ feature: identity.feature_id, phases }, values.json);
+    return output(
+      {
+        feature: identity.feature_id,
+        phases: phases.map((phase) => ({
+          ...phase,
+          pull_request_title:
+            phase.state === "published" ? pullRequestTitle(phase) : null,
+        })),
+      },
+      values.json,
+    );
   if (command === "init")
     return output(
       runGh(repoRoot, ["init", identity.branch], values["dry-run"]),
@@ -251,7 +329,10 @@ function main() {
     );
   }
   if (command === "submit")
-    return output(runGh(repoRoot, ["submit"], values["dry-run"]), values.json);
+    return output(
+      submitStack(repoRoot, phases, values["dry-run"]),
+      values.json,
+    );
   fail("Usage: phase-stack.mjs <active|check|init|start|submit> [options]");
 }
 

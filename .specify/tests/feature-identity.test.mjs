@@ -18,10 +18,11 @@ import {
 
 const UUID = "11111111-2222-4333-8444-555555555555";
 const IDENTIFIER = "KEY-123";
-const TITLE = "Accountable budget loop";
-const URL = "https://linear.app/keynes/issue/KEY-123/accountable-budget-loop";
-const BRANCH = "shubhankarsharan/key-123-accountable-budget-loop";
-const DIRECTORY = "key-123-accountable-budget-loop";
+const TITLE = "Implement accountable budget loop";
+const URL =
+  "https://linear.app/keynes/issue/KEY-123/implement-accountable-budget-loop";
+const BRANCH = "shubhankarsharan/key-123-implement-accountable-budget-loop";
+const DIRECTORY = "key-123-implement-accountable-budget-loop";
 const WORK_ITEM = {
   provider: "linear",
   issue_id: UUID,
@@ -147,6 +148,17 @@ test("requires matching Linear key, UUID, URL, and exact title", async () => {
       ),
     /exact/,
   );
+  assert.throws(
+    () =>
+      makeFeatureIdentity(
+        directory,
+        IDENTIFIER,
+        "Accountable budget loop",
+        BRANCH,
+        WORK_ITEM,
+      ),
+    /imperative action verb/,
+  );
 });
 
 test("resolves the active feature from the manifest without parsing its branch", async () => {
@@ -166,7 +178,7 @@ test("validates unique keys, UUIDs, and branches", async () => {
   writeFeature(directory, {
     identifier: "KEY-124",
     url: "https://linear.app/keynes/issue/KEY-124/second",
-    title: "Second feature",
+    title: "Add second feature",
     branch: "shubhankarsharan/key-124-second-feature",
   });
   assert.throws(

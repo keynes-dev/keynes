@@ -1,4 +1,4 @@
-# Implementation plan: [EXACT LINEAR ISSUE TITLE]
+# Implementation plan: [EXACT LINEAR ACTION TITLE]
 
 **Linear issue**: `[KEY-N]` | **Branch**: `[EXACT LINEAR GIT BRANCH NAME]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/spec.md`

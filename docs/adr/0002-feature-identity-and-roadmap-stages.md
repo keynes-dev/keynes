@@ -14,7 +14,7 @@ One feature has one identity:
 ```text
 KEY-44
 feat/0001-repository-and-code-architecture
-docs/features/key-44-repository-and-code-architecture/
+docs/features/key-44-define-repository-and-code-architecture/
 ```
 
 `.specify/scripts/feature-identity.mjs` owns allocation and validation. The Bash and PowerShell commands call that implementation. `.specify/feature.json` records the complete identity, and every later Spec Kit phase rejects disagreement between the manifest, branch, directory, and specification header.

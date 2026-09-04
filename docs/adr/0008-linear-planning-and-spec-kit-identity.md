@@ -13,11 +13,11 @@ Git still needs stable engineering records. A title or status change must not re
 
 ## Decision
 
-A Linear parent issue represents one complete feature. Its identifier is the public Spec Kit identity. Its UUID is hidden durable metadata. Its exact title names the specification, plan, tasks, and Phase 1. Its `gitBranchName` is the feature branch, and the final segment of that branch is the feature directory name. The repository never derives a branch from an issue key or title.
+A Linear parent issue represents one complete feature. Its identifier is the public Spec Kit identity. Its UUID is hidden durable metadata. Its exact title starts with an imperative action verb and names the specification, plan, tasks, and Phase 1. Its `gitBranchName` is the feature branch, and the final segment of that branch is the feature directory name. The repository never derives a branch from an issue key or title.
 
 The version 3 `.specify/feature.json` manifest stores the identifier, title, branch-named directory, specification path, exact Linear branch, UUID, and issue URL. Deterministic repository checks validate those stored values offline. Feature creation reads the live issue first and rejects terminal or already-bound issues unless the operator chooses recovery.
 
-`tasks.md` remains the detailed implementation plan. Phase 1 binds to the parent issue and branch. Every later phase binds to one Linear sub-issue and its generated branch. The phase heading and published issue title match exactly. Each phase has a checkpoint, and each phase normally becomes one layer in one GitHub PR stack.
+`tasks.md` remains the detailed implementation plan. Phase 1 binds to the parent issue and branch. Every later phase binds to one Linear sub-issue and its generated branch. Every phase title starts with an imperative action verb. The phase heading and published issue title match exactly. The PR title is the phase issue key followed by that exact phase title. Each phase has a checkpoint, and each phase normally becomes one layer in one GitHub PR stack.
 
 `$speckit-taskstoissues` previews publication unless the user passes `--apply`. Publication uses `KEY-parent/Phase-N` as the idempotency marker, creates no per-task issues, and copies no tasks, requirements, checkpoints, completion counts, or evidence into Linear. Linear owns status, assignment, priority, project, cycle, milestone, current disposition, and cross-feature dependencies.
 
@@ -49,6 +49,8 @@ The migration does not create historical phase issues or reconstruct old stacks.
 - Linear is the only naming and mutable planning authority.
 - A title change does not rename a feature directory unless Linear also changes the generated branch.
 - New branches always come from Linear.
+- Feature and phase titles use imperative action verbs.
+- Stack submission sets each PR title to `KEY-N <exact phase title>`.
 - Offline checks detect duplicate keys, UUIDs, issue bindings, and branches.
 - Publishing phases and submitting stacks are explicit operations.
 - Linear access is required to start or publish work, but not to inspect retained Git artifacts.

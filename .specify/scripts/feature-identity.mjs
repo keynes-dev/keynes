@@ -20,6 +20,77 @@ const LINEAR_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const LEGACY_FEATURE_ID = /^FEAT-([0-9]{4})$/;
 const LEGACY_DIRECTORY = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ACTION_VERBS = new Set([
+  "add",
+  "adopt",
+  "align",
+  "audit",
+  "bind",
+  "build",
+  "change",
+  "check",
+  "centralize",
+  "configure",
+  "connect",
+  "consolidate",
+  "convert",
+  "create",
+  "define",
+  "delete",
+  "deploy",
+  "document",
+  "enable",
+  "enforce",
+  "expand",
+  "expose",
+  "extract",
+  "finish",
+  "fix",
+  "gate",
+  "generate",
+  "implement",
+  "improve",
+  "integrate",
+  "isolate",
+  "launch",
+  "limit",
+  "measure",
+  "migrate",
+  "merge",
+  "move",
+  "organize",
+  "optimize",
+  "prepare",
+  "provision",
+  "publish",
+  "qualify",
+  "refactor",
+  "reconcile",
+  "record",
+  "recover",
+  "refresh",
+  "remove",
+  "rename",
+  "replace",
+  "restore",
+  "retire",
+  "review",
+  "rewrite",
+  "route",
+  "secure",
+  "separate",
+  "ship",
+  "simplify",
+  "split",
+  "standardize",
+  "support",
+  "test",
+  "update",
+  "upgrade",
+  "unify",
+  "validate",
+  "verify",
+]);
 
 export class FeatureIdentityError extends Error {}
 
@@ -79,6 +150,17 @@ export function makeWorkItem(issueId, issueIdentifier, issueUrl) {
   });
 }
 
+export function validateActionTitle(title, label = "Title") {
+  if (typeof title !== "string" || title.trim() !== title || !title) {
+    fail(`${label} must be a non-empty exact title`);
+  }
+  const [firstWord] = title.split(" ");
+  if (!ACTION_VERBS.has(firstWord.toLowerCase())) {
+    fail(`${label} must start with an imperative action verb: ${title}`);
+  }
+  return title;
+}
+
 export function validateGitBranch(repoRoot, branch) {
   if (typeof branch !== "string" || branch.length === 0)
     fail("Linear branch name is required");
@@ -111,13 +193,7 @@ export function makeFeatureIdentity(
   if (issueIdentifier !== validatedWorkItem.issue_identifier) {
     fail("Feature ID must equal the Linear issue identifier");
   }
-  if (
-    typeof featureTitle !== "string" ||
-    featureTitle.trim() !== featureTitle ||
-    !featureTitle
-  ) {
-    fail("The exact non-empty Linear issue title is required");
-  }
+  validateActionTitle(featureTitle, "Linear feature title");
   validateGitBranch(repoRoot, branch);
   const featureDirectory = featureDirectoryForBranch(branch);
   return Object.freeze({

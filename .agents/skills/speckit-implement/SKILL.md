@@ -19,7 +19,7 @@ Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`.
 
 Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
 
-The final phase owns integrated feature acceptance. Never run `gh stack submit` automatically. Submission requires a separate explicit user request.
+The final phase owns integrated feature acceptance. Never submit automatically. Submission requires a separate explicit user request to run `node .specify/scripts/phase-stack.mjs submit`. That command runs `gh stack submit` and sets every open PR title to `KEY-N <exact phase title>`.
 
 You **MUST** consider the user input before proceeding (if not empty).
 

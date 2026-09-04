@@ -17,6 +17,7 @@ $ARGUMENTS
 
 - Read `FEATURE_TITLE`, `BRANCH_NAME`, and the Linear work item from `feature-identity.mjs active --json`.
 - Use the exact parent Linear title for Phase 1. Bind Phase 1 to the parent issue, UUID, URL, and branch.
+- Start every phase title with an imperative action verb and name the reviewable outcome. Use `Generate the contract`, not `Generated contract` or `Contract generation`.
 - Add the literal lines `**Linear issue**: \`Unpublished\`` and `**Git branch**: \`Unpublished\`` beneath every later phase heading.
 - End every phase with one concrete review checkpoint.
 - Size one phase for one meaningful PR review question. Split independent questions and fold phases that would produce no meaningful diff. Do not use file, line, or task-count limits.
@@ -80,11 +81,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
-   - Phase 1: Setup tasks (project initialization)
-   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
+   - Phase 1: Use the exact parent Linear action title
+   - Phase 2: Use an action title for the blocking prerequisites
+   - Phase 3+: Use one action title per user-story outcome, in priority order from spec.md
    - Each phase includes: story goal, independent test criteria, required behavioral tests or a documented non-behavioral validation rationale, implementation tasks, and provider-free evidence tasks
-   - Final Phase: Polish & cross-cutting concerns
+   - Final phase: Use an action title for the integrated qualification or cross-cutting outcome
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
    - Dependencies section showing story completion order
@@ -206,9 +207,9 @@ Every task MUST strictly follow this format:
 ### Phase Structure
 
 - **Phase 1**: Setup (project initialization)
-- **Phase 2**: Foundational (blocking prerequisites - MUST complete before user stories)
+- **Phase 2**: Blocking prerequisites with an imperative action title
 - **Phase 3+**: User Stories in priority order (P1, P2, P3...)
   - Within each story: Failing behavioral tests → Models → Services → Endpoints
     → Integration → Provider-free verification and retained evidence
   - Each phase should be a complete, independently testable increment
-- **Final Phase**: Polish & Cross-Cutting Concerns
+- **Final phase**: Integrated qualification or cross-cutting work with an imperative action title

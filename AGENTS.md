@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/key-56-resource-bound-budget-creation/plan.md`.
+`docs/features/key-56-bind-budget-creation-to-resources/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow
@@ -14,6 +14,11 @@ public Spec Kit identity, name each feature directory after the final segment
 of Linear's exact `gitBranchName`, and use that branch unchanged. Phase 1 uses the parent issue. Later phases
 use published sub-issues and their recorded branches. Never derive a feature or
 phase branch in repository tooling.
+
+Write every feature and phase title as an imperative action followed by its
+outcome, such as `Deploy the service` or `Update the contract`. Name each phase
+PR `KEY-N <exact phase title>`. The explicit stack submission command repairs
+an existing PR title when it differs.
 
 ## Pull request descriptions
 

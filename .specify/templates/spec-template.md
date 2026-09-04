@@ -1,4 +1,4 @@
-# [EXACT LINEAR ISSUE TITLE]
+# [EXACT LINEAR ACTION TITLE]
 
 **Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/example)
 **Git branch**: `[EXACT LINEAR GIT BRANCH NAME]`

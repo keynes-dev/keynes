@@ -39,7 +39,7 @@ Keynes will not define a generic storage adapter. Another durable database would
   path. Remote access authenticates and resolves one trusted Budget authority,
   and invalid remote configuration does not fall back to local state.
 - Local mode remains ephemeral and process-scoped. It gains no persistence, database handle, migration step, network listener, or general storage interface.
-- PGlite stays in the current implementation until the SQLite local runtime feature passes its replacement, package, compatibility, memory, and performance gates.
+- PGlite stays in the current implementation until KEY-50 passes its replacement, package, compatibility, memory, and performance gates.
 
 ## Rejected alternatives
 

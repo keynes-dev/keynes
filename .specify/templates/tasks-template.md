@@ -2,7 +2,7 @@
 description: "Task list template for feature implementation"
 ---
 
-# Tasks: [EXACT LINEAR ISSUE TITLE]
+# Tasks: [EXACT LINEAR ACTION TITLE]
 
 **Input**: Design documents from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
@@ -64,7 +64,7 @@ which claims remain untested.
   ============================================================================
 -->
 
-## Phase 1: [EXACT PARENT LINEAR ISSUE TITLE]
+## Phase 1: [EXACT PARENT LINEAR ACTION TITLE]
 
 **Linear issue**: [KEY-N](https://linear.app/example/issue/KEY-N/example)
 **Git branch**: `[EXACT PARENT LINEAR GIT BRANCH NAME]`
@@ -80,7 +80,7 @@ which claims remain untested.
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Build foundational prerequisites
 
 **Linear issue**: `Unpublished`
 **Git branch**: `Unpublished`
@@ -104,7 +104,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase 3: User Story 1 - [Title] (Priority: P1) 🎯 MVP
+## Phase 3: Implement [user story 1 outcome]
 
 **Linear issue**: `Unpublished`
 **Git branch**: `Unpublished`
@@ -134,7 +134,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase 4: User Story 2 - [Title] (Priority: P2)
+## Phase 4: Implement [user story 2 outcome]
 
 **Linear issue**: `Unpublished`
 **Git branch**: `Unpublished`
@@ -160,7 +160,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase 5: User Story 3 - [Title] (Priority: P3)
+## Phase 5: Implement [user story 3 outcome]
 
 **Linear issue**: `Unpublished`
 **Git branch**: `Unpublished`
@@ -189,7 +189,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase N: Polish & Cross-Cutting Concerns
+## Phase N: Finish cross-cutting work
 
 **Linear issue**: `Unpublished`
 **Git branch**: `Unpublished`

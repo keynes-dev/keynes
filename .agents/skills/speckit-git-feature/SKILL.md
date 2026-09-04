@@ -7,6 +7,8 @@ description: Start a Keynes feature from one selected Linear issue and its gener
 
 Fetch the selected Linear issue. Read its UUID, identifier, exact title, URL, project, lifecycle state, and `gitBranchName`.
 
+Require the exact title to start with an imperative action verb and name the delivered outcome. Reject noun labels such as `Contract generation`; accept action titles such as `Generate the contract`.
+
 Reject the issue if it is archived, canceled, completed, or already bound to a feature directory. Continue only when the user explicitly requests recovery and the existing manifest has the same key, UUID, URL, title, branch, and directory.
 
 Run the platform command once with the exact Linear values:
