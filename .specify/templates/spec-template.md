@@ -7,7 +7,7 @@
 **Created**: [DATE]
 **Input**: User description: "$ARGUMENTS"
 
-## Feature story
+## Overview
 
 _The feature story explains intent. Numbered requirements and success criteria define acceptance. Do not introduce implementation decisions or unsupported evidence claims here._
 
