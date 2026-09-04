@@ -1,11 +1,12 @@
 // Generated from contracts/. Do not edit.
 
 import type {
-  DefineResourceTypeResult,
+  DefineResourcesResult,
   CreateBudgetResult,
+  AddToBudgetResult,
   RequestBudgetResult,
   SettleBudgetResult,
-  GetBudgetResult,
+  InspectBudgetResult,
   RemoteCreateBudgetResult,
   RemoteRequestBudgetResult,
   RemoteSettleBudgetResult,
@@ -507,6 +508,21 @@ const definitions: Readonly<Record<string, Schema>> = {
       {
         $ref: "#/$defs/BudgetSettlementRecordedHistoryEntry",
       },
+      {
+        $ref: "#/$defs/MovementHistoryEntry",
+      },
+      {
+        $ref: "#/$defs/UsageHistoryEntry",
+      },
+      {
+        $ref: "#/$defs/DeficitHistoryEntry",
+      },
+      {
+        $ref: "#/$defs/SettlementStartedHistoryEntry",
+      },
+      {
+        $ref: "#/$defs/BudgetFinalizedHistoryEntry",
+      },
     ],
   },
   BudgetHistory: {
@@ -582,15 +598,17 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/Uuid",
       },
       resources: {
-        $ref: "#/$defs/RootResourceEnvelope",
+        $ref: "#/$defs/ResourceIdEnvelope",
       },
-      policies: {
+      initial: {
         type: "array",
-        maxItems: 16,
         uniqueItems: true,
         items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
+          $ref: "#/$defs/ResourceAmount",
         },
+      },
+      allows: {
+        $ref: "#/$defs/Allows",
       },
     },
   },
@@ -603,7 +621,7 @@ const definitions: Readonly<Record<string, Schema>> = {
         const: "created",
       },
       budget: {
-        $ref: "#/$defs/BudgetProjection",
+        $ref: "#/$defs/BudgetState",
       },
       replayed: {
         type: "boolean",
@@ -624,16 +642,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
-      context: {
-        $ref: "#/$defs/PolicyContextV1",
-      },
-      childPolicies: {
-        type: "array",
-        maxItems: 16,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
-        },
+      allows: {
+        $ref: "#/$defs/Allows",
       },
     },
   },
@@ -645,7 +655,7 @@ const definitions: Readonly<Record<string, Schema>> = {
       "commandId",
       "parentBudgetId",
       "childBudgetId",
-      "resources",
+      "budget",
       "replayed",
     ],
     properties: {
@@ -661,11 +671,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       childBudgetId: {
         $ref: "#/$defs/Uuid",
       },
-      resources: {
-        $ref: "#/$defs/ResourceEnvelope",
-      },
-      policyEvidence: {
-        $ref: "#/$defs/PolicyEvidenceV1",
+      budget: {
+        $ref: "#/$defs/BudgetState",
       },
       replayed: {
         type: "boolean",
@@ -734,7 +741,7 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: [
       "kind",
       "budget",
-      "newlyKnown",
+      "updatedUsage",
       "unresolvedResourceTypeIds",
       "replayed",
     ],
@@ -743,9 +750,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         enum: ["settling", "settled"],
       },
       budget: {
-        $ref: "#/$defs/BudgetProjection",
+        $ref: "#/$defs/BudgetState",
       },
-      newlyKnown: {
+      updatedUsage: {
         type: "array",
         uniqueItems: true,
         items: {
@@ -2075,17 +2082,19 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   OperationName: {
     enum: [
-      "defineResource",
+      "defineResources",
       "createBudget",
+      "addToBudget",
       "requestBudget",
       "settleBudget",
-      "getBudget",
+      "inspectBudget",
     ],
   },
   PermissionName: {
     enum: [
       "define_resource_type",
       "create_root_budget",
+      "add_resources",
       "request_budget",
       "settle_budget",
       "read_budget",
@@ -2421,7 +2430,498 @@ const definitions: Readonly<Record<string, Schema>> = {
       {
         $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
       },
+      {
+        $ref: "#/$defs/ResourceNotMemberErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/AdditionNotAllowedErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/RequestNotAllowedErrorEnvelope",
+      },
+      {
+        $ref: "#/$defs/ActiveDescendantsErrorEnvelope",
+      },
     ],
+  },
+  Allows: {
+    type: "object",
+    additionalProperties: false,
+    required: ["add", "request"],
+    properties: {
+      add: {
+        type: "boolean",
+      },
+      request: {
+        type: "boolean",
+      },
+    },
+  },
+  ResourceDefinitionBatch: {
+    type: "array",
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      $ref: "#/$defs/ResourceDefinition",
+    },
+  },
+  ResourceIdEnvelope: {
+    type: "array",
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["resourceTypeId"],
+      properties: {
+        resourceTypeId: {
+          $ref: "#/$defs/Uuid",
+        },
+      },
+    },
+  },
+  BudgetMemberState: {
+    type: "object",
+    additionalProperties: false,
+    required: ["resourceType", "live", "directUsage", "deficit"],
+    properties: {
+      resourceType: {
+        $ref: "#/$defs/ResourceTypeProjection",
+      },
+      live: {
+        $ref: "#/$defs/Amount",
+      },
+      directUsage: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Amount",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      deficit: {
+        $ref: "#/$defs/Amount",
+      },
+    },
+  },
+  BudgetState: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetId",
+      "parentBudgetId",
+      "rootBudgetId",
+      "depth",
+      "lifecycle",
+      "allows",
+      "resources",
+    ],
+    properties: {
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      parentBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      rootBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        enum: ["active", "settling", "settled"],
+      },
+      allows: {
+        $ref: "#/$defs/Allows",
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/BudgetMemberState",
+        },
+      },
+    },
+  },
+  DefineResourcesCommand: {
+    type: "object",
+    additionalProperties: false,
+    required: ["commandId", "definitions"],
+    properties: {
+      commandId: {
+        $ref: "#/$defs/Uuid",
+      },
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitionBatch",
+      },
+    },
+  },
+  DefineResourcesResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "resources", "replayed"],
+    properties: {
+      kind: {
+        const: "defined",
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/ResourceTypeProjection",
+        },
+      },
+      replayed: {
+        type: "boolean",
+      },
+    },
+  },
+  AddToBudgetCommand: {
+    type: "object",
+    additionalProperties: false,
+    required: ["commandId", "budgetId", "resources"],
+    properties: {
+      commandId: {
+        $ref: "#/$defs/Uuid",
+      },
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      resources: {
+        $ref: "#/$defs/ResourceEnvelope",
+      },
+    },
+  },
+  AddToBudgetResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "budget", "replayed"],
+    properties: {
+      kind: {
+        const: "added",
+      },
+      budget: {
+        $ref: "#/$defs/BudgetState",
+      },
+      replayed: {
+        type: "boolean",
+      },
+    },
+  },
+  MovementReason: {
+    enum: [
+      "initial_funding",
+      "addition",
+      "child_transfer",
+      "child_return",
+      "root_release",
+    ],
+  },
+  MovementHistoryEntry: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "kind",
+      "entryId",
+      "sequence",
+      "effectIndex",
+      "subjectBudgetId",
+      "resourceTypeId",
+      "amount",
+      "reason",
+      "sourceBudgetId",
+      "destinationBudgetId",
+    ],
+    properties: {
+      kind: {
+        const: "movement",
+      },
+      entryId: {
+        $ref: "#/$defs/Uuid",
+      },
+      sequence: {
+        $ref: "#/$defs/Amount",
+      },
+      effectIndex: {
+        $ref: "#/$defs/Amount",
+      },
+      subjectBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        type: "integer",
+        minimum: 1,
+        maximum: 9007199254740991,
+      },
+      reason: {
+        $ref: "#/$defs/MovementReason",
+      },
+      sourceBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      destinationBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+    },
+  },
+  UsageHistoryEntry: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "kind",
+      "entryId",
+      "sequence",
+      "subjectBudgetId",
+      "resourceTypeId",
+      "amount",
+    ],
+    properties: {
+      kind: {
+        const: "usage",
+      },
+      entryId: {
+        $ref: "#/$defs/Uuid",
+      },
+      sequence: {
+        $ref: "#/$defs/Amount",
+      },
+      subjectBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/Amount",
+      },
+    },
+  },
+  DeficitHistoryEntry: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "kind",
+      "entryId",
+      "sequence",
+      "subjectBudgetId",
+      "resourceTypeId",
+      "amount",
+    ],
+    properties: {
+      kind: {
+        const: "deficit",
+      },
+      entryId: {
+        $ref: "#/$defs/Uuid",
+      },
+      sequence: {
+        $ref: "#/$defs/Amount",
+      },
+      subjectBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        type: "integer",
+        minimum: 1,
+        maximum: 9007199254740991,
+      },
+    },
+  },
+  SettlementStartedHistoryEntry: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "entryId", "sequence", "subjectBudgetId"],
+    properties: {
+      kind: {
+        const: "settlement_started",
+      },
+      entryId: {
+        $ref: "#/$defs/Uuid",
+      },
+      sequence: {
+        $ref: "#/$defs/Amount",
+      },
+      subjectBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+    },
+  },
+  BudgetFinalizedHistoryEntry: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "entryId", "sequence", "subjectBudgetId"],
+    properties: {
+      kind: {
+        const: "budget_finalized",
+      },
+      entryId: {
+        $ref: "#/$defs/Uuid",
+      },
+      sequence: {
+        $ref: "#/$defs/Amount",
+      },
+      subjectBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+    },
+  },
+  InspectBudgetQuery: {
+    type: "object",
+    additionalProperties: false,
+    required: ["budgetId"],
+    properties: {
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+    },
+  },
+  InspectBudgetResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["budget", "history"],
+    properties: {
+      budget: {
+        $ref: "#/$defs/BudgetState",
+      },
+      history: {
+        $ref: "#/$defs/BudgetHistory",
+      },
+    },
+  },
+  ResourceNotMemberErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "resource_not_member",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["budgetId", "resourceTypeId"],
+        properties: {
+          budgetId: {
+            $ref: "#/$defs/Uuid",
+          },
+          resourceTypeId: {
+            $ref: "#/$defs/Uuid",
+          },
+        },
+      },
+    },
+  },
+  AdditionNotAllowedErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "addition_not_allowed",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["budgetId"],
+        properties: {
+          budgetId: {
+            $ref: "#/$defs/Uuid",
+          },
+        },
+      },
+    },
+  },
+  RequestNotAllowedErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "request_not_allowed",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["budgetId"],
+        properties: {
+          budgetId: {
+            $ref: "#/$defs/Uuid",
+          },
+        },
+      },
+    },
+  },
+  ActiveDescendantsErrorEnvelope: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "code", "details"],
+    properties: {
+      kind: {
+        const: "error",
+      },
+      code: {
+        const: "active_descendants",
+      },
+      details: {
+        type: "object",
+        additionalProperties: false,
+        required: ["budgetId", "descendantBudgetIds"],
+        properties: {
+          budgetId: {
+            $ref: "#/$defs/Uuid",
+          },
+          descendantBudgetIds: {
+            type: "array",
+            minItems: 1,
+            uniqueItems: true,
+            items: {
+              $ref: "#/$defs/Uuid",
+            },
+          },
+        },
+      },
+    },
   },
   PolicyDigest: {
     type: "string",
@@ -3773,16 +4273,22 @@ function validateDefinition(name: string, value: unknown): ValidationIssue[] {
   );
 }
 
-export function validateDefineResourceTypeResult(
+export function validateDefineResourcesResult(
   value: unknown,
-): value is DefineResourceTypeResult {
-  return validateDefinition("DefineResourceTypeResult", value).length === 0;
+): value is DefineResourcesResult {
+  return validateDefinition("DefineResourcesResult", value).length === 0;
 }
 
 export function validateCreateBudgetResult(
   value: unknown,
 ): value is CreateBudgetResult {
   return validateDefinition("CreateBudgetResult", value).length === 0;
+}
+
+export function validateAddToBudgetResult(
+  value: unknown,
+): value is AddToBudgetResult {
+  return validateDefinition("AddToBudgetResult", value).length === 0;
 }
 
 export function validateRequestBudgetResult(
@@ -3797,10 +4303,10 @@ export function validateSettleBudgetResult(
   return validateDefinition("SettleBudgetResult", value).length === 0;
 }
 
-export function validateGetBudgetResult(
+export function validateInspectBudgetResult(
   value: unknown,
-): value is GetBudgetResult {
-  return validateDefinition("GetBudgetResult", value).length === 0;
+): value is InspectBudgetResult {
+  return validateDefinition("InspectBudgetResult", value).length === 0;
 }
 
 export function validateRemoteCreateBudgetResult(
@@ -3861,16 +4367,22 @@ export function validateRemoteErrorEnvelope(
   return validateDefinition("RemoteErrorEnvelope", value).length === 0;
 }
 
-export function validateDefineResourceTypeCommandIssues(
+export function validateDefineResourcesCommandIssues(
   value: unknown,
 ): ValidationIssue[] {
-  return validateDefinition("DefineResourceTypeCommand", value);
+  return validateDefinition("DefineResourcesCommand", value);
 }
 
 export function validateCreateBudgetCommandIssues(
   value: unknown,
 ): ValidationIssue[] {
   return validateDefinition("CreateBudgetCommand", value);
+}
+
+export function validateAddToBudgetCommandIssues(
+  value: unknown,
+): ValidationIssue[] {
+  return validateDefinition("AddToBudgetCommand", value);
 }
 
 export function validateRequestBudgetCommandIssues(
@@ -3885,10 +4397,10 @@ export function validateSettleBudgetCommandIssues(
   return validateDefinition("SettleBudgetCommand", value);
 }
 
-export function validateGetBudgetQueryIssues(
+export function validateInspectBudgetQueryIssues(
   value: unknown,
 ): ValidationIssue[] {
-  return validateDefinition("GetBudgetQuery", value);
+  return validateDefinition("InspectBudgetQuery", value);
 }
 
 export function validateRemoteCreateBudgetCommandIssues(
@@ -3944,16 +4456,18 @@ export function validateOperationInputIssues(
   value: unknown,
 ): ValidationIssue[] {
   switch (operation) {
-    case "defineResource":
-      return validateDefineResourceTypeCommandIssues(value);
+    case "defineResources":
+      return validateDefineResourcesCommandIssues(value);
     case "createBudget":
       return validateCreateBudgetCommandIssues(value);
+    case "addToBudget":
+      return validateAddToBudgetCommandIssues(value);
     case "requestBudget":
       return validateRequestBudgetCommandIssues(value);
     case "settleBudget":
       return validateSettleBudgetCommandIssues(value);
-    case "getBudget":
-      return validateGetBudgetQueryIssues(value);
+    case "inspectBudget":
+      return validateInspectBudgetQueryIssues(value);
     default: {
       const exhaustive: never = operation;
       throw new Error(`unknown operation: ${exhaustive}`);

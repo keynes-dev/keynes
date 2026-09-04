@@ -29,22 +29,26 @@
       "commandId": "20000000-0000-0000-0000-000000000001",
       "resources": [
         {
-          "definition": {
-            "canonicalName": "worker_slots",
-            "unit": "slot",
-            "accountingBehavior": "reusable"
-          },
-          "amount": 2
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001"
         },
         {
-          "definition": {
-            "canonicalName": "model_tokens",
-            "unit": "token",
-            "accountingBehavior": "consumable"
-          },
-          "amount": 100
+          "resourceTypeId": "10000000-0000-0000-0000-000000000002"
         }
-      ]
+      ],
+      "initial": [
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+          "amount": 100
+        },
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000002",
+          "amount": 2
+        }
+      ],
+      "allows": {
+        "add": true,
+        "request": true
+      }
     },
     "requestChild": {
       "commandId": "30000000-0000-0000-0000-000000000001",
@@ -58,7 +62,11 @@
           "resourceTypeId": "10000000-0000-0000-0000-000000000001",
           "amount": 40
         }
-      ]
+      ],
+      "allows": {
+        "add": true,
+        "request": true
+      }
     },
     "settleChild": {
       "commandId": "40000000-0000-0000-0000-000000000001",
@@ -74,7 +82,32 @@
         }
       ]
     },
-    "getChild": {
+    "defineResources": {
+      "commandId": "10000000-0000-0000-0000-000000000001",
+      "definitions": [
+        {
+          "canonicalName": "model_tokens",
+          "unit": "token",
+          "accountingBehavior": "consumable"
+        },
+        {
+          "canonicalName": "worker_slots",
+          "unit": "slot",
+          "accountingBehavior": "reusable"
+        }
+      ]
+    },
+    "addRoot": {
+      "commandId": "20000000-0000-0000-0000-000000000002",
+      "budgetId": "20000000-0000-0000-0000-000000000001",
+      "resources": [
+        {
+          "resourceTypeId": "10000000-0000-0000-0000-000000000001",
+          "amount": 1
+        }
+      ]
+    },
+    "inspectChild": {
       "budgetId": "30000000-0000-0000-0000-000000000001"
     }
   }

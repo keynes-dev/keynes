@@ -17,20 +17,28 @@ import { loadPolicyProfile } from "./load-policy-profile.ts";
 
 const EXPECTED_OPERATIONS = [
   {
-    method: "defineResource",
-    target: "keynes.define_resource_type",
+    method: "defineResources",
+    target: "keynes.define_resources",
     permissions: ["define_resource_type"],
     replay: true,
-    input: "DefineResourceTypeCommand",
-    output: "DefineResourceTypeResult",
+    input: "DefineResourcesCommand",
+    output: "DefineResourcesResult",
   },
   {
     method: "createBudget",
     target: "keynes.create_budget",
-    permissions: ["define_resource_type", "create_root_budget"],
+    permissions: ["create_root_budget"],
     replay: true,
     input: "CreateBudgetCommand",
     output: "CreateBudgetResult",
+  },
+  {
+    method: "addToBudget",
+    target: "keynes.add_to_budget",
+    permissions: ["add_resources"],
+    replay: true,
+    input: "AddToBudgetCommand",
+    output: "AddToBudgetResult",
   },
   {
     method: "requestBudget",
@@ -49,12 +57,12 @@ const EXPECTED_OPERATIONS = [
     output: "SettleBudgetResult",
   },
   {
-    method: "getBudget",
-    target: "keynes.get_budget",
+    method: "inspectBudget",
+    target: "keynes.inspect_budget",
     permissions: ["read_budget"],
     replay: false,
-    input: "GetBudgetQuery",
-    output: "GetBudgetResult",
+    input: "InspectBudgetQuery",
+    output: "InspectBudgetResult",
   },
 ] as const satisfies readonly ContractOperation[];
 
@@ -336,7 +344,7 @@ function validateInputs(
     }
   }
   if (source.operations.length !== EXPECTED_OPERATIONS.length) {
-    fail("contract must declare exactly the five allowlisted operations");
+    fail("contract must declare exactly the six allowlisted operations");
   }
   validateRemoteMetadata(source.remote, definitions);
   return definitions;

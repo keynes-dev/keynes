@@ -2,16 +2,18 @@
 
 import type { CommandExecutor } from "../command-executor.js";
 import type {
-  DefineResourceTypeCommand,
-  DefineResourceTypeResult,
+  DefineResourcesCommand,
+  DefineResourcesResult,
   CreateBudgetCommand,
   CreateBudgetResult,
+  AddToBudgetCommand,
+  AddToBudgetResult,
   RequestBudgetCommand,
   RequestBudgetResult,
   SettleBudgetCommand,
   SettleBudgetResult,
-  GetBudgetQuery,
-  GetBudgetResult,
+  InspectBudgetQuery,
+  InspectBudgetResult,
   RemoteCreateBudgetCommand,
   RemoteCreateBudgetResult,
   RemoteRequestBudgetCommand,
@@ -34,11 +36,12 @@ import type {
   RemoteProcedureName,
 } from "./types.js";
 import {
-  validateDefineResourceTypeResult,
+  validateDefineResourcesResult,
   validateCreateBudgetResult,
+  validateAddToBudgetResult,
   validateRequestBudgetResult,
   validateSettleBudgetResult,
-  validateGetBudgetResult,
+  validateInspectBudgetResult,
   validateRemoteCreateBudgetCommandIssues,
   validateRemoteCreateBudgetResult,
   validateRemoteRequestBudgetCommandIssues,
@@ -62,7 +65,7 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27";
+  "f1a2d9abb4f0284390cf30ae8a41b8a4ec4632fec8b4bb6b349020c01c0cf903";
 
 export const REMOTE_PROCEDURES_DIGEST =
   "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43";
@@ -145,125 +148,136 @@ export const REMOTE_CONTRACT = {
 
 const resultFieldRank = new Map(
   [
-    "installationId",
-    "contractDigest",
-    "kind",
+    "accountingBehavior",
+    "add",
+    "allocated",
+    "allows",
+    "amount",
+    "arguments",
     "availabilityJoin",
+    "available",
     "base",
     "branches",
-    "code",
-    "details",
-    "else",
-    "entryId",
-    "exponent",
-    "function",
-    "arguments",
-    "name",
-    "operationKey",
-    "budgetReference",
     "budget",
+    "budgetId",
+    "budgetReference",
+    "canonicalName",
+    "canonicalSql",
+    "ceiling",
+    "childBudgetId",
+    "childBudgetReference",
+    "childPolicies",
+    "code",
+    "commandId",
+    "committed",
+    "context",
+    "contextSchema",
+    "contractDigest",
     "cursor",
+    "decision",
+    "deficit",
+    "definition",
+    "definitionDigest",
+    "definitionEvidence",
+    "definitions",
+    "depth",
+    "destinationBudgetId",
+    "details",
+    "directUsage",
+    "effectIndex",
+    "effectiveCeilings",
+    "else",
+    "entries",
+    "entryId",
     "error",
     "expectedResources",
+    "exponent",
+    "field",
+    "function",
+    "groupBy",
     "history",
-    "operation",
-    "operator",
+    "initial",
+    "inputResources",
+    "installationId",
+    "isolatedDeficits",
+    "kind",
     "left",
+    "lifecycle",
+    "limitsVersion",
+    "live",
+    "minimumSdkGeneration",
+    "name",
+    "newlyKnown",
+    "nextCursor",
+    "nullable",
     "operand",
+    "operation",
+    "operationKey",
+    "operator",
+    "orderBy",
+    "outputResources",
+    "parentBudgetId",
     "parentBudgetReference",
-    "childBudgetReference",
     "path",
+    "policies",
+    "policyEvidence",
+    "policyName",
+    "policyProfileDigest",
+    "policyRevision",
+    "procedures",
+    "program",
+    "programVersion",
+    "queryProfileVersion",
+    "reason",
+    "reasons",
+    "remoteProceduresDigest",
+    "replayed",
+    "request",
+    "requested",
     "resource",
     "resourceType",
-    "allocated",
-    "definitionEvidence",
     "resourceTypeId",
-    "canonicalName",
-    "requested",
-    "available",
-    "ceiling",
-    "committed",
-    "directUsage",
-    "policyName",
-    "policyRevision",
-    "reason",
+    "resources",
     "result",
     "retryAfterMilliseconds",
+    "revision",
     "right",
+    "rootBudgetId",
     "rootBudgetReference",
     "rule",
     "scale",
+    "semanticGeneration",
     "sequence",
-    "commandId",
-    "definition",
-    "amount",
     "source",
-    "field",
+    "sourceBudgetId",
+    "sourceDigest",
     "subjectBudgetId",
-    "budgetId",
-    "newlyKnown",
-    "parentBudgetId",
-    "childBudgetId",
-    "rootBudgetId",
-    "depth",
-    "entries",
-    "nextCursor",
     "subtreeObservedUsage",
     "target",
-    "revision",
-    "inputResources",
-    "outputResources",
-    "contextSchema",
-    "reasons",
-    "programVersion",
-    "queryProfileVersion",
     "type",
     "unit",
-    "accountingBehavior",
     "unresolved",
-    "deficit",
     "unresolvedResourceTypeIds",
     "unresolvedResources",
-    "lifecycle",
-    "isolatedDeficits",
-    "resources",
-    "context",
-    "childPolicies",
-    "policies",
-    "effectiveCeilings",
-    "decision",
-    "policyEvidence",
-    "replayed",
+    "updatedUsage",
     "usage",
     "validatorVersion",
-    "limitsVersion",
-    "policyProfileDigest",
-    "program",
-    "canonicalSql",
-    "remoteProceduresDigest",
-    "semanticGeneration",
-    "minimumSdkGeneration",
-    "procedures",
-    "sourceDigest",
-    "definitionDigest",
     "value",
-    "values",
     "valueType",
-    "nullable",
+    "values",
     "where",
-    "groupBy",
-    "orderBy",
   ].map((field, index) => [field, index]),
 );
 
 export interface KeynesClient {
-  defineResource(
-    input: DefineResourceTypeCommand,
-  ): Promise<DefineResourceTypeResult>;
+  defineResources(
+    input: DefineResourcesCommand,
+  ): Promise<DefineResourcesResult>;
   createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
+  addToBudget(input: AddToBudgetCommand): Promise<AddToBudgetResult>;
   requestBudget(input: RequestBudgetCommand): Promise<RequestBudgetResult>;
   settleBudget(input: SettleBudgetCommand): Promise<SettleBudgetResult>;
-  getBudget(input: GetBudgetQuery): Promise<GetBudgetResult>;
+  inspectBudget(input: InspectBudgetQuery): Promise<InspectBudgetResult>;
 }
 
 export class KeynesError extends Error {
@@ -356,10 +370,10 @@ async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
 
 export function createKeynesClient(executor: CommandExecutor): KeynesClient {
   return {
-    async defineResource(
-      input: DefineResourceTypeCommand,
-    ): Promise<DefineResourceTypeResult> {
-      const operation = "defineResource";
+    async defineResources(
+      input: DefineResourcesCommand,
+    ): Promise<DefineResourcesResult> {
+      const operation = "defineResources";
       const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
         throw invalidCommand(operation, issues);
@@ -368,7 +382,7 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         executor,
         operation,
         input,
-        validateOutput: validateDefineResourceTypeResult,
+        validateOutput: validateDefineResourcesResult,
         replay: true,
       });
     },
@@ -385,6 +399,20 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         operation,
         input,
         validateOutput: validateCreateBudgetResult,
+        replay: true,
+      });
+    },
+    async addToBudget(input: AddToBudgetCommand): Promise<AddToBudgetResult> {
+      const operation = "addToBudget";
+      const issues = validateOperationInputIssues(operation, input);
+      if (issues.length > 0) {
+        throw invalidCommand(operation, issues);
+      }
+      return invoke({
+        executor,
+        operation,
+        input,
+        validateOutput: validateAddToBudgetResult,
         replay: true,
       });
     },
@@ -420,8 +448,10 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async getBudget(input: GetBudgetQuery): Promise<GetBudgetResult> {
-      const operation = "getBudget";
+    async inspectBudget(
+      input: InspectBudgetQuery,
+    ): Promise<InspectBudgetResult> {
+      const operation = "inspectBudget";
       const issues = validateOperationInputIssues(operation, input);
       if (issues.length > 0) {
         throw invalidCommand(operation, issues);
@@ -430,7 +460,7 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         executor,
         operation,
         input,
-        validateOutput: validateGetBudgetResult,
+        validateOutput: validateInspectBudgetResult,
         replay: false,
       });
     },

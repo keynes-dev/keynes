@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("contract source", () => {
-  it("loads the five allowlisted operations in caller order", () => {
+  it("loads the six KEY-5 operations in caller order", () => {
     const contract = loadContract(packageRoot);
     expect(contract.source.operations.map(({ method }) => method)).toEqual(
       expectations.operationMethods,
@@ -38,7 +38,8 @@ describe("contract source", () => {
       contract.source.operations.map(({ permissions }) => permissions),
     ).toEqual([
       ["define_resource_type"],
-      ["define_resource_type", "create_root_budget"],
+      ["create_root_budget"],
+      ["add_resources"],
       ["request_budget"],
       ["settle_budget"],
       ["read_budget"],
@@ -66,12 +67,12 @@ describe("contract source", () => {
     });
     ajv.addSchema(schema, contractSource.schema);
     for (const [definition, fixture] of [
-      ["DefineResourceTypeCommand", fixtures.commands.defineConsumable],
-      ["DefineResourceTypeCommand", fixtures.commands.defineReusable],
+      ["DefineResourcesCommand", fixtures.commands.defineResources],
       ["CreateBudgetCommand", fixtures.commands.createRoot],
+      ["AddToBudgetCommand", fixtures.commands.addRoot],
       ["RequestBudgetCommand", fixtures.commands.requestChild],
       ["SettleBudgetCommand", fixtures.commands.settleChild],
-      ["GetBudgetQuery", fixtures.commands.getChild],
+      ["InspectBudgetQuery", fixtures.commands.inspectChild],
     ] as const) {
       const validate = ajv.getSchema(
         `${contractSource.schema}#/$defs/${definition}`,
@@ -81,6 +82,52 @@ describe("contract source", () => {
       );
       expect(validate?.(fixture), JSON.stringify(validate?.errors)).toBe(true);
     }
+  });
+
+  it("rejects unknown fields and quantities outside the safe-integer range", () => {
+    const schema = loadContract(packageRoot).schema;
+    const ajv = new Ajv2020({ strict: true });
+    ajv.addSchema(schema, contractSource.schema);
+    const validate = ajv.getSchema(
+      `${contractSource.schema}#/$defs/AddToBudgetCommand`,
+    );
+    expect(validate?.({ ...fixtures.commands.addRoot, invented: true })).toBe(
+      false,
+    );
+    expect(
+      validate?.({
+        ...fixtures.commands.addRoot,
+        resources: [
+          {
+            resourceTypeId: expectations.canonicalResourceTypeIds[0],
+            amount: Number.MAX_SAFE_INTEGER + 1,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("declares immutable controls, movement history, and KEY-5 domain errors", () => {
+    const definitions = loadContract(packageRoot).definitions;
+    expect(definitions.BudgetState).toMatchObject({
+      properties: { allows: { $ref: "#/$defs/Allows" } },
+    });
+    expect(definitions.BudgetHistoryEntry).toMatchObject({
+      oneOf: expect.arrayContaining([
+        { $ref: "#/$defs/MovementHistoryEntry" },
+        { $ref: "#/$defs/UsageHistoryEntry" },
+        { $ref: "#/$defs/DeficitHistoryEntry" },
+        { $ref: "#/$defs/BudgetFinalizedHistoryEntry" },
+      ]),
+    });
+    expect(definitions.ErrorEnvelope).toMatchObject({
+      oneOf: expect.arrayContaining([
+        { $ref: "#/$defs/ResourceNotMemberErrorEnvelope" },
+        { $ref: "#/$defs/AdditionNotAllowedErrorEnvelope" },
+        { $ref: "#/$defs/RequestNotAllowedErrorEnvelope" },
+        { $ref: "#/$defs/ActiveDescendantsErrorEnvelope" },
+      ]),
+    });
   });
 
   it("loads the remote procedure and semantic compatibility metadata", () => {
@@ -263,51 +310,20 @@ describe("contract source", () => {
     });
   });
 
-  it("wires Policy commands, evidence, reasons, and errors into the Budget contract", () => {
+  it("keeps deferred Policy fields out of the KEY-5 command inventory", () => {
     const definitions = loadContract(packageRoot).definitions;
-
     expect(definitions.CreateBudgetCommand).toMatchObject({
-      properties: {
-        policies: {
-          type: "array",
-          items: { $ref: "#/$defs/PolicyDefinitionV1" },
-        },
-      },
+      properties: { allows: { $ref: "#/$defs/Allows" } },
     });
     expect(definitions.RequestBudgetCommand).toMatchObject({
-      properties: {
-        context: { $ref: "#/$defs/PolicyContextV1" },
-        childPolicies: {
-          type: "array",
-          items: { $ref: "#/$defs/PolicyDefinitionV1" },
-        },
-      },
+      properties: { allows: { $ref: "#/$defs/Allows" } },
     });
-    for (const name of [
-      "RequestApproved",
-      "RequestDenied",
-      "RequestApprovedHistoryEntry",
-      "RequestDeniedHistoryEntry",
-    ]) {
-      expect(definitions[name]).toMatchObject({
-        properties: {
-          policyEvidence: { $ref: "#/$defs/PolicyEvidenceV1" },
-        },
-      });
-    }
-    expect(definitions.RequestDenialReason).toMatchObject({
-      oneOf: expect.arrayContaining([
-        { $ref: "#/$defs/AvailabilityDenialReason" },
-        { $ref: "#/$defs/PolicyCeilingReasonV1" },
-      ]),
-    });
-    expect(definitions.ErrorEnvelope).toMatchObject({
-      oneOf: expect.arrayContaining([
-        { $ref: "#/$defs/InvalidPolicyErrorEnvelope" },
-        { $ref: "#/$defs/InvalidPolicyContextErrorEnvelope" },
-        { $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope" },
-      ]),
-    });
+    expect(
+      JSON.stringify({
+        create: definitions.CreateBudgetCommand,
+        request: definitions.RequestBudgetCommand,
+      }),
+    ).not.toMatch(/Policy|policies|context/);
   });
 
   it("rejects operation metadata drift", () => {
@@ -316,8 +332,8 @@ describe("contract source", () => {
     writeFileSync(
       path,
       readFileSync(path, "utf8").replace(
-        '"permissions": ["read_budget"]',
-        '"permissions": ["settle_budget"]',
+        `"permissions": [\n        "read_budget"\n      ]`,
+        `"permissions": [\n        "settle_budget"\n      ]`,
       ),
     );
     expect(() => loadContract(root)).toThrow(
@@ -331,7 +347,7 @@ describe("contract source", () => {
     writeFileSync(
       path,
       readFileSync(path, "utf8").replace(
-        '"permissions": ["read_budget"]',
+        `"permissions": [\n        "read_budget"\n      ]`,
         '"permissions": []',
       ),
     );
@@ -343,13 +359,13 @@ describe("contract source", () => {
       name: "duplicate installed targets",
       file: "contract.json",
       search: '"target": "keynes.create_budget"',
-      replacement: '"target": "keynes.define_resource_type"',
-      error: /duplicate installed target keynes\.define_resource_type/i,
+      replacement: '"target": "keynes.define_resources"',
+      error: /duplicate installed target keynes\.define_resources/i,
     },
     {
       name: "undeclared operation definitions",
       file: "contract.json",
-      search: '"input": "GetBudgetQuery"',
+      search: '"input": "InspectBudgetQuery"',
       replacement: '"input": "MissingQuery"',
       error: /undeclared input MissingQuery/i,
     },
@@ -363,8 +379,8 @@ describe("contract source", () => {
     {
       name: "duplicate enumeration members",
       file: "schema.json",
-      search: '"enum": ["consumable", "reusable"]',
-      replacement: '"enum": ["consumable", "consumable"]',
+      search: '"consumable",\n            "reusable"',
+      replacement: '"consumable",\n            "consumable"',
       error: /unstable enumeration/i,
     },
   ])("rejects $name", ({ file, search, replacement, error }) => {

@@ -1,17 +1,19 @@
 {
   "operationMethods": [
-    "defineResource",
+    "defineResources",
     "createBudget",
+    "addToBudget",
     "requestBudget",
     "settleBudget",
-    "getBudget"
+    "inspectBudget"
   ],
   "installedTargets": [
-    "keynes.define_resource_type",
+    "keynes.define_resources",
     "keynes.create_budget",
+    "keynes.add_to_budget",
     "keynes.request",
     "keynes.settle",
-    "keynes.get_budget"
+    "keynes.inspect_budget"
   ],
   "canonicalResourceTypeIds": [
     "10000000-0000-0000-0000-000000000001",

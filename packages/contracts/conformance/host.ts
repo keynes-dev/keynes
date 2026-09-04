@@ -1,11 +1,13 @@
 import type {
   CreateBudgetCommand,
   CreateBudgetResult,
-  DefineResourceTypeCommand,
-  DefineResourceTypeResult,
+  AddToBudgetCommand,
+  AddToBudgetResult,
+  DefineResourcesCommand,
+  DefineResourcesResult,
   ErrorEnvelope,
-  GetBudgetQuery,
-  GetBudgetResult,
+  InspectBudgetQuery,
+  InspectBudgetResult,
   OperationName,
   RequestBudgetCommand,
   RequestBudgetResult,
@@ -58,13 +60,14 @@ export interface ContractClientOptions {
 }
 
 export interface ContractClient {
-  defineResource(
-    input: DefineResourceTypeCommand,
-  ): Promise<DefineResourceTypeResult>;
+  defineResources(
+    input: DefineResourcesCommand,
+  ): Promise<DefineResourcesResult>;
   createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
+  addToBudget(input: AddToBudgetCommand): Promise<AddToBudgetResult>;
   requestBudget(input: RequestBudgetCommand): Promise<RequestBudgetResult>;
   settleBudget(input: SettleBudgetCommand): Promise<SettleBudgetResult>;
-  getBudget(input: GetBudgetQuery): Promise<GetBudgetResult>;
+  inspectBudget(input: InspectBudgetQuery): Promise<InspectBudgetResult>;
 }
 
 export interface ContractTestHost {
@@ -130,11 +133,13 @@ export function createContractClient(
   executor: ContractExecutor,
 ): ContractClient {
   return {
-    defineResource: (input) => invoke(executor, "defineResource", input, true),
+    defineResources: (input) =>
+      invoke(executor, "defineResources", input, true),
     createBudget: (input) => invoke(executor, "createBudget", input, true),
+    addToBudget: (input) => invoke(executor, "addToBudget", input, true),
     requestBudget: (input) => invoke(executor, "requestBudget", input, true),
     settleBudget: (input) => invoke(executor, "settleBudget", input, true),
-    getBudget: (input) => invoke(executor, "getBudget", input, false),
+    inspectBudget: (input) => invoke(executor, "inspectBudget", input, false),
   };
 }
 

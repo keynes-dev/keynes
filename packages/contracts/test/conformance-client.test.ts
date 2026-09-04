@@ -13,9 +13,9 @@ describe("contract conformance client", () => {
       }),
     });
 
-    await expect(client.getBudget(fixtures.commands.getChild)).rejects.toThrow(
-      /invalid result response for getBudget/i,
-    );
+    await expect(
+      client.inspectBudget(fixtures.commands.inspectChild),
+    ).rejects.toThrow(/invalid result response for inspectBudget/i);
   });
 
   it("rejects a schema-invalid error envelope", async () => {
@@ -26,8 +26,8 @@ describe("contract conformance client", () => {
       }),
     });
 
-    await expect(client.getBudget(fixtures.commands.getChild)).rejects.toThrow(
-      /invalid error response for getBudget/i,
-    );
+    await expect(
+      client.inspectBudget(fixtures.commands.inspectChild),
+    ).rejects.toThrow(/invalid error response for inspectBudget/i);
   });
 });

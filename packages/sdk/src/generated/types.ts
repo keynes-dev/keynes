@@ -61,40 +61,36 @@ export type BudgetHistoryEntry =
   | BudgetCreatedHistoryEntry
   | RequestApprovedHistoryEntry
   | RequestDeniedHistoryEntry
-  | BudgetSettlementRecordedHistoryEntry;
+  | BudgetSettlementRecordedHistoryEntry
+  | MovementHistoryEntry
+  | UsageHistoryEntry
+  | DeficitHistoryEntry
+  | SettlementStartedHistoryEntry
+  | BudgetFinalizedHistoryEntry;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "PolicyDigest".
+ * via the `definition` "MovementReason".
  */
-export type PolicyDigest = string;
+export type MovementReason =
+  | "initial_funding"
+  | "addition"
+  | "child_transfer"
+  | "child_return"
+  | "root_release";
 /**
+ * @minItems 1
+ *
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "JoinNodeV1".
+ * via the `definition` "ResourceIdEnvelope".
  */
-export type JoinNodeV1 = InnerJoinNodeV1 | CrossJoinNodeV1;
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "ExpressionNodeV1".
- */
-export type ExpressionNodeV1 =
-  | DecimalLiteralNodeV1
-  | TextLiteralNodeV1
-  | BooleanLiteralNodeV1
-  | NullLiteralNodeV1
-  | ReferenceNodeV1
-  | UnaryNumericNodeV1
-  | BinaryNumericNodeV1
-  | ComparisonNodeV1
-  | TextInNodeV1
-  | IsNullNodeV1
-  | BooleanBinaryNodeV1
-  | BooleanNotNodeV1
-  | CaseNodeV1
-  | VariadicNodeV1
-  | NumericFunctionNodeV1
-  | ScaleFunctionNodeV1
-  | PowerNodeV1
-  | AggregateNodeV1;
+export type ResourceIdEnvelope = [
+  {
+    resourceTypeId: Uuid;
+  },
+  ...{
+    resourceTypeId: Uuid;
+  }[],
+];
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RequestBudgetResult".
@@ -164,6 +160,11 @@ export type RemoteRequestDenialReason =
   | RemotePolicyCeilingReason;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "PolicyDigest".
+ */
+export type PolicyDigest = string;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RemoteBudgetHistoryEntry".
  */
 export type RemoteBudgetHistoryEntry =
@@ -171,6 +172,34 @@ export type RemoteBudgetHistoryEntry =
   | RemoteRequestApprovedHistoryEntry
   | RemoteRequestDeniedHistoryEntry
   | RemoteBudgetSettlementHistoryEntry;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "JoinNodeV1".
+ */
+export type JoinNodeV1 = InnerJoinNodeV1 | CrossJoinNodeV1;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ExpressionNodeV1".
+ */
+export type ExpressionNodeV1 =
+  | DecimalLiteralNodeV1
+  | TextLiteralNodeV1
+  | BooleanLiteralNodeV1
+  | NullLiteralNodeV1
+  | ReferenceNodeV1
+  | UnaryNumericNodeV1
+  | BinaryNumericNodeV1
+  | ComparisonNodeV1
+  | TextInNodeV1
+  | IsNullNodeV1
+  | BooleanBinaryNodeV1
+  | BooleanNotNodeV1
+  | CaseNodeV1
+  | VariadicNodeV1
+  | NumericFunctionNodeV1
+  | ScaleFunctionNodeV1
+  | PowerNodeV1
+  | AggregateNodeV1;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RemoteRequestBudgetResult".
@@ -229,11 +258,12 @@ export type RemoteErrorEnvelope =
  * via the `definition` "OperationName".
  */
 export type OperationName =
-  | "defineResource"
+  | "defineResources"
   | "createBudget"
+  | "addToBudget"
   | "requestBudget"
   | "settleBudget"
-  | "getBudget";
+  | "inspectBudget";
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "PermissionName".
@@ -241,6 +271,7 @@ export type OperationName =
 export type PermissionName =
   | "define_resource_type"
   | "create_root_budget"
+  | "add_resources"
   | "request_budget"
   | "settle_budget"
   | "read_budget";
@@ -345,7 +376,21 @@ export type ErrorEnvelope =
     }
   | InvalidPolicyErrorEnvelope
   | InvalidPolicyContextErrorEnvelope
-  | PolicyEvaluationFailedErrorEnvelope;
+  | PolicyEvaluationFailedErrorEnvelope
+  | ResourceNotMemberErrorEnvelope
+  | AdditionNotAllowedErrorEnvelope
+  | RequestNotAllowedErrorEnvelope
+  | ActiveDescendantsErrorEnvelope;
+/**
+ * @minItems 1
+ *
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceDefinitionBatch".
+ */
+export type ResourceDefinitionBatch = [
+  ResourceDefinition,
+  ...ResourceDefinition[],
+];
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "CanonicalIdentifier".
@@ -643,6 +688,66 @@ export interface BudgetSettlementRecordedHistoryEntry {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "MovementHistoryEntry".
+ */
+export interface MovementHistoryEntry {
+  kind: "movement";
+  entryId: Uuid;
+  sequence: Amount;
+  effectIndex: Amount;
+  subjectBudgetId: Uuid;
+  resourceTypeId: Uuid;
+  amount: number;
+  reason: MovementReason;
+  sourceBudgetId: Uuid | null;
+  destinationBudgetId: Uuid | null;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "UsageHistoryEntry".
+ */
+export interface UsageHistoryEntry {
+  kind: "usage";
+  entryId: Uuid;
+  sequence: Amount;
+  subjectBudgetId: Uuid;
+  resourceTypeId: Uuid;
+  amount: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DeficitHistoryEntry".
+ */
+export interface DeficitHistoryEntry {
+  kind: "deficit";
+  entryId: Uuid;
+  sequence: Amount;
+  subjectBudgetId: Uuid;
+  resourceTypeId: Uuid;
+  amount: number;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "SettlementStartedHistoryEntry".
+ */
+export interface SettlementStartedHistoryEntry {
+  kind: "settlement_started";
+  entryId: Uuid;
+  sequence: Amount;
+  subjectBudgetId: Uuid;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "BudgetFinalizedHistoryEntry".
+ */
+export interface BudgetFinalizedHistoryEntry {
+  kind: "budget_finalized";
+  entryId: Uuid;
+  sequence: Amount;
+  subjectBudgetId: Uuid;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "BudgetHistory".
  */
 export interface BudgetHistory {
@@ -678,6 +783,312 @@ export interface DefineResourceTypeResult {
  */
 export interface CreateBudgetCommand {
   commandId: Uuid;
+  resources: ResourceIdEnvelope;
+  initial?: ResourceAmount[];
+  allows?: Allows;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "Allows".
+ */
+export interface Allows {
+  add: boolean;
+  request: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "CreateBudgetResult".
+ */
+export interface CreateBudgetResult {
+  kind: "created";
+  budget: BudgetState;
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "BudgetState".
+ */
+export interface BudgetState {
+  budgetId: Uuid;
+  parentBudgetId: Uuid | null;
+  rootBudgetId: Uuid;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  allows: Allows;
+  /**
+   * @minItems 1
+   */
+  resources: [BudgetMemberState, ...BudgetMemberState[]];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "BudgetMemberState".
+ */
+export interface BudgetMemberState {
+  resourceType: ResourceTypeProjection;
+  live: Amount;
+  directUsage: Amount | null;
+  deficit: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RequestBudgetCommand".
+ */
+export interface RequestBudgetCommand {
+  commandId: Uuid;
+  parentBudgetId: Uuid;
+  resources: ResourceEnvelope;
+  allows?: Allows;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RequestApproved".
+ */
+export interface RequestApproved {
+  kind: "approved";
+  commandId: Uuid;
+  parentBudgetId: Uuid;
+  childBudgetId: Uuid;
+  budget: BudgetState;
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RequestDenied".
+ */
+export interface RequestDenied {
+  kind: "denied";
+  commandId: Uuid;
+  parentBudgetId: Uuid;
+  /**
+   * @minItems 1
+   */
+  reasons: [RequestDenialReason, ...RequestDenialReason[]];
+  policyEvidence?: PolicyEvidenceV1;
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "SettleBudgetCommand".
+ */
+export interface SettleBudgetCommand {
+  commandId: Uuid;
+  budgetId: Uuid;
+  usage: UsageEnvelope;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "SettleBudgetResult".
+ */
+export interface SettleBudgetResult {
+  kind: "settling" | "settled";
+  budget: BudgetState;
+  updatedUsage: ResourceAmount[];
+  unresolvedResourceTypeIds: Uuid[];
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "GetBudgetQuery".
+ */
+export interface GetBudgetQuery {
+  budgetId: Uuid;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "GetBudgetResult".
+ */
+export interface GetBudgetResult {
+  budget: BudgetProjection;
+  history: BudgetHistory;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteResourceAmount".
+ */
+export interface RemoteResourceAmount {
+  resource: string;
+  amount: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteUsageAmount".
+ */
+export interface RemoteUsageAmount {
+  resource: string;
+  amount: Amount | null;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetResourceProjection".
+ */
+export interface RemoteBudgetResourceProjection {
+  resource: ResourceDefinition;
+  allocated: Amount;
+  available: Amount;
+  committed: Amount;
+  directUsage: Amount | null;
+  subtreeObservedUsage: Amount;
+  unresolved: boolean;
+  deficit: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetProjection".
+ */
+export interface RemoteBudgetProjection {
+  budgetReference: BudgetReference;
+  parentBudgetReference: BudgetReference | null;
+  rootBudgetReference: BudgetReference;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  /**
+   * @minItems 1
+   * @maxItems 64
+   */
+  resources: [
+    RemoteBudgetResourceProjection,
+    ...RemoteBudgetResourceProjection[],
+  ];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteAvailabilityDenialReason".
+ */
+export interface RemoteAvailabilityDenialReason {
+  code: "insufficient_available";
+  resource: string;
+  requested: Amount;
+  available: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemotePolicyCeilingReason".
+ */
+export interface RemotePolicyCeilingReason {
+  code: "policy_ceiling";
+  resource: string;
+  requested: Amount;
+  ceiling: Amount;
+  policyName: string;
+  policyRevision: number;
+  reason: string;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemotePolicyEvidence".
+ */
+export interface RemotePolicyEvidence {
+  context: PolicyContextV1;
+  /**
+   * @minItems 1
+   * @maxItems 16
+   */
+  policies: [
+    {
+      name: string;
+      revision: number;
+      sourceDigest: PolicyDigest;
+      definitionDigest: PolicyDigest;
+      /**
+       * @maxItems 64
+       */
+      rows: {
+        resource: string;
+        ceiling: Amount;
+        reason: string;
+      }[];
+    },
+    ...{
+      name: string;
+      revision: number;
+      sourceDigest: PolicyDigest;
+      definitionDigest: PolicyDigest;
+      /**
+       * @maxItems 64
+       */
+      rows: {
+        resource: string;
+        ceiling: Amount;
+        reason: string;
+      }[];
+    }[],
+  ];
+  /**
+   * @maxItems 64
+   */
+  effectiveCeilings: {
+    resource: string;
+    ceiling: Amount;
+    /**
+     * @minItems 1
+     * @maxItems 16
+     */
+    reasons: [
+      {
+        policyName: string;
+        policyRevision: number;
+        reason: string;
+      },
+      ...{
+        policyName: string;
+        policyRevision: number;
+        reason: string;
+      }[],
+    ];
+  }[];
+  decision: "approved" | "denied";
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetCreatedHistoryEntry".
+ */
+export interface RemoteBudgetCreatedHistoryEntry {
+  kind: "budget_created";
+  sequence: Amount;
+  resources: RemoteResourceEnvelope;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteRequestApprovedHistoryEntry".
+ */
+export interface RemoteRequestApprovedHistoryEntry {
+  kind: "request_approved";
+  sequence: Amount;
+  resources: RemoteResourceEnvelope;
+  policyEvidence?: RemotePolicyEvidence;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteRequestDeniedHistoryEntry".
+ */
+export interface RemoteRequestDeniedHistoryEntry {
+  kind: "request_denied";
+  sequence: Amount;
+  /**
+   * @minItems 1
+   */
+  reasons: [RemoteRequestDenialReason, ...RemoteRequestDenialReason[]];
+  policyEvidence?: RemotePolicyEvidence;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetSettlementHistoryEntry".
+ */
+export interface RemoteBudgetSettlementHistoryEntry {
+  kind: "budget_settlement_recorded";
+  sequence: Amount;
+  newlyKnown: RemoteResourceAmount[];
+  unresolvedResources: string[];
+  lifecycle: "settling" | "settled";
+  isolatedDeficits: RemoteResourceAmount[];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteCreateBudgetCommand".
+ */
+export interface RemoteCreateBudgetCommand {
+  operationKey: OperationKey;
   resources: RootResourceEnvelope;
   /**
    * @maxItems 16
@@ -981,285 +1392,6 @@ export interface AggregateNodeV1 {
   operand: ExpressionNodeV1;
   valueType: "numeric";
   nullable: boolean;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "CreateBudgetResult".
- */
-export interface CreateBudgetResult {
-  kind: "created";
-  budget: BudgetProjection;
-  replayed: boolean;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RequestBudgetCommand".
- */
-export interface RequestBudgetCommand {
-  commandId: Uuid;
-  parentBudgetId: Uuid;
-  resources: ResourceEnvelope;
-  context?: PolicyContextV1;
-  /**
-   * @maxItems 16
-   */
-  childPolicies?: PolicyDefinitionV1[];
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RequestApproved".
- */
-export interface RequestApproved {
-  kind: "approved";
-  commandId: Uuid;
-  parentBudgetId: Uuid;
-  childBudgetId: Uuid;
-  resources: ResourceEnvelope;
-  policyEvidence?: PolicyEvidenceV1;
-  replayed: boolean;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RequestDenied".
- */
-export interface RequestDenied {
-  kind: "denied";
-  commandId: Uuid;
-  parentBudgetId: Uuid;
-  /**
-   * @minItems 1
-   */
-  reasons: [RequestDenialReason, ...RequestDenialReason[]];
-  policyEvidence?: PolicyEvidenceV1;
-  replayed: boolean;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "SettleBudgetCommand".
- */
-export interface SettleBudgetCommand {
-  commandId: Uuid;
-  budgetId: Uuid;
-  usage: UsageEnvelope;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "SettleBudgetResult".
- */
-export interface SettleBudgetResult {
-  kind: "settling" | "settled";
-  budget: BudgetProjection;
-  newlyKnown: ResourceAmount[];
-  unresolvedResourceTypeIds: Uuid[];
-  replayed: boolean;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "GetBudgetQuery".
- */
-export interface GetBudgetQuery {
-  budgetId: Uuid;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "GetBudgetResult".
- */
-export interface GetBudgetResult {
-  budget: BudgetProjection;
-  history: BudgetHistory;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteResourceAmount".
- */
-export interface RemoteResourceAmount {
-  resource: string;
-  amount: Amount;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteUsageAmount".
- */
-export interface RemoteUsageAmount {
-  resource: string;
-  amount: Amount | null;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteBudgetResourceProjection".
- */
-export interface RemoteBudgetResourceProjection {
-  resource: ResourceDefinition;
-  allocated: Amount;
-  available: Amount;
-  committed: Amount;
-  directUsage: Amount | null;
-  subtreeObservedUsage: Amount;
-  unresolved: boolean;
-  deficit: Amount;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteBudgetProjection".
- */
-export interface RemoteBudgetProjection {
-  budgetReference: BudgetReference;
-  parentBudgetReference: BudgetReference | null;
-  rootBudgetReference: BudgetReference;
-  depth: Amount;
-  lifecycle: "active" | "settling" | "settled";
-  /**
-   * @minItems 1
-   * @maxItems 64
-   */
-  resources: [
-    RemoteBudgetResourceProjection,
-    ...RemoteBudgetResourceProjection[],
-  ];
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteAvailabilityDenialReason".
- */
-export interface RemoteAvailabilityDenialReason {
-  code: "insufficient_available";
-  resource: string;
-  requested: Amount;
-  available: Amount;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemotePolicyCeilingReason".
- */
-export interface RemotePolicyCeilingReason {
-  code: "policy_ceiling";
-  resource: string;
-  requested: Amount;
-  ceiling: Amount;
-  policyName: string;
-  policyRevision: number;
-  reason: string;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemotePolicyEvidence".
- */
-export interface RemotePolicyEvidence {
-  context: PolicyContextV1;
-  /**
-   * @minItems 1
-   * @maxItems 16
-   */
-  policies: [
-    {
-      name: string;
-      revision: number;
-      sourceDigest: PolicyDigest;
-      definitionDigest: PolicyDigest;
-      /**
-       * @maxItems 64
-       */
-      rows: {
-        resource: string;
-        ceiling: Amount;
-        reason: string;
-      }[];
-    },
-    ...{
-      name: string;
-      revision: number;
-      sourceDigest: PolicyDigest;
-      definitionDigest: PolicyDigest;
-      /**
-       * @maxItems 64
-       */
-      rows: {
-        resource: string;
-        ceiling: Amount;
-        reason: string;
-      }[];
-    }[],
-  ];
-  /**
-   * @maxItems 64
-   */
-  effectiveCeilings: {
-    resource: string;
-    ceiling: Amount;
-    /**
-     * @minItems 1
-     * @maxItems 16
-     */
-    reasons: [
-      {
-        policyName: string;
-        policyRevision: number;
-        reason: string;
-      },
-      ...{
-        policyName: string;
-        policyRevision: number;
-        reason: string;
-      }[],
-    ];
-  }[];
-  decision: "approved" | "denied";
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteBudgetCreatedHistoryEntry".
- */
-export interface RemoteBudgetCreatedHistoryEntry {
-  kind: "budget_created";
-  sequence: Amount;
-  resources: RemoteResourceEnvelope;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteRequestApprovedHistoryEntry".
- */
-export interface RemoteRequestApprovedHistoryEntry {
-  kind: "request_approved";
-  sequence: Amount;
-  resources: RemoteResourceEnvelope;
-  policyEvidence?: RemotePolicyEvidence;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteRequestDeniedHistoryEntry".
- */
-export interface RemoteRequestDeniedHistoryEntry {
-  kind: "request_denied";
-  sequence: Amount;
-  /**
-   * @minItems 1
-   */
-  reasons: [RemoteRequestDenialReason, ...RemoteRequestDenialReason[]];
-  policyEvidence?: RemotePolicyEvidence;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteBudgetSettlementHistoryEntry".
- */
-export interface RemoteBudgetSettlementHistoryEntry {
-  kind: "budget_settlement_recorded";
-  sequence: Amount;
-  newlyKnown: RemoteResourceAmount[];
-  unresolvedResources: string[];
-  lifecycle: "settling" | "settled";
-  isolatedDeficits: RemoteResourceAmount[];
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteCreateBudgetCommand".
- */
-export interface RemoteCreateBudgetCommand {
-  operationKey: OperationKey;
-  resources: RootResourceEnvelope;
-  /**
-   * @maxItems 16
-   */
-  policies?: PolicyDefinitionV1[];
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1689,4 +1821,106 @@ export interface PolicyEvaluationFailedErrorEnvelope {
       | "invalid_result"
       | "execution_failed";
   };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceNotMemberErrorEnvelope".
+ */
+export interface ResourceNotMemberErrorEnvelope {
+  kind: "error";
+  code: "resource_not_member";
+  details: {
+    budgetId: Uuid;
+    resourceTypeId: Uuid;
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "AdditionNotAllowedErrorEnvelope".
+ */
+export interface AdditionNotAllowedErrorEnvelope {
+  kind: "error";
+  code: "addition_not_allowed";
+  details: {
+    budgetId: Uuid;
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RequestNotAllowedErrorEnvelope".
+ */
+export interface RequestNotAllowedErrorEnvelope {
+  kind: "error";
+  code: "request_not_allowed";
+  details: {
+    budgetId: Uuid;
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ActiveDescendantsErrorEnvelope".
+ */
+export interface ActiveDescendantsErrorEnvelope {
+  kind: "error";
+  code: "active_descendants";
+  details: {
+    budgetId: Uuid;
+    /**
+     * @minItems 1
+     */
+    descendantBudgetIds: [Uuid, ...Uuid[]];
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefineResourcesCommand".
+ */
+export interface DefineResourcesCommand {
+  commandId: Uuid;
+  definitions: ResourceDefinitionBatch;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefineResourcesResult".
+ */
+export interface DefineResourcesResult {
+  kind: "defined";
+  /**
+   * @minItems 1
+   */
+  resources: [ResourceTypeProjection, ...ResourceTypeProjection[]];
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "AddToBudgetCommand".
+ */
+export interface AddToBudgetCommand {
+  commandId: Uuid;
+  budgetId: Uuid;
+  resources: ResourceEnvelope;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "AddToBudgetResult".
+ */
+export interface AddToBudgetResult {
+  kind: "added";
+  budget: BudgetState;
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InspectBudgetQuery".
+ */
+export interface InspectBudgetQuery {
+  budgetId: Uuid;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InspectBudgetResult".
+ */
+export interface InspectBudgetResult {
+  budget: BudgetState;
+  history: BudgetHistory;
 }

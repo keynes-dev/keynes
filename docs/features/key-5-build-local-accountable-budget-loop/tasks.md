@@ -25,10 +25,10 @@
 **Goal**: Establish the generated command contract that both authorities implement.
 **Independent test**: Contract fixtures accept the new commands, defaults, movement/state/history shapes, and errors, while rejecting unknown fields and invalid quantities. This issue does not claim a working Budget runtime.
 
-- [ ] T001 Add failing command-schema and generation cases for atomic definition batches, additions, immutable controls, selected state/tree history, movement reasons, settlement results, and missing error variants in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/conformance-client.test.ts`.
-- [ ] T002 Update `packages/contracts/contract.json`, `packages/contracts/schema.json`, and `packages/contracts/src/generation/contract-field-order.ts` for `contracts/shared-commands.md`, including exact safe-integer quantities and strict unknown-field rejection. Keep deferred private commands distinct from the KEY-5 inventory.
-- [ ] T003 Adapt generation in `packages/contracts/src/generation.ts`, `packages/sdk/scripts/generate.ts`, and `packages/postgresql/scripts/generate.ts`, then run `pnpm generate` to produce matching types, validators, clients, wrappers, and digests without hand-editing generated outputs.
-- [ ] T004 Run `pnpm test:generator` and `pnpm generate:check`, check affected generated consumers compile, and record contract-only evidence under `.artifacts/system-tests/key-5/<attempt>/phase-1.json`. Record runtime and backend execution as `NOT RUN`.
+- [x] T001 Add failing command-schema and generation cases for atomic definition batches, additions, immutable controls, selected state/tree history, movement reasons, settlement results, and missing error variants in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/conformance-client.test.ts`.
+- [x] T002 Update `packages/contracts/contract.json`, `packages/contracts/schema.json`, and `packages/contracts/src/generation/contract-field-order.ts` for `contracts/shared-commands.md`, including exact safe-integer quantities and strict unknown-field rejection. Keep deferred private commands distinct from the KEY-5 inventory.
+- [x] T003 Adapt generation in `packages/contracts/src/generation.ts`, `packages/sdk/scripts/generate.ts`, and `packages/postgresql/scripts/generate.ts`, then run `pnpm generate` to produce matching types, validators, clients, wrappers, and digests without hand-editing generated outputs.
+- [x] T004 Run `pnpm test:generator` and `pnpm generate:check`, check affected generated consumers compile, and record contract-only evidence under `.artifacts/system-tests/key-5/<attempt>/phase-1.json`. Record runtime and backend execution as `NOT RUN`.
 
 **Checkpoint**: Review whether one generated contract expresses every KEY-5 command and strict failure shape, with passing generator tests and reproducible outputs.
 
