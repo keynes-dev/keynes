@@ -43,17 +43,52 @@ describe("contract source", () => {
       ["settle_budget"],
       ["read_budget"],
     ]);
-    expect(contract.source.operations[1]).toMatchObject({
+    expect(contract.source.operations[1]).toEqual({
       method: "createBudget",
-      conditionalPermissions: [
-        {
-          permission: "define_resource_type",
-          condition: "resource_type_missing",
-        },
-      ],
+      target: "keynes.create_budget",
+      permissions: ["create_root_budget"],
+      replay: true,
+      input: "CreateBudgetCommand",
+      output: "CreateBudgetResult",
     });
     expect(contract.digest).toMatch(/^[0-9a-f]{64}$/);
     expect(contract.remoteDigest).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("defines Resources before identity-bearing Budget creation", () => {
+    const contract = loadContract(packageRoot);
+    const definitions = contract.definitions;
+
+    expect(definitions.CreateBudgetCommand).toMatchObject({
+      properties: {
+        resources: { $ref: "#/$defs/ResourceEnvelope" },
+      },
+    });
+    expect(JSON.stringify(definitions.CreateBudgetCommand)).not.toContain(
+      "ResourceDefinition",
+    );
+    expect(contract.source.remote.procedures[0]).toEqual({
+      method: "defineResource",
+      target: "keynes.remote_define_resource_type",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteDefineResourceTypeCommand",
+      output: "RemoteDefineResourceTypeResult",
+    });
+    expect(definitions.RemoteDefineResourceTypeCommand).toMatchObject({
+      required: ["operationKey", "definition"],
+      properties: {
+        definition: { $ref: "#/$defs/ResourceDefinition" },
+      },
+    });
+    expect(definitions.RemoteCreateBudgetCommand).toMatchObject({
+      properties: {
+        resources: { $ref: "#/$defs/RemoteResourceEnvelope" },
+      },
+    });
+    expect(JSON.stringify(definitions.RemoteCreateBudgetCommand)).not.toContain(
+      "ResourceDefinition",
+    );
   });
 
   it("validates the canonical command fixtures", () => {

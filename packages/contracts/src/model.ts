@@ -2,16 +2,10 @@ import type { PolicyScalarV1 } from "../generated/policy-types.ts";
 
 export type JsonObject = { readonly [key: string]: unknown };
 
-export interface ConditionalPermission {
-  readonly permission: "define_resource_type";
-  readonly condition: "resource_type_missing";
-}
-
 export interface ContractOperation {
   readonly method: string;
   readonly target: string;
   readonly permissions: readonly [string, ...string[]];
-  readonly conditionalPermissions?: readonly [ConditionalPermission];
   readonly replay: boolean;
   readonly input: string;
   readonly output: string;

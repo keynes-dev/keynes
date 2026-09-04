@@ -28,12 +28,6 @@ const EXPECTED_OPERATIONS = [
     method: "createBudget",
     target: "keynes.create_budget",
     permissions: ["create_root_budget"],
-    conditionalPermissions: [
-      {
-        permission: "define_resource_type",
-        condition: "resource_type_missing",
-      },
-    ],
     replay: true,
     input: "CreateBudgetCommand",
     output: "CreateBudgetResult",
@@ -74,6 +68,14 @@ const EXPECTED_REMOTE = {
     "remote_procedures",
   ],
   procedures: [
+    {
+      method: "defineResource",
+      target: "keynes.remote_define_resource_type",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteDefineResourceTypeCommand",
+      output: "RemoteDefineResourceTypeResult",
+    },
     {
       method: "createBudget",
       target: "keynes.remote_create_budget",
@@ -294,12 +296,10 @@ function parseOperation(value: unknown): ContractOperation {
   if (typeof operation.replay !== "boolean") {
     fail("contract operation replay must be a boolean");
   }
-  const conditionalPermissions = parseConditionalPermissions(operation);
   return {
     method: requireString(operation, "method"),
     target: requireString(operation, "target"),
     permissions: requireNonEmptyStrings(operation, "permissions"),
-    ...(conditionalPermissions === undefined ? {} : { conditionalPermissions }),
     replay: operation.replay,
     input: requireString(operation, "input"),
     output: requireString(operation, "output"),
@@ -337,18 +337,6 @@ function validateInputs(
     if (!sameStrings(operation.permissions, expected.permissions)) {
       fail(`operation metadata mismatch for ${operation.method}: permissions`);
     }
-    if (
-      !sameConditionalPermissions(
-        operation.conditionalPermissions,
-        "conditionalPermissions" in expected
-          ? expected.conditionalPermissions
-          : undefined,
-      )
-    ) {
-      fail(
-        `operation metadata mismatch for ${operation.method}: conditionalPermissions`,
-      );
-    }
     for (const field of ["replay", "input", "output"] as const) {
       if (operation[field] !== expected[field]) {
         fail(`operation metadata mismatch for ${operation.method}: ${field}`);
@@ -381,7 +369,7 @@ function validateRemoteMetadata(
   for (const [index, procedure] of remote.procedures.entries()) {
     const expected = EXPECTED_REMOTE.procedures[index];
     if (expected === undefined) {
-      fail("contract declares more than eight remote procedures");
+      fail("contract declares more than nine remote procedures");
     }
     if (targets.has(procedure.target)) {
       fail(`duplicate remote procedure target ${procedure.target}`);
@@ -409,7 +397,7 @@ function validateRemoteMetadata(
     }
   }
   if (remote.procedures.length !== EXPECTED_REMOTE.procedures.length) {
-    fail("contract must declare exactly the eight remote procedures");
+    fail("contract must declare exactly the nine remote procedures");
   }
 }
 
@@ -426,44 +414,6 @@ function requireNonEmptyStrings(
     fail(`contract operation ${key} must be a non-empty string array`);
   }
   return [value[0], ...value.slice(1)];
-}
-
-function parseConditionalPermissions(
-  operation: JsonObject,
-): ContractOperation["conditionalPermissions"] {
-  const value = operation.conditionalPermissions;
-  if (value === undefined) return undefined;
-  if (Array.isArray(value) && value.length === 1) {
-    const entry = requireObject(value[0], "conditional permission");
-    if (
-      Object.keys(entry).length === 2 &&
-      entry.permission === "define_resource_type" &&
-      entry.condition === "resource_type_missing"
-    ) {
-      return [
-        {
-          permission: "define_resource_type",
-          condition: "resource_type_missing",
-        },
-      ];
-    }
-  }
-  fail(
-    "contract conditionalPermissions must use the closed Resource-missing form",
-  );
-}
-
-function sameConditionalPermissions(
-  actual: ContractOperation["conditionalPermissions"],
-  expected: ContractOperation["conditionalPermissions"],
-): boolean {
-  if (actual === undefined || expected === undefined) {
-    return actual === expected;
-  }
-  return (
-    actual[0].permission === expected[0].permission &&
-    actual[0].condition === expected[0].condition
-  );
 }
 
 function sameStrings(

@@ -28,6 +28,7 @@ const expectedFiles = [
   "package/migrations/0005-resource-bound-budget.sql",
   "package/migrations/0006-remote-access.sql",
   "package/migrations/0007-create-budget-permissions.sql",
+  "package/migrations/0008-independent-resource-definitions.sql",
   "package/migrations/manifest.json",
   "package/package.json",
 ] as const;
@@ -71,7 +72,7 @@ describe("@keynes/postgresql packed archive", () => {
     }
   });
 
-  it("publishes seven ordered migrations with historical and current contracts", () => {
+  it("publishes eight ordered migrations with immutable historical contracts", () => {
     const manifest: unknown = JSON.parse(
       entry("package/migrations/manifest.json").body.toString("utf8"),
     );
@@ -101,6 +102,11 @@ describe("@keynes/postgresql packed archive", () => {
         {
           id: "0007-create-budget-permissions",
           path: "0007-create-budget-permissions.sql",
+          contractDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        },
+        {
+          id: "0008-independent-resource-definitions",
+          path: "0008-independent-resource-definitions.sql",
           contract: true,
         },
       ],
@@ -143,6 +149,11 @@ describe("@keynes/postgresql packed archive", () => {
       [
         "0007-create-budget-permissions",
         "0007-create-budget-permissions.sql",
+        expect.stringMatching(/^[a-f0-9]{64}$/u),
+      ],
+      [
+        "0008-independent-resource-definitions",
+        "0008-independent-resource-definitions.sql",
         expect.stringMatching(/^[a-f0-9]{64}$/u),
       ],
     ]);

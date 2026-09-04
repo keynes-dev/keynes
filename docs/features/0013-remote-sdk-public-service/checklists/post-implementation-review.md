@@ -41,7 +41,7 @@ change code or documentation until the user accepts the phase disposition.
 | Phase                           | Original subject              | Bot threads | Review PR            | Status      | Verdict  | Accepted repair | Evidence                            |
 | ------------------------------- | ----------------------------- | ----------: | -------------------- | ----------- | -------- | --------------- | ----------------------------------- |
 | 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | #28                  | Merged      | Approved | P1-001, P1-002  | Repair `d410af6` and Phase 1 result |
-| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | Cumulative review PR | Verified    | Approved | P2-001-P2-004   | Phase 2 result below                |
+| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | Cumulative review PR | Repairing   | Approved | P2-001-P2-005   | Phase 2 result below                |
 | 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | Cumulative review PR | Not started | Open     | None            | Pending                             |
 | 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | Cumulative review PR | Not started | Open     | None            | Pending                             |
 | 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | Cumulative review PR | Not started | Open     | None            | Pending                             |
@@ -160,10 +160,10 @@ Phase 1 is verified.
 
 ### Phase 2 result
 
-**Status**: `Verified`
-**Lead verdict**: Approved after implementation repair. The accepted changes
-preserve one public `Budget` concept and the existing SDK signatures while
-repairing authority, lifecycle, terminology, and amount parity.
+**Status**: `Repairing`
+**Lead verdict**: The user reopened Phase 2 and accepted P2-005 after the first
+implementation repair. Revision `96534b0` remains historical qualification for
+P2-001 through P2-004, not the accepted Phase 2 result.
 
 | ID     | Severity | Result   | Accepted repair                                                                                                                                                                                                                                                                    |
 | ------ | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -171,6 +171,7 @@ repairing authority, lifecycle, terminology, and amount parity.
 | P2-002 | High     | Resolved | Local creation checks runtime state before reading caller input, snapshots and validates schema, allocation, and Policies immediately, converts preparation errors to Promise rejection, and queues only prepared values. Work admitted before close still drains.                 |
 | P2-003 | Medium   | Resolved | Product, architecture, FEAT-0014, and package documentation describe each `createBudget` call as an independent lineage. Root remains structural terminology. Keynes adds no aggregate allowance or issuance model.                                                                |
 | P2-004 | Medium   | Resolved | Zero initial allocation is valid through SQLite, embedded PostgreSQL, and the public remote procedure. Negative and out-of-range amounts remain invalid.                                                                                                                           |
+| P2-005 | High     | Repairing | Resource definition is an independent tenant-wide metadata operation. `createBudget` consumes resolved Resources and introduces quantity directly into the new Budget. No Resource pool, unattached quantity state, or definition work belongs to Budget creation.                |
 
 The implementation adds v7 embedded and remote paths while retaining the
 source bytes of migrations `0001` through `0006`. Current remote root authority
@@ -213,11 +214,11 @@ without adding a second authority. `net: -0 lines possible.`
 - Hosted, managed-provider, positive TLS, rolling-upgrade, downgrade, backup, recovery, failover, benchmark, broad security, and production-readiness evidence: `NOT RUN`.
 - Two ambient-root attempts discovered an unrelated `.claude/worktrees` checkout and are not evidence. Clean-checkout package and PR gates supersede them.
 
-Phase 2 is verified. Phase 3 remains `Not started`.
+Phase 2 is repairing P2-005. Phase 3 remains `Not started`.
 
 ## Remaining phase acceptance
 
-- [x] Phase 2 proves atomic Resource-bound creation, replay, caller-input freezing, conflicts, rollback, Policy validation, and PostgreSQL contention.
+- [ ] Phase 2 proves independent Resource definition, Budget-only quantity ownership, replay, caller-input freezing, conflicts, rollback, Policy validation, and PostgreSQL contention.
 - [ ] Phase 3 proves generated procedure ownership, migration integrity, `session_user` identity, ACLs, transaction ownership, and pooler assumptions.
 - [ ] Phase 4 proves the ordinary remote Budget loop and local/PostgreSQL semantic parity.
 - [ ] Phase 5 proves reopen, response-loss recovery, paging, coherent snapshots, and concurrent inspection.

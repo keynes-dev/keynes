@@ -13,12 +13,6 @@
       "method": "createBudget",
       "target": "keynes.create_budget",
       "permissions": ["create_root_budget"],
-      "conditionalPermissions": [
-        {
-          "permission": "define_resource_type",
-          "condition": "resource_type_missing"
-        }
-      ],
       "replay": true,
       "input": "CreateBudgetCommand",
       "output": "CreateBudgetResult"
@@ -58,6 +52,14 @@
       "remote_procedures"
     ],
     "procedures": [
+      {
+        "method": "defineResource",
+        "target": "keynes.remote_define_resource_type",
+        "revision": 1,
+        "mode": "mutation",
+        "input": "RemoteDefineResourceTypeCommand",
+        "output": "RemoteDefineResourceTypeResult"
+      },
       {
         "method": "createBudget",
         "target": "keynes.remote_create_budget",

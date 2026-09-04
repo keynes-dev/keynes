@@ -87,7 +87,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       expect(after).toEqual(before);
     });
 
-    it("installs the seven-migration authority contract", async () => {
+    it("installs the eight-migration authority contract", async () => {
       const target = await openTarget();
       await install(target);
 
@@ -105,6 +105,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         "0005-resource-bound-budget",
         "0006-remote-access",
         "0007-create-budget-permissions",
+        "0008-independent-resource-definitions",
       ]);
       expect(migrations.rows.at(-3)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
       expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);

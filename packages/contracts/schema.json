@@ -356,7 +356,7 @@
       "required": ["commandId", "resources"],
       "properties": {
         "commandId": { "$ref": "#/$defs/Uuid" },
-        "resources": { "$ref": "#/$defs/RootResourceEnvelope" },
+        "resources": { "$ref": "#/$defs/ResourceEnvelope" },
         "policies": {
           "type": "array",
           "maxItems": 16,
@@ -509,10 +509,16 @@
       "pattern": "^khc_v1_[A-Za-z0-9_-]{43}$"
     },
     "RemoteMutationName": {
-      "enum": ["createBudget", "requestBudget", "settleBudget"]
+      "enum": [
+        "defineResource",
+        "createBudget",
+        "requestBudget",
+        "settleBudget"
+      ]
     },
     "RemoteProcedureName": {
       "enum": [
+        "defineResource",
         "createBudget",
         "requestBudget",
         "settleBudget",
@@ -854,13 +860,32 @@
         { "$ref": "#/$defs/RemoteBudgetSettlementHistoryEntry" }
       ]
     },
+    "RemoteDefineResourceTypeCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operationKey", "definition"],
+      "properties": {
+        "operationKey": { "$ref": "#/$defs/OperationKey" },
+        "definition": { "$ref": "#/$defs/ResourceDefinition" }
+      }
+    },
+    "RemoteDefineResourceTypeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "resource", "replayed"],
+      "properties": {
+        "kind": { "const": "defined" },
+        "resource": { "$ref": "#/$defs/ResourceDefinition" },
+        "replayed": { "type": "boolean" }
+      }
+    },
     "RemoteCreateBudgetCommand": {
       "type": "object",
       "additionalProperties": false,
       "required": ["operationKey", "resources"],
       "properties": {
         "operationKey": { "$ref": "#/$defs/OperationKey" },
-        "resources": { "$ref": "#/$defs/RootResourceEnvelope" },
+        "resources": { "$ref": "#/$defs/RemoteResourceEnvelope" },
         "policies": {
           "type": "array",
           "maxItems": 16,
@@ -1052,10 +1077,22 @@
     },
     "RemoteMutationResult": {
       "oneOf": [
+        { "$ref": "#/$defs/RemoteDefineResourceTypeResult" },
         { "$ref": "#/$defs/RemoteCreateBudgetResult" },
         { "$ref": "#/$defs/RemoteRequestBudgetResult" },
         { "$ref": "#/$defs/RemoteSettleBudgetResult" }
       ]
+    },
+    "RecoveredCommittedDefineResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationKey", "operation", "result"],
+      "properties": {
+        "kind": { "const": "committed" },
+        "operationKey": { "$ref": "#/$defs/OperationKey" },
+        "operation": { "const": "defineResource" },
+        "result": { "$ref": "#/$defs/RemoteDefineResourceTypeResult" }
+      }
     },
     "RecoveredCommittedCreateBudget": {
       "type": "object",
@@ -1092,6 +1129,7 @@
     },
     "RecoveredCommittedOperation": {
       "oneOf": [
+        { "$ref": "#/$defs/RecoveredCommittedDefineResource" },
         { "$ref": "#/$defs/RecoveredCommittedCreateBudget" },
         { "$ref": "#/$defs/RecoveredCommittedRequestBudget" },
         { "$ref": "#/$defs/RecoveredCommittedSettleBudget" }

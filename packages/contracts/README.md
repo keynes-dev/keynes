@@ -13,6 +13,11 @@ The contract source is the build-time generator input. Its checked-in consumers 
 
 A consumer must not infer the contract from private database tables or SDK implementation details.
 
+The standalone `defineResource` operation remains singular. SDK batch authoring
+sequences one replay-safe definition command per Resource, which avoids a second
+batch command and its partial-result contract. Budget creation accepts only
+already-resolved Resource identities and amounts.
+
 ## Private internals
 
 Production code must not import this package. Owner-local generator scripts and tests may declare it as a development dependency.
