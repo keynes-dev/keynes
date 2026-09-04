@@ -17,6 +17,21 @@ own exact Linear branch. Publish the planning draft early; implementation PRs
 target main or an unmerged prerequisite. Select issues explicitly in Linear;
 never infer order or blockers from document position. Never derive branches.
 
+## Cloud publication
+
+Before declaring publication complete, read the published PR from GitHub and
+verify its source repository, `headRefName`, and `headRefOid` against the intended
+repository, the owning issue's exact Linear `gitBranchName`, and the tested
+commit. A correct local branch does not prove that the cloud publisher preserved
+it. Never infer publication success from the task title or a PR creation message.
+
+If cloud cannot preserve the exact branch or verify the published result, report
+publication as unverified and return the patch or commit for publication through
+the repository's Spec Kit flow. Do not invent a replacement branch, rewrite the
+recorded Linear binding to fit a generated branch, or mark the issue complete.
+Do not rely on automatic cloud publication until a small task has demonstrated
+the exact published branch and commit through GitHub read-back.
+
 ## Pull request descriptions
 
 When creating or updating a pull request, read

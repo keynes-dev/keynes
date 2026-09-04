@@ -459,3 +459,41 @@ test("a child branch resolves its feature without rewriting another feature's ma
   assert.equal(JSON.parse(result.stdout).FEATURE_ID, "KEY-123");
   assert.equal(git("status", "--porcelain"), "");
 });
+
+test("PR identity uses the event head on a detached checkout and rejects generated branches", (t) => {
+  const { root, git } = fixture(t);
+  git("checkout", "--detach");
+  const script = new URL("../scripts/issue-stack.mjs", import.meta.url)
+    .pathname;
+  const eventFile = join(root, "event.json");
+  const check = (event) => {
+    writeFileSync(eventFile, JSON.stringify(event));
+    return spawnSync("node", [script, "check-pr", "--json"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_EVENT_PATH: eventFile },
+    });
+  };
+  for (const [title, branch, issue] of [
+    ["KEY-124 Generate the contract", unit.branch, "KEY-124"],
+    ["KEY-123 Build a feature", identity.branch, "KEY-123"],
+  ]) {
+    const result = check({ pull_request: { title, head: { ref: branch } } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).issue, issue);
+  }
+  for (const [title, branch] of [
+    ["KEY-124 Generate the contract", "feat/linear-mention-key-124-generate"],
+    ["KEY-124 Generate the contract", identity.branch],
+    ["KEY-123 Build a feature", unit.branch],
+    ["KEY-1240 Wrong issue", unit.branch],
+    ["KEY-124-extra Wrong token", unit.branch],
+    ["Missing issue", unit.branch],
+    ["KEY-124 Generate the contract", ""],
+  ]) {
+    const result = check({ pull_request: { title, head: { ref: branch } } });
+    assert.notEqual(result.status, 0, `${title}: ${branch}`);
+  }
+  assert.notEqual(check({}).status, 0);
+  assert.equal(git("branch", "--show-current"), "");
+});

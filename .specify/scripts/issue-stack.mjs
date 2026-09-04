@@ -158,6 +158,36 @@ function checkRepository(repoRoot) {
   return { checked };
 }
 
+export function checkPullRequest(repoRoot, event) {
+  const pr = event?.pull_request;
+  const identifier =
+    typeof pr?.title === "string"
+      ? /^([A-Z][A-Z0-9]*-[1-9][0-9]*)\s+\S/.exec(pr.title)?.[1]
+      : null;
+  if (!identifier || typeof pr?.head?.ref !== "string" || !pr.head.ref)
+    fail(
+      "PR event must include a KEY-N Title and a non-empty pull_request.head.ref",
+    );
+  checkRepository(repoRoot);
+  const parents = [];
+  for (const entry of readdirSync(join(repoRoot, "docs/features"), {
+    withFileTypes: true,
+  })) {
+    if (!entry.isDirectory()) continue;
+    const identity = parseSpecIdentity(repoRoot, entry.name);
+    if (identity.feature_id === identifier) parents.push(identity);
+  }
+  if (parents.length > 1) fail(`Multiple features own ${identifier}`);
+  const branch = parents.length
+    ? parents[0].branch
+    : findIssue(repoRoot, identifier).unit.branch;
+  if (pr.head.ref !== branch)
+    fail(
+      `PR source branch ${pr.head.ref} does not match ${identifier}'s recorded Linear branch ${branch}`,
+    );
+  return { issue: identifier, branch };
+}
+
 function output(value, json) {
   if (json) process.stdout.write(`${JSON.stringify(value)}\n`);
   else process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -173,11 +203,20 @@ function main() {
       repository: { type: "boolean" },
       "base-issue": { type: "string" },
       "merged-pr": { type: "string" },
+      "event-file": { type: "string" },
     },
     allowPositionals: true,
     strict: true,
   });
   const repoRoot = findRepoRoot();
+  if (command === "check-pr") {
+    const eventFile = values["event-file"] ?? process.env.GITHUB_EVENT_PATH;
+    if (!eventFile) fail("check-pr requires --event-file or GITHUB_EVENT_PATH");
+    return output(
+      checkPullRequest(repoRoot, JSON.parse(readFileSync(eventFile, "utf8"))),
+      values.json,
+    );
+  }
   if (command === "check" && values.repository)
     return output(checkRepository(repoRoot), values.json);
   if (["start", "resolve", "restack"].includes(command)) {
@@ -249,7 +288,7 @@ function main() {
   }
   if (!["active", "check"].includes(command))
     fail(
-      "Usage: issue-stack.mjs <check|active|resolve KEY-N|start KEY-N|restack KEY-N> [--base-issue KEY-N] [--merged-pr number] [--dry-run]",
+      "Usage: issue-stack.mjs <check|check-pr|active|resolve KEY-N|start KEY-N|restack KEY-N> [--event-file path] [--base-issue KEY-N] [--merged-pr number] [--dry-run]",
     );
   const { identity, units } = loadActive(repoRoot, {
     requireBranch: command !== "check",

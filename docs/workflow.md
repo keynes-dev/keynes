@@ -128,6 +128,25 @@ Run provider-free checks before authorized live, paid, or externally mutating va
 
 ## Keep evidence honest
 
+PR CI checks `pull_request.head.ref` from `GITHUB_EVENT_PATH` against the exact
+branch recorded for the owning issue. The leading `KEY-N` in the PR title selects
+that issue; parent planning PRs use the parent specification and implementation
+PRs use their published sub-issue binding in `tasks.md`. The check does not use
+the checkout branch because GitHub Actions normally checks out a detached merge
+commit. Title edits rerun CI. Missing or unknown identities and branch mismatches
+fail the existing `Repository and tests` job. Require that job in branch protection
+where the repository's GitHub plan supports it. This checks recorded identity;
+the live Linear read-back before publication remains mandatory.
+
+Cloud publication must read back the published PR repository, `headRefName`, and
+`headRefOid` and compare them with the intended repository, exact Linear branch,
+and tested commit. If the publisher cannot preserve or verify these values,
+return the patch or commit for publication through Spec Kit and report publication
+as unverified. Before relying on automatic publication, run one small task and
+retain its task URL, requested branch, source commit, PR URL, observed source
+repository/branch/commit, and comparison result. A generated name is a failed
+publication check even when implementation tests pass.
+
 During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the provider-free contract, PostgreSQL, and SDK unit and conformance tests.
 
 Run `pnpm test:pr` before feature acceptance. Pull request CI runs the same command and the SQLite local-runtime suite. For a documentation-only change, inspect links and formatting instead of claiming runtime coverage.
