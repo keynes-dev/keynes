@@ -18,62 +18,6 @@ hooks:
       prompt: Execute speckit.git.feature?
       description: Bind a Linear issue and create its feature branch before specification
       condition: null
-  before_clarify:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before clarification?
-      description: Auto-commit before spec clarification
-      condition: null
-  before_plan:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before planning?
-      description: Auto-commit before implementation planning
-      condition: null
-  before_tasks:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before task generation?
-      description: Auto-commit before task generation
-      condition: null
-  before_implement:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before implementation?
-      description: Auto-commit before implementation
-      condition: null
-  before_checklist:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before checklist?
-      description: Auto-commit before checklist generation
-      condition: null
-  before_analyze:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before analysis?
-      description: Auto-commit before analysis
-      condition: null
-  before_taskstoissues:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit outstanding changes before issue sync?
-      description: Auto-commit before tasks-to-issues conversion
-      condition: null
   after_constitution:
     - extension: git
       command: speckit.git.commit
@@ -84,35 +28,35 @@ hooks:
       condition: null
   after_specify:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit specification changes?
-      description: Auto-commit after specification
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null
   after_clarify:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit clarification changes?
-      description: Auto-commit after spec clarification
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null
   after_plan:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit plan changes?
-      description: Auto-commit after implementation planning
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null
   after_tasks:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit task changes?
-      description: Auto-commit after task generation
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null
   after_implement:
     - extension: git
@@ -124,25 +68,17 @@ hooks:
       condition: null
   after_checklist:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit checklist changes?
-      description: Auto-commit after checklist generation
-      condition: null
-  after_analyze:
-    - extension: git
-      command: speckit.git.commit
-      enabled: true
-      optional: true
-      prompt: Commit analysis results?
-      description: Auto-commit after analysis
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null
   after_taskstoissues:
     - extension: git
-      command: speckit.git.commit
+      command: speckit.git.publish
       enabled: true
-      optional: true
-      prompt: Commit after syncing issues?
-      description: Auto-commit after tasks-to-issues conversion
+      optional: false
+      prompt: Publish scoped planning documents and Linear links?
+      description: Publish scoped documents to the planning or selected issue PR
       condition: null

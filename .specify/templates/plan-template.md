@@ -29,7 +29,7 @@
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+_GATE: Must pass before research. Re-check after design._
 
 Explain how the design preserves each affected principle. Mark an unaffected
 principle `N/A` with a brief rationale.
@@ -65,11 +65,11 @@ mutating work that requires separate authorization.
 ```text
 docs/features/[LINEAR BRANCH FINAL SEGMENT]/
 ├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── research.md          # Research output (/speckit-plan command)
+├── data-model.md        # Design output (/speckit-plan command)
+├── quickstart.md        # Design output (/speckit-plan command)
+├── contracts/           # Design output (/speckit-plan command)
+└── tasks.md             # Task breakdown (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
 ### Source Code (repository root)

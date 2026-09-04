@@ -2,26 +2,28 @@
 
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [Local API](contracts/local-api.md), [shared commands](contracts/shared-commands.md), and [quickstart.md](quickstart.md).
 **Prerequisites**: Review these artifacts before implementation. Follow the current constitution and [workflow](../../workflow.md). The plan's Constitution 6.0.0 reference describes its planning revision; the current constitution is 7.0.0. The feature's explicit conformance obligations still apply.
-**Organization**: Shared prerequisites precede the six stories in priority order. US1 spans two phases because definition/funding and the complete delegate/settle/inspect loop are separate review questions. Later stories extend that working loop. The plan's proposed boundaries are reorganized here to keep story ownership explicit.
+**Organization**: Published sub-issues retain their existing scope while [the migration preview](delivery-migration.md) proposes smaller PR boundaries. Section order does not prescribe execution. Select work in Linear using its current priority, ordering, and blockers.
 
 ## Execution rules
 
 - Paths are repository-relative. Paths marked new are intended implementation files, not existing evidence.
 - Every behavioral test task requires an observed failure for the expected missing behavior before its implementation task. A missing import or broken fixture alone is not the expected failure. Run focused cases again after implementation.
 - Generated-output and documentation tasks use deterministic regeneration, type checks, formatting, and link validation. They do not need duplicate behavioral tests; their owning contract or consumer tests prove behavior.
-- `[P]` marks disjoint test files that can be developed together after their phase prerequisites. Implementation follows their failing observations. Shared authority files, generators, and evidence writes remain sequential.
+- `[P]` marks disjoint test files that can be developed together after their issue prerequisites. Implementation follows their failing observations. Shared authority files, generators, and evidence writes remain sequential.
 - At each checkpoint, retain commands, expected failures, passing results, source revision and dirty state, contract/baseline digests, exact tool/database versions, host, and attempt in a unique ignored `.artifacts/system-tests/key-5/<attempt>/` directory. Package attempts use `.artifacts/package-tests/sdk/attempts/`. Never overwrite an attempt or present a dirty result as a clean revision.
-- Phase-focused scenario selection is development evidence only. Final acceptance requires the complete identical shared inventory on both real backends, with no skipped required scenario. Preserve applicable private regressions and replace obsolete expectations explicitly.
-- KEY-5 is the feature container. Every phase uses its own sub-issue and exact recorded Linear branch. Finish the preceding phase sub-issue before the next phase; keep KEY-5 open through final acceptance. This document does not authorize issue publication, hosted dispatch, paid work, or external mutations.
+- Issue-focused scenario selection is development evidence only. Final acceptance requires the complete identical shared inventory on both real backends, with no skipped required scenario. Preserve applicable private regressions and replace obsolete expectations explicitly.
+- KEY-5 is the feature container and remains open through final acceptance. Select one sub-issue explicitly and fetch its live blockers before starting its exact Linear branch. The migration preview has not changed existing issue scopes or blocker relations. This document does not authorize hosted dispatch or paid work.
 
-## Phase 1: Generate the shared Budget command contract
+## KEY-71 Generate the shared Budget command contract
+
+<!-- publication-id: Phase-1 -->
 
 **Linear issue**: [KEY-71](https://linear.app/keynes/issue/KEY-71/generate-the-shared-budget-command-contract)
 **Git branch**: `key-71-generate-the-shared-budget-command-contract`
 <!-- linear-issue-id: 6dbd3487-6d85-4f8f-82c1-8694a50c1273 -->
 
 **Goal**: Establish the generated command contract that both authorities implement.
-**Independent test**: Contract fixtures accept the new commands, defaults, movement/state/history shapes, and errors, while rejecting unknown fields and invalid quantities. This phase does not claim a working Budget runtime.
+**Independent test**: Contract fixtures accept the new commands, defaults, movement/state/history shapes, and errors, while rejecting unknown fields and invalid quantities. This issue does not claim a working Budget runtime.
 
 - [ ] T001 Add failing command-schema and generation cases for atomic definition batches, additions, immutable controls, selected state/tree history, movement reasons, settlement results, and missing error variants in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/conformance-client.test.ts`.
 - [ ] T002 Update `packages/contracts/contract.json`, `packages/contracts/schema.json`, and `packages/contracts/src/generation/contract-field-order.ts` for `contracts/shared-commands.md`, including exact safe-integer quantities and strict unknown-field rejection. Keep deferred private commands distinct from the KEY-5 inventory.
@@ -30,7 +32,9 @@
 
 **Checkpoint**: Review whether one generated contract expresses every KEY-5 command and strict failure shape, with passing generator tests and reproducible outputs.
 
-## Phase 2: Establish the journal baseline and real backend fixtures
+## KEY-61 Establish the journal baseline and real backend fixtures
+
+<!-- publication-id: Phase-2 -->
 
 **Linear issue**: [KEY-61](https://linear.app/keynes/issue/KEY-61/establish-the-journal-baseline-and-real-backend-fixtures)
 **Git branch**: `key-61-establish-the-journal-baseline-and-real-backend-fixtures`
@@ -50,7 +54,9 @@
 
 **Checkpoint**: Review whether both real backends have reproducible journal storage and runnable fixtures, with no allocation balance, hidden PostgreSQL substitute, or old-installation fallback.
 
-## Phase 3: Define Resources and fund Budgets through Local bindings
+## KEY-62 Define Resources and fund Budgets through Local bindings
+
+<!-- publication-id: Phase-3 -->
 
 **Linear issue**: [KEY-62](https://linear.app/keynes/issue/KEY-62/define-resources-and-fund-budgets-through-local-bindings)
 **Git branch**: `key-62-define-resources-and-fund-budgets-through-local-bindings`
@@ -68,7 +74,9 @@
 
 **Checkpoint**: Review whether an application can define quantity-free Resources and fund a Budget without raw definitions, mutable membership, foreign bindings, or backend disagreement.
 
-## Phase 4: Complete the public delegate, settle, and inspect loop
+## KEY-63 Complete the public delegate, settle, and inspect loop
+
+<!-- publication-id: Phase-4 -->
 
 **Linear issue**: [KEY-63](https://linear.app/keynes/issue/KEY-63/complete-the-public-delegate-settle-and-inspect-loop)
 **Git branch**: `key-63-complete-the-public-delegate-settle-and-inspect-loop`
@@ -86,7 +94,9 @@
 
 **Checkpoint**: Review whether the basic US1 journey works through the public Local entry point and both authority implementations account for every supplied unit. This is the source-level MVP, not feature acceptance.
 
-## Phase 5: Add quantity only to eligible Budget members
+## KEY-64 Add quantity only to eligible Budget members
+
+<!-- publication-id: Phase-5 -->
 
 **Linear issue**: [KEY-64](https://linear.app/keynes/issue/KEY-64/add-quantity-only-to-eligible-budget-members)
 **Git branch**: `key-64-add-quantity-only-to-eligible-budget-members`
@@ -103,7 +113,9 @@
 
 **Checkpoint**: Review whether additions introduce exactly the permitted quantity into existing members, including directly funded children, without a second quantity authority.
 
-## Phase 6: Enforce exact child membership and request refusals
+## KEY-65 Enforce exact child membership and request refusals
+
+<!-- publication-id: Phase-6 -->
 
 **Linear issue**: [KEY-65](https://linear.app/keynes/issue/KEY-65/enforce-exact-child-membership-and-request-refusals)
 **Git branch**: `key-65-enforce-exact-child-membership-and-request-refusals`
@@ -120,7 +132,9 @@
 
 **Checkpoint**: Review whether request membership, quantities, controls, denial reasons, and public types agree with the exact-envelope contract.
 
-## Phase 7: Preserve usage deficits and finalize ready ancestors
+## KEY-66 Preserve usage deficits and finalize ready ancestors
+
+<!-- publication-id: Phase-7 -->
 
 **Linear issue**: [KEY-66](https://linear.app/keynes/issue/KEY-66/preserve-usage-deficits-and-finalize-ready-ancestors)
 **Git branch**: `key-66-preserve-usage-deficits-and-finalize-ready-ancestors`
@@ -138,7 +152,9 @@
 
 **Checkpoint**: Review whether unresolved usage stays unresolved, overuse remains permanent evidence, and the last descendant atomically empties every newly ready ancestor exactly once.
 
-## Phase 8: Prove replay and rollback across every mutation
+## KEY-67 Prove replay and rollback across every mutation
+
+<!-- publication-id: Phase-8 -->
 
 **Linear issue**: [KEY-67](https://linear.app/keynes/issue/KEY-67/prove-replay-and-rollback-across-every-mutation)
 **Git branch**: `key-67-prove-replay-and-rollback-across-every-mutation`
@@ -155,13 +171,15 @@
 
 **Checkpoint**: Review whether every repeated internal command returns its original result without duplicate effects, every conflicting reuse fails, and each precommit checkpoint restores all state and sequence counters.
 
-## Phase 9: Package the complete Local API and lifecycle
+## KEY-68 Package the complete Local API and lifecycle
+
+<!-- publication-id: Phase-9 -->
 
 **Linear issue**: [KEY-68](https://linear.app/keynes/issue/KEY-68/package-the-complete-local-api-and-lifecycle)
 **Git branch**: `key-68-package-the-complete-local-api-and-lifecycle`
 <!-- linear-issue-id: a5fef9d7-53ac-4f06-b95c-b6fd06df0f09 -->
 
-**Goal**: Implement US6's consumer and lifecycle checks, covering FR-025 through FR-030 and the Local portions of SC-005 through SC-007. The final phase owns full archive-matrix acceptance.
+**Goal**: Implement US6's consumer and lifecycle checks, covering FR-025 through FR-030 and the Local portions of SC-005 through SC-007. KEY-70 owns full archive-matrix acceptance.
 **Independent test**: Install one locally built archive into an isolated consumer and run the complete quickstart, asynchronous errors, isolation, and close/drain through public imports only.
 
 - [ ] T046 [P] [US6] Extend failing public admission/lifecycle cases in `packages/sdk/test/unit/local/local-lifecycle.test.ts` and `packages/sdk/test/unit/public/local.test.ts` for promise-before-property-access failure, caller mutation after invocation, queue survival after capture/command failure, valid serial concurrent outcomes, isolation, close winning over malformed input, drain, repeated close, and async disposal.
@@ -174,7 +192,9 @@
 
 **Checkpoint**: Review whether an isolated application can use the complete Local API and close it safely from one self-contained archive, with no unsupported public entry point or synchronous failure path.
 
-## Phase 10: Qualify shared transcripts and PostgreSQL concurrency
+## KEY-69 Qualify shared transcripts and PostgreSQL concurrency
+
+<!-- publication-id: Phase-10 -->
 
 **Linear issue**: [KEY-69](https://linear.app/keynes/issue/KEY-69/qualify-shared-transcripts-and-postgresql-concurrency)
 **Git branch**: `key-69-qualify-shared-transcripts-and-postgresql-concurrency`
@@ -191,7 +211,9 @@
 
 **Checkpoint**: Review whether every required shared scenario actually ran and agreed on both backends, and whether the distinct native concurrency/read tests prove atomicity and conservation without implying PostgreSQL deployment readiness.
 
-## Phase 11: Accept one SDK archive against the declared runtime matrix
+## KEY-70 Accept one SDK archive against the declared runtime matrix
+
+<!-- publication-id: Phase-11 -->
 
 **Linear issue**: [KEY-70](https://linear.app/keynes/issue/KEY-70/accept-one-sdk-archive-against-the-declared-runtime-matrix)
 **Git branch**: `key-70-accept-one-sdk-archive-against-the-declared-runtime-matrix`
@@ -203,27 +225,20 @@
 - [ ] T058 Add failing aggregate validation cases in `packages/sdk/test/package/qualify.test.ts` for absent/duplicate required OS/Node lanes, repacked or mismatched archives, mismatched source/contract/baseline, dirty-source claims, missing scenario inventories, and missing exact runtime versions before implementing aggregation in `packages/sdk/test/package/qualify.ts`.
 - [ ] T059 Update `.github/workflows/sdk-package.yml` to resolve and freeze exact minimum/latest Node releases for the attempt, build one archive, and distribute its digest to Ubuntu 24.04 x64, macOS 15 arm64, and Windows 2025 x64 on both releases, plus one Node.js 25 transition consumer. Run the provider-free gate on Node.js 25 as well. Validate workflow structure locally; hosted execution remains a separate task.
 - [ ] T060 Update `packages/sdk/README.md`, `docs/features/key-5-build-local-accountable-budget-loop/quickstart.md`, and `docs/workflow.md` to the implemented Local commands and evidence process. Remove target-only wording only for demonstrated behavior; validate examples through `packages/sdk/test/package/consumer.mts`, formatting, and local links rather than duplicate documentation tests.
-- [ ] T061 Run `pnpm check:repo`, `pnpm test:unit`, `pnpm test:pr`, both complete backend conformance commands, and package unit checks for the final candidate; build the candidate archive once with `pnpm pack:sdk` and run its local consumer through `packages/sdk/test/package/qualify.ts`. Retain new source/contract/baseline/archive identities and do not reuse earlier phase results as final-candidate evidence.
+- [ ] T061 Run `pnpm check:repo`, `pnpm test:unit`, `pnpm test:pr`, both complete backend conformance commands, and package unit checks for the final candidate; build the candidate archive once with `pnpm pack:sdk` and run its local consumer through `packages/sdk/test/package/qualify.ts`. Retain new source/contract/baseline/archive identities and do not reuse earlier issue results as final-candidate evidence.
 - [ ] T062 After separate authorization to dispatch the exact committed candidate, run `.github/workflows/sdk-package.yml` and verify the required `.github/workflows/ci.yml` conformance job for that revision. Collect the six minimum/latest OS results, the Node.js 25 consumer/provider-free result, and workflow URLs without repacking. Leave this task unchecked and the missing lanes `NOT RUN` if dispatch or hosted results are unavailable.
 - [ ] T063 Validate and retain the accepted aggregate in new `docs/features/key-5-build-local-accountable-budget-loop/acceptance.json`, referencing exact run-specific backend, lifecycle, and archive records. Include source dirty state, contract/baseline/archive digests, image and runtime versions, inventories, transcript digests, commands, outcomes, and deferred lanes. Do not create a success-shaped record before every required result exists.
 - [ ] T064 Audit FR-001 through FR-032 and SC-001 through SC-009 against the final evidence in `docs/features/key-5-build-local-accountable-budget-loop/acceptance.json` and reconcile this `tasks.md`; verify published artifact/checkpoint links using `docs/workflow.md`. Keep Policy, PostgreSQL operational qualification, remote, provider, paid, external mutations, broad fault campaigns, benchmarks, durable recovery, Hosted, Embedded, self-hosted, managed, and production claims `NOT RUN`.
 
 **Checkpoint**: Accept KEY-5 only when the exact candidate has complete shared/native/Local/source results and the same SDK archive passes every required consumer lane. Any missing backend, skipped scenario, mismatched identity, or unavailable matrix lane blocks acceptance.
 
-## Dependencies and execution order
+## Dependency rationale
 
-```text
-Phase 1 contract -> Phase 2 storage/fixtures
-  -> Phase 3 US1 definition/funding -> Phase 4 US1 public loop
-  -> Phase 5 US2 additions -> Phase 6 US3 exact requests
-  -> Phase 7 US4 complete settlement -> Phase 8 US5 replay/rollback
-  -> Phase 9 US6 Local package -> Phase 10 integrated backend conformance
-  -> Phase 11 exact-archive acceptance
-```
+Linear owns current blockers and ordering. The [migration preview](delivery-migration.md) audits every existing blocker and proposes independent PR boundaries. Until that preview is approved and applied, use the live relationships and report mismatches rather than silently removing them.
 
-US2 and US3 both build on the US1 loop; neither needs the other's new behavior for its core assertions. They remain sequential PR phases because they edit the same authority files. US4 uses directly funded children from US2 and membership rules from US3. US5 needs every mutation implemented before its complete replay inventory can pass. US6 needs all earlier public behavior. Phase 10 integrates every semantic family; Phase 11 requires all previous checkpoints.
+US2 additions and US3 exact requests both require the US1 loop but do not require each other's new behavior. Editing the same authority files is a coordination concern, not a semantic blocker. US4 uses funded children and exact membership. US5's complete replay inventory requires every mutation. Final qualification requires all relevant story acceptance.
 
-Each story's independent test creates fresh fixtures and does not depend on retained state from an earlier test. US2's child fixture necessarily uses the already accepted US1 creation/request setup; its addition assertions do not require a new delegation workflow. A phase cannot pass merely because a later phase will repair its core behavior.
+Every independent test creates fresh fixtures. A sub-issue cannot pass because a future issue promises to repair its core behavior.
 
 ## Parallel execution examples
 
@@ -238,15 +253,15 @@ Run only the listed disjoint test authoring work together after prerequisites. T
 | US5   | T041 replay cases with T042 rollback/response-loss cases                                                   | Canonicalization and private controls, full replay evidence                 |
 | US6   | T046 admission/lifecycle, T047 clean consumer, and T048 archive/build cases                                | Runtime repair, package roots, qualifier, one archive consumer              |
 
-Foundation tests T005/T006/T007 and integrated tests T053/T054 also use separate files. Do not parallelize edits to `packages/contracts/conformance/scenarios/index.ts`, either authority implementation, generated outputs, package scripts, or one attempt record. Regeneration follows all source edits in its phase.
+Foundation tests T005/T006/T007 and integrated tests T053/T054 also use separate files. Do not parallelize edits to `packages/contracts/conformance/scenarios/index.ts`, either authority implementation, generated outputs, package scripts, or one attempt record. Regeneration follows all source edits in its issue.
 
 ## Implementation strategy
 
-1. Complete Phases 1 and 2 to establish an executable shared contract and real fixtures.
-2. Complete both US1 phases and validate the public two-level loop. This is the smallest useful source-level MVP. It excludes a claim of complete KEY-5 or archive compatibility.
-3. Add each later story in priority order. Keep earlier independent tests passing and close each review checkpoint before starting the next recorded branch.
-4. Run full transcript/native qualification and exact-archive acceptance only after the story inventory is complete. Retain separate evidence for shared semantics, PostgreSQL concurrency, Local lifecycle, and packed consumers.
-5. Use the published Linear phase branches and bottom-up PR review described in `docs/workflow.md`. Keep detailed tasks and evidence here in Git; keep mutable planning in Linear.
+1. Publish and review the planning baseline before beginning implementation.
+2. Select a sub-issue in Linear. Start from main unless it needs an implemented but unmerged prerequisite.
+3. Deliver a complete reviewable increment and retain focused evidence. Keep incomplete behavior and qualification claims explicit.
+4. Run full transcript/native qualification and exact-archive acceptance after the required inventory is implemented.
+5. Keep KEY-5 open until all feature acceptance obligations pass.
 
 ## Requirement coverage
 

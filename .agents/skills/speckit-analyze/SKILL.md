@@ -61,7 +61,7 @@ Check document links against [Link feature artifacts in Linear](../../../docs/wo
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit-analyze`.
 
-For Keynes, also run `node .specify/scripts/phase-stack.mjs check --json`. Treat any of these as HIGH unless they also violate the constitution: a feature title that differs from Linear, a phase bound to the parent feature issue or branch, a published phase title that differs from its sub-issue, a parent-to-child blocker, a missing checkpoint, a duplicate issue or branch binding, uncovered tasks, or phase dependency order that conflicts with the task plan.
+For Keynes, run `node .specify/scripts/issue-stack.mjs check --json` and fetch live Linear identities and relationships. Treat parent-as-sub-issue bindings, parent blockers, duplicate identities, missing checkpoints, title/branch drift, dependency cycles, and unsupported completion claims as HIGH. A partial breakdown is valid when undecomposed requirements remain explicit in the design. Do not infer execution order from document position or demand tasks for every future increment. Publication and review readiness are distinct.
 
 ## Execution Steps
 
@@ -93,14 +93,14 @@ Load only the minimal necessary context from each artifact:
 
 - Architecture/stack choices
 - Data Model references
-- Phases
+- Sub-issues
 - Technical constraints
 
 **From tasks.md:**
 
 - Task IDs
 - Descriptions
-- Phase grouping
+- Reviewable issue boundaries
 - Parallel markers [P]
 - Referenced file paths
 

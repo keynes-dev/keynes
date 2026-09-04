@@ -8,41 +8,51 @@ Git branch: shubhankarsharan/key-44-define-repository-and-code-architecture
 docs/features/key-44-define-repository-and-code-architecture/
 ```
 
-Linear owns feature and phase names, sequencing, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
+Linear owns feature and sub-issue names, ordering, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
 
 Every feature specification links to exactly one Linear issue, and that issue links back to the specification. The version 3 `.specify/feature.json` selects work for Spec Kit commands. The feature directory name is the final path segment of the stored Linear branch. Linear branch changes therefore require explicit synchronization of the directory and manifest.
 
-Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each phase. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
+Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each sub-issue. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
 
 Do not create a pstack specification, plan, or task list when a Spec Kit artifact already owns that decision. This separation keeps one source of truth while still giving difficult work more scrutiny.
 
+## Publish planning documents
+
+`$speckit-specify` selects an existing parent Linear issue and creates its exact branch. It writes the initial specification, commits the feature documents, pushes the branch, and opens a draft planning PR immediately. Clarification, planning, task generation, and checklist commands publish their document changes to the same PR. A draft can remain collaborative for weeks; publication is not design approval.
+
+Read `.github/PULL_REQUEST_TEMPLATE.md` and write a complete description to a temporary file. Include `Related to KEY-N` for the parent. Run `node .specify/scripts/publish-planning.mjs --body-file <file>` from the parent branch. The command stages only feature documents and the feature manifest, refuses unrelated outstanding changes, pushes, creates or reuses one planning PR, and verifies it. It reports Linear links as pending until connector read-back succeeds. Preserve an existing PR's review state and reviewer-authored content when updating its description.
+
+The planning PR targets main. Use Linear's status-neutral `Related to KEY-N` relationship, not closing keywords or `Linear issue: KEY-N`. Verify the GitHub association and parent status after publication. Merging the planning baseline must not close the parent. Do not enable parent/child completion automation as part of this workflow.
+
+Merge planning documents when they form an accepted baseline for the next increment. Later scope may remain undecided. After the planning PR merges, publish later design changes with the implementing issue PR or a separate documentation PR selected explicitly by the user. Never revive the merged parent planning branch as an integration target.
+
 ## Link feature artifacts in Linear
 
-After `$speckit-specify`, `$speckit-clarify`, `$speckit-plan`, `$speckit-tasks`, or `$speckit-checklist` creates or changes artifacts, synchronize the parent issue's document links. Run this step after any enabled commit hook and before the final response. During `$speckit-implement`, synchronize links at each phase checkpoint. `$speckit-taskstoissues --apply` also synchronizes links after publishing phase bindings. Read-only analysis and publication previews report missing links without changing Linear.
+After publishing changed artifacts, synchronize document links through the Linear connector. Read-only analysis and publication previews never commit, push, or synchronize links.
 
-1. Read the active feature manifest and fetch its Linear issue. Verify the issue UUID, identifier, and exact branch against the manifest. For phase links, use the issue binding recorded in `tasks.md`.
-2. Enumerate the feature's existing Git artifacts. Link `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `tasks.md`, and each document in `contracts/` and `checklists/` when present. Include other durable design documents created for the feature. Add a link to the feature directory for navigation.
-3. Use the repository's verified GitHub remote and a published branch containing the current document. Use the recorded active phase branch during stacked implementation, the parent branch before phase work, and the merged base after landing. Verify that each path exists remotely and matches the local artifact before publishing its link. Encode branch names and paths in URLs. If an artifact is uncommitted or unpublished, report its link as pending. Do not commit or push solely to publish a link without authorization.
-4. Keep feature-wide document links on the parent issue. Keep commit-pinned links to phase task headings, checkpoints, and retained evidence on the owning phase issue. Every phase, including Phase 1, uses its own sub-issue. Preserve older evidence links as historical records. Never point evidence links at a moving branch or publish local-only artifact paths.
-5. Fetch existing links before writing. Reuse matching URLs and update an existing current-document entry when its target changes. Use the document's feature-relative path as its title, or preserve an existing descriptive title. Preserve unrelated links and issue fields. Do not create duplicate attachments, upload document copies, or copy tasks, requirements, checkpoints, completion counts, or evidence into Linear.
-6. Read the issue back and verify the titles and destinations. Report synchronized links and any pending artifacts or failed updates. Do not claim synchronization succeeded when the connector or remote verification failed.
+1. Fetch the parent and verify its UUID, key, exact branch, and title against Git. Verify the selected issue's parent and binding when operating on a sub-issue.
+2. Enumerate existing feature documents, including spec, plan, research, contracts, tasks, checklists, migration previews, and accepted evidence. Verify each published path remotely before linking it.
+3. On the parent, link the planning PR and current documents through their published branch. After the planning baseline merges, update current-document destinations to main. Keep accepted baselines and evidence pinned to their exact source commits. An issue PR can link a proposed document revision before it merges without replacing the accepted parent baseline.
+4. On each owning sub-issue, link its PR, design, acceptance section, and commit-pinned reviewed tasks/evidence. Current design links may move; accepted evidence links never move. Never publish local-only artifact paths or upload competing document copies.
+5. Fetch existing attachments. Reuse matching URLs; update an existing current-document attachment when its destination changes, using attachment update support. If unavailable, report that update as pending instead of duplicating links. Preserve unrelated attachments, issue fields, and historical evidence.
+6. Read back the affected issue and verify every requested title/destination and unchanged lifecycle state. Report partial failures honestly. Connector unavailability does not mean publication or synchronization passed.
 
-These links are part of completing the artifact-producing command. They do not authorize creating phase issues, changing Linear status, or submitting PRs. Git remains the source of truth for document contents.
+These command semantics authorize publication of their scoped documents and draft PR, not automatic issue creation, completion, merging, hosted execution, or paid work.
 
 ## Choose the workflow
 
-Use Spec Kit when work changes product behavior, architecture, public contracts, delivery scope, or acceptance evidence. A complete feature normally moves through this sequence:
+Use Spec Kit for changes to product behavior, architecture, contracts, delivery scope, or acceptance evidence. Small maintenance changes can use an existing approved plan without creating another product feature.
 
-1. Select the Linear feature issue.
-2. Use `$speckit-specify`, then review the specification.
-3. Use `$speckit-plan`, then review the plan.
-4. Use `$speckit-tasks` to generate reviewable phases.
-5. Use `$speckit-analyze` to check phase boundaries, bindings, checkpoints, coverage, and dependency order.
-6. Review `tasks.md`.
-7. Run `$speckit-taskstoissues` to preview phase publication. Run it with `--apply` only after approving the preview.
-8. Use `$speckit-implement` to implement phases in order.
+1. Select the parent issue; use `$speckit-specify` to publish an initial collaborative draft.
+2. Iterate with `$speckit-clarify` and `$speckit-plan`, publishing each document revision.
+3. Use `$speckit-tasks` for sufficiently understood, reviewable implementation units. Keep undecided scope in the design.
+4. Use `$speckit-analyze` to check identity, boundaries, acceptance, and coverage. A partial breakdown must disclose undecomposed scope; it need not invent all future tasks.
+5. Preview `$speckit-taskstoissues --select <publication-id>` and publish selected units with `--apply`. Repeat selection for multiple units.
+6. After the relevant planning baseline merges, select a sub-issue in Linear and run `$speckit-implement KEY-N`.
 
-The parent issue represents the whole feature and stays open until all required phases pass final acceptance. Every phase, including Phase 1, uses one Linear sub-issue, its own outcome title, and its generated branch. Only phase issues block subsequent phases; the parent never blocks its children. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
+One sub-issue usually owns one PR. Published task headings are `KEY-N Exact Linear title`; unpublished units have an imperative outcome title and immutable publication ID. Never derive identity from position. Historical publication markers remain stable after migration.
+
+Linear owns priority, shared ordering, blockers, status, and assignment. Select issues manually there; the connector's creation/update sorting is not a substitute for shared ordering. There is no automatic next-issue command or local ordering ledger. Add blockers only for real prerequisites. Shared files need coordination, not automatic sequential blockers. The parent coordinates acceptance and never blocks its own children.
 
 ## Keep the feature story in the specification
 
@@ -54,7 +64,7 @@ The feature story explains intent. Numbered requirements and success criteria de
 
 A narrow repair, explanation, or documentation change may not need a new feature artifact. Before starting one, identify the active Spec Kit feature and state why the work fits it or why no feature artifact is needed. Do not use that exception to hide a requirement or architecture change.
 
-## Apply pstack inside the phase
+## Apply pstack inside the sub-issue
 
 Choose only the pstack skill that reduces a real uncertainty. The common routes are:
 
@@ -82,21 +92,17 @@ Use Ponytail only after the requirement, ownership boundary, and affected flow a
 
 ## Run the work
 
-For non-trivial work:
+Fetch the selected issue's live identity and blocker relationships before creating its branch. Missing prerequisite code or unresolved design blocks implementation. A prerequisite with implemented but unmerged code can support a dependent PR; its Linear blocker remains until resolved. Inspect code and evidence rather than inferring readiness from issue status.
 
-1. Select the owning Linear issue, then identify the active Spec Kit feature and phase.
-2. Define an observable done condition.
-3. Read the owning code and documents before changing them.
-4. Select the smallest useful pstack method.
-5. Make the smallest coherent change that satisfies the approved artifact.
-6. Verify the closest real artifact available. Prefer an exercised behavior over a compile or self-report.
-7. Reconcile the Spec Kit tasks and any in-task plan.
-8. Commit the phase boundary only after its checkpoint passes.
-9. Add the next recorded Linear branch to the GitHub stack.
-10. Update Linear links without copying tasks, requirements, checkpoints, counts, or evidence.
-11. Report what ran, what did not run, and what remains uncertain.
+`node .specify/scripts/issue-stack.mjs resolve KEY-N --json` finds the owning feature, including when invoked from main. After fetching and fast-forwarding main, `start KEY-N` initializes a branch from main. `start KEY-N --base-issue KEY-M` adds it above the exact recorded prerequisite branch. Use a clean checkout and inspect `--dry-run` first. Cross-feature prerequisites merge first. Multiple prerequisites must share a suitable base before work starts.
 
-Initialize the bottom layer with `gh stack init --base "<parent gitBranchName>" "<phase-1 gitBranchName>"`. The parent branch holds the planning baseline and is the stack integration target, not an implementation phase or a completion prerequisite. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
+Define an observable done condition, read the owning design and code, and run tests before corresponding behavioral changes. Keep detailed tasks in Git. Commit scoped changes and open a draft PR once the diff is meaningful. Use the exact Linear issue title as `KEY-N Title`; link the parent with a status-neutral relationship, the owning sub-issue, prerequisite PR, design, and exact verification. Keep issue associations status-neutral while acceptance is pending; explicitly complete the sub-issue after merge and acceptance.
+
+Each feature may have independent PRs and several short stacks. Ready a PR after its checkpoint passes, then merge with approval and required checks. Merge approved increments independently. Atomic groups require an explicit reason and selection; never default to a whole-feature merge. The parent remains open until feature acceptance passes.
+
+After a prerequisite merges into main, `restack KEY-N --merged-pr NUMBER` rebases its direct dependent using the prerequisite's exact head SHA, pushes with a lease, and retargets its PR to main. Inspect the dry run first. This avoids replaying squashed prerequisite commits. Automatic retargeting to main is supported: the command verifies the prerequisite SHA is an ancestor and that local and remote child heads match the inspected PR before rebasing. Restack remaining descendants bottom-up with `gh stack rebase --upstack`, push with leases, and inspect all bases and diffs. Stop on conflicts. A corrected lower branch requires the same descendant verification.
+
+Synchronize current documents and immutable evidence links. Report what ran, what did not, and which acceptance obligation remains. Do not automatically start the next issue.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 
@@ -140,7 +146,7 @@ Label unavailable provider, conformance, security, packaging, compatibility, per
 
 ## Skill bundle
 
-The repository tracks the Spec Kit skills that own feature identity, specification, clarification, planning, checklists, phase generation, phase publication, analysis, and implementation. A fresh checkout receives those workflow rules, including artifact linking. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
+The repository tracks the Spec Kit skills that own feature identity, specification, clarification, planning, checklists, task generation, sub-issue publication, analysis, and implementation. A fresh checkout receives those workflow rules, including artifact linking. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
 
 The local pstack bundle is based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every tracked Spec Kit skill before replacing it.
 

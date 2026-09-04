@@ -8,6 +8,10 @@ metadata:
 ---
 
 
+## Early document publication
+
+Follow [the workflow](../../../docs/workflow.md#publish-planning-documents). After changing artifacts, execute the enabled publication hook before reporting completion: commit scoped documents, push, create or update the collaborative draft planning PR, then synchronize Linear links. Publication is required even when design questions remain. Never close the parent through PR automation. After the planning baseline merges, publish later design changes on their selected issue PR. Invalid hook configuration is an error; read-only commands do not execute publication hooks.
+
 ## Linear artifact links
 
 After generating or updating artifacts, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear). Synchronize the parent issue after any enabled commit hook and before the final response. Include all existing feature documents and report unpublished artifacts as pending.
@@ -25,7 +29,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Check for extension hooks (before planning)**:
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_plan` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- If the YAML cannot be parsed or is invalid, report the configuration error and stop publication
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -64,16 +68,16 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
-   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md
-   - Phase 1: Update agent context by running the agent script
+   - Research: Generate research.md (resolve all NEEDS CLARIFICATION)
+   - Design: Generate data-model.md, contracts/, quickstart.md
+   - Design: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+4. **Stop and report**: Command ends after Task breakdown planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
 5. **Check for extension hooks**: After reporting, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_plan` key
-   - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+   - If the YAML cannot be parsed or is invalid, report the configuration error and stop publication
    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -100,9 +104,9 @@ You **MUST** consider the user input before proceeding (if not empty).
        ```
    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
-## Phases
+## Planning steps
 
-### Phase 0: Outline & Research
+### Research: Outline & Research
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
@@ -125,7 +129,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-### Phase 1: Design & Contracts
+### Design: Design & Contracts
 
 **Prerequisites:** `research.md` complete
 

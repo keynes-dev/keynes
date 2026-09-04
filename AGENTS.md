@@ -7,13 +7,15 @@ shell commands, and other important information, read
 
 For feature delivery and engineering review, follow
 `docs/workflow.md`. Spec Kit owns the durable lifecycle artifacts;
-pstack methods operate inside the current phase.
+pstack methods operate inside the selected sub-issue.
 
 Linear is the naming and mutable planning authority. Use `KEY-N` as the only
 public Spec Kit identity, name each feature directory after the final segment
-of Linear's exact `gitBranchName`, and use that branch unchanged. The parent issue is the feature container. Every phase, including Phase 1,
-uses a published sub-issue and its recorded branch. Never derive a feature or
-phase branch in repository tooling.
+of Linear's exact `gitBranchName`, and use that branch unchanged. The parent
+coordinates planning and acceptance. Every implementation sub-issue uses its
+own exact Linear branch. Publish the planning draft early; implementation PRs
+target main or an unmerged prerequisite. Select issues explicitly in Linear;
+never infer order or blockers from document position. Never derive branches.
 
 ## Pull request descriptions
 
@@ -34,8 +36,8 @@ For a substantial change, the pull request description must explain:
 - every relevant `NOT RUN`, unsupported, or unproved claim; and
 - an ordered review guide through the highest-risk files and decisions.
 
-For a stacked phase PR, use the Linear issue title as `KEY-N Title`. Link the
-parent feature issue, phase issue, preceding PR, phase checkpoint, and exact
+For a sub-issue PR, use the Linear issue title as `KEY-N Title`. Link the
+parent feature issue, owning sub-issue, preceding PR, acceptance checkpoint, and exact
 verification. Review and land the stack from the bottom upward.
 
 Use the current branch diff, linked Linear issue and project, Spec Kit artifacts,

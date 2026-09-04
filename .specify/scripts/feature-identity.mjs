@@ -14,7 +14,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-import { parsePhases, validatePhases } from "./phase-bindings.mjs";
+import { parseUnits, validateUnits } from "./issue-bindings.mjs";
 
 const FEATURE_ROOT = "docs/features";
 const LINEAR_IDENTIFIER = /^[A-Z][A-Z0-9]*-[1-9][0-9]*$/;
@@ -324,7 +324,32 @@ export function resolveActiveFeature(
   repoRoot,
   { requireSpec = true, requireBranch = true } = {},
 ) {
-  const identity = parseManifest(repoRoot);
+  let identity = parseManifest(repoRoot);
+  if (requireBranch) {
+    const branch = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
+    if (branch !== identity.branch) {
+      const candidates = [];
+      for (const entry of readdirSync(join(repoRoot, FEATURE_ROOT), {
+        withFileTypes: true,
+      })) {
+        if (!entry.isDirectory()) continue;
+        const spec = join(repoRoot, FEATURE_ROOT, entry.name, "spec.md");
+        if (!existsSync(spec)) continue;
+        const candidate = parseSpecIdentity(repoRoot, entry.name);
+        const tasks = join(repoRoot, candidate.feature_directory, "tasks.md");
+        const units = existsSync(tasks)
+          ? validateUnits(candidate, parseUnits(readFileSync(tasks, "utf8")))
+          : [];
+        if (
+          branch === candidate.branch ||
+          units.some((unit) => unit.branch === branch)
+        )
+          candidates.push(candidate);
+      }
+      if (candidates.length > 1) fail(`Multiple features own branch ${branch}`);
+      if (candidates.length === 1) identity = candidates[0];
+    }
+  }
   const absoluteDirectory = resolve(repoRoot, identity.feature_directory);
   if (
     relative(resolve(repoRoot, FEATURE_ROOT), absoluteDirectory).startsWith(
@@ -337,20 +362,16 @@ export function resolveActiveFeature(
     const branch = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
     if (branch !== identity.branch) {
       const tasksPath = join(absoluteDirectory, "tasks.md");
-      const phases = existsSync(tasksPath)
-        ? validatePhases(
-            identity,
-            parsePhases(readFileSync(tasksPath, "utf8")),
-            { allowLegacy: true },
-          )
+      const units = existsSync(tasksPath)
+        ? validateUnits(identity, parseUnits(readFileSync(tasksPath, "utf8")))
         : [];
       if (
-        !phases.some(
-          (phase) => phase.state === "published" && phase.branch === branch,
+        !units.some(
+          (unit) => unit.state === "published" && unit.branch === branch,
         )
       )
         fail(
-          `Active branch ${branch || "(detached)"} does not match ${identity.branch} or a published phase branch`,
+          `Active branch ${branch || "(detached)"} does not match ${identity.branch} or a published sub-issue branch`,
         );
     }
   }
