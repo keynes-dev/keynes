@@ -23,7 +23,7 @@ After `$speckit-specify`, `$speckit-clarify`, `$speckit-plan`, `$speckit-tasks`,
 1. Read the active feature manifest and fetch its Linear issue. Verify the issue UUID, identifier, and exact branch against the manifest. For phase links, use the issue binding recorded in `tasks.md`.
 2. Enumerate the feature's existing Git artifacts. Link `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `tasks.md`, and each document in `contracts/` and `checklists/` when present. Include other durable design documents created for the feature. Add a link to the feature directory for navigation.
 3. Use the repository's verified GitHub remote and a published branch containing the current document. Use the recorded active phase branch during stacked implementation, the parent branch before phase work, and the merged base after landing. Verify that each path exists remotely and matches the local artifact before publishing its link. Encode branch names and paths in URLs. If an artifact is uncommitted or unpublished, report its link as pending. Do not commit or push solely to publish a link without authorization.
-4. Keep feature-wide document links on the parent issue. Keep commit-pinned links to phase task headings, checkpoints, and retained evidence on the owning phase issue. Phase 1 uses the parent. Preserve older evidence links as historical records. Never point evidence links at a moving branch or publish local-only artifact paths.
+4. Keep feature-wide document links on the parent issue. Keep commit-pinned links to phase task headings, checkpoints, and retained evidence on the owning phase issue. Every phase, including Phase 1, uses its own sub-issue. Preserve older evidence links as historical records. Never point evidence links at a moving branch or publish local-only artifact paths.
 5. Fetch existing links before writing. Reuse matching URLs and update an existing current-document entry when its target changes. Use the document's feature-relative path as its title, or preserve an existing descriptive title. Preserve unrelated links and issue fields. Do not create duplicate attachments, upload document copies, or copy tasks, requirements, checkpoints, completion counts, or evidence into Linear.
 6. Read the issue back and verify the titles and destinations. Report synchronized links and any pending artifacts or failed updates. Do not claim synchronization succeeded when the connector or remote verification failed.
 
@@ -42,7 +42,7 @@ Use Spec Kit when work changes product behavior, architecture, public contracts,
 7. Run `$speckit-taskstoissues` to preview phase publication. Run it with `--apply` only after approving the preview.
 8. Use `$speckit-implement` to implement phases in order.
 
-Phase 1 uses the parent issue, parent branch, and exact parent title. Every later phase uses one Linear sub-issue and its generated branch. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
+The parent issue represents the whole feature and stays open until all required phases pass final acceptance. Every phase, including Phase 1, uses one Linear sub-issue, its own outcome title, and its generated branch. Only phase issues block subsequent phases; the parent never blocks its children. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
 
 ## Keep the feature story in the specification
 
@@ -96,7 +96,7 @@ For non-trivial work:
 10. Update Linear links without copying tasks, requirements, checkpoints, counts, or evidence.
 11. Report what ran, what did not run, and what remains uncertain.
 
-Initialize the bottom layer with `gh stack init "<parent gitBranchName>"`. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
+Initialize the bottom layer with `gh stack init --base "<parent gitBranchName>" "<phase-1 gitBranchName>"`. The parent branch holds the planning baseline and is the stack integration target, not an implementation phase or a completion prerequisite. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 

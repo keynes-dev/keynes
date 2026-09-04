@@ -25,15 +25,15 @@ const IDENTITY = {
 
 const TASKS = `# Tasks: Implement accountable budget loop
 
-## Phase 1: Implement accountable budget loop
+## Phase 1: Define the shared contract
 
-**Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/implement-accountable-budget-loop)
-**Git branch**: \`owner/key-123-implement-accountable-budget-loop\`
-<!-- linear-issue-id: 11111111-2222-4333-8444-555555555555 -->
+**Linear issue**: [KEY-125](https://linear.app/keynes/issue/KEY-125/implement-accountable-budget-loop)
+**Git branch**: \`owner/key-125-define-shared-contract\`
+<!-- linear-issue-id: 33333333-4444-4555-8666-777777777777 -->
 
 - [ ] T001 Start
 
-**Checkpoint**: The parent boundary is reviewable.
+**Checkpoint**: The first phase boundary is reviewable.
 
 ## Phase 2: Generate contract
 
@@ -46,40 +46,40 @@ const TASKS = `# Tasks: Implement accountable budget loop
 **Checkpoint**: Generated consumers agree.
 `;
 
-test("parses parent and child phase bindings", () => {
+test("parses every phase as a child binding", () => {
   const phases = validatePhases(IDENTITY, parsePhases(TASKS));
-  assert.equal(phases[0].issue.identifier, "KEY-123");
+  assert.equal(phases[0].issue.identifier, "KEY-125");
   assert.equal(phases[1].branch, "owner/key-124-generate-contract");
 });
 
-test("requires the parent issue and exact parent title for Phase 1", () => {
-  assert.throws(
-    () =>
-      validatePhases(
-        IDENTITY,
-        parsePhases(
-          TASKS.replace(
-            "Phase 1: Implement accountable budget loop",
-            "Phase 1: Setup",
-          ),
-        ),
-      ),
-    /title/,
-  );
-  assert.throws(
-    () =>
-      validatePhases(
-        IDENTITY,
-        parsePhases(TASKS.replace("[KEY-123]", "[KEY-999]")),
-      ),
-    /parent/,
-  );
+test("rejects the feature container as any phase issue or branch", () => {
+  for (const field of ["identifier", "uuid", "branch", "url"]) {
+    const phases = parsePhases(TASKS);
+    if (field === "identifier")
+      phases[0].issue.identifier = IDENTITY.feature_id;
+    if (field === "uuid") phases[0].uuid = IDENTITY.work_item.issue_id;
+    if (field === "branch") phases[0].branch = IDENTITY.branch;
+    if (field === "url") phases[0].issue.url = IDENTITY.work_item.issue_url;
+    assert.throws(() => validatePhases(IDENTITY, phases), /parent|container/);
+  }
+});
+
+test("allows an unpublished first phase with its own outcome title", () => {
+  const phases = parsePhases(TASKS);
+  phases[0] = {
+    ...phases[0],
+    state: "unpublished",
+    issue: null,
+    uuid: null,
+    branch: null,
+  };
+  assert.equal(validatePhases(IDENTITY, phases)[0].state, "unpublished");
 });
 
 test("rejects duplicate issue and branch bindings", () => {
-  const duplicateIssue = TASKS.replace("[KEY-124]", "[KEY-123]").replace(
+  const duplicateIssue = TASKS.replace("[KEY-124]", "[KEY-125]").replace(
     "/KEY-124/generate-contract",
-    "/KEY-123/generate-contract",
+    "/KEY-125/generate-contract",
   );
   assert.throws(
     () => validatePhases(IDENTITY, parsePhases(duplicateIssue)),
@@ -87,7 +87,7 @@ test("rejects duplicate issue and branch bindings", () => {
   );
   const duplicateBranch = TASKS.replace(
     "owner/key-124-generate-contract",
-    IDENTITY.branch,
+    "owner/key-125-define-shared-contract",
   );
   assert.throws(
     () => validatePhases(IDENTITY, parsePhases(duplicateBranch)),
@@ -173,6 +173,25 @@ test("dry-run commands use only recorded Linear branches", async () => {
     spawnSync("git", args, { cwd: directory, encoding: "utf8" });
   assert.equal(git(["init", "-q"]).status, 0);
   assert.equal(git(["switch", "-c", IDENTITY.branch]).status, 0);
+  const init = spawnSync("node", [script, "init", "--dry-run"], {
+    cwd: directory,
+    encoding: "utf8",
+  });
+  assert.equal(init.status, 0, init.stderr);
+  assert.equal(
+    init.stdout.trim(),
+    `gh stack init --base ${IDENTITY.branch} owner/key-125-define-shared-contract`,
+  );
+  assert.equal(
+    git(["switch", "-c", "owner/key-125-define-shared-contract"]).status,
+    0,
+  );
+  const active = spawnSync("node", [identityScript, "active", "--json"], {
+    cwd: directory,
+    encoding: "utf8",
+  });
+  assert.equal(active.status, 0, active.stderr);
+  assert.equal(JSON.parse(active.stdout).FEATURE_ID, IDENTITY.feature_id);
   const result = spawnSync("node", [script, "start", "2", "--dry-run"], {
     cwd: directory,
     encoding: "utf8",
@@ -182,4 +201,28 @@ test("dry-run commands use only recorded Linear branches", async () => {
     result.stdout.trim(),
     "gh stack add owner/key-124-generate-contract",
   );
+  assert.equal(git(["switch", "-c", "unrelated-work"]).status, 0);
+  const unrelated = spawnSync("node", [identityScript, "active", "--json"], {
+    cwd: directory,
+    encoding: "utf8",
+  });
+  assert.notEqual(unrelated.status, 0);
+  assert.match(unrelated.stderr, /does not match/);
+  assert.equal(git(["switch", "-c", IDENTITY.branch]).status, 0);
+  writeFileSync(
+    join(
+      directory,
+      "docs/features/key-123-implement-accountable-budget-loop/tasks.md",
+    ),
+    TASKS.replace(
+      /\*\*Linear issue\*\*: .*\n\*\*Git branch\*\*: .*\n<!-- linear-issue-id: .* -->/,
+      "**Linear issue**: `Unpublished`\n**Git branch**: `Unpublished`",
+    ),
+  );
+  const unpublished = spawnSync("node", [script, "init", "--dry-run"], {
+    cwd: directory,
+    encoding: "utf8",
+  });
+  assert.notEqual(unpublished.status, 0);
+  assert.match(unpublished.stderr, /Phase 1 is not published/);
 });

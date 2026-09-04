@@ -12,13 +12,13 @@
 - `[P]` marks disjoint test files that can be developed together after their phase prerequisites. Implementation follows their failing observations. Shared authority files, generators, and evidence writes remain sequential.
 - At each checkpoint, retain commands, expected failures, passing results, source revision and dirty state, contract/baseline digests, exact tool/database versions, host, and attempt in a unique ignored `.artifacts/system-tests/key-5/<attempt>/` directory. Package attempts use `.artifacts/package-tests/sdk/attempts/`. Never overwrite an attempt or present a dirty result as a clean revision.
 - Phase-focused scenario selection is development evidence only. Final acceptance requires the complete identical shared inventory on both real backends, with no skipped required scenario. Preserve applicable private regressions and replace obsolete expectations explicitly.
-- Phase 1 uses the parent binding. Publish later phase issues with the separate taskstoissues workflow before starting those phases, then use their exact recorded Linear branches. This document does not authorize issue publication, hosted dispatch, paid work, or external mutations.
+- KEY-5 is the feature container. Every phase uses its own sub-issue and exact recorded Linear branch. Finish the preceding phase sub-issue before the next phase; keep KEY-5 open through final acceptance. This document does not authorize issue publication, hosted dispatch, paid work, or external mutations.
 
-## Phase 1: Build local accountable Budget loop
+## Phase 1: Generate the shared Budget command contract
 
-**Linear issue**: [KEY-5](https://linear.app/keynes/issue/KEY-5/build-local-accountable-budget-loop)
-**Git branch**: `key-5-build-local-accountable-budget-loop`
-<!-- linear-issue-id: 1f7b70f4-d8d2-4a69-8b63-e01ae921de22 -->
+**Linear issue**: [KEY-71](https://linear.app/keynes/issue/KEY-71/generate-the-shared-budget-command-contract)
+**Git branch**: `key-71-generate-the-shared-budget-command-contract`
+<!-- linear-issue-id: 6dbd3487-6d85-4f8f-82c1-8694a50c1273 -->
 
 **Goal**: Establish the generated command contract that both authorities implement.
 **Independent test**: Contract fixtures accept the new commands, defaults, movement/state/history shapes, and errors, while rejecting unknown fields and invalid quantities. This phase does not claim a working Budget runtime.
@@ -32,8 +32,9 @@
 
 ## Phase 2: Establish the journal baseline and real backend fixtures
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-61](https://linear.app/keynes/issue/KEY-61/establish-the-journal-baseline-and-real-backend-fixtures)
+**Git branch**: `key-61-establish-the-journal-baseline-and-real-backend-fixtures`
+<!-- linear-issue-id: 95120bdc-a543-4583-ba28-d089043d9cf1 -->
 
 **Goal**: Give both authorities the storage and test seams required by every story.
 **Independent test**: Create and clean up a disposable native PostgreSQL fixture with the exact baseline; open a private SQLite store; prove table constraints and empty-state inspection. Missing Docker fails the conformance command explicitly.
@@ -51,8 +52,9 @@
 
 ## Phase 3: Define Resources and fund Budgets through Local bindings
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-62](https://linear.app/keynes/issue/KEY-62/define-resources-and-fund-budgets-through-local-bindings)
+**Git branch**: `key-62-define-resources-and-fund-budgets-through-local-bindings`
+<!-- linear-issue-id: 0d6bb2e9-2cfa-4418-a93a-d1f22dc9fad1 -->
 
 **Goal**: Deliver the definition and creation portion of US1, covering FR-001 through FR-006.
 **Independent test**: Define consumable and reusable Resources, exact-reuse them, reject an entire conflicting batch, and create funded/all-zero Budgets with complete membership and fixed controls on both authorities. Verify binding provenance through public Local calls.
@@ -68,8 +70,9 @@
 
 ## Phase 4: Complete the public delegate, settle, and inspect loop
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-63](https://linear.app/keynes/issue/KEY-63/complete-the-public-delegate-settle-and-inspect-loop)
+**Git branch**: `key-63-complete-the-public-delegate-settle-and-inspect-loop`
+<!-- linear-issue-id: 9b23cca8-f21a-48dc-805d-b0cb1049303b -->
 
 **Goal**: Complete US1 with an exact affordable child, ordinary consumable/reusable settlement, return/release, and public inspection. US3 and US4 add the full boundary-case inventory later.
 **Independent test**: Through public imports, fund a two-Resource root, delegate to a child, settle child then parent, and reconcile live, consumed, and released quantity after every operation. The identical core sequence passes on native PostgreSQL.
@@ -85,8 +88,9 @@
 
 ## Phase 5: Add quantity only to eligible Budget members
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-64](https://linear.app/keynes/issue/KEY-64/add-quantity-only-to-eligible-budget-members)
+**Git branch**: `key-64-add-quantity-only-to-eligible-budget-members`
+<!-- linear-issue-id: 40824d15-c00b-41fe-b40e-07503f7b8848 -->
 
 **Goal**: Complete US2 and FR-007/008 without changing membership or bypassing controls.
 **Independent test**: Create root and child fixtures with different addition controls; apply additions without invoking request/settlement during the assertion sequence. Cover active, settling, and settled fixtures, zero additions, unknown members, and overflow.
@@ -101,8 +105,9 @@
 
 ## Phase 6: Enforce exact child membership and request refusals
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-65](https://linear.app/keynes/issue/KEY-65/enforce-exact-child-membership-and-request-refusals)
+**Git branch**: `key-65-enforce-exact-child-membership-and-request-refusals`
+<!-- linear-issue-id: 74642bba-bd97-4040-8a26-39f8508087d0 -->
 
 **Goal**: Complete US3, FR-009 through FR-011, and SC-002.
 **Independent test**: Request affordable, unaffordable, empty, subset, and explicit-zero envelopes from a prepared parent. Each approval creates exactly one child; only affordability denials commit refusal evidence.
@@ -117,8 +122,9 @@
 
 ## Phase 7: Preserve usage deficits and finalize ready ancestors
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-66](https://linear.app/keynes/issue/KEY-66/preserve-usage-deficits-and-finalize-ready-ancestors)
+**Git branch**: `key-66-preserve-usage-deficits-and-finalize-ready-ancestors`
+<!-- linear-issue-id: adc43f12-9bdb-4617-a51b-b9acdb83ec61 -->
 
 **Goal**: Complete US4, FR-012 through FR-019, and SC-004, including permanent deficits and automatic terminal transitions.
 **Independent test**: Settle nested and sibling trees in both orders, with missing/null/zero/increasing/equal/decreasing usage and both accounting behaviors. Reconcile every movement and require zero live quantity on every settled Budget.
@@ -134,8 +140,9 @@
 
 ## Phase 8: Prove replay and rollback across every mutation
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-67](https://linear.app/keynes/issue/KEY-67/prove-replay-and-rollback-across-every-mutation)
+**Git branch**: `key-67-prove-replay-and-rollback-across-every-mutation`
+<!-- linear-issue-id: 1696e635-85f8-43d6-92e3-39ab9de946cf -->
 
 **Goal**: Complete US5, FR-020 through FR-022, and SC-003 without public replay administration.
 **Independent test**: Repeat every mutation and an affordability denial using one internal identity, retry after later state changes, then change normalized inputs or operation kind. Inject bounded precommit failures and committed-response loss through private test seams.
@@ -150,8 +157,9 @@
 
 ## Phase 9: Package the complete Local API and lifecycle
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-68](https://linear.app/keynes/issue/KEY-68/package-the-complete-local-api-and-lifecycle)
+**Git branch**: `key-68-package-the-complete-local-api-and-lifecycle`
+<!-- linear-issue-id: a5fef9d7-53ac-4f06-b95c-b6fd06df0f09 -->
 
 **Goal**: Implement US6's consumer and lifecycle checks, covering FR-025 through FR-030 and the Local portions of SC-005 through SC-007. The final phase owns full archive-matrix acceptance.
 **Independent test**: Install one locally built archive into an isolated consumer and run the complete quickstart, asynchronous errors, isolation, and close/drain through public imports only.
@@ -168,8 +176,9 @@
 
 ## Phase 10: Qualify shared transcripts and PostgreSQL concurrency
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-69](https://linear.app/keynes/issue/KEY-69/qualify-shared-transcripts-and-postgresql-concurrency)
+**Git branch**: `key-69-qualify-shared-transcripts-and-postgresql-concurrency`
+<!-- linear-issue-id: 011578fc-b0a5-498f-9eb9-c9a72671866f -->
 
 **Goal**: Prove FR-023/024/031/032 and SC-009 across the complete integrated implementation.
 **Independent test**: Require identical normalized transcripts from all shared scenarios on real SQLite and PostgreSQL; independently prove native atomicity, blocking, coherent reads, and valid serial accounting under concurrent mutations.
@@ -184,8 +193,9 @@
 
 ## Phase 11: Accept one SDK archive against the declared runtime matrix
 
-**Linear issue**: `Unpublished`
-**Git branch**: `Unpublished`
+**Linear issue**: [KEY-70](https://linear.app/keynes/issue/KEY-70/accept-one-sdk-archive-against-the-declared-runtime-matrix)
+**Git branch**: `key-70-accept-one-sdk-archive-against-the-declared-runtime-matrix`
+<!-- linear-issue-id: b94c42a5-2c67-4e41-9a14-89aa05fcda93 -->
 
 **Goal**: Complete integrated acceptance, including US6's full matrix, SC-007/008, and all earlier story checkpoints.
 **Independent test**: Match source, contract, baseline, and one SDK archive across complete source gates, backend records, Local lifecycle, and seven minimum consumer lanes. Missing or mismatched evidence prevents acceptance.

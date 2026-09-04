@@ -11,8 +11,8 @@ pstack methods operate inside the current phase.
 
 Linear is the naming and mutable planning authority. Use `KEY-N` as the only
 public Spec Kit identity, name each feature directory after the final segment
-of Linear's exact `gitBranchName`, and use that branch unchanged. Phase 1 uses the parent issue. Later phases
-use published sub-issues and their recorded branches. Never derive a feature or
+of Linear's exact `gitBranchName`, and use that branch unchanged. The parent issue is the feature container. Every phase, including Phase 1,
+uses a published sub-issue and its recorded branch. Never derive a feature or
 phase branch in repository tooling.
 
 ## Pull request descriptions

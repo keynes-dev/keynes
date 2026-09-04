@@ -55,11 +55,10 @@ untested. Do not expand acceptance scope by copying a generic checklist.
   ============================================================================
 -->
 
-## Phase 1: [EXACT PARENT LINEAR ACTION TITLE]
+## Phase 1: [FIRST REVIEWABLE ACTION TITLE]
 
-**Linear issue**: [KEY-N](https://linear.app/example/issue/KEY-N/example)
-**Git branch**: `[EXACT PARENT LINEAR GIT BRANCH NAME]`
-<!-- linear-issue-id: [STABLE PARENT UUID] -->
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
 
 **Purpose**: Project initialization and basic structure
 

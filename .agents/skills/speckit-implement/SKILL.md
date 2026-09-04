@@ -6,7 +6,6 @@ metadata:
   source: "templates/commands/implement.md"
 ---
 
-
 ## User Input
 
 ```text
@@ -15,9 +14,9 @@ $ARGUMENTS
 
 ## Keynes stacked implementation
 
-Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`. Adopt Phase 1 with `node .specify/scripts/phase-stack.mjs init`. For each later phase, use `node .specify/scripts/phase-stack.mjs start <phase-number>`. These commands use only branches recorded from Linear.
+Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`. Initialize the first sub-issue branch from the parent planning branch with `node .specify/scripts/phase-stack.mjs init`. For each later phase, use `node .specify/scripts/phase-stack.mjs start <phase-number>`. These commands use only branches recorded from Linear.
 
-Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
+The parent remains the feature container through final acceptance; completing Phase 1 means completing its sub-issue, not the parent. Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
 
 At each phase checkpoint, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear). Keep current feature documents on the parent issue and commit-pinned phase tasks, checkpoints, and evidence on the owning phase issue. Report unpublished artifacts as pending.
 
@@ -28,6 +27,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:
+
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_implement` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally

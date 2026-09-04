@@ -84,7 +84,7 @@ Every mutation in a PostgreSQL tree locks its root row after replay resolution. 
 
 ## Delivery sequence for task generation
 
-These are proposed review boundaries, not published Linear phases. Each boundary requires its focused tests to be observed failing before implementation, then passing on both affected backends. The parent issue/branch owns the first phase; later phases need published Linear sub-issues and exact recorded branches.
+These are proposed review boundaries, not published Linear phases. Each boundary requires its focused tests to be observed failing before implementation, then passing on both affected backends. The parent issue owns the feature. Every phase, including Phase 1, needs its own published Linear sub-issue and exact recorded branch; phase dependencies never require completing the parent.
 
 1. **Definitions and parentless funding:** Shared schema/test seams, baseline selection, minimal PostgreSQL fixture and focused shared-suite runner, independent atomic definition, scoped binding, initial funding, immutable membership/controls. Checkpoint: focused definition/creation cases pass on both real authorities; generation and type checks pass.
 2. **Additions and exact child requests:** Journal transitions, member checks, independent child controls, denial/replay behavior, zero membership, safe-integer boundaries. Checkpoint: shared funding/delegation scenarios reconcile both backends, including failed commands.

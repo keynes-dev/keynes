@@ -6,7 +6,6 @@ metadata:
   source: "templates/commands/tasks.md"
 ---
 
-
 ## Linear artifact links
 
 After generating or updating artifacts, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear). Synchronize the parent issue after any enabled commit hook and before the final response. Include all existing feature documents and report unpublished artifacts as pending.
@@ -20,9 +19,9 @@ $ARGUMENTS
 ## Keynes phase stack rules
 
 - Read `FEATURE_TITLE`, `BRANCH_NAME`, and the Linear work item from `feature-identity.mjs active --json`.
-- Use the exact parent Linear title for Phase 1. Bind Phase 1 to the parent issue, UUID, URL, and branch.
+- Use the exact parent Linear title for the task document. Give every phase its own outcome title and publish it as a sub-issue; never bind a phase to the parent container.
 - Start every phase title with an imperative action verb and name the reviewable outcome. Use `Generate the contract`, not `Generated contract` or `Contract generation`.
-- Add the literal lines `**Linear issue**: \`Unpublished\`` and `**Git branch**: \`Unpublished\`` beneath every later phase heading.
+- Add the literal lines `**Linear issue**: \`Unpublished\``and`**Git branch**: \`Unpublished\`` beneath every phase heading, including Phase 1.
 - End every phase with one concrete review checkpoint.
 - Size one phase for one meaningful PR review question. Split independent questions and fold phases that would produce no meaningful diff. Do not use file, line, or task-count limits.
 - Keep tasks as the detailed implementation authority. Do not add delivery IDs, task-range maps, stack-position fields, or another per-feature file.
@@ -32,6 +31,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks generation)**:
+
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_tasks` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
@@ -85,7 +85,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
-   - Phase 1: Use the exact parent Linear title
+   - Phase 1: Name the first reviewable outcome with an imperative action verb
    - Phase 2: Cover the blocking prerequisites
    - Phase 3+: Cover each user-story outcome in priority order from spec.md
    - Each phase includes: story goal, independent test criteria, required behavioral tests or a documented non-behavioral validation rationale, implementation tasks, and provider-free evidence tasks

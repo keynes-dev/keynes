@@ -14,6 +14,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
+import { parsePhases, validatePhases } from "./phase-bindings.mjs";
+
 const FEATURE_ROOT = "docs/features";
 const LINEAR_IDENTIFIER = /^[A-Z][A-Z0-9]*-[1-9][0-9]*$/;
 const LINEAR_UUID =
@@ -334,9 +336,22 @@ export function resolveActiveFeature(
   if (requireBranch) {
     const branch = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
     if (branch !== identity.branch) {
-      fail(
-        `Active branch ${branch || "(detached)"} does not match ${identity.branch}`,
-      );
+      const tasksPath = join(absoluteDirectory, "tasks.md");
+      const phases = existsSync(tasksPath)
+        ? validatePhases(
+            identity,
+            parsePhases(readFileSync(tasksPath, "utf8")),
+            { allowLegacy: true },
+          )
+        : [];
+      if (
+        !phases.some(
+          (phase) => phase.state === "published" && phase.branch === branch,
+        )
+      )
+        fail(
+          `Active branch ${branch || "(detached)"} does not match ${identity.branch} or a published phase branch`,
+        );
     }
   }
   if (!existsSync(absoluteDirectory))
