@@ -19,7 +19,7 @@ evidence remain outside this review campaign.
 ## Review protocol
 
 Phase 1 used PR #28. Phases 2-9 use the existing
-`review/0014-02-resource-bound-root` branch as one cumulative review branch and
+`review/0013-02-09-implementation` branch as one cumulative review branch and
 one pull request. Each accepted phase repair is one commit on that branch.
 
 Each phase reviews the immutable original subject range and then checks the
