@@ -6,6 +6,9 @@
     ".turbo/**",
     "coverage/**",
     "reports/**",
-    ".artifacts/**"
+    ".artifacts/**",
+    "docs/features/000[1-9]-*/**",
+    "docs/**/evidence/**/*.json",
+    "docs/**/evidence/**/*.tsv"
   ]
 }

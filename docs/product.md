@@ -1,179 +1,322 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The TypeScript SDK opens either private in-memory SQLite or one direct PostgreSQL authority and creates typed root Budgets by binding definitions, quantities, and optional Policies atomically. Remote handles add durable references, reopen, bounded retries, and read-only operation recovery. PostgreSQL 18.6 direct and pooled behavior has local native evidence, and the packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
+> **Status:** Accepted target contract as of September 3, 2026. Current
+> `main` at `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not implement
+> this contract. The [current-system assessment](current-system-assessment.md)
+> records current behavior and evidence. The roadmap must allocate implementation
+> before any target behavior is described as delivered.
 
 ## Thesis
 
-Agents make choices that affect cost, speed, quality, and risk. They decide how much to investigate, which tools to use, when to retry, and when to ask for help. Businesses need a clear way to give agents operating limits without burying them in prompts or scattering them through application code.
+Agents make choices that affect cost, speed, quality, and risk. They decide how
+much to investigate, which tools to use, when to retry, and when to ask for help.
+Businesses need a clear way to give agents operating limits without scattering
+those limits through prompts and application code.
 
-Keynes makes those limits explicit. An application defines the Resource types it governs. A Budget holds quantities of those Resources and the Policies that constrain requests. A team, workflow, or agent requests Resources from a Budget. Keynes either denies the request or reserves the Resources and returns a child Budget. The application does the work, then settles the Budget once it knows what was used.
+Keynes makes those limits explicit. An application defines the Resources and
+Policies that its Budgets can use. A Budget owns quantities of Resources and may
+grant some of that quantity to a child. The application does the work and
+reports usage. Keynes records the accounting outcome and returns unused
+quantity when the Budget settles.
 
 ```text
 Budget -> request -> child Budget -> settle -> evidence
 ```
 
-## Budgets and Resources
+Keynes governs authority to use a quantity. It does not own the money, provider
+quota, seat, token, or other external asset represented by that quantity.
 
-Before a Budget can hold a Resource, the application describes an immutable Resource type. Root creation reconciles that definition and introduces its selected quantity in one atomic command. The type has an authority-issued identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Embedded PostgreSQL callers may still define a type separately; defining a type creates no quantity and grants no permission to spend.
+## Resources
 
-An authorized root allocation creates quantity for selected Resource types. A root holds only those allocations. It does not declare every type the application may use. By default, a Budget funds its own children. It can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
+A Resource is one immutable, tenant-scoped definition for a countable quantity.
+The application supplies a canonical name, a unit, and an accounting behavior.
+The selected authority issues its stable private identity.
 
-```ts
-const result = await supportBudget.request({
-  usdCents: 25,
-  searchQueries: 2,
-});
+- A `consumable` Resource loses quantity when the application reports use.
+- A `reusable` Resource records use as evidence and releases its quantity
+  when the owning Budget settles.
 
-if (result.status === "approved") {
-  await runWorkflow(result.budget);
-} else {
-  handleDenial(result.reasons);
-}
-```
+`keynes.defineResources({...})` is the independent definition operation. It
+accepts a plain TypeScript object and atomically defines or exact-reuses every
+entry. It returns one immutable, typed, quantity-free `ResourceBinding`.
+Repeating a name with a different definition fails without changing authority
+state.
 
-The request names the exact quantities the child will receive. Keynes does not revise the request. If the application wants different quantities after a denial, it sends another request.
+The SDK may export a `ResourceDefinitions` type for `satisfies` checks. It
+does not expose a standalone definition helper outside a Keynes authority.
 
-An approval is one atomic change. Keynes evaluates the parent's Policies, checks availability, reserves the Resources, creates the child, and records the result together. A failure changes no Budget state.
+A Resource binding may cross client instances connected to the same authority
+and tenant. The authority validates that scope before use. The binding is not a
+public database identifier or a persisted transport format.
 
-Each public call has a command identity. Retrying the same command returns the original result. Reusing that identity with different input is an error. Two separate `request(...)` calls remain separate requests even when their bodies match. Keynes never deduplicates legitimate work by request-body digest alone.
-
-Keynes may later add explicit subtree issuance and same-database multi-source funding without changing the parent-funded default. Cross-database composition is invalid. Each extension needs separate permission, conservation, settlement, replay, recovery, and deployment-comparison evidence before release.
+Defining a Resource creates no quantity. Live quantity exists only on Budgets.
+Keynes has no tenant Resource pool, inventory account, or unattached balance.
 
 ## Policies
 
-A Policy constrains how many Resources a Budget may grant. It can read the requested Resources, the parent Budget's available Resources, and one fixed context object supplied by the application. It returns ceilings and stable reasons for one or more Resources.
+A Policy is one immutable, tenant-scoped rule that constrains a Budget request.
+It declares the canonical Resource names that it reads or limits, an exact
+context schema, stable reasons, and one normalized query program.
 
-The TypeScript SDK uses Kysely as the normal way to author a Policy. The typed query knows the available Resources and expected context fields. Advanced users may write raw SQL within the same supported profile. Keynes parses and normalizes both forms into one frozen portable Policy definition with canonical SQL, a normalized program, and stable digests.
+`keynes.definePolicies({...})` atomically defines or exact-reuses several
+named Policies and returns typed `PolicyBinding` values. Policy definitions
+refer to Resources by canonical name. The authority rejects a missing Resource.
 
-Policy evaluation occurs inside the selected Budget authority's atomic command; Keynes never trusts an application-supplied decision. Every deployment implements one versioned Policy semantics contract. Deployments may use a shared executable evaluator or deployment-native backends, but all paths must agree on Resource limits, denials, bounded-decimal calculations, final integer ceilings, null behavior, ordering, aggregation, unsupported SQL, context validation, deterministic functions, revisions, digests, recorded context, and replay.
+One Policy name identifies one definition. Repeating a name with the same
+definition returns the existing binding. Repeating the name with different
+logic, context, reasons, or Resource declarations fails with
+`policy_definition_conflict`. The application gives changed logic a new
+name.
 
-A Policy cannot read application tables directly. The application reads its business data and passes a fixed context object with the request. For example, it might supply a ticket priority, customer tier, or workflow risk class. Keynes validates the declared fields and types and records the exact context used for the decision. Secrets do not belong in Policy context, and context does not pass to the child.
-
-An application using embedded PostgreSQL may read business facts and call Keynes inside the same caller-owned transaction. This gives the facts and the Budget request one transaction snapshot without giving the Policy access to application tables. Exact replay returns the recorded result and context before reading current facts, availability, or Policy state.
-
-When several Policies return ceilings for the same Resource, the lowest ceiling wins. A zero ceiling denies a positive request. No rows means no added constraint. An invalid or unsupported query, invalid context, a nondeterministic function, an execution limit, or an invalid result fails the request. Keynes does not turn a Policy error into an approval or a domain denial.
-
-A child does not inherit Policies from its parent. Omitting `policies` has the same canonical meaning as `policies: []`. A child without local Policies is still limited by the Resources it received and by Keynes's conservation, availability, accounting, and settlement rules.
-
-## Settlement
-
-An approved Budget is both permission to spend and an accounting scope. Keynes does not execute, track, or retry application work. The application can use a child Budget for local work, provider calls, more child Budgets, or any combination its workflow needs.
-
-The application owns execution, provider idempotency, and recovery from ambiguous provider responses. Command replay prevents duplicate Budget creation. It cannot make provider calls or other application effects idempotent.
-
-Every Budget settles its own direct usage:
+A Budget attaches an arbitrary list of Policy bindings. Policies do not inherit
+from the parent. Each attached Policy receives context under its own name:
 
 ```ts
-await childBudget.settle({
-  usdCents: 19,
-  searchQueries: 2,
+const result = await budget.request({
+  resources: { usdCents: 25 },
+  context: {
+    spendingLimit: { customerTier: "pro" },
+    riskLimit: { riskScore: 42 },
+  },
 });
 ```
 
-Settlement accepts usage only. Keynes derives the Budget's `settling` or `settled` state from usage completeness and descendant state. Business outcomes stay in application-owned evidence and never enter the settlement command.
+The authority requires context for every attached Policy and rejects context
+for an unattached Policy. Each Policy sees only its own context, the requested
+Resources, and the Budget's available quantity. A Policy cannot read Keynes
+tables, application tables, secrets, command history, other Budgets, database
+metadata, files, or the network.
 
-Keynes derives subtree usage from settled descendants. A Budget with unsettled descendants is `settling`. It seals direct usage, rejects new child requests, lets existing descendants finish, and keeps their Resources reserved. It becomes `settled` when every blocker resolves.
+The authority evaluates every attached Policy inside the request transaction.
+The lowest ceiling for each Resource wins. A Policy error aborts the request.
+Keynes never converts a Policy error into an approval or an ordinary denial.
 
-Missing usage stays unresolved. Known use above the accepted request becomes an isolated deficit on that child. Keynes never records missing usage as zero or charges an ancestor to conceal an overage.
+## Budgets
 
-Timers, callbacks, monitoring adapters, and reconciliation workflows deliver usage evidence to the application code that owns the Budget. A stable Budget identifier locates state; it does not grant permission to inspect or settle that state.
+A Budget is the only public stateful governance object. It has immutable
+Resource membership, immutable behavior controls, optional local Policies, one
+structural parent, and one lifecycle.
 
-## What the numbers mean
+Every Budget exposes `addResources`, `request`, `settle`, and
+`inspect`. The immutable `allows` value controls whether the first
+two operations may succeed:
 
-Applications name Resources in their own vocabulary and count them in non-negative safe-integer units. Each Resource type has one accounting behavior:
+- `addResources` permits new quantity to enter an active Budget.
+- `createChildren` permits an active Budget to request a child.
 
-- **Consumable** Resources consume recorded usage permanently and return any amount known to be unused.
-- **Reusable** Resources remain reserved while a descendant is active and return in full after the relevant subtree settles.
+Omitting `allows` enables both behaviors. A caller may choose either, both,
+or neither. A child chooses its own value. It does not inherit or receive a
+subset of its parent's behavior controls.
 
-The application, or a future adapter, enforces external limits and validates usage. The Resource declaration does neither. Settlement records known usage, missing evidence, and overage the same way for both accounting behaviors.
+Disabled operations reject asynchronously with
+`budget_operation_not_allowed` and change no state. These controls describe
+Budget behavior. They are not caller roles, grants, or an SDK IAM system.
+Database authorization remains below the public SDK.
 
-## One product across local and PostgreSQL deployments
+Every public SDK method that returns a Promise reports validation, lifecycle,
+and operation failures by rejecting that Promise. It does not throw those
+failures synchronously.
 
-Keynes exposes one Budget workflow through the TypeScript SDK. The local SQLite runtime and PostgreSQL implement that behavior separately. Shared black-box tests keep the customer-visible commands, results, errors, replay behavior, accounting rules, and evidence format aligned.
+## Creation and funding
 
-```text
-Shared Budget behavior
-|
-+-- Local runtime
-|   `-- In-memory SQLite
-|
-`-- PostgreSQL runtime
-    +-- Installed in the application's database
-    +-- Reached by the remote TypeScript SDK
-    `-- Keynes Cloud
+`createBudget` accepts either raw Resource definitions or a
+`ResourceBinding`:
+
+```ts
+const resources = await keynes.defineResources({
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
+});
+
+const policies = await keynes.definePolicies({
+  spendingLimit: spendingLimitDefinition,
+});
+
+const root = await keynes.createBudget({
+  resources,
+  initial: { usdCents: 1_000 },
+  policies: [policies.spendingLimit],
+});
 ```
 
-Each Budget is stored in one place. The SDK uses `defineResources(...)` as a pure typed authoring step, `createKeynes()` to open local SQLite, `createKeynes({ databaseUrl })` to connect to one PostgreSQL authority, and `createBudget(schema, allocation, options?)` to bind the allocated Resource definitions atomically.
+Binding-based creation creates the Budget from resolved Resource identities.
+Raw-definition creation atomically defines or reuses those Resources and
+creates the Budget. A conflict rolls back the complete command.
 
-### Local mode
+The Resource input establishes the root's complete membership. A missing
+initial amount means zero. Omitting `initial` creates an all-zero Budget.
+Zero is valid and can establish membership without creating a quantity
+movement. Initial allocation is part of creation and does not require
+`allows.addResources`.
 
-Local mode needs no account, credential, service, database installation, daemon, or network. The runtime uses Node's built-in `node:sqlite` with a private in-memory database. It loses every Resource, Budget, command result, permission, and history entry when the runtime closes or the process exits.
+`addResources` may introduce quantity into any active Budget whose
+`allows` value permits it. It changes quantity only for existing members.
+It cannot expand membership. Policies do not evaluate incoming quantity.
 
-Local mode is for evaluation, tests, local development, short-lived workflows, and applications that do not need a Budget after process exit. It does not provide persistence, multi-process coordination, database transactions, remote access, backup, or recovery.
+## Child Budgets
 
-### Embedded PostgreSQL
+A request proposes the exact Resources and quantities for one child. Its keys
+become the child's complete membership. A key with amount zero belongs to the
+child. A parent Resource omitted from the request does not.
 
-The `@keynes/postgresql` package installs the canonical migrations and procedures into an adopter-owned PostgreSQL 18.6 database. The adopter prepares the `NOLOGIN` owner role, application role, and bootstrap tenant and principal before installation. The installer accepts only a clean target or an exact target. It reports a stable diagnosis for an unsupported server, missing role, insufficient privilege, incompatible state, or unavailable database. It does not repair, upgrade, downgrade, or uninstall a target.
+The authority evaluates the parent's Policies, checks available quantity, and
+either records a denial or transfers the requested quantity to a new child.
+Approval removes quantity from the parent and gives it to the child in the same
+transaction. That initial child grant does not require the child to allow later
+additions. The authority never creates a visible reservation or partially
+created child.
 
-The application's existing database code owns the transaction and calls the supported `keynes.*` SQL functions directly. Keynes may provide thin generated bindings for command construction, validation, and result parsing, but those bindings do not begin, commit, roll back, acquire a connection, retry, or become the parent of the application's transaction. This is the only deployment where a Keynes decision and an application row can commit or roll back together.
+A child owns one fungible balance for each member Resource. Quantity transferred
+from its parent and quantity added later have the same meaning. Keynes does not
+track funding lots or ask the caller which source a use consumed.
 
-The installer restricts access to Keynes-owned schemas, tables, and functions. It does not control SQL privileges on unrelated application objects. The adopter owns those privileges and the database-wide resource controls.
+## Settlement
 
-Embedded PostgreSQL suits teams that already operate PostgreSQL, need atomic composition with an application outbox or business row, and accept responsibility for installation, permissions, upgrades, backups, recovery, and support coordination. The preview trusts the application role to assert the configured tenant and principal inside each transaction. That assertion is not end-user authentication. FEAT-0014 accepted source revision `b25a491de6831fc8f3b014ffdf15ab73b236029a` passed 159 PostgreSQL 18.6 scenarios, including Resource-bound root creation, through one packed archive. Providers, hostile roles, recovery, and production qualification remain `NOT RUN`.
+Every Budget reports its own direct usage. Missing usage remains unresolved.
+Overage remains visible as deficit evidence. Keynes does not infer zero, create
+negative quantity, or debit an ancestor to hide a deficit.
 
-### Self-hosted Keynes
+For a consumable Resource, Keynes consumes owned quantity up to the reported
+use and records any excess as deficit. For a reusable Resource, Keynes records
+use without consuming quantity. Reusable use above owned quantity also creates
+deficit evidence.
 
-The customer runs a Keynes PostgreSQL deployment and gives server-side applications a scoped `databaseUrl`. The TypeScript SDK owns its connection pool and calls versioned Keynes procedures. PostgreSQL derives the Keynes principal from the authenticated login role and enforces procedure permissions. The credential remains a PostgreSQL login and can submit SQL through another client. The Keynes role contract prevents that SQL from gaining unauthorized access to private Keynes state, privileged roles, administration, mapped identity, or another tenant's Keynes state. The customer controls data placement and owns database-wide SQL privileges, resource controls, deployment, credential administration, upgrades, backup, recovery, monitoring, and incident response.
+A Budget with incomplete direct usage or a non-settled child is
+`settling`. Subsequent `settle` calls may report an omitted Resource;
+an explicit zero reports that it had no use. The Budget cannot add Resources or
+create children, but existing active descendants continue under their own
+behavior controls. A Budget becomes `settled` only after its direct usage
+is complete and every child is `settled`. A settled Budget can never have
+an active or settling descendant.
 
-Self-hosting suits customers that need durable remote Budgets and operational control without installing Keynes into an application's existing database. Self-hosted packaging and operations are unproved. The private FEAT-0006 service remains historical evidence and is not the accepted remote data path.
+The final descendant settlement atomically finalizes every newly unblocked
+ancestor. The immediate result describes only the Budget targeted by that
+command. `inspect()` and chronological history show later ancestor
+finalizations.
 
-### Keynes Cloud
+Final settlement removes all live quantity from the Budget:
 
-Keynes operates a Keynes-specific PostgreSQL deployment and issues scoped database credentials to server-side applications. The same TypeScript SDK and versioned procedures serve self-hosted and managed deployments. Keynes takes responsibility for database-wide SQL privileges, resource controls, hosting, credential administration, upgrades, recovery, capacity, and support. A later control plane may provision credentials and deployments, but it does not carry Budget commands or own Budget state. A managed product that prohibits SQL submission must withhold PostgreSQL credentials and adopt a separate constrained data path through a later architecture decision.
+- A non-root Budget returns its complete remainder to its structural parent.
+- A root releases its complete remainder outside Keynes governance.
 
-Cloud suits teams that want durable remote Budgets without operating Keynes. The retired private FEAT-0006 service was not managed Cloud. Public access, production identity, recovery, managed operations, support, and production readiness remain unproved.
+`released` means unused quantity left Keynes governance without being
+consumed. It does not mean that Keynes refunded money, restored provider quota,
+or performed another external action.
 
-### Applications that use another database
+```text
+introduced = live + consumed + released
+```
 
-An application that stores its own data in MySQL, MongoDB, SQLite, or another database can use the TypeScript SDK with a separately provisioned Keynes PostgreSQL authority. Keynes still stores its durable Budget data in PostgreSQL. The application reads its business facts and sends the fixed Policy context with the request. Provisioned self-hosted and managed deployments remain later work, and another durable database implementation requires a later decision.
+For a completely settled tree, `live = 0`. Transfers inside the tree cancel
+from the equation. Reusable use and deficit are evidence, not quantity
+movements.
 
-## Open core
+## Loading, types, and history
 
-Keynes uses Apache-2.0 for the current repository packages. Budget correctness, contracts, PostgreSQL migrations and procedures, TypeScript SDK behavior, and basic self-hosting stay open.
+Durable Budgets have opaque `BudgetReference` values.
+`loadBudget(reference)` sends only that reference. PostgreSQL returns the
+authoritative membership, behavior controls, Policies, balances, lifecycle,
+and lineage. Loading never defines, duplicates, or overwrites state.
 
-Keynes may charge for hosting, upgrades, recovery, administration, enterprise controls, compliance work, and support. This principle does not define prices, billing units, plan names, or unimplemented enterprise promises.
+The development generator reads the supported tenant catalog and emits:
 
-## Who owns what
+- compile-time Resource names and definitions;
+- compile-time Policy context and reason types; and
+- immutable runtime Policy descriptors for attachment and narrowing.
 
-The application owns workflow validity, request construction, Policy context, external effects, provider retries, usage observation, outcomes, fallback behavior, and analysis of completed evidence.
+It does not emit individual Budget records, balances, behavior controls,
+references, principals, credentials, or replay data. Generated types help local
+development and can become stale after catalog changes. Runtime database
+validation remains authoritative.
 
-Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, direct and subtree accounting, unresolved usage, isolated deficits, canonical evidence, the TypeScript SDK contract, and the versioned PostgreSQL procedure contract.
+A loaded Budget exposes its attached Policies as generated descriptors.
+Applications narrow each descriptor by Policy name. Generated types constrain
+request context to known Policy names and their schemas; PostgreSQL checks that
+the supplied keys exactly match the Policies attached to that Budget.
 
-Keynes does not design studies, score results, calculate statistics, make recommendations, or make operating decisions for the application. An application-owned harness may consume Keynes evidence, but that harness is outside the Keynes runtime and product contract.
+`inspect()` returns one coherent snapshot and one chronological lineage
+history. Every Policy evaluation is a discriminated record keyed by immutable
+Policy name and definition digest. History may contain different Policies on
+ancestors and descendants without claiming that they share one context or
+reason type.
+
+## Replay and external work
+
+Each mutation has one command identity. Exact retry returns the stored result.
+Reusing the identity with different canonical input returns
+`command_conflict`. The SDK generates operation keys for ordinary remote
+calls. A caller supplies one only when it must recover an operation after a
+crash or ambiguous response.
+
+Replay covers Keynes state only. The application owns provider idempotency,
+workflow recovery, and every external effect.
+
+## Deployment choices
+
+Keynes exposes one Budget contract through three execution paths:
+
+```text
+TypeScript application
+|
++-- createKeynes()
+|   `-- private in-memory SQLite authority
+|
++-- createKeynes({ databaseUrl })
+|   `-- verified PostgreSQL connection
+|
+`-- application-owned PostgreSQL client
+    `-- Keynes procedures in the caller's transaction
+```
+
+Local mode is ephemeral and process-owned. PostgreSQL is the only durable
+database implementation. The remote SDK connects directly to PostgreSQL. It
+does not use an HTTP Budget service or fall back to local state.
+
+Keynes TypeScript packages support Node.js 24 and later. The package engine
+range does not exclude an intermediate or end-of-life major. Production
+deployments should use a release that the Node.js project still supports.
+Keynes compatibility does not provide Node.js security maintenance.
+
+Every PostgreSQL installation selects one access profile:
+
+- `embedded` grants an application role the canonical procedures used
+  inside caller-owned transactions.
+- `remote` grants login roles only the constrained remote procedures and
+  derives Keynes identity from the authenticated PostgreSQL role.
+
+This installation choice is not a public IAM product. Self-hosted Keynes and
+Keynes Cloud remain deployment directions that need their own packaging,
+security, recovery, and operational evidence.
+
+## Product ownership
+
+Keynes owns Resource and Policy identity, Budget identity and lineage, quantity
+ownership, request evaluation, atomic transfers, replay, lifecycle,
+settlement, deficit evidence, chronological history, the TypeScript SDK
+contract, and the PostgreSQL procedure contract.
+
+The application owns workflow validity, Policy context facts, external work,
+provider retries, usage observation, business outcomes, application
+transactions, refunds, quota restoration, and any action associated with
+released quantity.
 
 ## Product commitments
 
-- Budget is the only public stateful governance object.
-- Applications define immutable Resource types separately from quantity. Defining a type creates no permission to spend.
-- An authorized root allocation creates quantity for selected Resource types. Ordinary requests cannot create quantity.
-- A request proposes exact Resource quantities and atomically creates one child Budget or returns a denial. By default, the structural parent funds the request.
-- Policies are optional Resource constraints expressed in one restricted PostgreSQL-style query format.
-- Kysely is the normal Policy authoring path. Raw SQL is an advanced path within the same supported profile.
-- Policy inputs are the request, the parent Budget's available Resources, and one fixed, typed, application-supplied context object.
-- Policies never read application tables. Keynes records the exact context used and does not query application data during replay.
-- Keynes evaluates Policy inside the selected Budget authority's atomic command and never trusts an application-computed decision.
-- Child Policies are optional, local to the child, and never inherited from the parent.
-- Keynes never changes a request or executes, tracks, or retries application work.
-- Every Budget settles direct usage. Keynes derives subtree accounting.
-- Missing usage and overage stay visible.
-- Each Budget has one storage location and one committed history.
-- The local SQLite runtime and PostgreSQL implement the same Budget and Policy semantics through one versioned contract and shared black-box tests; their execution backends may differ.
-- PostgreSQL is the only durable database implementation.
-- Embedded PostgreSQL, self-hosted Keynes, and Keynes Cloud are supported product directions with separate operational and evidence requirements.
-- TypeScript is the only supported SDK.
-- The SDK uses `defineResources(...)`, `createKeynes()` for local SQLite, `createKeynes({ databaseUrl })` for one PostgreSQL authority, and the same Resource-bound `createBudget(...)` semantics in both modes.
-- Only remote handles gain durable Budget references and reopen. Reopen validates the caller's expected Resource binding. Local handles remain process-scoped and cannot reopen a Budget.
-- `inspect()` keeps its public result shape in both modes. The remote implementation fetches bounded history pages internally.
-- Supporting another durable database requires a later constitution and product decision.
-- Keynes will qualify subtree issuance before same-database multi-source funding. Both use explicit contracts and preserve the parent-funded default.
-- Product direction can promote optional capabilities without making external adoption evidence a delivery gate.
+- Resource and Policy definitions are independent, immutable authority state.
+- Live quantity belongs to exactly one non-settled Budget.
+- Any active Budget may receive quantity when `allows.addResources` permits
+  it.
+- Resource membership and `allows` never change after Budget creation.
+- A child receives exactly the Resource keys in its approved request.
+- Policies constrain child requests, not incoming quantity.
+- A Budget never becomes settled while any descendant remains non-settled.
+- Settlement leaves every settled Budget with zero live quantity.
+- PostgreSQL owns all durable Budget, replay, and history state.
+- SQLite and PostgreSQL implement one command and accounting contract.
+- Keynes TypeScript packages use one Node.js `>=24` compatibility floor.
+- The SDK contains no fallback authority and no public IAM system.
+- The active PostgreSQL implementation starts from one clean baseline. Existing
+  development databases are recreated. Git history and retained evidence remain
+  unchanged.
+- Current source, historical evidence, and accepted target behavior remain
+  separate until exact-revision qualification proves implementation.

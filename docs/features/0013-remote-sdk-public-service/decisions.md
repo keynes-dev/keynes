@@ -1,6 +1,6 @@
 # FEAT-0013 decision disposition
 
-**Status**: Accepted planning record
+**Status**: Retained historical planning record; current scope comes from the deployment-mode roadmap
 **Date**: 2026-09-02
 **Normative owners**: [product](../../product.md), [architecture](../../architecture.md), [ADR-0007](../../adr/0007-direct-postgresql-remote-access.md), [specification](spec.md), and the design contracts in this directory
 

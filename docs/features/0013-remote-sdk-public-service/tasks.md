@@ -1,5 +1,10 @@
 # Tasks: Remote PostgreSQL SDK
 
+> **Status:** Superseded by the current deployment-mode roadmap. Completed
+> tasks and retained evidence remain historical. Unchecked tasks are not active
+> delivery work, and the off-main FEAT-0015 identity must be reconciled before
+> related work is allocated.
+
 **Input**: Design documents from `docs/features/0013-remote-sdk-public-service/`
 **Prerequisites**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, and `contracts/`
 

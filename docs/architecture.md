@@ -1,415 +1,505 @@
 # Keynes runtime architecture
 
-> **Status:** The generated TypeScript client, Resource-bound local and remote handles, private in-memory SQLite runtime, portable Policy authoring and evaluator, direct PostgreSQL SDK, PostgreSQL procedures, exact local archives, and PostgreSQL 18.6 direct and pooled system tests exist. Remote references, reopen, operation recovery, scoped role identity, credential lifecycle, and safe errors have local evidence. The packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved.
+> **Status:** Accepted target architecture as of September 3, 2026. Current
+> `main` at `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not
+> implement this architecture. The
+> [current-system assessment](current-system-assessment.md) records the
+> current source and exact-revision evidence. The roadmap must allocate this
+> target before implementation begins.
 
 ## Purpose
 
-Keynes governs Resource limits through Budgets. An application defines immutable Resource types, allocates selected Resources to a root Budget, requests exact Resource quantities for a child, does the external work, and settles known usage.
+Keynes gives an application one accounting and governance contract for
+Resources, Policies, and Budgets. The contract is implemented by a private
+in-memory SQLite authority for local work and by PostgreSQL for every durable
+deployment.
 
 ```text
-Budget -> request -> child Budget -> settle -> evidence
+application
+  |
+  +-- createKeynes() -----------------> private in-memory SQLite
+  |
+  +-- createKeynes({ databaseUrl }) --> constrained PostgreSQL procedures
+  |
+  `-- embedded database code --------> canonical PostgreSQL procedures
 ```
 
-The product has one set of Budget rules and two implementations:
+The TypeScript SDK adapts calls and types. It does not own durable state, infer
+server state from caller types, or maintain a second replay ledger.
 
-```text
-Shared Budget behavior
-|
-+-- Local runtime
-|   `-- In-memory SQLite
-|
-`-- PostgreSQL runtime
-    +-- Installed in the application's database
-    +-- Reached by the remote TypeScript SDK
-    `-- Keynes Cloud
-```
+## Architectural invariants
 
-Each Budget is stored in one place. Local SQLite and direct PostgreSQL are the two SDK paths. Invalid remote configuration cannot fall back to local state or another database.
+1. PostgreSQL is the only durable authority for definitions, Budgets,
+   accounting, replay, and history.
+2. SQLite and PostgreSQL implement one command and accounting contract.
+3. Resource and Policy definitions contain no quantity and exist independently
+   of Budgets.
+4. Every live quantity unit belongs to exactly one non-settled Budget.
+5. The append-only quantity movement journal is the only quantity authority.
+6. Budget Resource membership and behavior controls never change.
+7. A command commits one complete result and its evidence or changes no state.
+8. Policies evaluate only Budget requests and only against declared inputs.
+9. A settled Budget has zero live quantity and no non-settled descendant.
+10. Application work and external provider effects remain outside Keynes.
 
-## Design principles
+## Public contract
 
-1. One in-memory SQLite runtime owns each local Budget. One PostgreSQL database owns each durable Budget.
-2. Every command publishes one complete state change and result or changes no state.
-3. The local SQLite runtime and PostgreSQL expose the same commands, results, errors, replay behavior, accounting rules, and evidence format.
-4. Application code owns external work, retries, observation, outcomes, fallback behavior, and the business facts supplied to Policies.
-5. Policies are restricted queries over Keynes-provided inputs. They cannot read application tables.
-6. PostgreSQL is the only durable database implementation.
-7. Embedded, self-hosted, and managed Cloud deployments share PostgreSQL procedures but have different transaction, security, recovery, packaging, and operational requirements.
-8. A pass in one implementation or deployment is evidence only for what that test exercised.
-9. TypeScript is the only supported SDK.
-10. Another durable database requires a later constitution and architecture decision.
-
-## Runtime topology
-
-The repository has three supported invocation paths:
-
-```text
-Local TypeScript application -> @keynes/sdk -> SqliteCommandExecutor
-Embedded database code      -> keynes.* PostgreSQL procedures
-Server-side TypeScript app  -> @keynes/sdk -> PostgreSQL procedures
-```
-
-The remote Budget command data path is:
-
-```text
-Server-side TypeScript application -> @keynes/sdk -> PostgreSQL TLS connection
-                                                `-> versioned keynes.* procedures
-```
-
-The SDK owns the remote connection pool. PostgreSQL owns authentication, principal derivation, permissions, transactions, replay, and durable state.
-
-The local SDK boundary is deliberately small:
+The ordinary path starts from one client and does not require a registration
+ceremony:
 
 ```ts
-interface CommandExecutor {
-  execute(operation: OperationName, input: unknown): Promise<unknown>;
-}
-```
+const keynes = await createKeynes();
 
-`OperationName` covers the generated operations `defineResource`, `createBudget`, `requestBudget`, `settleBudget`, and `getBudget`. Generated validators continue to check command inputs and results. The generated `KeynesClient` depends on `CommandExecutor`, not on PostgreSQL procedure names.
-
-- `SqliteCommandExecutor` executes commands against process-owned state.
-- Embedded applications call the supported `keynes.*` procedures through caller-owned database code.
-- The remote SDK connects directly to PostgreSQL and invokes only its generated supported versioned procedures.
-
-This is a command boundary, not a general storage adapter. It does not expose queries, transactions, tables, persistence, migrations, or an extension point for arbitrary databases.
-
-## Local implementation
-
-`createKeynes()` is the public local entry point. `defineResources(...)` creates a frozen type carrier, and `createBudget(schema, allocation, options?)` atomically reconciles the allocated definitions and creates one root with an immutable Resource binding. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
-
-### Private state
-
-The runtime stores Resources, Budgets, command results, permissions, and history in a private SQLite schema. The SDK owns schema initialization, never returns the connection, and exposes neither tables nor arbitrary SQL. `:memory:` is an implementation detail, not a persistence option or general database adapter.
-
-### Atomic commands
-
-The executor applies each command in one SQLite transaction. Validation, Policy evaluation, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
-
-### Replay and conflicts
-
-The first use of a command identity stores its operation, canonical input digest, and complete result. Exact reuse returns the stored result and marks it as replayed. Reuse with another operation or different input returns the established conflict error and changes no state.
-
-Two independent SDK method calls remain two commands even when their input bodies match. Local SDK retries reuse the internal command identity for that invocation. Application code does not provide process-local idempotency keys.
-
-### Lifecycle and isolation
-
-All public methods remain asynchronous. Once `close()` begins, new Keynes and Budget work fails with `runtime_closed`. Work admitted before close drains in call order. Repeated close calls return the same promise. When draining finishes, the runtime closes its SQLite connection and becomes closed.
-
-Separate local runtimes share no state. Process exit discards every Resource, Budget, command result, permission, and history entry.
-
-Local mode provides:
-
-- no persistence or file-backed option;
-- no database or storage handle;
-- no migration step or copied migration assets;
-- no network listener or connection string;
-- no general storage interface;
-- no multi-process coordination; and
-- no recovery after process exit.
-
-### Local evidence
-
-The local source and package lanes cover lifecycle, denial, settlement, replay, history, rollback, isolation, malformed input, and close behavior. They also cover these properties:
-
-- a failed command changes no state;
-- concurrent sibling requests cannot overspend a parent Budget;
-- exact command replay returns the original result;
-- conflicting command reuse changes no state;
-- returned values cannot mutate SQLite state; and
-- close rejects new work while draining admitted work.
-
-The SDK contains no PGlite dependency, local migration asset, PostgreSQL implementation, or database handle. Local Policy source tests pass against the private SQLite backend. The final archive passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. Browser support, security qualification, and production support remain `NOT RUN`.
-
-## PostgreSQL implementation
-
-The six-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes root creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. Migration `0006-remote-access` adds role-derived identity, private credential administration, recovery records, and eight versioned remote wrappers without creating another Budget authority. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
-
-The five canonical embedded procedures are:
-
-| SDK operation    | PostgreSQL procedure                 | Purpose                                                 |
-| ---------------- | ------------------------------------ | ------------------------------------------------------- |
-| `defineResource` | `keynes.define_resource_type(jsonb)` | Define one immutable Resource type                      |
-| `createBudget`   | `keynes.create_budget(jsonb)`        | Reconcile definitions and allocate one root atomically  |
-| `requestBudget`  | `keynes.request(jsonb)`              | Deny or atomically reserve Resources and create a child |
-| `settleBudget`   | `keynes.settle(jsonb)`               | Record direct usage and derive settlement state         |
-| `getBudget`      | `keynes.get_budget(jsonb)`           | Return the authorized Budget projection and history     |
-
-`keynes_internal` owns private tables, unversioned implementation functions, command records, permissions, history, credential mappings, administration, and migration metadata. Application roles never write those tables directly. Embedded callers use the five canonical procedures. Remote credentials can execute only the eight versioned wrappers for compatibility, create, request, settle, inspect, recovery, and bounded history paging.
-
-### Embedded PostgreSQL
-
-An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical six-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
-
-An embedded application calls supported `keynes.*` functions from its existing database code. The application owns the connection, transaction, roles, upgrades, backup, recovery, and incident response.
-
-The defining advantage is transaction composition. Caller-owned database code can read application facts, call Keynes, write an application row or outbox record, and commit them together. A rollback removes both changes. Keynes does not acquire a connection, begin or end the transaction, retry it, or introduce a parent transaction API.
-
-Keynes does not query or join application tables itself. The application performs those reads and passes the facts required by the command. This keeps Policy inputs explicit and recorded while still allowing one PostgreSQL transaction snapshot.
-
-At FEAT-0013 revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`, the packed PostgreSQL archive passed all 203 PostgreSQL 18.6 tests across 39 suites, including Resource-bound creation, exact definition reuse, conflicting-definition rollback, Policy validation, replay, permissions, caller-owned transaction composition, remote identity, recovery, and credential lifecycle. That revision-scoped result proves:
-
-- one clean database can install the exact migrations;
-- an application role can call only supported Keynes functions;
-- caller-owned database code can invoke the supported SQL boundary inside its existing transaction;
-- a Budget request and application outbox row commit or roll back together;
-- application code cannot use a pending Budget before commit;
-- replay after commit returns the original result without creating another Budget; and
-- an incompatible or modified installation fails before use.
-
-That evidence does not establish broad provider support, recovery support, extension packaging, or production readiness.
-
-The application role sets `keynes.tenant_id` and `keynes.principal_id` with transaction-local settings. The one-role and one-principal preview trusts those values from application code. They identify the installed principal. They are not end-user authentication, and hostile-role security qualification remains `NOT RUN`.
-
-### Self-hosted Keynes
-
-The customer runs a Keynes PostgreSQL deployment and issues scoped login credentials to server-side applications. The TypeScript SDK validates one `databaseUrl`, owns its connection pool, and invokes only supported versioned procedures. PostgreSQL derives the Keynes principal from the authenticated login role and enforces both wrapper and core procedure permissions.
-
-The customer owns deployment, credential administration, database upgrades, backups, recovery, monitoring, network security, incident response, and capacity. Keynes must provide supported packaging and operational contracts before this is a product claim.
-
-### Keynes Cloud
-
-Keynes operates the same PostgreSQL procedure contract and issues scoped credentials to server-side applications. Keynes owns hosting, credential administration, upgrades, backups, recovery, capacity, incident response, and support. A later control plane may provision deployments and credentials, but it does not carry Budget commands or own replay state.
-
-Managed Cloud is an operating model, not another Budget implementation. It needs separate evidence for credential issuance, TLS, tenant isolation, backup restoration, recovery, failover, upgrades, monitoring, incident operations, performance, and support.
-
-### Historical service evidence
-
-FEAT-0006 proves only the retired private loopback service against native PostgreSQL for its exact retained revision and artifact. It covers that revision's private RPC contract, two-tenant isolation, limited roles, restart, response-loss replay, conflict handling, and explicit database unavailability in that test environment.
-
-It does not prove the direct PostgreSQL SDK, database-role identity, TLS, self-hosted packaging, managed-provider deployment, backup restoration, recovery, failover, multi-region behavior, production security, performance, support, or production readiness. FEAT-0013 maps every retained assertion to replacement coverage or an obsolete HTTP-only disposition and removes the service from active product, generation, and qualification paths.
-
-## Public domain model
-
-### Resource type
-
-A Resource type is an immutable definition for a countable quantity, such as `usd_cents`, `search_queries`, or `review_seats`. PostgreSQL assigns its opaque stable identifier; the caller supplies a canonical name, unit, and accounting behavior:
-
-- `consumable`: recorded usage consumes quantity permanently and known unused quantity returns after settlement;
-- `reusable`: quantity stays reserved while the relevant descendant subtree is active and returns in full when it settles.
-
-`definition_command_id` records the command provenance separately from Resource identity. Defining a Resource type creates no quantity. Repeating the same name and definition is idempotent and returns the authority-issued identity. Reusing the name with a different definition is a conflict. Resource-bound root creation applies that same reconciliation and its allocation in one transaction.
-
-### Budget
-
-Budget is the only public stateful governance object. Its logical state contains:
-
-- stable identity and parent lineage;
-- lifecycle state;
-- initial, available, reserved, used, unresolved, and deficit amounts by Resource;
-- local Policy set and revision when Policies exist;
-- accounting revision;
-- command replay records; and
-- ordered history.
-
-An authorized root allocation is the only current path that introduces Resource quantity. Every non-root Budget comes from one approved request against its structural parent. A root or child holds only the Resource types allocated to it.
-
-### Request
-
-A request proposes exact Resource quantities, fixed Policy context when required, and the complete local Policy set for the new child when supported. The selected implementation:
-
-1. validates the command, target Budget, Resources, amounts, context, and child Policy candidates;
-2. resolves exact replay or conflicting command reuse;
-3. observes one immutable parent state;
-4. evaluates every active Policy against the same request, availability, and context values;
-5. merges ceilings and stable denial reasons;
-6. compares the request with Policy ceilings and available holdings; and
-7. records a denial without changing holdings, or reserves the exact amounts and creates one child.
-
-No intermediate reservation or child is visible. A denial is a valid recorded result. A Policy or execution failure is an error and changes no state.
-
-### Settlement
-
-Every Budget records its direct known usage. Keynes derives subtree totals and lifecycle state from that direct usage and settled descendants.
-
-A Budget with unresolved direct usage or unsettled descendants is `settling`. It accepts no new child requests but lets admitted descendants finish. It becomes `settled` only when every blocker resolves. Missing usage remains unresolved. Known use above the requested amount becomes an isolated child deficit. Keynes does not silently record zero or debit an ancestor to hide the overage.
-
-### History and replay
-
-History entries are immutable outputs of completed commands. They support inspection, diagnostics, audit, and future delivery integrations, but they do not drive the transition that produced them.
-
-The canonical command record contains an operation, identity, input digest, result, error or domain status, replay information, and evidence fields required by the public contract. Operational timestamps, traces, process data, database row identifiers, and query plans may differ by deployment and do not change canonical replay.
-
-## Policy model
-
-### Public format
-
-A Policy is an immutable normalized query program plus:
-
-- declared Resource inputs and outputs;
-- an exact context schema;
-- stable result reasons;
-- a Policy revision and source digest; and
-- the supported query-profile and validator versions.
-
-The supported SQL query profile is the public authoring contract. Kysely compiles typed queries into that profile, and advanced users may provide SQL directly. The normalized Policy program is the portable runtime format. The profile defines allowed reads, expressions, joins between Keynes-provided inputs, filters, `CASE`, ordering, grouping, and aggregation; bounded-decimal, final-integer, and null behavior; deterministic functions; result columns; output limits; and failure behavior.
-
-Kysely's operation tree and the parser's syntax tree are implementation details. They may change without changing a Policy when the public query profile, normalized program, evaluation result, revision, and digest stay compatible.
-
-### Inputs
-
-Every Policy sees only:
-
-| Input               | Contents                                                                            |
-| ------------------- | ----------------------------------------------------------------------------------- |
-| Requested Resources | Resource identity or declared name and requested amount for the current command     |
-| Parent availability | Available amount for the parent Budget's relevant Resources at the command snapshot |
-| Context             | The fixed fields and scalar values supplied by the application for this request     |
-
-Policies cannot read Keynes private tables, application tables, secrets, command history, other Budgets, other tenants, database metadata, files, or network resources.
-
-The application declares and supplies business facts. Keynes validates the exact context fields and types and records the canonical context with the decision. Context is not inherited by the child. Replay uses the recorded command result and context without reading application data again.
-
-### Authoring and evaluation
-
-The TypeScript SDK constructs Policies with a pinned Kysely dependency. It gives Kysely typed logical tables for the available Resources, expected context fields, and required result shape. Kysely compiles one PostgreSQL query and its bound values.
-
-Advanced users may submit raw SQL within the same profile. Kysely-compiled SQL and raw SQL pass through the same pinned PostgreSQL parser, validator, normalizer, revision, and digest rules. Type checking helps authors but does not replace runtime validation.
-
-Policy evaluation occurs inside the selected Budget authority's atomic command, and Keynes never accepts an application-computed decision. One machine-readable semantic registry defines the normalized program's nodes, typing, null and numeric rules, work costs, canonical forms, backend declarations, and conformance vectors.
-
-The v1 `SqliteCommandExecutor` backend interprets the normalized program in TypeScript against immutable command inputs. The v1 PostgreSQL backend validates the program against generated profile metadata and executes generated SQL against Keynes-provided relations or values under a restricted role and fixed environment. It does not grant the Policy general database access. These are deployment-native execution backends for one semantics contract, not independent Policy languages. A shared executable core remains a valid future option if it preserves caller-owned PostgreSQL transactions and justifies its extension, provider, ABI, security, and operational costs.
-
-If several Policies constrain the same Resource, the lowest ceiling wins. Zero denies a positive amount. No result row adds no constraint. Stable reasons are ordered canonically. Invalid definitions, unsupported nodes, nondeterminism, invalid context, resource limits, or invalid results fail the command.
-
-### Policy evidence
-
-FEAT-0012 implements the Kysely authoring adapter, PostgreSQL parser adapter, program normalizer, authoritative semantic registry, generated backend declarations, local backend, and PostgreSQL backend together. Generation rejects a node without both backend declarations. The comparison suite covers:
-
-- Resource limits and denial reasons;
-- bounded-decimal, final-integer, and null behavior;
-- ordering and aggregation;
-- unsupported SQL;
-- context validation;
-- deterministic function restrictions;
-- Policy revisions and digests;
-- recorded context and replay behavior; and
-- equivalence between Kysely output and raw SQL in the supported profile; and
-- node-level vectors and property-generated programs evaluated through both backends.
-
-## SDK experience
-
-The public local API is schema-first and functional:
-
-```ts
-import { createKeynes, defineResources } from "@keynes/sdk";
-
-const resources = defineResources({
+const resources = await keynes.defineResources({
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
-  searchQueries: { unit: "query", accountingBehavior: "consumable" },
+  reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
 });
 
-await using keynes = await createKeynes();
-
-const root = await keynes.createBudget(resources, {
-  usdCents: 1000,
-  searchQueries: 100,
+const policies = await keynes.definePolicies({
+  spendingLimit: spendingLimitDefinition,
 });
 
-const result = await root.request({
-  usdCents: 25,
-  searchQueries: 2,
+const root = await keynes.createBudget({
+  resources,
+  initial: { usdCents: 1_000 },
+  policies: [policies.spendingLimit],
 });
+```
 
-if (result.status === "approved") {
-  await runWorkflow(result.budget);
-  await result.budget.settle({ usdCents: 19, searchQueries: 2 });
+`createBudget` also accepts the same plain Resource definition object
+directly. That overload reconciles the definitions and creates the root in one
+authority transaction. The binding overload uses already resolved definitions
+and performs no definition write.
+
+Every Budget has a stable method surface:
+
+- `addResources` introduces quantity for existing members.
+- `request` asks the Budget to create and fund one child.
+- `settle` reports direct usage and begins or completes settlement.
+- `inspect` returns current state and chronological lineage history.
+
+Durable clients also expose `loadBudget(reference)` and operation recovery.
+Loading takes only the opaque reference. Caller-supplied schemas, expected
+memberships, and expected Policies never participate in loading.
+
+Every public operation shown here is asynchronous. The SDK copies caller
+input, crosses the runtime admission boundary, and then validates it, so input
+and operation failures reject rather than throw synchronously. After local
+close begins, a new call rejects with `runtime_closed` before malformed input
+can take precedence.
+
+## Definition authority
+
+### Resources
+
+`defineResources` accepts one non-empty plain object. The authority
+canonicalizes and validates the complete batch, then defines or exact-reuses
+each tenant-scoped name atomically.
+
+A Resource definition contains:
+
+- canonical name;
+- unit;
+- accounting behavior, `consumable` or `reusable`; and
+- canonical definition digest.
+
+The same name and definition returns the existing identity. The same name with
+a different definition returns `resource_type_conflict` and rolls back
+the batch.
+
+The result is one immutable, quantity-free `ResourceBinding`. A binding can
+cross client instances connected to the same authority and tenant. It cannot
+be serialized as a public identifier or used against another authority or
+tenant. The receiving client proves its scope before creation.
+
+The SDK exports the structural definition type for callers that want a
+`satisfies` check. There is no standalone definition helper outside
+`keynes.defineResources`.
+
+### Policies
+
+`definePolicies` follows the same atomic batch rule. Each immutable
+tenant-scoped Policy contains:
+
+- canonical name and definition digest;
+- canonical Resource names it reads or constrains;
+- exact context schema;
+- stable denial reasons; and
+- one validated normalized query program.
+
+The authority resolves every Resource name when the Policy is defined. A
+missing Resource rejects the batch. Exact reuse returns the existing Policy.
+A changed definition under the same name returns
+`policy_definition_conflict`; changed logic receives a new name.
+
+The result contains immutable typed `PolicyBinding` values. Budget creation
+and child requests attach bindings, not caller-written Policy identifiers.
+Generated Policy descriptors are authority-derived equivalents of those
+bindings. Both forms obey the same authority and tenant scope as Resource
+bindings.
+
+## Budget state
+
+A Budget owns:
+
+- opaque identity and, for PostgreSQL, an opaque public reference;
+- one tenant and one structural parent or root position;
+- immutable Resource membership;
+- immutable `allows.addResources` and `allows.createChildren` booleans;
+- an immutable list of locally attached Policies;
+- lifecycle `active`, `settling`, or `settled`; and
+- direct usage, deficit, and chronological evidence.
+
+Omitted `allows` normalizes to both booleans true before replay hashing.
+Children select their own controls; controls do not inherit or narrow from the
+parent. Methods remain present even when disabled. A disabled mutation rejects
+asynchronously with `budget_operation_not_allowed` and commits no state.
+
+Root membership is every Resource key supplied through the definition object
+or binding. An omitted initial amount is zero. Child membership is exactly the
+Resource keys in the approved request. An explicit zero includes the Resource;
+an omitted key excludes it.
+
+Membership never expands. `addResources` can add quantity only to an active
+Budget, only for existing members, and only when its behavior control permits
+the operation. This rule is identical for roots and descendants.
+
+Initial root allocation belongs to creation and does not consult the new
+Budget's `allows.addResources` value. A child grant belongs to the parent's
+approved request and likewise does not consult the child's value. The control
+governs only later `addResources` calls.
+
+## Policy evaluation
+
+Policies are local to the Budget that attaches them. They do not inherit to a
+child. A request supplies context under each attached Policy name:
+
+```ts
+context: {
+  spendingLimit: { customerTier: "pro" },
+  riskLimit: { riskScore: 42 },
 }
 ```
 
-`Keynes` and `Budget` are exported readonly interface types, not public classes. Frozen closure-backed objects implement them. The method syntax keeps hidden runtime and Budget identity out of every call, while arrow-function methods avoid `this` binding. `Keynes` supports both `AsyncDisposable` and explicit idempotent `close()`.
+The authority requires exactly the attached Policy contexts. An omitted
+attached context or an extra unattached context rejects the request. Each
+Policy receives only:
 
-`createKeynes()` selects local SQLite and accepts no configuration. `createKeynes({ databaseUrl })` selects direct PostgreSQL while retaining Resource-bound root creation. Embedded PostgreSQL remains outside the factory because application database code owns its existing transaction.
+- its own validated context;
+- requested Resource names and quantities; and
+- the parent's available quantity for those Resources.
 
-Only the remote SDK exposes a durable `BudgetReference` and reopen operation. Reopen requires the caller's expected Resource types and names, then PostgreSQL checks that binding before returning a handle. Local handles remain process-scoped. `inspect()` keeps its current result shape in both modes; the remote executor assembles bounded history pages internally. Read-only operation recovery and history-page procedures leave replay and history ownership in PostgreSQL.
+A Policy cannot access Keynes tables, application tables, other Budgets,
+secrets, command history, database metadata, files, or the network.
 
-## Generated contracts and compatibility
+Request evaluation occurs after the parent and relevant Resource memberships
+are locked and before any child or movement is inserted. All attached Policies
+observe the same snapshot. The lowest ceiling for a Resource wins. A denial is
+a committed domain result with evidence but no child or quantity movement. A
+Policy error aborts the command and never becomes an approval or denial.
 
-The contract sources define operation names, command and result schemas, error families, history entries, canonical JSON, and digest rules. Generation produces TypeScript types and validators plus PostgreSQL-facing procedure metadata. A client or installation must reject an incompatible contract digest before use.
+`addResources` does not evaluate Policies. Its authority comes only from the
+Budget's immutable behavior control and database authorization below the SDK.
 
-The local implementation uses private SQLite tables while PostgreSQL uses its own relations, constraints, and functions. Those internal representations do not need to match. Public command meaning and canonical evidence must match.
+## Quantity accounting
 
-PostgreSQL uses one ordered migration graph for durable deployments. Installation records the schema and contract digest. Additive changes may preserve one procedure namespace when old callers retain their exact meaning. A breaking input, result, error, or transaction contract needs an explicit compatibility decision. Migrations never rewrite immutable command bodies or history meaning.
+### Movement journal
 
-Local mode has no public migration graph. The SDK initializes its private SQLite schema internally. Removing copied PostgreSQL migrations from the SDK package must not remove the canonical PostgreSQL migrations or the artifacts needed to install and verify durable deployments.
+The movement journal records every quantity change:
 
-## Testing model
+| Reason             | Source        | Destination       | Meaning                                 |
+| ------------------ | ------------- | ----------------- | --------------------------------------- |
+| initial allocation | outside       | root Budget       | Introduces initial quantity             |
+| external addition  | outside       | any active Budget | Introduces later quantity               |
+| child grant        | parent Budget | new child Budget  | Transfers ownership                     |
+| consumption        | Budget        | consumed          | Removes consumable quantity             |
+| settlement return  | child Budget  | structural parent | Returns the full remainder              |
+| root release       | root Budget   | outside           | Ends Keynes governance of the remainder |
 
-### Shared Budget behavior
+“Outside” and “consumed” are journal meanings, not Resource pools or stored
+accounts. Consumption and release both have no destination Budget, but their
+reasons remain distinct.
 
-Run the same Budget examples directly against `SqliteCommandExecutor` and native PostgreSQL. Compare:
+For Budget `B` and Resource `R`:
 
-- approved and denied results;
-- structured errors and details;
-- replay flags and original results;
-- conflicting command reuse;
-- Resource definitions and holdings;
-- Budget lifecycle and settlement;
-- ordered history; and
-- final Budget state.
+```text
+live(B, R) = inbound(B, R) - outbound(B, R)
+live(B, R) >= 0
+```
 
-The shared suite includes lifecycle, availability, denial, consumable depletion, reusable release, nested settlement, unresolved usage, isolated deficits, rollback, isolation, malformed input, exact replay, and sibling requests that contend for one parent.
+Across a tenant:
 
-### Deployment-specific tests
+```text
+introduced = live + consumed + released
+```
 
-- **Local**: lifecycle, memory release, serialized call order, return-value isolation, process isolation, close and drain, package contents, supported Node.js and operating systems, package size, install size, ready memory, startup, request latency, and shutdown.
-- **PostgreSQL**: independent-client contention, row locks, transactions, caller-owned transaction composition, roles and procedure permissions, installation compatibility, migrations, drift detection, and rollback boundaries.
-- **Remote PostgreSQL SDK**: URL normalization, TLS verification, database-role identity, procedure permissions, direct and supported pooler connections, response-loss replay, recovery, operational limits, and tenant isolation.
-- **Self-hosted**: packaging, configuration, upgrades, backup and restoration, monitoring, recovery runbooks, and customer-operated failure handling.
-- **Managed Cloud**: provider deployment, high availability, recovery, failover, capacity, incident response, vulnerability response, compliance controls, support, and production operations.
+Internal transfers cancel from the tenant equation. A zero-valued member has a
+membership record but creates no movement. A fully settled tree has
+`live = 0`.
 
-A pass in one category does not prove another. PGlite evidence from FEAT-0003 through FEAT-0005 does not prove the current SQLite runtime. FEAT-0006 evidence does not prove public access, self-hosting, or managed Cloud.
+### Usage and deficit
 
-## Packaging and installation
+Direct usage is evidence owned by the reporting Budget. Reported totals are
+monotonic; only newly reported use is processed by a settlement command.
 
-The local SDK package contains TypeScript code for the facade, generated client and validators, `SqliteCommandExecutor`, declared production dependencies, and any required parser assets. It contains no PGlite runtime, embedded PostgreSQL server, local migration, database data directory, native Keynes library, sidecar, or daemon. A parser WebAssembly asset is a library implementation detail, not a PostgreSQL runtime.
+For a consumable Resource, the authority moves at most the currently owned
+quantity to consumption. Use above that quantity becomes deficit evidence and
+never creates a negative balance. For a reusable Resource, usage creates
+evidence without a consumption movement; usage above owned quantity also
+creates deficit evidence.
 
-Durable installation uses the canonical PostgreSQL migrations and generated installation record. The installer verifies the server version, migration IDs and checksums, contract digest, object inventory, ownership, function properties, bootstrap permissions, and ACLs. Exact recheck is read-only and makes no migration, grant, revoke, or repair change. An incompatible target fails with a stable category and check name. The installer does not support upgrades, downgrades, rolling deployment, uninstall, or extension packaging.
+Later funding, child returns, and ancestor balances do not erase an observed
+deficit. Keynes does not track source lots, debit a parent to hide overage, or
+infer unreported usage.
 
-Other PostgreSQL releases, managed-provider qualification, backup, recovery, failover, self-hosting, managed Cloud, hostile-role security qualification, performance qualification, and production support remain `NOT RUN`.
+## Settlement lifecycle
 
-Self-hosted and managed deployments use the same versioned PostgreSQL procedures. Packaging and operating ownership differ. Customer-operated and Keynes-operated deployments require separate release and support evidence even when their database contract matches.
+`settle` records supplied direct usage. The first call moves an active Budget
+to `settling`; later calls may resolve direct usage that was omitted earlier.
+An explicit zero resolves a Resource with no use. While settling, only
+`settle` and `inspect` remain usable on that Budget. Existing active
+descendants continue under their own behavior controls.
 
-## Security and recovery boundaries
+A Budget finalizes only when its direct usage is complete and every child is
+settled:
 
-Local mode protects state from accidental mutation through a private SQLite connection, input validation, detached returns, serialized commands, and fail-closed Policy evaluation. It does not defend against code that can inspect or modify its own process.
+```text
+non-root finalization: Budget remainder -> structural parent
+root finalization:     root remainder   -> released
+```
 
-Embedded PostgreSQL uses database roles and supported functions to prevent application roles from writing private Keynes state. The application database operator is inside the deployment's trust boundary.
+All remaining quantity is fungible. A child's complete remainder returns to
+its parent, including quantity added directly to the child after creation. A
+root's complete remainder is released outside Keynes governance. Release does
+not perform a refund, restore provider quota, or cause another external side
+effect.
 
-The embedded installer owns only Keynes schemas, functions, and grants. The customer owns privileges on application objects and every database-wide SQL and resource-control policy.
+When the last blocking descendant settles, that transaction finalizes every
+newly ready ancestor on the path to the root. Callers do not settle those
+ancestors again. The command result describes only its target Budget; automatic
+ancestor finalizations appear in `inspect` and history.
 
-Remote deployments treat database credentials, client inputs, and Policy source as untrusted. PostgreSQL authenticates the login role. Protected mappings bind that role to one Keynes principal, and remote wrappers derive identity from `session_user`. The SDK invokes only supported procedures, applies bounded client-side inputs and deadlines, avoids logging credentials or arbitrary context, and returns stable errors without leaking another tenant or database internals. Private administrative procedures own credential creation, rotation, and revocation; ordinary SDK roles cannot call them.
+Finalization first writes terminal movements that empty the Budget, then
+changes its lifecycle to `settled`. The database prevents a settled Budget
+from retaining quantity or having a non-settled descendant.
 
-A remote credential remains a PostgreSQL login and can submit SQL outside the SDK. The SDK exposes no general SQL operation, transaction, pool, or database handle. PostgreSQL grants prevent submitted SQL from reading or writing private Keynes state, invoking administration, assuming privileged roles, overriding mapped identity, or crossing tenant boundaries. The deployment operator owns database-wide privileges and resource controls. The customer is that operator for self-hosted Keynes; Keynes is the operator for Keynes Cloud. A deployment that prohibits SQL submission must use a constrained data path that does not issue PostgreSQL credentials.
+## Command and replay contract
 
-Recovery cannot assume that a restored database contains every command whose external work may have run. Durable recovery design must fence old writers, identify the exact command and evidence interval, and leave unresolved work visible when it cannot be reconstructed. Self-hosted and managed Cloud need separate recovery evidence because their operators and failure domains differ.
+One generated semantic contract defines the commands implemented by both
+authorities:
 
-## Observability and operations
+| Command              | Meaning                                              |
+| -------------------- | ---------------------------------------------------- |
+| `defineResources`    | Atomically define or exact-reuse a Resource batch    |
+| `definePolicies`     | Atomically define or exact-reuse a Policy batch      |
+| `createBudget`       | Reconcile or resolve definitions and create one root |
+| `addBudgetResources` | Introduce quantity to an eligible active Budget      |
+| `requestBudget`      | Evaluate Policies and transfer quantity to one child |
+| `settleBudget`       | Record usage and finalize every newly ready Budget   |
+| `inspectBudget`      | Read one coherent state and lineage-history snapshot |
 
-Canonical history records operation, command identity, target, result, Policy revision when relevant, and contract version. Deployment telemetry may add duration, trace, process, database, routing, and retry data outside canonical command evidence. Telemetry cannot grant permission, change a Policy result, or affect replay.
+Each mutation has one canonical operation, operation key, normalized input
+digest, stored result, and ordered history effects. Exact retry returns the
+stored result. Reusing an operation key with different normalized input returns
+`command_conflict`.
 
-Local diagnostics must remain optional and must not add a runtime service. Remote PostgreSQL deployments need metrics and traces for authentication failures, database availability, transaction retries, command latency, denial reasons, unresolved Budgets, installation drift, recovery state, and delivery lag. Managed operations require runbooks and retained evidence before readiness claims.
+The SDK generates operation keys for ordinary calls. A caller supplies one
+only for persisted crash recovery or an ambiguous remote response. Remote
+operation lookup references the canonical command record; it cannot duplicate
+results or become another replay ledger.
 
-## Product boundary
+## PostgreSQL transactions and concurrency
 
-Keynes owns Resource type identity, Budget identity and lineage, Resource conservation and availability, Policy evaluation, atomic child creation, idempotent command replay, settlement state, subtree accounting, unresolved usage, deficits, canonical history and evidence, the TypeScript SDK contract, and the versioned PostgreSQL procedures.
+PostgreSQL procedures are the durable transition boundary. Private tables are
+not an application API and application roles cannot write them directly.
 
-The application owns workflow validity, request construction, Policy context, external effects, provider idempotency and retries, usage observation, business outcomes, fallback behavior, application transaction rows, and application evidence.
+Mutations lock the smallest shared state needed for their decision:
 
-Keynes does not execute application work, retry providers, infer missing usage, store secrets in Policy context, treat a Budget identifier as permission, read application tables, or turn an advisory result into an approval.
+- request and parent settlement lock the same parent Budget row;
+- addition and settlement lock the same target Budget row;
+- child settlement locks the child, then its parent and ready ancestors;
+- sibling finalizations serialize when they reach their shared parent; and
+- affected Resource memberships lock in canonical Resource order.
 
-## Release gates
+A request therefore cannot approve after its parent starts settling. An
+addition cannot commit after its target starts settling. A child return can
+enter an active or settling parent, and the same transaction either leaves the
+parent waiting or finalizes it.
 
-No deployment may claim compatibility, security, recovery, footprint, performance, or production readiness until evidence from the exact tested revision establishes the applicable gates:
+Lifecycle compare-and-set and a unique terminal movement per
+Budget/Resource/reason prevent duplicate return or release when descendants
+race. Replay is resolved before mutable state is observed. Command, Policy
+evidence, movements, lifecycle, and history commit in one transaction.
 
-1. Compare all shared Budget behavior against the in-memory SQLite runtime and native PostgreSQL.
-2. Qualify the local lifecycle, package, Node.js and operating-system matrix, memory, startup, latency, and shutdown for SQLite.
-3. Qualify PostgreSQL installation, permissions, migrations, drift detection, caller-owned transactions, rollback, replay, and contention.
-4. Compare Kysely and raw-SQL Policy behavior through the local and PostgreSQL backends, including generated semantic vectors, context, and replay.
-5. Qualify the remote SDK against supported direct and pooled PostgreSQL TLS profiles with database-role identity.
-6. Qualify self-hosted packaging, upgrades, backup, recovery, monitoring, security, and customer operations.
-7. Qualify managed Cloud hosting, recovery, failover, incident response, capacity, compliance controls, and support.
-8. Define the supported release contract and compatibility windows.
-9. Run production semantic, security, concurrency, recovery, compatibility, packaging, performance, upgrade, backup, and operational suites.
+The logical PostgreSQL state owners are:
 
-The [roadmap](roadmap.md) records completed evidence and this sequence. Historical private Cloud evidence remains bound to FEAT-0006 and is not current-path proof. The SDK's hosted consumer matrix is qualified; authorized providers, self-hosted operation, managed deployment, broad security, and production claims require their own evidence.
+| State                        | Responsibility                                             |
+| ---------------------------- | ---------------------------------------------------------- |
+| definition catalogs          | Immutable Resource and Policy identity and digests         |
+| Budgets and memberships      | Lineage, lifecycle, controls, attached Policies            |
+| quantity movements           | Sole live-quantity and conservation authority              |
+| usage and deficits           | Direct observations that do not invent quantity            |
+| Policy evaluations           | Inputs, ceilings, reasons, and Policy digest               |
+| commands                     | Canonical replay and recovery result                       |
+| history                      | Ordered domain evidence derived from committed transitions |
+| references and role mappings | Durable lookup and authenticated tenant scope              |
+
+## SQLite parity
+
+`createKeynes()` owns one private in-memory SQLite database. The SDK exposes
+neither the connection nor arbitrary SQL. All methods remain asynchronous.
+
+SQLite executes the same validation, replay, movement, usage, lifecycle,
+Policy, result, and history semantics. One runtime queue serializes mutations,
+which is the local equivalent of PostgreSQL row-lock ordering. Separate local
+clients share no state, and process exit discards the authority.
+
+Local mode has no file-backed option, migration API, network listener,
+multi-process coordination, or recovery after process exit.
+
+## Node.js support
+
+Every Keynes TypeScript package declares `node >=24`. The range has no
+upper bound and does not exclude intermediate majors. An end-of-life Node.js
+release may remain compatible with Keynes, but the Node.js project no longer
+provides its security fixes. Production deployments should use an
+upstream-supported release.
+
+Package qualification builds one SDK archive and tests that digest on the
+minimum supported major and the latest Node.js release across the supported
+operating systems. A qualification record proves only the versions that it
+names. It does not turn untested future versions into exact-revision evidence.
+When a new Node.js major becomes the latest release, it replaces the previous
+latest-release lane.
+
+The feature that applies this policy must also run the provider-free gate and
+one clean packed-archive consumer on Node.js 25 after it removes the current
+engine exclusion. That transition check is not a permanent Node.js 25 lane.
+
+## Loading, inspection, and generated code
+
+`loadBudget(reference)` is a read-only PostgreSQL operation. The server
+authorizes the reference and returns membership, controls, attached Policies,
+balances, lifecycle, and lineage from one coherent snapshot. A reference is an
+identifier, not permission.
+
+`inspect` returns the same domain projection in local and durable modes.
+History is one chronological lineage stream. Policy evaluation entries carry
+their immutable Policy name and definition digest, so ancestors and descendants
+may have different context and reason types without a false shared generic.
+PostgreSQL may page history internally through independent, repeatable,
+bounded-lifetime cursors.
+
+The development generator reads a supported, read-only tenant catalog
+procedure. It emits:
+
+- Resource names and immutable definition types;
+- Policy names, context types, reason types, and discriminated unions; and
+- immutable runtime Policy descriptors equivalent to authority-issued
+  bindings.
+
+Created handles infer their exact Resources and attached Policies from inputs.
+A reference-loaded handle begins with generated catalog unions and narrows
+attached Policies by descriptor name. PostgreSQL remains authoritative when
+generated code is stale.
+
+Generated output contains no Budget rows, balances, lifecycle, behavior
+controls, references, principals, credentials, operation keys, command
+results, or history. It performs no runtime registration.
+
+## PostgreSQL installation
+
+The active PostgreSQL implementation starts from one clean
+`0001-baseline`. Development installations using the historical migration
+graph are recreated. Keynes ships no upgrade path, compatibility views, old
+procedures, or state rewrite for the greenfield baseline. Git history and
+retained evidence remain intact.
+
+Installation selects exactly one profile:
+
+- `embedded` grants the canonical procedure surface to an application role
+  for use inside caller-owned transactions.
+- `remote` grants only the versioned constrained wrappers to login roles and
+  derives tenant and principal identity from protected `session_user`
+  mappings.
+
+The selected profile determines grants, not Budget behavior. There is no public
+user, role, grant, or IAM API. Reinstallation succeeds only on an absent target
+or an exact matching baseline and profile; incompatible or drifted state fails
+closed.
+
+## Deployment ownership
+
+Embedded applications own their PostgreSQL connection, surrounding
+transaction, application-table reads and writes, backup, recovery, and
+operations. Keynes procedures neither begin nor commit the caller's
+transaction.
+
+The remote SDK owns a bounded PostgreSQL pool and strict
+`sslmode=verify-full` normalization. It invokes only supported wrappers and
+never falls back to local state or another database.
+
+Self-hosted Keynes and Keynes Cloud use the same PostgreSQL command contract.
+They differ in who owns credentials, upgrades, backups, recovery, monitoring,
+capacity, incidents, and support. Neither is a product-readiness claim until
+its own exact-revision evidence exists.
+
+## Security boundary
+
+Database authentication and grants remain below the SDK. Remote wrappers derive
+identity from the authenticated PostgreSQL role. Ordinary remote credentials
+cannot write private tables, administer credentials, override mapped identity,
+or cross tenants.
+
+Budget references and bindings do not grant authority. Policy input and
+application context are untrusted and validated at the procedure boundary.
+Stable errors must not expose another tenant, private identifiers, SQL text,
+credentials, or database internals.
+
+The application owns end-user authentication, workflow authorization, Policy
+context facts, provider credentials, provider idempotency, refunds, quota
+restoration, and every external action associated with released quantity.
+
+## Module ownership
+
+The implementation should keep knowledge together:
+
+- contract sources own commands, schemas, errors, canonicalization, and
+  generated TypeScript/PostgreSQL metadata;
+- the SDK owns public handles, inference, binding scope, connection lifecycle,
+  and error translation;
+- the SQLite authority owns local transactions and parity semantics;
+- PostgreSQL migrations and procedures own durable validation, locking,
+  accounting, replay, authorization, and history; and
+- the generator owns deterministic catalog-to-TypeScript output only.
+
+No storage adapter, repository layer, Policy service, settlement service, or
+generic permission framework should split these invariants without a proven
+need.
+
+## Verification model
+
+Implementation is complete only when one shared behavior suite passes against
+SQLite and native PostgreSQL for:
+
+- definition reuse and conflicts;
+- raw and binding-based creation, including all-zero Budgets;
+- immutable membership and behavior controls;
+- additions to roots and descendants;
+- Policy approval, denial, errors, and namespaced context;
+- exact child subsets and atomic transfer;
+- consumable and reusable usage, deficits, return, and root release;
+- parent-first settlement and concurrent descendant finalization;
+- exact replay, conflict, coherent inspection, and heterogeneous history; and
+- reference-only loading and generated catalog use.
+
+PostgreSQL-specific evidence must additionally cover row-lock contention,
+caller-owned transactions, baseline/profile installation, drift, grants,
+tenant isolation, TLS, recovery, and direct and supported pooled connections.
+Local evidence must cover queue ordering, isolation, close/drain behavior,
+package contents, and the declared Node.js qualification lanes.
+
+Current passing provider-free checks do not prove this target. Native
+PostgreSQL, hosted, package, provider, security, recovery, performance, and
+production evidence remain revision-scoped and must be reported as
+`NOT RUN` until executed against the implementation revision.

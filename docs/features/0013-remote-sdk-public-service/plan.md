@@ -1,5 +1,10 @@
 # Implementation plan: Remote PostgreSQL SDK
 
+> **Status:** Superseded by the current deployment-mode roadmap. Retain this
+> plan as the design and delivery record for the implementation at
+> `52da617be4f77ef5913955e397c3bc6ff2423ae6`; do not use its unchecked work or
+> FEAT-0015 dependency as current scope.
+
 **Feature ID**: `FEAT-0013` | **Branch**: `feat/0013-remote-sdk-public-service` | **Date**: 2026-09-02 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `docs/features/0013-remote-sdk-public-service/spec.md`
 

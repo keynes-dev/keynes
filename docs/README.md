@@ -12,6 +12,8 @@
 
 The roadmap can name planned features before Spec Kit starts them. Planned features have no number, branch, or feature directory.
 
+The [current-system assessment](current-system-assessment.md) is a revision-scoped discovery snapshot. The [current issue register](current-issue-register.md) validates its observations and historical review comments against one mainline revision. Neither document owns a product, architecture, roadmap, or feature decision.
+
 Documentation describes the target system. It does not make unverified work implemented by describing it.
 
 ## Contributor workflow

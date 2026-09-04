@@ -1,6 +1,16 @@
 # FEAT-0013 evidence
 
-Phase 6 provider-free and embedded PostgreSQL evidence is accepted at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. Provider-free positive TLS qualification and the timed clean-user walkthrough remain `NOT RUN`. External-provider qualification is optional deployment evidence and remains `NOT RUN`.
+Phase 6 provider-free and embedded PostgreSQL evidence is accepted at revision
+`52da617be4f77ef5913955e397c3bc6ff2423ae6`. The feature delivery plan is now
+superseded, so these records qualify only that historical implementation.
+Provider-free positive TLS qualification, the timed clean-user walkthrough, and
+external-provider qualification remain `NOT RUN`.
+
+The retained `postgresql-system.json` body says the administration role has
+`EXECUTE ON five private administration functions`. That human-readable phrase
+is inaccurate: the qualified `REMOTE_ADMIN_TARGETS` inventory at the retained
+revision contains six functions. The immutable result body remains unchanged;
+the inventory and source are authoritative for the function count.
 
 Retain only exact-revision records required by [the acceptance contract](../contracts/acceptance-record.md). Keep local archives and unsuccessful attempts under ignored `.artifacts/` paths. Provider-free repository, native PostgreSQL, SDK package, authorized remote-database, self-hosted, managed, recovery, security, fault, benchmark, and production lanes remain separate.
 

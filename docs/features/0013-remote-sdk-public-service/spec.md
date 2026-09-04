@@ -4,7 +4,7 @@
 **Feature branch**: `feat/0013-remote-sdk-public-service`
 **Roadmap stage**: `Implementation sequence`
 **Created**: 2026-09-01
-**Status**: Implementation complete; acceptance remains in progress because provider-free positive TLS qualification and the timed clean-user walkthrough are `NOT RUN`. External-provider qualification is optional deployment evidence.
+**Status**: Superseded by the current deployment-mode roadmap. The implementation and exact-revision evidence remain historical; unchecked acceptance work is not an active delivery plan.
 **Input**: User description: "Let server-side TypeScript applications use durable Keynes Budgets through direct PostgreSQL access."
 
 ## Feature story _(mandatory)_

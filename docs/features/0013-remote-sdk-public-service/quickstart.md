@@ -1,6 +1,9 @@
 # Quickstart: Remote PostgreSQL flow
 
-> **Status:** Implemented and provider-free package-qualified at revision `52da617be4f77ef5913955e397c3bc6ff2423ae6`. Provider-free positive TLS qualification and the timed walkthrough remain `NOT RUN`. External-provider qualification is optional deployment evidence.
+> **Status:** Historical quickstart for implementation revision
+> `52da617be4f77ef5913955e397c3bc6ff2423ae6`. The feature delivery plan is
+> superseded by the current deployment-mode roadmap. Provider-free positive TLS,
+> the timed walkthrough, and external-provider qualification remain `NOT RUN`.
 
 ## Provision one scoped credential
 
