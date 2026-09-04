@@ -3,10 +3,11 @@
 **Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/example)
 **Git branch**: `[EXACT LINEAR GIT BRANCH NAME]`
 <!-- linear-issue-id: [STABLE LINEAR UUID] -->
+
 **Created**: [DATE]
 **Input**: User description: "$ARGUMENTS"
 
-## Feature story _(mandatory)_
+## Overview
 
 _The feature story explains intent. Numbered requirements and success criteria define acceptance. Do not introduce implementation decisions or unsupported evidence claims here._
 
@@ -124,28 +125,13 @@ _Example of marking unclear requirements:_
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Constitutional Requirements _(mandatory)_
+### Constitutional alignment
 
-Document each item below as a requirement or mark it `N/A` with a concrete
-rationale:
-
-- **Budget behavior and storage**: Identify where each affected Budget is stored
-  and the atomicity, conservation, idempotency, settlement, replay, history, and
-  error behavior the feature preserves or changes.
-- **Application boundary**: Identify any external effects and confirm which
-  application component owns execution, retry, observation, outcomes, and
-  fallback behavior.
-- **Policy and security**: Define Policy context, supported query behavior,
-  fail-closed handling, permission boundaries, tenant isolation, and secret
-  handling when relevant.
-- **Contracts and deployments**: Identify which runtime or deployment changes,
-  which shared Budget behavior tests must pass, and which local lifecycle,
-  PostgreSQL transaction, remote security, recovery, packaging, or managed
-  operations tests must pass separately.
-- **Evidence classification**: State which acceptance evidence is provider-free
-  and which evidence is live, paid, externally mutating, fault-based, or
-  benchmark-based and therefore requires a separate lane or authorization. List
-  every claim that remains untested.
+Explain how the feature preserves the affected principles in
+`.specify/memory/constitution.md`. Identify any proposed conflict explicitly.
+Do not duplicate the constitution or introduce an implementation checklist here.
+Observable behavior belongs in Functional Requirements; acceptance evidence
+belongs in Success Criteria; technical verification belongs in the plan.
 
 ### Key Entities _(include if feature involves data)_
 

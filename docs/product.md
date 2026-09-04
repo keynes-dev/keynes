@@ -97,12 +97,12 @@ A Budget is the only public stateful governance object. It has immutable
 Resource membership, immutable behavior controls, optional local Policies, one
 structural parent, and one lifecycle.
 
-Every Budget exposes `addResources`, `request`, `settle`, and
+Every Budget exposes `add`, `request`, `settle`, and
 `inspect`. The immutable `allows` value controls whether the first
 two operations may succeed:
 
-- `addResources` permits new quantity to enter an active Budget.
-- `createChildren` permits an active Budget to request a child.
+- `add` permits new quantity to enter an active Budget.
+- `request` permits an active Budget to request a child.
 
 Omitting `allows` enables both behaviors. A caller may choose either, both,
 or neither. A child chooses its own value. It does not inherit or receive a
@@ -119,8 +119,7 @@ failures synchronously.
 
 ## Creation and funding
 
-`createBudget` accepts either raw Resource definitions or a
-`ResourceBinding`:
+`createBudget` accepts a `ResourceBinding`:
 
 ```ts
 const resources = await keynes.defineResources({
@@ -139,17 +138,17 @@ const root = await keynes.createBudget({
 });
 ```
 
-Binding-based creation creates the Budget from resolved Resource identities.
-Raw-definition creation atomically defines or reuses those Resources and
-creates the Budget. A conflict rolls back the complete command.
+Creation uses the resolved Resource identities in the binding and validates its
+authority scope. Raw Resource definitions are accepted only by
+`defineResources`. Creation performs no definition write.
 
 The Resource input establishes the root's complete membership. A missing
 initial amount means zero. Omitting `initial` creates an all-zero Budget.
 Zero is valid and can establish membership without creating a quantity
 movement. Initial allocation is part of creation and does not require
-`allows.addResources`.
+`allows.add`.
 
-`addResources` may introduce quantity into any active Budget whose
+`add` may introduce quantity into any active Budget whose
 `allows` value permits it. It changes quantity only for existing members.
 It cannot expand membership. Policies do not evaluate incoming quantity.
 
@@ -204,7 +203,7 @@ consumed. It does not mean that Keynes refunded money, restored provider quota,
 or performed another external action.
 
 ```text
-introduced = live + consumed + released
+totalSupplied = live + consumed + released
 ```
 
 For a completely settled tree, `live = 0`. Transfers inside the tree cancel
@@ -252,6 +251,9 @@ Replay covers Keynes state only. The application owns provider idempotency,
 workflow recovery, and every external effect.
 
 ## Deployment choices
+
+TypeScript is the only supported SDK language. Adding another language requires
+an explicit product and architecture decision.
 
 Keynes exposes one Budget contract through three execution paths:
 
@@ -304,7 +306,7 @@ released quantity.
 
 - Resource and Policy definitions are independent, immutable authority state.
 - Live quantity belongs to exactly one non-settled Budget.
-- Any active Budget may receive quantity when `allows.addResources` permits
+- Any active Budget may receive quantity when `allows.add` permits
   it.
 - Resource membership and `allows` never change after Budget creation.
 - A child receives exactly the Resource keys in its approved request.

@@ -1,212 +1,38 @@
 ---
-name: "speckit-implement"
-description: "Execute the implementation plan by processing and executing all tasks defined in tasks.md"
+name: speckit-implement
+description: Implement one explicitly selected Linear sub-issue using its feature design, detailed tasks, and live dependencies.
 metadata:
-  author: "github-spec-kit"
-  source: "templates/commands/implement.md"
+  author: github-spec-kit
+  source: templates/commands/implement.md
 ---
 
+# Implement a selected issue
 
-## User Input
+Consider `$ARGUMENTS` and the approved user scope first. For workflow maintenance, implement that approved change without starting unrelated product tasks. Follow [the workflow](../../../docs/workflow.md).
 
-```text
-$ARGUMENTS
-```
+## Select and establish readiness
 
-## Keynes stacked implementation
+1. Require an explicit sub-issue key, such as `$speckit-implement KEY-62`. If none is identified by the user, ask for one. Never infer the next issue from task position, issue number, or creation time.
+2. Run `node .specify/scripts/issue-stack.mjs resolve KEY-N --json`. This locates the owning feature even when starting on main or another feature branch. Fetch the issue and its parent from Linear, including live blockers; verify their UUIDs, keys, titles, exact branches, parent relationship, and lifecycle state against Git. Stop on identity drift or terminal issues unless recovery is explicit.
+3. Read the feature specification, plan, relevant contracts/research, selected tasks, checklists, and constitution. A planning PR must have merged an accepted baseline covering this increment into main. Verify its merge and baseline; an open planning draft is not implementation approval.
+4. Resolve each blocker. Missing code or unresolved design prevents starting. Implemented but unmerged prerequisite code permits a dependent PR after inspecting its scope, tests, and current branch. Keep its Linear blocker. Multiple prerequisites must share a suitable base; otherwise wait for them to merge. Do not fabricate readiness from status alone.
+5. Check applicable checklists and explain any unmet gate. Existing user authorization can resolve a documented exception; never treat acceptance evidence as optional. Verify relevant ignore/build configuration without adding unrelated scaffolding.
 
-Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`. Adopt Phase 1 with `node .specify/scripts/phase-stack.mjs init`. For each later phase, use `node .specify/scripts/phase-stack.mjs start <phase-number>`. These commands use only branches recorded from Linear.
+## Branch and implement
 
-Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
+- From a clean checkout, run `node .specify/scripts/issue-stack.mjs start KEY-N`. This initializes an independent stack based on main. Fetch and fast-forward main first; never reset user work.
+- For one unmerged prerequisite, run `start KEY-N --base-issue KEY-M` after confirming the exact local prerequisite branch matches the reviewed remote and belongs to its stack. Use `--dry-run` to inspect commands. CLI branch operations do not fetch Linear; the live checks above are mandatory.
+- Resolve the active feature from the selected branch without changing another feature's manifest. Use that feature's detailed tasks. Execute only the selected unit, tests before corresponding behavior, and serialize shared-file changes.
+- Commit only scoped changes. Once there is a meaningful diff, open a draft PR targeting main or its prerequisite. Read `.github/PULL_REQUEST_TEMPLATE.md`; use `KEY-N Exact Linear title`, link the sub-issue, relate the parent without status changes, and include design, prerequisite PR, acceptance boundary, and current verification.
+- Link the owning issue with `Related to KEY-N` while acceptance remains pending. This prevents PR merge automation from declaring acceptance prematurely. After merge and passing acceptance, explicitly set the sub-issue Done. Never use closing keywords for the parent.
+- Publish subsequent design changes with this issue PR. Mark only completed detailed tasks. Stop on a failed acceptance checkpoint, retain commands and revision evidence, and report `NOT RUN` for unavailable lanes.
 
-The final phase owns integrated feature acceptance. Never run `gh stack submit` automatically. Submission requires a separate explicit user request.
+## Review and completion
 
-You **MUST** consider the user input before proceeding (if not empty).
+Make the PR ready when its acceptance checks pass. Merge only with approval and required checks. Each PR lands independently unless the user selects a justified atomic group. Never merge an unspecified whole stack.
 
-## Pre-Execution Checks
+After a lower PR merges into main, use `node .specify/scripts/issue-stack.mjs restack KEY-N --merged-pr NUMBER --dry-run`, then execute after inspecting the proposed direct-dependent change. It excludes the merged prerequisite's commits using its exact head SHA, including after squash merge. Automatic retargeting to main is supported. The command verifies prerequisite ancestry and matching local/remote heads before rebasing. Cascade remaining descendants with `gh stack rebase --upstack`, push with leases, and verify every PR base/diff. Stop on conflicts; do not retry with resets or plain force pushes.
 
-**Check for extension hooks (before implementation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
-- If it exists, read it and look for entries under the `hooks.before_implement` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
+Synchronize current-document and commit-pinned evidence links with Linear. Complete the selected sub-issue only after merge and acceptance. Feature acceptance may belong to a dedicated sub-issue; the parent remains open until all feature obligations pass. Do not automatically start another issue.
 
-    **Optional Pre-Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-  - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Outline.
-    ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
-
-## Outline
-
-1. Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-
-2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
-   - Scan all checklist files in the checklists/ directory
-   - For each checklist, count:
-     - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
-     - Completed items: Lines matching `- [X]` or `- [x]`
-     - Incomplete items: Lines matching `- [ ]`
-   - Create a status table:
-
-     ```text
-     | Checklist | Total | Completed | Incomplete | Status |
-     |-----------|-------|-----------|------------|--------|
-     | ux.md     | 12    | 12        | 0          | ✓ PASS |
-     | test.md   | 8     | 5         | 3          | ✗ FAIL |
-     | security.md | 6   | 6         | 0          | ✓ PASS |
-     ```
-
-   - Calculate overall status:
-     - **PASS**: All checklists have 0 incomplete items
-     - **FAIL**: One or more checklists have incomplete items
-
-   - **If any checklist is incomplete**:
-     - Display the table with incomplete item counts
-     - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
-     - Wait for user response before continuing
-     - If user says "no" or "wait" or "stop", halt execution
-     - If user says "yes" or "proceed" or "continue", proceed to step 3
-
-   - **If all checklists are complete**:
-     - Display the table showing all checklists passed
-     - Automatically proceed to step 3
-
-3. Load and analyze the implementation context:
-   - **REQUIRED**: Read tasks.md for the complete task list and execution plan
-   - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-   - **IF EXISTS**: Read data-model.md for entities and relationships
-   - **IF EXISTS**: Read contracts/ for API specifications and test requirements
-   - **IF EXISTS**: Read research.md for technical decisions and constraints
-   - **IF EXISTS**: Read .specify/memory/constitution.md for governance constraints
-   - **IF EXISTS**: Read quickstart.md for integration scenarios
-
-4. **Project Setup Verification**:
-   - **REQUIRED**: Create/verify ignore files based on actual project setup:
-
-   **Detection & Creation Logic**:
-   - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
-
-     ```sh
-     git rev-parse --git-dir 2>/dev/null
-     ```
-
-   - Check if Dockerfile* exists or Docker in plan.md → create/verify .dockerignore
-   - Check if .eslintrc* exists → create/verify .eslintignore
-   - Check if eslint.config.* exists → ensure the config's `ignores` entries cover required patterns
-   - Check if .prettierrc* exists → create/verify .prettierignore
-   - Check if .npmrc or package.json exists → create/verify .npmignore (if publishing)
-   - Check if terraform files (*.tf) exist → create/verify .terraformignore
-   - Check if .helmignore needed (helm charts present) → create/verify .helmignore
-
-   **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
-   **If ignore file missing**: Create with full pattern set for detected technology
-
-   **Common Patterns by Technology** (from plan.md tech stack):
-   - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
-   - **Python**: `__pycache__/`, `*.pyc`, `.venv/`, `venv/`, `dist/`, `*.egg-info/`
-   - **Java**: `target/`, `*.class`, `*.jar`, `.gradle/`, `build/`
-   - **C#/.NET**: `bin/`, `obj/`, `*.user`, `*.suo`, `packages/`
-   - **Go**: `*.exe`, `*.test`, `vendor/`, `*.out`
-   - **Ruby**: `.bundle/`, `log/`, `tmp/`, `*.gem`, `vendor/bundle/`
-   - **PHP**: `vendor/`, `*.log`, `*.cache`, `*.env`
-   - **Rust**: `target/`, `debug/`, `release/`, `*.rs.bk`, `*.rlib`, `*.prof*`, `.idea/`, `*.log`, `.env*`
-   - **Kotlin**: `build/`, `out/`, `.gradle/`, `.idea/`, `*.class`, `*.jar`, `*.iml`, `*.log`, `.env*`
-   - **C++**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.so`, `*.a`, `*.exe`, `*.dll`, `.idea/`, `*.log`, `.env*`
-   - **C**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.a`, `*.so`, `*.exe`, `*.dll`, `autom4te.cache/`, `config.status`, `config.log`, `.idea/`, `*.log`, `.env*`
-   - **Swift**: `.build/`, `DerivedData/`, `*.swiftpm/`, `Packages/`
-   - **R**: `.Rproj.user/`, `.Rhistory`, `.RData`, `.Ruserdata`, `*.Rproj`, `packrat/`, `renv/`
-   - **Universal**: `.DS_Store`, `Thumbs.db`, `*.tmp`, `*.swp`, `.vscode/`, `.idea/`
-
-   **Tool-Specific Patterns**:
-   - **Docker**: `node_modules/`, `.git/`, `Dockerfile*`, `.dockerignore`, `*.log*`, `.env*`, `coverage/`
-   - **ESLint**: `node_modules/`, `dist/`, `build/`, `coverage/`, `*.min.js`
-   - **Prettier**: `node_modules/`, `dist/`, `build/`, `coverage/`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-   - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
-   - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
-
-5. Parse tasks.md structure and extract:
-   - **Task phases**: Setup, Tests, Core, Integration, Polish
-   - **Task dependencies**: Sequential vs parallel execution rules
-   - **Task details**: ID, description, file paths, parallel markers [P]
-   - **Execution flow**: Order and dependency requirements
-
-6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
-   - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
-
-7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
-
-8. Progress tracking and error handling:
-   - Report progress after each completed task
-   - Halt execution if any non-parallel task fails
-   - For parallel tasks [P], continue with successful tasks, report failed ones
-   - Provide clear error messages with context for debugging
-   - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
-
-9. Completion validation:
-   - Verify all required tasks are completed
-   - Check that implemented features match the original specification
-   - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
-   - Report final status with summary of completed work
-
-Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit-tasks` first to regenerate the task list.
-
-10. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
-    - If it exists, read it and look for entries under the `hooks.after_implement` key
-    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-    - For each executable hook, output the following based on its `optional` flag:
-      - **Optional hook** (`optional: true`):
-        ```
-        ## Extension Hooks
-
-        **Optional Hook**: {extension}
-        Command: `/{command}`
-        Description: {description}
-
-        Prompt: {prompt}
-        To execute: `/{command}`
-        ```
-      - **Mandatory hook** (`optional: false`):
-        ```
-        ## Extension Hooks
-
-        **Automatic Hook**: {extension}
-        Executing: `/{command}`
-        EXECUTE_COMMAND: {command}
-        ```
-    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+Execute applicable extension hooks, reporting invalid configuration. The after-implement commit hook never commits unrelated files or substitutes for review.

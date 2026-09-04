@@ -5,6 +5,8 @@
 
 ## Responsibility
 
+The [constitution](../.specify/memory/constitution.md) owns governing principles.
+The [workflow](workflow.md) owns delivery procedures and verification requirements.
 The repository and Linear have separate, explicit responsibilities:
 
 | Source                              | Owns                                                                                                                      |

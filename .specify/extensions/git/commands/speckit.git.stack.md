@@ -1,19 +1,13 @@
 ---
-description: Manage the GitHub PR stack from phase bindings in tasks.md
+description: Manage independent issue PRs and short dependency stacks
 ---
 
-# Manage the phase stack
+Follow [the workflow](../../../../docs/workflow.md#run-the-work) and fetch the selected issue's live blockers first. Commands do not substitute for those checks.
 
-Run `node .specify/scripts/phase-stack.mjs check --json` before changing the stack.
+- Resolve a selected sub-issue: `node .specify/scripts/issue-stack.mjs resolve KEY-N --json`
+- Validate bindings: `node .specify/scripts/issue-stack.mjs check --repository --json`
+- Start from updated main: `node .specify/scripts/issue-stack.mjs start KEY-N`
+- Start above an implemented, unmerged prerequisite: `node .specify/scripts/issue-stack.mjs start KEY-N --base-issue KEY-M`
+- Rebase a direct dependent after its prerequisite merges into main: `node .specify/scripts/issue-stack.mjs restack KEY-N --merged-pr NUMBER`
 
-- Show the current layer: `node .specify/scripts/phase-stack.mjs active --json`
-- Adopt the parent branch as the bottom layer: `node .specify/scripts/phase-stack.mjs init`
-- Start a published later phase: `node .specify/scripts/phase-stack.mjs start <phase-number>`
-- Move through the stack: `gh stack bottom`, `gh stack down`, `gh stack up`, or `gh stack top`
-- Rebase corrections through later layers: `gh stack rebase --upstack`
-- Push existing layers: `gh stack push`
-- Submit or update PRs: `node .specify/scripts/phase-stack.mjs submit`
-
-Use `--dry-run` on `init`, `start`, or `submit` to print the command without changing Git or GitHub. Never generate a branch name. Submit only after an explicit user request.
-
-After submission, read each published phase binding from `tasks.md`. Compare each open PR title with `KEY-N <exact phase title>`. If a title differs, run `gh pr edit <number> --title "KEY-N <exact phase title>"`.
+Inspect `--dry-run` before branch changes. Open a draft PR for the selected issue once meaningful changes exist. No command here submits or merges an entire stack. After restacking, reconcile remaining descendants bottom-up and verify each PR's actual base and diff. Never force-push without a lease or discard work to resolve a conflict.

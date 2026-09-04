@@ -8,13 +8,12 @@
     "bootstrap": "pnpm install --frozen-lockfile",
     "generate": "node scripts/generate.ts",
     "generate:check": "node scripts/generate.ts --check",
-    "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml .specify/feature.json .specify/scripts/feature-identity.mjs .specify/scripts/phase-stack.mjs .specify/tests/feature-identity.test.mjs .specify/tests/phase-stack.test.mjs apps packages scripts docs",
+    "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml .specify/feature.json .specify/scripts/feature-identity.mjs .specify/scripts/issue-stack.mjs .specify/scripts/issue-bindings.mjs .specify/scripts/publish-planning.mjs .specify/scripts/publication-preview.mjs .specify/tests/feature-identity.test.mjs .specify/tests/issue-stack.test.mjs .specify/tests/issue-workflow.test.mjs apps packages scripts docs",
     "format:check": "pnpm format",
-    "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml .specify/feature.json .specify/scripts/feature-identity.mjs .specify/scripts/phase-stack.mjs .specify/tests/feature-identity.test.mjs .specify/tests/phase-stack.test.mjs apps packages scripts docs",
+    "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml .specify/feature.json .specify/scripts/feature-identity.mjs .specify/scripts/issue-stack.mjs .specify/scripts/issue-bindings.mjs .specify/scripts/publish-planning.mjs .specify/scripts/publication-preview.mjs .specify/tests/feature-identity.test.mjs .specify/tests/issue-stack.test.mjs .specify/tests/issue-workflow.test.mjs apps packages scripts docs",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "test:feature-identity": "node --test .specify/tests/feature-identity.test.mjs",
-    "test:phase-stack": "node --test .specify/tests/phase-stack.test.mjs",
     "test:unit": "pnpm --filter @keynes/contracts test && pnpm --filter @keynes/postgresql test && pnpm --filter @keynes/sdk test",
     "test:generator": "pnpm --filter @keynes/contracts test",
     "test:repository": "vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'",
@@ -31,8 +30,10 @@
     "typecheck": "turbo run typecheck && tsc --project tsconfig.tests.json --noEmit",
     "test": "turbo run test",
     "check:deps": "turbo boundaries --ui=stream",
-    "check:repo": "pnpm check:feature-identity && pnpm generate:check && turbo run quality typecheck && pnpm check:deps",
-    "test:pr": "pnpm test:feature-identity && pnpm test:phase-stack && pnpm check:feature-identity && pnpm generate:check && pnpm test:generator && pnpm test:repository && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps"
+    "check:repo": "pnpm check:feature-identity && pnpm check:issue-workflow && pnpm generate:check && turbo run quality typecheck && pnpm check:deps",
+    "test:pr": "pnpm test:feature-identity && pnpm test:issue-workflow && pnpm check:issue-workflow && pnpm check:feature-identity && pnpm generate:check && pnpm test:generator && pnpm test:repository && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps",
+    "test:issue-workflow": "node --test .specify/tests/issue-*.test.mjs",
+    "check:issue-workflow": "node .specify/scripts/issue-stack.mjs check --repository --json"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

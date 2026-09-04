@@ -6,6 +6,10 @@ metadata:
   source: "templates/commands/specify.md"
 ---
 
+## Early document publication
+
+Follow [the workflow](../../../docs/workflow.md#publish-planning-documents). After changing artifacts, execute the enabled publication hook before reporting completion: commit scoped documents, push, create or update the collaborative draft planning PR, then synchronize Linear links. Publication is required even when design questions remain. Never close the parent through PR automation. After the planning baseline merges, publish later design changes on their selected issue PR. Invalid hook configuration is an error; read-only commands do not execute publication hooks.
+
 ## User Input
 
 ```text
@@ -20,7 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_specify` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- If the YAML cannot be parsed or is invalid, report the configuration error and stop publication
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
@@ -57,14 +61,14 @@ Given that feature description, do this:
 
 1. **Select the Linear issue and reserve the feature identity through the mandatory branch hook**:
 
-   Fetch one existing Linear issue before running the hook. Reject terminal, archived, or already-bound issues unless recovery is explicit. Pass its UUID, identifier, exact title, URL, and `gitBranchName` through `--linear-issue-id`, `--linear-issue-identifier`, `--linear-issue-title`, `--linear-issue-url`, and `--linear-branch-name`. The successful `before_specify` hook returns `FEATURE_ID`, `FEATURE_TITLE`, `BRANCH_NAME`, `FEATURE_DIR`, `FEATURE_FILE`, `LINEAR_ISSUE_ID`, `LINEAR_ISSUE_IDENTIFIER`, and `LINEAR_ISSUE_URL`. Treat this result as authoritative. Do not create another identity or derive a branch.
+   Fetch one existing parent Linear issue before running the hook. For a new feature, begin from a clean, fetched and fast-forwarded main checkout so its planning PR contains only this feature. Reject terminal, archived, or already-bound issues unless recovery is explicit. Pass its UUID, identifier, exact title, URL, and `gitBranchName` through `--linear-issue-id`, `--linear-issue-identifier`, `--linear-issue-title`, `--linear-issue-url`, and `--linear-branch-name`. The successful `before_specify` hook returns `FEATURE_ID`, `FEATURE_TITLE`, `BRANCH_NAME`, `FEATURE_DIR`, `FEATURE_FILE`, `LINEAR_ISSUE_ID`, `LINEAR_ISSUE_IDENTIFIER`, and `LINEAR_ISSUE_URL`. Treat this result as authoritative. Do not create another identity or derive a branch.
 
 2. **Create the feature artifacts at the reserved path**:
 
    - Create the returned `FEATURE_DIR` under `docs/features/`.
    - Copy `.specify/templates/spec-template.md` to the returned `FEATURE_FILE`.
    - Fill the template with the exact Linear title, returned branch, issue link, and hidden UUID.
-   - Link the selected Linear issue to `FEATURE_FILE`. Do not copy the specification into Linear or create a second planning record.
+   - At completion, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear), including the specification and generated checklists. Run synchronization after any enabled commit hook and before the final response.
 
    **IMPORTANT**:
    - You must only create one feature per `/speckit-specify` invocation
@@ -202,11 +206,11 @@ Given that feature description, do this:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary
-   - Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
+   - Readiness for the next command (`/speckit-clarify` or `/speckit-plan`)
 
-9. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
+9. **Check for extension hooks**: Before reporting completion, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_specify` key
-   - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+   - If the YAML cannot be parsed or is invalid, report the configuration error and stop publication
    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable

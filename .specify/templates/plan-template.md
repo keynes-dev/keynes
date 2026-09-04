@@ -29,29 +29,34 @@
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+_GATE: Must pass before research. Re-check after design._
 
-- **One source of truth per Budget**: Identify where each affected Budget is
-  stored and which component owns its committed state and transitions. Show that
-  clients and services cannot bypass it or fall back to another store.
-- **Effect boundary**: Identify every external effect and confirm that the host
-  application owns execution, idempotency, retry, observation, outcomes, and
-  fallback behavior.
-- **Policy and security**: Describe Policy context, Kysely and raw-SQL
-  authoring, parser and normalized Policy-program behavior, semantic ownership,
-  transaction-local authority, selected execution backends, cross-backend
-  conformance, accessible inputs, failure behavior, permissions, tenant
-  isolation, and secret handling when Policy or durable storage is in scope.
-- **Consistent behavior across deployments**: Identify which runtime or
-  deployment changes, the affected database procedure, schema, SDK, service,
-  migration, and compatibility contracts, the shared Budget behavior tests, and
-  the deployment-specific tests that must pass.
-- **Evidence-first delivery**: Name the behavioral tests that will be observed
-  failing before implementation, the deterministic provider-free verification
-  lane, any separately authorized live, paid, fault, or benchmark lane, and all
-  claims that remain untested.
-- Mark a gate `N/A` only with a concrete rationale. Record every unavoidable
-  violation in Complexity Tracking with a migration or removal path.
+Explain how the design preserves each affected principle. Mark an unaffected
+principle `N/A` with a brief rationale.
+
+- **Budget-centered accounting**: Keep quantity on Budgets and one authoritative
+  owner for atomic, conserving state changes.
+- **Application-owned work**: Keep external execution and outcomes under
+  application control.
+- **Bounded Policy authority**: Preserve restricted inputs, deterministic
+  decisions, and explicit evaluation failures.
+- **Explicit accounting outcomes**: Preserve honest usage, deficits, settlement,
+  history, and replay.
+- **Consistent public meaning**: Preserve shared semantics and state any
+  differences in lifecycle or operational guarantees.
+- **Claims supported by evidence**: Keep acceptance claims within the scope of
+  the evidence the feature will produce.
+
+Record conflicts in Complexity Tracking. Recording a conflict does not approve
+an exception. Put technical checks and test procedures in Verification.
+
+## Verification
+
+Follow `docs/workflow.md` and the architecture's verification model. Identify
+acceptance scenarios, test-first ordering for behavioral changes, shared and
+runtime-specific conformance, and the commands and artifacts that will prove
+them. State which claims remain `NOT RUN`. Identify any live, paid, or externally
+mutating work that requires separate authorization.
 
 ## Project Structure
 
@@ -60,11 +65,11 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 ```text
 docs/features/[LINEAR BRANCH FINAL SEGMENT]/
 ├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── research.md          # Research output (/speckit-plan command)
+├── data-model.md        # Design output (/speckit-plan command)
+├── quickstart.md        # Design output (/speckit-plan command)
+├── contracts/           # Design output (/speckit-plan command)
+└── tasks.md             # Task breakdown (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
 ### Source Code (repository root)

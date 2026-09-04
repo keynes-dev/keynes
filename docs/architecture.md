@@ -66,14 +66,13 @@ const root = await keynes.createBudget({
 });
 ```
 
-`createBudget` also accepts the same plain Resource definition object
-directly. That overload reconciles the definitions and creates the root in one
-authority transaction. The binding overload uses already resolved definitions
-and performs no definition write.
+`createBudget` accepts only a Resource binding. It validates the binding
+scope and uses resolved Resource identities without writing definitions.
+`defineResources` owns the separate atomic definition operation.
 
 Every Budget has a stable method surface:
 
-- `addResources` introduces quantity for existing members.
+- `add` introduces quantity for existing members.
 - `request` asks the Budget to create and fund one child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
@@ -145,7 +144,7 @@ A Budget owns:
 - opaque identity and, for PostgreSQL, an opaque public reference;
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
-- immutable `allows.addResources` and `allows.createChildren` booleans;
+- immutable `allows.add` and `allows.request` booleans;
 - an immutable list of locally attached Policies;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
@@ -155,21 +154,32 @@ Children select their own controls; controls do not inherit or narrow from the
 parent. Methods remain present even when disabled. A disabled mutation rejects
 asynchronously with `budget_operation_not_allowed` and commits no state.
 
-Root membership is every Resource key supplied through the definition object
-or binding. An omitted initial amount is zero. Child membership is exactly the
+Root membership is every Resource key in the supplied binding. An omitted
+initial amount is zero. Child membership is exactly the
 Resource keys in the approved request. An explicit zero includes the Resource;
 an omitted key excludes it.
 
-Membership never expands. `addResources` can add quantity only to an active
+Membership never expands. `add` can add quantity only to an active
 Budget, only for existing members, and only when its behavior control permits
 the operation. This rule is identical for roots and descendants.
 
 Initial root allocation belongs to creation and does not consult the new
-Budget's `allows.addResources` value. A child grant belongs to the parent's
+Budget's `allows.add` value. A child grant belongs to the parent's
 approved request and likewise does not consult the child's value. The control
-governs only later `addResources` calls.
+governs only later `add` calls.
 
 ## Policy evaluation
+
+Policy authoring uses Kysely by default and accepts advanced raw SQL within the
+same restricted PostgreSQL-style query profile. Both paths must use one pinned
+PostgreSQL parser, validator, and normalizer to produce a versioned Keynes Policy
+program. Its semantics contract is shared by every execution backend. Each
+backend must pass the canonical conformance corpus. Kysely operation trees,
+parser syntax trees, and backend representations are not public or durable
+contracts. Evaluation occurs within the authority's atomic command; it never
+trusts an application-supplied decision. Invalid inputs, forbidden access,
+nondeterminism, execution-limit failures, and invalid results abort the request.
+Replay uses the recorded context rather than querying application data again.
 
 Policies are local to the Budget that attaches them. They do not inherit to a
 child. A request supplies context under each attached Policy name:
@@ -198,7 +208,7 @@ observe the same snapshot. The lowest ceiling for a Resource wins. A denial is
 a committed domain result with evidence but no child or quantity movement. A
 Policy error aborts the command and never becomes an approval or denial.
 
-`addResources` does not evaluate Policies. Its authority comes only from the
+`add` does not evaluate Policies. Its authority comes only from the
 Budget's immutable behavior control and database authorization below the SDK.
 
 ## Quantity accounting
@@ -230,7 +240,7 @@ live(B, R) >= 0
 Across a tenant:
 
 ```text
-introduced = live + consumed + released
+totalSupplied = live + consumed + released
 ```
 
 Internal transfers cancel from the tenant equation. A zero-valued member has a
@@ -288,15 +298,15 @@ from retaining quantity or having a non-settled descendant.
 One generated semantic contract defines the commands implemented by both
 authorities:
 
-| Command              | Meaning                                              |
-| -------------------- | ---------------------------------------------------- |
-| `defineResources`    | Atomically define or exact-reuse a Resource batch    |
-| `definePolicies`     | Atomically define or exact-reuse a Policy batch      |
-| `createBudget`       | Reconcile or resolve definitions and create one root |
-| `addBudgetResources` | Introduce quantity to an eligible active Budget      |
-| `requestBudget`      | Evaluate Policies and transfer quantity to one child |
-| `settleBudget`       | Record usage and finalize every newly ready Budget   |
-| `inspectBudget`      | Read one coherent state and lineage-history snapshot |
+| Command           | Meaning                                              |
+| ----------------- | ---------------------------------------------------- |
+| `defineResources` | Atomically define or exact-reuse a Resource batch    |
+| `definePolicies`  | Atomically define or exact-reuse a Policy batch      |
+| `createBudget`    | Resolve a Resource binding and create one root       |
+| `addToBudget`     | Introduce quantity to an eligible active Budget      |
+| `requestBudget`   | Evaluate Policies and transfer quantity to one child |
+| `settleBudget`    | Record usage and finalize every newly ready Budget   |
+| `inspectBudget`   | Read one coherent state and lineage-history snapshot |
 
 Each mutation has one canonical operation, operation key, normalized input
 digest, stored result, and ordered history effects. Exact retry returns the
@@ -313,18 +323,20 @@ results or become another replay ledger.
 PostgreSQL procedures are the durable transition boundary. Private tables are
 not an application API and application roles cannot write them directly.
 
-Mutations lock the smallest shared state needed for their decision:
+KEY-5 serializes mutations within each connected Budget tree by locking its
+root Budget row after command replay resolution and before mutable accounting
+reads. Requests, additions, settlement, child returns, and automatic ancestor
+finalization all use this order. Different trees can proceed independently.
+Definition batches reconcile names in canonical order under uniqueness
+constraints. Finer-grained Budget locking is deferred until an evidenced
+throughput need justifies it.
 
-- request and parent settlement lock the same parent Budget row;
-- addition and settlement lock the same target Budget row;
-- child settlement locks the child, then its parent and ready ancestors;
-- sibling finalizations serialize when they reach their shared parent; and
-- affected Resource memberships lock in canonical Resource order.
-
-A request therefore cannot approve after its parent starts settling. An
-addition cannot commit after its target starts settling. A child return can
-enter an active or settling parent, and the same transaction either leaves the
-parent waiting or finalizes it.
+A request cannot approve after its parent starts settling. An addition cannot
+commit after its target starts settling. A child return can enter an active or
+settling parent, and the same transaction leaves the parent waiting or
+finalizes it. Sibling finalizations serialize on their common tree lock.
+Inspection returns selected state and connected-tree history from one SQL
+statement snapshot, rather than combining reads from different commits.
 
 Lifecycle compare-and-set and a unique terminal movement per
 Budget/Resource/reason prevent duplicate return or release when descendants
@@ -384,7 +396,10 @@ balances, lifecycle, and lineage from one coherent snapshot. A reference is an
 identifier, not permission.
 
 `inspect` returns the same domain projection in local and durable modes.
-History is one chronological lineage stream. Policy evaluation entries carry
+History is one chronological stream for the entire connected Budget tree.
+Inspection returns only the selected Budget's current state, including lineage;
+it does not return current-state snapshots for every other Budget.
+Policy evaluation entries carry
 their immutable Policy name and definition digest, so ancestors and descendants
 may have different context and reason types without a false shared generic.
 PostgreSQL may page history internally through independent, repeatable,

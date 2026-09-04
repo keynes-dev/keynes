@@ -10,3 +10,5 @@ Fetch the selected issue and reject archived, canceled, completed, or already-bo
 - PowerShell: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -LinearIssueId "<uuid>" -LinearIssueIdentifier "KEY-123" -LinearIssueTitle "<exact title>" -LinearIssueUrl "<url>" -LinearBranchName "<gitBranchName>"`
 
 Use the returned identity without modification. Never allocate a number, create a slug, or derive a branch.
+
+For a new feature, start from a clean, fetched and fast-forwarded main checkout before invoking branch creation. This keeps the planning PR independent of other unmerged work.

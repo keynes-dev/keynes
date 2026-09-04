@@ -14,10 +14,10 @@ What could a user or maintainer not do before?
 Why does this belong in the current feature or maintenance change?
 -->
 
-**Parent Linear issue:** <!-- Link the owning KEY-N feature issue. -->
-**Phase Linear issue:** <!-- Link the owning phase issue. Phase 1 reuses the parent. -->
-**Preceding PR:** <!-- Link the lower stack layer, or write "Bottom layer." -->
-**Phase checkpoint:** <!-- Copy the review boundary from tasks.md. -->
+**Parent feature:** <!-- Use Related to KEY-N and a link. Planning PRs must never close the parent. -->
+**Owning sub-issue:** <!-- Implementation PR only: relate KEY-N and link it. Mark Done only after merge and acceptance. -->
+**Prerequisite PR:** <!-- Link the actual unmerged dependency, or state that this PR targets main independently. -->
+**Acceptance checkpoint:** <!-- Copy the review boundary from tasks.md. -->
 
 ## What changed
 
