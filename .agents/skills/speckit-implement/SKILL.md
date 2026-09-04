@@ -19,6 +19,8 @@ Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`.
 
 Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
 
+At each phase checkpoint, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear). Keep current feature documents on the parent issue and commit-pinned phase tasks, checkpoints, and evidence on the owning phase issue. Report unpublished artifacts as pending.
+
 The final phase owns integrated feature acceptance. Never run `gh stack submit` automatically. Submission requires a separate explicit user request.
 
 You **MUST** consider the user input before proceeding (if not empty).

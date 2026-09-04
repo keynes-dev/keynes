@@ -32,16 +32,18 @@ Resource names and units reuse the shared validators. Public camelCase keys reso
 
 Outside and consumed are classifications, not accounts. A transfer has one amount and two endpoints; do not record it as two independently authoritative movements. For each Budget and Resource, live quantity is incoming movements minus outgoing movements. Membership with zero initial quantity creates no movement.
 
-For the authority or a complete connected tree:
+`totalSupplied` is the cumulative quantity supplied from outside Keynes through initial funding and later additions. Internal transfers do not increase it.
+
+For each Resource across the authority or a complete connected tree:
 
 ```text
-introduced = sum(initial_funding + addition)
-introduced = live + consumed + released
+totalSupplied = sum(initial_funding + addition)
+totalSupplied = live + consumed + released
 live >= 0
 settled Budget => live = 0
 ```
 
-Direct additions to a child enter the tree's introduced total. Its entire remainder returns to its parent on finalization, irrespective of origin. Deficits and reusable usage are evidence, not quantity movements.
+Direct additions to a child enter the tree's total supplied quantity. Its entire remainder returns to its parent on finalization, irrespective of origin. Deficits and reusable usage are evidence, not quantity movements.
 
 ## Usage processing
 

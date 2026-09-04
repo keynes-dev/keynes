@@ -58,7 +58,7 @@ As an application developer, I can define Resources, fund a Budget with no paren
 
 1. **Given** an empty local authority, **When** an application defines two Resources and creates a funded Budget from their binding, **Then** the definitions contain no quantity and the new Budget alone owns the initial amounts.
 2. **Given** an active funded Budget that permits requests, **When** the application requests an exact subset for a child, **Then** one child is created with the same Budget contract and the requested quantity moves atomically from parent to child.
-3. **Given** two Budgets in a parent-child relationship with complete direct usage, **When** the application settles the child and then its parent, **Then** the child remainder returns to its parent, the parentless Budget's remainder is released, both Budgets become settled, and inspection of either Budget accounts for all introduced quantity through the connected-tree history.
+3. **Given** two Budgets in a parent-child relationship with complete direct usage, **When** the application settles the child and then its parent, **Then** the child remainder returns to its parent, the parentless Budget's remainder is released, both Budgets become settled, and inspection of either Budget accounts for all supplied quantity through the connected-tree history.
 
 ---
 
@@ -175,7 +175,7 @@ As an application developer, I can install one Keynes package archive in a clean
 - **FR-016**: Final settlement of a Budget with a parent MUST return its complete remainder to that parent. Final settlement of a Budget with no parent MUST release its complete remainder from Keynes governance.
 - **FR-017**: When one descendant settlement makes ancestors ready, the same accepted change MUST finalize every newly ready ancestor exactly once.
 - **FR-018**: Every quantity change MUST have one chronological movement reason that distinguishes initial funding, later addition, child transfer, consumption, child return, and release from a Budget with no parent.
-- **FR-019**: Accounting MUST conserve quantity so that introduced quantity always equals live quantity plus consumed quantity plus released quantity, with internal transfers canceling from the whole-authority equation.
+- **FR-019**: Accounting MUST conserve quantity so that total supplied quantity always equals live quantity plus consumed quantity plus released quantity, with internal transfers canceling from the whole-authority equation.
 - **FR-020**: The local authority MUST assign every mutation one stable internal command identity, normalized input, committed result, and ordered history effects. Local public methods MUST NOT accept or return command identities or expose operation recovery.
 - **FR-021**: Replaying the same internal command identity and normalized input MUST return the stored result without repeating a Budget, movement, usage record, deficit, lifecycle change, or history entry.
 - **FR-022**: Reusing an internal command identity with different normalized input MUST fail without state change.
@@ -217,7 +217,7 @@ As an application developer, I can install one Keynes package archive in a clean
 - **SC-001**: A clean consumer completes the define, fund, delegate, settle, and inspect journey in one local process, and 100% of inspected quantities reconcile with the recorded movements.
 - **SC-002**: Across the complete ungoverned semantic suite, every approved request transfers the exact envelope and every refused request creates zero children and zero quantity movements.
 - **SC-003**: For every mutation replay scenario, any number of identical retries produces one domain change and one ordered set of history effects, while 100% of conflicting reuses leave state unchanged.
-- **SC-004**: Every settlement scenario ends with zero live quantity on each settled Budget, no unsettled descendant below a settled Budget, and all introduced quantity classified as live, consumed, or released.
+- **SC-004**: Every settlement scenario ends with zero live quantity on each settled Budget, no unsettled descendant below a settled Budget, and all supplied quantity classified as live, consumed, or released.
 - **SC-005**: 100% of declared concurrent local scenarios resolve to a valid serial outcome without a conservation, replay, lifecycle, or history-ordering violation.
 - **SC-006**: 100% of public validation, behavior, lifecycle, and shutdown failure cases return asynchronously with a documented error category and no partial state.
 - **SC-007**: Clean consumers installed from one exact archive complete the public KEY-5 loop on Node.js 24 and the latest release across 100% of the supported operating-system lanes, plus one Node.js 25 transition lane, without private imports, repository files, or undeclared setup.

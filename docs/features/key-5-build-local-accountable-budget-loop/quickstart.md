@@ -44,7 +44,7 @@ try {
 }
 ```
 
-Inspect the returned history. For usdCents, introduced quantity is 120, consumption is 25, release is 95, and live quantity is zero. For reviewSeats, introduced quantity is 2, consumption is zero, release is 2, and live quantity is zero. Reusable use remains evidence. History includes the child's return and the parent's automatic finalization. No refund or other application action occurs.
+Inspect the returned history. For usdCents, total supplied quantity is 120, consumption is 25, release is 95, and live quantity is zero. For reviewSeats, total supplied quantity is 2, consumption is zero, release is 2, and live quantity is zero. Reusable use remains evidence. History includes the child's return and the parent's automatic finalization. No refund or other application action occurs.
 
 Create another Budget with `{ resources, allows: { addResources: false } }` and no initial amounts. Both members must exist with zero quantity. An addition must reject asynchronously. A binding from another `createKeynes()` authority must also reject. The full packed consumer adds these cases, denied requests, deficits, replay-free public types, input failures, and shutdown checks.
 

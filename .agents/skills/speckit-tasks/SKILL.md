@@ -7,6 +7,10 @@ metadata:
 ---
 
 
+## Linear artifact links
+
+After generating or updating artifacts, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear). Synchronize the parent issue after any enabled commit hook and before the final response. Include all existing feature documents and report unpublished artifacts as pending.
+
 ## User Input
 
 ```text

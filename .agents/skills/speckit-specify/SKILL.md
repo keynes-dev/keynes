@@ -64,7 +64,7 @@ Given that feature description, do this:
    - Create the returned `FEATURE_DIR` under `docs/features/`.
    - Copy `.specify/templates/spec-template.md` to the returned `FEATURE_FILE`.
    - Fill the template with the exact Linear title, returned branch, issue link, and hidden UUID.
-   - Link the selected Linear issue to `FEATURE_FILE`. Do not copy the specification into Linear or create a second planning record.
+   - At completion, follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear), including the specification and generated checklists. Run synchronization after any enabled commit hook and before the final response.
 
    **IMPORTANT**:
    - You must only create one feature per `/speckit-specify` invocation

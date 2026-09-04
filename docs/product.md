@@ -203,7 +203,7 @@ consumed. It does not mean that Keynes refunded money, restored provider quota,
 or performed another external action.
 
 ```text
-introduced = live + consumed + released
+totalSupplied = live + consumed + released
 ```
 
 For a completely settled tree, `live = 0`. Transfers inside the tree cancel

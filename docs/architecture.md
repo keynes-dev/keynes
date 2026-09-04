@@ -240,7 +240,7 @@ live(B, R) >= 0
 Across a tenant:
 
 ```text
-introduced = live + consumed + released
+totalSupplied = live + consumed + released
 ```
 
 Internal transfers cancel from the tenant equation. A zero-valued member has a

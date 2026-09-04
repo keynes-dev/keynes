@@ -42,7 +42,7 @@ For every later phase in order:
 1. Search the parent's existing sub-issues for the `KEY-parent/Phase-N` marker.
 2. If the marker exists once, reuse that issue. Stop on duplicates.
 3. Otherwise create one sub-issue in the parent's team and project. Use the exact phase heading as its title and the parent issue as its parent.
-4. Store only the parent feature link, phase number, idempotency marker, a commit-pinned link to the phase heading in `tasks.md`, and branch or PR links that already exist.
+4. Store only the parent feature link, phase number, idempotency marker, commit-pinned links to the phase heading and retained phase evidence, and branch or PR links that already exist. Follow [Link feature artifacts in Linear](../../../docs/workflow.md#link-feature-artifacts-in-linear).
 5. Do not copy tasks, requirements, checkpoints, completion counts, or evidence.
 6. Fetch the issue after creation or update. Record its exact title, key, URL, UUID, and `gitBranchName` beneath the phase heading.
 7. Make each later phase issue blocked by the preceding phase issue.
@@ -52,3 +52,5 @@ Leave status, assignee, priority, cycle, milestone, and other Linear-owned field
 ## Finish
 
 Run `node .specify/scripts/phase-stack.mjs check --json`. Report the parent issue, every published phase issue, and the exact commit-pinned `tasks.md` links. Never create GitHub issues or submit PRs.
+
+In apply mode, synchronize artifact links after any enabled commit hook and before the final response. In preview mode, report missing links without changing Linear.

@@ -16,6 +16,19 @@ Keynes uses Spec Kit to manage feature delivery and pstack to improve the engine
 
 Do not create a pstack specification, plan, or task list when a Spec Kit artifact already owns that decision. This separation keeps one source of truth while still giving difficult work more scrutiny.
 
+## Link feature artifacts in Linear
+
+After `$speckit-specify`, `$speckit-clarify`, `$speckit-plan`, `$speckit-tasks`, or `$speckit-checklist` creates or changes artifacts, synchronize the parent issue's document links. Run this step after any enabled commit hook and before the final response. During `$speckit-implement`, synchronize links at each phase checkpoint. `$speckit-taskstoissues --apply` also synchronizes links after publishing phase bindings. Read-only analysis and publication previews report missing links without changing Linear.
+
+1. Read the active feature manifest and fetch its Linear issue. Verify the issue UUID, identifier, and exact branch against the manifest. For phase links, use the issue binding recorded in `tasks.md`.
+2. Enumerate the feature's existing Git artifacts. Link `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `tasks.md`, and each document in `contracts/` and `checklists/` when present. Include other durable design documents created for the feature. Add a link to the feature directory for navigation.
+3. Use the repository's verified GitHub remote and a published branch containing the current document. Use the recorded active phase branch during stacked implementation, the parent branch before phase work, and the merged base after landing. Verify that each path exists remotely and matches the local artifact before publishing its link. Encode branch names and paths in URLs. If an artifact is uncommitted or unpublished, report its link as pending. Do not commit or push solely to publish a link without authorization.
+4. Keep feature-wide document links on the parent issue. Keep commit-pinned links to phase task headings, checkpoints, and retained evidence on the owning phase issue. Phase 1 uses the parent. Preserve older evidence links as historical records. Never point evidence links at a moving branch or publish local-only artifact paths.
+5. Fetch existing links before writing. Reuse matching URLs and update an existing current-document entry when its target changes. Use the document's feature-relative path as its title, or preserve an existing descriptive title. Preserve unrelated links and issue fields. Do not create duplicate attachments, upload document copies, or copy tasks, requirements, checkpoints, completion counts, or evidence into Linear.
+6. Read the issue back and verify the titles and destinations. Report synchronized links and any pending artifacts or failed updates. Do not claim synchronization succeeded when the connector or remote verification failed.
+
+These links are part of completing the artifact-producing command. They do not authorize creating phase issues, changing Linear status, or submitting PRs. Git remains the source of truth for document contents.
+
 ## Choose the workflow
 
 Use Spec Kit when work changes product behavior, architecture, public contracts, delivery scope, or acceptance evidence. A complete feature normally moves through this sequence:
@@ -127,7 +140,7 @@ Label unavailable provider, conformance, security, packaging, compatibility, per
 
 ## Skill bundle
 
-The repository tracks the Spec Kit skills that own feature identity, specification, phase generation, phase publication, analysis, and implementation. A fresh checkout receives those workflow rules. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
+The repository tracks the Spec Kit skills that own feature identity, specification, clarification, planning, checklists, phase generation, phase publication, analysis, and implementation. A fresh checkout receives those workflow rules, including artifact linking. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
 
 The local pstack bundle is based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every tracked Spec Kit skill before replacing it.
 
