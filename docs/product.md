@@ -102,7 +102,7 @@ Every Budget exposes `addResources`, `request`, `settle`, and
 two operations may succeed:
 
 - `addResources` permits new quantity to enter an active Budget.
-- `createChildren` permits an active Budget to request a child.
+- `request` permits an active Budget to request a child.
 
 Omitting `allows` enables both behaviors. A caller may choose either, both,
 or neither. A child chooses its own value. It does not inherit or receive a
@@ -119,8 +119,7 @@ failures synchronously.
 
 ## Creation and funding
 
-`createBudget` accepts either raw Resource definitions or a
-`ResourceBinding`:
+`createBudget` accepts a `ResourceBinding`:
 
 ```ts
 const resources = await keynes.defineResources({
@@ -139,9 +138,9 @@ const root = await keynes.createBudget({
 });
 ```
 
-Binding-based creation creates the Budget from resolved Resource identities.
-Raw-definition creation atomically defines or reuses those Resources and
-creates the Budget. A conflict rolls back the complete command.
+Creation uses the resolved Resource identities in the binding and validates its
+authority scope. Raw Resource definitions are accepted only by
+`defineResources`. Creation performs no definition write.
 
 The Resource input establishes the root's complete membership. A missing
 initial amount means zero. Omitting `initial` creates an all-zero Budget.

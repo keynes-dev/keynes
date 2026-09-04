@@ -3,6 +3,7 @@
 **Linear issue**: [KEY-5](https://linear.app/keynes/issue/KEY-5/build-local-accountable-budget-loop)
 **Git branch**: `key-5-build-local-accountable-budget-loop`
 <!-- linear-issue-id: 1f7b70f4-d8d2-4a69-8b63-e01ae921de22 -->
+
 **Created**: September 4, 2026
 **Input**: User description: "https://linear.app/keynes/issue/KEY-5/build-local-accountable-budget-loop"
 
@@ -26,15 +27,17 @@ Resource definitions are immutable metadata and never hold quantity. Every live 
 
 ### What this feature does not include
 
-KEY-5 includes no Policy evaluation, durable recovery after process exit, PostgreSQL behavior, remote access, Hosted service, Embedded integration, self-hosted operations, or production-readiness claim. It does not add a Resource pool, unattached quantity, a public identity or permission administration surface, or automatic external effects. Those lanes remain `NOT RUN` for this feature.
+KEY-5 delivers the Local product and requires its shared Budget workflows to pass against both SQLite and native PostgreSQL. PostgreSQL is a conformance implementation in this feature, not a deployment product. KEY-5 includes no Policy evaluation, durable recovery after process exit, remote access, Hosted service, Embedded integration, self-hosted operations, or production-readiness claim. It does not add a Resource pool, unattached quantity, a public identity or permission administration surface, or automatic external effects. Those lanes remain `NOT RUN` for this feature.
 
 ### Where this leads
 
-KEY-5 is the first user-complete outcome in the Keynes Local project. It gives [KEY-8](https://linear.app/keynes/issue/KEY-8/add-policy-governance-to-the-local-budget-loop) a stable ungoverned Budget loop on which to add Policy governance. Later projects can carry the same product semantics into Hosted and Embedded deployments, with separate evidence for each environment.
+KEY-5 is the first user-complete outcome in the Keynes Local project. It gives [KEY-8](https://linear.app/keynes/issue/KEY-8/add-policy-governance-to-the-local-budget-loop) a stable ungoverned Budget loop on which to add Policy governance. The same executable command contract must already pass against SQLite and native PostgreSQL. Later projects can deliver Hosted and Embedded access with separate security, recovery, packaging, and operational evidence.
 
 ## Clarifications
 
 ### Session 2026-09-04
+
+- Q: Must PostgreSQL wait until a later deployment project? → A: No. KEY-5 delivers only the Local product, but all shared Budget workflows must pass against SQLite and native PostgreSQL now. PostgreSQL deployment delivery and operational qualification remain deferred. The constitution remains unchanged.
 
 - Q: How does an application create a Budget with no parent, and is it a distinct Budget kind? → A: `createBudget` accepts only a `ResourceBinding`; all Budgets use one contract.
 - Q: What evidence supports the Node.js `>=24` compatibility claim? → A: Test Node.js 24 and the latest release across supported operating systems, plus one clean Node.js 25 transition consumer.
@@ -80,7 +83,7 @@ As an application developer, I can divide an active Budget into children whose m
 
 **Why this priority**: Delegation is how a Budget becomes useful across a workflow. Exact transfer keeps the application in control of fallback behavior.
 
-**Independent test**: Submit affordable, unaffordable, zero-valued, and disallowed requests against one parent and verify that each request creates one exact child or makes no state change.
+**Independent test**: Submit affordable, unaffordable, zero-valued, and disallowed requests against one parent and verify that each request creates one exact child or leaves Budget state and quantity unchanged. An unaffordable request may commit its denial and replay evidence.
 
 **Acceptance scenarios**:
 
@@ -185,13 +188,16 @@ As an application developer, I can install one Keynes package archive in a clean
 - **FR-029**: The distributable package MUST declare Node.js 24 or later without excluding intermediate major versions and MUST contain every public artifact needed by a clean consumer of the KEY-5 loop.
 - **FR-030**: KEY-5 MUST expose only ungoverned Budget requests and MUST NOT define, attach, evaluate, or imply Policy behavior.
 
+- **FR-031**: One deployment-neutral command contract and one shared workflow suite MUST exercise Resource definitions, Budget creation, additions, requests, usage, settlement, replay, and inspection against both SQLite and native PostgreSQL. Results, documented errors, replay flags, ordered history, and final accounting MUST agree after consistent identity normalization. Neither backend may substitute a mock or precomputed decision for its authority.
+- **FR-032**: PostgreSQL conformance MUST prove atomic commit and rollback, coherent inspection, and conservation under concurrent mutations of the same Budget tree. These checks MUST be reported separately from Local lifecycle and package checks and MUST NOT imply deployment or operational readiness.
+
 ### Constitutional requirements _(mandatory)_
 
 - **Budget behavior and storage**: Local definitions, Budgets, memberships, movements, usage, deficits, commands, and history MUST belong to one private process-scoped authority and disappear after process exit. Each mutation MUST commit its validation, accounting, replay result, lifecycle, and history together or leave all of them unchanged. FR-009 through FR-024 define conservation, replay, settlement, history, and error behavior.
 - **Application boundary**: Keynes MUST perform no external work when quantity is added, delegated, consumed, returned, or released. The application owns workflow authorization, execution, retry of external effects, observation, outcome reporting, provider idempotency, refunds, quota restoration, and fallback behavior.
 - **Policy and security**: Policy is `N/A` for KEY-5 because this feature is explicitly ungoverned. The local authority MUST use one private identity context that public inputs cannot select or override. It MUST expose no database access, credentials, secrets, arbitrary query surface, tenant selection, principal selection, or permission administration.
-- **Contracts and deployments**: KEY-5 changes the Local runtime and its public package only. The complete ungoverned semantic suite MUST pass through the public local contract, including queue ordering, authority isolation, asynchronous errors, close and drain behavior, and package contents. The same archive MUST pass clean consumers on Node.js 24 and the latest release across the supported operating systems. One clean Node.js 25 consumer MUST prove the current exclusion is removed. PostgreSQL transactions, remote security, durable recovery, Hosted, Embedded, and managed operations require separate later evidence.
-- **Evidence classification**: Provider-free acceptance MUST use the complete local semantic suite and clean consumers installed from one exact package archive. The record MUST identify the source revision, archive digest, commands, environments, and outcomes. Policy, PostgreSQL, remote, live provider, paid, externally mutating, fault campaign, benchmark, recovery, Hosted, Embedded, self-hosted, managed, and production claims remain `NOT RUN`.
+- **Contracts and deployments**: KEY-5 delivers the Local runtime and its public package. The same shared workflow scenarios MUST also pass against native PostgreSQL, including transaction rollback and concurrent accounting. Local-specific checks MUST cover public calls, queue ordering, authority isolation, asynchronous errors, close and drain behavior, and package contents. The same archive MUST pass clean consumers on Node.js 24 and the latest release across the supported operating systems. One clean Node.js 25 consumer MUST prove the current exclusion is removed. Remote security, durable recovery, PostgreSQL deployment delivery, Hosted, Embedded, and managed operations require separate later evidence.
+- **Evidence classification**: Provider-free acceptance MUST report shared SQLite/PostgreSQL conformance, PostgreSQL transaction and concurrency checks, Local lifecycle checks, and clean consumers from one exact SDK archive separately. The record MUST identify the source revision, contract and archive digests, commands, database versions, environments, and outcomes. Policy, PostgreSQL operational qualification, remote, live provider, paid, externally mutating, fault campaign, benchmark, recovery, Hosted, Embedded, self-hosted, managed, and production claims remain `NOT RUN`. Disposable local test databases are permitted conformance fixtures, not externally managed deployments.
 
 ### Key entities
 
@@ -215,7 +221,8 @@ As an application developer, I can install one Keynes package archive in a clean
 - **SC-005**: 100% of declared concurrent local scenarios resolve to a valid serial outcome without a conservation, replay, lifecycle, or history-ordering violation.
 - **SC-006**: 100% of public validation, behavior, lifecycle, and shutdown failure cases return asynchronously with a documented error category and no partial state.
 - **SC-007**: Clean consumers installed from one exact archive complete the public KEY-5 loop on Node.js 24 and the latest release across 100% of the supported operating-system lanes, plus one Node.js 25 transition lane, without private imports, repository files, or undeclared setup.
-- **SC-008**: The retained provider-free acceptance record names one exact source revision and archive digest, reports the local semantic and clean-consumer results separately, and lists every Policy, PostgreSQL, remote, provider, fault, benchmark, recovery, Hosted, Embedded, self-hosted, managed, and production lane as `NOT RUN`.
+- **SC-008**: The retained provider-free acceptance record names one exact source revision, contract digest, and SDK archive digest. It reports shared backend conformance, PostgreSQL transaction and concurrency checks, Local lifecycle, and clean-consumer results separately, and lists every Policy, PostgreSQL operational qualification, remote, provider, fault campaign, benchmark, recovery, Hosted, Embedded, self-hosted, managed, and production lane as `NOT RUN`.
+- **SC-009**: 100% of shared workflow scenarios pass on both real backends with identical normalized results, errors, replay behavior, ordered history, and final accounting. Every declared PostgreSQL rollback and concurrency scenario preserves atomicity and conservation. Missing PostgreSQL execution prevents KEY-5 acceptance.
 
 ## Assumptions
 

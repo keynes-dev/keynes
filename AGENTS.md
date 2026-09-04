@@ -2,7 +2,7 @@
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read
-`docs/features/key-56-bind-budget-creation-to-resources/plan.md`.
+`docs/features/key-5-build-local-accountable-budget-loop/plan.md`.
 <!-- SPECKIT END -->
 
 For feature delivery and engineering review, follow

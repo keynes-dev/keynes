@@ -35,4 +35,5 @@
 
 - Validation iteration 1 passed all checklist items.
 - Public operation names, behavior controls, the local deployment boundary, package compatibility, and Node.js support are product contract terms from KEY-5, not implementation choices.
-- No clarification markers were required because the Linear issue fixes the owned behavior and explicit evidence exclusions.
+- The approved planning clarification requires SQLite/PostgreSQL shared conformance while keeping PostgreSQL deployment delivery and operations deferred. FR-031, FR-032, and SC-009 define that acceptance boundary.
+- Checked specification consistency after the scope clarification. Checked boxes describe specification quality, not passed runtime acceptance.
