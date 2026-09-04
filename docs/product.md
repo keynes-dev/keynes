@@ -253,6 +253,9 @@ workflow recovery, and every external effect.
 
 ## Deployment choices
 
+TypeScript is the only supported SDK language. Adding another language requires
+an explicit product and architecture decision.
+
 Keynes exposes one Budget contract through three execution paths:
 
 ```text

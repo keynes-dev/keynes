@@ -171,6 +171,17 @@ governs only later `addResources` calls.
 
 ## Policy evaluation
 
+Policy authoring uses Kysely by default and accepts advanced raw SQL within the
+same restricted PostgreSQL-style query profile. Both paths must use one pinned
+PostgreSQL parser, validator, and normalizer to produce a versioned Keynes Policy
+program. Its semantics contract is shared by every execution backend. Each
+backend must pass the canonical conformance corpus. Kysely operation trees,
+parser syntax trees, and backend representations are not public or durable
+contracts. Evaluation occurs within the authority's atomic command; it never
+trusts an application-supplied decision. Invalid inputs, forbidden access,
+nondeterminism, execution-limit failures, and invalid results abort the request.
+Replay uses the recorded context rather than querying application data again.
+
 Policies are local to the Budget that attaches them. They do not inherit to a
 child. A request supplies context under each attached Policy name:
 

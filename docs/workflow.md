@@ -95,6 +95,18 @@ Parallel work helps only when the slices are independent. The user or an applica
 
 Do not delegate requirements, Budget design decisions, or final acceptance. Those stay in the main task.
 
+## Plan and verify changes
+
+The constitution defines governing principles. Check affected principles before research and again after design. Keep implementation checks in the plan's Verification section, using the architecture and the approved feature scope. A recorded constitutional conflict requires an explicit resolution before acceptance.
+
+Every behavioral change must begin with an automated test observed failing for the expected reason before implementation. Task lists must preserve that order. Documentation-only, generated-output, and mechanical changes may use focused validation with a stated rationale.
+
+Specifications must define independently testable user value, boundary and failure scenarios, and measurable outcomes. Plans must identify the affected contracts and the security, recovery, compatibility, migration, and performance evidence required by their scope. Runtime changes must name shared behavior comparisons and separate lifecycle, transaction, security, recovery, packaging, and operational checks. Policy changes must cover context, authoring, parsing, normalization, evaluator conformance, evidence, and replay where affected.
+
+The default verification lane must be deterministic and provider-free. Shared Budget examples must compare SQLite and native PostgreSQL results, errors, replay, history, and final state. Passing that comparison does not qualify Hosted, Embedded, remote access, recovery, or managed operations. New Resource paths require explicit permission, conservation, recovery, replay, and deployment-conformance acceptance before release.
+
+Run provider-free checks before authorized live, paid, or externally mutating validation. Keep networked, fault, and benchmark lanes explicit. Authorization for spend or external mutation must bind the plan, inputs, credential boundary, ceiling, and artifact location. Keep secrets out of fixtures, generated artifacts, logs, prompts, and evidence. Retained claims must identify the source revision, artifact and contract digests, dependency and tool versions, host, and attempt where reproducibility depends on them.
+
 ## Keep evidence honest
 
 During implementation, run the focused test nearest to the changed behavior. Run `pnpm check:repo` to check feature identity, generated contracts, formatting, lint, types, and package boundaries. Run `pnpm test:unit` for the provider-free contract, PostgreSQL, and SDK unit and conformance tests.

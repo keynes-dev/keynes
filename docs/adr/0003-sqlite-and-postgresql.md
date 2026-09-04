@@ -28,7 +28,7 @@ The generated TypeScript client will depend on a small command-execution boundar
 
 KEY-47 remains the service foundation for customer-hosted Keynes and Keynes Cloud. Its current evidence proves only a private loopback service and native PostgreSQL database. Public access, self-hosted packaging, and managed operations require later features and separate evidence.
 
-Keynes will not define a generic storage adapter. Another durable database would require a later constitution, product, architecture, migration, testing, security, recovery, packaging, and support decision.
+Keynes will not define a generic storage adapter. Another durable database would require a later product and architecture decision with migration, testing, security, recovery, packaging, and support evidence.
 
 ## Consequences
 

@@ -7,17 +7,12 @@ description: "Task list template for feature implementation"
 **Input**: Design documents from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: Behavioral tests are REQUIRED and MUST be written and observed
-failing for the expected reason before implementation. For runtime or deployment
-changes, name both the shared Budget behavior tests and the separate local
-lifecycle, PostgreSQL transaction, remote security, recovery, packaging, or
-managed-operations tests that apply. For Policy changes, name context, Kysely
-compilation, raw-SQL parsing, Policy-program normalization, shared semantic
-definition or generation, every selected execution backend, cross-backend
-conformance, evidence, and replay coverage.
-Documentation-only, generated-output, or mechanical changes may use focused
-validation instead, but the tasks MUST state why no behavioral test applies and
-which claims remain untested.
+**Tests**: Follow `docs/workflow.md` and the approved plan's Verification section.
+Behavioral tests MUST be written and observed failing for the expected reason
+before implementation. Include the shared and deployment-specific checks named
+by the plan. Documentation-only, generated-output, or mechanical changes may use
+focused validation; state why no behavioral test applies and which claims remain
+untested. Do not expand acceptance scope by copying a generic checklist.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -51,13 +46,9 @@ which claims remain untested.
 
   Each behavioral story MUST order its acceptance, contract, integration, or
   unit tests before implementation and include retained provider-free evidence.
-  Add shared Budget behavior, local lifecycle, PostgreSQL transaction, remote
-  security, recovery, migration, compatibility, packaging, managed operations,
-  fault, performance, or separately authorized live tasks when the plan puts
-  those qualities in scope. Add Policy context, Kysely compilation, raw-SQL
-  parsing, Policy-program normalization, shared semantic definition or
-  generation, backend implementation, and cross-backend conformance tasks when
-  Policy behavior changes.
+  Add the shared conformance, runtime-specific, Policy, and operational tasks
+  required by the approved plan and docs/workflow.md. Preserve the plan's scope
+  and evidence boundaries.
   List every claim that remains untested.
 
   DO NOT keep these sample tasks in the generated tasks.md file.

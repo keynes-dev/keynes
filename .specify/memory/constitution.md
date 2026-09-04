@@ -1,231 +1,129 @@
 <!--
 Sync Impact Report
-- Version change: 5.0.0 -> 6.0.0
-- Modified principles: None
-- Modified sections:
-  - Product constraints: Linear now owns mutable delivery planning and lifecycle state
-  - Delivery and evidence gates: every feature binds one Linear issue without duplicating task or evidence ownership
-- Added sections: None
-- Removed sections: None
-- Templates requiring updates:
-  - validated, no content change: .specify/templates/plan-template.md
-  - validated, no content change: .specify/templates/tasks-template.md
-  - updated: .specify/templates/spec-template.md
-  - validated, no content change: .specify/templates/checklist-template.md
-  - validated, no content change: .specify/templates/constitution-template.md
-  - validated, no command templates present: .specify/templates/commands/*.md
-- Runtime guidance reviewed:
-  - updated: docs/README.md
-  - updated: docs/product.md
-  - updated: docs/architecture.md
-  - updated: docs/workflow.md
-  - added: docs/adr/0008-linear-planning-and-spec-kit-identity.md
-  - removed: docs/roadmap.md
-  - aligned: AGENTS.md
+- Version change: 6.0.0 -> 7.0.0
+- Modified principles:
+  - One source of truth per Budget -> Budget-centered accounting
+  - Application-owned effects -> Application-owned work
+  - Restricted, fail-closed Policies -> Bounded Policy authority
+  - Consistent behavior across deployments -> Consistent public meaning
+  - Evidence-first, test-first delivery -> Claims supported by evidence
+- Added principle: Explicit accounting outcomes
+- Added section: Purpose
+- Removed sections: Product constraints; Delivery and evidence gates
+- Relocated requirements: technical choices to architecture and ADRs;
+  test-first delivery and verification procedures to workflow guidance
+- Updated: .specify/templates/plan-template.md, .specify/templates/spec-template.md,
+  .specify/templates/tasks-template.md, docs/architecture.md, docs/workflow.md,
+  docs/README.md, docs/product.md, docs/adr/0003-sqlite-and-postgresql.md
+- Reviewed, unchanged: AGENTS.md,
+  .specify/templates/constitution-template.md, .agents/skills/speckit-*/SKILL.md
+- No command templates exist at .specify/templates/commands/*.md
+- Historical feature artifacts remain revision-scoped; no acceptance scope changed
 - Follow-up TODOs: None
 -->
 
 # Keynes Constitution
 
+## Purpose
+
+Keynes gives applications explicit Resource limits and accountable Budget outcomes.
+This constitution guides product and engineering decisions when requirements leave
+room for judgment. It defines the commitments that designs must preserve.
+Technology choices, delivery procedures, and feature acceptance checks belong in
+the documents that own those decisions.
+
 ## Core principles
 
-### I. One source of truth per Budget
+### I. Budget-centered accounting
 
-Each Budget MUST be stored and changed in exactly one place. The process-local
-SQLite runtime MUST own the committed state and state transitions for a local Budget.
-The `keynes.*` PostgreSQL procedures MUST own the committed state and state
-transitions for a durable Budget. SDKs, services, and integrations MUST NOT
-reproduce those transitions outside the selected implementation or write its
-private state directly.
+Budgets MUST own quantity and permission to use it. Resource definitions MUST
+create neither quantity nor permission. Each Budget MUST have one authoritative
+owner for its committed state and transitions. Clients and integrations MUST NOT
+create a competing accounting authority or silently substitute another authority.
 
-A command MUST publish one complete result atomically or change no state.
-Resource conservation, availability, settlement, exact replay, conflicting
-command reuse, missing usage, overage, and unresolved work MUST retain one
-unambiguous meaning. Keynes MUST NOT copy a live Budget between deployments or
-write it to two places. Public SDK configuration MUST select exactly one access
-path. A remote access path MUST authenticate and resolve to exactly one trusted
-Budget authority. Missing, invalid, or incompatible remote configuration MUST
-fail and MUST NOT select local state, another service, or another database.
+Accounting changes MUST be atomic and preserve conservation. The public model
+MUST keep quantity attached to Budgets, without introducing an unattached pool or
+parallel balance. This keeps ownership explicit as applications delegate work.
 
-### II. Application-owned effects
+### II. Application-owned work
 
-Keynes MUST govern Resource limits and accounting without taking ownership of
-application work. Applications own workflow validity, request construction,
-Policy context, effect execution, provider idempotency and retries, usage
-observation, business outcomes, fallback behavior, and analysis. An approved
-child Budget permits only its Resource envelope; it MUST NOT be represented as
-proof that external work ran or succeeded. Keynes MUST NOT invent, dispatch,
-retry, reorder, or substitute application behavior.
+Applications MUST own external work, including execution, retries, usage
+observation, and business outcomes. Keynes MUST govern Resource limits and
+accounting without dispatching or substituting application behavior.
 
-This boundary keeps Budget decisions composable with any application workflow
-and prevents a command retry from duplicating external work.
+Budget approval MUST mean permission within a Resource envelope. It MUST NOT be
+presented as evidence that work ran or succeeded. This boundary lets applications
+use Keynes with their own workflows and effect-handling strategies.
 
-### III. Restricted, fail-closed Policies
+### III. Bounded Policy authority
 
-A Policy MUST be optional, local to one Budget, deterministic, read-only, and
-limited to Resource ceilings. Its public format MUST be a restricted
-PostgreSQL-style query over the requested Resources, the parent Budget's
-available Resources, and one fixed context object supplied by the application.
-It MUST NOT access Keynes private storage, application tables, secrets,
-history, or unrelated requests.
+Policies MUST remain optional constraints on Resource requests, local to the
+Budget that attaches them. They MUST operate deterministically on explicit,
+permitted inputs and MUST NOT gain authority to execute effects or inspect
+unrelated state. The Budget authority MUST own the decision.
 
-The TypeScript SDK MUST use Kysely as the normal Policy authoring path and MUST
-also accept advanced raw SQL within the same supported profile. Kysely-compiled
-SQL and raw SQL MUST pass through one pinned PostgreSQL parser, validator, and
-normalizer into a versioned Keynes Policy program. Policy evaluation MUST occur
-inside the selected Budget authority's atomic command, and Keynes MUST NOT trust
-an application-supplied Policy decision. Keynes MUST define one versioned
-semantics contract for that program. Deployments MAY use one shared evaluator
-or deployment-native backends when each backend enforces the same contract and
-passes the canonical conformance corpus. Kysely's operation tree, the parser's
-syntax tree, and backend-specific representations are not public or durable
-contracts.
+Evaluation failures MUST NOT grant permission or masquerade as ordinary denials.
+Decision evidence MUST preserve the inputs used, without exposing secrets.
+Applications supply context facts; a Policy decision does not establish that
+those facts are true.
 
-Invalid SQL, forbidden access, nondeterministic behavior, an execution-limit
-failure, invalid context, or an invalid result MUST fail the request. None may
-become an approval or denial. Keynes MUST record the exact context used for a
-decision, and replay MUST NOT query application data again. Policy context MUST
-be free of secrets.
+### IV. Explicit accounting outcomes
 
-### IV. Consistent behavior across deployments
+Keynes MUST distinguish known usage, missing evidence, and deficits. Settlement
+MUST NOT invent usage, hide a deficit, or represent unresolved obligations as
+complete. Accounting outcomes MUST remain explainable from retained history.
 
-The in-memory SQLite runtime and PostgreSQL MUST implement the same Budget commands,
-results, errors, replay behavior, accounting rules, and evidence format. The
-generated TypeScript client MUST depend on a deployment-neutral command
-boundary. Local lifecycle code, PostgreSQL procedure clients, and remote
-transport clients MAY differ in storage, authentication, transactions,
-concurrency controls, recovery, and operations, but they MUST NOT change the
-public meaning of a Budget command.
+Retries MUST NOT duplicate accounting. Reusing a command identity for a different
+operation MUST produce an explicit conflict. Recording or replaying an accounting
+outcome MUST NOT imply that an external effect was repeated or reversed.
 
-Every shared Budget example MUST run as a black-box comparison against the
-in-memory SQLite runtime and native PostgreSQL. Results, errors, replay flags, history,
-and final Budget state MUST agree. Separate suites MUST cover local lifecycle
-and memory, PostgreSQL concurrency and transactions, remote authentication and
-tenant isolation, recovery, packaging, and managed operations. A pass in one
-deployment MUST NOT be reported as evidence for another.
+### V. Consistent public meaning
 
-Subtree issuance, multi-source funding, or another Resource path MUST use an
-explicit contract and pass its own permission, conservation, recovery, replay,
-and deployment comparison gates before release.
+Supported execution paths MUST preserve the same public meaning for Budget
+commands, accounting outcomes, errors, and replay. Differences in lifecycle,
+durability, access, and operational guarantees MUST be explicit.
 
-### V. Evidence-first, test-first delivery
+Delivery may proceed in stages, but a claim of equivalent behavior MUST have
+comparative evidence. Evidence for shared semantics MUST NOT imply deployment or
+operational readiness. Feature contracts and architecture guidance own the
+specific conformance obligations for each stage.
 
-Every behavioral change MUST begin with an automated test that is observed
-failing for the expected reason before implementation begins. The default
-verification lane MUST be deterministic and provider-free. Networked, paid,
-managed-provider, fault, and benchmark lanes MUST remain explicit and, where
-they can spend money or mutate external state, separately authorized.
+### VI. Claims supported by evidence
 
-Specs and plans MUST define measurable acceptance evidence, including security,
-recovery, migration, compatibility, shared behavior, deployment-specific, and
-performance evidence when those qualities are in scope. A result that was not
-executed MUST remain marked `NOT RUN`. Release or readiness claims MUST cite
-retained evidence from the exact source revision, artifact, dependency versions,
-host, and attempt that produced it.
+Acceptance and readiness claims MUST match the behavior, source revision,
+artifact, and environment actually verified. Proposed, implemented, verified,
+failed, skipped, and untested behavior MUST remain distinguishable. Unexecuted
+verification MUST be reported as `NOT RUN`.
 
-## Product constraints
-
-- `Budget` MUST remain the only public stateful governance object. Defining a
-  Resource type creates no quantity or permission to spend.
-- An ordinary request MUST name one exact Resource envelope and be funded
-  entirely by its structural parent. It MUST atomically return a denial or
-  reserve Resources and create one child Budget.
-- Policies MUST remain optional and local to the Budget that declares them.
-  Request context MUST be immutable, typed, application-supplied, recorded as
-  evidence, and absent from child inheritance.
-- Settlement MUST record direct known usage and derive subtree state without
-  silently treating missing evidence as zero or charging ancestors to hide a
-  child deficit.
-- Public contracts MUST preserve exact values, stable identities, canonical
-  serialization, explicit error families, and idempotent command replay.
-- Secrets MUST NOT appear in Policy context, committed fixtures, generated
-  artifacts, logs, prompts, or retained evidence.
-- Local mode MUST run privately inside one Node.js process, expose no persistence
-  or database handle, and lose its state when the process exits.
-- PostgreSQL MUST be the only durable database implementation. It MAY be
-  installed in an application's database, reached directly by the SDK in a
-  customer-operated deployment, or operated by Keynes as managed Cloud.
-- Supporting MySQL, SQLite, or another durable database implementation requires
-  a later constitution amendment and its own behavior, migration, concurrency,
-  security, recovery, packaging, and operations evidence.
-- TypeScript MUST remain the only supported SDK until a later product and
-  architecture decision adds another language.
-- `docs/product.md` owns the product thesis and commitments;
-  `docs/architecture.md` owns runtime semantics and boundaries; accepted ADRs
-  own architectural decisions; and Linear projects and issues own implementation
-  order, current status, priority, assignment, dependencies, and current issue
-  disposition. Feature artifacts MUST refine product and architecture without
-  silently redefining them, and MUST own their detailed implementation contracts,
-  tasks, and retained exact-revision evidence.
-
-## Delivery and evidence gates
-
-- Every feature specification MUST define independently testable user value,
-  boundary and failure scenarios, measurable outcomes, and any application
-  effect, Budget behavior, Policy, contract, deployment, or evidence
-  implications. A non-applicable concern MUST be marked `N/A` with a concrete
-  rationale.
-- Every feature specification MUST use one Linear parent issue as its identity.
-  The version 3 manifest MUST store the exact title, identifier, UUID, URL,
-  branch-final-segment directory, specification path, and `gitBranchName`. Repository code
-  MUST NOT allocate another number, derive a branch, or parse identity from a
-  branch. Proving live Linear values requires an explicit synchronization and
-  is not part of the deterministic repository gate.
-  Feature specifications MUST NOT duplicate mutable lifecycle status, priority,
-  assignment, or project sequencing from Linear.
-- Linear issues MAY summarize engineering work and link to accepted evidence,
-  but detailed Spec Kit tasks and retained exact-revision evidence MUST remain
-  in the repository. A mutable field MUST have only one owner.
-- Phase 1 MUST use the parent Linear issue and branch. Each later phase MUST use
-  one sub-issue and its Linear-generated branch. Every phase MUST end with a
-  checkpoint. Linear content MUST NOT copy tasks, requirements, checkpoints,
-  completion counts, or evidence.
-- Every implementation plan MUST pass the Constitution Check before research
-  and again after design. It MUST identify where each affected Budget is stored,
-  application-owned effects, Policy and security boundaries, shared command
-  implications, and exact verification lanes.
-- Every task list for a behavioral change MUST order failing behavioral tests
-  before the corresponding implementation. Documentation-only,
-  generated-output, or mechanical changes MAY use focused validation, but the
-  task list MUST state why no behavioral test applies.
-- A runtime or deployment change MUST name the shared behavior examples and the
-  deployment-specific lifecycle, transaction, security, recovery, packaging, or
-  managed-operations tests that apply.
-- A Policy change MUST name changes to context, Kysely compilation, raw-SQL
-  parsing, Policy-program normalization, the shared semantic definition, every
-  selected execution backend, cross-backend conformance, evidence, and replay.
-- Provider-free verification MUST pass before any authorized live, paid, or
-  externally mutating validation. Authorization MUST bind the exact plan,
-  inputs, credential boundary, spend or mutation ceiling, and retained artifact
-  location.
-- Reviews MUST distinguish proposed, implemented, verified, failed, skipped, and
-  `NOT RUN` states. Evidence MUST identify the relevant contract and artifact
-  digests, tool versions, host, and explicit attempt when reproducibility
-  depends on them.
-- Any constitutional exception MUST be documented in the plan's Complexity
-  Tracking section with the violated rule, why the exception is necessary, the
-  simpler compliant alternative that was rejected, and a removal or migration
-  path.
+Verification MUST address the risks and promises of the change. A result from one
+environment or implementation MUST NOT stand in for evidence about another.
+Specifications and reviews MUST make acceptance observable; workflow guidance
+owns test ordering, execution procedures, and evidence retention details.
 
 ## Governance
 
-This constitution supersedes conflicting repository practices and feature-local
-guidance. An amendment MUST document its rationale and migration impact, update
-the Sync Impact Report, synchronize dependent templates and runtime guidance,
-and pass repository validation before approval.
+This constitution governs conflicting repository and feature-local guidance.
+Product documents own product commitments; architecture and accepted ADRs own
+technical decisions; workflow guidance owns delivery procedures. Feature
+artifacts refine these decisions into requirements, designs, tasks, and evidence.
+Moving a rule out of this constitution does not cancel its requirement in the
+owning document.
 
-Constitution versions follow semantic versioning. A MAJOR version removes or
-redefines a governing principle incompatibly; a MINOR version adds a principle,
-section, or materially stronger obligation; and a PATCH version clarifies
-wording without changing required behavior. The ratification date records the
-first accepted constitution, while the last-amended date changes with every
-approved amendment.
+Linear MUST own mutable planning and lifecycle state. Git MUST own durable
+specifications, decisions, and retained evidence. Each mutable field MUST have
+one owner. Links and summaries may connect these records without creating a
+second source of truth.
 
-Every feature plan and review MUST verify constitutional compliance. Reviewers
-MUST reject unexplained violations, more than one source of truth for a Budget,
-hidden external effects, fail-open Policy behavior, unsupported deployment
-equivalence, and claims that exceed retained evidence. Governance review does
-not replace technical judgment: every rule and exception MUST be justified by
-the concrete correctness, security, operability, or product risk it controls.
+Plans and reviews MUST explain how affected principles are preserved and identify
+conflicts. An exception MUST state its rationale, impact, and resolution path;
+recording it does not grant approval. A proposal that changes a governing
+principle requires an explicit amendment before acceptance.
 
-**Version**: 6.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
+Amendments MUST record the rationale and migration impact, synchronize affected
+guidance and templates, and pass applicable repository validation. The Sync
+Impact Report records that synchronization. MAJOR versions remove or redefine
+governing obligations; MINOR versions add or strengthen them; PATCH versions
+clarify wording without changing obligations. Preserve the original ratification
+date and update the amendment date when an amendment is approved.
+
+**Version**: 7.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
