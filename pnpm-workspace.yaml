@@ -1,4 +1,9 @@
 packages:
+  - "apps/*"
   - "packages/*"
 engineStrict: true
 disallowWorkspaceCycles: true
+minimumReleaseAgeExclude:
+  - astro@7.2.9
+allowBuilds:
+  esbuild: true

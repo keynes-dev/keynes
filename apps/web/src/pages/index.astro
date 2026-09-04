@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { Footer } from "../components/Footer";
+import { Nav } from "../components/Nav";
+import { ClosingCta } from "../components/pages/home/ClosingCta";
+import { Deployments } from "../components/pages/home/Deployments";
+import { Frontier } from "../components/pages/home/Frontier";
+import { Hero } from "../components/pages/home/Hero";
+import { HeroDiagram } from "../components/pages/home/HeroDiagram";
+import { HowItWorks } from "../components/pages/home/HowItWorks";
+import { Thesis } from "../components/pages/home/Thesis";
+---
+
+<BaseLayout
+  title="Keynes — Runtime economics for agents"
+  description="Give your agents observability into your business with programmable resource controls for tokens, tools, time, and more."
+>
+  <Nav />
+  <main>
+    <Hero />
+    <HeroDiagram client:load />
+    <Thesis />
+    <HowItWorks client:load />
+    <Frontier client:load />
+    <Deployments />
+    <ClosingCta />
+  </main>
+  <Footer />
+</BaseLayout>

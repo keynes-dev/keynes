@@ -62,13 +62,16 @@ describe("repository organization", () => {
 
   it("uses conventional application and package workspace globs", () => {
     const workspaceSource = readFile("pnpm-workspace.yaml");
-    const workspaces = workspaceSource
+    const packagesBlock = /^packages:\n((?: {2}- .+\n)+)/mu.exec(
+      workspaceSource,
+    )?.[1];
+    const workspaces = (packagesBlock ?? "")
       .split("\n")
       .map((line) => /^\s{2}-\s+(.+)$/u.exec(line)?.[1])
       .filter((entry): entry is string => entry !== undefined)
       .sort();
 
-    expect(workspaces).toEqual(['"packages/*"']);
+    expect(workspaces).toEqual(['"apps/*"', '"packages/*"']);
   });
 
   it("removes every obsolete root owner", () => {
