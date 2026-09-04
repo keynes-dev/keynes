@@ -13,12 +13,12 @@ const resources = await keynes.defineResources({
 const budget = await keynes.createBudget({
   resources,
   initial: { usdCents: 100, reviewSeats: 2 },
-  allows: { addResources: true, request: true },
+  allows: { add: true, request: true },
 });
-await budget.addResources({ usdCents: 20 });
+await budget.add({ usdCents: 20 });
 const result = await budget.request({
   resources: { usdCents: 40, reviewSeats: 1 },
-  allows: { addResources: false, request: false },
+  allows: { add: false, request: false },
 });
 if (result.status === "approved") {
   await result.budget.settle({ usdCents: 25, reviewSeats: 1 });
@@ -43,7 +43,7 @@ type ResourceDefinitions = Readonly<
     }
   >
 >;
-type Allows = Readonly<{ addResources: boolean; request: boolean }>;
+type Allows = Readonly<{ add: boolean; request: boolean }>;
 type Amounts<N extends string> = Readonly<Partial<Record<N, number>>>;
 type Usage<N extends string> = Readonly<Partial<Record<N, number | null>>>;
 
@@ -74,7 +74,7 @@ interface LocalKeynes extends AsyncDisposable {
 }
 
 interface Budget<N extends string> {
-  addResources(resources: Amounts<N>): Promise<BudgetState<N>>;
+  add(amounts: Amounts<N>): Promise<BudgetState<N>>;
   request<const A extends Amounts<N>>(options: {
     readonly resources: A;
     readonly allows?: Partial<Allows>;
@@ -101,8 +101,8 @@ The implementation must reject extra Resource keys both in literal/variable comp
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | createKeynes()               | Opens one private SQLite authority. Any configuration argument, including databaseUrl, rejects as invalid_configuration. No fallback or public alternate store selector.                                                                         |
 | defineResources(definitions) | Non-empty batch; exact reuse returns existing definitions. Any conflicting name aborts the batch. Resolves one quantity-free binding.                                                                                                            |
-| createBudget(options)        | Binding required; no raw definitions or ResourceSchema. All binding members are included. Initial amounts default to zero. Missing control booleans default to true, independently. Initial funding does not consult addResources.               |
-| addResources(amounts)        | Non-empty map of existing members. Active and addResources permitted. Introduces exact quantities; zero amounts are valid. Resolves target Budget state.                                                                                         |
+| createBudget(options)        | Binding required; no raw definitions or ResourceSchema. All binding members are included. Initial amounts default to zero. Missing control booleans default to true, independently. Initial funding does not consult `allows.add`.               |
+| add(amounts)                 | Non-empty map of existing members. Active and `allows.add` permitted. Introduces exact quantities; zero amounts are valid. Resolves target Budget state.                                                                                         |
 | request(options)             | Non-empty resources map. Active and request permitted. Exact affordable envelope creates one child; unaffordable envelope resolves a denial with sorted insufficient_available reasons. Child controls default independently and do not inherit. |
 | settle(usage)                | Cumulative direct usage, possibly empty or unresolved. Resolves kind, target Budget state, changed usage totals, and unresolved member names. Automatic ancestor changes are read through inspect.                                               |
 | inspect()                    | Resolves `{ budget, history: { entries } }` at one committed point. State is only for the selected Budget; history contains its whole tree.                                                                                                      |

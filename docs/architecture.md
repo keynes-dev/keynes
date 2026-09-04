@@ -72,7 +72,7 @@ scope and uses resolved Resource identities without writing definitions.
 
 Every Budget has a stable method surface:
 
-- `addResources` introduces quantity for existing members.
+- `add` introduces quantity for existing members.
 - `request` asks the Budget to create and fund one child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
@@ -144,7 +144,7 @@ A Budget owns:
 - opaque identity and, for PostgreSQL, an opaque public reference;
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
-- immutable `allows.addResources` and `allows.request` booleans;
+- immutable `allows.add` and `allows.request` booleans;
 - an immutable list of locally attached Policies;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
@@ -159,14 +159,14 @@ initial amount is zero. Child membership is exactly the
 Resource keys in the approved request. An explicit zero includes the Resource;
 an omitted key excludes it.
 
-Membership never expands. `addResources` can add quantity only to an active
+Membership never expands. `add` can add quantity only to an active
 Budget, only for existing members, and only when its behavior control permits
 the operation. This rule is identical for roots and descendants.
 
 Initial root allocation belongs to creation and does not consult the new
-Budget's `allows.addResources` value. A child grant belongs to the parent's
+Budget's `allows.add` value. A child grant belongs to the parent's
 approved request and likewise does not consult the child's value. The control
-governs only later `addResources` calls.
+governs only later `add` calls.
 
 ## Policy evaluation
 
@@ -208,7 +208,7 @@ observe the same snapshot. The lowest ceiling for a Resource wins. A denial is
 a committed domain result with evidence but no child or quantity movement. A
 Policy error aborts the command and never becomes an approval or denial.
 
-`addResources` does not evaluate Policies. Its authority comes only from the
+`add` does not evaluate Policies. Its authority comes only from the
 Budget's immutable behavior control and database authorization below the SDK.
 
 ## Quantity accounting
@@ -298,15 +298,15 @@ from retaining quantity or having a non-settled descendant.
 One generated semantic contract defines the commands implemented by both
 authorities:
 
-| Command              | Meaning                                              |
-| -------------------- | ---------------------------------------------------- |
-| `defineResources`    | Atomically define or exact-reuse a Resource batch    |
-| `definePolicies`     | Atomically define or exact-reuse a Policy batch      |
-| `createBudget`       | Resolve a Resource binding and create one root       |
-| `addBudgetResources` | Introduce quantity to an eligible active Budget      |
-| `requestBudget`      | Evaluate Policies and transfer quantity to one child |
-| `settleBudget`       | Record usage and finalize every newly ready Budget   |
-| `inspectBudget`      | Read one coherent state and lineage-history snapshot |
+| Command           | Meaning                                              |
+| ----------------- | ---------------------------------------------------- |
+| `defineResources` | Atomically define or exact-reuse a Resource batch    |
+| `definePolicies`  | Atomically define or exact-reuse a Policy batch      |
+| `createBudget`    | Resolve a Resource binding and create one root       |
+| `addToBudget`     | Introduce quantity to an eligible active Budget      |
+| `requestBudget`   | Evaluate Policies and transfer quantity to one child |
+| `settleBudget`    | Record usage and finalize every newly ready Budget   |
+| `inspectBudget`   | Read one coherent state and lineage-history snapshot |
 
 Each mutation has one canonical operation, operation key, normalized input
 digest, stored result, and ordered history effects. Exact retry returns the

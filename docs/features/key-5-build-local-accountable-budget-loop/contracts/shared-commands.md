@@ -4,14 +4,16 @@ Both authorities implement these target commands through `packages/contracts`. G
 
 ## Commands
 
-| Method             | PostgreSQL procedure        | Input beyond private commandId                                        | Stored domain result                           |
-| ------------------ | --------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- |
-| defineResources    | keynes.define_resources     | Non-empty canonical definition batch                                  | Resolved definitions with stable Resource IDs  |
-| createBudget       | keynes.create_budget        | Resolved Resource IDs, complete initial quantities, normalized allows | Selected new Budget state                      |
-| addBudgetResources | keynes.add_budget_resources | Budget ID and Resource amounts                                        | Selected updated Budget state                  |
-| requestBudget      | keynes.request              | Parent ID, exact Resource envelope, child allows                      | Approved child state or denial reasons         |
-| settleBudget       | keynes.settle               | Budget ID and cumulative usage map                                    | Target state, updated usage, unresolved IDs    |
-| inspectBudget      | keynes.inspect_budget       | Budget ID; no commandId                                               | Selected state and full connected-tree history |
+| Internal command | Public call                   | PostgreSQL procedure    | Input beyond private commandId                                        | Stored domain result                           |
+| ---------------- | ----------------------------- | ----------------------- | --------------------------------------------------------------------- | ---------------------------------------------- |
+| defineResources  | `keynes.defineResources(...)` | keynes.define_resources | Non-empty canonical definition batch                                  | Resolved definitions with stable Resource IDs  |
+| createBudget     | `keynes.createBudget(...)`    | keynes.create_budget    | Resolved Resource IDs, complete initial quantities, normalized allows | Selected new Budget state                      |
+| addToBudget      | `budget.add(...)`             | keynes.add_to_budget    | Budget ID and Resource amounts                                        | Selected updated Budget state                  |
+| requestBudget    | `budget.request(...)`         | keynes.request          | Parent ID, exact Resource envelope, child allows                      | Approved child state or denial reasons         |
+| settleBudget     | `budget.settle(...)`          | keynes.settle           | Budget ID and cumulative usage map                                    | Target state, updated usage, unresolved IDs    |
+| inspectBudget    | `budget.inspect()`            | keynes.inspect_budget   | Budget ID; no commandId                                               | Selected state and full connected-tree history |
+
+The [Local API contract](local-api.md) owns the public signatures. `keynes` owns Resource definition, Budget creation, and runtime closure through `close()`. Parentless and child Budgets expose the same `add`, `request`, `settle`, and `inspect` methods. `budget.add(amounts)` increases quantities for existing Resource members; it does not add Resource definitions or expand membership. The immutable `allows.add` control governs this operation.
 
 The authority independently validates membership and scope. The public binding maps to private IDs but does not authorize the command by itself. Definition batches are atomic, including when an early new definition precedes a conflicting later definition. KEY-5 commands contain no Policy program, context, remote reference, public principal selection, or recovery option. Reuse private fixture identity initialization; no public IAM product is added.
 

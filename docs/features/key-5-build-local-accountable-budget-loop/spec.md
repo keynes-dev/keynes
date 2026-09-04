@@ -23,7 +23,7 @@ An application can define Resources independently, use the resulting binding to 
 
 ### What must stay true
 
-Resource definitions are immutable metadata and never hold quantity. Every live quantity belongs to one active or settling Budget. Budget Resource membership and the `allows.addResources` and `allows.request` controls are fixed at creation. Requests transfer an exact envelope or nothing. Usage above owned quantity remains visible as permanent deficit evidence. A settled Budget has no live quantity and no unsettled descendant. The application continues to own workflow decisions and every external action.
+Resource definitions are immutable metadata and never hold quantity. Every live quantity belongs to one active or settling Budget. Budget Resource membership and the `allows.add` and `allows.request` controls are fixed at creation. Requests transfer an exact envelope or nothing. Usage above owned quantity remains visible as permanent deficit evidence. A settled Budget has no live quantity and no unsettled descendant. The application continues to own workflow decisions and every external action.
 
 ### What this feature does not include
 
@@ -68,7 +68,7 @@ As an application developer, I can introduce more quantity to an eligible active
 
 **Why this priority**: Real work often learns its final limit after creation. Adding quantity must be possible without inventing an unattached inventory or changing what the Budget governs.
 
-**Independent test**: Create parentless and child Budgets with different `allows.addResources` values, add quantity to eligible members, and verify every accepted addition and rejected attempt without using requests or settlement.
+**Independent test**: Create parentless and child Budgets with different `allows.add` values, add quantity to eligible members, and verify every accepted addition and rejected attempt without using requests or settlement.
 
 **Acceptance scenarios**:
 
@@ -161,9 +161,9 @@ As an application developer, I can install one Keynes package archive in a clean
 - **FR-002**: Defining Resources MUST create no quantity. Repeating the same name and definition MUST return the existing definition, while reusing a name with a different definition MUST reject the complete batch without partial definitions.
 - **FR-003**: Resource definitions MUST distinguish consumable from reusable accounting behavior and MUST return an immutable, quantity-free binding scoped to the issuing local authority.
 - **FR-004**: An application MUST be able to create one Budget with no parent from a valid Resource binding with initial quantities, omitted quantities treated as zero, or no initial quantities at all. `createBudget` MUST NOT accept raw Resource definitions.
-- **FR-005**: A Budget created through `createBudget` and a child created through `request` MUST expose the same Budget contract. Creation MUST make the supplied Resource set the Budget's complete immutable membership and MUST fix `allows.addResources` and `allows.request` for the Budget's lifetime.
+- **FR-005**: A Budget created through `createBudget` and a child created through `request` MUST expose the same Budget contract. Creation MUST make the supplied Resource set the Budget's complete immutable membership and MUST fix `allows.add` and `allows.request` for the Budget's lifetime.
 - **FR-006**: Initial funding of a Budget with no parent MUST belong to the creation operation and MUST NOT depend on whether that Budget permits later additions.
-- **FR-007**: `addResources` MUST introduce the exact accepted quantity directly into an active Budget only when the Resource is already a member and `allows.addResources` permits the operation.
+- **FR-007**: `add` MUST introduce the exact accepted quantity directly into an active Budget only when the Resource is already a member and `allows.add` permits the operation.
 - **FR-008**: An ineligible addition MUST reject without changing quantity, membership, lifecycle, command results, or history.
 - **FR-009**: `request` MUST create at most one child and transfer the complete requested envelope atomically from an active parent only when `allows.request` permits it and every requested amount is available.
 - **FR-010**: A child MUST contain exactly the Resource keys in its approved request. An explicit zero MUST create membership, while an omitted key MUST not.

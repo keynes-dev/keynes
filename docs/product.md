@@ -97,11 +97,11 @@ A Budget is the only public stateful governance object. It has immutable
 Resource membership, immutable behavior controls, optional local Policies, one
 structural parent, and one lifecycle.
 
-Every Budget exposes `addResources`, `request`, `settle`, and
+Every Budget exposes `add`, `request`, `settle`, and
 `inspect`. The immutable `allows` value controls whether the first
 two operations may succeed:
 
-- `addResources` permits new quantity to enter an active Budget.
+- `add` permits new quantity to enter an active Budget.
 - `request` permits an active Budget to request a child.
 
 Omitting `allows` enables both behaviors. A caller may choose either, both,
@@ -146,9 +146,9 @@ The Resource input establishes the root's complete membership. A missing
 initial amount means zero. Omitting `initial` creates an all-zero Budget.
 Zero is valid and can establish membership without creating a quantity
 movement. Initial allocation is part of creation and does not require
-`allows.addResources`.
+`allows.add`.
 
-`addResources` may introduce quantity into any active Budget whose
+`add` may introduce quantity into any active Budget whose
 `allows` value permits it. It changes quantity only for existing members.
 It cannot expand membership. Policies do not evaluate incoming quantity.
 
@@ -306,7 +306,7 @@ released quantity.
 
 - Resource and Policy definitions are independent, immutable authority state.
 - Live quantity belongs to exactly one non-settled Budget.
-- Any active Budget may receive quantity when `allows.addResources` permits
+- Any active Budget may receive quantity when `allows.add` permits
   it.
 - Resource membership and `allows` never change after Budget creation.
 - A child receives exactly the Resource keys in its approved request.
