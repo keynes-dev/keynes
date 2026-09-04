@@ -347,7 +347,11 @@ export function resolveActiveFeature(
           candidates.push(candidate);
       }
       if (candidates.length > 1) fail(`Multiple features own branch ${branch}`);
-      if (candidates.length === 1) identity = candidates[0];
+      if (candidates.length === 0)
+        fail(
+          `Active branch ${branch || "(detached)"} does not match ${identity.branch} or a published sub-issue branch`,
+        );
+      identity = candidates[0];
     }
   }
   const absoluteDirectory = resolve(repoRoot, identity.feature_directory);
@@ -357,23 +361,6 @@ export function resolveActiveFeature(
     )
   ) {
     fail("Feature directory escapes docs/features");
-  }
-  if (requireBranch) {
-    const branch = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
-    if (branch !== identity.branch) {
-      const tasksPath = join(absoluteDirectory, "tasks.md");
-      const units = existsSync(tasksPath)
-        ? validateUnits(identity, parseUnits(readFileSync(tasksPath, "utf8")))
-        : [];
-      if (
-        !units.some(
-          (unit) => unit.state === "published" && unit.branch === branch,
-        )
-      )
-        fail(
-          `Active branch ${branch || "(detached)"} does not match ${identity.branch} or a published sub-issue branch`,
-        );
-    }
   }
   if (!existsSync(absoluteDirectory))
     fail(`Feature directory not found: ${identity.feature_directory}`);

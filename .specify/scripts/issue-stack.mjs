@@ -17,13 +17,6 @@ import {
   parseUnits,
   validateUnits,
 } from "./issue-bindings.mjs";
-export {
-  IssueWorkflowError,
-  parseUnits,
-  validateUnits,
-  publicationMarker,
-  planPublication,
-} from "./issue-bindings.mjs";
 
 function fail(message) {
   throw new IssueWorkflowError(message);
@@ -167,7 +160,6 @@ function checkRepository(repoRoot) {
 
 function output(value, json) {
   if (json) process.stdout.write(`${JSON.stringify(value)}\n`);
-  else if (value.command) process.stdout.write(`${value.command.join(" ")}\n`);
   else process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
