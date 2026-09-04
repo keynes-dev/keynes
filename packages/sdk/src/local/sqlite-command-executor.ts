@@ -71,7 +71,7 @@ export type SqliteMutationObserver = (stage: SqliteMutationStage) => void;
 
 const REQUIRED_PERMISSIONS = {
   defineResource: ["define_resource_type"],
-  createBudget: ["define_resource_type", "create_root_budget"],
+  createBudget: ["create_root_budget"],
   requestBudget: ["request_budget"],
   settleBudget: ["settle_budget"],
   getBudget: ["read_budget"],
@@ -175,19 +175,29 @@ export class SqliteCommandExecutor implements CommandExecutor {
     operation: OperationName,
   ): void {
     for (const requiredPermission of REQUIRED_PERMISSIONS[operation]) {
-      const allowed = this.#store.hasPermission(
+      this.#requirePermission(context, operation, requiredPermission);
+    }
+  }
+
+  #requirePermission(
+    context: SqliteTransactionContext,
+    operation: OperationName,
+    requiredPermission: PermissionName,
+  ): void {
+    if (
+      this.#store.hasPermission(
         context.tenantId,
         context.principalId,
         requiredPermission,
-      );
-      if (!allowed) {
-        fail({
-          kind: "error",
-          code: "unauthorized",
-          details: { operation, requiredPermission },
-        });
-      }
+      )
+    ) {
+      return;
     }
+    fail({
+      kind: "error",
+      code: "unauthorized",
+      details: { operation, requiredPermission },
+    });
   }
 
   #applyMutation(
@@ -279,17 +289,27 @@ export class SqliteCommandExecutor implements CommandExecutor {
     context: SqliteTransactionContext,
     command: CreateBudgetCommand,
   ): Omit<CreateBudgetResult, "replayed"> {
-    const resolved = canonicalRootResources(command.resources).map(
+    const inspected = canonicalRootResources(command.resources).map(
       ({ definition, amount }) => ({
-        resource: this.#resolveResource(
+        definition,
+        amount,
+        resource: this.#findResource(context.tenantId, definition),
+      }),
+    );
+    if (inspected.some(({ resource }) => resource === undefined)) {
+      this.#requirePermission(context, "createBudget", "define_resource_type");
+    }
+    const resolved = inspected.map(({ definition, amount, resource }) => ({
+      resource:
+        resource ??
+        this.#insertResource(
           context,
           definition,
           randomUUID(),
           command.commandId,
         ),
-        amount,
-      }),
-    );
+      amount,
+    }));
     this.#observeMutation?.("after_resource_insertion");
     const resources = asNonEmpty(
       resolved.map(({ resource, amount }) => ({
@@ -340,37 +360,58 @@ export class SqliteCommandExecutor implements CommandExecutor {
     resourceTypeId: string,
     definitionCommandId: string,
   ): ResourceRow {
+    return (
+      this.#findResource(context.tenantId, definition) ??
+      this.#insertResource(
+        context,
+        definition,
+        resourceTypeId,
+        definitionCommandId,
+      )
+    );
+  }
+
+  #findResource(
+    tenantId: string,
+    definition: DefineResourceTypeCommand["definition"],
+  ): ResourceRow | undefined {
     const definitionDigest = resourceDefinitionDigest(definition);
     const existing = this.#store.findResourceByName(
-      context.tenantId,
+      tenantId,
       definition.canonicalName,
     );
-    if (existing !== undefined) {
-      if (
-        existing.definitionDigest !== definitionDigest ||
-        existing.unit !== definition.unit ||
-        existing.accountingBehavior !== definition.accountingBehavior
-      ) {
-        fail({
-          kind: "error",
-          code: "resource_type_conflict",
-          details: {
-            canonicalName: definition.canonicalName,
-            existingDefinitionDigest: existing.definitionDigest,
-            attemptedDefinitionDigest: definitionDigest,
-          },
-        });
-      }
-      return existing;
+    if (existing === undefined) return undefined;
+    if (
+      existing.definitionDigest !== definitionDigest ||
+      existing.unit !== definition.unit ||
+      existing.accountingBehavior !== definition.accountingBehavior
+    ) {
+      fail({
+        kind: "error",
+        code: "resource_type_conflict",
+        details: {
+          canonicalName: definition.canonicalName,
+          existingDefinitionDigest: existing.definitionDigest,
+          attemptedDefinitionDigest: definitionDigest,
+        },
+      });
     }
+    return existing;
+  }
 
+  #insertResource(
+    context: SqliteTransactionContext,
+    definition: DefineResourceTypeCommand["definition"],
+    resourceTypeId: string,
+    definitionCommandId: string,
+  ): ResourceRow {
     const resource = {
       resourceTypeId,
       definitionCommandId,
       canonicalName: definition.canonicalName,
       unit: definition.unit,
       accountingBehavior: definition.accountingBehavior,
-      definitionDigest,
+      definitionDigest: resourceDefinitionDigest(definition),
       definerPrincipalId: context.principalId,
     } satisfies ResourceRow;
     this.#store.insertResource({ tenantId: context.tenantId, ...resource });

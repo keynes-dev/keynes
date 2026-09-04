@@ -71,6 +71,23 @@ export function admit<Result>(
   return result;
 }
 
+export function admitPrepared<Prepared, Result>(
+  runtime: LocalRuntime,
+  prepare: () => Prepared,
+  operation: (prepared: Prepared) => Promise<Result>,
+): Promise<Result> {
+  if (runtime.state !== "open") {
+    return Promise.reject(new KeynesSdkError("runtime_closed", {}));
+  }
+  let prepared: Prepared;
+  try {
+    prepared = prepare();
+  } catch (error: unknown) {
+    return Promise.reject(error);
+  }
+  return admit(runtime, () => operation(prepared));
+}
+
 export async function invokeMutation<Result>(
   operation: () => Promise<Result>,
 ): Promise<Result> {

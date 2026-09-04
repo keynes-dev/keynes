@@ -8,14 +8,14 @@ Only keys present in a root allocation take part in root creation. Unallocated d
 
 ## Root Resource input
 
-Each command entry contains one canonical Resource definition and one positive safe integer amount.
+Each command entry contains one canonical Resource definition and one non-negative safe integer amount.
 
 | Field               | Rule                                                                         |
 | ------------------- | ---------------------------------------------------------------------------- |
 | Canonical name      | Unique within the command and valid under the existing Resource-name profile |
 | Unit                | Valid under the existing immutable Resource-definition profile               |
 | Accounting behavior | `consumable` or `reusable`                                                   |
-| Initial amount      | Positive safe integer under the existing amount limit                        |
+| Initial amount      | Non-negative safe integer under the existing amount limit                    |
 | Application key     | SDK-only typed name; never enters the authority command                      |
 
 The authority orders entries by canonical name before it computes the command body and digest.
@@ -57,15 +57,15 @@ The canonical body includes every selected definition, amount, and Policy. Exact
 Root creation has one authority transaction:
 
 1. Validate and canonicalize the complete command.
-2. Check `define_resource_type` and `create_root_budget` permissions.
-3. Bind or replay the root command identity.
-4. Reuse each exact existing Resource definition or insert a new Resource with explicit definition-command provenance.
+2. Establish tenant and principal identity and require `create_root_budget`.
+3. Bind, replay, or reject the command identity.
+4. Reuse exact Resource definitions, reject conflicts, and require `define_resource_type` before inserting any missing definition.
 5. Validate Policies against the resolved allocated Resource names.
-6. Insert the root Budget, holdings, history stream, creation entry, and result.
+6. Insert the first Budget in the lineage, holdings, history stream, creation entry, and result.
 7. Validate and store the result, then commit.
 
 Any error before commit removes every state change from the command. Exact replay returns the stored result without repeating steps 4 through 7.
 
 ## Preserved Budget model
 
-The root Budget still has no parent, identifies itself as its root, starts active at depth zero, and introduces quantity only through its initial holdings. Child lineage, Policy evaluation, settlement, subtree accounting, unresolved usage, deficit handling, inspection, and canonical history keep their existing state transitions.
+The first Budget in each independently created lineage has no parent, identifies itself as its root, starts active at depth zero, and introduces quantity only through its initial holdings. Keynes enforces no tenant-wide or application-wide aggregate allowance across lineages. Child lineage, Policy evaluation, settlement, subtree accounting, unresolved usage, deficit handling, inspection, and canonical history keep their existing state transitions.

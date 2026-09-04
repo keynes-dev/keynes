@@ -87,6 +87,12 @@ const HISTORICAL_MIGRATIONS = [
     contractDigest:
       "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
   },
+  {
+    id: "0006-remote-access",
+    sha256: "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+    contractDigest:
+      "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
+  },
 ] as const;
 const config: InstallationConfig = {
   ownerRole: `keynes_owner_${randomUUID().replaceAll("-", "")}`,
@@ -230,7 +236,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           readonly contract_digest: string | null;
         }>(
           `delete from keynes_internal.schema_migrations
-            where migration_id = '0006-remote-access'
+            where migration_id = '0007-create-budget-permissions'
             returning migration_id, byte_checksum, contract_digest`,
         );
         const migration = removed.rows[0];
@@ -243,7 +249,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
             recheckInstallation({ client, config }),
           ).rejects.toMatchObject({
             code: "incompatible_target",
-            check: "migration:0006-remote-access",
+            check: "migration:0007-create-budget-permissions",
           });
         } finally {
           await client.query(

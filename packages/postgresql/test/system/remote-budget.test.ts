@@ -100,6 +100,86 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       });
     });
 
+    it("accepts a zero initial allocation", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const client = await fixture.connect(fixture.primary);
+      const created = await queryResponse(
+        client,
+        "keynes.remote_create_budget",
+        {
+          operationKey: operationKey("zero"),
+          resources: [
+            {
+              definition: resourceDefinition("remote_zero_tokens"),
+              amount: 0,
+            },
+          ],
+        },
+      );
+
+      expect(created).toMatchObject({
+        ok: true,
+        result: { budget: { resources: [{ allocated: 0 }] } },
+      });
+    });
+
+    it("checks current root authority before remote replay and rolls back conditional denials", async () => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      const client = await fixture.connect(fixture.primary);
+      const resource = "remote_conditional_tokens";
+      const committedKey = operationKey("committed");
+      const committedInput = {
+        operationKey: committedKey,
+        resources: [{ definition: resourceDefinition(resource), amount: 1 }],
+      };
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", committedInput),
+      ).resolves.toMatchObject({ ok: true });
+
+      await removePermission(fixture, "create_root_budget");
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", committedInput),
+      ).resolves.toMatchObject({ ok: false, error: { code: "unauthorized" } });
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", {
+          ...committedInput,
+          resources: [
+            {
+              definition: resourceDefinition("remote_changed_tokens"),
+              amount: 1,
+            },
+          ],
+        }),
+      ).resolves.toMatchObject({ ok: false, error: { code: "unauthorized" } });
+      await addPermission(fixture, "create_root_budget");
+
+      const deniedKey = operationKey("conditional");
+      const missing = resourceDefinition("remote_missing_tokens");
+      const deniedInput = {
+        operationKey: deniedKey,
+        resources: [{ definition: missing, amount: 1 }],
+      };
+      await removePermission(fixture, "define_resource_type");
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", deniedInput),
+      ).resolves.toMatchObject({ ok: false, error: { code: "unauthorized" } });
+      await expect(operationRecordCount(fixture, deniedKey)).resolves.toBe(0);
+
+      await addPermission(fixture, "define_resource_type");
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", {
+          operationKey: operationKey("definition"),
+          resources: [{ definition: missing, amount: 1 }],
+        }),
+      ).resolves.toMatchObject({ ok: true });
+      await removePermission(fixture, "define_resource_type");
+      await expect(
+        queryResponse(client, "keynes.remote_create_budget", deniedInput),
+      ).resolves.toMatchObject({ ok: true, result: { replayed: false } });
+    });
+
     it("enforces a generated Policy through canonical remote Resources", async () => {
       fixture = await openRemoteIdentityFixture();
       await fixture.register(fixture.primary);
@@ -183,6 +263,44 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
 
 function operationKey(suffix: string): string {
   return `kop_v1_${suffix.padEnd(43, "x")}`;
+}
+
+function addPermission(
+  fixture: RemoteIdentityFixture,
+  permission: "create_root_budget" | "define_resource_type",
+): Promise<unknown> {
+  return fixture.administrator.query(
+    `insert into keynes_internal.principal_permissions
+       (tenant_id, principal_id, permission)
+     values ($1::uuid, $2::uuid, $3)
+     on conflict do nothing`,
+    [fixture.primary.tenantId, fixture.primary.principalId, permission],
+  );
+}
+
+function removePermission(
+  fixture: RemoteIdentityFixture,
+  permission: "create_root_budget" | "define_resource_type",
+): Promise<unknown> {
+  return fixture.administrator.query(
+    `delete from keynes_internal.principal_permissions
+      where tenant_id = $1::uuid and principal_id = $2::uuid
+        and permission = $3`,
+    [fixture.primary.tenantId, fixture.primary.principalId, permission],
+  );
+}
+
+async function operationRecordCount(
+  fixture: RemoteIdentityFixture,
+  operationKeyValue: string,
+): Promise<number> {
+  const result = await fixture.administrator.query<{ readonly count: string }>(
+    `select count(*)::text as count
+       from keynes_internal.remote_operations
+      where tenant_id = $1::uuid and operation_key = $2`,
+    [fixture.primary.tenantId, operationKeyValue],
+  );
+  return Number(result.rows[0]?.count);
 }
 
 function requestCeilingPolicy(resource: string): PolicyDefinitionV1 {

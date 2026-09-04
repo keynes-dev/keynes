@@ -2,7 +2,9 @@
 
 ## Operation
 
-The generated operation remains `createBudget`. Native PostgreSQL continues to expose `keynes.create_budget(jsonb)`. The operation requires both `define_resource_type` and `create_root_budget`, in that order.
+The generated operation remains `createBudget`. Native PostgreSQL continues to expose `keynes.create_budget(jsonb)`. The operation always requires `create_root_budget`. It requires `define_resource_type` only when exact catalog lookup finds at least one missing canonical Resource name.
+
+Validation and identity resolution precede authorization. Root authority precedes command replay and conflict resolution. Exact replay needs current root authority but does not need definition authority. A changed command identity fails before catalog reconciliation. Matching definitions are reused, conflicting definitions fail, and missing definitions are inserted only after conditional definition authorization.
 
 Standalone `defineResource` and `keynes.define_resource_type(jsonb)` remain supported. Child request, settlement, and inspection commands keep their existing wire shapes.
 
@@ -21,13 +23,13 @@ export interface CreateBudgetCommand {
 }
 ```
 
-`resources` contains only allocated definitions. The boundary rejects duplicate canonical names, invalid definitions, invalid amounts, an empty array, extra fields, and Policies that refer to an unallocated Resource. The authority sorts entries by canonical name and stores that order in the canonical command body.
+`resources` contains only allocated definitions. Initial amounts are non-negative, so zero is valid and negative amounts are invalid. The boundary rejects duplicate canonical names, invalid definitions, an empty array, extra fields, and Policies that refer to an unallocated Resource. The authority sorts entries by canonical name and stores that order in the canonical command body.
 
 `CreateBudgetResult` remains the existing `BudgetProjection` result with `kind: "created"` and replay status. Each Resource projection returns the committed opaque Resource identity, canonical name, definition fields, and definition digest.
 
 ## Atomic behavior
 
-One authority transaction owns command replay, both permission checks, Resource lookup or insertion, definition-conflict handling, Policy validation and attachment, root insertion, initial holdings, history, result validation, and result storage.
+One authority transaction owns command replay, unconditional Budget-creation permission, conditional definition permission, Resource lookup or insertion, definition-conflict handling, Policy validation and attachment, first-Budget insertion, initial holdings, history, result validation, and result storage.
 
 An exact existing definition is reused. A conflicting definition returns `resource_type_conflict`. A repeated identical command returns the original result with `replayed: true`. Reusing the command identity with a different definition, amount, selected Resource set, or Policy set returns `command_conflict`.
 

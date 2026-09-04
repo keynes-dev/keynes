@@ -23,7 +23,7 @@ This prerequisite gives FEAT-0013 a stable root-creation contract. Remote transp
 
 ### What changes for users
 
-An application opens local Keynes without a Resource schema. When the application creates a root Budget, it supplies the Resource definitions, initial quantities, and optional Policies for that root. The returned Budget remains typed to the Resource names that the application allocated.
+An application opens local Keynes without a Resource schema. When the application calls `createBudget(...)`, it supplies the Resource definitions, non-negative initial quantities, and optional Policies for one independent lineage. The returned Budget remains typed to the Resource names that the application allocated. Keynes does not impose a tenant-wide or application-wide aggregate allowance across separately created lineages.
 
 One connection can create independent roots with different Resource bindings. Local and PostgreSQL execution accept, reject, and record the same root-creation meaning.
 
@@ -103,7 +103,7 @@ As a Keynes maintainer, I can run the shared root-creation examples against loca
 ### Functional Requirements
 
 - **FR-001**: Keynes MUST open a local connection without accepting or requiring a Resource schema.
-- **FR-002**: Root Budget creation MUST accept one Resource schema, exact initial quantities for one or more Resources from that schema, and optional Policies as one logical input.
+- **FR-002**: Budget creation MUST accept one Resource schema, exact non-negative initial quantities for one or more Resources from that schema, and optional Policies as one logical input.
 - **FR-003**: The returned root Budget MUST expose only the Resource names selected by the initial quantities, with compile-time rejection of unknown names in later requests and settlement.
 - **FR-004**: One open connection MUST create multiple roots with different Resource bindings without replacing or widening an earlier root's binding.
 - **FR-005**: Root creation MUST treat an existing identical Resource definition as the same immutable Resource and MUST reject a conflicting definition under the same canonical name.
@@ -128,7 +128,7 @@ As a Keynes maintainer, I can run the shared root-creation examples against loca
 - **Resource schema**: An immutable typed set of application names mapped to canonical Resource definitions and one canonical digest.
 - **Resource binding**: The exact Resource definitions and allocated names that one root Budget accepts.
 - **Root-creation command**: One immutable command meaning that combines Resource binding, quantities, optional Policies, and a command identity.
-- **Root Budget**: A Budget with no parent whose initial holdings introduce Resource quantity and whose public type contains only its allocated Resource names.
+- **Lineage root**: The structural first Budget in an independently created lineage. It has no parent, introduces Resource quantity through its initial holdings, and is not a separate public Budget tier.
 - **Command record**: The authoritative replay record that binds one command identity to its first accepted root-creation meaning and result.
 
 ## Success Criteria

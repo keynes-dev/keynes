@@ -44,8 +44,14 @@ if (request.status === "approved") {
 }
 ```
 
+Each `createBudget(...)` call starts an independent Budget lineage. Keynes does
+not enforce an aggregate allowance across separately created lineages. The
+first Budget is a root only in the storage and lineage model; the public API
+exposes one `Budget` concept. Initial amounts are non-negative, so zero is
+valid.
+
 `defineResources(...)` copies, orders, digests, and freezes the complete
-Resource schema. Root creation binds that schema and its selected allocation
+Resource schema. Budget creation binds that schema and its selected allocation
 atomically. Resource keys flow through root creation, requests, settlement,
 inspection, denial reasons, and Policy authoring as exact TypeScript types.
 

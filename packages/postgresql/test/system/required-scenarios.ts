@@ -2,7 +2,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   "packages/postgresql/test/integration/installation.test.ts": [
     "native PostgreSQL installation installs a fresh target atomically",
     "native PostgreSQL installation returns an exact no-op result without changing installed state",
-    "native PostgreSQL installation installs the additive Resource-bound Budget and remote access migrations",
+    "native PostgreSQL installation installs the seven-migration authority contract",
     "native PostgreSQL installation moves Resource provenance to the defining command",
     "native PostgreSQL installation rejects an unsupported PostgreSQL version before mutation",
     "native PostgreSQL installation rejects an operator without installation privilege before mutation",
@@ -46,6 +46,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0004-policy' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0005-resource-bound-budget' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0006-remote-access' atomically when its final statement fails",
+    "PostgreSQL installation rolls back '0007-create-budget-permissions' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
     "native PostgreSQL contention funds at most one sibling after proving the second request waits",
@@ -91,6 +92,19 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "Budget request denial rejects a request after its parent becomes inactive",
     "Budget request denial keeps request, settlement, and read permissions independent",
   ],
+  "packages/postgresql/test/system/resource-bound-root.test.ts": [
+    "Resource-bound root creation binds Resource definitions, allocations, and creation history in one root command",
+    "Resource-bound root creation replays an identical combined root command without duplicating history",
+    "Resource-bound root creation lets create-only principals reuse exact Resource definitions",
+    "Resource-bound root creation requires definition authority only when at least one Resource is missing",
+    "Resource-bound root creation checks root authority before definition authority or catalog details",
+    "Resource-bound root creation returns definition conflicts before conditional definition denial",
+    "Resource-bound root creation replays and conflicts before conditional catalog reconciliation",
+    "Resource-bound root creation rejects negative initial allocation",
+    "Resource-bound root creation rejects a changed definition-bearing root body under the same command identity",
+    "Resource-bound root creation commits an attached Policy with the Resource-bound root",
+    "Resource-bound root creation rolls back definitions, root state, and history after Resource insertion",
+  ],
   "packages/postgresql/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
     "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
@@ -120,6 +134,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/system/remote-budget.test.ts": [
     "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
+    "remote PostgreSQL Budget authority accepts a zero initial allocation",
+    "remote PostgreSQL Budget authority checks current root authority before remote replay and rolls back conditional denials",
     "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
   ],
   "packages/postgresql/test/system/remote-recovery.test.ts": [
@@ -226,7 +242,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "command rollback rolls back root allocation facts, result, and history",
     "command rollback rolls back child reservation, result, and history",
     "command rollback rolls back usage, result, and settlement history",
-    "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
+    "PostgreSQL Resource-bound root authorization and rollback requires conditional definition and root-allocation permissions",
     "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
     "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
   ],

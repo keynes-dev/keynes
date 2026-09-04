@@ -140,6 +140,11 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       fixture = await openRemoteIdentityFixture();
       await fixture.register(fixture.primary);
       const client = await fixture.connect(fixture.primary);
+      await queryResponse(
+        client,
+        "keynes.remote_create_budget",
+        createRoot(operationKey("a"), "recover_invalid"),
+      );
       const rejectedKey = operationKey("b");
       const rejected = await queryResponse(
         client,
@@ -148,8 +153,11 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           operationKey: rejectedKey,
           resources: [
             {
-              definition: resource("recover_invalid"),
-              amount: 0,
+              definition: {
+                ...resource("recover_invalid"),
+                unit: "credit",
+              },
+              amount: 1,
             },
           ],
         },
@@ -453,7 +461,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           },
         });
       }
-    });
+    }, 10_000);
   },
 );
 

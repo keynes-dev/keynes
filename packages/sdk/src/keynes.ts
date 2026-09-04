@@ -15,9 +15,10 @@ import type {
   CreateBudgetCommand,
   RemoteBudgetProjection,
 } from "./generated/types.js";
+import { validateCreateBudgetCommandIssues } from "./generated/validators.js";
 import { createRemoteKeynesClient, KeynesError } from "./generated/client.js";
 import {
-  admit,
+  admitPrepared,
   closeRuntime,
   invokeMutation,
   type LocalRuntime,
@@ -245,27 +246,42 @@ function createRootBudget<
   >
 > {
   type BudgetName = Extract<keyof Allocation, ResourceNames<Definitions>>;
-  const resources = prepareRootResources<Definitions, BudgetName>(
-    schema,
-    allocation,
+  return admitPrepared(
+    runtime,
+    () => {
+      const resources = prepareRootResources<Definitions, BudgetName>(
+        schema,
+        allocation,
+      );
+      const policies = attachedPolicyDefinitions(options);
+      const command = Object.freeze({
+        commandId: randomUUID(),
+        resources: rootResourceEnvelope(resources),
+        ...(policies === undefined ? {} : { policies }),
+      } satisfies CreateBudgetCommand);
+      const issues = validateCreateBudgetCommandIssues(command);
+      const [first, ...rest] = issues;
+      if (first !== undefined) {
+        throw new KeynesError({
+          kind: "error",
+          code: "invalid_command",
+          details: { operation: "createBudget", issues: [first, ...rest] },
+        });
+      }
+      return Object.freeze({ resources, command });
+    },
+    async ({ resources, command }) => {
+      const result = await invokeMutation(() =>
+        runtime.client.createBudget(command),
+      );
+      const binding = createResourceBinding(resources, result.budget);
+      return createBudgetHandle<
+        BudgetName,
+        ContextOfPolicySet<Policies>,
+        ReasonsOfPolicySet<Policies>
+      >(runtime, result.budget.budgetId, binding);
+    },
   );
-  const policies = attachedPolicyDefinitions(options);
-  return admit(runtime, async () => {
-    const command: CreateBudgetCommand = {
-      commandId: randomUUID(),
-      resources: rootResourceEnvelope(resources),
-      ...(policies === undefined ? {} : { policies }),
-    };
-    const result = await invokeMutation(() =>
-      runtime.client.createBudget(command),
-    );
-    const binding = createResourceBinding(resources, result.budget);
-    return createBudgetHandle<
-      BudgetName,
-      ContextOfPolicySet<Policies>,
-      ReasonsOfPolicySet<Policies>
-    >(runtime, result.budget.budgetId, binding);
-  });
 }
 
 async function createRemoteRootBudget<

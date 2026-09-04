@@ -67,6 +67,12 @@ const MIGRATIONS = [
     tableName: "keynes_internal.remote_role_mappings",
     procedureName: "keynes.remote_get_compatibility(jsonb)",
   },
+  {
+    id: "0007-create-budget-permissions",
+    path: "0007-create-budget-permissions.sql",
+    tableName: null,
+    procedureName: "keynes_internal.apply_create_budget_v0007(jsonb)",
+  },
 ] as const;
 
 type FileContents = string | Buffer;
@@ -173,6 +179,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
           { migration_id: "0004-policy" },
           { migration_id: "0005-resource-bound-budget" },
           { migration_id: "0006-remote-access" },
+          { migration_id: "0007-create-budget-permissions" },
         ]);
       });
     });

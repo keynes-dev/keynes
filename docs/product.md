@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** The TypeScript SDK opens either private in-memory SQLite or one direct PostgreSQL authority and creates typed root Budgets by binding definitions, quantities, and optional Policies atomically. Remote handles add durable references, reopen, bounded retries, and read-only operation recovery. PostgreSQL 18.6 direct and pooled behavior has local native evidence, and the packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
+> **Status:** The TypeScript SDK opens either private in-memory SQLite or one direct PostgreSQL authority and creates typed Budgets by binding definitions, quantities, and optional Policies atomically. Remote handles add durable references, reopen, bounded retries, and read-only operation recovery. PostgreSQL 18.6 direct and pooled behavior has local native evidence, and the packed SDK passes hosted Node.js 24 and 26 consumers on Linux, macOS, and Windows. An authorized external database, self-hosted packaging, managed Cloud, broad security qualification, and production support remain unproved. The [architecture](architecture.md) separates current behavior from accepted direction and retained evidence.
 
 ## Thesis
 
@@ -14,9 +14,9 @@ Budget -> request -> child Budget -> settle -> evidence
 
 ## Budgets and Resources
 
-Before a Budget can hold a Resource, the application describes an immutable Resource type. Root creation reconciles that definition and introduces its selected quantity in one atomic command. The type has an authority-issued identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Embedded PostgreSQL callers may still define a type separately; defining a type creates no quantity and grants no permission to spend.
+Before a Budget can hold a Resource, the application describes an immutable Resource type. `createBudget(...)` reconciles that definition and introduces its selected quantity in one atomic command. The type has an authority-issued identity, an application-defined name and unit, and one Keynes-defined accounting behavior. Embedded PostgreSQL callers may still define a type separately; defining a type creates no quantity and grants no permission to spend.
 
-An authorized root allocation creates quantity for selected Resource types. A root holds only those allocations. It does not declare every type the application may use. By default, a Budget funds its own children. It can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
+Every authorized `createBudget(...)` call starts an independent Budget lineage and creates non-negative quantity for its selected Resource types. Keynes does not enforce a tenant-wide or application-wide aggregate allowance across those lineages. Deployment operators decide which principals receive Budget-creation authority. In storage, the first Budget in a lineage has no parent and is its own root; this structural detail does not create a separate public Budget tier. A Budget funds its own children, can delegate only Resources it holds, and a child can re-delegate only what remains in that child.
 
 ```ts
 const result = await supportBudget.request({

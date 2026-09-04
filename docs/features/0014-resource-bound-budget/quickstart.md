@@ -1,4 +1,4 @@
-# Create Resource-bound root Budgets
+# Create Resource-bound Budgets
 
 Define reusable Resource schemas independently of a connection:
 
@@ -30,9 +30,11 @@ const training = await keynes.createBudget(compute, {
 });
 ```
 
-`finance` accepts only `usdCents`. `training` accepts only `gpuSeconds` and `gpuSlots`. Both use the same connection, but neither root can use the other root's names.
+`finance` accepts only `usdCents`. `training` accepts only `gpuSeconds` and `gpuSlots`. Both use the same connection, but neither Budget can use the other Budget's names.
 
-Root creation binds definitions and amounts in one authority command. If a definition conflicts or another part of creation fails, Keynes creates neither the new Resource definitions nor the root.
+Each call starts an independent lineage. Keynes does not apply a tenant-wide or application-wide allowance across the two Budgets. The deployment operator controls which principals may call `createBudget(...)`.
+
+Budget creation binds definitions and non-negative amounts in one authority command. If a definition conflicts or another part of creation fails, Keynes creates neither the new Resource definitions nor the Budget.
 
 Attach Policies with the existing options argument:
 

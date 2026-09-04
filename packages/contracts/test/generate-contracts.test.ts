@@ -38,11 +38,20 @@ describe("contract source", () => {
       contract.source.operations.map(({ permissions }) => permissions),
     ).toEqual([
       ["define_resource_type"],
-      ["define_resource_type", "create_root_budget"],
+      ["create_root_budget"],
       ["request_budget"],
       ["settle_budget"],
       ["read_budget"],
     ]);
+    expect(contract.source.operations[1]).toMatchObject({
+      method: "createBudget",
+      conditionalPermissions: [
+        {
+          permission: "define_resource_type",
+          condition: "resource_type_missing",
+        },
+      ],
+    });
     expect(contract.digest).toMatch(/^[0-9a-f]{64}$/);
     expect(contract.remoteDigest).toMatch(/^[0-9a-f]{64}$/);
   });

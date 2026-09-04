@@ -18,10 +18,10 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
+  "contractDigest": "1f0700116e3f032d1ead1cf88eed648a749e03f13c66bdd4ee44c0fb80236c85",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43",
-  "migrationSetDigest": "2bb8ba560ba260c4fcaed121cd255e133d5b3a952d9458b2b62ee213b9704b72",
+  "migrationSetDigest": "eefff7a1fd397d95fea47f4c981335ac726e39031411b49d1a971b19401799e1",
   "migrations": [
     {
       "id": "0001-storage",
@@ -55,6 +55,12 @@
       "path": "0006-remote-access.sql",
       "sha256": "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
       "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+    },
+    {
+      "id": "0007-create-budget-permissions",
+      "path": "0007-create-budget-permissions.sql",
+      "sha256": "fa5c2a73f8657ac0438b17ee06376ab7d18ad5721fd5f6a26cb0e115fcdc5fb4",
+      "contractDigest": "1f0700116e3f032d1ead1cf88eed648a749e03f13c66bdd4ee44c0fb80236c85"
     }
   ],
   "expectedTargets": [
@@ -104,10 +110,12 @@
     "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
     "function:keynes_internal.apply_command(operation_name text,input jsonb)",
     "function:keynes_internal.apply_command_v0004(operation_name text,input jsonb)",
+    "function:keynes_internal.apply_command_v0006(operation_name text,input jsonb)",
     "function:keynes_internal.canonical_resource_definition_v0005(operation_name text,value jsonb,issue_path text)",
     "function:keynes_internal.canonical_root_resources_v0005(operation_name text,value jsonb,issue_path text)",
     "function:keynes_internal.apply_define_resource_v0005(input jsonb)",
     "function:keynes_internal.apply_create_budget_v0005(input jsonb)",
+    "function:keynes_internal.apply_create_budget_v0007(input jsonb)",
     "function:keynes_internal.remote_error_v0006(error_code text,operation_name text)",
     "function:keynes_internal.remote_token_v0006(token_prefix text,token_seed text)",
     "function:keynes_internal.set_remote_identity_v0006()",
@@ -121,6 +129,7 @@
     "function:keynes_internal.remote_operation_lock_key_v0006(selected_tenant uuid,operation_key_value text)",
     "function:keynes_internal.remote_validate_input_v0006(operation_name text,input jsonb)",
     "function:keynes_internal.remote_apply_command_v0006(operation_name text,input jsonb)",
+    "function:keynes_internal.remote_apply_command_v0007(operation_name text,input jsonb)",
     "function:keynes_internal.remote_get_budget_v0006(input jsonb)",
     "function:keynes_internal.remote_get_budget_history_page_v0006(input jsonb)",
     "function:keynes_internal.remote_open_budget_v0006(input jsonb)",
@@ -134,6 +143,7 @@
     "function:keynes_internal.inspect_remote_role_v0006(login_role name)",
     "function:keynes_internal.audit_remote_role_v0006(login_role name,entry_limit integer)",
     "function:keynes_internal.remote_dispatch_v0006(operation_name text,input jsonb)",
+    "function:keynes_internal.remote_dispatch_v0007(operation_name text,input jsonb)",
     "function:keynes_internal.get_budget(input jsonb)",
     "function:keynes.define_resource_type(input jsonb)",
     "function:keynes.create_budget(input jsonb)",
@@ -225,7 +235,13 @@
     },
     {
       "operation": "createBudget",
-      "permissions": ["define_resource_type", "create_root_budget"],
+      "permissions": ["create_root_budget"],
+      "conditionalPermissions": [
+        {
+          "permission": "define_resource_type",
+          "condition": "resource_type_missing"
+        }
+      ],
       "target": "keynes.create_budget",
       "argumentType": "jsonb",
       "returnType": "jsonb",

@@ -38,12 +38,14 @@ const REMOTE_EXECUTION_TARGETS = [
   "keynes_internal.apply_command(text,jsonb)",
   "keynes_internal.get_budget(jsonb)",
   "keynes_internal.remote_apply_command_v0006(text,jsonb)",
+  "keynes_internal.remote_apply_command_v0007(text,jsonb)",
   "keynes_internal.remote_get_budget_v0006(jsonb)",
   "keynes_internal.remote_get_budget_history_page_v0006(jsonb)",
   "keynes_internal.remote_open_budget_v0006(jsonb)",
   "keynes_internal.remote_recover_operation_v0006(jsonb)",
   "keynes_internal.remote_get_compatibility_v0006(jsonb)",
   "keynes_internal.remote_dispatch_v0006(text,jsonb)",
+  "keynes_internal.remote_dispatch_v0007(text,jsonb)",
 ] as const;
 
 type QueryClient = Pick<Client, "query">;

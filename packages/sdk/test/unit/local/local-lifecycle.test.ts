@@ -18,6 +18,101 @@ afterEach(() => {
 });
 
 describe("local runtime lifecycle", () => {
+  it("returns rejected Promises for invalid createBudget input", async () => {
+    const keynes = await createKeynes();
+    try {
+      const result = Reflect.apply(keynes.createBudget, keynes, [
+        workUnitResources,
+        { workUnits: -1 },
+      ]);
+
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).rejects.toMatchObject({ code: "invalid_command" });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("rejects invalid createBudget input without waiting for admitted work", async () => {
+    const executor = openTestExecutor();
+    let releaseFirst!: () => void;
+    const firstReleased = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let markStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let first = true;
+    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
+      openSqliteCommandExecutor: vi.fn(() => ({
+        execute: async (
+          operation: Parameters<typeof executor.execute>[0],
+          input: unknown,
+        ) => {
+          if (first) {
+            first = false;
+            markStarted();
+            await firstReleased;
+          }
+          return executor.execute(operation, input);
+        },
+        close: () => executor.close(),
+      })),
+    }));
+
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    const keynes = await createFreshKeynes();
+    const admitted = keynes.createBudget(workUnitResources, { workUnits: 1 });
+    await firstStarted;
+    const invalid = keynes.createBudget(workUnitResources, { workUnits: -1 });
+
+    await expect(invalid).rejects.toMatchObject({ code: "invalid_command" });
+    releaseFirst();
+    await admitted;
+    await keynes.close();
+  });
+
+  it("rejects closed runtimes before reading createBudget input", async () => {
+    const keynes = await createKeynes();
+    await keynes.close();
+    const unreadable = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("caller input was read");
+        },
+        ownKeys() {
+          throw new Error("caller input was read");
+        },
+      },
+    );
+    const result = Reflect.apply(keynes.createBudget, keynes, [
+      unreadable,
+      unreadable,
+    ]);
+
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).rejects.toMatchObject({ code: "runtime_closed" });
+  });
+
+  it("snapshots createBudget allocation before asynchronous admission", async () => {
+    const keynes = await createKeynes();
+    try {
+      const allocation = { workUnits: 3 };
+      const created = keynes.createBudget(workUnitResources, allocation);
+      allocation.workUnits = 9;
+
+      const root = await created;
+      await expect(root.inspect()).resolves.toMatchObject({
+        budget: { resources: [{ allocated: 3 }] },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("serializes overlapping calls and drains admitted work before close", async () => {
     const keynes = await createKeynes();
     const root = await keynes.createBudget(workUnitResources, {

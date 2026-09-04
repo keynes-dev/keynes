@@ -2,19 +2,29 @@
 
 **Campaign issue**: [#22](https://github.com/shubsharan/keynes/issues/22)
 **Review baseline**: `6da26221075dc2b1a8e94a829ab490988a3f9d63`
-**Method**: forward-only stacked review with one review session and pull request per phase
+**Method**: forward-only review with one accepted commit per phase and one cumulative pull request for Phases 2-9
 **Scope**: FEAT-0013 and its completed FEAT-0014 prerequisite
 
-This checklist records review state and results. It does not replace either
-feature's specification, plan, tasks, or acceptance evidence. The roadmap
-continues to own delivery state. FEAT-0015, local positive TLS qualification,
-T049, and later deployment evidence remain outside this review campaign.
+This checklist owns the durable review record. Issue #22 owns live state and
+user decisions. The cumulative review pull request owns the repair diff,
+phase commits, and continuous integration results. The Git history and issue
+comments replace a separate decision ledger. The existing decision ledger is
+frozen after Phase 1 as historical evidence.
+
+This checklist does not replace either feature's specification, plan, tasks,
+or acceptance evidence. The roadmap continues to own delivery state.
+FEAT-0015, local positive TLS qualification, T049, and later deployment
+evidence remain outside this review campaign.
 
 ## Review protocol
 
+Phase 1 used PR #28. Phases 2-9 use the existing
+`review/0014-02-resource-bound-root` branch as one cumulative review branch and
+one pull request. Each accepted phase repair is one commit on that branch.
+
 Each phase reviews the immutable original subject range and then checks the
-same behavior on the cumulative review head. Historical CI and automated review
-comments are inputs, not verdicts.
+same behavior on the cumulative review head. Historical CI and automated
+review comments are inputs, not verdicts.
 
 Use these states in issue #22 and this checklist:
 
@@ -22,22 +32,23 @@ Use these states in issue #22 and this checklist:
 
 A confirmed unresolved finding or an `INCONCLUSIVE` result blocks the next
 phase. Record each bot thread as `CONFIRMED`, `REJECTED`, `SUPERSEDED`, or
-`INCONCLUSIVE`. Do not change code or documentation until the user accepts the
-phase disposition.
+`INCONCLUSIVE`. Post findings and user decisions to issue #22. Record the
+accepted repair, verification, and `NOT RUN` lanes in this checklist. Do not
+change code or documentation until the user accepts the phase disposition.
 
-## Review stack
+## Review phases
 
-| Phase                           | Original subject              | Bot threads | Review branch                                 | Status      | Verdict  | Accepted repair | Evidence                                            |
-| ------------------------------- | ----------------------------- | ----------: | --------------------------------------------- | ----------- | -------- | --------------- | --------------------------------------------------- |
-| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | `review/0013-01-architecture`                 | Verified    | Approved | P1-001, P1-002  | Repair `d410af6`, result below, and decision ledger |
-| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | `review/0014-02-resource-bound-root`          | Not started | Open     | None            | Pending                                             |
-| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | `review/0013-03-procedure-authority`          | Not started | Open     | None            | Pending                                             |
-| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | `review/0013-04-remote-budget-loop`           | Not started | Open     | None            | Pending                                             |
-| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | `review/0013-05-recovery-and-history`         | Not started | Open     | None            | Pending                                             |
-| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | `review/0013-06-identity-and-security`        | Not started | Open     | None            | Pending                                             |
-| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | `review/0013-07-package-and-cloud-retirement` | Not started | Open     | None            | Pending                                             |
-| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | `review/0013-08-tls-qualifier`                | Not started | Open     | None            | Pending                                             |
-| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | `review/0013-09-acceptance-boundary`          | Not started | Open     | None            | Pending                                             |
+| Phase                           | Original subject              | Bot threads | Review PR            | Status      | Verdict  | Accepted repair | Evidence                            |
+| ------------------------------- | ----------------------------- | ----------: | -------------------- | ----------- | -------- | --------------- | ----------------------------------- |
+| 1. Architecture                 | PR #23, `af355f6d...446898ce` |           1 | #28                  | Merged      | Approved | P1-001, P1-002  | Repair `d410af6` and Phase 1 result |
+| 2. Resource-bound root          | PR #24, `48ab9895...2fa8be43` |           0 | Cumulative review PR | Verified    | Approved | P2-001-P2-004   | Phase 2 result below                |
+| 3. Procedure authority          | `09eba82d...e85b7dbe`         |           0 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 4. Remote Budget loop           | `e85b7dbe...4dcb2423`         |           0 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 5. Recovery and history         | `4dcb2423...b3481f09`         |           3 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 6. Identity and security        | `b3481f09...9c540bce`         |           1 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 7. Package and Cloud retirement | `9c540bce...128cefbc`         |           0 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 8. TLS qualifier                | PR #26, `04a39f2d...20fe0ec9` |           1 | Cumulative review PR | Not started | Open     | None            | Pending                             |
+| 9. Acceptance boundary          | PR #27, `f24c11c5...f85603de` |           1 | Cumulative review PR | Not started | Open     | None            | Pending                             |
 
 ## Bot comment intake
 
@@ -136,11 +147,77 @@ flexibility without also removing an approved requirement or evidence owner.
 - P1-002 names FEAT-0015 as the owner of the disposable local TLS target and
   provider-free positive TLS qualification that block T049.
 
-Phase 1 is verified. Phase 2 remains `Not started`.
+Phase 1 is verified.
+
+## Phase 2: Resource-bound Budget creation
+
+- [x] Review PR #24 at exact subject range `48ab9895...2fa8be43` and repair forward-only from Phase 1 merge head `fb0ca4f`.
+- [x] Apply accepted P2-001 through P2-004 without adding public root, issuer, aggregate allowance, or upgrade behavior.
+- [x] Keep migrations `0001` through `0006` byte-for-byte unchanged and add current migration `0007-create-budget-permissions`.
+- [x] Prove conditional Resource authority, replay and conflict order, rollback, contention, zero allocation, negative rejection, local admission, and caller-input snapshots.
+- [x] Run independent adversarial review, resolve its confirmed gaps, and re-review the repaired paths.
+- [x] Run the read-only Ponytail review and the required provider-free, native PostgreSQL, and package gates.
+
+### Phase 2 result
+
+**Status**: `Verified`
+**Lead verdict**: Approved after implementation repair. The accepted changes
+preserve one public `Budget` concept and the existing SDK signatures while
+repairing authority, lifecycle, terminology, and amount parity.
+
+| ID     | Severity | Result   | Accepted repair                                                                                                                                                                                                                                                                    |
+| ------ | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-001 | High     | Resolved | `createBudget` always requires `create_root_budget`; exact replay and changed command reuse resolve before catalog reconciliation; `define_resource_type` is required only when an exact canonical Resource definition is absent. The contract records only this closed condition. |
+| P2-002 | High     | Resolved | Local creation checks runtime state before reading caller input, snapshots and validates schema, allocation, and Policies immediately, converts preparation errors to Promise rejection, and queues only prepared values. Work admitted before close still drains.                 |
+| P2-003 | Medium   | Resolved | Product, architecture, FEAT-0014, and package documentation describe each `createBudget` call as an independent lineage. Root remains structural terminology. Keynes adds no aggregate allowance or issuance model.                                                                |
+| P2-004 | Medium   | Resolved | Zero initial allocation is valid through SQLite, embedded PostgreSQL, and the public remote procedure. Negative and out-of-range amounts remain invalid.                                                                                                                           |
+
+The implementation adds v7 embedded and remote paths while retaining the
+source bytes of migrations `0001` through `0006`. Current remote root authority
+is checked before operation replay or conflict. A conditional definition denial
+removes the unresolved remote operation record, allowing the same operation to
+succeed later when an exact definition exists. PostgreSQL remains the only
+durable transaction and replay authority.
+
+#### Review follow-up
+
+The first adversarial pass found that the v7 remote wrapper resolved its outer
+operation ledger before current root authorization, retained conditional
+denials as known failures, deferred some local validation behind queued work,
+and omitted the new shared PostgreSQL scenarios from native evidence. Focused
+regressions reproduced each gap. The repair moved root authorization before the
+remote ledger, rolls back conditional denial records, validates the prepared
+local command before enqueue, registers the shared native suite, and synchronizes
+the required-scenario inventory. The follow-up adversarial review reported no
+remaining finding.
+
+#### Ponytail review
+
+`Lean already. Ship.` The prepared-admission helper is the single lifecycle
+boundary required by P2-002, the closed conditional metadata avoids a generic
+authorization interpreter, and the migration renderer preserves immutable SQL
+without adding a second authority. `net: -0 lines possible.`
+
+#### Verification boundary
+
+- Red regressions: contract metadata failed `1/15`; SDK lifecycle/conformance failed `4/53`; queued invalid input timed out; remote revoked-authority replay succeeded before the repair.
+- `CI=true pnpm --filter @keynes/contracts test`: 5 files and 51 tests passed.
+- `CI=true pnpm --filter @keynes/sdk test:unit`: 23 files and 306 tests passed.
+- `CI=true pnpm --filter @keynes/postgresql test:system`: 20 files and 217 tests passed on native PostgreSQL 18.6, including the public remote procedure and the required v7 rollback scenario.
+- `CI=true pnpm check:repo`: passed generation, formatting, lint, types, dependency policy, and package boundaries with 19 retained warnings and no errors.
+- `CI=true pnpm test:unit`: contracts 51, PostgreSQL 76, and SDK 351 tests passed.
+- Clean-checkout `CI=true pnpm test:pr`, SDK archive qualification, PostgreSQL archive qualification, and native acceptance-record generation: passed for the Phase 2 candidate committed by this review.
+- `pnpm generate`, `CI=true pnpm generate:check`, and `git diff --check`: passed with no unexplained generated drift.
+- Migrations `0001` through `0006` retained SHA-256 values `1f1745d2`, `464fabeb`, `b5870fb8`, `d354c351`, `bcb0c5f2`, and `7ecbfbf9` respectively. Current contract digest is `1f0700116e3f032d1ead1cf88eed648a749e03f13c66bdd4ee44c0fb80236c85`.
+- Environment-gated `pnpm --filter @keynes/postgresql test:integration`: `NOT RUN`; all 39 tests skipped without connection variables. The native system lane exercised the real local PostgreSQL target instead.
+- Hosted, managed-provider, positive TLS, rolling-upgrade, downgrade, backup, recovery, failover, benchmark, broad security, and production-readiness evidence: `NOT RUN`.
+- Two ambient-root attempts discovered an unrelated `.claude/worktrees` checkout and are not evidence. Clean-checkout package and PR gates supersede them.
+
+Phase 2 is verified. Phase 3 remains `Not started`.
 
 ## Remaining phase acceptance
 
-- [ ] Phase 2 proves atomic Resource-bound creation, replay, caller-input freezing, conflicts, rollback, Policy validation, and PostgreSQL contention.
+- [x] Phase 2 proves atomic Resource-bound creation, replay, caller-input freezing, conflicts, rollback, Policy validation, and PostgreSQL contention.
 - [ ] Phase 3 proves generated procedure ownership, migration integrity, `session_user` identity, ACLs, transaction ownership, and pooler assumptions.
 - [ ] Phase 4 proves the ordinary remote Budget loop and local/PostgreSQL semantic parity.
 - [ ] Phase 5 proves reopen, response-loss recovery, paging, coherent snapshots, and concurrent inspection.
@@ -151,9 +228,9 @@ Phase 1 is verified. Phase 2 remains `Not started`.
 
 ## Campaign acceptance
 
-- [ ] All nine review pull requests merged bottom-up.
+- [ ] PR #28 and the cumulative Phases 2-9 review pull request are merged.
 - [ ] All seven bot threads have evidence-backed dispositions and replies.
 - [ ] No confirmed unresolved or `INCONCLUSIVE` in-contract finding remains.
-- [ ] Every decision-log evidence pointer resolves to a commit, pull request, command result, or retained artifact.
+- [ ] Every checklist evidence pointer resolves to a commit, pull request, command result, or retained artifact.
 - [ ] Issue #22 links the final cumulative review revision.
 - [ ] FEAT-0013 remains `In progress` unless local positive TLS qualification and T049 pass at an accepted revision.

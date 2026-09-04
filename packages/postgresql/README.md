@@ -45,6 +45,13 @@ The package has no JavaScript import surface. Use only the installed
 `keynes-postgresql` executable. Root, deep, ESM, CommonJS, and TypeScript
 imports are unsupported.
 
+Fresh installation applies seven immutable migrations. Migration
+`0007-create-budget-permissions.sql` owns the current `createBudget` contract.
+It preserves migrations `0001` through `0006`, accepts zero initial allocation,
+and requires Resource-definition authority only when catalog reconciliation
+finds a missing definition. In-place and rolling upgrade from an older
+installation remain unsupported.
+
 ## Connection environment
 
 The installer uses the standard connection environment understood by `pg`,

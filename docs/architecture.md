@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Keynes governs Resource limits through Budgets. An application defines immutable Resource types, allocates selected Resources to a root Budget, requests exact Resource quantities for a child, does the external work, and settles known usage.
+Keynes governs Resource limits through Budgets. An application defines immutable Resource types, creates an independent Budget lineage with selected Resources, requests exact Resource quantities for a child, does the external work, and settles known usage.
 
 ```text
 Budget -> request -> child Budget -> settle -> evidence
@@ -76,7 +76,7 @@ This is a command boundary, not a general storage adapter. It does not expose qu
 
 ## Local implementation
 
-`createKeynes()` is the public local entry point. `defineResources(...)` creates a frozen type carrier, and `createBudget(schema, allocation, options?)` atomically reconciles the allocated definitions and creates one root with an immutable Resource binding. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
+`createKeynes()` is the public local entry point. `defineResources(...)` creates a frozen type carrier, and `createBudget(schema, allocation, options?)` atomically reconciles the allocated definitions and starts one independent lineage with an immutable Resource binding. The returned frozen capability closes over the private runtime. `SqliteCommandExecutor` owns one private `node:sqlite` in-memory database and has no account, file-backed database, daemon, worker process, or network service.
 
 ### Private state
 
@@ -85,6 +85,8 @@ The runtime stores Resources, Budgets, command results, permissions, and history
 ### Atomic commands
 
 The executor applies each command in one SQLite transaction. Validation, Policy evaluation, accounting changes, command-result recording, and history either commit together or roll back together. It returns detached result values and serializes asynchronous SDK calls over its private connection, preventing concurrent sibling requests from overspending the same parent Budget.
+
+Budget creation always requires `create_root_budget`. After command replay or conflict resolution, exact catalog reconciliation reuses matching definitions and reports definition conflicts. The authority requires `define_resource_type` only when at least one canonical Resource name is absent. Zero is a valid initial amount; negative amounts remain invalid. The PostgreSQL v7 procedure follows the same order.
 
 ### Replay and conflicts
 
@@ -123,7 +125,7 @@ The SDK contains no PGlite dependency, local migration asset, PostgreSQL impleme
 
 ## PostgreSQL implementation
 
-The six-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes root creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. Migration `0006-remote-access` adds role-derived identity, private credential administration, recovery records, and eight versioned remote wrappers without creating another Budget authority. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
+The seven-migration graph and `keynes.*` procedures remain the source of truth for durable Budgets. Additive migration `0005-resource-bound-budget` preserves migrations `0001` through `0004`, changes creation to reconcile allocated Resource definitions atomically, and keeps the standalone definition procedure compatible. Migration `0006-remote-access` adds role-derived identity, private credential administration, recovery records, and eight versioned remote wrappers without creating another Budget authority. Migration `0007-create-budget-permissions` preserves the first six migrations, installs conditional definition authority, and restores zero-allocation parity. PostgreSQL owns validation at its boundary, transactions, constraints, row locking, command records, history, and permissions.
 
 The five canonical embedded procedures are:
 
@@ -139,7 +141,7 @@ The five canonical embedded procedures are:
 
 ### Embedded PostgreSQL
 
-An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical six-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
+An embedded application prepares a `NOLOGIN` `ownerRole`, an application role, and one bootstrap tenant and principal. The `@keynes/postgresql` installer checks PostgreSQL `server_version_num = 180006`, assumes the owner role, and applies the canonical seven-migration graph, identity, bootstrap permissions, and ACLs in one transaction. It accepts only an absent target or an exact target. It reports stable diagnosis categories and check names for unsupported versions, missing roles, insufficient privilege, incompatible state, and database unavailability.
 
 An embedded application calls supported `keynes.*` functions from its existing database code. The application owns the connection, transaction, roles, upgrades, backup, recovery, and incident response.
 
@@ -202,7 +204,7 @@ Budget is the only public stateful governance object. Its logical state contains
 - command replay records; and
 - ordered history.
 
-An authorized root allocation is the only current path that introduces Resource quantity. Every non-root Budget comes from one approved request against its structural parent. A root or child holds only the Resource types allocated to it.
+An authorized `createBudget(...)` call is the only current path that introduces Resource quantity. Each call starts an independent lineage. Keynes enforces no aggregate allowance across those lineages. Every later Budget comes from one approved request against its structural parent, and each Budget holds only its allocated Resource types. Storage retains `root_budget_id`, a null parent for the first Budget, and depth zero to represent lineage.
 
 ### Request
 

@@ -5,7 +5,9 @@
 
 ## Summary
 
-Move Resource ownership from connection setup into one typed root-creation call. `createKeynes()` opens local SQLite without a schema. `createBudget(schema, allocation, options?)` infers the allocated Resource names, sends definitions and amounts in one generated command, and builds an immutable binding from the committed result. SQLite and PostgreSQL reconcile definitions, attach optional Policies, create the root, record replay and history, and commit all state in one authority transaction.
+Move Resource ownership from connection setup into one typed Budget-creation call. `createKeynes()` opens local SQLite without a schema. `createBudget(schema, allocation, options?)` infers the allocated Resource names, sends definitions and non-negative amounts in one generated command, and builds an immutable binding from the committed result. Each call starts an independent lineage. SQLite and PostgreSQL reconcile definitions, attach optional Policies, create the first Budget, record replay and history, and commit all state in one authority transaction.
+
+The Phase 2 review repair keeps one public `Budget` concept. Root remains structural lineage terminology in storage and authorization. Keynes enforces no aggregate allowance across independently created lineages, and deployment operators decide which principals receive Budget-creation authority.
 
 Keep the existing `createBudget` operation and PostgreSQL procedure name. Add a new PostgreSQL migration that separates opaque Resource identity from definition-command provenance. Preserve standalone embedded Resource definition and all child Budget behavior. FEAT-0014 adds no remote connection or operational capability.
 
@@ -27,7 +29,7 @@ _Gate status before research: PASS. Post-design recheck: PASS._
 
 - **One source of truth per Budget**: `SqliteCommandExecutor` remains the sole local state owner. `keynes.create_budget(jsonb)` remains the durable PostgreSQL state owner. The SDK prepares one command and translates the committed result; it stores no Budget state and has no fallback. Resource definition, Policy attachment, root allocation, command replay, and history join the same selected authority transaction.
 - **Effect boundary**: Root creation performs no application work. The application continues to own workflow validity, effect execution, provider idempotency and retry, observation, outcomes, application rows, and fallback. FEAT-0014 adds no external effect.
-- **Policy and security**: Kysely and raw-SQL authoring, the pinned parser, normalization, semantic registry, local evaluator, PostgreSQL evaluator, request context, and fail-closed behavior do not change. Root Policies are validated against allocated canonical Resource names inside the root transaction. Both existing `define_resource_type` and `create_root_budget` permissions are required in fixed order. Tenant isolation and secret exclusions remain unchanged.
+- **Policy and security**: Kysely and raw-SQL authoring, the pinned parser, normalization, semantic registry, local evaluator, PostgreSQL evaluator, request context, and fail-closed behavior do not change. Policies are validated against allocated canonical Resource names inside the creation transaction. `create_root_budget` is unconditional. `define_resource_type` is required only when exact catalog lookup finds a missing canonical Resource name. Tenant isolation and secret exclusions remain unchanged.
 - **Consistent behavior across deployments**: `CreateBudgetCommand` changes to definition-and-amount entries. `CreateBudgetResult`, errors, replay, child requests, settlement, and inspection keep their meanings. Shared root-binding scenarios run against SQLite and native PostgreSQL. Local lifecycle and PostgreSQL installation, permission, transaction, contention, rollback, replay, and package suites remain separate.
 - **Evidence-first delivery**: Compile-time and runtime root-creation tests, shared conformance cases, migration checks, and PostgreSQL permission and rollback cases must fail for the expected missing contract before implementation. Provider-free gates run first. Native PostgreSQL and package lanes record separate results. Remote, hosted, upgrade, recovery, security, fault, benchmark, self-hosted, managed, and production claims remain `NOT RUN` unless a task names and runs them.
 
@@ -35,7 +37,7 @@ No constitutional exception is required.
 
 ## Research decisions
 
-[research.md](research.md) records the selected direct root call, per-root immutable binding, revised `createBudget` wire input, opaque authority-issued Resource identities, explicit `definition_command_id`, fixed two-permission rule, immutable migration handling, and evidence split.
+[research.md](research.md) records the selected direct Budget call, per-lineage immutable binding, revised `createBudget` wire input, opaque authority-issued Resource identities, explicit `definition_command_id`, conditional definition authority, immutable migration handling, and evidence split.
 
 The architecture arena compared two designs. The direct `createBudget(schema, allocation, options?)` call won because it preserves the existing Policy inference contract with fewer public concepts. The selected design also adopts explicit identity and provenance separation from the alternative compiled-plan proposal.
 
@@ -51,7 +53,7 @@ The architecture arena compared two designs. The direct `createBudget(schema, al
 
 `CreateBudgetCommand.resources` becomes a non-empty list of `{ definition, amount }`. The SDK sends only allocated definitions. Generated validation enforces the entry shape and general limits; both authorities reject duplicate canonical names and validate Policy references against the allocated set.
 
-The ordered operation metadata changes from one `permission` field to a non-empty `permissions` list. Existing operations use one-element lists. `createBudget` uses `define_resource_type`, then `create_root_budget`. The generator remains the only owner of generated TypeScript, validators, procedure metadata, and Cloud copies.
+The ordered operation metadata changes from one `permission` field to a non-empty `permissions` list. The Phase 2 repair records `create_root_budget` in that unconditional list and adds one closed conditional permission: `define_resource_type` when `resource_type_missing`. The generator remains the only owner of generated TypeScript, validators, procedure metadata, and Cloud copies.
 
 ### SQLite authority
 
@@ -59,9 +61,9 @@ The local runtime stops installing Resources during open. `SqliteCommandExecutor
 
 ### PostgreSQL authority
 
-`0005-resource-bound-budget.sql` adds and backfills `definition_command_id`, replaces the old provenance foreign key, and installs the revised root behavior. It preserves the existing public procedure name and standalone definition operation. Concurrent absent-name insertion resolves through insert conflict, readback, and exact definition comparison.
+`0005-resource-bound-budget.sql` adds and backfills `definition_command_id`, replaces the old provenance foreign key, and retains the original two-permission behavior. Migration `0007-create-budget-permissions.sql` installs the current conditional-permission and zero-allocation behavior while preserving migrations `0001` through `0006`. It preserves the existing public procedure name and standalone definition operation. Concurrent absent-name insertion resolves through insert conflict, readback, and exact definition comparison.
 
-The migration manifest records the accepted `0004` contract digest as historical and marks `0005` as the current contract migration. The generator keeps `0001` through `0004` immutable and produces `0005`, the installation record, and expected-object metadata.
+The migration manifest retains the accepted historical contract digests, marks `0007` as the current contract migration, and keeps `0001` through `0006` immutable. The generator produces `0007`, the installation record, and expected-object metadata without rewriting accepted migration bytes.
 
 ### Acceptance evidence
 

@@ -67,22 +67,22 @@ SQLite and PostgreSQL allocate a new Resource identity only after the root comma
 - Hidden subordinate `defineResource` commands preserve the old foreign key but record operations that the caller did not submit.
 - Resource IDs derived from the root command and canonical name are stable, but they permanently couple durable identity to replay identity and let direct callers predict identifiers.
 
-## Decision: require both existing permissions
+## Decision: condition Resource-definition authority on a missing definition
 
-Combined root creation checks `define_resource_type` and then `create_root_budget` for every call. The check does not depend on whether definitions already exist. Standalone definition continues to require only `define_resource_type`.
+Budget creation always checks `create_root_budget` before command identity or catalog access. After exact replay or command conflict resolution, it reuses matching definitions and reports conflicts. It checks `define_resource_type` only when at least one requested canonical Resource name is absent. Standalone definition continues to require only `define_resource_type`.
 
-**Rationale**: The combined command asserts immutable definitions and may create them. A fixed two-permission rule preserves least privilege, avoids catalog-existence disclosure through authorization, and produces the same result for the same principal and command.
+**Rationale**: The combined command asserts immutable definitions and may create them. Unconditional Budget-creation authority prevents catalog observation by principals that cannot create a lineage. Conditional definition authority preserves least privilege for create-only principals that reuse exact definitions. Replay and command-conflict resolution precede catalog reconciliation, so their outcomes do not depend on current definition authority.
 
 **Alternatives considered**:
 
-- Requiring only `create_root_budget` expands that permission to Resource definition.
-- Requiring `define_resource_type` only when a Resource is absent makes authorization depend on mutable catalog state.
+- Requiring only `create_root_budget` for missing definitions would expand that permission to Resource definition.
+- Requiring `define_resource_type` for every call prevents a create-only principal from using an existing catalog entry and adds no protection to exact replay.
 
-## Decision: add one migration and preserve accepted migrations
+## Decision: add forward-only migrations and preserve accepted migrations
 
-Add `0005-resource-bound-budget.sql`. The migration adds and backfills `definition_command_id`, moves the command foreign key from `resource_type_id` to the provenance column, installs the revised private dispatcher and public wrapper behavior, and updates the installation record. Migrations `0001` through `0004` remain byte-for-byte unchanged.
+The original feature added `0005-resource-bound-budget.sql`. That migration adds and backfills `definition_command_id`, moves the command foreign key from `resource_type_id` to the provenance column, installs the revised private dispatcher and public wrapper behavior, and updates the installation record. The Phase 2 review adds `0007-create-budget-permissions.sql` for conditional definition authority and zero-allocation parity. Migrations `0001` through `0006` remain byte-for-byte unchanged.
 
-The PostgreSQL generator must preserve the historical contract digest recorded for `0004` and record the new contract digest on `0005`. The current installer still supports only a clean install or an exact recheck. Upgrading a four-migration target remains unsupported and `NOT RUN`.
+The PostgreSQL generator preserves every historical contract digest and records the current digest on `0007`. The current installer still supports only a clean install or an exact recheck. Upgrading an existing target remains unsupported and `NOT RUN`.
 
 **Rationale**: Retained migration checksums and evidence belong to their accepted revisions. Rewriting `0004` would falsify that evidence.
 
@@ -94,6 +94,6 @@ Remote TLS, credentials, private administration, operation recovery, remote reop
 
 ## Architecture arena synthesis
 
-Two independent candidates covered a direct root call and a compiled root plan. The direct call is the base because it preserves current Policy inference with one smaller public interface. The compiled-plan candidate contributed the explicit separation between authority-issued Resource identity and definition-command provenance. Both candidates agreed on per-root immutable bindings, one definition-bearing command, an additive migration, two fixed permissions, and keeping the embedded `defineResource` operation.
+Two independent candidates covered a direct root call and a compiled root plan. The direct call is the base because it preserves current Policy inference with one smaller public interface. The compiled-plan candidate contributed the explicit separation between authority-issued Resource identity and definition-command provenance. The Phase 2 review keeps the direct call, per-lineage immutable bindings, one definition-bearing command, an additive migration, conditional definition authority, and the embedded `defineResource` operation.
 
-The selected design passed the red-flag screen. It adds no public setup stage, no transport type, no second replay store, and no pass-through service. The main risks are absent-row contention in PostgreSQL, removal of all assumptions that Resource ID equals definition command ID, two-permission metadata, and result validation before commit. The task list must give each risk a direct failing test.
+The selected design passed the red-flag screen. It adds no public setup stage, no transport type, no second replay store, and no pass-through service. The main risks are absent-row contention in PostgreSQL, removal of all assumptions that Resource ID equals definition command ID, conditional permission metadata, and result validation before commit. The task list must give each risk a direct failing test.

@@ -31,7 +31,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
     await keynes?.close();
   });
 
-  it("requires definition then root-allocation permission", async () => {
+  it("requires conditional definition and root-allocation permissions", async () => {
     keynes = await openPostgresqlContractTestHost();
     const command = resourceBoundRoot(ROOT_COMMAND_ID, "permission_tokens");
 

@@ -105,6 +105,190 @@ export function registerResourceBoundRootContractTests(
       }
     });
 
+    it("lets create-only principals reuse exact Resource definitions", async () => {
+      const local = await openTestKeynes();
+      try {
+        const command = rootCommand("15000000-0000-0000-0000-000000000012", [
+          rootResource("existing_tokens", "token", "consumable", 0),
+        ]);
+        await local.clientFor("definer-fixture").defineResource({
+          commandId: "15000000-0000-0000-0000-000000000013",
+          definition: command.resources[0].definition,
+        });
+
+        await expect(
+          local.clientFor("allocator-fixture").createBudget(command),
+        ).resolves.toMatchObject({
+          kind: "created",
+          budget: {
+            budgetId: command.commandId,
+            resources: [{ allocated: 0 }],
+          },
+          replayed: false,
+        });
+      } finally {
+        await local.close();
+      }
+    });
+
+    it("requires definition authority only when at least one Resource is missing", async () => {
+      const local = await openTestKeynes();
+      try {
+        const existing = rootResource(
+          "existing_capacity",
+          "seat",
+          "reusable",
+          2,
+        );
+        await local.clientFor("definer-fixture").defineResource({
+          commandId: "15000000-0000-0000-0000-000000000014",
+          definition: existing.definition,
+        });
+        const missing = rootResource("missing_capacity", "seat", "reusable", 1);
+
+        await expect(
+          local
+            .clientFor("allocator-fixture")
+            .createBudget(
+              rootCommand("15000000-0000-0000-0000-000000000015", [
+                existing,
+                missing,
+              ]),
+            ),
+        ).rejects.toMatchObject({
+          code: "unauthorized",
+          details: {
+            operation: "createBudget",
+            requiredPermission: "define_resource_type",
+          },
+        });
+        const deniedCommandId = "15000000-0000-0000-0000-000000000015";
+        await expect(
+          local.clientFor("reader-fixture").getBudget({
+            budgetId: deniedCommandId,
+          }),
+        ).rejects.toMatchObject({ code: "budget_not_found" });
+        const defined = await local
+          .clientFor("definer-fixture")
+          .defineResource({
+            commandId: "15000000-0000-0000-0000-000000000016",
+            definition: missing.definition,
+          });
+        expect(defined.definitionEvidence.commandId).toBe(
+          "15000000-0000-0000-0000-000000000016",
+        );
+        await expect(
+          local
+            .clientFor("root-fixture")
+            .createBudget(rootCommand(deniedCommandId, [existing, missing])),
+        ).resolves.toMatchObject({ replayed: false });
+      } finally {
+        await local.close();
+      }
+    });
+
+    it("checks root authority before definition authority or catalog details", async () => {
+      const local = await openTestKeynes();
+      try {
+        await expect(
+          local
+            .clientFor("definer-fixture")
+            .createBudget(
+              rootCommand("15000000-0000-0000-0000-000000000017", [
+                rootResource("unobserved_tokens", "token", "consumable", 1),
+              ]),
+            ),
+        ).rejects.toMatchObject({
+          code: "unauthorized",
+          details: {
+            operation: "createBudget",
+            requiredPermission: "create_root_budget",
+          },
+        });
+      } finally {
+        await local.close();
+      }
+    });
+
+    it("returns definition conflicts before conditional definition denial", async () => {
+      const local = await openTestKeynes();
+      try {
+        await local.clientFor("definer-fixture").defineResource({
+          commandId: "15000000-0000-0000-0000-000000000018",
+          definition: {
+            canonicalName: "conflicting_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+        });
+        await expect(
+          local
+            .clientFor("allocator-fixture")
+            .createBudget(
+              rootCommand("15000000-0000-0000-0000-000000000019", [
+                rootResource("conflicting_tokens", "credit", "consumable", 1),
+              ]),
+            ),
+        ).rejects.toMatchObject({
+          code: "resource_type_conflict",
+          details: { canonicalName: "conflicting_tokens" },
+        });
+      } finally {
+        await local.close();
+      }
+    });
+
+    it("replays and conflicts before conditional catalog reconciliation", async () => {
+      const local = await openTestKeynes();
+      try {
+        const command = rootCommand("15000000-0000-0000-0000-000000000020", [
+          rootResource("replay_tokens", "token", "consumable", 1),
+        ]);
+        const created = await local
+          .clientFor("root-fixture")
+          .createBudget(command);
+
+        await expect(
+          local.clientFor("allocator-fixture").createBudget(command),
+        ).resolves.toEqual({ ...created, replayed: true });
+        await expect(
+          local.clientFor("allocator-fixture").createBudget({
+            ...command,
+            resources: [
+              rootResource(
+                "catalog_must_not_be_read",
+                "token",
+                "consumable",
+                1,
+              ),
+            ],
+          }),
+        ).rejects.toMatchObject({ code: "command_conflict" });
+      } finally {
+        await local.close();
+      }
+    });
+
+    it("rejects negative initial allocation", async () => {
+      const local = await openTestKeynes();
+      try {
+        await expect(
+          local
+            .clientFor("root-fixture")
+            .createBudget(
+              rootCommand("15000000-0000-0000-0000-000000000022", [
+                rootResource("negative_tokens", "token", "consumable", -1),
+              ]),
+            ),
+        ).rejects.toMatchObject({
+          code: "invalid_command",
+          details: { operation: "createBudget" },
+        });
+      } finally {
+        await local.close();
+      }
+    });
+
     it("rejects a changed definition-bearing root body under the same command identity", async () => {
       const local = await openTestKeynes();
 

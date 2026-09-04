@@ -17,6 +17,7 @@ import {
 import { format } from "oxfmt";
 
 import { expectedPostgresObjects } from "./policy-migration.ts";
+import { renderCreateBudgetPermissionsMigration } from "./create-budget-permissions-migration.ts";
 import { renderResourceBoundBudgetMigration } from "./resource-bound-budget-migration.ts";
 import { renderRemoteAccessMigration } from "./remote-access-migration.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
@@ -54,6 +55,8 @@ const IMMUTABLE_MIGRATION_SHA256 = {
     "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
   "0005-resource-bound-budget.sql":
     "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
+  "0006-remote-access.sql":
+    "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
 } as const;
 
 interface InstallationMigration {
@@ -92,11 +95,16 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     remoteProceduresDigest: options.contract.remoteDigest,
     remote: options.contract.source.remote,
   });
+  const createBudgetPermissionsSql = renderCreateBudgetPermissionsMigration(
+    resourceBoundBudgetSql,
+    remoteAccessSql,
+  );
   const migrationSources = new Map<string, string>([
     ["0003-public.generated.sql", publicSql],
     ["0004-policy.sql", policySql],
     ["0005-resource-bound-budget.sql", resourceBoundBudgetSql],
     ["0006-remote-access.sql", remoteAccessSql],
+    ["0007-create-budget-permissions.sql", createBudgetPermissionsSql],
   ]);
   const manifest = readMigrationManifest(repositoryRoot);
   const contractMigrations = manifest.filter(
@@ -153,7 +161,8 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
           fileName.endsWith(".generated.sql") ||
           fileName === "0004-policy.sql" ||
           fileName === "0005-resource-bound-budget.sql" ||
-          fileName === "0006-remote-access.sql",
+          fileName === "0006-remote-access.sql" ||
+          fileName === "0007-create-budget-permissions.sql",
       },
     ],
   });

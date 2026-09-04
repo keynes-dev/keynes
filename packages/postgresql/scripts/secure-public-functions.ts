@@ -41,6 +41,9 @@ export function installationFunctions(
   return contract.operations.map((operation) => ({
     operation: operation.method,
     permissions: operation.permissions,
+    ...(operation.conditionalPermissions === undefined
+      ? {}
+      : { conditionalPermissions: operation.conditionalPermissions }),
     target: operation.target,
     argumentType: "jsonb",
     returnType: "jsonb",

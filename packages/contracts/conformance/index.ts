@@ -17,6 +17,7 @@ export {
   registerBudgetLifecycleContractTests,
   registerReplayContractTests,
   registerRequestDenialContractTests,
+  registerResourceBoundRootContractTests,
   registerRollbackContractTests,
   registerSettlementContractTests,
   registerRemoteContractTests,

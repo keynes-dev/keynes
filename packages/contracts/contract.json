@@ -12,7 +12,13 @@
     {
       "method": "createBudget",
       "target": "keynes.create_budget",
-      "permissions": ["define_resource_type", "create_root_budget"],
+      "permissions": ["create_root_budget"],
+      "conditionalPermissions": [
+        {
+          "permission": "define_resource_type",
+          "condition": "resource_type_missing"
+        }
+      ],
       "replay": true,
       "input": "CreateBudgetCommand",
       "output": "CreateBudgetResult"
