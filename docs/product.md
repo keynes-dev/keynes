@@ -1,10 +1,10 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Accepted target contract as of September 3, 2026. Current
-> `main` at `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not implement
-> this contract. The [current-system assessment](current-system-assessment.md)
-> records current behavior and evidence. The roadmap must allocate implementation
-> before any target behavior is described as delivered.
+> **Status:** Accepted target contract as of September 3, 2026. Current delivery
+> and evidence reconciliation are tracked in [Linear](https://linear.app/keynes),
+> beginning with [KEY-7](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation).
+> Target behavior is not delivered unless its owning feature retains evidence for
+> the exact revision.
 
 ## Thesis
 

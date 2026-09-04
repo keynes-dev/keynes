@@ -1,16 +1,16 @@
 # Workflow
 
-Spec Kit features are the only numbered delivery units. Each feature uses the same identity in every location:
+One Linear parent issue represents one Spec Kit feature. Linear supplies every public name:
 
 ```text
-FEAT-0001
-feat/0001-repository-and-code-architecture
-docs/features/0001-repository-and-code-architecture/
+Linear issue: KEY-44 Repository and code architecture
+Git branch: shubhankarsharan/key-44-repository-and-code-architecture
+docs/features/key-44-repository-and-code-architecture/
 ```
 
-The roadmap groups features into unnumbered stages. A stage has no branch, template, or separate lifecycle. A standalone fix or refactor can use Spec Kit without belonging to a roadmap stage.
+Linear owns feature and phase names, sequencing, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
 
-The roadmap can name planned features before work starts. A planned feature has no ID, branch, or artifact directory. It becomes a Spec Kit feature only when the feature command allocates its identity. `.specify/feature.json` selects work for Spec Kit commands; it does not identify what comes next on the roadmap.
+Every feature specification links to exactly one Linear issue, and that issue links back to the specification. The version 3 `.specify/feature.json` selects work for Spec Kit commands. The feature directory name is the final path segment of the stored Linear branch. Linear branch changes therefore require explicit synchronization of the directory and manifest.
 
 Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each phase. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
 
@@ -18,15 +18,18 @@ Do not create a pstack specification, plan, or task list when a Spec Kit artifac
 
 ## Choose the workflow
 
-Use Spec Kit when work changes product behavior, architecture, public contracts, roadmap scope, or acceptance evidence. A complete feature normally moves through this sequence:
+Use Spec Kit when work changes product behavior, architecture, public contracts, delivery scope, or acceptance evidence. A complete feature normally moves through this sequence:
 
-1. Use `$speckit-constitution` when the work changes a governing principle.
-2. Use `$speckit-specify` to explain the feature story and define user outcomes, requirements, scope, and success criteria.
-3. Use `$speckit-clarify` when material product or scope questions remain.
-4. Use `$speckit-plan` to decide the technical design and verification approach.
-5. Use `$speckit-tasks` to create the dependency-ordered implementation sequence.
-6. Use `$speckit-implement` to execute and update the approved tasks.
-7. Use `$speckit-analyze` and `$speckit-checklist` to check artifact consistency and acceptance coverage.
+1. Select the Linear feature issue.
+2. Use `$speckit-specify`, then review the specification.
+3. Use `$speckit-plan`, then review the plan.
+4. Use `$speckit-tasks` to generate reviewable phases.
+5. Use `$speckit-analyze` to check phase boundaries, bindings, checkpoints, coverage, and dependency order.
+6. Review `tasks.md`.
+7. Run `$speckit-taskstoissues` to preview phase publication. Run it with `--apply` only after approving the preview.
+8. Use `$speckit-implement` to implement phases in order.
+
+Phase 1 uses the parent issue, parent branch, and exact parent title. Every later phase uses one Linear sub-issue and its generated branch. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
 
 ## Keep the feature story in the specification
 
@@ -34,7 +37,7 @@ Every feature specification starts with a `Feature story` section. It explains t
 
 The feature story explains intent. Numbered requirements and success criteria define acceptance. The story must not introduce a requirement, implementation decision, or evidence claim that the rest of the specification does not support.
 
-`$speckit-clarify` updates the story when an answer changes the problem, user outcome, compatibility promise, scope boundary, or roadmap relationship. `$speckit-plan` owns implementation choices and technical tradeoffs; do not copy those decisions into the story. `$speckit-analyze` checks the story against the specification, plan, and tasks for contradictions and stale claims.
+`$speckit-clarify` updates the story when an answer changes the problem, user outcome, compatibility promise, scope boundary, or linked Linear work relationship. `$speckit-plan` owns implementation choices and technical tradeoffs; do not copy those decisions into the story. `$speckit-analyze` checks the story against the specification, plan, and tasks for contradictions and stale claims.
 
 A narrow repair, explanation, or documentation change may not need a new feature artifact. Before starting one, identify the active Spec Kit feature and state why the work fits it or why no feature artifact is needed. Do not use that exception to hide a requirement or architecture change.
 
@@ -68,14 +71,19 @@ Use Ponytail only after the requirement, ownership boundary, and affected flow a
 
 For non-trivial work:
 
-1. Identify the active Spec Kit feature and phase.
+1. Select the owning Linear issue, then identify the active Spec Kit feature and phase.
 2. Define an observable done condition.
 3. Read the owning code and documents before changing them.
 4. Select the smallest useful pstack method.
 5. Make the smallest coherent change that satisfies the approved artifact.
 6. Verify the closest real artifact available. Prefer an exercised behavior over a compile or self-report.
 7. Reconcile the Spec Kit tasks and any in-task plan.
-8. Report what ran, what did not run, and what remains uncertain.
+8. Commit the phase boundary only after its checkpoint passes.
+9. Add the next recorded Linear branch to the GitHub stack.
+10. Update Linear links without copying tasks, requirements, checkpoints, counts, or evidence.
+11. Report what ran, what did not run, and what remains uncertain.
+
+Initialize the bottom layer with `gh stack init "<parent gitBranchName>"`. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 
@@ -101,10 +109,10 @@ Run `pnpm test:package:postgresql` against the packed PostgreSQL archive. Run `p
 
 Label unavailable provider, conformance, security, packaging, compatibility, performance, and live-runtime evidence as `NOT RUN`. A passing type check does not prove runtime behavior. A local archive pass does not prove six-environment compatibility or the reference measurement. A local pass does not prove continuous integration passed for the same commit.
 
-## Local skill bundle
+## Skill bundle
 
-The Keynes skill bundle lives under `.agents/skills/` and is ignored by Git. A fresh checkout does not receive the local skill files, so this document is the checked-in workflow contract rather than an installation record.
+The repository tracks the Spec Kit skills that own feature identity, specification, phase generation, phase publication, analysis, and implementation. A fresh checkout receives those workflow rules. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
 
-The current local bundle combines the Spec Kit lifecycle skills with a focused pstack selection based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every retained skill before replacing the local bundle.
+The local pstack bundle is based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every tracked Spec Kit skill before replacing it.
 
 Ponytail `4.9.0` is an optional external plugin, not part of Spec Kit or pstack. When it is unavailable, apply pstack's smallest-sufficient-change principle directly and do not block feature delivery. A fresh checkout does not install Ponytail from this repository.

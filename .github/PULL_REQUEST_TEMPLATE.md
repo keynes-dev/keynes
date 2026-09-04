@@ -14,6 +14,11 @@ What could a user or maintainer not do before?
 Why does this belong in the current feature or maintenance change?
 -->
 
+**Parent Linear issue:** <!-- Link the owning KEY-N feature issue. -->
+**Phase Linear issue:** <!-- Link the owning phase issue. Phase 1 reuses the parent. -->
+**Preceding PR:** <!-- Link the lower stack layer, or write "Bottom layer." -->
+**Phase checkpoint:** <!-- Copy the review boundary from tasks.md. -->
+
 ## What changed
 
 <!--

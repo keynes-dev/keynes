@@ -1,24 +1,25 @@
 #!/usr/bin/env node
 
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   renameSync,
   writeFileSync,
-  copyFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-const FEATURE_DIRECTORY = "docs/features";
-const FEATURE_NUMBER = /^[0-9]{4}$/;
-const FEATURE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const FEATURE_BRANCH = /^feat\/([0-9]{4})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-const FEATURE_DIR_NAME = /^([0-9]{4})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const FEATURE_ROOT = "docs/features";
+const LINEAR_IDENTIFIER = /^[A-Z][A-Z0-9]*-[1-9][0-9]*$/;
+const LINEAR_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const LEGACY_FEATURE_ID = /^FEAT-([0-9]{4})$/;
+const LEGACY_DIRECTORY = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class FeatureIdentityError extends Error {}
 
@@ -47,146 +48,171 @@ function runGit(repoRoot, args, { allowFailure = false } = {}) {
   return result;
 }
 
-function normalizeSlug(value) {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .split("-")
-    .filter(Boolean)
-    .join("-");
-  if (!FEATURE_SLUG.test(slug))
-    fail(`Invalid feature slug: ${JSON.stringify(value)}`);
-  return slug;
+function validateIssueUrl(identifier, issueUrl) {
+  let url;
+  try {
+    url = new URL(issueUrl);
+  } catch {
+    fail(`Linear issue URL is invalid: ${issueUrl}`);
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "linear.app" ||
+    !url.pathname.toLowerCase().includes(`/issue/${identifier.toLowerCase()}/`)
+  ) {
+    fail(`Linear issue URL does not match ${identifier}: ${issueUrl}`);
+  }
 }
 
-export function makeFeatureIdentity(number, slug, roadmapStage = null) {
-  if (!FEATURE_NUMBER.test(number) || number === "0000") {
-    fail(
-      `Feature number must be four digits from 0001 through 9999: ${number}`,
-    );
+export function makeWorkItem(issueId, issueIdentifier, issueUrl) {
+  if (!LINEAR_UUID.test(issueId))
+    fail(`Linear issue ID must be a lowercase UUID: ${issueId}`);
+  if (!LINEAR_IDENTIFIER.test(issueIdentifier)) {
+    fail(`Linear issue identifier is invalid: ${issueIdentifier}`);
   }
-  if (!FEATURE_SLUG.test(slug))
-    fail(`Feature slug must be lowercase kebab case: ${slug}`);
-  if (
-    roadmapStage !== null &&
-    (typeof roadmapStage !== "string" || roadmapStage.trim() === "")
-  ) {
-    fail("Roadmap stage must be a non-empty string or null");
-  }
-  const stem = `${number}-${slug}`;
+  validateIssueUrl(issueIdentifier, issueUrl);
   return Object.freeze({
-    version: 1,
-    feature_id: `FEAT-${number}`,
-    number,
-    slug,
-    branch: `feat/${stem}`,
-    feature_directory: `${FEATURE_DIRECTORY}/${stem}`,
-    feature_file: `${FEATURE_DIRECTORY}/${stem}/spec.md`,
-    roadmap_stage: roadmapStage,
+    provider: "linear",
+    issue_id: issueId,
+    issue_identifier: issueIdentifier,
+    issue_url: issueUrl,
   });
 }
 
-export function parseFeatureBranch(branch, roadmapStage = null) {
-  const match = FEATURE_BRANCH.exec(branch);
-  if (!match) fail(`Feature branch must match feat/XXXX-kebab-name: ${branch}`);
-  return makeFeatureIdentity(match[1], match[2], roadmapStage);
+export function validateGitBranch(repoRoot, branch) {
+  if (typeof branch !== "string" || branch.length === 0)
+    fail("Linear branch name is required");
+  const result = runGit(repoRoot, ["check-ref-format", "--branch", branch], {
+    allowFailure: true,
+  });
+  if (result.status !== 0)
+    fail(`Linear branch name is not a valid Git branch: ${branch}`);
+  return branch;
 }
 
-function identityNumbers(repoRoot) {
-  const identities = new Map();
-  const record = (number, slug, source) => {
-    const previous = identities.get(number);
-    if (previous && previous.slug !== slug) {
-      fail(
-        `Feature number ${number} is used by both ${previous.source} and ${source}`,
-      );
-    }
-    identities.set(number, { slug, source });
-  };
-
-  const featuresPath = join(repoRoot, FEATURE_DIRECTORY);
-  if (existsSync(featuresPath)) {
-    for (const entry of readdirSync(featuresPath, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const match = FEATURE_DIR_NAME.exec(entry.name);
-      if (!match)
-        fail(`Feature directory must match XXXX-kebab-name: ${entry.name}`);
-      record(match[1], match[2], `${FEATURE_DIRECTORY}/${entry.name}`);
-    }
-  }
-
-  const refs = runGit(
-    repoRoot,
-    ["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes"],
-    { allowFailure: true },
-  );
-  if (refs.status === 0) {
-    for (const ref of refs.stdout.split("\n").filter(Boolean)) {
-      const marker = ref.indexOf("/feat/");
-      if (marker === -1) continue;
-      const branch = ref.slice(marker + 1);
-      const match = FEATURE_BRANCH.exec(branch);
-      if (!match) fail(`Feature ref must match feat/XXXX-kebab-name: ${ref}`);
-      record(match[1], match[2], ref);
-    }
-  }
-  return identities;
+function featureDirectoryForBranch(branch) {
+  return `${FEATURE_ROOT}/${branch.slice(branch.lastIndexOf("/") + 1)}`;
 }
 
-export function allocateFeatureIdentity(repoRoot, slug, roadmapStage = null) {
-  const identities = identityNumbers(repoRoot);
-  let highest = 0;
-  for (const number of identities.keys())
-    highest = Math.max(highest, Number(number));
-  if (highest >= 9999) fail("Feature number space is exhausted at FEAT-9999");
-  return makeFeatureIdentity(
-    String(highest + 1).padStart(4, "0"),
-    slug,
-    roadmapStage,
+export function makeFeatureIdentity(
+  repoRoot,
+  issueIdentifier,
+  featureTitle,
+  branch,
+  workItem,
+) {
+  if (!workItem || workItem.provider !== "linear")
+    fail("A Linear work item is required");
+  const validatedWorkItem = makeWorkItem(
+    workItem.issue_id,
+    workItem.issue_identifier,
+    workItem.issue_url,
   );
+  if (issueIdentifier !== validatedWorkItem.issue_identifier) {
+    fail("Feature ID must equal the Linear issue identifier");
+  }
+  if (
+    typeof featureTitle !== "string" ||
+    featureTitle.trim() !== featureTitle ||
+    !featureTitle
+  ) {
+    fail("The exact non-empty Linear issue title is required");
+  }
+  validateGitBranch(repoRoot, branch);
+  const featureDirectory = featureDirectoryForBranch(branch);
+  return Object.freeze({
+    version: 3,
+    feature_id: issueIdentifier,
+    feature_title: featureTitle,
+    feature_directory: featureDirectory,
+    feature_file: `${featureDirectory}/spec.md`,
+    branch,
+    work_item: validatedWorkItem,
+  });
+}
+
+function makeLegacyIdentity(value) {
+  const match = LEGACY_FEATURE_ID.exec(value.feature_id || "");
+  if (
+    !match ||
+    typeof value.slug !== "string" ||
+    !LEGACY_DIRECTORY.test(`${match[1]}-${value.slug}`)
+  ) {
+    fail("Invalid version 2 feature manifest");
+  }
+  const workItem = makeWorkItem(
+    value.work_item?.issue_id,
+    value.work_item?.issue_identifier,
+    value.work_item?.issue_url,
+  );
+  const featureDirectory = `${FEATURE_ROOT}/${match[1]}-${value.slug}`;
+  if (value.feature_directory !== featureDirectory) {
+    fail("Version 2 feature directory disagrees with its feature identity");
+  }
+  return Object.freeze({
+    version: 2,
+    feature_id: value.feature_id,
+    feature_title: null,
+    feature_directory: featureDirectory,
+    feature_file: `${featureDirectory}/spec.md`,
+    branch: value.branch,
+    work_item: workItem,
+  });
 }
 
 function manifestFromIdentity(identity) {
+  if (identity.version === 2) {
+    const [, number] = LEGACY_FEATURE_ID.exec(identity.feature_id);
+    return {
+      version: 2,
+      feature_id: identity.feature_id,
+      slug: identity.feature_directory.slice(
+        `${FEATURE_ROOT}/${number}-`.length,
+      ),
+      branch: identity.branch,
+      feature_directory: identity.feature_directory,
+      work_item: identity.work_item,
+    };
+  }
   return {
-    version: identity.version,
+    version: 3,
     feature_id: identity.feature_id,
-    slug: identity.slug,
-    branch: identity.branch,
+    feature_title: identity.feature_title,
     feature_directory: identity.feature_directory,
-    roadmap_stage: identity.roadmap_stage,
+    feature_file: identity.feature_file,
+    branch: identity.branch,
+    work_item: identity.work_item,
   };
 }
 
-function parseManifest(repoRoot) {
-  const path = join(repoRoot, ".specify/feature.json");
+export function parseManifest(
+  repoRoot,
+  manifestPath = ".specify/feature.json",
+) {
   let value;
   try {
-    value = JSON.parse(readFileSync(path, "utf8"));
+    value = JSON.parse(readFileSync(join(repoRoot, manifestPath), "utf8"));
   } catch (error) {
-    fail(`Cannot read .specify/feature.json: ${error.message}`);
+    fail(`Cannot read ${manifestPath}: ${error.message}`);
   }
-  if (!value || value.version !== 1 || typeof value.feature_id !== "string") {
-    fail(".specify/feature.json does not contain a version 1 feature identity");
-  }
-  const number = value.feature_id.replace(/^FEAT-/, "");
-  const identity = makeFeatureIdentity(
-    number,
-    value.slug,
-    value.roadmap_stage ?? null,
+  if (value?.version === 2) return makeLegacyIdentity(value);
+  if (value?.version !== 3) fail(`${manifestPath} must use version 2 or 3`);
+  const workItem = makeWorkItem(
+    value.work_item?.issue_id,
+    value.work_item?.issue_identifier,
+    value.work_item?.issue_url,
   );
-  for (const key of ["feature_id", "branch", "feature_directory"]) {
-    if (value[key] !== identity[key]) {
-      fail(
-        `.specify/feature.json ${key} disagrees with ${identity.feature_id}`,
-      );
-    }
-  }
-  const absoluteDirectory = resolve(repoRoot, identity.feature_directory);
-  const featureRoot = resolve(repoRoot, FEATURE_DIRECTORY);
-  if (relative(featureRoot, absoluteDirectory).startsWith("..")) {
-    fail("Feature directory escapes docs/features");
+  const identity = makeFeatureIdentity(
+    repoRoot,
+    value.feature_id,
+    value.feature_title,
+    value.branch,
+    workItem,
+  );
+  const expected = manifestFromIdentity(identity);
+  for (const key of ["feature_directory", "feature_file"]) {
+    if (value[key] !== expected[key])
+      fail(`${manifestPath} ${key} disagrees with ${identity.feature_id}`);
   }
   return identity;
 }
@@ -206,23 +232,90 @@ function verifySpecHeaders(repoRoot, identity) {
   if (!existsSync(featureFile))
     fail(`Feature specification not found: ${identity.feature_file}`);
   const contents = readFileSync(featureFile, "utf8");
-  const required = [
-    `**Feature ID**: \`${identity.feature_id}\``,
-    `**Feature branch**: \`${identity.branch}\``,
-    `**Roadmap stage**: \`${identity.roadmap_stage ?? "None"}\``,
-  ];
+  const required =
+    identity.version === 2
+      ? [
+          `**Feature ID**: \`${identity.feature_id}\``,
+          `**Feature branch**: \`${identity.branch}\``,
+          `**Linear issue**: [${identity.work_item.issue_identifier}](${identity.work_item.issue_url})`,
+        ]
+      : [
+          `# ${identity.feature_title}`,
+          `**Linear issue**: [${identity.feature_id}](${identity.work_item.issue_url})`,
+          `**Git branch**: \`${identity.branch}\``,
+          `<!-- linear-issue-id: ${identity.work_item.issue_id} -->`,
+        ];
   for (const line of required) {
     if (!contents.includes(line))
       fail(`${identity.feature_file} is missing ${line}`);
   }
 }
 
-function verifyRoadmapStage(repoRoot, identity) {
-  if (identity.roadmap_stage === null) return;
-  const roadmap = readFileSync(join(repoRoot, "docs/roadmap.md"), "utf8");
-  if (!roadmap.includes(`## ${identity.roadmap_stage}`)) {
-    fail(`Roadmap stage not found: ${identity.roadmap_stage}`);
+export function parseSpecIdentity(repoRoot, directory) {
+  const relativeFile = `${FEATURE_ROOT}/${directory}/spec.md`;
+  if (!existsSync(join(repoRoot, relativeFile))) {
+    fail(`Feature specification not found: ${relativeFile}`);
   }
+  const contents = readFileSync(join(repoRoot, relativeFile), "utf8");
+  const issue = /^\*\*Linear issue\*\*: \[([^\]]+)\]\(([^)]+)\)$/m.exec(
+    contents,
+  );
+  const branch = /^\*\*Git branch\*\*: `([^`]+)`$/m.exec(contents);
+  const uuid = /^<!-- linear-issue-id: ([0-9a-f-]+) -->$/m.exec(contents);
+  const title = /^# (.+)$/m.exec(contents);
+  if (!issue || !branch || !uuid || !title)
+    fail(`${relativeFile} lacks the Linear-native feature header`);
+  const identity = makeFeatureIdentity(
+    repoRoot,
+    issue[1],
+    title[1],
+    branch[1],
+    makeWorkItem(uuid[1], issue[1], issue[2]),
+  );
+  if (identity.feature_directory !== `${FEATURE_ROOT}/${directory}`) {
+    fail(
+      `${relativeFile} directory must equal the final segment of ${identity.branch}`,
+    );
+  }
+  return identity;
+}
+
+export function validateRepositoryFeatureSpecs(repoRoot) {
+  const seen = { keys: new Map(), uuids: new Map(), branches: new Map() };
+  let count = 0;
+  for (const entry of readdirSync(join(repoRoot, FEATURE_ROOT), {
+    withFileTypes: true,
+  })) {
+    if (!entry.isDirectory()) continue;
+    const identity = parseSpecIdentity(repoRoot, entry.name);
+    for (const [value, index, label] of [
+      [identity.feature_id, seen.keys, "key"],
+      [identity.work_item.issue_id, seen.uuids, "UUID"],
+      [identity.branch, seen.branches, "branch"],
+    ]) {
+      const previous = index.get(value);
+      if (previous)
+        fail(
+          `Duplicate Linear ${label} ${value}: ${previous} and ${entry.name}`,
+        );
+      index.set(value, entry.name);
+    }
+    for (const artifact of ["plan.md", "tasks.md"]) {
+      const path = join(repoRoot, FEATURE_ROOT, entry.name, artifact);
+      if (!existsSync(path)) continue;
+      if (
+        !readFileSync(path, "utf8")
+          .split("\n", 1)[0]
+          .includes(identity.feature_title)
+      ) {
+        fail(
+          `${FEATURE_ROOT}/${entry.name}/${artifact} must use the exact Linear title`,
+        );
+      }
+    }
+    count += 1;
+  }
+  return count;
 }
 
 export function resolveActiveFeature(
@@ -230,6 +323,14 @@ export function resolveActiveFeature(
   { requireSpec = true, requireBranch = true } = {},
 ) {
   const identity = parseManifest(repoRoot);
+  const absoluteDirectory = resolve(repoRoot, identity.feature_directory);
+  if (
+    relative(resolve(repoRoot, FEATURE_ROOT), absoluteDirectory).startsWith(
+      "..",
+    )
+  ) {
+    fail("Feature directory escapes docs/features");
+  }
   if (requireBranch) {
     const branch = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
     if (branch !== identity.branch) {
@@ -238,17 +339,14 @@ export function resolveActiveFeature(
       );
     }
   }
-  const directory = join(repoRoot, identity.feature_directory);
-  if (!existsSync(directory))
+  if (!existsSync(absoluteDirectory))
     fail(`Feature directory not found: ${identity.feature_directory}`);
   if (requireSpec) verifySpecHeaders(repoRoot, identity);
-  verifyRoadmapStage(repoRoot, identity);
-  identityNumbers(repoRoot);
   return identity;
 }
 
 function parseArguments(argv) {
-  const { values, positionals, tokens } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: argv,
     options: {
       json: { type: "boolean" },
@@ -256,68 +354,48 @@ function parseArguments(argv) {
       "allow-existing-branch": { type: "boolean" },
       materialize: { type: "boolean" },
       "no-branch-check": { type: "boolean" },
-      "short-name": { type: "string" },
-      "roadmap-stage": { type: "string" },
+      "linear-issue-id": { type: "string" },
+      "linear-issue-identifier": { type: "string" },
+      "linear-issue-title": { type: "string" },
+      "linear-issue-url": { type: "string" },
+      "linear-branch-name": { type: "string" },
     },
     allowPositionals: true,
-    strict: false,
-    tokens: true,
+    strict: true,
   });
-  const knownOptions = new Set([
-    "json",
-    "dry-run",
-    "allow-existing-branch",
-    "materialize",
-    "no-branch-check",
-    "short-name",
-    "roadmap-stage",
-  ]);
-  for (const token of tokens) {
-    if (token.kind !== "option") continue;
-    if (!knownOptions.has(token.name) || token.inlineValue === true) {
-      fail(`Unknown option: ${argv[token.index]}`);
-    }
-    if (
-      (token.name === "short-name" || token.name === "roadmap-stage") &&
-      (token.value === undefined || token.value.startsWith("--"))
-    ) {
-      fail(`${token.rawName} requires a value`);
-    }
-  }
+  if (positionals.length) fail(`Unexpected argument: ${positionals.join(" ")}`);
   return {
     json: values.json === true,
     dryRun: values["dry-run"] === true,
     allowExisting: values["allow-existing-branch"] === true,
     materialize: values.materialize === true,
-    ...(values["no-branch-check"] === true ? { requireBranch: false } : {}),
-    ...(typeof values["short-name"] === "string"
-      ? { shortName: values["short-name"] }
-      : {}),
-    ...(typeof values["roadmap-stage"] === "string"
-      ? { roadmapStage: values["roadmap-stage"] }
-      : {}),
-    description: positionals.join(" ").trim(),
+    requireBranch: values["no-branch-check"] !== true,
+    linearIssueId: values["linear-issue-id"],
+    linearIssueIdentifier: values["linear-issue-identifier"],
+    linearIssueTitle: values["linear-issue-title"],
+    linearIssueUrl: values["linear-issue-url"],
+    linearBranchName: values["linear-branch-name"],
   };
 }
 
 function outputIdentity(identity, format) {
   const output = {
     FEATURE_ID: identity.feature_id,
-    FEATURE_NUM: identity.number,
-    FEATURE_SLUG: identity.slug,
+    FEATURE_TITLE: identity.feature_title,
     BRANCH_NAME: identity.branch,
     FEATURE_DIR: identity.feature_directory,
     FEATURE_FILE: identity.feature_file,
-    ROADMAP_STAGE: identity.roadmap_stage,
+    LINEAR_ISSUE_ID: identity.work_item.issue_id,
+    LINEAR_ISSUE_IDENTIFIER: identity.work_item.issue_identifier,
+    LINEAR_ISSUE_URL: identity.work_item.issue_url,
   };
-  if (format === "json") {
-    process.stdout.write(`${JSON.stringify(output)}\n`);
-    return;
-  }
+  if (format === "json")
+    return process.stdout.write(`${JSON.stringify(output)}\n`);
   if (format === "shell") {
     for (const [key, value] of Object.entries(output)) {
-      const rendered = value === null ? "" : String(value);
-      process.stdout.write(`${key}='${rendered.replaceAll("'", "'\\''")}'\n`);
+      process.stdout.write(
+        `${key}='${String(value ?? "").replaceAll("'", "'\\''")}'\n`,
+      );
     }
     return;
   }
@@ -326,35 +404,35 @@ function outputIdentity(identity, format) {
 }
 
 function materialize(repoRoot, identity) {
-  const directory = join(repoRoot, identity.feature_directory);
-  const featureFile = join(repoRoot, identity.feature_file);
-  mkdirSync(directory, { recursive: true });
-  if (!existsSync(featureFile)) {
+  mkdirSync(join(repoRoot, identity.feature_directory), { recursive: true });
+  if (!existsSync(join(repoRoot, identity.feature_file))) {
     copyFileSync(
       join(repoRoot, ".specify/templates/spec-template.md"),
-      featureFile,
+      join(repoRoot, identity.feature_file),
     );
   }
 }
 
 function startFeature(repoRoot, options) {
-  const hasGit = runGit(repoRoot, ["rev-parse", "--is-inside-work-tree"], {
-    allowFailure: true,
-  });
-  if (hasGit.status !== 0 || hasGit.stdout.trim() !== "true")
-    fail("Git is required to start a feature");
-  const override = process.env.GIT_BRANCH_NAME;
-  const slug = normalizeSlug(options.shortName || options.description);
-  const identity = override
-    ? parseFeatureBranch(override, options.roadmapStage ?? null)
-    : allocateFeatureIdentity(repoRoot, slug, options.roadmapStage ?? null);
-  if (override && identity.slug !== slug && options.shortName) {
-    fail(
-      `GIT_BRANCH_NAME slug ${identity.slug} does not match --short-name ${slug}`,
-    );
+  const workItem = makeWorkItem(
+    options.linearIssueId,
+    options.linearIssueIdentifier,
+    options.linearIssueUrl,
+  );
+  const identity = makeFeatureIdentity(
+    repoRoot,
+    options.linearIssueIdentifier,
+    options.linearIssueTitle,
+    options.linearBranchName,
+    workItem,
+  );
+  if (
+    existsSync(join(repoRoot, identity.feature_directory)) &&
+    !options.allowExisting
+  ) {
+    fail(`Linear issue is already bound: ${identity.feature_id}`);
   }
   if (options.dryRun) return identity;
-
   const exists =
     runGit(
       repoRoot,
@@ -363,16 +441,20 @@ function startFeature(repoRoot, options) {
         allowFailure: true,
       },
     ).status === 0;
+  if (exists && !options.allowExisting)
+    fail(`Branch already exists: ${identity.branch}`);
   if (exists) {
-    if (!options.allowExisting)
-      fail(`Branch already exists: ${identity.branch}`);
+    const stored = parseManifest(repoRoot);
+    if (
+      JSON.stringify(manifestFromIdentity(stored)) !==
+      JSON.stringify(manifestFromIdentity(identity))
+    ) {
+      fail(`Existing branch ${identity.branch} is bound to another feature`);
+    }
     runGit(repoRoot, ["switch", identity.branch]);
   } else {
     runGit(repoRoot, ["switch", "-c", identity.branch]);
   }
-  const current = runGit(repoRoot, ["branch", "--show-current"]).stdout.trim();
-  if (current !== identity.branch)
-    fail(`Git created ${current}, expected ${identity.branch}`);
   writeManifest(repoRoot, identity);
   if (options.materialize) materialize(repoRoot, identity);
   return identity;
@@ -381,13 +463,11 @@ function startFeature(repoRoot, options) {
 function checkRepository(repoRoot) {
   if (existsSync(join(repoRoot, "specs")))
     fail("Root specs/ must be migrated to docs/features/");
-  identityNumbers(repoRoot);
+  validateRepositoryFeatureSpecs(repoRoot);
   const identity = parseManifest(repoRoot);
-  if (!existsSync(join(repoRoot, identity.feature_directory))) {
-    fail(`Manifest directory not found: ${identity.feature_directory}`);
-  }
+  if (identity.version !== 3)
+    fail("Active repository manifest must use version 3");
   verifySpecHeaders(repoRoot, identity);
-  verifyRoadmapStage(repoRoot, identity);
   return identity;
 }
 
@@ -399,8 +479,7 @@ function main() {
   if (command === "start") identity = startFeature(repoRoot, options);
   else if (command === "active") {
     identity = resolveActiveFeature(repoRoot, {
-      requireSpec: true,
-      requireBranch: options.requireBranch !== false,
+      requireBranch: options.requireBranch,
     });
   } else if (command === "check-repository")
     identity = checkRepository(repoRoot);

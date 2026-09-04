@@ -2,9 +2,9 @@
 description: "Task list template for feature implementation"
 ---
 
-# Tasks: [FEATURE NAME]
+# Tasks: [EXACT LINEAR ISSUE TITLE]
 
-**Input**: Design documents from `/docs/features/[XXXX-feature-name]/`
+**Input**: Design documents from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
 **Tests**: Behavioral tests are REQUIRED and MUST be written and observed
@@ -64,7 +64,11 @@ which claims remain untested.
   ============================================================================
 -->
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: [EXACT PARENT LINEAR ISSUE TITLE]
+
+**Linear issue**: [KEY-N](https://linear.app/example/issue/KEY-N/example)
+**Git branch**: `[EXACT PARENT LINEAR GIT BRANCH NAME]`
+<!-- linear-issue-id: [STABLE PARENT UUID] -->
 
 **Purpose**: Project initialization and basic structure
 
@@ -72,9 +76,14 @@ which claims remain untested.
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
 
+**Checkpoint**: [State the Phase 1 review boundary.]
+
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
+
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
@@ -89,11 +98,16 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T008 Configure error handling and logging infrastructure
 - [ ] T009 Setup environment configuration management
 
+**Checkpoint**: [State the Phase 2 review boundary.]
+
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
 ---
 
 ## Phase 3: User Story 1 - [Title] (Priority: P1) 🎯 MVP
+
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
 
 **Goal**: [Brief description of what this story delivers]
 
@@ -122,6 +136,9 @@ Examples of foundational tasks (adjust based on your project):
 
 ## Phase 4: User Story 2 - [Title] (Priority: P2)
 
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
+
 **Goal**: [Brief description of what this story delivers]
 
 **Independent Test**: [How to verify this story works on its own]
@@ -144,6 +161,9 @@ Examples of foundational tasks (adjust based on your project):
 ---
 
 ## Phase 5: User Story 3 - [Title] (Priority: P3)
+
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
 
 **Goal**: [Brief description of what this story delivers]
 
@@ -170,6 +190,9 @@ Examples of foundational tasks (adjust based on your project):
 ---
 
 ## Phase N: Polish & Cross-Cutting Concerns
+
+**Linear issue**: `Unpublished`
+**Git branch**: `Unpublished`
 
 **Purpose**: Improvements that affect multiple user stories
 

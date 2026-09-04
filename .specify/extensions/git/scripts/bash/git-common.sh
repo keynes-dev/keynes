@@ -12,12 +12,7 @@ has_git() {
 }
 
 spec_kit_effective_branch_name() {
-    local raw="$1"
-    if [[ "$raw" =~ ^feat/([0-9]{4}-[a-z0-9]+(-[a-z0-9]+)*)$ ]]; then
-        printf '%s\n' "${BASH_REMATCH[1]}"
-    else
-        printf '%s\n' "$raw"
-    fi
+    printf '%s\n' "$1"
 }
 
 check_feature_branch() {
@@ -29,11 +24,6 @@ check_feature_branch() {
         return 1
     fi
 
-    if [[ ! "$raw" =~ ^feat/[0-9]{4}-[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-        echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
-        echo "Feature branches must be named like feat/0001-feature-name" >&2
-        return 1
-    fi
-
-    return 0
+    local repo_root=$(get_repo_root)
+    (cd "$repo_root" && node .specify/scripts/feature-identity.mjs active --json >/dev/null)
 }

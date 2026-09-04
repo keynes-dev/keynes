@@ -4,7 +4,7 @@ description: "Validate the active Keynes feature identity"
 
 # Validate the feature identity
 
-Git is required. The current branch must match `feat/XXXX-kebab-name`.
+Git is required. The current branch must match the exact branch stored from Linear.
 
 Run:
 
@@ -12,4 +12,4 @@ Run:
 node .specify/scripts/feature-identity.mjs active --json
 ```
 
-The command succeeds only when the branch, `.specify/feature.json`, `docs/features/XXXX-kebab-name/`, and the specification metadata describe the same feature. It rejects malformed identities, duplicate feature numbers, missing artifacts, and mismatches. There is no prefix lookup, directory override, timestamp form, or no-Git fallback.
+The command succeeds only when the current branch, version 3 manifest, branch-final-segment feature directory, exact Linear title, specification header, UUID, URL, and stored branch describe the same feature. The check is offline. It rejects malformed identities, duplicate keys, UUIDs, branches, missing artifacts, and mismatches.

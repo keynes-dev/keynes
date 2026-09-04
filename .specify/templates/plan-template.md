@@ -1,7 +1,7 @@
-# Implementation Plan: [FEATURE]
+# Implementation plan: [EXACT LINEAR ISSUE TITLE]
 
-**Feature ID**: `[FEAT-XXXX]` | **Branch**: `[feat/XXXX-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/docs/features/[XXXX-feature-name]/spec.md`
+**Linear issue**: `[KEY-N]` | **Branch**: `[EXACT LINEAR GIT BRANCH NAME]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/spec.md`
 
 **Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
@@ -58,7 +58,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 ### Documentation (this feature)
 
 ```text
-docs/features/[XXXX-feature]/
+docs/features/[LINEAR BRANCH FINAL SEGMENT]/
 ├── plan.md              # This file (/speckit-plan command output)
 ├── research.md          # Phase 0 output (/speckit-plan command)
 ├── data-model.md        # Phase 1 output (/speckit-plan command)

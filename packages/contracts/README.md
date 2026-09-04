@@ -1,7 +1,7 @@
 # Contracts
 
 - **Owner:** `@shubsharan`
-- **Functional status:** FEAT-0002 provider-free contract implemented
+- **Functional status:** KEY-43 provider-free contract implemented
 
 ## Responsibility
 
@@ -23,4 +23,4 @@ Author logical contract inputs here and review each change as a shared interface
 
 ## Deferred work
 
-FEAT-0002 does not provide a general contract catalog, a released package, or a compatibility policy. Native PostgreSQL and cross-host contract equivalence remain `NOT RUN`.
+KEY-43 does not provide a general contract catalog, a released package, or a compatibility policy. Native PostgreSQL and cross-host contract equivalence remain `NOT RUN`.

@@ -1,30 +1,28 @@
 <!--
 Sync Impact Report
-- Version change: 4.1.0 -> 5.0.0
-- Modified principles:
-  - I. One source of truth per Budget: replace the obsolete constructor signature with a configuration-level access-path and no-fallback rule
-- Modified sections: None
+- Version change: 5.0.0 -> 6.0.0
+- Modified principles: None
+- Modified sections:
+  - Product constraints: Linear now owns mutable delivery planning and lifecycle state
+  - Delivery and evidence gates: every feature binds one Linear issue without duplicating task or evidence ownership
 - Added sections: None
 - Removed sections: None
 - Templates requiring updates:
   - validated, no content change: .specify/templates/plan-template.md
   - validated, no content change: .specify/templates/tasks-template.md
-  - validated, no content change: .specify/templates/spec-template.md
+  - updated: .specify/templates/spec-template.md
   - validated, no content change: .specify/templates/checklist-template.md
   - validated, no content change: .specify/templates/constitution-template.md
   - validated, no command templates present: .specify/templates/commands/*.md
 - Runtime guidance reviewed:
+  - updated: docs/README.md
   - updated: docs/product.md
   - updated: docs/architecture.md
-  - updated: docs/roadmap.md
-  - validated, no content change: docs/workflow.md
-  - updated: docs/adr/0003-sqlite-and-postgresql.md
-  - added: docs/adr/0007-direct-postgresql-remote-access.md
-  - updated: docs/features/0013-remote-sdk-public-service/spec.md
-  - updated: docs/features/0013-remote-sdk-public-service/checklists/requirements.md
+  - updated: docs/workflow.md
+  - added: docs/adr/0008-linear-planning-and-spec-kit-identity.md
+  - removed: docs/roadmap.md
   - aligned: AGENTS.md
-- Follow-up TODOs:
-  - allocate the unnumbered Resource-bound Budget creation prerequisite only after this planning work reaches main
+- Follow-up TODOs: None
 -->
 
 # Keynes Constitution
@@ -153,9 +151,12 @@ host, and attempt that produced it.
 - TypeScript MUST remain the only supported SDK until a later product and
   architecture decision adds another language.
 - `docs/product.md` owns the product thesis and commitments;
-  `docs/architecture.md` owns runtime semantics and boundaries; and
-  `docs/roadmap.md` owns implementation order and evidence gates. Feature
-  artifacts MUST refine these sources without silently redefining them.
+  `docs/architecture.md` owns runtime semantics and boundaries; accepted ADRs
+  own architectural decisions; and Linear projects and issues own implementation
+  order, current status, priority, assignment, dependencies, and current issue
+  disposition. Feature artifacts MUST refine product and architecture without
+  silently redefining them, and MUST own their detailed implementation contracts,
+  tasks, and retained exact-revision evidence.
 
 ## Delivery and evidence gates
 
@@ -164,6 +165,21 @@ host, and attempt that produced it.
   effect, Budget behavior, Policy, contract, deployment, or evidence
   implications. A non-applicable concern MUST be marked `N/A` with a concrete
   rationale.
+- Every feature specification MUST use one Linear parent issue as its identity.
+  The version 3 manifest MUST store the exact title, identifier, UUID, URL,
+  branch-final-segment directory, specification path, and `gitBranchName`. Repository code
+  MUST NOT allocate another number, derive a branch, or parse identity from a
+  branch. Proving live Linear values requires an explicit synchronization and
+  is not part of the deterministic repository gate.
+  Feature specifications MUST NOT duplicate mutable lifecycle status, priority,
+  assignment, or project sequencing from Linear.
+- Linear issues MAY summarize engineering work and link to accepted evidence,
+  but detailed Spec Kit tasks and retained exact-revision evidence MUST remain
+  in the repository. A mutable field MUST have only one owner.
+- Phase 1 MUST use the parent Linear issue and branch. Each later phase MUST use
+  one sub-issue and its Linear-generated branch. Every phase MUST end with a
+  checkpoint. Linear content MUST NOT copy tasks, requirements, checkpoints,
+  completion counts, or evidence.
 - Every implementation plan MUST pass the Constitution Check before research
   and again after design. It MUST identify where each affected Budget is stored,
   application-owned effects, Policy and security boundaries, shared command
@@ -212,4 +228,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 5.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-02
+**Version**: 6.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04

@@ -1,18 +1,20 @@
 # ADR 0002: Feature identity and roadmap stages
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0008](0008-linear-planning-and-spec-kit-identity.md)
 - **Date:** 2026-08-22
 
 ## Decision
+
+This decision records the repository workflow used before the Linear migration. ADR-0008 replaces roadmap stages and the version 1 feature manifest; the feature numbering and canonical branch rules remain in force.
 
 Spec Kit features are the only numbered delivery units. Feature numbers are global, sequential, four digits, and assigned when Spec Kit starts the feature.
 
 One feature has one identity:
 
 ```text
-FEAT-0001
+KEY-44
 feat/0001-repository-and-code-architecture
-docs/features/0001-repository-and-code-architecture/
+docs/features/key-44-repository-and-code-architecture/
 ```
 
 `.specify/scripts/feature-identity.mjs` owns allocation and validation. The Bash and PowerShell commands call that implementation. `.specify/feature.json` records the complete identity, and every later Spec Kit phase rejects disagreement between the manifest, branch, directory, and specification header.
@@ -34,7 +36,7 @@ Roadmap stages retain the useful part of epics: a shared outcome, dependency ord
 - Feature numbers run from `0001` through `9999` and are never reused.
 - Timestamp feature identities and arbitrary branch-name overrides are unsupported.
 - Disconnected clones can still allocate the same next number. Repository validation detects the conflict before integration; the allocator does not claim to provide a distributed lock.
-- The merged historical branch for FEAT-0001 remains unchanged. The durable artifacts use the canonical identity.
+- The merged historical branch for KEY-44 remains unchanged. The durable artifacts use the canonical identity.
 
 ## Alternatives considered
 

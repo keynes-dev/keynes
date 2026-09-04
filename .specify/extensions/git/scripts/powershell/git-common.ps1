@@ -17,9 +17,6 @@ function Test-HasGit {
 
 function Get-SpecKitEffectiveBranchName {
     param([string]$Branch)
-    if ($Branch -match '^feat/(\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*)$') {
-        return $Matches[1]
-    }
     return $Branch
 }
 
@@ -34,11 +31,8 @@ function Test-FeatureBranch {
         return $false
     }
 
-    $raw = $Branch
-    if ($Branch -notmatch '^feat/\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*$') {
-        [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
-        [Console]::Error.WriteLine("Feature branches must be named like feat/0001-feature-name")
-        return $false
-    }
-    return $true
+    $repoRoot = (git rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & node (Join-Path $repoRoot ".specify/scripts/feature-identity.mjs") active --json *> $null
+    return ($LASTEXITCODE -eq 0)
 }

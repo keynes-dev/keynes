@@ -27,7 +27,7 @@ The directory tree should answer two questions without Keynes-specific vocabular
 
 Use `packages`, `scripts`, and `docs` as the active source roots. The `apps` root is absent when Keynes has no executable application process.
 
-Executable application processes belong under `apps/*`. FEAT-0013 removed the private Cloud service after direct PostgreSQL coverage replaced its durable assertions; no active executable application remains.
+Executable application processes belong under `apps/*`. KEY-55 removed the private Cloud service after direct PostgreSQL coverage replaced its durable assertions; no active executable application remains.
 
 `packages/sdk` owns the installable TypeScript SDK and private SQLite runtime. `packages/postgresql` owns the CLI, migrations, installation identity, and installed SQL. `packages/contracts` is a private build-time package for canonical inputs, generation, and implementation-neutral conformance scenarios. `packages/testkit` is a private test-time package for generic archive, external-install, and subprocess helpers reused by multiple owners.
 
@@ -35,7 +35,7 @@ Tests live under their subject. Unit, conformance, package, system, performance,
 
 Feature identity belongs to `.specify`. `packages/contracts` owns one neutral loader and model. SDK and PostgreSQL own their renderers. Root `scripts/generate.ts` only orchestrates them, and `scripts/repository-organization.test.ts` owns the layout check. Product builds do not write sibling workspaces.
 
-Local archives and records go to ignored `.artifacts/`. Workflows upload those files. Git retains only selected accepted JSON records beside their owning feature. FEAT-0011 records the disposition and SHA-256 of every former tracked artifact.
+Local archives and records go to ignored `.artifacts/`. Workflows upload those files. Git retains only selected accepted JSON records beside their owning feature. KEY-53 records the disposition and SHA-256 of every former tracked artifact.
 
 ## Supported edges
 
@@ -83,7 +83,7 @@ No production product imports another Keynes workspace. Build and test dependenc
 
 At its accepted revision, the refactor preserved `@keynes/sdk`, `@keynes/postgresql`, the `keynes-postgresql` command, the then-current Cloud wire, generated contract bytes, contract digest, migration bytes, migration checksums, and evidence schemas. No old source path remained as an alias or compatibility edge.
 
-Moving an evidence record does not qualify FEAT-0011. Each selected record remains bound to its original revision, artifact, environment, outcome, and exclusions. Provider-free, hosted matrix, measurement, PostgreSQL, Cloud, live, managed, recovery, security, and production claims remain separate.
+Moving an evidence record does not qualify KEY-53. Each selected record remains bound to its original revision, artifact, environment, outcome, and exclusions. Provider-free, hosted matrix, measurement, PostgreSQL, Cloud, live, managed, recovery, security, and production claims remain separate.
 
 ## Links
 

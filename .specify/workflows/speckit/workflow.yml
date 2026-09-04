@@ -4,7 +4,7 @@ workflow:
   name: "Full SDD Cycle"
   version: "1.0.0"
   author: "GitHub"
-  description: "Runs specify → plan → tasks → implement with review gates"
+  description: "Uses one Linear feature issue, reviewable phases, published sub-issues, and one GitHub PR stack"
 
 requires:
   speckit_version: ">=0.7.2"
@@ -55,6 +55,36 @@ steps:
     integration: "{{ inputs.integration }}"
     input:
       args: "{{ inputs.spec }}"
+
+  - id: analyze
+    command: speckit.analyze
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
+
+  - id: review-tasks
+    type: gate
+    message: "Review the task coverage, phase boundaries, dependencies, bindings, and checkpoints."
+    options: [approve, reject]
+    on_reject: abort
+
+  - id: preview-phase-issues
+    command: speckit.taskstoissues
+    integration: "{{ inputs.integration }}"
+    input:
+      args: ""
+
+  - id: approve-phase-publication
+    type: gate
+    message: "Approve the exact Linear sub-issues and blocker relationships in the preview."
+    options: [approve, reject]
+    on_reject: abort
+
+  - id: publish-phase-issues
+    command: speckit.taskstoissues
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "--apply"
 
   - id: implement
     command: speckit.implement

@@ -4,7 +4,7 @@ extension:
   id: git
   name: "Git Branching Workflow"
   version: "1.0.0"
-  description: "Canonical Keynes feature branch creation, identity validation, and Git remote detection"
+  description: "Linear-native Keynes identity, phase stacks, branch validation, and Git remote detection"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
   license: MIT
@@ -19,10 +19,10 @@ provides:
   commands:
     - name: speckit.git.feature
       file: commands/speckit.git.feature.md
-      description: "Create a canonical four-digit Keynes feature branch"
+      description: "Create a feature with the exact branch returned by Linear"
     - name: speckit.git.validate
       file: commands/speckit.git.validate.md
-      description: "Validate current branch follows feature branch naming conventions"
+      description: "Validate the branch, feature artifacts, and Linear issue reference"
     - name: speckit.git.remote
       file: commands/speckit.git.remote.md
       description: "Detect Git remote URL for GitHub integration"
@@ -32,6 +32,9 @@ provides:
     - name: speckit.git.commit
       file: commands/speckit.git.commit.md
       description: "Auto-commit changes after a Spec Kit command completes"
+    - name: speckit.git.stack
+      file: commands/speckit.git.stack.md
+      description: "Manage the GitHub PR stack from recorded phase branches"
 
   config:
     - name: "git-config.yml"
@@ -47,7 +50,7 @@ hooks:
   before_specify:
     command: speckit.git.feature
     optional: false
-    description: "Create feature branch before specification"
+    description: "Bind a Linear issue and create its feature branch before specification"
   before_clarify:
     command: speckit.git.commit
     optional: true
@@ -131,10 +134,10 @@ hooks:
 
 tags:
   - "git"
-  - "branching"
+  - "stacked-prs"
   - "workflow"
 
 config:
   defaults:
-    branch_numbering: sequential
+    branch_source: linear
     init_commit_message: "[Spec Kit] Initial commit"

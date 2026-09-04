@@ -2,7 +2,7 @@
 
 > **Superseded in part by [ADR-0003](0003-sqlite-and-postgresql.md):** ADR-0003 replaces the permanent PGlite and managed-Cloud-only runtime direction. This record retains the historical reasoning and repository-boundary decision made at the time.
 >
-> **Repository layout superseded by [ADR-0005](0005-repository-organization.md):** ADR-0005 replaces the active ownership tree and command names. This record retains the original FEAT-0001 decision body.
+> **Repository layout superseded by [ADR-0005](0005-repository-organization.md):** ADR-0005 replaces the active ownership tree and command names. This record retains the original KEY-44 decision body.
 
 - **Date:** 2026-08-21
 - **Status:** Accepted
@@ -16,7 +16,7 @@
 
 Keynes needs repository ownership and a repeatable engineering baseline before runtime work begins. The target architecture includes contracts, one PostgreSQL database core, one TypeScript SDK with local PGlite support, and one private TypeScript Cloud service. Creating a package, distribution, or verification workspace for every future deliverable would add empty boundaries and could make unimplemented behavior appear qualified.
 
-FEAT-0001 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-runtime evidence.
+KEY-44 must establish useful ownership without implementing Keynes behavior, selecting database versions, generating contracts, packaging PostgreSQL, or claiming cross-runtime evidence.
 
 ## Decision drivers
 
@@ -41,14 +41,14 @@ Only `packages/sdk/` and `packages/cloud/` are pnpm workspaces. Their provisiona
 
 ### Ownership and public edges
 
-| Area                  | Responsibility                                                                  | Allowed or public edge                               |
-| --------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `packages/contracts/` | Logical interfaces and canonical fixtures                                       | Approved contract sources and fixtures               |
-| `packages/database/`  | Database SQL, migrations, private storage, and runtime installation assets      | Database procedures and contract-defined protocols   |
-| `packages/sdk/`       | Public TypeScript SDK and private local PGlite adapter                          | Future package exports derived from shared contracts |
-| `packages/cloud/`     | Private TypeScript Cloud service                                                | Future contract-defined authenticated Cloud protocol |
-| `scripts/`            | Later contract generation and repository automation not covered by native tools | Root contributor commands                            |
-| `docs/`               | Product, architecture, roadmap, ADRs, and guides                                | Source-of-truth documents and accepted decisions     |
+| Area                  | Responsibility                                                                  | Allowed or public edge                                  |
+| --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `packages/contracts/` | Logical interfaces and canonical fixtures                                       | Approved contract sources and fixtures                  |
+| `packages/database/`  | Database SQL, migrations, private storage, and runtime installation assets      | Database procedures and contract-defined protocols      |
+| `packages/sdk/`       | Public TypeScript SDK and private local PGlite adapter                          | Future package exports derived from shared contracts    |
+| `packages/cloud/`     | Private TypeScript Cloud service                                                | Future contract-defined authenticated Cloud protocol    |
+| `scripts/`            | Later contract generation and repository automation not covered by native tools | Root contributor commands                               |
+| `docs/`               | Product, architecture, Spec Kit artifacts, ADRs, and guides                     | Engineering contracts, evidence, and accepted decisions |
 
 The future dependency graph remains acyclic. `packages/sdk/` and `packages/cloud/` may consume contract artifacts and invoke only contract-defined database procedures or protocols. They do not import one another, private database storage, `scripts/`, or owner-local tests. Workspace manifests declare package access, pnpm rejects dependency cycles, and Turborepo checks that source imports stay within declared package boundaries. Production code never depends on scripts. Documentation may reference every area but is not an executable runtime contract.
 
@@ -91,7 +91,7 @@ Logical contracts are authored under `packages/contracts/` and identified by the
 
 - Mirrors the eventual deliverable list in the initial tree.
 - Creates empty publication, distribution, generation, and qualification boundaries before real artifacts exist.
-- Adds orchestration and dependency policy that FEAT-0001 cannot meaningfully verify.
+- Adds orchestration and dependency policy that KEY-44 cannot meaningfully verify.
 
 ### One undifferentiated root workspace
 
@@ -103,11 +103,11 @@ Logical contracts are authored under `packages/contracts/` and identified by the
 
 The executable database stage owns contract generation and generated-output drift checks. Cloud implementation owns managed PostgreSQL installation under `packages/database/` and `packages/cloud/`. Cross-runtime conformance appears after local PGlite and managed Cloud are real. Customer-owned PostgreSQL distribution is not a product requirement. Security, compatibility, fault, packaging, performance, and evidence-promotion lanes remain unscaffolded and `NOT RUN` until an approved owning stage defines and executes them.
 
-FEAT-0001 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
+KEY-44 implements no Resource, Budget, Policy, settlement, authority, SDK runtime, local embedded runtime, or Cloud behavior.
 
 ## Links
 
 - [Product thesis](../product.md)
 - [Runtime architecture](../architecture.md)
-- [Implementation roadmap](../roadmap.md)
+- [Planning and workflow](../workflow.md)
 - [Feature 0001 specification](../features/0001-repository-and-code-architecture/spec.md)

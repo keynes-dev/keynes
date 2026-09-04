@@ -8,11 +8,26 @@ import test from "node:test";
 
 import {
   FeatureIdentityError,
-  allocateFeatureIdentity,
   makeFeatureIdentity,
-  parseFeatureBranch,
+  makeWorkItem,
+  parseManifest,
   resolveActiveFeature,
+  validateGitBranch,
+  validateRepositoryFeatureSpecs,
 } from "../scripts/feature-identity.mjs";
+
+const UUID = "11111111-2222-4333-8444-555555555555";
+const IDENTIFIER = "KEY-123";
+const TITLE = "Accountable budget loop";
+const URL = "https://linear.app/keynes/issue/KEY-123/accountable-budget-loop";
+const BRANCH = "shubhankarsharan/key-123-accountable-budget-loop";
+const DIRECTORY = "key-123-accountable-budget-loop";
+const WORK_ITEM = {
+  provider: "linear",
+  issue_id: UUID,
+  issue_identifier: IDENTIFIER,
+  issue_url: URL,
+};
 
 function git(directory, ...args) {
   const result = spawnSync("git", args, { cwd: directory, encoding: "utf8" });
@@ -24,136 +39,173 @@ async function fixture() {
   mkdirSync(join(directory, ".specify"));
   mkdirSync(join(directory, "docs/features"), { recursive: true });
   git(directory, "init", "-q");
+  git(directory, "config", "user.name", "Feature Identity Test");
+  git(directory, "config", "user.email", "feature-identity@example.invalid");
   writeFileSync(join(directory, ".gitignore"), "\n");
   git(directory, "add", ".gitignore");
-  git(
-    directory,
-    "-c",
-    "user.name=Feature Identity Test",
-    "-c",
-    "user.email=feature-identity@example.invalid",
-    "commit",
-    "-q",
-    "-m",
-    "fixture",
-  );
+  git(directory, "commit", "-q", "-m", "fixture");
   return directory;
 }
 
-test("constructs one canonical identity", () => {
-  assert.deepEqual(makeFeatureIdentity("0001", "repository-baseline"), {
-    version: 1,
-    feature_id: "FEAT-0001",
-    number: "0001",
-    slug: "repository-baseline",
-    branch: "feat/0001-repository-baseline",
-    feature_directory: "docs/features/0001-repository-baseline",
-    feature_file: "docs/features/0001-repository-baseline/spec.md",
-    roadmap_stage: null,
+function writeFeature(directory, overrides = {}) {
+  const value = {
+    identifier: IDENTIFIER,
+    title: TITLE,
+    url: URL,
+    uuid: UUID,
+    branch: BRANCH,
+    ...overrides,
+  };
+  const leaf = value.branch.slice(value.branch.lastIndexOf("/") + 1);
+  const featureDirectory = join(directory, "docs/features", leaf);
+  mkdirSync(featureDirectory, { recursive: true });
+  writeFileSync(
+    join(featureDirectory, "spec.md"),
+    `# ${value.title}\n\n**Linear issue**: [${value.identifier}](${value.url})\n**Git branch**: \`${value.branch}\`\n<!-- linear-issue-id: ${value.uuid} -->\n`,
+  );
+  writeFileSync(
+    join(featureDirectory, "plan.md"),
+    `# Implementation plan: ${value.title}\n`,
+  );
+  writeFileSync(
+    join(featureDirectory, "tasks.md"),
+    `# Tasks: ${value.title}\n`,
+  );
+  return value;
+}
+
+function writeManifest(directory, value = {}) {
+  const manifest = {
+    version: 3,
+    feature_id: IDENTIFIER,
+    feature_title: TITLE,
+    feature_directory: `docs/features/${DIRECTORY}`,
+    feature_file: `docs/features/${DIRECTORY}/spec.md`,
+    branch: BRANCH,
+    work_item: WORK_ITEM,
+    ...value,
+  };
+  writeFileSync(
+    join(directory, ".specify/feature.json"),
+    `${JSON.stringify(manifest)}\n`,
+  );
+}
+
+test("constructs a version 3 Linear-native identity", async () => {
+  const directory = await fixture();
+  assert.deepEqual(
+    makeFeatureIdentity(directory, IDENTIFIER, TITLE, BRANCH, WORK_ITEM),
+    {
+      version: 3,
+      feature_id: IDENTIFIER,
+      feature_title: TITLE,
+      feature_directory: `docs/features/${DIRECTORY}`,
+      feature_file: `docs/features/${DIRECTORY}/spec.md`,
+      branch: BRANCH,
+      work_item: WORK_ITEM,
+    },
+  );
+});
+
+test("accepts arbitrary valid Linear branches and rejects invalid Git refs", async () => {
+  const directory = await fixture();
+  for (const branch of ["team/key-123-title", "release/key-123", "key-123"]) {
+    assert.equal(validateGitBranch(directory, branch), branch);
+  }
+  for (const branch of ["bad branch", "../escape", "name..lock", "-option"]) {
+    assert.throws(
+      () => validateGitBranch(directory, branch),
+      FeatureIdentityError,
+    );
+  }
+});
+
+test("requires matching Linear key, UUID, URL, and exact title", async () => {
+  const directory = await fixture();
+  assert.throws(
+    () => makeFeatureIdentity(directory, "KEY-999", TITLE, BRANCH, WORK_ITEM),
+    /must equal/,
+  );
+  assert.throws(() => makeWorkItem("not-a-uuid", IDENTIFIER, URL), /UUID/);
+  assert.throws(
+    () =>
+      makeWorkItem(
+        UUID,
+        IDENTIFIER,
+        "https://linear.app/keynes/issue/KEY-999/wrong",
+      ),
+    /does not match/,
+  );
+  assert.throws(
+    () =>
+      makeFeatureIdentity(
+        directory,
+        IDENTIFIER,
+        ` ${TITLE}`,
+        BRANCH,
+        WORK_ITEM,
+      ),
+    /exact/,
+  );
+});
+
+test("resolves the active feature from the manifest without parsing its branch", async () => {
+  const directory = await fixture();
+  writeFeature(directory);
+  writeManifest(directory);
+  git(directory, "switch", "-c", BRANCH);
+  const identity = resolveActiveFeature(directory);
+  assert.equal(identity.feature_id, IDENTIFIER);
+  assert.equal(identity.feature_directory, `docs/features/${DIRECTORY}`);
+});
+
+test("validates unique keys, UUIDs, and branches", async () => {
+  const directory = await fixture();
+  writeFeature(directory);
+  assert.equal(validateRepositoryFeatureSpecs(directory), 1);
+  writeFeature(directory, {
+    identifier: "KEY-124",
+    url: "https://linear.app/keynes/issue/KEY-124/second",
+    title: "Second feature",
+    branch: "shubhankarsharan/key-124-second-feature",
   });
-});
-
-test("rejects invalid numbers and slugs", () => {
-  for (const number of ["0000", "001", "10000", "abcd"]) {
-    assert.throws(
-      () => makeFeatureIdentity(number, "valid-name"),
-      FeatureIdentityError,
-    );
-  }
-  for (const slug of ["", "Uppercase", "two_words", "../escape"]) {
-    assert.throws(
-      () => makeFeatureIdentity("0001", slug),
-      FeatureIdentityError,
-    );
-  }
-});
-
-test("parses only canonical feature branches", () => {
-  assert.equal(
-    parseFeatureBranch("feat/0042-contract-foundation").feature_id,
-    "FEAT-0042",
-  );
-  for (const branch of [
-    "0042-contract-foundation",
-    "feat-0042-contract-foundation",
-    "feat/042-name",
-  ]) {
-    assert.throws(() => parseFeatureBranch(branch), FeatureIdentityError);
-  }
-});
-
-test("allocates after feature directories and canonical refs", async () => {
-  const directory = await fixture();
-  mkdirSync(join(directory, "docs/features/0001-baseline"));
-  git(directory, "branch", "feat/0003-future-work");
-  assert.equal(
-    allocateFeatureIdentity(directory, "next-work").feature_id,
-    "FEAT-0004",
-  );
-});
-
-test("rejects duplicate numbers with different slugs", async () => {
-  const directory = await fixture();
-  mkdirSync(join(directory, "docs/features/0001-baseline"));
-  git(directory, "branch", "feat/0001-other-work");
   assert.throws(
-    () => allocateFeatureIdentity(directory, "next-work"),
-    /used by both/,
+    () => validateRepositoryFeatureSpecs(directory),
+    /Duplicate Linear UUID/,
   );
 });
 
-test("rejects malformed feature directories", async () => {
+test("rejects directories that differ from the Linear branch final segment", async () => {
   const directory = await fixture();
-  mkdirSync(join(directory, "docs/features/001-wrong-width"));
+  mkdirSync(join(directory, "docs/features/0001-legacy"));
+  writeFileSync(
+    join(directory, "docs/features/0001-legacy/spec.md"),
+    `# ${TITLE}\n\n**Linear issue**: [${IDENTIFIER}](${URL})\n**Git branch**: \`${BRANCH}\`\n<!-- linear-issue-id: ${UUID} -->\n`,
+  );
   assert.throws(
-    () => allocateFeatureIdentity(directory, "next-work"),
-    /must match/,
+    () => validateRepositoryFeatureSpecs(directory),
+    /directory must equal the final segment/,
   );
 });
 
-test("stops after FEAT-9999", async () => {
+test("reads historical version 2 manifests without rewriting them", async () => {
   const directory = await fixture();
-  mkdirSync(join(directory, "docs/features/9999-last-feature"));
-  assert.throws(
-    () => allocateFeatureIdentity(directory, "next-work"),
-    /exhausted/,
-  );
-});
-
-test("requires the branch, manifest, directory, and spec metadata to agree", async () => {
-  const directory = await fixture();
-  const featureDirectory = join(
-    directory,
-    "docs/features/0001-canonical-identity",
-  );
-  mkdirSync(featureDirectory);
-  writeFileSync(join(directory, "docs/roadmap.md"), "## Repository baseline\n");
+  mkdirSync(join(directory, "docs/features/0014-resource-bound-budget"));
   writeFileSync(
     join(directory, ".specify/feature.json"),
     `${JSON.stringify({
-      version: 1,
-      feature_id: "FEAT-0001",
-      slug: "canonical-identity",
-      branch: "feat/0001-canonical-identity",
-      feature_directory: "docs/features/0001-canonical-identity",
-      roadmap_stage: "Repository baseline",
+      version: 2,
+      feature_id: "FEAT-0014",
+      slug: "resource-bound-budget",
+      branch: "feat/0014-resource-bound-budget",
+      feature_directory: "docs/features/0014-resource-bound-budget",
+      work_item: WORK_ITEM,
     })}\n`,
   );
-  writeFileSync(
-    join(featureDirectory, "spec.md"),
-    [
-      "**Feature ID**: `FEAT-0001`",
-      "**Feature branch**: `feat/0001-canonical-identity`",
-      "**Roadmap stage**: `Repository baseline`",
-    ].join("\n"),
+  const identity = parseManifest(directory);
+  assert.equal(identity.version, 2);
+  assert.equal(
+    identity.feature_file,
+    "docs/features/0014-resource-bound-budget/spec.md",
   );
-  git(directory, "switch", "-c", "feat/0001-canonical-identity");
-
-  assert.equal(resolveActiveFeature(directory).feature_id, "FEAT-0001");
-
-  writeFileSync(
-    join(featureDirectory, "spec.md"),
-    "**Feature ID**: `FEAT-0001`\n**Feature branch**: `feat/0002-wrong`\n**Roadmap stage**: `Repository baseline`\n",
-  );
-  assert.throws(() => resolveActiveFeature(directory), FeatureIdentityError);
 });

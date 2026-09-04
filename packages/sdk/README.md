@@ -124,7 +124,7 @@ reason types. For example, request context `riskClass` is recorded as
 is a normal `denied` result, not an exception. Errors thrown by an application's
 Kysely callback retain their original identity.
 
-See the [portable Policy quickstart](../../docs/features/0012-portable-policy-evaluation/quickstart.md)
+See the [portable Policy quickstart](../../docs/features/key-54-portable-policy-evaluation/quickstart.md)
 for Kysely and raw-SQL equivalence, approval and denial evidence, embedded
 PostgreSQL, and the supported query profile.
 

@@ -1,10 +1,9 @@
-# Feature Specification: [FEATURE NAME]
+# [EXACT LINEAR ISSUE TITLE]
 
-**Feature ID**: `[FEAT-XXXX]`
-**Feature branch**: `[feat/XXXX-feature-name]`
-**Roadmap stage**: `[stage name or None]`
+**Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/example)
+**Git branch**: `[EXACT LINEAR GIT BRANCH NAME]`
+<!-- linear-issue-id: [STABLE LINEAR UUID] -->
 **Created**: [DATE]
-**Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
 ## Feature story _(mandatory)_
@@ -33,7 +32,7 @@ _The feature story explains intent. Numbered requirements and success criteria d
 
 ### Where this leads
 
-[Place the feature in the roadmap and explain what later work it enables without assigning new feature identity.]
+[Explain how this feature relates to its Linear project and what later work it enables.]
 
 ## User Scenarios & Testing _(mandatory)_
 

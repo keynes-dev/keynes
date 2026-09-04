@@ -4,7 +4,7 @@
 - **Date:** 2026-08-25
 - **Deciders:** Keynes maintainers
 
-> **Superseded in part:** FEAT-0012 replaced the local `Keynes.create()` call
+> **Superseded in part:** KEY-54 replaced the local `Keynes.create()` call
 > shape with schema-first `createKeynes({ resources })`. [ADR-0007](0007-direct-postgresql-remote-access.md)
 > replaces the planned API-key discovery and service data path with direct
 > PostgreSQL access. This ADR still owns the local SQLite and durable PostgreSQL
@@ -12,7 +12,7 @@
 
 ## Context
 
-Keynes currently runs the same PostgreSQL procedures in local PGlite and native PostgreSQL. That choice let the first product slice establish Budget semantics once and reuse the migrations and generated procedure client in both environments. FEAT-0003 through FEAT-0005 proved the PGlite path, and FEAT-0006 added a private service over native PostgreSQL.
+Keynes currently runs the same PostgreSQL procedures in local PGlite and native PostgreSQL. That choice let the first product slice establish Budget semantics once and reuse the migrations and generated procedure client in both environments. KEY-48 through KEY-46 proved the PGlite path, and KEY-47 added a private service over native PostgreSQL.
 
 The local product needs a smaller runtime than embedded PostgreSQL. It needs private process-owned Resources, Budgets, command results, permissions, and history; atomic commands; exact replay; conflict rejection; isolation; and deterministic shutdown. It does not need persistence, external database installation, a public migration surface, network access, or multi-process coordination. Node's built-in `node:sqlite` provides transactions and relational constraints without a package dependency or separate service.
 
@@ -26,7 +26,7 @@ The local SQLite runtime and PostgreSQL will implement the same Budget commands,
 
 The generated TypeScript client will depend on a small command-execution boundary rather than PostgreSQL procedure names. The local implementation will execute commands against process-owned SQLite state. The remote client will send the same commands to the Keynes service. Embedded applications call the supported `keynes.*` SQL functions inside their existing transactions; optional generated bindings may construct and validate values but do not own transaction lifecycle.
 
-FEAT-0006 remains the service foundation for customer-hosted Keynes and Keynes Cloud. Its current evidence proves only a private loopback service and native PostgreSQL database. Public access, self-hosted packaging, and managed operations require later features and separate evidence.
+KEY-47 remains the service foundation for customer-hosted Keynes and Keynes Cloud. Its current evidence proves only a private loopback service and native PostgreSQL database. Public access, self-hosted packaging, and managed operations require later features and separate evidence.
 
 Keynes will not define a generic storage adapter. Another durable database would require a later constitution, product, architecture, migration, testing, security, recovery, packaging, and support decision.
 

@@ -1,8 +1,8 @@
 # Git Branching Workflow Extension Configuration
 # Copied to .specify/extensions/git/git-config.yml on install
 
-# Keynes uses sequential four-digit feature numbers (0001, 0002, ...).
-branch_numbering: sequential
+# Linear returns the exact branch for every feature and phase.
+branch_source: linear
 
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"

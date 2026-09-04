@@ -3,9 +3,9 @@
 > **Status:** Accepted target architecture as of September 3, 2026. Current
 > `main` at `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not
 > implement this architecture. The
-> [current-system assessment](current-system-assessment.md) records the
-> current source and exact-revision evidence. The roadmap must allocate this
-> target before implementation begins.
+> [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation) records the
+> current source and exact-revision evidence. Linear must allocate this target
+> before implementation begins.
 
 ## Purpose
 
