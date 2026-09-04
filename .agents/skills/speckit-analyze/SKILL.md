@@ -59,7 +59,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit-analyze`.
 
-For Keynes, also run `node .specify/scripts/phase-stack.mjs check --json`. Treat any of these as HIGH unless they also violate the constitution: a feature or phase title without an imperative action verb, a feature title that differs from Linear, a Phase 1 title or binding that differs from the parent issue, a published phase title that differs from its sub-issue, a PR title that differs from `KEY-N <exact phase title>`, a missing checkpoint, a duplicate issue or branch binding, uncovered tasks, or phase dependency order that conflicts with the task plan.
+For Keynes, also run `node .specify/scripts/phase-stack.mjs check --json`. Treat any of these as HIGH unless they also violate the constitution: a feature title that differs from Linear, a Phase 1 title or binding that differs from the parent issue, a published phase title that differs from its sub-issue, a missing checkpoint, a duplicate issue or branch binding, uncovered tasks, or phase dependency order that conflicts with the task plan.
 
 ## Execution Steps
 

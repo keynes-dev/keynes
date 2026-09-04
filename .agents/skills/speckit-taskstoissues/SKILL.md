@@ -18,7 +18,6 @@ Use preview mode unless the input contains `--apply`. Do not treat discussion of
 1. Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from the repository root.
 2. Run `node .specify/scripts/feature-identity.mjs active --json`.
 3. Read `tasks.md` and parse its phase headings, bindings, tasks, and checkpoints.
-   Stop if any phase title does not start with an imperative action verb or does not name an outcome.
 4. Fetch the parent issue from Linear by `LINEAR_ISSUE_ID`. Use its current title, UUID, URL, project, lifecycle state, and `gitBranchName`.
 5. Stop if the parent key, UUID, or branch disagrees with the manifest. Update a stale specification, plan, tasks title, or Phase 1 heading only from the newer Linear title.
 

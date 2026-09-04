@@ -148,17 +148,6 @@ test("requires matching Linear key, UUID, URL, and exact title", async () => {
       ),
     /exact/,
   );
-  assert.throws(
-    () =>
-      makeFeatureIdentity(
-        directory,
-        IDENTIFIER,
-        "Accountable budget loop",
-        BRANCH,
-        WORK_ITEM,
-      ),
-    /imperative action verb/,
-  );
 });
 
 test("resolves the active feature from the manifest without parsing its branch", async () => {

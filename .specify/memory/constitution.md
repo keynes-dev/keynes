@@ -166,8 +166,6 @@ host, and attempt that produced it.
   implications. A non-applicable concern MUST be marked `N/A` with a concrete
   rationale.
 - Every feature specification MUST use one Linear parent issue as its identity.
-  The feature title MUST start with an imperative action verb and name the
-  delivered outcome.
   The version 3 manifest MUST store the exact title, identifier, UUID, URL,
   branch-final-segment directory, specification path, and `gitBranchName`. Repository code
   MUST NOT allocate another number, derive a branch, or parse identity from a
@@ -180,9 +178,7 @@ host, and attempt that produced it.
   in the repository. A mutable field MUST have only one owner.
 - Phase 1 MUST use the parent Linear issue and branch. Each later phase MUST use
   one sub-issue and its Linear-generated branch. Every phase MUST end with a
-  checkpoint. Every phase title MUST start with an imperative action verb. Its
-  PR title MUST be the phase issue key followed by the exact phase title.
-  Linear content MUST NOT copy tasks, requirements, checkpoints,
+  checkpoint. Linear content MUST NOT copy tasks, requirements, checkpoints,
   completion counts, or evidence.
 - Every implementation plan MUST pass the Constitution Check before research
   and again after design. It MUST identify where each affected Budget is stored,

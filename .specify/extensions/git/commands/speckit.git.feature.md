@@ -4,7 +4,7 @@ description: Start a feature from one selected Linear issue
 
 # Start a Linear-native feature
 
-Fetch the selected issue and reject archived, canceled, completed, or already-bound work unless recovery is explicit. Require its title to start with an imperative action verb and name the outcome. Pass its exact values to one platform command:
+Fetch the selected issue and reject archived, canceled, completed, or already-bound work unless recovery is explicit. Pass its exact values to one platform command:
 
 - Bash: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --linear-issue-id "<uuid>" --linear-issue-identifier "KEY-123" --linear-issue-title "<exact title>" --linear-issue-url "<url>" --linear-branch-name "<gitBranchName>"`
 - PowerShell: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -LinearIssueId "<uuid>" -LinearIssueIdentifier "KEY-123" -LinearIssueTitle "<exact title>" -LinearIssueUrl "<url>" -LinearBranchName "<gitBranchName>"`

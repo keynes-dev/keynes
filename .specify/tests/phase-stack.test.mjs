@@ -9,7 +9,6 @@ import test from "node:test";
 import {
   parsePhases,
   publicationMarker,
-  pullRequestTitle,
   validatePhases,
 } from "../scripts/phase-stack.mjs";
 
@@ -51,23 +50,6 @@ test("parses parent and child phase bindings", () => {
   const phases = validatePhases(IDENTITY, parsePhases(TASKS));
   assert.equal(phases[0].issue.identifier, "KEY-123");
   assert.equal(phases[1].branch, "owner/key-124-generate-contract");
-  assert.equal(pullRequestTitle(phases[1]), "KEY-124 Generate contract");
-});
-
-test("requires imperative action titles for stack phases", () => {
-  assert.throws(
-    () =>
-      validatePhases(
-        IDENTITY,
-        parsePhases(
-          TASKS.replace(
-            "Phase 2: Generate contract",
-            "Phase 2: Contract generation",
-          ),
-        ),
-      ),
-    /imperative action verb/,
-  );
 });
 
 test("requires the parent issue and exact parent title for Phase 1", () => {
@@ -200,19 +182,4 @@ test("dry-run commands use only recorded Linear branches", async () => {
     result.stdout.trim(),
     "gh stack add owner/key-124-generate-contract",
   );
-  const submit = spawnSync("node", [script, "submit", "--dry-run", "--json"], {
-    cwd: directory,
-    encoding: "utf8",
-  });
-  assert.equal(submit.status, 0, submit.stderr);
-  assert.deepEqual(JSON.parse(submit.stdout).titles, [
-    {
-      branch: IDENTITY.branch,
-      title: "KEY-123 Implement accountable budget loop",
-    },
-    {
-      branch: "owner/key-124-generate-contract",
-      title: "KEY-124 Generate contract",
-    },
-  ]);
 });

@@ -14,4 +14,6 @@ Run `node .specify/scripts/phase-stack.mjs check --json` before changing the sta
 - Push existing layers: `gh stack push`
 - Submit or update PRs: `node .specify/scripts/phase-stack.mjs submit`
 
-Use `--dry-run` on `init`, `start`, or `submit` to print the command without changing Git or GitHub. Never generate a branch name. Submit only after an explicit user request. After submission, the command sets every open phase PR title to `KEY-N <exact phase action title>`.
+Use `--dry-run` on `init`, `start`, or `submit` to print the command without changing Git or GitHub. Never generate a branch name. Submit only after an explicit user request.
+
+After submission, read each published phase binding from `tasks.md`. Compare each open PR title with `KEY-N <exact phase title>`. If a title differs, run `gh pr edit <number> --title "KEY-N <exact phase title>"`.

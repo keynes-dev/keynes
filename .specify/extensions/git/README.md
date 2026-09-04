@@ -7,7 +7,7 @@ Git repository initialization, Linear-native feature branches, phase stacks, val
 This extension provides Git operations as an optional, self-contained module. It manages:
 
 - **Repository initialization** with configurable commit messages
-- **Feature branch creation** with the exact action title, key, UUID, URL, and branch returned by Linear
+- **Feature branch creation** with the exact key, title, UUID, URL, and branch returned by Linear
 - **Branch validation** to ensure branch, manifest, specification, and Linear reference agree
 - **Phase stack management** with branches recorded in `tasks.md`
 - **Git remote detection** for GitHub integration (e.g., issue creation)
@@ -86,7 +86,7 @@ specify extension enable git
 
 ## Git requirement
 
-Keynes feature creation and validation require Git. Feature creation requires the exact UUID, identifier, imperative action title, URL, and `gitBranchName` of an existing Linear issue. Phase stack commands require the official `github/gh-stack` extension. Repository validation checks stored values offline. Stack submission sets each open PR title to the phase issue key and exact phase title.
+Keynes feature creation and validation require Git. Feature creation requires the exact UUID, identifier, title, URL, and `gitBranchName` of an existing Linear issue. Phase stack commands require the official `github/gh-stack` extension. Repository validation checks stored values offline.
 
 ```bash
 gh extension install github/gh-stack

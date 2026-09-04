@@ -15,11 +15,6 @@ of Linear's exact `gitBranchName`, and use that branch unchanged. Phase 1 uses t
 use published sub-issues and their recorded branches. Never derive a feature or
 phase branch in repository tooling.
 
-Write every feature and phase title as an imperative action followed by its
-outcome, such as `Deploy the service` or `Update the contract`. Name each phase
-PR `KEY-N <exact phase title>`. The explicit stack submission command repairs
-an existing PR title when it differs.
-
 ## Pull request descriptions
 
 When creating or updating a pull request, read

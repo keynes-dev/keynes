@@ -81,11 +81,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
-   - Phase 1: Use the exact parent Linear action title
-   - Phase 2: Use an action title for the blocking prerequisites
-   - Phase 3+: Use one action title per user-story outcome, in priority order from spec.md
+   - Phase 1: Use the exact parent Linear title
+   - Phase 2: Cover the blocking prerequisites
+   - Phase 3+: Cover each user-story outcome in priority order from spec.md
    - Each phase includes: story goal, independent test criteria, required behavioral tests or a documented non-behavioral validation rationale, implementation tasks, and provider-free evidence tasks
-   - Final phase: Use an action title for the integrated qualification or cross-cutting outcome
+   - Final phase: Cover integrated qualification or cross-cutting work
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
    - Dependencies section showing story completion order
@@ -207,9 +207,9 @@ Every task MUST strictly follow this format:
 ### Phase Structure
 
 - **Phase 1**: Setup (project initialization)
-- **Phase 2**: Blocking prerequisites with an imperative action title
+- **Phase 2**: Blocking prerequisites
 - **Phase 3+**: User Stories in priority order (P1, P2, P3...)
   - Within each story: Failing behavioral tests → Models → Services → Endpoints
     → Integration → Provider-free verification and retained evidence
   - Each phase should be a complete, independently testable increment
-- **Final phase**: Integrated qualification or cross-cutting work with an imperative action title
+- **Final phase**: Integrated qualification or cross-cutting work

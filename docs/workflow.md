@@ -10,8 +10,6 @@ docs/features/key-44-define-repository-and-code-architecture/
 
 Linear owns feature and phase names, sequencing, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
 
-Every feature and phase title starts with an imperative action verb and names the outcome, for example `Deploy the service` or `Update the contract`. A phase PR title is `KEY-N <exact phase title>`. This makes the task phase, Linear sub-issue, and GitHub PR name one mapping instead of three labels.
-
 Every feature specification links to exactly one Linear issue, and that issue links back to the specification. The version 3 `.specify/feature.json` selects work for Spec Kit commands. The feature directory name is the final path segment of the stored Linear branch. Linear branch changes therefore require explicit synchronization of the directory and manifest.
 
 Keynes uses Spec Kit to manage feature delivery and pstack to improve the engineering work inside each phase. Spec Kit owns the durable artifacts. pstack supplies focused methods for investigation, design, implementation, review, and verification.
@@ -31,7 +29,7 @@ Use Spec Kit when work changes product behavior, architecture, public contracts,
 7. Run `$speckit-taskstoissues` to preview phase publication. Run it with `--apply` only after approving the preview.
 8. Use `$speckit-implement` to implement phases in order.
 
-Phase 1 uses the parent issue, parent branch, and exact parent action title. Every later phase uses one Linear sub-issue and its generated branch. Its heading, Linear title, and PR title text match exactly, with only the Linear key prefixed on the PR. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
+Phase 1 uses the parent issue, parent branch, and exact parent title. Every later phase uses one Linear sub-issue and its generated branch. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
 
 ## Keep the feature story in the specification
 
@@ -85,7 +83,7 @@ For non-trivial work:
 10. Update Linear links without copying tasks, requirements, checkpoints, counts, or evidence.
 11. Report what ran, what did not run, and what remains uncertain.
 
-Initialize the bottom layer with `gh stack init "<parent gitBranchName>"`. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `node .specify/scripts/phase-stack.mjs submit`; it runs `gh stack submit` and then sets every open PR title to `KEY-N <exact phase title>`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
+Initialize the bottom layer with `gh stack init "<parent gitBranchName>"`. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 

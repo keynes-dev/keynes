@@ -63,7 +63,7 @@ Given that feature description, do this:
 
    - Create the returned `FEATURE_DIR` under `docs/features/`.
    - Copy `.specify/templates/spec-template.md` to the returned `FEATURE_FILE`.
-   - Require the exact Linear title to start with an imperative action verb and name the outcome. Fill the template with that title, returned branch, issue link, and hidden UUID.
+   - Fill the template with the exact Linear title, returned branch, issue link, and hidden UUID.
    - Link the selected Linear issue to `FEATURE_FILE`. Do not copy the specification into Linear or create a second planning record.
 
    **IMPORTANT**:
