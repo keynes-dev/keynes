@@ -10,16 +10,16 @@ No extension hooks are installed. Existing Git and Docker ignore rules cover the
 detected generated output, dependencies, credentials, and temporary artifacts.
 The root package is private; package publication uses existing package file lists.
 
-| Lane                                              | Status                                |
-| ------------------------------------------------- | ------------------------------------- |
-| Setup T001                                        | PASS                                  |
-| Foundation regressions                            | PASS; historical red run retained     |
-| Paired runner regressions                         | PASS; Phase 5 fixes being verified    |
-| Provider-free PR gate and formatting              | PASS at Phase 4; final rerun pending  |
-| Real paired clean-revision acceptance             | Provisional local pass; final pending |
-| Negative and overlapping attempts                 | NOT RUN                               |
-| Cancellation                                      | NOT RUN                               |
-| Hosted retention and protected-branch enforcement | NOT RUN                               |
+| Lane                                              | Status                               |
+| ------------------------------------------------- | ------------------------------------ |
+| Setup T001                                        | PASS                                 |
+| Foundation regressions                            | PASS; historical red run retained    |
+| Paired runner regressions                         | PASS; 125 combined runner tests      |
+| Provider-free PR gate and formatting              | PASS after cancellation fix          |
+| Real paired clean-revision acceptance             | PASS on local snapshot 63761fde      |
+| Negative and overlapping attempts                 | Negatives PASS; overlap investigated |
+| Cancellation                                      | PASS locally; hosted NOT RUN         |
+| Hosted retention and protected-branch enforcement | NOT RUN                              |
 
 Changes are local-only. No Linear links or statuses have been changed.
 The feature is not accepted.
@@ -212,3 +212,103 @@ This proves this local snapshot only. A subsequent independent correctness audit
 found that native revision-check Git children did not receive cancellation.
 That repair and its final clean runs supersede this provisional attempt.
 Hosted execution and merge enforcement remain NOT RUN.
+
+## Phase 5 current local verification
+
+The Git cancellation repair used the existing active runtime for preflight and
+final revision commands, bounded those commands to 10 seconds, checked cancellation
+after their responses, and made success publication signal-aware. Two new tests
+failed before the fix. The independent reviewer confirmed the repair, reran three
+cancellation regressions, and found no further worthwhile complexity cuts.
+
+The combined runner suite passed 125 tests, 68 paired and 57 native.
+`pnpm test:pr` passed all 11 Turbo tasks and 304-file boundary checks.
+`pnpm format` passed. An initial Phase 5 gate attempt stopped on formatting in the
+new acceptance prose; formatting was corrected before the successful complete run.
+The code qualified below is detached local snapshot
+`63761fde540c00069ef802eb31c465c6dcb3a2f4`. Publication remains unauthorized.
+
+### Real negative matrix
+
+Four distinct disposable commits based on the provisional `d4f2131` snapshot ran
+real authorities, sequentially, with clean before/after Git state. The later Git
+cancellation repair is outside those negative revisions.
+
+| Demonstration            | Revision                                   | SQLite               | Native                               | Exit |
+| ------------------------ | ------------------------------------------ | -------------------- | ------------------------------------ | ---- |
+| Native assertion failure | `864161dcb33052e391c446c49fe941c0f9f74cda` | 37 passed            | 207 passed, 1 failed                 | 1    |
+| Shared scenario skipped  | `c76a97ff0d84035bcc3f7c6f4b501128a7fe4e29` | 36 passed, 1 skipped | 207 passed, 1 skipped                | 1    |
+| Empty native aggregate   | `bfb073fdb768819213cdc33491d9cd3edede13e5` | 37 passed            | 171 native-only passed, shared empty | 1    |
+| Docker unavailable       | `192b2881ed2bee0394ffa46f661dc5dd8f072122` | 37 passed            | NOT RUN                              | 1    |
+
+Every manifest failed; no native success record was written. Both cleanup entries
+passed and exact owned container/network inspection confirmed absence. Retained
+report hashes matched and sanitized content passed the credential/private-fixture
+scan. Commands, exact patches, observations, and bundles are in
+[local-negatives.tar.gz](local-negatives.tar.gz), SHA-256
+`16d162fbe6cc0f277678cfd00ab4119262de61f7fe1ba8b746a7f8a8f39c8f03`.
+Missing/corrupt reports, stale revisions/attempts/digests, and cleanup failure are
+covered by the 125 provider-free runner regressions, not additional real database
+failure claims. Hosted empty-upload failure remains NOT RUN.
+
+### Overlap and exact-revision passes
+
+Two pairs ran in separate clean checkouts of `63761fde`, with frozen dependencies,
+fresh output directories, and explicit Node.js 26.5.0. Each command was
+`pnpm test:conformance -- --output .artifacts/conformance/<label>`.
+
+| Label     | Attempt                                | Started UTC  | Finished UTC | Outcome               |
+| --------- | -------------------------------------- | ------------ | ------------ | --------------------- |
+| overlap-a | `b05ea99a-cd8d-4da4-9956-0e521126bb35` | 04:00:35.406 | 04:01:18.631 | Failed native process |
+| overlap-b | `a5134782-f20a-4641-82e0-e4846ec789c0` | 04:00:35.396 | 04:01:20.047 | Passed                |
+| overlap-c | `6c655c60-7324-46c2-bd21-644242bd4b88` | 04:02:34.009 | 04:03:13.997 | Passed                |
+| overlap-d | `f17dd0c7-6d78-40e5-bc6c-a468364dd228` | 04:02:34.001 | 04:03:14.561 | Failed native process |
+
+All times are on 2026-09-05. Each SQLite report passed 37 assertions; each native
+report listed 208 passing assertions. The passing attempts establish exact shared
+parity and complete native-only coverage for this snapshot. The two process
+failures were correctly rejected despite success-shaped reports. Vitest JSON
+success does not itself establish a zero process exit. Their exact cause is under
+investigation, so successful overlap acceptance is not claimed.
+
+All four attempt and native fixture IDs differ. Both cleanup entries passed for
+each attempt; exact owned PostgreSQL/PgBouncer container and network inspection
+confirmed absence. Every referenced hash was recomputed successfully. Exact files
+and summary are in [local-overlap.tar.gz](local-overlap.tar.gz), SHA-256
+`d44237f0b91c53ae9ea3ecfc22dcd9741d7c85e94a62addee5fca1f87abdd734`.
+
+### Real SIGTERM
+
+On `63761fde`, `node scripts/run-conformance.ts --output
+.artifacts/conformance/cancel-after-startup` received SIGTERM after both native
+pool containers started and the test stage began. It exited 1 in 1.620 seconds
+following the signal. SQLite had completed; native execution is recorded canceled,
+with no invented report or native success record. Both cleanup entries passed.
+Exact owned container/network inspection confirmed absence for native run
+`e7d3cbf4-9264-4b31-b579-bea36170526b`. Git remained clean.
+
+The partial bundle and command/cleanup summary are in
+[local-cancellation.tar.gz](local-cancellation.tar.gz), SHA-256
+`7cd0da8a080d35ac64dbf75e50be55e6ff02f9bb8229141335789bdcb61e2281`.
+This proves cooperative local SIGTERM handling, not forced termination or hosted
+runner disposal. Hosted cancellation remains NOT RUN.
+
+### Requirement reconciliation
+
+| Requirement    | Current evidence                                                                                         | Acceptance boundary                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| FR-001, SC-001 | Both exact-revision local passes execute all shared scenarios                                            | Hosted PR execution NOT RUN                             |
+| FR-002         | One shared registration; native-only inventory preserved; phase reviews                                  | Implemented and locally verified                        |
+| FR-003, SC-003 | Real failure, unavailable Docker, skip/empty demonstrations; cancellation; provider-free rejection tests | Hosted cancellation and upload failure NOT RUN          |
+| FR-004, SC-006 | Concrete hosted/policy proposal; main readback unprotected, no rules                                     | NOT RUN and unaccepted                                  |
+| FR-005, SC-004 | Clean candidate/attempt/version/input/report identity; retained hashed bundles                           | Hosted bundle download NOT RUN                          |
+| FR-006         | Failure and cancellation partial reports; exclusive retention regressions                                | Hosted failed retention NOT RUN                         |
+| FR-007, SC-005 | Distinct overlapping IDs and cleanup readback; SIGTERM cleanup                                           | Unexpected overlap process failures under investigation |
+| FR-008         | Shared assertions preserved; full PR gate and native-only tests pass                                     | Existing Repository and tests workflow preserved        |
+| FR-009         | Contributor workflow and quickstart updated                                                              | Implemented                                             |
+| SC-002         | Real native failure with all SQLite scenarios passing exits 1                                            | Protected-branch block NOT RUN                          |
+
+The [hosted acceptance proposal](hosted-acceptance-proposal.md) describes publication,
+disposable PR demonstrations, exact required checks, strict up-to-date policy,
+admin enforcement, and cleanup. It has not been executed. No feature acceptance,
+merge enforcement, or final PR-head qualification is claimed.
