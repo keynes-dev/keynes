@@ -1261,6 +1261,12 @@ it.each([
     );
     expect(context.selection).toEqual(selection);
     expect(Object.keys(context.poolers).sort()).toEqual(poolers);
+    expect(fake.packagePreparations.count).toBe(
+      selection === undefined ? 1 : 0,
+    );
+    expect(context.installation).toMatchObject({
+      kind: selection === undefined ? "packed" : "source",
+    });
   },
 );
 

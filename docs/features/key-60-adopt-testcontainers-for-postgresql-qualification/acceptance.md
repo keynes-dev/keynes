@@ -104,9 +104,56 @@ All 208 baseline assertion identities, including parameterized names, are retain
 in `.artifacts/key-60/baseline/assertions.json` and the sanitized native report.
 Candidate comparison must preserve both names and the assertions inside each test.
 
+## Checkpoint 2: remove repeated preparation
+
+Based on `fd6387d`, this checkpoint separates selected source feedback from packed
+full acceptance. Ordinary fixtures install once. `preparePostgresInstallation`
+and `dropPostgresFixture` now own common database/role preparation and cleanup for
+ordinary fixtures, Remote identity fixtures and exact-recheck tests. Remote login
+identities and real client/transaction ownership remain explicit. The dedicated
+migration-failure helper is unchanged.
+
+Observed failing regressions: all five feedback selections prepared one package
+instead of zero; source fixtures called no source installer; packed fixtures
+called the CLI twice instead of once. Source-installation failure also failed the
+expected error/cleanup check. After implementation, the focused suite passed all
+97 tests. The new fixture tests also run in the PostgreSQL provider-free command.
+
+All five feedback selections passed with an untimed subprocess observer and zero
+pack, consumer-install or packed-CLI calls. Full native passed with one pack, one
+consumer installation and 130 packed-CLI invocations, comprising 129 ordinary
+installations and one dedicated no-op. The three fixture regressions separately
+verify one source or packed install and cleanup after source failure. The existing
+socket-end checks still require clients to close before database removal.
+
+The integration no-op test keeps its source no-op assertions and now invokes the
+exact prepared packed CLI before comparing unchanged state. This preserves packed
+no-op proof once instead of repeating it throughout ordinary Budget tests. All
+208 native assertion identities remain required. Final native execution passed
+again after sharing recheck preparation and context access.
+
+Validation: `pnpm test:pr`, `pnpm format`, PostgreSQL typecheck, focused runner/fixture
+tests, every supported feedback command and full native execution passed. One PR
+attempt found SQL-text expectations needing quoted identifiers; its aborted SDK
+process left a stale lock. The dead owner was verified and the lock archived before
+the passing rerun. No test assertion was skipped to obtain the pass.
+
+Untimed native/feedback logs and safe invocation categories are in
+`.artifacts/key-60/checkpoint2/`; focused/PR validation logs are in
+`/tmp/key60-checkpoint2-*.log`. These intermediate runs used the working code and
+did not publish clean-revision acceptance. Final acceptance still requires a clean
+candidate. This checkpoint adds no dependency or lockfile change.
+
+Cumulative maintained total: **41,990 physical, 39,207 nonblank lines**, including
+the new fixture test. This is +48 physical/+52 nonblank relative to baseline. Shared
+preparation removed duplication, but new tests and source selection currently cost
+more total lines. This is not yet the final reduction gate. Ponytail review found
+no unused option or single-caller abstraction in the phase diff: Lean already. Ship.
+
 ## Remaining acceptance
 
-Implementation, Testcontainers feasibility, final code reduction, final timing
+Checkpoints 1 and 2 are implemented and verified as described above.
+Testcontainers feasibility, final code reduction, final timing
 comparisons and final package identity checks are NOT RUN. External TLS, additional
 installed-consumer scope, Hosted, backup, failover and production qualification
 remain outside this feature and NOT RUN. No publication, Linear attachment update,

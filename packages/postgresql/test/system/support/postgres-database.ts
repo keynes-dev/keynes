@@ -14,6 +14,8 @@ import {
   installPrincipalPermissions,
   type DatabaseInstallation,
 } from "./migrations.js";
+import { install } from "../../../src/installer/install.js";
+import type { InstallationConfig } from "../../../src/installer/config.js";
 import { runPackedPostgresql } from "../../support/packed-package.js";
 
 const BOOTSTRAP_PERMISSIONS = [
@@ -302,12 +304,9 @@ export class PostgresDatabase {
     });
     try {
       await administrator.connect();
-      await administrator.query(
-        `drop database if exists ${this.#databaseName} with (force)`,
-      );
-      for (const role of this.#createdRoles) {
-        await administrator.query(`drop role if exists "${role}"`);
-      }
+      await dropPostgresFixture(administrator, this.#databaseName, [
+        ...this.#createdRoles,
+      ]);
     } finally {
       await administrator.end();
     }
@@ -344,108 +343,162 @@ export async function openPostgresDatabase(
   );
 }
 
+export type FixtureInstallation =
+  | { readonly kind: "source" }
+  | { readonly kind: "packed"; readonly commandPath: string };
+
+export async function preparePostgresInstallation(
+  administratorUrl: string,
+  identity: Pick<InstallationConfig, "tenantId" | "principalId">,
+  additionalLogins: readonly {
+    readonly role: string;
+    readonly password: string;
+  }[] = [],
+) {
+  const suffix = randomUUID().replaceAll("-", "");
+  const databaseName = `keynes_test_${suffix}`;
+  const config: InstallationConfig = {
+    ownerRole: `keynes_owner_${suffix}`,
+    executionRole: `keynes_execution_${suffix}`,
+    administrationRole: `keynes_admin_${suffix}`,
+    applicationRole: `keynes_app_${suffix}`,
+    ...identity,
+  };
+  const administrationPassword = randomUUID();
+  const applicationPassword = randomUUID();
+  const logins = [
+    { role: config.administrationRole, password: administrationPassword },
+    { role: config.applicationRole, password: applicationPassword },
+    ...additionalLogins,
+  ];
+  const roles = [
+    ...logins.map(({ role }) => role),
+    config.executionRole,
+    config.ownerRole,
+  ];
+  const administrator = new Client({ connectionString: administratorUrl });
+  try {
+    await administrator.connect();
+    await administrator.query(`create role "${config.ownerRole}" nologin`);
+    await administrator.query(
+      `create role "${config.executionRole}" nologin noinherit`,
+    );
+    for (const { role, password } of logins)
+      await administrator.query(
+        `create role "${role}" login noinherit password '${password}'`,
+      );
+    await administrator.query(`create database "${databaseName}"`);
+    await administrator.query(
+      `grant "${config.ownerRole}" to "${new URL(administratorUrl).username}"`,
+    );
+    await administrator.query(
+      `grant create on database "${databaseName}" to "${config.ownerRole}"`,
+    );
+    await administrator.query(
+      `grant connect on database "${databaseName}" to ${logins.map(({ role }) => `"${role}"`).join(", ")}`,
+    );
+  } catch (error: unknown) {
+    try {
+      await dropPostgresFixture(administrator, databaseName, roles);
+    } finally {
+      await administrator.end();
+    }
+    throw error;
+  }
+  const databaseUrl = new URL(administratorUrl);
+  databaseUrl.pathname = `/${databaseName}`;
+  return {
+    administrator,
+    databaseName,
+    databaseUrl: databaseUrl.toString(),
+    config,
+    administrationPassword,
+    applicationPassword,
+    roles,
+  };
+}
+
+export async function dropPostgresFixture(
+  administrator: Client,
+  databaseName: string,
+  roles: readonly string[],
+): Promise<void> {
+  await administrator.query(
+    `drop database if exists "${databaseName}" with (force)`,
+  );
+  for (const role of roles)
+    await administrator.query(`drop role if exists "${role}"`);
+}
+
 export async function openInstalledPostgresDatabase(
   administratorUrl: string,
   installation: DatabaseInstallation,
-  commandPath: string,
+  execution: FixtureInstallation,
 ): Promise<PostgresDatabase> {
-  const suffix = randomUUID().replaceAll("-", "");
-  const databaseName = `keynes_test_${suffix}`;
-  const ownerRole = `keynes_owner_${suffix}`;
-  const executionRole = `keynes_execution_${suffix}`;
-  const administrationRole = `keynes_admin_${suffix}`;
-  const applicationRole = `keynes_app_${suffix}`;
-  const administrationPassword = randomUUID();
-  const applicationPassword = randomUUID();
-  const administrator = new Client({ connectionString: administratorUrl });
-  await administrator.connect();
-  try {
-    await administrator.query(`create role "${ownerRole}" nologin`);
-    await administrator.query(
-      `create role "${executionRole}" nologin noinherit`,
+  const principal = installation.principals.find(({ permissions }) =>
+    BOOTSTRAP_PERMISSIONS.every((permission) =>
+      permissions.includes(permission),
+    ),
+  );
+  if (principal === undefined)
+    throw new Error(
+      "PostgreSQL system fixture requires one bootstrap principal",
     );
-    await administrator.query(
-      `create role "${administrationRole}" login noinherit password '${administrationPassword}'`,
-    );
-    await administrator.query(
-      `create role "${applicationRole}" login noinherit password '${applicationPassword}'`,
-    );
-    await administrator.query(`create database "${databaseName}"`);
-    const administratorRole = new URL(administratorUrl).username;
-    await administrator.query(`grant "${ownerRole}" to "${administratorRole}"`);
-    await administrator.query(
-      `grant create on database "${databaseName}" to "${ownerRole}"`,
-    );
-    await administrator.query(
-      `grant connect on database "${databaseName}" to "${administrationRole}", "${applicationRole}"`,
-    );
-  } catch (error: unknown) {
-    await administrator.query(
-      `drop database if exists "${databaseName}" with (force)`,
-    );
-    await administrator.query(`drop role if exists "${applicationRole}"`);
-    await administrator.query(`drop role if exists "${administrationRole}"`);
-    await administrator.query(`drop role if exists "${executionRole}"`);
-    await administrator.query(`drop role if exists "${ownerRole}"`);
-    throw error;
-  } finally {
-    await administrator.end();
-  }
-
-  const databaseUrl = new URL(administratorUrl);
-  databaseUrl.pathname = `/${databaseName}`;
+  const prepared = await preparePostgresInstallation(administratorUrl, {
+    tenantId: installation.tenantId,
+    principalId: principal.principalId,
+  });
+  await prepared.administrator.end();
   const database = new PostgresDatabase(
-    new Pool({ connectionString: databaseUrl.toString() }),
+    new Pool({ connectionString: prepared.databaseUrl }),
     administratorUrl,
-    databaseName,
-    databaseUrl.toString(),
-    [applicationRole, administrationRole, executionRole, ownerRole],
+    prepared.databaseName,
+    prepared.databaseUrl,
+    prepared.roles,
   );
   try {
-    const principal = installation.principals.find(({ permissions }) =>
-      BOOTSTRAP_PERMISSIONS.every((permission) =>
-        permissions.includes(permission),
-      ),
+    await installPostgresFixture(
+      prepared.databaseUrl,
+      prepared.config,
+      execution,
+      "installed",
     );
-    if (principal === undefined) {
-      throw new Error(
-        "PostgreSQL system fixture requires one bootstrap principal",
-      );
-    }
-    const configurationRoot = await mkdtemp(
-      join(tmpdir(), "keynes-postgresql-config-"),
-    );
-    try {
-      const configPath = join(configurationRoot, "installation.json");
-      await writeFile(
-        configPath,
-        `${JSON.stringify({ ownerRole, executionRole, administrationRole, applicationRole, tenantId: installation.tenantId, principalId: principal.principalId })}\n`,
-      );
-      const environment = postgresEnvironment(databaseUrl);
-      requireInstallationOutcome(
-        runPackedPostgresql(
-          commandPath,
-          ["install", "--config", configPath],
-          environment,
-        ),
-        "installed",
-      );
-      requireInstallationOutcome(
-        runPackedPostgresql(
-          commandPath,
-          ["install", "--config", configPath],
-          environment,
-        ),
-        "already-installed",
-      );
-    } finally {
-      await rm(configurationRoot, { recursive: true, force: true });
-    }
     await installPrincipalPermissions(database.database, installation);
     return database;
   } catch (error: unknown) {
     await database.close();
     throw error;
+  }
+}
+
+export async function installPostgresFixture(
+  databaseUrl: string,
+  config: InstallationConfig,
+  execution: FixtureInstallation,
+  outcome: "installed" | "already-installed",
+): Promise<void> {
+  if (execution.kind === "source") {
+    const result = await install({ connectionString: databaseUrl, config });
+    if (result.outcome !== outcome)
+      throw new Error(`PostgreSQL installation did not report ${outcome}`);
+    return;
+  }
+  const configurationRoot = await mkdtemp(
+    join(tmpdir(), "keynes-postgresql-config-"),
+  );
+  try {
+    const configPath = join(configurationRoot, "installation.json");
+    await writeFile(configPath, `${JSON.stringify(config)}\n`, { mode: 0o600 });
+    requireInstallationOutcome(
+      runPackedPostgresql(
+        execution.commandPath,
+        ["install", "--config", configPath],
+        postgresEnvironment(new URL(databaseUrl)),
+      ),
+      outcome,
+    );
+  } finally {
+    await rm(configurationRoot, { recursive: true, force: true });
   }
 }
 

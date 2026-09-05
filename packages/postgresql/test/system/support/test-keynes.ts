@@ -10,6 +10,7 @@ import type { DatabaseInstallation } from "./migrations.js";
 import {
   openInstalledPostgresDatabase,
   type PostgresDatabase,
+  type FixtureInstallation,
 } from "./postgres-database.js";
 import {
   createDatabaseProcedureCaller,
@@ -86,24 +87,12 @@ export interface NativeTestKeynes extends ContractTestHost {
 }
 
 export async function openPostgresqlContractTestHost(): Promise<ContractTestHost> {
-  const context = parsePostgresqlSystemContext(
-    requirePostgresqlSystemContext(),
-  );
-  const owner = await openPostgresOwner(
-    context.administratorUrl,
-    context.commandPath,
-  );
+  const owner = await openPostgresOwner();
   return postgresContractHost(owner);
 }
 
 export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
-  const context = parsePostgresqlSystemContext(
-    requirePostgresqlSystemContext(),
-  );
-  const owner = await openPostgresOwner(
-    context.administratorUrl,
-    context.commandPath,
-  );
+  const owner = await openPostgresOwner();
   const application = await owner.createApplicationRole();
   return {
     ...postgresContractHost(owner),
@@ -154,20 +143,20 @@ function transactionContext(
   };
 }
 
-function openPostgresOwner(
-  administratorUrl: string,
-  commandPath = requirePostgresqlSystemCommandPath(),
-): Promise<PostgresDatabase> {
+function openPostgresOwner(): Promise<PostgresDatabase> {
+  const { administratorUrl, installation } = parsePostgresqlSystemContext(
+    requirePostgresqlSystemContext(),
+  );
   return openInstalledPostgresDatabase(
     administratorUrl,
     FIXTURE_INSTALLATION,
-    commandPath,
+    installation,
   );
 }
 
 interface PostgresqlSystemContext {
   readonly administratorUrl: string;
-  readonly commandPath: string;
+  readonly installation: FixtureInstallation;
 }
 
 export function requirePostgresqlSystemAdministratorUrl(): string {
@@ -175,9 +164,9 @@ export function requirePostgresqlSystemAdministratorUrl(): string {
     .administratorUrl;
 }
 
-export function requirePostgresqlSystemCommandPath(): string {
+export function requirePostgresqlSystemInstallation(): FixtureInstallation {
   return parsePostgresqlSystemContext(requirePostgresqlSystemContext())
-    .commandPath;
+    .installation;
 }
 
 function requirePostgresqlSystemContext(): string {
@@ -204,8 +193,7 @@ function parsePostgresqlSystemContext(source: string): PostgresqlSystemContext {
       value.runId,
     ) ||
     typeof value.administratorUrl !== "string" ||
-    typeof value.commandPath !== "string" ||
-    value.commandPath === ""
+    !isRecord(value.installation)
   ) {
     throw new Error("Invalid runner-owned PostgreSQL system context");
   }
@@ -226,7 +214,23 @@ function parsePostgresqlSystemContext(source: string): PostgresqlSystemContext {
   ) {
     throw new Error("Invalid runner-owned PostgreSQL system context");
   }
-  return { administratorUrl: url.toString(), commandPath: value.commandPath };
+  const installation = value.installation;
+  if (installation.kind === "source" && value.scope === "selected")
+    return {
+      administratorUrl: url.toString(),
+      installation: { kind: "source" },
+    };
+  if (
+    installation.kind === "packed" &&
+    value.scope === "full" &&
+    typeof installation.commandPath === "string" &&
+    installation.commandPath !== ""
+  )
+    return {
+      administratorUrl: url.toString(),
+      installation: { kind: "packed", commandPath: installation.commandPath },
+    };
+  throw new Error("Invalid runner-owned PostgreSQL system context");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -93,14 +93,14 @@ describe("native fixture socket cleanup", () => {
       await setImmediate();
       expect(state.poolEnds).toBeGreaterThan(0);
       expect(state.statements).not.toContain(
-        "drop database if exists fixture_database with (force)",
+        'drop database if exists "fixture_database" with (force)',
       );
 
       client?.emit("end");
       await closed;
       expect(state.statements).toEqual(
         expect.arrayContaining([
-          "drop database if exists fixture_database with (force)",
+          'drop database if exists "fixture_database" with (force)',
         ]),
       );
     },

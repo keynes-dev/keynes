@@ -1,3 +1,4 @@
+import type { FixtureInstallation } from "./support/postgres-database.js";
 import { parsePassingReport } from "@keynes/testkit/report";
 import {
   manageChild,
@@ -94,7 +95,7 @@ const EXCLUSIONS = {
 interface NativeContextFields {
   readonly runId: string;
   readonly administratorUrl: string;
-  readonly commandPath: string;
+  readonly installation: FixtureInstallation;
   readonly poolers: PoolerUrls;
 }
 export type PostgresqlSystemContext =
@@ -246,10 +247,12 @@ export async function runPostgresqlSystemTests(
   let failure: unknown;
 
   try {
-    packed = await executeStage(runId, "package-install", () =>
-      activeRuntime.preparePackage(),
-    );
-    if (recordWorkspace !== undefined) {
+    if (selection === undefined) {
+      packed = await executeStage(runId, "package-install", () =>
+        activeRuntime.preparePackage(),
+      );
+    }
+    if (recordWorkspace !== undefined && packed !== undefined) {
       testedDistribution = await readTestedDistribution(packed.archivePath);
     }
     await executeStage(runId, "network-create", () =>
@@ -326,7 +329,10 @@ export async function runPostgresqlSystemTests(
       runId,
       administratorUrl: connectionUrl,
       poolers,
-      commandPath: packed.commandPath,
+      installation:
+        packed === undefined
+          ? { kind: "source" }
+          : { kind: "packed", commandPath: packed.commandPath },
     };
     const context: PostgresqlSystemContext =
       selection === undefined

@@ -35,15 +35,15 @@ occur, ordinary fixture count is one, and dedicated installer tests retain proof
 
 ### Tests first
 
-- [ ] T005 [P] [US1] Add focused failing zero-packaging, source-scope, and existing selection/refusal regressions in `packages/postgresql/test/system/run.test.ts`; observe behavioral failures before changing `run.ts`.
-- [ ] T006 [P] [US1] Add focused failing one-install and shared-preparation/cleanup regressions in `packages/postgresql/test/system/support/postgres-database.test.ts`; reuse dedicated `packages/postgresql/test/integration/installation.test.ts`, `recheck.test.ts`, and `packages/postgresql/test/system/installation.test.ts` for no-op/recheck/drift/rollback proof, adding only missing unique assertions.
+- [x] T005 [P] [US1] Add focused failing zero-packaging, source-scope, and existing selection/refusal regressions in `packages/postgresql/test/system/run.test.ts`; observe behavioral failures before changing `run.ts`.
+- [x] T006 [P] [US1] Add focused failing one-install and shared-preparation/cleanup regressions in `packages/postgresql/test/system/support/postgres-database.test.ts`; reuse dedicated `packages/postgresql/test/integration/installation.test.ts`, `recheck.test.ts`, and `packages/postgresql/test/system/installation.test.ts` for no-op/recheck/drift/rollback proof, adding only missing unique assertions.
 
 ### Implementation and validation
 
-- [ ] T007 [US1] Separate feedback from package preparation in `packages/postgresql/test/system/run.ts` and context access in `support/test-keynes.ts`; reuse the existing source installer and package helpers with a closed source/packed choice, preserving full acceptance's installed-path callers.
-- [ ] T008 [US1] Share equivalent database/role/config/client preparation and cleanup in `packages/postgresql/test/system/support/postgres-database.ts` and `remote-identity.ts`; remove the ordinary repeated no-op invocation while preserving explicit Remote differences, existing permissions/transactions and dedicated migration helper behavior.
-- [ ] T009 [US1] Run focused regressions, supported feedback selections and dedicated installer-contract checks; record installation/package counts and assertion mapping in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`, distinguishing source tests from installed-artifact proof.
-- [ ] T010 [US1] Review cumulative maintained code totals and all new helpers/options in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`; remove redundant setup checks and duplicated preparation before the lifecycle pilot.
+- [x] T007 [US1] Separate feedback from package preparation in `packages/postgresql/test/system/run.ts` and context access in `support/test-keynes.ts`; reuse the existing source installer and package helpers with a closed source/packed choice, preserving full acceptance's installed-path callers.
+- [x] T008 [US1] Share equivalent database/role/config/client preparation and cleanup in `packages/postgresql/test/system/support/postgres-database.ts` and `remote-identity.ts`; remove the ordinary repeated no-op invocation while preserving explicit Remote differences, existing permissions/transactions and dedicated migration helper behavior.
+- [x] T009 [US1] Run focused regressions, supported feedback selections and dedicated installer-contract checks; record installation/package counts and assertion mapping in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`, distinguishing source tests from installed-artifact proof.
+- [x] T010 [US1] Review cumulative maintained code totals and all new helpers/options in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`; remove redundant setup checks and duplicated preparation before the lifecycle pilot.
 
 **Checkpoint decision**: Retain verified reductions independent of Testcontainers.
 No unique product assertion is lost. New helpers justify their total maintenance cost.

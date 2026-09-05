@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { Client, type QueryResultRow } from "pg";
 
+import { recheckInstallation } from "../../../src/installer/install.js";
 import {
-  install,
-  recheckInstallation,
-} from "../../../src/installer/install.js";
+  preparePostgresInstallation,
+  dropPostgresFixture,
+  installPostgresFixture,
+} from "./postgres-database.js";
 import type { InstallationConfig } from "../../../src/installer/config.js";
 import { requirePostgresqlSystemAdministratorUrl } from "./test-keynes.js";
 
@@ -74,88 +76,50 @@ export interface RemoteIdentityFixture {
 
 export async function openRemoteIdentityFixture(): Promise<RemoteIdentityFixture> {
   const administratorUrl = requirePostgresqlSystemAdministratorUrl();
-  const serverAdministrator = new Client({
-    connectionString: administratorUrl,
-  });
-  await serverAdministrator.connect();
-
-  const suffix = randomUUID().replaceAll("-", "");
-  const databaseName = `keynes_remote_${suffix}`;
-  const ownerRole = `keynes_owner_${suffix}`;
-  const executionRole = `keynes_execution_${suffix}`;
-  const administrationRole = `keynes_admin_${suffix}`;
-  const primary = login(
-    `keynes_remote_a_${suffix}`,
-    REMOTE_TENANT_A,
-    REMOTE_PRINCIPAL_A,
-  );
   const secondary = login(
-    `keynes_remote_b_${suffix}`,
+    `keynes_remote_b_${randomUUID().replaceAll("-", "")}`,
     REMOTE_TENANT_B,
     REMOTE_PRINCIPAL_B,
   );
-  const administrationPassword = randomUUID();
-  const createdRoles = [
-    primary.role,
-    secondary.role,
-    administrationRole,
-    executionRole,
-    ownerRole,
-  ] as const;
-
-  try {
-    await serverAdministrator.query(
-      `create role ${identifier(ownerRole)} nologin`,
-    );
-    await serverAdministrator.query(
-      `create role ${identifier(executionRole)} nologin noinherit`,
-    );
-    await serverAdministrator.query(
-      `create role ${identifier(administrationRole)} login noinherit password ${literal(administrationPassword)}`,
-    );
-    await createLoginRole(serverAdministrator, primary);
-    await createLoginRole(serverAdministrator, secondary);
-    await serverAdministrator.query(
-      `create database ${identifier(databaseName)}`,
-    );
-    await serverAdministrator.query(
-      `grant ${identifier(ownerRole)} to ${identifier(new URL(administratorUrl).username)}`,
-    );
-    await serverAdministrator.query(
-      `grant create on database ${identifier(databaseName)} to ${identifier(ownerRole)}`,
-    );
-    await serverAdministrator.query(
-      `grant connect on database ${identifier(databaseName)} to ${createdRoles
-        .filter((role) => role !== ownerRole && role !== executionRole)
-        .map(identifier)
-        .join(", ")}`,
-    );
-  } catch (error: unknown) {
-    await dropFixture(serverAdministrator, databaseName, createdRoles);
-    await serverAdministrator.end();
-    throw error;
-  }
-
-  const databaseUrl = databaseUrlFor(administratorUrl, databaseName);
-  const config: InstallationConfig = {
-    ownerRole,
-    executionRole,
-    administrationRole,
-    applicationRole: primary.role,
-    tenantId: primary.tenantId,
-    principalId: primary.principalId,
+  const prepared = await preparePostgresInstallation(
+    administratorUrl,
+    {
+      tenantId: REMOTE_TENANT_A,
+      principalId: REMOTE_PRINCIPAL_A,
+    },
+    [secondary],
+  );
+  const {
+    administrator: serverAdministrator,
+    databaseName,
+    databaseUrl,
+    config,
+    administrationPassword,
+    roles: createdRoles,
+  } = prepared;
+  const { ownerRole, executionRole, administrationRole } = config;
+  const primary: RemoteLogin = {
+    role: config.applicationRole,
+    password: prepared.applicationPassword,
+    tenantId: config.tenantId,
+    principalId: config.principalId,
   };
   let databaseAdministrator: Client | undefined;
   const clients = new Set<Client>();
   let closed = false;
 
   try {
-    await install({ connectionString: databaseUrl, config });
+    await installPostgresFixture(
+      databaseUrl,
+      config,
+      { kind: "source" },
+      "installed",
+    );
     databaseAdministrator = new Client({ connectionString: databaseUrl });
     await databaseAdministrator.connect();
   } catch (error: unknown) {
     await databaseAdministrator?.end();
-    await dropFixture(serverAdministrator, databaseName, createdRoles);
+    await dropPostgresFixture(serverAdministrator, databaseName, createdRoles);
     await serverAdministrator.end();
     throw error;
   }
@@ -254,7 +218,11 @@ export async function openRemoteIdentityFixture(): Promise<RemoteIdentityFixture
       closed = true;
       await Promise.allSettled([...clients].map((client) => client.end()));
       await administrator.end();
-      await dropFixture(serverAdministrator, databaseName, createdRoles);
+      await dropPostgresFixture(
+        serverAdministrator,
+        databaseName,
+        createdRoles,
+      );
       await serverAdministrator.end();
     },
   };
@@ -308,28 +276,6 @@ function createLoginRole(
   return client.query(
     `create role ${identifier(selected.role)} login noinherit password ${literal(selected.password)}`,
   );
-}
-
-async function dropFixture(
-  administrator: Client,
-  databaseName: string,
-  roles: readonly string[],
-): Promise<void> {
-  await administrator.query(
-    `drop database if exists ${identifier(databaseName)} with (force)`,
-  );
-  for (const role of roles) {
-    await administrator.query(`drop role if exists ${identifier(role)}`);
-  }
-}
-
-function databaseUrlFor(
-  administratorUrl: string,
-  databaseName: string,
-): string {
-  const url = new URL(administratorUrl);
-  url.pathname = `/${databaseName}`;
-  return url.toString();
 }
 
 function urlFor(
