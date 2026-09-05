@@ -498,8 +498,7 @@ function validateSnapshot(value: SqlitePostgresSnapshot): void {
     )
       throw new Error("Missing environment version");
   const major = Number(value.environment.node?.replace(/^v/, "").split(".")[0]);
-  // packages/sdk/package.json narrows the shared runtime range to Node 24 or 26.
-  if (major !== 24 && major !== 26) throw new Error("Unsupported Node.js");
+  if (major < 24) throw new Error("Unsupported Node.js");
 }
 
 export function validateNativeEvidence(

@@ -509,7 +509,7 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     value.license !== "Apache-2.0" ||
     value.type !== "module" ||
     !isRecord(value.engines) ||
-    value.engines.node !== ">=24 <25 || >=26 <27" ||
+    value.engines.node !== ">=24" ||
     hasInvalidPackageDependencies(value)
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");

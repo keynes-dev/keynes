@@ -153,10 +153,17 @@ it is not a `createKeynes(...)` mode.
 
 ## Compatibility and evidence
 
-The preview targets ESM consumers on Node.js 24 and 26 for Linux x64, macOS
-arm64, and Windows x64. Node.js 25 is unsupported. Browsers, bundlers, CommonJS,
+The preview supports ESM consumers on Node.js 24 and later, including Node.js
+25, for Linux x64, macOS arm64, and Windows x64. The declared range has no upper
+bound or excluded intermediate majors. Browsers, bundlers, CommonJS,
 Bun, Deno, other architectures, and registry publication are outside the
 package contract.
+
+Package qualification tests one archive on Node.js 24 and the latest release
+across those operating systems. Each record proves only the exact versions it
+names; future versions are not already verified. Upstream end-of-life status
+does not exclude a major from the compatibility range. Production deployments
+should use an upstream-supported release.
 
 Provider-free source tests do not qualify an archive. The package lane installs
 one exact archive outside the workspace, imports its package root, loads the

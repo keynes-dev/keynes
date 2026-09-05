@@ -475,7 +475,10 @@ describe("evidence identity and retention", () => {
     "changed",
     "changed-lock",
     "dirty-after",
+    "node23",
+    "node24",
     "node25",
+    "node27",
     "redaction",
     "metadata-secret",
     "startup-failed",
@@ -502,7 +505,10 @@ describe("evidence identity and retention", () => {
             value.inputs.lockfileSha256 = "f".repeat(64);
           if (mode === "dirty-after" && snapshots > 1) value.clean = false;
           if (mode === "version") value.environment.vitest = "";
+          if (mode === "node23") value.environment.node = "v23.0.0";
+          if (mode === "node24") value.environment.node = "v24.0.0";
           if (mode === "node25") value.environment.node = "v25.9.0";
+          if (mode === "node27") value.environment.node = "v27.0.0";
           if (mode === "metadata-secret") {
             value.commit = "private-secret";
             value.inputs.contractDigest = "private-secret";
@@ -543,12 +549,13 @@ describe("evidence identity and retention", () => {
         return;
       }
       const result = runSqlitePostgresTests(output, controller.signal, runtime);
-      if (mode === "pass") await expect(result).resolves.toBeUndefined();
+      const passes = ["pass", "node24", "node25", "node27"].includes(mode);
+      if (passes) await expect(result).resolves.toBeUndefined();
       else await expect(result).rejects.toThrow();
       const bytes = await readFile(join(output, "manifest.json"), "utf8");
       const manifest = JSON.parse(bytes);
       expect(manifest.schemaVersion).toBe("keynes.sqlite-postgres/v1");
-      expect(manifest.outcome).toBe(mode === "pass" ? "passed" : "failed");
+      expect(manifest.outcome).toBe(passes ? "passed" : "failed");
       expect(manifest.runtimes).toHaveLength(2);
       expect(bytes).not.toContain("postgresql://");
       expect(bytes).not.toContain("private-secret");
