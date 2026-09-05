@@ -1,5 +1,10 @@
 # KEY-60 acceptance
 
+Local acceptance passed for candidate `06d8b0072e462951bf7a4e19f3a6da7366b6bb34`.
+The feature keeps Docker, removes feedback packaging and repeated ordinary
+installation, and passes the code-size and timing gates. All four checkpoints
+are complete, including the explicitly rejected Testcontainers pilot.
+
 ## Checkpoint 1: baseline
 
 Baseline source: `b0dae07c024f002a9dadf7ca10f9b20106087287`, clean before and
@@ -234,11 +239,99 @@ principal definitions. Whole-result Ponytail review: Lean already. Ship.
 before the clean candidate checkpoint. Exact archive, paired and timing acceptance
 follow on that committed candidate; they are not inferred from this review.
 
-## Remaining acceptance
+## Final acceptance
 
-Checkpoints 1-3 are complete with the documented Docker fallback.
-Final code reduction, final timing
-comparisons and final package identity checks are NOT RUN. External TLS, additional
-installed-consumer scope, Hosted, backup, failover and production qualification
-remain outside this feature and NOT RUN. No publication, Linear attachment update,
-CI execution or merge has occurred during implementation.
+Accepted source: **`06d8b0072e462951bf7a4e19f3a6da7366b6bb34`**, clean before and
+after the retained native and paired runs and all full-native timing attempts.
+The subsequent completion commit changes only tasks and evidence documents.
+Runtime claims refer to this tested candidate, not to an untested later revision.
+
+Final commands and outcomes:
+
+| Check                                                                                                                           | Result                                                |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `pnpm test:pr`                                                                                                                  | PASS on the committed candidate                       |
+| `pnpm format`                                                                                                                   | PASS on the committed candidate                       |
+| Focused runner, paired and fixture regressions                                                                                  | PASS; no skipped case used as acceptance              |
+| Native execution through the existing preparation seam                                                                          | PASS, all 208 baseline assertion identities preserved |
+| `pnpm test:package:postgresql -- --archive <same prepared archive> --output <new record>` through its existing command function | PASS, 22 package assertions                           |
+| Installed production closure and emitted JavaScript                                                                             | PASS, no Testcontainers, Vitest or testkit leakage    |
+| Exact archive equality and consumer removal                                                                                     | PASS                                                  |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-60/final/paired`                                                          | PASS, 37 SQLite and 208 native assertions             |
+| Existing paired identity and file-digest verifiers                                                                              | PASS                                                  |
+| Real overlap, loopback bindings, SIGTERM, startup/cleanup failure and secret-safe diagnostics                                   | PASS again on the committed candidate                 |
+| Installed Embedded and Hosted refusal commands                                                                                  | Expected exit 1; no supported deployment claim        |
+| Five measured runs per feedback command and full native command                                                                 | All 30 PASS, with six separate warm-ups               |
+
+The package preparation spy ran existing package checks before returning the same
+prepared object to native execution. The package record and native record both name
+archive SHA-256 `fa9c0bfd2d63a38859d17aa2cf3379296a9f5dd4871672bf9b6f46d1c838f94e`.
+No separate repack was substituted. The installed consumer was inspected before
+cleanup, then verified absent. Its closure contains PostgreSQL/pg and pg's production
+dependencies only, as recorded in [production-closure.json](evidence/final/production-closure.json).
+The temporary inspection test is not part of the shipped test infrastructure.
+
+### Final timing comparison
+
+The final sample uses the baseline's host, daemon resource limits, image digests,
+Node/pnpm versions, warmed dependencies, per-command warm-up and monotonic complete
+command wall-clock method. There was no concurrent timing workload. Every attempt
+is retained; no failure or outlier was dropped. Change is
+`100 * (final_median / baseline_median - 1)`. Every final median is below baseline,
+and therefore below the allowed `baseline_median * 1.10` ceiling.
+
+| Command                 | Warm-up | Five final runs, seconds               | Baseline median | Final median |  Change |
+| ----------------------- | ------: | -------------------------------------- | --------------: | -----------: | ------: |
+| Remote all              |  11.671 | 11.544, 11.929, 11.902, 11.972, 11.778 |          17.425 |       11.902 | -31.70% |
+| Remote direct           |  10.920 | 10.874, 11.025, 11.164, 11.038, 10.881 |          16.804 |       11.025 | -34.39% |
+| Remote session-pool     |  11.452 | 11.659, 11.558, 11.711, 11.330, 11.232 |          17.143 |       11.558 | -32.58% |
+| Remote transaction-pool |  11.655 | 11.654, 11.730, 11.561, 11.284, 11.334 |          17.055 |       11.561 | -32.21% |
+| Embedded                |   9.661 | 9.617, 9.774, 9.640, 9.734, 9.648      |          15.580 |        9.648 | -38.07% |
+| Full native with output |  20.378 | 20.561, 20.861, 20.830, 20.944, 22.025 |          24.913 |       20.861 | -16.26% |
+
+Raw logs, durations, and all full timing records remain locally in
+`.artifacts/key-60/{baseline,final}/timings/`. Each full timing record retains its
+own exact archive identity. All six final full-native records were checked against
+the complete 208-name baseline inventory and the accepted clean source revision.
+These measurements establish local improvements, not CI or production timings.
+
+### Requirement reconciliation
+
+| Requirements                                   | Evidence and boundary                                                                                                                                                                                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001; SC-001, SC-006                         | Complete union-of-paths count is 41,912 physical/39,139 nonblank, versus 41,942/39,155 baseline. All new maintained tests/config are included. The reduction is 30/16 lines, not a claim of a large code deletion.                  |
+| FR-002, FR-003, FR-004; SC-002                 | Shared ordinary/Remote/recheck preparation, five zero-packaging selections, one ordinary install, real two-fixture source count/isolation, retained dedicated source and packed no-op proof.                                        |
+| FR-005, FR-006, FR-012, FR-015; SC-003, SC-006 | Guarded pilot rejected before acquisition; Docker fallback chosen. All pilot code/dependencies/build-policy changes removed. Testcontainers operational qualification is NOT RUN and adoption requirements are N/A to the fallback. |
+| FR-007, FR-011; SC-003, SC-004                 | Complete native inventory, real per-fixture isolation, separate sessions/transactions/contention, live overlapping invocations and independent teardown.                                                                            |
+| FR-008                                         | All feedback modes and existing refusals preserved. CI check names/workflow files unchanged. Live CI remains NOT RUN.                                                                                                               |
+| FR-009, FR-010; SC-004                         | Exact archive/package/native matching, paired manifest/report hashes, retained coverage/source-drift/immutable-output regressions and failed/canceled real attempts withholding acceptance.                                         |
+| FR-013                                         | Four internal checkpoints with Ponytail review and separate commits. Behavioral regressions failed before implementation. Final whole-result review preceded clean-candidate acceptance.                                            |
+| FR-014; SC-005                                 | Five successful baseline and candidate measurements for each of six commands; all median ratios below 1.10.                                                                                                                         |
+| FR-016; SC-004, SC-006                         | No product API, SQL migration, deployment or evidence-schema changes. Production closure checked. Source and installed-archive claims remain separate.                                                                              |
+
+Retained core evidence:
+
+- [Baseline native record](evidence/baseline/native/postgresql.json) and
+  [baseline paired manifest](evidence/baseline/paired/manifest.json), with their original sidecars.
+- [Candidate native record](evidence/final/native/postgresql.json),
+  [package qualification](evidence/final/package-record.json), and
+  [candidate paired manifest](evidence/final/paired/manifest.json), with original sidecars.
+- [Candidate overlapping survivor](evidence/final/operations/overlap-survivor.json)
+  and the neighboring canceled/startup/cleanup observations.
+- [Baseline file counts](evidence/baseline/code-counts.json) and
+  [candidate file counts](evidence/final/code-counts.json).
+
+The evidence copy retains 928,057 bytes of existing records and measurement data.
+This is retained evidence, excluded from maintained-code totals under the declared
+counting rule. Lockfile/dependency growth is zero. Contributor instructions add no
+new setup requirement; they explain the source feedback path and rejected pilot.
+
+Ponytail review after final qualification: Lean already. Ship.
+No before/after implementation extension hooks are registered. All 24 tasks are
+checked, with the rejected-pilot and conditional-task limits recorded in checkpoint 3.
+
+External TLS, additional installed-consumer scope, Hosted, backup, failover and
+production qualification remain outside this feature and NOT RUN. CI execution,
+artifact upload receipts and branch enforcement are NOT RUN. Commits and retained
+artifacts are local; nothing was pushed, no Linear links/status were changed, and
+no merge or release occurred.

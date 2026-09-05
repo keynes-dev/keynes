@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "keynes.package-test.postgresql/v1",
+  "subject": "@keynes/postgresql",
+  "sourceRevision": {
+    "commit": "06d8b0072e462951bf7a4e19f3a6da7366b6bb34",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "archive": {
+    "sha256": "fa9c0bfd2d63a38859d17aa2cf3379296a9f5dd4871672bf9b6f46d1c838f94e"
+  },
+  "environment": {
+    "node": "v26.5.0",
+    "pnpm": "11.21.0",
+    "os": "darwin",
+    "osRelease": "25.5.0",
+    "architecture": "arm64"
+  },
+  "checks": [
+    "exact-archive",
+    "failed-build-preservation",
+    "cli-errors",
+    "blocked-imports"
+  ],
+  "outcome": "passed",
+  "exclusions": {
+    "registry": "NOT RUN",
+    "managedProvider": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}
