@@ -6,7 +6,7 @@
 
 **Tests**: Required by the specification and constitution. Observe each behavioral regression failing for its intended reason before the corresponding change. A compile/import failure alone is not the expected behavioral failure. Documentation and inventory work uses focused validation.
 
-**Execution boundary**: Phases 1-3 conduct US6 first. The completed study and adopted pilot are recorded in testing-strategy.md. T012 released the study prerequisite. The revised remaining tasks deliver Local first after full-gate safeguards. Historical observations and CI durations are not study acceptance. Phase 4 T013-T017 is complete with retained acceptance evidence; Phase 5 T018-T026 is complete with clean Local, paired and cancellation evidence; Phase 6 implementation T027-T038 is complete and T039 clean-revision acceptance is pending; Phases 7-9 remain pending.
+**Execution boundary**: Phases 1-3 conduct US6 first. The completed study and adopted pilot are recorded in testing-strategy.md. T012 released the study prerequisite. The revised remaining tasks deliver Local first after full-gate safeguards. Historical observations and CI durations are not study acceptance. Phase 4 T013-T017 is complete with retained acceptance evidence; Phase 5 T018-T026 is complete with clean Local, paired and cancellation evidence; Phase 6 T027-T039 is complete with clean remote mode, paired, and cancellation evidence; Phases 7-9 remain pending.
 
 ## Format and path conventions
 
@@ -91,7 +91,7 @@ Do not initialize a new project or edit upstream-managed Spec Kit files. New sou
 - [x] T036 [US2] Compose sequential SQL-fixture and TLS-consumer phases in packages/postgresql/test/system/run-deployment.ts with shared package preparation, exact per-stage coverage, bounded teardown, and no full/Hosted qualification claim. Construct the selected manifest and sanitize native observations in this PostgreSQL owner. Reuse neutral mechanics only; do not cross-import SDK test code. Invoke the SDK-owned installed-consumer process through its explicit input/result boundary. Preserve full schemas, coverage and cancellation ownership.
 - [x] T037 [US2] Wire test:remote in packages/postgresql/package.json and package.json, include the new provider-free consumer/fixture tests in the appropriate existing test commands, and verify one-way workspace dependencies.
 - [x] T038 [US2] Document remote default/narrow modes, Docker/OpenSSL prerequisites, installed versus source provenance, TLS/credential cleanup, and selection exclusions in docs/workflow.md and quickstart.md.
-- [ ] T039 [US2] Execute the default and all three explicit single-mode commands from contracts/deployment-checks.md; retain dependency counts, observed pool modes, SQL and installed SDK results, TLS negatives, and cleanup under .artifacts/key-91/remote/ with references in acceptance.md. Also retain direct invocation failure without runner context and native cross-attempt cancellation results; verify full/selected report rejection after native selection changes.
+- [x] T039 [US2] Execute the default and all three explicit single-mode commands from contracts/deployment-checks.md; retain dependency counts, observed pool modes, SQL and installed SDK results, TLS negatives, and cleanup under .artifacts/key-91/remote/ with references in acceptance.md. Also retain direct invocation failure without runner context and native cross-attempt cancellation results; verify full/selected report rejection after native selection changes.
 
 ## Phase 7: User Story 3 - Run Embedded independently (Priority: P1)
 

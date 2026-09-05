@@ -114,3 +114,73 @@ No CI/required-check evidence was obtained for this source revision. This run di
 not invoke push or update Linear links. At this checkpoint origin contains the
 Phase 4 implementation `93f94ec`; the Phase 5 implementation and evidence remain
 local to this checkout.
+
+## Phase 6: selected remote PostgreSQL and installed SDK TLS
+
+Source revision: `30f678ca548de0aef74260e4b1a3383342de7c36`.
+[evidence/phase6.json](evidence/phase6.json) indexes the current acceptance files,
+archive identities, runtime observations and sanitized regression logs. The four
+remote commands passed with clean and identical before/after source snapshots.
+Their output directories are under `.artifacts/key-91/remote/phase6-30f678c/`.
+
+| Command selection         | SQL assertions | Installed SDK checks | Poolers per fixture phase | Outcome |
+| ------------------------- | -------------: | -------------------: | ------------------------: | ------- |
+| Default, no `--mode`      |            105 |                   21 |                         2 | PASS    |
+| `--mode direct`           |            100 |                    7 |                         0 | PASS    |
+| `--mode session-pool`     |            101 |                    7 |                         1 | PASS    |
+| `--mode transaction-pool` |            101 |                    7 |                         1 | PASS    |
+
+Each command prepares immutable PostgreSQL and SDK archives, runs and removes its
+plaintext SQL fixtures, then provisions a separate TLS fixture through the
+installed PostgreSQL CLI. Installed SDK calls run outside the workspace through
+ordinary tenant roles. The seven cases per mode cover the Budget workflow,
+tenant isolation, reconnect and exact replay, conflicting reuse, unavailable
+endpoints, wrong CA, and wrong hostname. The hostname negative forwards IPv6
+loopback traffic to the same server while preserving its certificate. Expected
+TLS errors must remain distinct from unavailable-endpoint errors.
+
+The observed runtime was Node 26.5.0, pnpm 11.21.0, Vitest 4.1.11, Docker 29.6.2,
+PostgreSQL 18.6 and PgBouncer 1.25.2 on macOS arm64. TLS observations retain image
+IDs, certificate hashes, and queried pool modes. PostgreSQL enforces the SDK's
+30-second statement timeout; the poolers ignore that startup parameter because
+PgBouncer cannot track it. This fixture configuration was added after the real
+pooler returned protocol error `08P01` for that parameter. SDK behavior was not
+changed. The cross-tenant result is the contract's `unauthorized` error, verified
+against the native security assertions.
+
+| Verification                                                                  | Result                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr` on the clean source revision                                   | PASS: repository checks, 149 root/native runner assertions, 121 PostgreSQL assertions, 394 SDK assertions, 51 contracts assertions, 24 web assertions, type checks and dependency boundaries. |
+| Focused provider-free runner/consumer checks, `regressions.json`              | PASS: 194 assertions.                                                                                                                                                                         |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-91/full/phase6-30f678c` | PASS: 37 SQLite and 208 native assertions, exact shared parity, stable clean source and successful cleanup.                                                                                   |
+| Two direct-mode processes under `concurrent-phase6-30f678c`                   | SIGINT after the first SQL container appeared produced exits 1 and 0; both cleanup stages completed, and no owned containers or networks remained.                                            |
+| Full validators against the retained selected SQL report and manifest         | All three rejection checks passed; selected evidence cannot qualify complete native or paired acceptance.                                                                                     |
+| Direct invocation without runner context                                      | Fails explicitly. Both representative subprocess regressions execute in the focused suite.                                                                                                    |
+| Phase 6 ponytail review                                                       | Removed redundant report-directory state. Follow-up review: Lean already. Ship.                                                                                                               |
+
+The first cancellation attempt at `c90e037` is retained as failed evidence. Docker
+container stopping raced automatic removal and left an empty network; the
+selected cleanup stage also lost the nested SQL cleanup failure. Two observed
+failing regressions preceded the repair. Teardown now explicitly removes owned
+containers before their network and carries SQL cleanup observations into the
+selected result. The empty network from that failed attempt was removed by its
+exact recorded name. Further failing regressions covered TLS acquisition cleanup
+and unconfirmed package acquisition cleanup. A successful workspace removal can
+no longer replace those missing or failed observations.
+
+An earlier installed-consumer cancellation regression showed that SIGTERM to the
+driver left its child connected. The driver now forwards cancellation, and the
+real child-disconnection regression passes. Native suites no longer succeed by
+skipping when runner context is absent. Their existing names and complete
+coverage remain; much of the native-file diff is formatter indentation after
+replacing the guards.
+
+The four command durations were 22.315, 20.372, 21.002 and 21.222 seconds; the
+paired attempt took 25.024 seconds. These are correctness-attempt timings, not
+comparable study measurements or speedup claims. The original study is unchanged.
+
+T027-T039 are complete. Embedded, Hosted refusal and final integration remain
+pending. Installed Embedded, actual Hosted, Windows process-tree handling, the
+package OS/Node matrix, CI, required-check enforcement and release acceptance
+remain NOT RUN. This run did not push, publish a PR, or update Linear. The source
+revision above and this evidence checkpoint are separate commits.
