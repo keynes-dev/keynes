@@ -1,91 +1,96 @@
-# Require SQLite and PostgreSQL conformance before merge
+# Feature Specification: Require SQLite and PostgreSQL conformance before merge
+
+**Feature Branch**: `key-75-require-sqlite-and-postgresql-conformance-before-merge`
+
+**Created**: 2026-09-04
 
 **Linear issue**: [KEY-75](https://linear.app/keynes/issue/KEY-75/require-sqlite-and-postgresql-conformance-before-merge)
-**Git branch**: `key-75-require-sqlite-and-postgresql-conformance-before-merge`
-<!-- linear-issue-id: cee8505f-06b5-497c-b6a2-f751c3007e83 -->
 
-## Feature story
+**Input**: Run existing shared behavior scenarios on real SQLite and native PostgreSQL in PR CI, reuse the current conformance hosts and Docker runner, and treat missing execution as failure.
 
-### The problem
-
-PR checks currently run provider-free tests while native PostgreSQL qualification is manual. A green PR can therefore leave a shared behavior unexecuted on its durable authority.
-
-### Why this exists now
-
-Keynes Local completion requires independently accepted features with accurate
-runtime and package evidence.
-
-### What changes for users
-
-A maintainer can decide whether a shared behavior is ready to merge from explicit passing SQLite and native PostgreSQL results for the candidate revision.
-
-### What must stay true
-
-SQLite and PostgreSQL implement one command and accounting contract. Authorities
-own their state; the SDK adds no fallback ledger. The application owns external
-effects. This feature retains exact evidence for its own outcome.
-
-### What this feature does not include
-
-No Budget semantics change, new conformance framework, Testcontainers adoption, paid provider, managed service, performance campaign, or Hosted/Embedded readiness claim.
-
-### Where this leads
-
-This peer feature belongs to Keynes Local. It is independently acceptable after
-its stated prerequisites and does not wait for the entire Local project.
-The project and issue own scheduling; this specification owns acceptance.
+PR checks currently run provider-free tests while the PostgreSQL system workflow requires manual dispatch. Maintainers need evidence that a candidate preserves the shared Budget contract on both authorities before merging it.
 
 ## User Scenarios & Testing
 
-### User story 1 - Accept the bounded outcome (P1)
+### User Story 1 - Require both authorities before merge (Priority: P1)
 
-A maintainer can decide whether a shared behavior is ready to merge from explicit passing SQLite and native PostgreSQL results for the candidate revision.
+As a maintainer, I can accept a candidate only when the existing shared behavior scenarios pass on both real authorities for that candidate revision.
 
-**Independent test**: Exercise the scenarios below against the candidate source
-and the real artifacts they name. Retain exact results before acceptance.
+**Why this priority**: A passing local suite cannot establish that durable Budgets behave correctly.
 
-1. Given an unchanged candidate, the required checks execute the existing SQLite shared corpus and native PostgreSQL shared corpus and retain identifiable results.
+**Independent Test**: Run PR checks for a passing candidate and a candidate with an intentional PostgreSQL scenario failure. Confirm that only the passing candidate satisfies the required conformance check.
 
-2. Given a PostgreSQL scenario that fails while SQLite passes, the merge qualification fails rather than reporting parity.
+**Acceptance Scenarios**:
 
-3. Given unavailable Docker, database startup failure, canceled execution, or missing native results, acceptance remains failed or NOT RUN.
+1. **Given** a candidate whose existing shared scenarios pass, **When** PR CI executes, **Then** real SQLite and native PostgreSQL each execute the shared corpus and the required conformance check passes only after both complete successfully.
+2. **Given** a candidate whose SQLite scenarios pass and whose PostgreSQL scenario intentionally fails, **When** PR CI executes, **Then** the required conformance check fails and protected-branch merge remains blocked.
+3. **Given** missing Docker, database startup failure, canceled or skipped execution, or no native tests discovered, **When** qualification is evaluated, **Then** the candidate cannot satisfy the conformance requirement.
+4. **Given** a changed candidate revision, **When** earlier passing evidence is available, **Then** that evidence cannot satisfy conformance for the changed revision.
 
-4. Given a shared scenario added by a later feature, the same scenario can run through both existing authority hosts.
+### User Story 2 - Inspect attributable results (Priority: P2)
 
-5. Given independent PostgreSQL runs, their fixtures and result artifacts do not collide, and cleanup runs on failure.
+As a reviewer, I can inspect both runtime results and determine which revision, scenarios, environment, and attempt they describe.
 
-### Edge cases
+**Why this priority**: A green check without attributable results cannot support a review or explain a runtime-specific failure.
 
-Given a PostgreSQL scenario that fails while SQLite passes, the merge qualification fails rather than reporting parity.
+**Independent Test**: Inspect retained evidence for successful and failed attempts and verify that each result identifies its authority and tested revision.
 
-Given unavailable Docker, database startup failure, canceled execution, or missing native results, acceptance remains failed or NOT RUN.
+**Acceptance Scenarios**:
 
-Given independent PostgreSQL runs, their fixtures and result artifacts do not collide, and cleanup runs on failure.
+1. **Given** a passing attempt, **When** a reviewer opens its evidence, **Then** both runtime results identify the same tested revision, executed scenarios, outcomes, environment versions, and attempt.
+2. **Given** a failed native scenario, **When** execution ends, **Then** available results and diagnostics remain inspectable without reporting incomplete execution as a pass.
+3. **Given** missing or incomplete required results, **When** evidence retention completes, **Then** the conformance check cannot pass.
+4. **Given** overlapping attempts, **When** their tests finish or fail, **Then** their fixtures and evidence do not overwrite each other and disposable database resources are cleaned up.
+
+### Edge Cases
+
+- One authority passes while the other fails or does not execute.
+- A required shared scenario is skipped, or test selection discovers no shared scenarios.
+- Result retention fails after otherwise successful tests.
+- A new revision or rerun has older successful artifacts available.
+- Database startup fails before scenario results exist; diagnostics must describe the failure without inventing results.
+- An interrupted attempt leaves cleanup work; its artifacts must not qualify a later attempt.
+- A later shared behavior feature adds a scenario; both existing authority hosts must execute it before that feature is accepted.
 
 ## Requirements
 
-- **FR-001**: Execute shared behavior scenarios on real private SQLite and native PostgreSQL before accepting a shared-runtime change.
-- **FR-002**: Reuse the existing shared scenario registration and authority hosts. Preserve equivalent result, error, replay, history, and final-state assertions.
-- **FR-003**: Make native failure or absent execution prevent passing acceptance. Never replace PostgreSQL with a mock or infer its success from SQLite.
-- **FR-004**: Integrate native execution into PR CI and retain the tested revision, scenario outcome, and native environment identity. Maintainers must configure the resulting check as required for protected-branch acceptance.
-- **FR-005**: Preserve existing deterministic provider-free checks and real PostgreSQL lifecycle/concurrency coverage. Test credentials and database fixtures stay isolated and disposable.
-- **FR-006**: Keep exact feature evidence separate from historical acceptance and report nonexecuted hosted/provider/package lanes as NOT RUN.
+### Functional Requirements
+
+- **FR-001**: PR CI MUST execute the existing shared behavior corpus against real private SQLite and native PostgreSQL for the candidate revision before conformance can pass.
+- **FR-002**: The feature MUST reuse existing shared scenario registration, conformance hosts, and the Docker runner. It MUST preserve equivalent assertions for results, errors, replay flags, history, and final Budget state, including existing replay, conflict, and rollback coverage.
+- **FR-003**: A runtime failure, unavailable runtime, canceled execution, skipped required scenario, empty required corpus, or missing execution MUST prevent passing conformance. PostgreSQL success MUST NOT be inferred from SQLite or a mock.
+- **FR-004**: Protected-branch acceptance MUST require the resulting conformance check. Acceptance evidence MUST include a readback of the required-check policy and demonstrate that an intentional native failure blocks qualification while SQLite passes. A workflow change alone MUST NOT be reported as merge enforcement.
+- **FR-005**: Every passing attempt MUST retain independently identifiable results for both authorities, including the tested source revision, scenario outcomes, runtime and dependency versions, host identity, and run attempt. Relevant contract and artifact digests MUST identify the inputs being qualified. Evidence from another revision or attempt MUST NOT substitute for missing results.
+- **FR-006**: Failure paths MUST retain available diagnostics and results. Missing required evidence or failed retention MUST prevent a passing conformance result. Nonexecuted work MUST remain explicitly failed, skipped, or `NOT RUN`, as applicable.
+- **FR-007**: Concurrent attempts MUST isolate disposable credentials, database fixtures, and result artifacts. Cleanup MUST cover success and failure, with cancellation cleanup addressed by the execution environment. Retained evidence MUST exclude secrets.
+- **FR-008**: Existing provider-free checks and PostgreSQL lifecycle, transaction, and concurrency coverage MUST remain required wherever currently applicable. This feature MUST NOT weaken assertions or alter Budget behavior to obtain a passing check.
+- **FR-009**: Contributor guidance MUST explain the required check, how to reproduce its runtime checks using the existing runner, where to find evidence, and how to distinguish a scenario failure from missing execution. Later shared behavior features MUST retain their own native and SQLite evidence before acceptance.
+
+### Key Entities
+
+- **Candidate revision**: The exact source evaluated for a proposed merge. Results identify the tested revision even when it differs from the contributor's branch head.
+- **Conformance attempt**: One execution of the required shared corpus on both authorities, with an explicit identity and overall qualification outcome.
+- **Runtime result**: The authority, executed scenarios, outcomes, environment, and diagnostics associated with a candidate and attempt.
+- **Required check policy**: The protected-branch rule that makes successful conformance a merge condition.
 
 ## Success Criteria
 
-- **SC-001**: A candidate with both runtime suites passing produces independently identifiable SQLite and PostgreSQL results for the same revision.
-- **SC-002**: A deliberately failing native test produces a failing CI check even when the SQLite suite passes.
-- **SC-003**: Missing native execution never produces a passing parity result.
-- **SC-004**: All existing shared scenarios remain runnable through the existing hosts with no runtime contract change.
+### Measurable Outcomes
 
-## Assumptions and dependencies
+- **SC-001**: A passing demonstration retains results for 100% of existing required shared scenarios on each authority, tied to one candidate revision and attempt.
+- **SC-002**: An intentional failure on the durable authority blocks qualification even when every local scenario passes.
+- **SC-003**: Demonstrations of absent execution, skipped required coverage, empty discovery, and missing required evidence produce zero passing conformance outcomes.
+- **SC-004**: A reviewer can identify both authorities, the tested revision, scenario outcomes, and environment from retained results without reconstructing them from unrelated runs.
+- **SC-005**: Two overlapping attempts finish without fixture or artifact collisions, and success and failure demonstrations leave no disposable database resources behind.
+- **SC-006**: The protected branch's observed policy requires successful conformance, and existing shared scenarios retain their contract assertions without runtime semantics changes.
 
-Use the repository's pinned native PostgreSQL image and existing Docker runner. No feature prerequisites. Required-check policy must be read back when implementation updates GitHub configuration. That operational configuration is not implemented by this specification.
+## Assumptions
 
-## Current-source boundary
-
-Current source at 8aae705 has separate PR and manually dispatched PostgreSQL workflows. This is source inspection, not fresh native qualification.
-
-This is a specification, not implementation or acceptance evidence. Detailed
-design and tasks will be created by this issue's subsequent Spec Kit steps.
-No paid provider or production mutation is required.
+- The issue has no feature prerequisites. Existing shared scenarios, authority hosts, and the pinned Docker-based native runner provide the starting point.
+- SQLite and PostgreSQL are named because they are the issue's required execution targets. Runner reuse is an explicit scope constraint; detailed workflow and reporting design belongs in planning.
+- Scope excludes runtime redesign, a new conformance framework, Testcontainers migration, hosted provider qualification, paid services, performance campaigns, and general package qualification.
+- Application effects and new Budget or Policy semantics are N/A because this feature changes verification and merge acceptance only. Existing authority ownership, deterministic Policy behavior, and application ownership of external effects remain unchanged.
+- New storage migration, recovery behavior, and public API compatibility changes are N/A because no runtime contract or persistent state format changes. Existing relevant tests remain preserved under FR-008.
+- Security applies to isolated test credentials, fixtures, and retained evidence. Hosted security, managed operations, and production readiness are outside this feature's evidence claims.
+- Source inspection confirms separate PR and manually dispatched PostgreSQL workflows in local main at `9032515`. This is not runtime qualification. Runtime demonstrations, required-check policy changes, and acceptance evidence remain `NOT RUN` at specification time.
+- This specification resumes the existing issue-linked directory. Linear owns mutable issue status and scheduling. Planning, tasks, and implementation are subsequent steps.
