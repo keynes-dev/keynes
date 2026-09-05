@@ -10,20 +10,22 @@ No extension hooks are installed. Existing Git and Docker ignore rules cover the
 detected generated output, dependencies, credentials, and temporary artifacts.
 The root package is private; package publication uses existing package file lists.
 
-| Lane                                              | Status                              |
-| ------------------------------------------------- | ----------------------------------- |
-| Setup T001                                        | PASS                                |
-| Foundation regressions                            | PASS; historical red run retained   |
-| Paired runner regressions                         | PASS; 125 combined runner tests     |
-| Provider-free PR gate and formatting              | PASS after cancellation fix         |
-| Real paired clean-revision acceptance             | PASS on repaired snapshot 63eaec5   |
-| Negative and overlapping attempts                 | PASS on repaired snapshot 63eaec5   |
-| Cancellation                                      | PASS locally; hosted NOT RUN        |
-| Hosted retention and protected-branch enforcement | Hosted success PASS; policy NOT RUN |
+| Lane                                              | Status                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Setup T001                                        | PASS                                                                            |
+| Foundation regressions                            | PASS; historical red run retained                                               |
+| Paired runner regressions                         | PASS; 125 combined runner tests                                                 |
+| Provider-free PR gate and formatting              | PASS after cancellation fix                                                     |
+| Real paired clean-revision acceptance             | PASS on repaired snapshot 63eaec5                                               |
+| Negative and overlapping attempts                 | PASS on repaired snapshot 63eaec5                                               |
+| Cancellation                                      | PASS locally; hosted check CANCELLED with partial evidence                      |
+| Hosted retention and protected-branch enforcement | PASS; repaired success, failed upload, strict policy and blocked merge verified |
 
 Implementation and earlier local evidence were published in PR #36 by the user.
 No Linear links or statuses have been changed.
-The feature is not accepted.
+The final hosted evidence and requirement matrix below supersede earlier pending
+statuses. T025-T026 are complete after the final independent audit.
+PR #36 remains unmerged; no Linear Done transition is claimed.
 
 ## Foundation checkpoint, 2026-09-04
 
@@ -294,7 +296,7 @@ The partial bundle and command/cleanup summary are in
 This proves cooperative local SIGTERM handling, not forced termination or hosted
 runner disposal. Hosted cancellation remains NOT RUN.
 
-### Requirement reconciliation
+### Historical requirement reconciliation before final hosted qualification
 
 | Requirement    | Current evidence                                                                                         | Acceptance boundary                                          |
 | -------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -461,4 +463,151 @@ No policy mutation or feature acceptance is claimed.
 On 2026-09-05 the user approved the prepared publication, three disposable hosted
 demonstrations, strict required-check policy for both checks including admins,
 policy readback, and cleanup of the demonstration PRs and branches. No merge is
-authorized as a test. Execution is in progress; T025-T026 remain open.
+authorized as a test. The authorized execution is complete as recorded below;
+T025-T026 passed the final independent audit.
+
+## Final hosted qualification, 2026-09-05
+
+The repaired implementation is PR #36 head
+`d27d906f4608af9281466f6098b486ce399d6dc5`, against main
+`903251532497cc6ea3b4e062383db07ed8438eb3`. The earlier hosted success above is
+historical. These results qualify the exact merge below; a later evidence-only
+commit still requires fresh required checks on its own candidate before merge.
+The current repaired success is [run 33945489912](https://github.com/keynes-dev/keynes/actions/runs/33945489912),
+at tested merge `ab8d308f9b301de7c757d6e3232227830a6d543b`, attempt 1,
+conformance job/check `101250686435`. Both required jobs passed.
+The downloaded bundle verifies all 37 shared scenarios in each authority and
+208 native assertions, including 171 native-only assertions, with zero exits
+and both cleanup observations passed. The candidate remained clean and unchanged.
+
+Paired attempt `3e32742a-925a-42c7-a11a-84538d656578` and native fixture
+`740c2671-b932-4926-a088-0a68e3d03d5a` match their retained records. The verifier
+recomputed report, lockfile, contract and installation hashes against the tested
+merge source and checked the socket-drain repair in that source. The environment
+was Node 24.20.0, pnpm 11.21.0, Vitest 4.1.11, pg 8.23.0, SQLite 3.53.4,
+Docker 28.0.4, PostgreSQL server version number 180006, and PgBouncer 1.25.2.
+Exact observed image IDs and input digests are retained in the bundle.
+SQLite report SHA-256 is `4b1e557990a0cd87c73730b4d88fa26f9013b846247c55f8a5f554a37c7c8622`;
+native report SHA-256 is `c8d0db8be5ae46164bbf91a7d870556236a7b38a822d4dec58de9991c47beb2b`;
+native acceptance SHA-256 is `cb73bc0121d79ea251a8fb61d3d46afffca2b5f5134aeedf6a0fc13bc8b774cf`.
+Artifact `9963216567` expires 2026-09-19T04:49:55Z; its downloaded ZIP SHA-256
+matches GitHub's `cb8c5995dd8c5e8b0e1080ad49c9e00b387a0f110a30a80925c0bc5ee654e9b9`.
+The durable repository copy remains available after hosted expiry.
+
+### Hosted negative and cancellation demonstrations
+
+All demonstrations inherited the repaired implementation. Each used its own PR
+head and tested merge. No deliberate failure entered PR #36.
+
+| Demonstration            | PR / run                                                                                                                          | PR head                                    | Tested merge                               | Conformance result              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------ | ------------------------------- |
+| Native assertion failure | [41](https://github.com/keynes-dev/keynes/pull/41) / [33945566900](https://github.com/keynes-dev/keynes/actions/runs/33945566900) | `347abd905ddd201ab23ea6f14cb88a316d98e0fa` | `b933a50693e58afda1468069f34f0c53f9116010` | FAILURE, check `101250892551`   |
+| Missing upload target    | [42](https://github.com/keynes-dev/keynes/pull/42) / [33945569495](https://github.com/keynes-dev/keynes/actions/runs/33945569495) | `5ab53890c68c15edc3b52b881dc65d27021a46be` | `83096dbe54bd0dd7f22947e592b703e41ecaf95e` | FAILURE, check `101250898291`   |
+| Cancellation             | [43](https://github.com/keynes-dev/keynes/pull/43) / [33945639038](https://github.com/keynes-dev/keynes/actions/runs/33945639038) | `ed5a150381ec800c911f97b1c8e72735a5644911` | `dfa0fbda9ebd155fb387e5be6cdcde4920e08581` | CANCELLED, check `101251085053` |
+
+Native failure retained 37 passing SQLite scenarios and 207 passing native
+assertions with one intentional assertion failure. Both cleanup observations
+passed; the native success record is absent. Upload and receipt succeeded.
+Artifact `9963241458` expires 2026-09-19T04:51:42Z; its downloaded ZIP SHA-256
+matches GitHub's `de739b5143e3e9fa928ba272c296e2e7592d5200276ebb94b8a48493e384223f`.
+Repository and tests passed, proving that native failure alone kept conformance
+nonpassing despite the passing SQLite corpus.
+
+The upload-failure demonstration completed the paired command successfully, then
+failed both retention and receipt at the deliberately absent target. GitHub
+reported zero artifacts. Individual report counts are UNAVAILABLE in this lane;
+command success requires both authorities and local cleanup, but their reports
+cannot be independently inspected after this deliberate retention failure.
+Repository and tests passed while conformance remained failed.
+
+Cancellation targeted only PR #43's unique empty commit, whose tree matches the
+repair. The conformance step started at 04:50:56Z and was observed running for
+53.352 seconds before cancellation. Native startup was NOT OBSERVED. The hosted
+check and run concluded cancelled, while retention and receipt succeeded.
+Artifact `9963246206`, expiring 2026-09-19T04:52:03Z, contains only the SQLite
+report with 37 passed. Its ZIP SHA-256 matches GitHub's
+`90e400b86c62bd7eb72ae825f3227cb4ea7ae068e4113d4067abcbdf520b5ef0`.
+No manifest, native report, native success record or fixture cleanup observation
+was available. Fixture cleanup is UNCONFIRMED for this hosted cancellation.
+The runner recorded cancellation at 04:52:02.860Z and orphan-process cleanup at
+04:52:04.939Z through 04:52:05.058Z. Hosted VM disposal is the outer cleanup
+boundary; direct VM deletion and individual fixture removal were NOT OBSERVED.
+The separate repaired local SIGTERM demonstration above directly verifies fixture
+cleanup. The earlier shared-head PR #43 run was not canceled by this demonstration.
+
+### Effective policy and demonstration cleanup
+
+Before mutation main had no branch protection and no effective rules. Authorized
+protection now requires both exact contexts `Repository and tests` and
+`SQLite and PostgreSQL conformance`, each bound to GitHub Actions app `15368`.
+Readback confirms `strict: true` and `enforce_admins.enabled: true`, no added
+bypass, force pushes disabled, and deletion disabled. Effective rules readback is
+also retained; it is an empty list, with enforcement owned by branch protection.
+No review-count requirement, visibility, billing or merge setting was changed.
+
+At 2026-09-05T04:53:40.041173Z, ready PR #41 was `MERGEABLE` but its merge state
+was `BLOCKED`, with Repository and tests successful and conformance failed.
+The readback includes administrator permissions, unchanged main identity, and
+both check URLs. No merge was attempted as a test. This is an observed protected
+merge block, not an inference from workflow YAML.
+
+At 2026-09-05T04:59:00.046609Z, PRs #41, #42 and #43 were all CLOSED with
+`mergedAt: null`. Each owned remote branch was absent after an expected-head
+check and deletion. Archive snapshots that say these PRs were open describe the
+earlier evidence-collection time; the policy-and-cleanup record supersedes them.
+PR #36 remains open and is not merged by this acceptance exercise.
+
+### Durable hosted evidence
+
+| Archive                                                                                  | SHA-256                                                            |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [hosted-repaired-success-33945489912.tar.gz](hosted-repaired-success-33945489912.tar.gz) | `0bf77f7358971fd30ac7893c4430ee15a74764d59fd928600a086dfcb53c0cbc` |
+| [hosted-negatives.tar.gz](hosted-negatives.tar.gz)                                       | `3319a9f7a7532d28e7ca818f9b33a320f5b619459dcbd3bcb003eca749c4004d` |
+| [hosted-cancellation.tar.gz](hosted-cancellation.tar.gz)                                 | `094b5119280518d586478a9fe591c02c046ef5ac477b8c2737c790f24925da36` |
+| [hosted-policy-and-cleanup.tar.gz](hosted-policy-and-cleanup.tar.gz)                     | `8c9adabaf7f86bc686dc2fee482ca021c67acf534433c40dfe999031a19bb296` |
+
+The archives retain sanitized evidence, API identities, receipt metadata and
+verification results. The policy archive excludes macOS metadata after review.
+Fresh `pnpm test:pr` passed: 125 runner tests, 79 PostgreSQL unit tests including
+three socket-drain regressions, 341 SDK tests, 51 contract tests, 11 uncached Turbo
+tasks and the 305-file architecture boundary check. This provider-free gate
+complements the exact-revision hosted and local real-authority evidence.
+
+### Final requirement reconciliation
+
+PASS denotes evidence for the stated revisions and demonstrations. It does not
+claim merge, a Linear Done transition, or future candidate acceptance. The final
+independent audit passed; no remaining execution lane is labeled NOT RUN
+except the explicit observation limits above.
+
+| Requirement | Result | Evidence and boundary                                                                                                                                                                                                                                    |
+| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | PASS   | Repaired hosted merge `ab8d308f` executes all 37 shared scenarios against real SQLite and PostgreSQL.                                                                                                                                                    |
+| FR-002      | PASS   | One shared registration and existing authority hosts; parity and full native inventory validated.                                                                                                                                                        |
+| FR-003      | PASS   | Native failure, Docker-unavailable, skip/empty, missing output, cancellation and retention failures remain nonpassing; local regressions and hosted demonstrations retained.                                                                             |
+| FR-004      | PASS   | Exact two app-bound checks, strict/admin enforcement and live native-failure PR #41 blocked-merge readback.                                                                                                                                              |
+| FR-005      | PASS   | Downloaded repaired bundle matches candidate, attempt, source inputs, versions, image IDs and report digests.                                                                                                                                            |
+| FR-006      | PASS   | Ordinary failure and cancellation retain available sanitized reports; hosted missing upload and receipt fail the check; absent cancellation records are explicit.                                                                                        |
+| FR-007      | PASS   | Repaired overlapping local attempts have distinct identities and absent resources after cleanup; ordinary failure and local SIGTERM cleanup pass. Hosted cancellation has orphan cleanup and the VM disposal boundary, with fixture cleanup unconfirmed. |
+| FR-008      | PASS   | Existing native-only inventory and provider-free gate pass; fixture pagination and socket-drain repairs preserve asserted behavior without Budget runtime changes.                                                                                       |
+| FR-009      | PASS   | Contributor workflow, quickstart and evidence guidance describe required checks, reproduction, interpretation and future feature-owned evidence.                                                                                                         |
+| SC-001      | PASS   | Hosted candidate and one paired attempt contain 100% of the 37 shared scenarios in each authority.                                                                                                                                                       |
+| SC-002      | PASS   | Hosted PR #41 has all 37 SQLite passes and intentional native failure; conformance fails and protected merge is blocked.                                                                                                                                 |
+| SC-003      | PASS   | Regressions and local negative executions reject absent, skipped, empty and missing reports; hosted cancellation/upload failure never pass.                                                                                                              |
+| SC-004      | PASS   | Durable verified hosted bundle contains both authority outcomes, exact source/attempt and environment identities.                                                                                                                                        |
+| SC-005      | PASS   | Repaired clean-snapshot overlap succeeds without collisions; success and ordinary failure resource absence are verified locally.                                                                                                                         |
+| SC-006      | PASS   | Effective strict/admin/app policy is observed, shared assertions preserved and both required jobs pass on the repaired hosted candidate.                                                                                                                 |
+
+### Phase 5 completion review
+
+The independent final audit verified FR-001 through FR-009, SC-001 through SC-006,
+and T025-T026 against implementation and retained evidence. No findings remain.
+The ponytail review recommended removing macOS archive metadata; that cut is
+applied and the final archive hash verified. Its final result was "Lean already.
+Ship." Fresh `pnpm format` and `git diff --check` passed. All T001-T026 are
+complete. No post-implementation extension hooks are configured.
+
+This completion commit adds acceptance documentation and evidence only. The
+repaired implementation's hosted source identity remains the exact commit named
+above. Fresh CI for the completion commit is verified separately and linked in
+PR #36; its artifact does not substitute for the retained demonstration results.

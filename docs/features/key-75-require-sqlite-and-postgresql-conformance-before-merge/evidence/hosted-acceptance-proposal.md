@@ -1,68 +1,69 @@
-# Hosted acceptance proposal
+# Hosted acceptance proposal and execution record
 
-Status: PR #36 now contains user-published commit `810e5a98`. Its repository and
-conformance jobs passed in run `33943777211`. The remaining disposable hosted
-demonstrations and policy changes were authorized by the user on 2026-09-05.
-Execution and final verification are in progress.
-No policy or Linear mutation has occurred.
+The user authorized publication, three disposable demonstrations, strict required
+checks including administrators, policy readback and demonstration cleanup on
+2026-09-05. Execution is complete. The final independent acceptance audit passed. PR #36 is open and unmerged; no Linear Done transition is claimed.
 
-## Publication and demonstrations
+## Executed publication and demonstrations
 
-1. Publish the locally verified socket-drain repair and completed local evidence
-   on the existing KEY-75 branch. Update PR #36 using the repository template,
-   run its real checks, and download and verify the new conformance artifact.
-   Earlier hosted success at merge `915fb0be` does not qualify this later repair.
-2. Create three disposable branches and ready-for-review demonstration PRs against
-   `main`, each based on the implementation. Use one deliberate native assertion
-   failure, one empty artifact upload target, and one unchanged implementation
-   whose running conformance job is canceled. Preserve the accepted implementation
-   and shared assertions. Keep these PRs separate from #36.
-3. Retain run/check URLs, PR head and tested merge commits, conclusions, available
-   sanitized bundles, upload IDs/digests, and cancellation state. Recompute the
-   downloaded report hashes. Failed and canceled checks must remain nonpassing.
-4. Apply the required-check policy described below only after observing the exact
-   conformance check name and GitHub Actions app identity. Read it back and verify
-   that the ready native-failure PR is blocked by conformance, with SQLite passing.
-   Do not merge any PR as a test.
-5. Close the three demonstration PRs and delete only their newly created remote
-   branches after durable evidence is retained. Keep #36 open and KEY-75 unaccepted
-   until the required acceptance conditions are satisfied.
+The published repair head is `d27d906f4608af9281466f6098b486ce399d6dc5`.
+[PR #36 run 33945489912](https://github.com/keynes-dev/keynes/actions/runs/33945489912)
+passed both jobs on merge `ab8d308f9b301de7c757d6e3232227830a6d543b` against
+main `903251532497cc6ea3b4e062383db07ed8438eb3`. The verified downloaded bundle
+contains 37 passing shared scenarios in each authority, 208 native assertions,
+matching source/report digests, and both cleanup observations passed.
+Earlier hosted success on `915fb0be` remains historical evidence only.
 
-Prepared inputs and the fresh locally executed native-failure result are in
-[repaired-native-failure-and-demo-inputs.tar.gz](repaired-native-failure-and-demo-inputs.tar.gz),
-SHA-256 `c319d89f41193100afd407f4177d9c616a014c9f5524a25360d87d3f20ea318d`.
-They are based on clean verified repair snapshot `63eaec5`: native failure
-`3af80e6f`, upload failure `f768de4c`, and unchanged cancellation `63eaec5`.
-The archive includes exact patches, proposed branch names, expected outcomes, and
-source identities. No demonstration branch has been published. Rebase these
-inputs onto the published repair if its commit differs before execution.
+The authorized demonstrations produced these outcomes:
 
-## Proposed main policy
+- [PR #41](https://github.com/keynes-dev/keynes/pull/41), run `33945566900`: 37 SQLite passes, 207 native passes and one intentional native failure; conformance failed, both cleanup observations passed, evidence upload succeeded.
+- [PR #42](https://github.com/keynes-dev/keynes/pull/42), run `33945569495`: paired execution succeeded, the deliberately missing upload target and receipt failed, zero hosted artifacts, conformance failed. Individual reports are unavailable by design.
+- [PR #43](https://github.com/keynes-dev/keynes/pull/43), run `33945639038`: cancellation after 53.352 seconds of observed conformance-step execution; check cancelled, partial SQLite report uploaded. Native startup and fixture cleanup were not observed. Runner orphan-process cleanup is retained; hosted VM disposal is the outer cleanup boundary.
 
-The readback on 2026-09-05 returned `Branch not protected` and no effective rules.
-Refresh this state immediately before mutation and preserve any intervening policy.
-The existing `Repository and tests` check reports GitHub Actions app ID `15368`.
-The new conformance app identity must be confirmed from its actual hosted run.
+PR #43 used a unique empty commit `ed5a150381ec800c911f97b1c8e72735a5644911`
+with unchanged repair source so its cancellation could not share PR #36's check
+identity. No shared-head run or unrelated run was canceled. No demonstration
+change entered the implementation, and no PR was merged as a test.
 
-Require both exact contexts from GitHub Actions:
+## Applied main policy and cleanup
+
+The pre-mutation readback had no branch protection or effective rules. The applied
+and read-back protection requires these exact contexts from GitHub Actions app
+`15368`:
 
 - `Repository and tests`
 - `SQLite and PostgreSQL conformance`
 
-Require the candidate to be up to date with `main`, enforce the checks for
-administrators, and add no bypass. Do not add review-count requirements or change
-repository visibility, billing, or merge settings. Existing unrelated requirements
-and restrictions, if discovered on refresh, remain in place.
+`strict: true` requires an up-to-date candidate and `enforce_admins.enabled: true`
+covers administrators. No bypass was added; force pushes and deletion are disabled.
+No review-count requirement, visibility, billing or merge setting was changed.
+Effective rules remain empty because enforcement is owned by branch protection.
 
-The proposed policy cannot establish acceptance until effective app/check/admin/
-bypass readback and the native-failure blocked-merge observation are retained.
+At 2026-09-05T04:53:40.041173Z, ready PR #41 was mergeable but `BLOCKED`, with
+Repository and tests successful and conformance failed. Retained administrator
+permissions and policy readback establish the intended enforced boundary without
+attempting a merge.
 
-## Authorization boundary
+After durable evidence retention, all three demonstration PRs were closed
+unmerged and their owned remote branches deleted following expected-head checks.
+The 2026-09-05T04:59:00.046609Z readback confirms CLOSED, `mergedAt: null`, and
+remote ref absence for #41, #42 and #43. Earlier archive snapshots saying open
+record the collection time and are superseded by this cleanup readback.
 
-T025 says: "After authorization, demonstrate hosted success, native failure with
-SQLite passing, failed upload via a disposable empty upload target, and hosted
-cancellation" and then configure the observed required check. T021 also requires
-authorized publication. These tasks explicitly defer remote execution and policy
-mutation. Local verification is complete on the repaired snapshot, including
-overlap, ordinary failure, and SIGTERM cleanup. The independent review found no
-further changes. T025 and final acceptance remain pending execution and verified results.
+## Evidence and acceptance boundary
+
+[Acceptance evidence](acceptance.md#final-hosted-qualification-2026-09-05) records
+all exact PR heads, tested merges, run/check IDs, artifact IDs, expiry dates,
+downloaded ZIP hashes, durable archive hashes, and the separate FR-001 through
+FR-009 and SC-001 through SC-006 reconciliation. The durable archives are:
+
+- [Repaired hosted success](hosted-repaired-success-33945489912.tar.gz)
+- [Hosted native and upload failures](hosted-negatives.tar.gz)
+- [Hosted cancellation](hosted-cancellation.tar.gz)
+- [Effective policy and demonstration cleanup](hosted-policy-and-cleanup.tar.gz)
+
+The earlier [prepared local inputs](repaired-native-failure-and-demo-inputs.tar.gz)
+remain historical proof of the deliberate transformations. They were reapplied
+to the published repair before hosted execution; their original snapshot identities
+are not substituted for the hosted candidates. T025-T026 are complete after the final independent audit. Merge and Linear completion remain
+separate from this acceptance evidence.
