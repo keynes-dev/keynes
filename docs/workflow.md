@@ -98,127 +98,35 @@ Record the source revision, commands, results, and relevant digests in feature
 acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
 CI or inspecting code does not establish runtime behavior.
 
-### Local source and installed SDK checks
+### KEY-91 feedback command correction
 
-Run Local without a database, Docker, pooler, or service credentials:
+KEY-91 is being reduced to focused feedback using existing tests and runners.
+The scope correction changes planning documents only; T055-T061 in
+[the active task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md)
+implement the reduced commands. Until then, the feature branch still contains
+its earlier output-required orchestration. Do not treat its installed-consumer
+or manifest behavior as the target design.
 
-```sh
-pnpm test:local -- --output .artifacts/key-91/local/<new-attempt>
-```
+The planned commands are `pnpm test:local`, `pnpm test:remote`, and
+`pnpm test:embedded`. Local selects existing SDK source tests without package
+preparation or services. Native selections reuse the existing PostgreSQL runner.
+Remote defaults to all modes and permits explicit `--mode` selection; Embedded
+starts zero poolers. Results use ordinary test output and state their scope.
+No new selected-manifest or TLS fixture system belongs in these commands.
 
-Use a new directory for every attempt. `--sdk-archive <file>` uses an existing
-SDK archive without modifying or deleting it. Omit that option to build and pack
-under the checkout package-preparation lock. Other preparations wait at most
-120 seconds. A stale lock requires owner inspection and is never stolen.
+Existing SDK package qualification and the full paired gate remain separate
+acceptance commands with their current evidence requirements. Installed remote
+SDK acceptance beyond existing qualification is deferred. Installed Embedded
+remains NOT RUN pending KEY-10/KEY-11; actual Hosted remains NOT RUN pending its
+product environment and operating contract. The planned Hosted command only
+prints its unavailable reason and exits 1, acquiring no resources.
 
-The SDK owns this command in `packages/sdk/test/system/run-local.ts`. Its fixed
-inventory contains 244 assertions across 18 Local, public-client, Policy, and
-shared Budget files. Six generated-client parameter cases have distinct names.
-The installed consumer reuses `test/package/qualify.ts` outside workspace
-resolution and runs all 12 provider-free package checks. Remote export and
-configuration rejection checks require no remote database.
-
-The output contains `manifest.json`, source results, consumer observations,
-archive identity, and file hashes. Passing requires exact coverage, stable source
-inputs, and successful consumer and runner cleanup. Dirty source runs are useful
-for diagnosis and include an input digest. They cannot establish clean-candidate
-acceptance. Source changes, incomplete reports, changed archives, and cleanup
-failures return nonzero. SIGINT and SIGTERM stop child processes and remove only
-the attempt's temporary files. An interrupted incomplete record cannot qualify.
-
-Local does not qualify remote PostgreSQL, Embedded, Hosted, or the complete
-paired gate. For narrower source feedback, use `pnpm --filter @keynes/sdk
-test:unit` or `pnpm --filter @keynes/sdk test:contract`. These omit installed
-consumer acceptance. Tests for runner behavior stay in `test/system` under the
-SDK owner and run once in its provider-free test command.
-
-### Remote PostgreSQL source and installed SDK checks
-
-Run the PostgreSQL-owned selection with Docker and OpenSSL available:
-
-```sh
-pnpm test:remote -- --output .artifacts/key-91/remote/<new-attempt>
-pnpm test:remote -- --output .artifacts/key-91/remote/<new-direct-attempt> --mode direct
-```
-
-The default runs direct, session-pool, and transaction-pool. `--mode` accepts
-`all`, `direct`, `session-pool`, or `transaction-pool`. Direct starts no pooler;
-each narrower pool selection starts exactly one. Each command first runs and
-cleans up its plaintext SQL fixture inventory, then provisions a fresh TLS target
-using the installed PostgreSQL CLI and tests the installed SDK outside the workspace.
-The fixed SQL inventory includes the canonical Budget aggregate, installation,
-recheck, identity, Budget, recovery, security, and selected connection profiles.
-Seven installed SDK checks per mode cover Budget workflow, tenant isolation,
-reconnect/exact replay, conflicting reuse, unavailable endpoints, and incorrect
-CA and hostname rejection. Native test files require runner context; invoking
-those files directly is an error rather than a successful skipped suite.
-
-The TLS fixture generates a private one-day CA and a certificate for loopback,
-localhost, and its PostgreSQL backend. Poolers require encrypted clients and
-verify the backend certificate. The fixture enforces the SDK's 30-second statement
-timeout on PostgreSQL and tells PgBouncer to ignore that startup parameter;
-PgBouncer cannot track it as a session parameter. This is a fixture configuration,
-not a change to SDK connection behavior. See the
-[PgBouncer setting](https://www.pgbouncer.org/config#ignore_startup_parameters).
-
-Use `--sdk-archive <file>` and `--postgresql-archive <file>` to test supplied
-immutable archives. Omitted archives are prepared under the checkout's package
-lock. Evidence records each archive's digest without inferring the source of a
-supplied archive. Ordinary tenant credentials, CA keys, and connection URLs stay
-in private temporary files. SIGINT/SIGTERM terminate test children before removing
-poolers, PostgreSQL, the network, and private material.
-
-The selected manifest records expected coverage, source identity, observed runtime
-and pool modes, sanitized reports, hashes, and cleanup. Existing output directories
-are refused. A dirty but stable run is diagnostic; clean-revision evidence is
-required for acceptance. Remote selection does not qualify Hosted or the complete
-paired gate. Provider-free runner and TLS configuration tests execute once under
-the PostgreSQL owner; installed consumer tests execute once under the SDK owner.
-
-### Embedded fixture checks
-
-```sh
-pnpm test:embedded -- --output .artifacts/key-91/embedded/<new-attempt>
-pnpm test:embedded -- --output .artifacts/key-91/embedded/<new-installed-attempt> --installed
-```
-
-The fixture command runs the canonical 37 Budget assertions and all 14 Embedded
-transaction assertions against one PostgreSQL container. It prepares only the
-PostgreSQL package, starts zero poolers, and creates no remote SDK consumer or TLS
-credentials. Use `--postgresql-archive <file>` to supply an immutable archive.
-The selected evidence labels acceptance `fixture-only` and application grants
-`fixture-provided`. Those grants exercise atomic application and Keynes commit,
-rollback, replay, and conflict behavior; they do not establish an installed
-Embedded product profile.
-
-`--installed` exits 1 with `NOT RUN` and the KEY-10/KEY-11 prerequisite reasons
-before inspecting an archive, packaging, or provisioning a database. Ambient
-connection credentials cannot enable it. KEY-10 owns supported Embedded authority
-and installation permissions; KEY-11 owns supported composed transactions. Both
-implementations require a new availability review before installed acceptance can
-be enabled. Output reuse, source identity, report coverage, evidence hashes, and
-cleanup follow the native selected-run rules.
-
-### Hosted acceptance boundary
-
-```sh
-pnpm test:hosted -- --output .artifacts/key-91/hosted/<new-attempt>
-```
-
-The SDK-owned command records `NOT RUN: supported Hosted product runner unavailable`
-and exits 1. Only `--output` and standalone `--help` are accepted. It does not
-inspect service credentials, qualify a package, provision resources, connect to a
-database, or run the authorized-database walkthrough. Setting ambient credentials
-cannot enable it. Evidence contains source digests and the explicit refusal;
-source changes or failed snapshot capture retain a safe failed result. No target
-URLs or raw errors enter the manifest, and existing output cannot be overwritten.
-
-A future Hosted product owner must supply the environment and deployed artifact
-identity, supported connection modes, provisioning owner and isolated test scope,
-approved credential delivery, ordinary consumer credentials, verified TLS,
-explicit target and mutation/spend authorization, and cleanup ownership for
-success, failure, cancellation, and runner loss. Until those values and their
-tests exist, this command validates refusal behavior only.
+See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md)
+for target selection and the [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md)
+for post-implementation checks. Historical phase results are retained in
+[acceptance.md](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md);
+they do not qualify the reduced implementation. No publication or live Hosted
+execution is authorized by these contributor commands.
 
 ### SQLite and PostgreSQL behavior tests
 

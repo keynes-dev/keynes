@@ -1,87 +1,67 @@
-# Contributor contract: deployment checks
+# Contributor command contract
 
-Local and remote PostgreSQL commands are implemented. Embedded and Hosted entrypoints remain planned until their implementation phases. These commands are contributor interfaces, not public SDK additions.
+## Status and interface
 
-The [required testing-strategy study](../plan.md#required-study-before-downstream-implementation) may refine command composition and focused-feedback invocations before downstream implementation. It must preserve default-all remote coverage, installed-consumer acceptance, unavailable product boundaries, and the full gate. Update this contract with any adopted design changes; a focused feedback result cannot replace deployment acceptance.
+This is the reduced target approved on 2026-09-05. T055-T061 have not implemented
+it yet. The current expanded commands still require their earlier output flags;
+see Git at `a50ee5b` for that historical interface. Do not add compatibility
+machinery for the superseded feature-branch interface.
 
-## Commands
+| Target command                                | Owner      | Selected feedback                                                                             |
+| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| `pnpm test:local`                             | SDK        | Existing Local/public/Policy unit groups and shared Budget aggregate. No package preparation. |
+| `pnpm test:remote`                            | PostgreSQL | Existing remote native suite groups, all connection modes.                                    |
+| `pnpm test:remote -- --mode direct`           | PostgreSQL | Same relevant remote groups, direct connection selection and no pooler.                       |
+| `pnpm test:remote -- --mode session-pool`     | PostgreSQL | Selected session pooler only.                                                                 |
+| `pnpm test:remote -- --mode transaction-pool` | PostgreSQL | Selected transaction pooler only.                                                             |
+| `pnpm test:embedded`                          | PostgreSQL | Canonical Budget and Embedded transaction fixtures, zero poolers.                             |
+| `pnpm test:embedded -- --installed`           | PostgreSQL | NOT RUN with KEY-10/KEY-11 prerequisite reason; exit 1 before setup.                          |
+| `pnpm test:hosted`                            | SDK        | NOT RUN: supported Hosted product runner unavailable; exit 1 without work.                    |
 
-Run from the repository root. Every selected command requires `--output <new-directory>`. Paths resolve from the repository root, including when a root alias delegates to a package. Existing output destinations are refused.
+Remote also accepts `--mode all`. Native selection and Hosted accept standalone
+`--help`. Reject unknown/repeated native or Hosted options before setup. Feedback
+has no required output directory and no archive, target, or credential options.
+It does not emit `keynes.deployment-test/v1`. The new contributor command surface
+is limited to selection; existing full/package commands keep their interfaces.
 
-| Root command                                            | Package owner     | Selection and options                                                                                                                  |
-| ------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm test:local -- --output <dir>`                     | SDK               | Local source tests and installed consumer; optional `--sdk-archive <file>`                                                             |
-| `pnpm test:remote -- --output <dir>`                    | PostgreSQL        | All remote modes; optional `--mode all\|direct\|session-pool\|transaction-pool`, `--sdk-archive <file>`, `--postgresql-archive <file>` |
-| `pnpm test:embedded -- --output <dir>`                  | PostgreSQL        | Embedded fixtures; optional `--postgresql-archive <file>`; `--installed` requests unavailable installed-profile acceptance             |
-| `pnpm test:hosted -- --output <dir>`                    | SDK               | Unavailable Hosted product acceptance; no database target option is supported in this feature                                          |
-| `pnpm test:system:postgresql -- --output <new-file>`    | PostgreSQL        | Existing complete native execution, unchanged                                                                                          |
-| `pnpm test:sqlite-postgres -- --output <new-directory>` | Root coordination | Existing full paired gate, unchanged                                                                                                   |
+## Suite ownership
 
-Reject unknown options, repeated options, empty values, unsupported modes, and incompatible selection options before fixture creation. The optional pnpm `--` separator is normalized once. `--help` succeeds without creating an attempt. No command reads ambient service credentials to choose or change a deployment.
+Local selects `test/unit/local`, `test/unit/public`, `test/unit/policy`, and
+`test/contract/budget.test.ts` under the SDK. These are the existing 18 source
+files at the correction baseline. Keep canonical registration and test names;
+do not copy their 244 assertion names into a new registry. Broader provider-free
+remote and tooling tests remain in the package's normal test command.
 
-Archives omitted by a caller are built and packed into per-attempt locations under the shared preparation lock. Supplied archives are inspected, hashed, and installed outside the repository. Their source provenance is not inferred from the working checkout.
+Remote selects the PostgreSQL Budget aggregate; integration installation,
+recheck and remote identity; and system remote connections, Budget, recovery and
+security. Register only selected connection profiles. Reuse the existing native
+scenario map and fixture setup; no separate TLS phase or SDK consumer is added.
+Embedded selects the Budget aggregate and `embedded-transactions.test.ts`, whose
+14 transaction assertions retain fixture-provided permissions.
 
-## Required inventories
+The full native runner keeps its default complete selection: the existing 16
+files, canonical Budget aggregate and 171 native-only names at the baseline.
+Full paired acceptance retains exact shared-name parity. Feedback prints its
+selected files/modes and limitations, uses ordinary test results, and fails for
+missing selected suites, unexpected skips, failed tests or cleanup. It cannot
+produce the full acceptance record. Do not add another durable validator to
+prove this distinction.
 
-### Local
+## Separate acceptance
 
-Run `packages/sdk/test/contract/budget.test.ts`, `test/unit/local`, `test/unit/policy`, and these public tests under the SDK owner: `local.test.ts`, `policy-api.test.ts`, `budget-projection.test.ts`, `generated-client.test.ts`, and `public-exports.test.ts`.
+Use existing `test:package:sdk` qualification with its archive/output options for
+installed SDK proof outside source resolution. Native fixtures retain their
+existing installed PostgreSQL CLI setup. Use `test:sqlite-postgres` for complete
+paired acceptance with its required output path. These commands retain their
+current evidence, source/artifact identity and cleanup requirements.
 
-The fixed inventory in `packages/sdk/test/system/required-scenarios.ts` contains 244 assertions across 18 files and is validated independently of the observed report. Reuse `registerBudgetContractTests`; do not copy shared Budget assertions. Run the existing installed archive qualifier without `--authorized-database`. Its provider-free packaging/export checks are part of Local acceptance and do not require a remote service.
+Remote installed SDK/TLS acceptance is deferred after removal of the new
+consumer system. Native SQL fixtures do not replace that proof. Installed
+Embedded remains unavailable pending KEY-10/KEY-11. Hosted remains unavailable;
+a database URL or a GitHub-hosted job cannot enable it. Existing package OS/Node
+and external qualification workflows remain separately owned.
 
-### Remote PostgreSQL
-
-The fixture inventory contains the canonical native Budget aggregate; integration `installation`, `recheck`, and `remote-identity`; and system `remote-connections`, `remote-budget`, `remote-recovery`, and `remote-security`. The baseline default contains 68 named native assertions plus the shared aggregate.
-
-`all` resolves to direct, session-pool, and transaction-pool. Other modes require an explicit selection. Preserve the original full/default-all connection assertions. Narrower runs materialize only their mode-specific assertions and pooler probes. Unselected modes are exclusions, not skipped assertions. A missing selected mode fails; no fallback is allowed.
-
-The separate installed SDK phase runs declared consumer cases for every selected mode. Cases cover successful verified connection and Budget workflow, distinct identity/tenant isolation, reconnect and exact replay, conflicting reuse, unavailable endpoint, wrong CA, and wrong hostname. SQL fixtures cannot substitute for these consumer cases. Consumer setup uses the installed PostgreSQL CLI and supported administration; tested calls use the installed SDK package root.
-
-Direct-only starts no pooler. A selected pool mode starts its pooler and the PostgreSQL backend. Default all starts both poolers. The plaintext fixture and TLS consumer phases run sequentially and each owns its cleanup.
-
-### Embedded
-
-Run the canonical native Budget aggregate and all 14 `embedded-transactions` scenarios. No remote pooler or remote SDK credentials are required. Report existing application-role grants as fixture-provided. Supported installed-profile permission and transaction acceptance remains NOT RUN pending its owner implementations.
-
-`--installed` returns non-success with that prerequisite reason before provisioning. A supplied PostgreSQL archive alone does not establish Embedded support or enable this option.
-
-### Full native and paired checks
-
-Keep all 16 native files, 171 explicitly named native-only assertions, and the canonical Budget aggregate at the research baseline. The original full validator must reject every selected report that omits any full scope. Inventory growth must preserve baseline coverage; no existing assertion may disappear because it belongs to neither smaller selection. Keep Policy, contention, rollback, installation, and remote security coverage.
-
-## Outcome and evidence
-
-Selected commands write `keynes.deployment-test/v1` manifests as defined in [data-model.md](../data-model.md). Exit 0 requires exact passing requested coverage, stable source inputs, valid evidence, and successful cleanup. Exit 1 covers invalid requests, execution/validation failures, and unavailable requested acceptance. No required skipped or unexecuted test can produce exit 0.
-
-A passing Embedded fixture selection explicitly excludes installed-profile acceptance. A passing narrower remote run excludes the other modes. Neither result qualifies full acceptance. Existing full records retain `keynes.system-test.postgresql/v1` and `keynes.sqlite-postgres/v1` and their current stricter clean-source rules.
-
-SIGINT/SIGTERM stop new work and begin bounded cleanup. Preserve the native runner's existing termination/readiness limits. Forced termination may leave incomplete evidence; it cannot qualify. An existing output path is never overwritten. Failed cleanup records failure even when all assertions passed.
-
-## Hosted boundary
-
-This feature's Hosted entrypoint always reports `NOT RUN: supported Hosted product runner unavailable`, exits 1, and performs zero provisioning or database mutation. It must behave the same when ambient database credentials are set. It cannot redirect to a local fixture or the authorized-database SDK walkthrough.
-
-Hosted delivery must establish all of the following before enabling actual execution:
-
-- The product environment identifier, endpoint ownership, deployed source/artifact identity, and supported connection modes.
-- A provisioning owner, pre-existing target or authorized provisioning procedure, and isolated disposable test scope.
-- Credential delivery through an approved secret boundary; ordinary scoped credentials for consumer calls and separate administration where required.
-- Verified TLS using the supported SDK configuration, with no insecure fallback.
-- Explicit authorization binding the plan, inputs, target, credential scope, spend/mutation ceiling, and retained evidence location.
-- Cleanup ownership for success, failure, cancellation, and runner loss, including any resource that cannot be automatically removed.
-
-The later product feature must supply concrete values and tests for those boundaries. This document does not authorize live execution or claim that product support exists.
-
-## Study disposition and ownership
-
-The completed [study](../testing-strategy.md) removes only duplicate contracts
-execution in `test:pr`. The standalone `test:generator` alias remains; all 51
-contracts assertions run through Turbo. Existing SDK `test:unit` and
-`test:contract` commands remain source-feedback entrypoints. None qualifies
-installed deployment acceptance. No new feedback registry or discovery is needed.
-
-Local, remote PostgreSQL, Embedded fixtures, and Hosted refusal are implemented. Their
-runners own schema construction, expected coverage and exclusions. Shared testkit
-helpers own only neutral mechanics. Full evidence validation, native fixture
-installation/recheck, the 171 native-only names and 37 shared names remain
-unchanged by the pilot. Packaging and broad Policy-test consolidation are deferred.
+Hosted delivery must later supply its product/target identity, provisioning owner,
+isolated scope, approved credentials, verified TLS, explicit mutation/spend
+authorization, and cleanup ownership. This feature documents those prerequisites
+without implementing or executing them. No automatic fallback is permitted.

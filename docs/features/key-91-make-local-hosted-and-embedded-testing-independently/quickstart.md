@@ -1,115 +1,61 @@
-# Validate independent deployment checks
+# Validate the reduced testing commands
 
-The [study](testing-strategy.md), full-gate safeguards, and all independent entrypoints are implemented. See [acceptance.md](acceptance.md) for revision-specific evidence. Embedded qualifies fixtures only; installed Embedded and actual Hosted acceptance remain NOT RUN.
+## Current boundary
 
-## Complete the study before downstream implementation
+T055-T061 are pending. This guide describes validation after their implementation.
+The documentation correction alone does not change the current expanded commands.
+See [tasks.md](tasks.md) to resume and [acceptance.md](acceptance.md) for historical
+results. The [completed study](testing-strategy.md) is not a task to repeat.
 
-Follow [the plan's study protocol](plan.md#required-study-before-downstream-implementation). The completed `testing-strategy.md` holds the coverage/ownership map, cost measurements, and pilot decision. Reproduce its exact protocol when comparing future changes. Use existing commands for the baseline: `pnpm test:pr`, `pnpm test:sqlite-postgres -- --output <new-directory>`, and SDK archive preparation plus `pnpm test:package:sdk -- --archive <archive> --output <new-file>`.
+## Focused feedback
 
-T012 released the completed study gate. The revised tasks validate full-gate safeguards first, then Local, remote, Embedded and Hosted refusal. Local does not wait for native selection or TLS. Execute the validation below only when the corresponding implementation exists. Repeat the complete paired gate after Phase 4 and on the final candidate; intermediate checks follow affected behavior.
-
-## Prepare the checkout
-
-Use Node.js >=24 and pnpm 11.21.0. Native checks additionally require Docker and the runner's pinned images. The installed remote consumer requires OpenSSL for attempt-local test certificates. Local execution requires no database service or service credentials. Existing package qualification covers the current OS and Node version only.
-
-Start from a clean implementation revision with frozen dependencies. Record that revision before acceptance:
+With the repository's supported Node version and pnpm 11.21.0 installed, run:
 
 ```sh
-pnpm install --frozen-lockfile
+pnpm test:local
+pnpm test:remote
+pnpm test:remote -- --mode direct
+pnpm test:remote -- --mode session-pool
+pnpm test:remote -- --mode transaction-pool
+pnpm test:embedded
+pnpm test:embedded -- --installed
+pnpm test:hosted
+```
+
+Local needs no services and performs no package qualification. Native commands
+need Docker and the existing pinned images; no new OpenSSL prerequisite applies.
+Remote defaults to both poolers; direct needs none and each pool mode needs only
+its selected pooler. Embedded runs Budget and all 14 transaction assertions with
+zero poolers and labels permissions fixture-provided. Inspect ordinary test
+results and the scope message. Feedback needs no output directory or archive.
+
+The last two commands must print NOT RUN and a prerequisite reason, exit 1 and
+perform no setup. Ambient credentials must not enable them. Native invocation
+without required runner context, invalid/empty selections, unexpected skips, test
+failure and cleanup failure must remain non-success. Reuse focused runner tests
+for these cases rather than creating an exhaustive command/evidence matrix.
+
+## Separate acceptance
+
+After committing the reduced implementation, run the existing commands:
+
+```sh
 pnpm test:pr
 pnpm format
-git rev-parse HEAD
-git status --short
+pnpm test:sqlite-postgres -- --output .artifacts/key-91/reduced-full-01
+pnpm pack:sdk
+pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-91/reduced-sdk-01.json
 ```
 
-All new output directories below must be absent. Use a new name for every retry. Do not delete or reuse a prior attempt to make a command pass.
+Use fresh output locations and the existing qualification CLI's path conventions.
+Retain exact source revision, commands/results and artifact identities using
+existing acceptance output. Full native acceptance must retain all 16 files and
+171 native-only names plus the shared Budget aggregate; paired execution must
+retain shared-name parity. Reuse existing incomplete-report, mismatch, skip,
+source/artifact, cancellation and cleanup regressions.
 
-## Run Local without services
-
-```sh
-pnpm test:local -- --output .artifacts/key-91/local-01
-```
-
-Expect exit 0 only after the declared source inventory and installed consumer pass. Verify that no database/pooler resources started. The manifest must identify the SDK archive digest, Local lifecycle/isolation results, and excluded remote/Embedded/Hosted acceptance.
-
-Local is available. Use `--sdk-archive <file>` to qualify a supplied immutable
-archive, or let the command pack one under the checkout lock. `--help` performs
-no preparation. Each output directory is created exclusively. The 244 source
-assertions and 12 installed checks must all pass, including provider-free remote
-configuration/export checks. `consumer-observations.json` records executed checks
-and consumer cleanup. A dirty diagnostic run records its input hash but cannot
-replace clean-candidate acceptance.
-
-## Run remote PostgreSQL
-
-Run all supported modes by default:
-
-```sh
-pnpm test:remote -- --output .artifacts/key-91/remote-all-01
-```
-
-Then demonstrate each explicit narrower selection:
-
-```sh
-pnpm test:remote -- --mode direct --output .artifacts/key-91/remote-direct-01
-pnpm test:remote -- --mode session-pool --output .artifacts/key-91/remote-session-01
-pnpm test:remote -- --mode transaction-pool --output .artifacts/key-91/remote-transaction-01
-```
-
-The command runs plaintext SQL fixtures and removes them before starting its separate TLS fixture. The installed CLI prepares the target; installed SDK calls use ordinary tenant credentials. Generated keys, certificate files, connection URLs, and temporary consumers are removed during cleanup. PgBouncer ignores the SDK startup `statement_timeout` because the fixture enforces the same 30-second timeout on PostgreSQL.
-
-Default execution requires both poolers. Direct requires neither. Each narrower pool selection requires exactly its selected pooler. Verify fixture and installed SDK results separately. Inspect observed pool modes, verified-TLS positive cases, wrong-CA/hostname failures, ordinary-credential isolation, and replay/conflict recovery. Local remote success does not prove Hosted product acceptance.
-
-## Run Embedded fixtures and unavailable product requests
-
-```sh
-pnpm test:embedded -- --output .artifacts/key-91/embedded-fixture-01
-pnpm test:embedded -- --installed --output .artifacts/key-91/embedded-installed-01
-pnpm test:hosted -- --output .artifacts/key-91/hosted-unavailable-01
-```
-
-The first command can pass after the canonical native scenarios and 14 Embedded transaction assertions pass, with no pooler startup. It must label the extra application grants as fixture-provided and exclude installed-profile acceptance.
-
-The second and third commands must exit 1 and retain NOT RUN with a prerequisite reason. They must not provision or mutate a target. Repeat the Hosted boundary test with synthetic ambient credential variables in a provider-free regression test; do not supply real credentials. The outcome must remain unavailable.
-
-## Verify the full gate
-
-```sh
-pnpm test:sqlite-postgres -- --output .artifacts/key-91/full-01
-```
-
-Require matching shared scenario names, the complete native inventory, valid source/artifact identity, successful cleanup, and retained evidence hashes. Preserve the existing full schemas. A selected deployment manifest cannot replace either full report.
-
-During authorized publication, retain the existing GitHub check result and read back its required-check enforcement. CI configuration alone is not observed enforcement. Do not change branch protection or claim a Hosted product pass as part of this local guide.
-
-## Exercise negative outcomes
-
-These runner tests execute in the provider-free PR gate. Run them together for focused failure-boundary checks:
-
-```sh
-pnpm exec vitest run packages/sdk/test/system/run-local.test.ts packages/sdk/test/system/run-hosted.test.ts packages/postgresql/test/system/run-deployment.test.ts packages/postgresql/test/system/run.test.ts scripts/run-sqlite-postgres.test.ts --maxWorkers=1
-```
-
-Observe each relevant regression test failing for its intended reason before implementation. Test empty/unknown selections, repeated flags, missing runner context, empty/missing/duplicate/skipped results, stale hashes, mismatched source, output reuse, failure redaction, cancellation, and cleanup failure. A fixture-backed process should also demonstrate direct native-file invocation without context returning non-success.
-
-Run controlled shared semantic mismatch and native assertion failures in disposable test inputs. Confirm that the full gate fails and retains the executed failure. Restore those inputs before normal acceptance. Never edit historical evidence or loosen inventory validation to pass a negative demonstration.
-
-## Run concurrent attempts
-
-In two terminals, run Local and Embedded with distinct output directories:
-
-```sh
-pnpm test:local -- --output .artifacts/key-91/concurrent-local-01
-```
-
-```sh
-pnpm test:embedded -- --output .artifacts/key-91/concurrent-embedded-01
-```
-
-Verify build/pack serialization and concurrent test execution after archives exist. Cancel one attempt after its fixture or consumer starts. The other must retain its own resources and finish independently. Confirm that cleanup never removes supplied archives, the other output directory, or another process's package lock. Repeat the lock test with two pack requests for the same package in provider-free runner tests.
-
-## Retain acceptance evidence
-
-Use [the command contract](contracts/deployment-checks.md) for expected coverage and [the data model](data-model.md) for manifest validation. Retain the exact source revision, clean snapshot, archive digests, environment, attempt IDs, scenario results, and cleanup outcomes. Clearly distinguish executed failure, skipped assertions, exclusions, and NOT RUN.
-
-Only after all applicable implementation checks pass, create a feature acceptance record linking the retained attempts. Installed Embedded, actual Hosted operations, managed recovery/failover, benchmark, and unexecuted package-matrix claims remain NOT RUN. This guide does not authorize those external runs.
+Review the cumulative diff against `5b294f4` and reduction from `a50ee5b` at each
+phase checkpoint. Confirm the removed systems have not been recreated under new
+names, run ponytail-review, and commit before proceeding. Record the final result
+in acceptance.md. Do not repeat the study or infer new speed, Hosted, installed
+Embedded, OS-matrix, CI enforcement, or release qualification claims.

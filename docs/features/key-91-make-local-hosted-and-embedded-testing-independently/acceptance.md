@@ -1,3 +1,13 @@
+# Scope correction notice, 2026-09-05
+
+The phase records below describe the expanded implementation and remain unchanged
+as historical evidence. The user superseded that design with thin focused
+feedback and separate existing acceptance. T055-T061 are pending; none of these
+records qualifies the reduced implementation. Old T050-T054 are cancelled, even
+where partial integration runs exist. See [plan.md](plan.md) and [tasks.md](tasks.md)
+for the only active implementation scope. The documentation checkpoint performs
+no runtime reduction or new acceptance run.
+
 # KEY-91 implementation acceptance
 
 ## Phase 4: complete gate and archive preparation
