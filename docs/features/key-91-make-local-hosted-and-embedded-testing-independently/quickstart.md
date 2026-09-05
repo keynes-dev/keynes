@@ -1,6 +1,6 @@
 # Validate independent deployment checks
 
-The [study](testing-strategy.md) and Phase 4 full-gate safeguards are complete. Local and remote PostgreSQL commands are implemented. See [acceptance.md](acceptance.md) for the current evidence. Embedded and Hosted entrypoints remain pending until their phases execute.
+The [study](testing-strategy.md), full-gate safeguards, and all independent entrypoints are implemented. See [acceptance.md](acceptance.md) for revision-specific evidence. Embedded qualifies fixtures only; installed Embedded and actual Hosted acceptance remain NOT RUN.
 
 ## Complete the study before downstream implementation
 
@@ -84,7 +84,7 @@ During authorized publication, retain the existing GitHub check result and read 
 
 ## Exercise negative outcomes
 
-The later implementation must add these adjacent test files and include them in the provider-free PR gate:
+These runner tests execute in the provider-free PR gate. Run them together for focused failure-boundary checks:
 
 ```sh
 pnpm exec vitest run packages/sdk/test/system/run-local.test.ts packages/sdk/test/system/run-hosted.test.ts packages/postgresql/test/system/run-deployment.test.ts packages/postgresql/test/system/run.test.ts scripts/run-sqlite-postgres.test.ts --maxWorkers=1

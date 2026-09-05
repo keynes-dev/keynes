@@ -80,7 +80,7 @@ contracts assertions run through Turbo. Existing SDK `test:unit` and
 `test:contract` commands remain source-feedback entrypoints. None qualifies
 installed deployment acceptance. No new feedback registry or discovery is needed.
 
-Local is implemented. The other independent commands remain pending. Their
+Local, remote PostgreSQL, Embedded fixtures, and Hosted refusal are implemented. Their
 runners own schema construction, expected coverage and exclusions. Shared testkit
 helpers own only neutral mechanics. Full evidence validation, native fixture
 installation/recheck, the 171 native-only names and 37 shared names remain

@@ -1,6 +1,6 @@
 # Data model: deployment selection and evidence
 
-These remain proposed test-runner records after the completed study. Product Budget, Resource, Policy, command, and database schemas do not change.
+These records describe the implemented selected test runners. Product Budget, Resource, Policy, command, and database schemas do not change.
 
 SDK and PostgreSQL runners own selected manifest construction, schema identity, coverage verdicts, and sensitive-data rules. Testkit may share neutral source snapshots, structural report parsing, JSON writing, process cleanup and archive locking. It must not own deployment schemas or require either test owner to import the other. Local tasks T018-T023, remote tasks T029/T036 and Hosted tasks T046-T047 implement this boundary within each owner; the study pilot adds no new record schema.
 
