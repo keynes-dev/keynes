@@ -127,155 +127,154 @@ async function withFreshDatabase(
   }
 }
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL installation",
-  () => {
-    it("installs explicit principal permission records", async () => {
-      const { installDatabase } = await import("./support/migrations.js");
-      await withFreshDatabase(async (database) => {
-        await installDatabase(database, EXPLICIT_INSTALLATION);
-        const permissions = await database.query<{
-          readonly principal_id: string;
-          readonly permission: string;
-        }>(
-          `select principal_id::text, permission
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
+
+describe("PostgreSQL installation", () => {
+  it("installs explicit principal permission records", async () => {
+    const { installDatabase } = await import("./support/migrations.js");
+    await withFreshDatabase(async (database) => {
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      const permissions = await database.query<{
+        readonly principal_id: string;
+        readonly permission: string;
+      }>(
+        `select principal_id::text, permission
            from keynes_internal.principal_permissions
           order by principal_id, permission`,
-        );
-        expect(permissions.rows).toEqual([
-          {
-            principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
-            permission: "define_resource_type",
-          },
-          {
-            principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
-            permission: "read_budget",
-          },
-          {
-            principal_id: EXPLICIT_INSTALLATION.principals[1].principalId,
-            permission: "request_budget",
-          },
-        ]);
-      });
+      );
+      expect(permissions.rows).toEqual([
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
+          permission: "define_resource_type",
+        },
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[0].principalId,
+          permission: "read_budget",
+        },
+        {
+          principal_id: EXPLICIT_INSTALLATION.principals[1].principalId,
+          permission: "request_budget",
+        },
+      ]);
+    });
+  });
+
+  it("installs the current graph and rechecks it without changes", async () => {
+    const { installDatabase } = await import("./support/migrations.js");
+    await withFreshDatabase(async (database) => {
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      const before = await installationState(database);
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      expect(await installationState(database)).toEqual(before);
+      expect(before.migrations.rows).toEqual([
+        { migration_id: "0001-storage" },
+        { migration_id: "0002-budget" },
+        { migration_id: "0003-public" },
+        { migration_id: "0004-policy" },
+        { migration_id: "0005-resource-bound-budget" },
+        { migration_id: "0006-remote-access" },
+      ]);
+    });
+  });
+
+  it("rejects a contract digest mismatch before installation", async () => {
+    const contractDigest = await readContractDigest();
+    const mismatchedDigest = "0".repeat(64);
+    const { installDatabase } = await loadInstallerWith((path, contents) => {
+      if (!path.pathname.endsWith("installation-record.json")) return contents;
+      if (typeof contents !== "string") throw new Error("record must be text");
+      return contents.replace(contractDigest, mismatchedDigest);
     });
 
-    it("installs the current graph and rechecks it without changes", async () => {
-      const { installDatabase } = await import("./support/migrations.js");
-      await withFreshDatabase(async (database) => {
-        await installDatabase(database, EXPLICIT_INSTALLATION);
-        const before = await installationState(database);
-        await installDatabase(database, EXPLICIT_INSTALLATION);
-        expect(await installationState(database)).toEqual(before);
-        expect(before.migrations.rows).toEqual([
-          { migration_id: "0001-storage" },
-          { migration_id: "0002-budget" },
-          { migration_id: "0003-public" },
-          { migration_id: "0004-policy" },
-          { migration_id: "0005-resource-bound-budget" },
-          { migration_id: "0006-remote-access" },
-        ]);
+    await withFreshDatabase(async (database) => {
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toMatchObject({
+        code: "contract_mismatch",
+        details: {
+          clientDigest: contractDigest,
+          installedDigest: mismatchedDigest,
+        },
       });
     });
+  });
 
-    it("rejects a contract digest mismatch before installation", async () => {
-      const contractDigest = await readContractDigest();
-      const mismatchedDigest = "0".repeat(64);
-      const { installDatabase } = await loadInstallerWith((path, contents) => {
-        if (!path.pathname.endsWith("installation-record.json"))
-          return contents;
-        if (typeof contents !== "string")
-          throw new Error("record must be text");
-        return contents.replace(contractDigest, mismatchedDigest);
+  it("rejects migration byte drift before applying it", async () => {
+    const { installDatabase } = await loadInstallerWith((path, contents) => {
+      if (!path.pathname.endsWith("0001-storage.sql")) return contents;
+      if (typeof contents === "string") return `${contents}\n-- drift\n`;
+      return Buffer.concat([contents, Buffer.from("\n-- drift\n")]);
+    });
+
+    await withFreshDatabase(async (database) => {
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toMatchObject({
+        code: "installation_drift",
+        details: { migrationId: "0001-storage" },
       });
+    });
+  });
 
+  it("rejects an installed-object mismatch after fresh migration", async () => {
+    const missingTarget = "keynes.missing_definition_target";
+    const { installDatabase } = await loadInstallerWith((path, contents) => {
+      if (!path.pathname.endsWith("installation-record.json")) return contents;
+      if (typeof contents !== "string") throw new Error("record must be text");
+      return contents.replace("keynes.define_resource_type", missingTarget);
+    });
+
+    await withFreshDatabase(async (database) => {
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toThrow(
+        `Installed database object does not match ${missingTarget}(jsonb)`,
+      );
+    });
+  });
+
+  it.each(MIGRATIONS)(
+    "rolls back $id atomically when its final statement fails",
+    async (migration) => {
+      const { installDatabase } = await loadFailingInstaller(migration);
       await withFreshDatabase(async (database) => {
         await expect(
           installDatabase(database, EXPLICIT_INSTALLATION),
-        ).rejects.toMatchObject({
-          code: "contract_mismatch",
-          details: {
-            clientDigest: contractDigest,
-            installedDigest: mismatchedDigest,
-          },
-        });
-      });
-    });
+        ).rejects.toThrow();
 
-    it("rejects migration byte drift before applying it", async () => {
-      const { installDatabase } = await loadInstallerWith((path, contents) => {
-        if (!path.pathname.endsWith("0001-storage.sql")) return contents;
-        if (typeof contents === "string") return `${contents}\n-- drift\n`;
-        return Buffer.concat([contents, Buffer.from("\n-- drift\n")]);
-      });
-
-      await withFreshDatabase(async (database) => {
-        await expect(
-          installDatabase(database, EXPLICIT_INSTALLATION),
-        ).rejects.toMatchObject({
-          code: "installation_drift",
-          details: { migrationId: "0001-storage" },
-        });
-      });
-    });
-
-    it("rejects an installed-object mismatch after fresh migration", async () => {
-      const missingTarget = "keynes.missing_definition_target";
-      const { installDatabase } = await loadInstallerWith((path, contents) => {
-        if (!path.pathname.endsWith("installation-record.json"))
-          return contents;
-        if (typeof contents !== "string")
-          throw new Error("record must be text");
-        return contents.replace("keynes.define_resource_type", missingTarget);
-      });
-
-      await withFreshDatabase(async (database) => {
-        await expect(
-          installDatabase(database, EXPLICIT_INSTALLATION),
-        ).rejects.toThrow(
-          `Installed database object does not match ${missingTarget}(jsonb)`,
-        );
-      });
-    });
-
-    it.each(MIGRATIONS)(
-      "rolls back $id atomically when its final statement fails",
-      async (migration) => {
-        const { installDatabase } = await loadFailingInstaller(migration);
-        await withFreshDatabase(async (database) => {
-          await expect(
-            installDatabase(database, EXPLICIT_INSTALLATION),
-          ).rejects.toThrow();
-
-          const objects = await database.query<{
-            readonly migration_object_exists: boolean;
-            readonly probe_exists: boolean;
-            readonly ledger_exists: boolean;
-          }>(
-            `select
+        const objects = await database.query<{
+          readonly migration_object_exists: boolean;
+          readonly probe_exists: boolean;
+          readonly ledger_exists: boolean;
+        }>(
+          `select
              (to_regclass($1) is not null or to_regprocedure($2) is not null)
                as migration_object_exists,
              to_regclass('keynes_internal.rollback_probe') is not null as probe_exists,
              to_regclass('keynes_internal.schema_migrations') is not null as ledger_exists`,
-            [migration.tableName, migration.procedureName],
-          );
-          expect(objects.rows[0]).toMatchObject({
-            migration_object_exists: false,
-            probe_exists: false,
-          });
-          if (objects.rows[0]?.ledger_exists === true) {
-            const record = await database.query<{ readonly recorded: boolean }>(
-              `select exists(
+          [migration.tableName, migration.procedureName],
+        );
+        expect(objects.rows[0]).toMatchObject({
+          migration_object_exists: false,
+          probe_exists: false,
+        });
+        if (objects.rows[0]?.ledger_exists === true) {
+          const record = await database.query<{ readonly recorded: boolean }>(
+            `select exists(
                select 1 from keynes_internal.schema_migrations where migration_id = $1
              ) as recorded`,
-              [migration.id],
-            );
-            expect(record.rows[0]?.recorded).toBe(false);
-          }
-        });
-      },
-    );
-  },
-);
+            [migration.id],
+          );
+          expect(record.rows[0]?.recorded).toBe(false);
+        }
+      });
+    },
+  );
+});
 
 async function installationState(database: TransactionalDatabase) {
   const migrations = await database.query<{ readonly migration_id: string }>(

@@ -65,6 +65,14 @@ function report(native = false) {
 }
 
 describe("SQLite and PostgreSQL result verification", () => {
+  it("rejects selected schema even when it carries complete assertion counts", () => {
+    expect(() =>
+      validateTestReport(
+        { ...report(), schemaVersion: "keynes.deployment-test/v1" },
+        SQLITE_AGGREGATE,
+      ),
+    ).toThrow();
+  });
   it.each([0, 1])(
     "honors actual SQLite process exit %i with success-shaped JSON",
     async (exitCode) => {
@@ -430,6 +438,20 @@ function observationFixture() {
 }
 
 describe("evidence identity and retention", () => {
+  it.each(["keynes.deployment-test/v1", "keynes.sqlite-postgres/v1"])(
+    "rejects %s as native evidence",
+    (schemaVersion) => {
+      expect(() =>
+        validateNativeEvidence(
+          { ...nativeFixture(), schemaVersion },
+          observationFixture(),
+          evidenceSnapshot(),
+          report(true),
+          observationFixture().runId,
+        ),
+      ).toThrow("identity mismatch");
+    },
+  );
   it.each([
     "revision",
     "contract",
@@ -604,6 +626,7 @@ it.each([
   "contract",
   "authority",
   "timestamps",
+  "schema",
 ])("rejects stale manifest %s against invocation", (field) => {
   const snapshot = evidenceSnapshot();
   const value = {
@@ -616,6 +639,7 @@ it.each([
     finishedAt: "2026-09-01T00:01:00.000Z",
   };
   if (field === "candidate") value.candidate.commit = "f".repeat(40);
+  if (field === "schema") value.schemaVersion = "keynes.deployment-test/v1";
   if (field === "attempt") value.attempt.id = "older-attempt";
   if (field === "lockfile") value.inputs.lockfileSha256 = "f".repeat(64);
   if (field === "contract") value.inputs.contractDigest = "f".repeat(64);

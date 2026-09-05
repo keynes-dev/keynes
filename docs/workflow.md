@@ -98,6 +98,39 @@ Record the source revision, commands, results, and relevant digests in feature
 acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
 CI or inspecting code does not establish runtime behavior.
 
+### KEY-91 feedback command correction
+
+KEY-91 provides focused feedback using existing tests and runners. The reduction and local acceptance are complete in
+[the feature task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md). The commands are `pnpm test:local`, `pnpm test:remote`, and
+`pnpm test:embedded`. Local selects existing SDK source tests without package
+preparation or services. Native selections reuse the existing PostgreSQL runner.
+Remote defaults to all modes and permits explicit `--mode` selection; Embedded
+starts zero poolers. Results use ordinary test output and state their scope.
+No new selected-manifest or TLS fixture system belongs in these commands.
+
+Existing SDK package qualification and the full paired gate remain separate
+acceptance commands with their current evidence requirements. Installed remote
+SDK acceptance beyond existing qualification is deferred. Installed Embedded
+remains NOT RUN pending KEY-10/KEY-11; actual Hosted remains NOT RUN pending its
+product environment and operating contract. The Hosted command only
+prints its unavailable reason and exits 1, acquiring no resources.
+
+See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md)
+for target selection and the [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md)
+for repeatable checks. Current and historical results are distinguished in
+[acceptance.md](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md);
+the final reduction section records the verified candidate. No publication or live Hosted
+execution is authorized by these contributor commands.
+
+For incremental deployment work, shared scenarios own common semantics, fixtures
+own target setup/cleanup, and package-owned boundary tests cover lifecycle,
+authentication/transport and caller transactions. Extend existing adapters when
+concrete products land; extract shared setup when real callers need the same
+lifecycle. See KEY-91's [development model](features/key-91-make-local-hosted-and-embedded-testing-independently/plan.md#development-as-modes-mature).
+Deleting runner machinery must preserve or explicitly defer its product assertions,
+as recorded in the feature's research document. Fewer lines alone do not prove
+that future development avoids duplicated behavior or setup.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

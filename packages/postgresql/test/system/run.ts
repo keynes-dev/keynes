@@ -1,4 +1,15 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { parsePassingReport } from "@keynes/testkit/report";
+import {
+  manageChild,
+  waitWithCancellation,
+  type RunningTestChild,
+} from "@keynes/testkit/process";
+export {
+  manageChild,
+  waitWithCancellation,
+  type RunningTestChild,
+} from "@keynes/testkit/process";
+import { spawn } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -15,8 +26,15 @@ import { parseArgs } from "node:util";
 
 import { Client } from "pg";
 
-import { type PackedPostgresqlPackage } from "../support/packed-package.ts";
 import {
+  packAndInstallPostgresql,
+  type PackedPostgresqlPackage,
+} from "../support/packed-package.ts";
+import {
+  REMOTE_MODES,
+  selectedScenarioInventory,
+  validateNativeSelection,
+  type NativeSelection,
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
 } from "./required-scenarios.ts";
@@ -73,7 +91,24 @@ const EXCLUSIONS = {
   productionReadiness: "NOT RUN",
 } as const;
 
+interface NativeContextFields {
+  readonly runId: string;
+  readonly administratorUrl: string;
+  readonly commandPath: string;
+  readonly poolers: PoolerUrls;
+}
+export type PostgresqlSystemContext =
+  | (NativeContextFields & {
+      readonly scope: "full";
+      readonly selection?: never;
+    })
+  | (NativeContextFields & {
+      readonly scope: "selected";
+      readonly selection: NativeSelection;
+    });
+
 export interface PostgresqlSystemRunOptions {
+  readonly selection?: NativeSelection;
   readonly outputPath?: string;
   readonly signal?: AbortSignal;
 }
@@ -81,11 +116,6 @@ export interface PostgresqlSystemRunOptions {
 interface PostgresqlSystemObservation {
   readonly stage: string;
   readonly status: "passed" | "failed" | "cancelled";
-}
-
-export interface RunningTestChild {
-  wait(): Promise<void>;
-  terminate(): Promise<void>;
 }
 
 export interface PostgresqlSystemRuntime {
@@ -113,6 +143,18 @@ export async function runPostgresqlSystemTests(
     throw new Error("PostgreSQL system context must be runner-owned");
   }
 
+  const selection =
+    options.selection === undefined
+      ? undefined
+      : validateNativeSelection(options.selection);
+  if (selection !== undefined && options.outputPath !== undefined)
+    throw new Error("Selected execution cannot produce full acceptance");
+  const modes =
+    selection === undefined
+      ? REMOTE_MODES
+      : selection.kind === "remote"
+        ? selection.modes
+        : [];
   const stages: PostgresqlSystemObservation[] = [];
   const observedEnvironment: Record<string, string> = {
     postgresImage: POSTGRES_IMAGE,
@@ -189,6 +231,11 @@ export async function runPostgresqlSystemTests(
     outputPath === undefined
       ? undefined
       : await prepareAcceptanceRecord(activeRuntime, outputPath);
+  const reportPath =
+    recordWorkspace?.reportPath ??
+    join(await mkdtemp(join(tmpdir(), "keynes-native-report-")), "vitest.json");
+  const transientReportRoot =
+    recordWorkspace === undefined ? dirname(reportPath) : undefined;
   let containerStarted = false;
   let networkCreated = false;
   let poolerWorkspace: PoolerWorkspace | undefined;
@@ -250,7 +297,9 @@ export async function runPostgresqlSystemTests(
       observe({ stage: "version-check", status: "failed" });
       throw postgresqlSystemFailure(runId, "version-check");
     }
-    poolerWorkspace = await createPoolerWorkspace(password);
+    poolerWorkspace = modes.some((mode) => mode !== "direct")
+      ? await createPoolerWorkspace(password)
+      : undefined;
     const workspace = poolerWorkspace;
     const poolers = await executeStage(runId, "poolers", () =>
       startPoolers({
@@ -259,6 +308,7 @@ export async function runPostgresqlSystemTests(
         runId,
         password,
         workspace,
+        modes,
         containers: poolerContainers,
       }),
     );
@@ -272,17 +322,20 @@ export async function runPostgresqlSystemTests(
     }
 
     checkCancellation(options.signal);
+    const fields: NativeContextFields = {
+      runId,
+      administratorUrl: connectionUrl,
+      poolers,
+      commandPath: packed.commandPath,
+    };
+    const context: PostgresqlSystemContext =
+      selection === undefined
+        ? { ...fields, scope: "full" }
+        : { ...fields, scope: "selected", selection };
     child = runtime.spawnTests({
       ...environment,
-      [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify({
-        runId,
-        administratorUrl: connectionUrl,
-        poolers,
-        commandPath: packed.commandPath,
-      }),
-      ...(recordWorkspace === undefined
-        ? {}
-        : { [POSTGRESQL_SYSTEM_REPORT_ENV]: recordWorkspace.reportPath }),
+      [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify(context),
+      [POSTGRESQL_SYSTEM_REPORT_ENV]: reportPath,
     });
     await executeStage(runId, "tests", () =>
       waitWithCancellation(child?.wait() ?? Promise.resolve(), options.signal),
@@ -305,7 +358,7 @@ export async function runPostgresqlSystemTests(
     try {
       await runtime.run(
         "docker",
-        ["stop", pooler],
+        ["rm", "--force", pooler],
         environment,
         AbortSignal.timeout(10_000),
       );
@@ -317,7 +370,7 @@ export async function runPostgresqlSystemTests(
     try {
       await runtime.run(
         "docker",
-        ["stop", runId],
+        ["rm", "--force", runId],
         environment,
         AbortSignal.timeout(10_000),
       );
@@ -434,6 +487,24 @@ export async function runPostgresqlSystemTests(
     return runId;
   }
 
+  if (transientReportRoot !== undefined) {
+    try {
+      const report = sanitizeVitestReport(
+        JSON.parse(await readFile(reportPath, "utf8")),
+        [password, runId],
+      );
+      if (selection === undefined) validatePostgresqlSystemReport(report);
+      else validateSelectedPostgresqlReport(report, selection);
+    } catch (error: unknown) {
+      if (failure === undefined) failure = error;
+    } finally {
+      try {
+        await rm(transientReportRoot, { recursive: true, force: true });
+      } catch {
+        cleanupFailed = true;
+      }
+    }
+  }
   if (failure !== undefined) {
     if (cleanupFailed)
       throw new AggregateError(
@@ -454,8 +525,8 @@ interface PoolerWorkspace {
 }
 
 interface PoolerUrls {
-  readonly sessionUrl: string;
-  readonly transactionUrl: string;
+  readonly sessionUrl?: string;
+  readonly transactionUrl?: string;
 }
 
 async function createPoolerWorkspace(
@@ -494,28 +565,27 @@ async function startPoolers(input: {
   readonly environment: NodeJS.ProcessEnv;
   readonly runId: string;
   readonly password: string;
-  readonly workspace: PoolerWorkspace;
+  readonly workspace: PoolerWorkspace | undefined;
+  readonly modes: readonly (typeof REMOTE_MODES)[number][];
   readonly containers: string[];
 }): Promise<PoolerUrls> {
-  const session = `${input.runId}-session-pool`;
-  const transaction = `${input.runId}-transaction-pool`;
-  const sessionPort = await startPooler({
-    ...input,
-    name: session,
-    mode: "session",
-  });
-  const transactionPort = await startPooler({
-    ...input,
-    name: transaction,
-    mode: "transaction",
-  });
-  const sessionUrl = postgresUrl(input.password, sessionPort);
-  const transactionUrl = postgresUrl(input.password, transactionPort);
-  await Promise.all([
-    waitForPostgres(input.runtime, input.runId, sessionUrl),
-    waitForPostgres(input.runtime, input.runId, transactionUrl),
-  ]);
-  return { sessionUrl, transactionUrl };
+  const urls: { sessionUrl?: string; transactionUrl?: string } = {};
+  for (const profile of input.modes) {
+    if (profile === "direct") continue;
+    if (input.workspace === undefined)
+      throw new Error("Missing pooler workspace");
+    const port = await startPooler({
+      ...input,
+      workspace: input.workspace,
+      name: `${input.runId}-${profile}`,
+      mode: profile === "session-pool" ? "session" : "transaction",
+    });
+    const url = postgresUrl(input.password, port);
+    await waitForPostgres(input.runtime, input.runId, url);
+    if (profile === "session-pool") urls.sessionUrl = url;
+    else urls.transactionUrl = url;
+  }
+  return urls;
 }
 
 async function startPooler(input: {
@@ -784,6 +854,7 @@ export function sanitizeVitestReport(
 ): Record<string, unknown> {
   if (!isRecord(value)) return { errors: ["invalid report"] };
   const result: Record<string, unknown> = {};
+  if ("schemaVersion" in value) result.schemaVersion = "unexpected schema";
   for (const key of [
     "success",
     "numFailedTests",
@@ -870,121 +941,11 @@ export function sanitizeVitestReport(
   return result;
 }
 
-interface VitestAssertion {
-  readonly fullName: string;
-  readonly status: string;
-}
-
-interface VitestFileResult {
-  readonly name: string;
-  readonly status: string;
-  readonly assertionResults: readonly VitestAssertion[];
-}
-
-interface VitestReport {
-  readonly numFailedTests: number;
-  readonly numPendingTests: number;
-  readonly numTodoTests: number;
-  readonly numPassedTests: number;
-  readonly testResults: readonly VitestFileResult[];
-  readonly [key: string]: unknown;
-}
-
-export function validatePostgresqlSystemReport(
-  value: unknown,
-): asserts value is VitestReport {
-  if (!isRecord(value)) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-  if (
-    value.numFailedTests !== 0 ||
-    value.numPendingTests !== 0 ||
-    value.numTodoTests !== 0 ||
-    typeof value.numPassedTests !== "number" ||
-    !Array.isArray(value.testResults)
-  ) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-
-  if (
-    ("success" in value && value.success !== true) ||
-    ["numFailedTestSuites", "numPendingTestSuites"].some(
-      (key) => key in value && value[key] !== 0,
-    ) ||
-    ["errors", "unhandledErrors"].some(
-      (key) =>
-        key in value && (!Array.isArray(value[key]) || value[key].length !== 0),
-    )
-  ) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-
-  const remaining = new Map<string, readonly string[]>([
-    [POSTGRESQL_BUDGET_AGGREGATE, []],
-    ...Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
-  ]);
-  let passed = 0;
-  for (const candidate of value.testResults) {
-    if (!isRecord(candidate) || typeof candidate.name !== "string") {
-      throw new Error("Vitest did not produce a passing report");
-    }
-    const normalizedName = candidate.name.replaceAll("\\", "/");
-    const file = [...remaining.keys()].find(
-      (suffix) =>
-        normalizedName === suffix || normalizedName.endsWith(`/${suffix}`),
-    );
-    if (
-      file === undefined ||
-      candidate.status !== "passed" ||
-      ("message" in candidate && candidate.message !== "") ||
-      !Array.isArray(candidate.assertionResults)
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    const assertions = candidate.assertionResults;
-    if (
-      !assertions.every(
-        (assertion): assertion is Record<string, unknown> =>
-          isRecord(assertion) &&
-          typeof assertion.fullName === "string" &&
-          assertion.status === "passed" &&
-          (!("failureMessages" in assertion) ||
-            (Array.isArray(assertion.failureMessages) &&
-              assertion.failureMessages.length === 0)),
-      )
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    const actualNames = assertions
-      .map(({ fullName }) => fullName as string)
-      .sort();
-    const expectedNames = [...(remaining.get(file) ?? [])].sort();
-    if (
-      file === POSTGRESQL_BUDGET_AGGREGATE
-        ? actualNames.length === 0 ||
-          new Set(actualNames).size !== actualNames.length
-        : !sameStrings(actualNames, expectedNames)
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    passed += assertions.length;
-    remaining.delete(file);
-  }
-  if (
-    remaining.size !== 0 ||
-    value.numPassedTests !== passed ||
-    ("numTotalTests" in value && value.numTotalTests !== passed)
-  ) {
-    throw new Error(
-      "Vitest report omitted a required PostgreSQL system scenario",
-    );
-  }
+export function validatePostgresqlSystemReport(value: unknown): void {
+  validateNativeCoverage(value, {
+    [POSTGRESQL_BUDGET_AGGREGATE]: [],
+    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+  });
 }
 
 async function verifyAcceptanceRevision(
@@ -1035,10 +996,37 @@ function sha256(value: Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function parseArguments(
+export function parseArguments(
   arguments_: readonly string[],
-): PostgresqlSystemRunOptions {
+): PostgresqlSystemRunOptions | "help" | "unavailable" {
   const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  const [target, ...rest] = normalized;
+  const args = rest[0] === "--" ? rest.slice(1) : rest;
+  if (target === "remote" || target === "embedded") {
+    if (args.length === 1 && args[0] === "--help") return "help";
+    if (target === "embedded" && args.length === 1 && args[0] === "--installed")
+      return "unavailable";
+    if (target === "embedded") {
+      if (args.length !== 0)
+        throw new Error("Embedded accepts only --help or --installed");
+      return { selection: { kind: "embedded" } };
+    }
+    if (
+      args.length === 0 ||
+      (args.length === 2 && args[0] === "--mode" && args[1] === "all")
+    )
+      return { selection: { kind: "remote", modes: REMOTE_MODES } };
+    if (args.length === 2 && args[0] === "--mode")
+      return {
+        selection: validateNativeSelection({
+          kind: "remote",
+          modes: [args[1]],
+        }),
+      };
+    throw new Error(
+      "Remote accepts only --mode <all|direct|session-pool|transaction-pool> or --help",
+    );
+  }
   const { tokens } = parseArgs({
     args: normalized,
     options: { output: { type: "string" } },
@@ -1124,9 +1112,18 @@ const productionRuntime: PostgresqlSystemRuntime = {
   delay: (milliseconds) =>
     new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
   run: runCommand,
-  preparePackage: preparePackageChild,
-  spawnTests: (environment) =>
-    spawnTestChild(
+  preparePackage: (signal) => packAndInstallPostgresql(REPOSITORY_ROOT, signal),
+  spawnTests: (environment) => {
+    const context: unknown = JSON.parse(
+      environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "{}",
+    );
+    const selected = isRecord(context) && context.scope === "selected";
+    const files = testFilesForContext(environment);
+    if (selected)
+      process.stdout.write(
+        `Selected native feedback ${JSON.stringify(context.selection)}: ${files.join(", ")}\nFixture-provided permissions. NOT RUN: installed SDK/TLS, installed Embedded, Hosted and full paired acceptance.\n`,
+      );
+    return spawnTestChild(
       [
         "exec",
         "vitest",
@@ -1138,13 +1135,16 @@ const productionRuntime: PostgresqlSystemRuntime = {
         ...(environment[POSTGRESQL_SYSTEM_REPORT_ENV] === undefined
           ? []
           : [
+              ...(selected ? ["--reporter=default"] : []),
               "--reporter=json",
               `--outputFile=${environment[POSTGRESQL_SYSTEM_REPORT_ENV]}`,
             ]),
-        ...POSTGRESQL_SYSTEM_TEST_FILES,
+        ...files,
       ],
       environment,
-    ),
+      selected ? "inherit" : "ignore",
+    );
+  },
   async probe(connectionUrl) {
     const client = new Client({
       connectionString: connectionUrl,
@@ -1169,92 +1169,6 @@ const productionRuntime: PostgresqlSystemRuntime = {
 
 function checkCancellation(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error("PostgreSQL system run cancelled");
-}
-
-export async function waitWithCancellation<Result>(
-  operation: Promise<Result>,
-  signal?: AbortSignal,
-): Promise<Result> {
-  let abort: (() => void) | undefined;
-  const cancelled = new Promise<never>((_, reject) => {
-    abort = () => reject(new Error("PostgreSQL system run cancelled"));
-    signal?.addEventListener("abort", abort, { once: true });
-    if (signal?.aborted) abort();
-  });
-  try {
-    return await Promise.race([operation, cancelled]);
-  } finally {
-    if (abort !== undefined) signal?.removeEventListener("abort", abort);
-  }
-}
-
-// Own a process group so pnpm's grandchildren cannot outlive cancellation.
-export function manageChild(
-  child: ChildProcess,
-  graceMs = 2_000,
-): RunningTestChild {
-  let completed = false;
-  const closed = new Promise<void>((resolveClosed) =>
-    child.once("close", () => {
-      completed = true;
-      resolveClosed();
-    }),
-  );
-  const completion = new Promise<void>((resolveChild, rejectChild) => {
-    child.once("error", rejectChild);
-    child.once("close", (code) =>
-      code === 0
-        ? resolveChild()
-        : rejectChild(new Error("Native subprocess failed")),
-    );
-  });
-  void completion.catch(() => {});
-  function kill(signal: NodeJS.Signals): void {
-    if (child.pid === undefined) return;
-    try {
-      if (process.platform === "win32") child.kill(signal);
-      else process.kill(-child.pid, signal);
-    } catch (error: unknown) {
-      if (!isRecord(error) || error.code !== "ESRCH") throw error;
-    }
-  }
-  return {
-    wait: () => completion,
-    async terminate() {
-      if (completed) {
-        kill("SIGKILL");
-        return;
-      }
-      kill("SIGTERM");
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          closed,
-          new Promise<void>((resolveGrace) => {
-            timer = setTimeout(resolveGrace, graceMs);
-          }),
-        ]);
-      } finally {
-        clearTimeout(timer);
-      }
-      // The group can still contain descendants after its leader closes.
-      kill("SIGKILL");
-      let killTimer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          closed,
-          new Promise<never>((_, reject) => {
-            killTimer = setTimeout(
-              () => reject(new Error("Native subprocess cleanup timed out")),
-              graceMs,
-            );
-          }),
-        ]);
-      } finally {
-        clearTimeout(killTimer);
-      }
-    },
-  };
 }
 
 async function runCommand(
@@ -1286,56 +1200,16 @@ async function runCommand(
 export function spawnTestChild(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv,
+  stdio: "inherit" | "ignore" = "ignore",
 ): RunningTestChild {
   return manageChild(
     spawn("pnpm", arguments_, {
       cwd: REPOSITORY_ROOT,
       env: { ...process.env, ...environment },
       detached: process.platform !== "win32",
-      stdio: "ignore",
+      stdio,
     }),
   );
-}
-
-async function preparePackageChild(
-  signal?: AbortSignal,
-): Promise<PackedPostgresqlPackage> {
-  const root = await mkdtemp(join(tmpdir(), "keynes-native-package-"));
-  try {
-    const helper = new URL("../support/packed-package.ts", import.meta.url)
-      .href;
-    const result = await runCommand(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        `
-      import { packAndInstallPostgresql } from ${JSON.stringify(helper)};
-      const packed = await packAndInstallPostgresql(${JSON.stringify(REPOSITORY_ROOT)});
-      process.stdout.write(JSON.stringify({archivePath: packed.archivePath, commandPath: packed.commandPath, consumerRoot: packed.consumerRoot}));
-    `,
-      ],
-      { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
-      signal,
-    );
-    const packed: unknown = JSON.parse(result.stdout);
-    if (
-      !isRecord(packed) ||
-      typeof packed.archivePath !== "string" ||
-      typeof packed.commandPath !== "string" ||
-      typeof packed.consumerRoot !== "string"
-    )
-      throw new Error("Package child produced invalid paths");
-    return {
-      archivePath: packed.archivePath,
-      commandPath: packed.commandPath,
-      consumerRoot: packed.consumerRoot,
-      close: () => rm(root, { recursive: true, force: true }),
-    };
-  } catch (error: unknown) {
-    await rm(root, { recursive: true, force: true });
-    throw error;
-  }
 }
 
 const executedPath = process.argv[1];
@@ -1348,12 +1222,26 @@ if (
   process.on("SIGINT", cancel);
   process.on("SIGTERM", cancel);
   void Promise.resolve()
-    .then(() =>
-      runPostgresqlSystemTests(productionRuntime, process.env, {
-        ...parseArguments(process.argv.slice(2)),
+    .then(async () => {
+      const options = parseArguments(process.argv.slice(2));
+      if (options === "help") {
+        process.stdout.write(
+          "Native feedback: remote [--mode all|direct|session-pool|transaction-pool] or embedded [--installed]. No output or archive options.\n",
+        );
+        return;
+      }
+      if (options === "unavailable") {
+        process.stdout.write(
+          "NOT RUN: installed Embedded requires supported installation and grants (KEY-10/KEY-11).\n",
+        );
+        process.exitCode = 1;
+        return;
+      }
+      await runPostgresqlSystemTests(productionRuntime, process.env, {
+        ...options,
         signal: controller.signal,
-      }),
-    )
+      });
+    })
     .catch((error: unknown) => {
       process.stderr.write(`${String(error)}\n`);
       process.exitCode = 1;
@@ -1362,4 +1250,48 @@ if (
       process.off("SIGINT", cancel);
       process.off("SIGTERM", cancel);
     });
+}
+
+function testFilesForContext(
+  environment: NodeJS.ProcessEnv,
+): readonly string[] {
+  const value: unknown = JSON.parse(
+    environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "{}",
+  );
+  return isRecord(value) && value.selection !== undefined
+    ? Object.keys(
+        selectedScenarioInventory(validateNativeSelection(value.selection)),
+      )
+    : POSTGRESQL_SYSTEM_TEST_FILES;
+}
+
+export function validateSelectedPostgresqlReport(
+  value: unknown,
+  selection: NativeSelection,
+): void {
+  validateNativeCoverage(value, selectedScenarioInventory(selection));
+}
+
+function validateNativeCoverage(
+  value: unknown,
+  expected: Readonly<Record<string, readonly string[]>>,
+): void {
+  if (isRecord(value) && "schemaVersion" in value)
+    throw new Error("Expected a Vitest report");
+  const remaining = new Map(Object.entries(expected));
+  for (const file of parsePassingReport(value)) {
+    const path = [...remaining.keys()].find(
+      (path) => file.name === path || file.name.endsWith(`/${path}`),
+    );
+    const names = path === undefined ? undefined : remaining.get(path);
+    if (
+      path === undefined ||
+      names === undefined ||
+      (path !== POSTGRESQL_BUDGET_AGGREGATE &&
+        !sameStrings(file.assertions, [...names].sort()))
+    )
+      throw new Error("Incomplete native coverage");
+    remaining.delete(path);
+  }
+  if (remaining.size !== 0) throw new Error("Incomplete native coverage");
 }

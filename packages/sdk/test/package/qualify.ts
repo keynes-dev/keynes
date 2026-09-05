@@ -269,33 +269,46 @@ export async function qualifyArchive(
     args.archivePath,
     archive.compressedBytes,
   );
-  let productionBytes: number | undefined;
-  try {
-    runExpectedPackagePathFailure(
-      resolve(external.root, "build/private-imports.mjs"),
-      external.root,
+  const consumer = resolve(external.root, "build/consumer.mjs");
+  const execution = await Promise.resolve()
+    .then(() => {
+      runExpectedPackagePathFailure(
+        resolve(external.root, "build/private-imports.mjs"),
+        external.root,
+      );
+      for (const name of [
+        "remote-exports",
+        "configuration-rejection",
+        "environment-isolation",
+        "budget-loop",
+        "policy-runtime",
+        "isolation",
+        "closure",
+      ])
+        runConsumer(consumer, name, external.root);
+      assertProcessState(
+        runConsumer(consumer, "write-then-exit", external.root),
+      );
+      runConsumer(consumer, "read-after-restart", external.root);
+      if (args.authorizedDatabase === true)
+        runConsumer(consumer, "authorized-database", external.root, true);
+    })
+    .then(
+      () => ({ kind: "passed" }) as const,
+      (error: unknown) => ({ kind: "failed", error }) as const,
     );
-    const consumer = resolve(external.root, "build/consumer.mjs");
-    runConsumer(consumer, "remote-exports", external.root);
-    runConsumer(consumer, "configuration-rejection", external.root);
-    runConsumer(consumer, "environment-isolation", external.root);
-    runConsumer(consumer, "budget-loop", external.root);
-    runConsumer(consumer, "policy-runtime", external.root);
-    runConsumer(consumer, "isolation", external.root);
-    runConsumer(consumer, "closure", external.root);
-    assertProcessState(runConsumer(consumer, "write-then-exit", external.root));
-    runConsumer(consumer, "read-after-restart", external.root);
-    if (args.authorizedDatabase === true) {
-      runConsumer(consumer, "authorized-database", external.root, true);
-    }
-
-    productionBytes = external.productionBytes;
-  } finally {
+  try {
     await external.close();
+  } catch (cleanup: unknown) {
+    if (execution.kind === "failed")
+      throw new AggregateError(
+        [execution.error, cleanup],
+        "SDK consumer failed and cleanup failed",
+      );
+    throw cleanup;
   }
-  if (productionBytes === undefined) {
-    throw new Error("SDK package test produced no installation result");
-  }
+  if (execution.kind === "failed") throw execution.error;
+  const productionBytes = external.productionBytes;
   const sourceAfter = readSourceRevision();
   if (
     sourceAfter.commit !== sourceBefore.commit ||
@@ -475,7 +488,14 @@ export async function installExternalConsumer(
       close: () => rm(root, { recursive: true, force: true }),
     };
   } catch (error: unknown) {
-    await rm(root, { recursive: true, force: true });
+    try {
+      await rm(root, { recursive: true, force: true });
+    } catch (cleanup: unknown) {
+      throw new AggregateError(
+        [error, cleanup],
+        "SDK installation failed and cleanup failed",
+      );
+    }
     throw error;
   }
 }

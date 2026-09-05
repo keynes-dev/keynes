@@ -38,618 +38,680 @@ interface SecurityFixture {
   readonly application: { readonly role: string; readonly password: string };
 }
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL Policy security",
-  () => {
-    let fixture: SecurityFixture | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await fixture?.owner.close();
-      fixture = undefined;
+describe("PostgreSQL Policy security", () => {
+  let fixture: SecurityFixture | undefined;
+
+  afterEach(async () => {
+    await fixture?.owner.close();
+    fixture = undefined;
+  });
+
+  it("rejects a malformed durable program with a sanitized invalid_policy error and no state", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const malformed = resealPolicy(basePolicy(), {
+      ...baseProgram(),
+      resource: { kind: "catalog_scan" },
     });
 
-    it("rejects a malformed durable program with a sanitized invalid_policy error and no state", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const malformed = resealPolicy(basePolicy(), {
-        ...baseProgram(),
-        resource: { kind: "catalog_scan" },
-      });
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [malformed],
+    });
 
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [malformed],
-      });
-
-      expect(wire).toEqual({
-        ok: false,
-        error: {
-          kind: "error",
-          code: "invalid_policy",
-          details: {
-            operation: "createBudget",
-            policyName: "request_limit",
-            policyRevision: 1,
-            path: "$.program.kind",
-            rule: "enum",
-          },
+    expect(wire).toEqual({
+      ok: false,
+      error: {
+        kind: "error",
+        code: "invalid_policy",
+        details: {
+          operation: "createBudget",
+          policyName: "request_limit",
+          policyRevision: 1,
+          path: "$.program.kind",
+          rule: "enum",
         },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-      expect(JSON.stringify(wire)).not.toContain("catalog_scan");
-    });
-
-    it.each([
-      ["first CASE condition", () => caseAggregateProgram("first_when")],
-      ["later CASE condition", () => caseAggregateProgram("later_when")],
-      ["first CASE result", () => caseAggregateProgram("first_then")],
-      ["later CASE result", () => caseAggregateProgram("later_then")],
-      ["CASE else result", () => caseAggregateProgram("else")],
-      [
-        "nested second coalesce argument",
-        () =>
-          programWithAggregateVariadic("coalesce", [
-            decimalLiteral("0"),
-            aggregateVariadic("least"),
-          ]),
-      ],
-      [
-        "nested later coalesce argument",
-        () =>
-          programWithAggregateVariadic("coalesce", [
-            decimalLiteral("0"),
-            decimalLiteral("1"),
-            aggregateVariadic("greatest"),
-          ]),
-      ],
-    ] as const)(
-      "rejects a direct durable aggregate in the %s",
-      async (_label, program) => {
-        fixture = await openFixture();
-        await defineResource(fixture);
-        const artifact = program();
-        const policy = resealPolicy(basePolicy(), artifact, {
-          canonicalSql: canonicalPolicySql(artifact),
-        });
-
-        const wire = await committedCreateBudget(fixture, {
-          commandId: ROOT_ID,
-          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-          policies: [policy],
-        });
-
-        expect(wire).toMatchObject({
-          ok: false,
-          error: { code: "invalid_policy", details: { rule: "aggregate" } },
-        });
-        await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
       },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    expect(JSON.stringify(wire)).not.toContain("catalog_scan");
+  });
+
+  it.each([
+    ["first CASE condition", () => caseAggregateProgram("first_when")],
+    ["later CASE condition", () => caseAggregateProgram("later_when")],
+    ["first CASE result", () => caseAggregateProgram("first_then")],
+    ["later CASE result", () => caseAggregateProgram("later_then")],
+    ["CASE else result", () => caseAggregateProgram("else")],
+    [
+      "nested second coalesce argument",
+      () =>
+        programWithAggregateVariadic("coalesce", [
+          decimalLiteral("0"),
+          aggregateVariadic("least"),
+        ]),
+    ],
+    [
+      "nested later coalesce argument",
+      () =>
+        programWithAggregateVariadic("coalesce", [
+          decimalLiteral("0"),
+          decimalLiteral("1"),
+          aggregateVariadic("greatest"),
+        ]),
+    ],
+  ] as const)(
+    "rejects a direct durable aggregate in the %s",
+    async (_label, program) => {
+      fixture = await openFixture();
+      await defineResource(fixture);
+      const artifact = program();
+      const policy = resealPolicy(basePolicy(), artifact, {
+        canonicalSql: canonicalPolicySql(artifact),
+      });
+
+      const wire = await committedCreateBudget(fixture, {
+        commandId: ROOT_ID,
+        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+        policies: [policy],
+      });
+
+      expect(wire).toMatchObject({
+        ok: false,
+        error: { code: "invalid_policy", details: { rule: "aggregate" } },
+      });
+      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    },
+  );
+
+  it.each([
+    [
+      "first coalesce argument",
+      () =>
+        programWithAggregateVariadic("coalesce", [
+          aggregateExpression(),
+          decimalLiteral("0"),
+        ]),
+    ],
+    [
+      "least",
+      () =>
+        programWithAggregateVariadic("coalesce", [
+          aggregateVariadic("least"),
+          decimalLiteral("0"),
+        ]),
+    ],
+    [
+      "greatest",
+      () =>
+        programWithAggregateVariadic("coalesce", [
+          aggregateVariadic("greatest"),
+          decimalLiteral("0"),
+        ]),
+    ],
+  ] as const)(
+    "accepts a direct durable aggregate in %s",
+    async (_label, program) => {
+      fixture = await openFixture();
+      await defineResource(fixture);
+      const artifact = program();
+      const policy = resealPolicy(basePolicy(), artifact, {
+        canonicalSql: canonicalPolicySql(artifact),
+      });
+
+      const wire = await committedCreateBudget(fixture, {
+        commandId: ROOT_ID,
+        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+        policies: [policy],
+      });
+
+      expect(wire).toMatchObject({ ok: true });
+    },
+  );
+
+  it("rejects canonical SQL that does not match the durable program without executing it", async () => {
+    fixture = await openFixture();
+    const policy = resealPolicy(basePolicy(), baseProgram(), {
+      canonicalSql:
+        "create table keynes_internal.submitted_sql_executed(value text)",
+    });
+    await defineResource(fixture);
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: { code: "invalid_policy", details: { rule: "canonicalSql" } },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    const marker = await fixture.owner.database.query<{
+      readonly present: boolean;
+    }>(
+      "select to_regclass('keynes_internal.submitted_sql_executed') is not null as present",
     );
+    expect(marker.rows[0]?.present).toBe(false);
+  });
 
-    it.each([
-      [
-        "first coalesce argument",
-        () =>
-          programWithAggregateVariadic("coalesce", [
-            aggregateExpression(),
-            decimalLiteral("0"),
-          ]),
-      ],
-      [
-        "least",
-        () =>
-          programWithAggregateVariadic("coalesce", [
-            aggregateVariadic("least"),
-            decimalLiteral("0"),
-          ]),
-      ],
-      [
-        "greatest",
-        () =>
-          programWithAggregateVariadic("coalesce", [
-            aggregateVariadic("greatest"),
-            decimalLiteral("0"),
-          ]),
-      ],
-    ] as const)(
-      "accepts a direct durable aggregate in %s",
-      async (_label, program) => {
-        fixture = await openFixture();
-        await defineResource(fixture);
-        const artifact = program();
-        const policy = resealPolicy(basePolicy(), artifact, {
-          canonicalSql: canonicalPolicySql(artifact),
-        });
+  it("rejects a noncanonical Policy name before mutation", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const policy = resealPolicy(basePolicy(), baseProgram(), {
+      name: "Request_Limit",
+    });
 
-        const wire = await committedCreateBudget(fixture, {
-          commandId: ROOT_ID,
-          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-          policies: [policy],
-        });
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
 
-        expect(wire).toMatchObject({ ok: true });
+    expect(wire).toMatchObject({
+      ok: false,
+      error: { code: "invalid_policy", details: { rule: "artifact" } },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects an invalid Policy revision before mutation", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const policy = resealPolicy(basePolicy(), baseProgram(), { revision: 0 });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: { code: "invalid_policy", details: { rule: "artifact" } },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects a noncanonical Policy reason before mutation", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const program = {
+      ...baseProgram(),
+      reason: textLiteral("Invalid Reason"),
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(basePolicy(), program, {
+      reasons: ["Invalid Reason"],
+      canonicalSql: canonicalPolicySql(program),
+    });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { rule: "canonical_order" },
       },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects duplicate Policy names before mutation", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const first = basePolicy();
+    const second = resealPolicy(first, baseProgram(), { revision: 2 });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [first, second],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "duplicate_name" },
+      },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects Policy output Resources outside its declared input Resources", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    await defineSecondResource(fixture);
+    const policy = resealPolicy(basePolicy(), baseProgram(), {
+      outputResources: ["search_queries"],
+    });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [
+        { resourceTypeId: RESOURCE_ID, amount: 100 },
+        { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
+      ],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "not_input_resource" },
+      },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects a context reference outside the Policy contextSchema", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const program = {
+      ...baseProgram(),
+      ceiling: {
+        kind: "reference",
+        source: "context",
+        field: "undeclared_ceiling",
+        valueType: "numeric",
+        nullable: false,
+      },
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(basePolicy(), program, {
+      canonicalSql: canonicalPolicySql(program),
+    });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "reference_scope" },
+      },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects a Policy canonical source over the per-Policy byte limit", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const policy = sourceSizedPolicy("source_limit", 64);
+    expect(
+      Buffer.byteLength(String(policy.canonicalSql), "utf8"),
+    ).toBeGreaterThan(16_384);
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: { code: "invalid_policy", details: { rule: "artifact" } },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it("rejects a Policy set over the aggregate canonical source byte limit", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const policies = Array.from({ length: 5 }, (_, index) =>
+      sourceSizedPolicy(`source_limit_${index}`, 54),
     );
+    const sourceBytes = policies.reduce(
+      (total, policy) =>
+        total + Buffer.byteLength(String(policy.canonicalSql), "utf8"),
+      0,
+    );
+    expect(
+      policies.every(
+        (policy) =>
+          Buffer.byteLength(String(policy.canonicalSql), "utf8") <= 16_384,
+      ),
+    ).toBe(true);
+    expect(sourceBytes).toBeGreaterThan(65_536);
 
-    it("rejects canonical SQL that does not match the durable program without executing it", async () => {
-      fixture = await openFixture();
-      const policy = resealPolicy(basePolicy(), baseProgram(), {
-        canonicalSql:
-          "create table keynes_internal.submitted_sql_executed(value text)",
-      });
-      await defineResource(fixture);
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: { code: "invalid_policy", details: { rule: "canonicalSql" } },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-      const marker = await fixture.owner.database.query<{
-        readonly present: boolean;
-      }>(
-        "select to_regclass('keynes_internal.submitted_sql_executed') is not null as present",
-      );
-      expect(marker.rows[0]?.present).toBe(false);
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies,
     });
 
-    it("rejects a noncanonical Policy name before mutation", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const policy = resealPolicy(basePolicy(), baseProgram(), {
-        name: "Request_Limit",
-      });
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "limit" },
+      },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
 
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
+  it("filters requested and available rows to each Policy input declaration", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    await defineSecondResource(fixture);
+    const program = {
+      ...baseProgram(),
+      availabilityJoin: { kind: "cross_join" },
+      resource: {
+        kind: "reference",
+        source: "available",
+        field: "resource",
+        valueType: "text",
+        nullable: false,
+      },
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(
+      { ...basePolicy(), inputResources: ["model_tokens"] },
+      program,
+      { canonicalSql: canonicalPolicySql(program) },
+    );
+    const created = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [
+        { resourceTypeId: RESOURCE_ID, amount: 100 },
+        { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
+      ],
+      policies: [policy],
+    });
+    expect(created).toMatchObject({ ok: true });
 
-      expect(wire).toMatchObject({
-        ok: false,
-        error: { code: "invalid_policy", details: { rule: "artifact" } },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(1),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
     });
 
-    it("rejects an invalid Policy revision before mutation", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const policy = resealPolicy(basePolicy(), baseProgram(), { revision: 0 });
+    expect(wire).toMatchObject({ ok: true, result: { kind: "approved" } });
+  });
 
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
+  it("rejects duplicate result Resources as invalid_result", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    await defineSecondResource(fixture);
+    const program = {
+      ...baseProgram(),
+      availabilityJoin: { kind: "cross_join" },
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(
+      { ...basePolicy(), inputResources: ["model_tokens", "search_queries"] },
+      program,
+      { canonicalSql: canonicalPolicySql(program) },
+    );
+    const created = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [
+        { resourceTypeId: RESOURCE_ID, amount: 100 },
+        { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
+      ],
+      policies: [policy],
+    });
+    expect(created).toMatchObject({ ok: true });
 
-      expect(wire).toMatchObject({
-        ok: false,
-        error: { code: "invalid_policy", details: { rule: "artifact" } },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(2),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
     });
 
-    it("rejects a noncanonical Policy reason before mutation", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const program = {
-        ...baseProgram(),
-        reason: textLiteral("Invalid Reason"),
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(basePolicy(), program, {
-        reasons: ["Invalid Reason"],
-        canonicalSql: canonicalPolicySql(program),
-      });
+    expectPolicyFailure(wire, "invalid_result");
+    await expectRequestAbsent(fixture.owner, requestId(2));
+  });
 
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { rule: "canonical_order" },
-        },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("rejects duplicate Policy names before mutation", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const first = basePolicy();
-      const second = resealPolicy(first, baseProgram(), { revision: 2 });
-
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [first, second],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { path: "$.policies", rule: "duplicate_name" },
-        },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("rejects Policy output Resources outside its declared input Resources", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      await defineSecondResource(fixture);
-      const policy = resealPolicy(basePolicy(), baseProgram(), {
-        outputResources: ["search_queries"],
-      });
-
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [
-          { resourceTypeId: RESOURCE_ID, amount: 100 },
-          { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
-        ],
-        policies: [policy],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { path: "$.policies", rule: "not_input_resource" },
-        },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("rejects a context reference outside the Policy contextSchema", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const program = {
-        ...baseProgram(),
-        ceiling: {
-          kind: "reference",
-          source: "context",
-          field: "undeclared_ceiling",
-          valueType: "numeric",
-          nullable: false,
-        },
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(basePolicy(), program, {
-        canonicalSql: canonicalPolicySql(program),
-      });
-
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { path: "$.policies", rule: "reference_scope" },
-        },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("rejects a Policy canonical source over the per-Policy byte limit", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const policy = sourceSizedPolicy("source_limit", 64);
-      expect(
-        Buffer.byteLength(String(policy.canonicalSql), "utf8"),
-      ).toBeGreaterThan(16_384);
-
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: { code: "invalid_policy", details: { rule: "artifact" } },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("rejects a Policy set over the aggregate canonical source byte limit", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const policies = Array.from({ length: 5 }, (_, index) =>
-        sourceSizedPolicy(`source_limit_${index}`, 54),
-      );
-      const sourceBytes = policies.reduce(
-        (total, policy) =>
-          total + Buffer.byteLength(String(policy.canonicalSql), "utf8"),
-        0,
-      );
-      expect(
-        policies.every(
-          (policy) =>
-            Buffer.byteLength(String(policy.canonicalSql), "utf8") <= 16_384,
-        ),
-      ).toBe(true);
-      expect(sourceBytes).toBeGreaterThan(65_536);
-
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies,
-      });
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { path: "$.policies", rule: "limit" },
-        },
-      });
-      await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
-    });
-
-    it("filters requested and available rows to each Policy input declaration", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      await defineSecondResource(fixture);
-      const program = {
-        ...baseProgram(),
-        availabilityJoin: { kind: "cross_join" },
-        resource: {
-          kind: "reference",
-          source: "available",
-          field: "resource",
-          valueType: "text",
-          nullable: false,
-        },
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(
-        { ...basePolicy(), inputResources: ["model_tokens"] },
-        program,
-        { canonicalSql: canonicalPolicySql(program) },
-      );
-      const created = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [
-          { resourceTypeId: RESOURCE_ID, amount: 100 },
-          { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
-        ],
-        policies: [policy],
-      });
-      expect(created).toMatchObject({ ok: true });
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(1),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      expect(wire).toMatchObject({ ok: true, result: { kind: "approved" } });
-    });
-
-    it("rejects duplicate result Resources as invalid_result", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      await defineSecondResource(fixture);
-      const program = {
-        ...baseProgram(),
-        availabilityJoin: { kind: "cross_join" },
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(
-        { ...basePolicy(), inputResources: ["model_tokens", "search_queries"] },
-        program,
-        { canonicalSql: canonicalPolicySql(program) },
-      );
-      const created = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [
-          { resourceTypeId: RESOURCE_ID, amount: 100 },
-          { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
-        ],
-        policies: [policy],
-      });
-      expect(created).toMatchObject({ ok: true });
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(2),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      expectPolicyFailure(wire, "invalid_result");
-      await expectRequestAbsent(fixture.owner, requestId(2));
-    });
-
-    it("pins every security-definer search path to trusted schemas with pg_temp last", async () => {
-      fixture = await openFixture();
-      const functions = await fixture.owner.database.query<{
-        readonly name: string;
-        readonly search_path: string | null;
-      }>(
-        `select n.nspname || '.' || p.proname as name,
+  it("pins every security-definer search path to trusted schemas with pg_temp last", async () => {
+    fixture = await openFixture();
+    const functions = await fixture.owner.database.query<{
+      readonly name: string;
+      readonly search_path: string | null;
+    }>(
+      `select n.nspname || '.' || p.proname as name,
                 (select cfg from unnest(p.proconfig) cfg where cfg like 'search_path=%') as search_path
            from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace
           where n.nspname in ('keynes', 'keynes_internal') and p.prosecdef
           order by name`,
-      );
+    );
 
-      expect(functions.rows.length).toBeGreaterThan(0);
-      expect(functions.rows).toEqual(
-        functions.rows.map(({ name }) => ({
-          name,
-          search_path: "search_path=pg_catalog, keynes_internal, pg_temp",
-        })),
-      );
+    expect(functions.rows.length).toBeGreaterThan(0);
+    expect(functions.rows).toEqual(
+      functions.rows.map(({ name }) => ({
+        name,
+        search_path: "search_path=pg_catalog, keynes_internal, pg_temp",
+      })),
+    );
+  });
+
+  it("prevents the application role from reading or invoking private Policy authority", async () => {
+    fixture = await openFixture();
+    const transaction = await beginApplicationAttempt(fixture);
+    await expect(
+      transaction.connection.query("select * from keynes_internal.budgets"),
+    ).rejects.toThrow(/permission denied/u);
+    await transaction.rollback();
+
+    const second = await beginApplicationAttempt(fixture);
+    await expect(
+      second.connection.query(
+        "select keynes_internal.validate_policy_program('{}'::jsonb)",
+      ),
+    ).rejects.toThrow(/permission denied/u);
+    await second.rollback();
+  });
+
+  it("rejects an emitted requested input Resource outside outputResources", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    await defineSecondResource(fixture);
+    const policy = resealPolicy(basePolicy(), baseProgram(), {
+      inputResources: ["model_tokens", "search_queries"],
+      outputResources: ["search_queries"],
+    });
+    const created = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [
+        { resourceTypeId: RESOURCE_ID, amount: 100 },
+        { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
+      ],
+      policies: [policy],
+    });
+    expect(created).toMatchObject({ ok: true });
+
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(2),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
     });
 
-    it("prevents the application role from reading or invoking private Policy authority", async () => {
-      fixture = await openFixture();
-      const transaction = await beginApplicationAttempt(fixture);
-      await expect(
-        transaction.connection.query("select * from keynes_internal.budgets"),
-      ).rejects.toThrow(/permission denied/u);
-      await transaction.rollback();
+    expectPolicyFailure(wire, "invalid_result");
+    await expectRequestAbsent(fixture.owner, requestId(2));
+  });
 
-      const second = await beginApplicationAttempt(fixture);
-      await expect(
-        second.connection.query(
-          "select keynes_internal.validate_policy_program('{}'::jsonb)",
-        ),
-      ).rejects.toThrow(/permission denied/u);
-      await second.rollback();
+  it("maps generated-query failure to stable sanitized details and rolls back", async () => {
+    fixture = await openFixture();
+    const program = {
+      ...baseProgram(),
+      ceiling: {
+        kind: "binary_numeric",
+        operator: "/",
+        left: decimalLiteral("1"),
+        right: decimalLiteral("0"),
+        valueType: "numeric",
+        nullable: false,
+      },
+    } satisfies PolicyProgramV1;
+    await seedGovernedRoot(
+      fixture,
+      resealPolicy(basePolicy(), program, {
+        canonicalSql: canonicalPolicySql(program),
+      }),
+    );
+
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(3),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
     });
 
-    it("rejects an emitted requested input Resource outside outputResources", async () => {
+    expectPolicyFailure(wire, "numeric_domain");
+    await expectRequestAbsent(fixture.owner, requestId(3));
+    expect(JSON.stringify(wire)).not.toMatch(/division|zero|select|context/u);
+  });
+
+  it("maps generated numeric overflow to arithmetic_overflow and rolls back", async () => {
+    fixture = await openFixture();
+    const program = {
+      ...baseProgram(),
+      ceiling: {
+        kind: "power",
+        base: decimalLiteral("10000000000000000000"),
+        exponent: 2,
+        valueType: "numeric",
+        nullable: false,
+      },
+    } satisfies PolicyProgramV1;
+    await seedGovernedRoot(
+      fixture,
+      resealPolicy(basePolicy(), program, {
+        canonicalSql: canonicalPolicySql(program),
+      }),
+    );
+
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(31),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
+    });
+
+    expectPolicyFailure(wire, "arithmetic_overflow");
+    await expectRequestAbsent(fixture.owner, requestId(31));
+    expect(JSON.stringify(wire)).not.toMatch(/power|range|select|numeric/u);
+  });
+
+  it("maps aggregate transition overflow to arithmetic_overflow and rolls back", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    await defineSecondResource(fixture);
+    const program = aggregateTransitionProgram();
+    const policy = resealPolicy(basePolicy(), program, {
+      inputResources: ["model_tokens", "search_queries"],
+      canonicalSql: canonicalPolicySql(program),
+    });
+    const created = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [
+        { resourceTypeId: RESOURCE_ID, amount: 9_007_199_254_740_991 },
+        {
+          resourceTypeId: SECOND_RESOURCE_ID,
+          amount: 9_007_199_254_740_991,
+        },
+      ],
+      policies: [policy],
+    });
+    expect(created).toMatchObject({ ok: true });
+
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(32),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 1 }],
+      context: { request_ceiling: 1 },
+    });
+
+    expectPolicyFailure(wire, "arithmetic_overflow");
+    await expectRequestAbsent(fixture.owner, requestId(32));
+  });
+
+  it("rejects noncanonical decimal literal precision before evaluation", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const program = {
+      ...baseProgram(),
+      ceiling: decimalLiteral("0.0000000000000000001"),
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(basePolicy(), program, {
+      canonicalSql: canonicalPolicySql(program),
+    });
+
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { rule: "numeric_precision" },
+      },
+    });
+    await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+  });
+
+  it.each([
+    ["non-object", [null]],
+    ["array", [["request_ceiling", "integer", false]]],
+    [
+      "extra key",
+      [
+        {
+          name: "request_ceiling",
+          type: "integer",
+          nullable: false,
+          extra: true,
+        },
+      ],
+    ],
+    [
+      "invalid name",
+      [{ name: "RequestCeiling", type: "integer", nullable: false }],
+    ],
+    [
+      "invalid type",
+      [{ name: "request_ceiling", type: "decimal", nullable: false }],
+    ],
+    [
+      "invalid nullability",
+      [{ name: "request_ceiling", type: "integer", nullable: "false" }],
+    ],
+    [
+      "duplicate name",
+      [
+        { name: "request_ceiling", type: "integer", nullable: false },
+        { name: "request_ceiling", type: "integer", nullable: false },
+      ],
+    ],
+  ] as const)(
+    "rejects a contextSchema member with %s",
+    async (_caseName, contextSchema) => {
       fixture = await openFixture();
       await defineResource(fixture);
-      await defineSecondResource(fixture);
       const policy = resealPolicy(basePolicy(), baseProgram(), {
-        inputResources: ["model_tokens", "search_queries"],
-        outputResources: ["search_queries"],
-      });
-      const created = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [
-          { resourceTypeId: RESOURCE_ID, amount: 100 },
-          { resourceTypeId: SECOND_RESOURCE_ID, amount: 100 },
-        ],
-        policies: [policy],
-      });
-      expect(created).toMatchObject({ ok: true });
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(2),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      expectPolicyFailure(wire, "invalid_result");
-      await expectRequestAbsent(fixture.owner, requestId(2));
-    });
-
-    it("maps generated-query failure to stable sanitized details and rolls back", async () => {
-      fixture = await openFixture();
-      const program = {
-        ...baseProgram(),
-        ceiling: {
-          kind: "binary_numeric",
-          operator: "/",
-          left: decimalLiteral("1"),
-          right: decimalLiteral("0"),
-          valueType: "numeric",
-          nullable: false,
-        },
-      } satisfies PolicyProgramV1;
-      await seedGovernedRoot(
-        fixture,
-        resealPolicy(basePolicy(), program, {
-          canonicalSql: canonicalPolicySql(program),
-        }),
-      );
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(3),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      expectPolicyFailure(wire, "numeric_domain");
-      await expectRequestAbsent(fixture.owner, requestId(3));
-      expect(JSON.stringify(wire)).not.toMatch(/division|zero|select|context/u);
-    });
-
-    it("maps generated numeric overflow to arithmetic_overflow and rolls back", async () => {
-      fixture = await openFixture();
-      const program = {
-        ...baseProgram(),
-        ceiling: {
-          kind: "power",
-          base: decimalLiteral("10000000000000000000"),
-          exponent: 2,
-          valueType: "numeric",
-          nullable: false,
-        },
-      } satisfies PolicyProgramV1;
-      await seedGovernedRoot(
-        fixture,
-        resealPolicy(basePolicy(), program, {
-          canonicalSql: canonicalPolicySql(program),
-        }),
-      );
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(31),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      expectPolicyFailure(wire, "arithmetic_overflow");
-      await expectRequestAbsent(fixture.owner, requestId(31));
-      expect(JSON.stringify(wire)).not.toMatch(/power|range|select|numeric/u);
-    });
-
-    it("maps aggregate transition overflow to arithmetic_overflow and rolls back", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      await defineSecondResource(fixture);
-      const program = aggregateTransitionProgram();
-      const policy = resealPolicy(basePolicy(), program, {
-        inputResources: ["model_tokens", "search_queries"],
-        canonicalSql: canonicalPolicySql(program),
-      });
-      const created = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [
-          { resourceTypeId: RESOURCE_ID, amount: 9_007_199_254_740_991 },
-          {
-            resourceTypeId: SECOND_RESOURCE_ID,
-            amount: 9_007_199_254_740_991,
-          },
-        ],
-        policies: [policy],
-      });
-      expect(created).toMatchObject({ ok: true });
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(32),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 1 }],
-        context: { request_ceiling: 1 },
-      });
-
-      expectPolicyFailure(wire, "arithmetic_overflow");
-      await expectRequestAbsent(fixture.owner, requestId(32));
-    });
-
-    it("rejects noncanonical decimal literal precision before evaluation", async () => {
-      fixture = await openFixture();
-      await defineResource(fixture);
-      const program = {
-        ...baseProgram(),
-        ceiling: decimalLiteral("0.0000000000000000001"),
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(basePolicy(), program, {
-        canonicalSql: canonicalPolicySql(program),
+        contextSchema,
       });
 
       const wire = await committedCreateBudget(fixture, {
@@ -662,210 +724,147 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         ok: false,
         error: {
           code: "invalid_policy",
-          details: { rule: "numeric_precision" },
+          details: {
+            path: "$.policies[0].contextSchema",
+            rule: "artifact",
+          },
         },
       });
       await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+    },
+  );
+
+  it("accepts contextSchema names in canonical C byte order", async () => {
+    fixture = await openFixture();
+    await defineResource(fixture);
+    const program = {
+      ...baseProgram(),
+      ceiling: decimalLiteral("5"),
+    } satisfies PolicyProgramV1;
+    const policy = resealPolicy(basePolicy(), program, {
+      contextSchema: [
+        { name: "a0", type: "integer", nullable: false },
+        { name: "a_", type: "integer", nullable: false },
+      ],
+      canonicalSql: canonicalPolicySql(program),
     });
 
-    it.each([
-      ["non-object", [null]],
-      ["array", [["request_ceiling", "integer", false]]],
-      [
-        "extra key",
-        [
+    const wire = await committedCreateBudget(fixture, {
+      commandId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
+      policies: [policy],
+    });
+
+    expect(wire).toMatchObject({ ok: true, result: { kind: "created" } });
+  });
+
+  it.each([
+    [
+      "createBudget",
+      {
+        commandId: "not-a-uuid",
+        resources: [
           {
-            name: "request_ceiling",
-            type: "integer",
-            nullable: false,
-            extra: true,
-          },
-        ],
-      ],
-      [
-        "invalid name",
-        [{ name: "RequestCeiling", type: "integer", nullable: false }],
-      ],
-      [
-        "invalid type",
-        [{ name: "request_ceiling", type: "decimal", nullable: false }],
-      ],
-      [
-        "invalid nullability",
-        [{ name: "request_ceiling", type: "integer", nullable: "false" }],
-      ],
-      [
-        "duplicate name",
-        [
-          { name: "request_ceiling", type: "integer", nullable: false },
-          { name: "request_ceiling", type: "integer", nullable: false },
-        ],
-      ],
-    ] as const)(
-      "rejects a contextSchema member with %s",
-      async (_caseName, contextSchema) => {
-        fixture = await openFixture();
-        await defineResource(fixture);
-        const policy = resealPolicy(basePolicy(), baseProgram(), {
-          contextSchema,
-        });
-
-        const wire = await committedCreateBudget(fixture, {
-          commandId: ROOT_ID,
-          resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-          policies: [policy],
-        });
-
-        expect(wire).toMatchObject({
-          ok: false,
-          error: {
-            code: "invalid_policy",
-            details: {
-              path: "$.policies[0].contextSchema",
-              rule: "artifact",
+            definition: {
+              canonicalName: "model_tokens",
+              unit: "token",
+              accountingBehavior: "consumable",
             },
+            amount: 100,
           },
-        });
-        await expectNoCommandOrBudget(fixture.owner, ROOT_ID);
+        ],
+        policies: [basePolicy()],
       },
-    );
-
-    it("accepts contextSchema names in canonical C byte order", async () => {
+    ],
+    [
+      "requestBudget",
+      {
+        commandId: requestId(30),
+        parentBudgetId: "not-a-uuid",
+        resources: [{ resourceTypeId: RESOURCE_ID, amount: 1 }],
+        context: { request_ceiling: 1 },
+      },
+    ],
+  ] as const)(
+    "returns invalid_command for malformed %s identifiers",
+    async (operation, input) => {
       fixture = await openFixture();
       await defineResource(fixture);
-      const program = {
-        ...baseProgram(),
-        ceiling: decimalLiteral("5"),
-      } satisfies PolicyProgramV1;
-      const policy = resealPolicy(basePolicy(), program, {
-        contextSchema: [
-          { name: "a0", type: "integer", nullable: false },
-          { name: "a_", type: "integer", nullable: false },
-        ],
-        canonicalSql: canonicalPolicySql(program),
-      });
 
-      const wire = await committedCreateBudget(fixture, {
-        commandId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 100 }],
-        policies: [policy],
-      });
+      const wire = await committedCall(fixture, operation, input);
 
-      expect(wire).toMatchObject({ ok: true, result: { kind: "created" } });
+      expect(wire).toMatchObject({
+        ok: false,
+        error: { code: "invalid_command" },
+      });
+    },
+  );
+
+  it("rejects negative integer Policy context before evaluation and rolls back", async () => {
+    fixture = await openFixture();
+    await seedGovernedRoot(fixture, basePolicy());
+
+    const wire = await committedCall(fixture, "requestBudget", {
+      commandId: requestId(4),
+      parentBudgetId: ROOT_ID,
+      resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: -1 },
     });
 
-    it.each([
-      [
-        "createBudget",
-        {
-          commandId: "not-a-uuid",
-          resources: [
-            {
-              definition: {
-                canonicalName: "model_tokens",
-                unit: "token",
-                accountingBehavior: "consumable",
-              },
-              amount: 100,
-            },
-          ],
-          policies: [basePolicy()],
+    expect(wire).toEqual({
+      ok: false,
+      error: {
+        kind: "error",
+        code: "invalid_policy_context",
+        details: {
+          operation: "requestBudget",
+          path: "$.context.request_ceiling",
+          rule: "type",
         },
-      ],
-      [
-        "requestBudget",
-        {
-          commandId: requestId(30),
-          parentBudgetId: "not-a-uuid",
-          resources: [{ resourceTypeId: RESOURCE_ID, amount: 1 }],
-          context: { request_ceiling: 1 },
-        },
-      ],
-    ] as const)(
-      "returns invalid_command for malformed %s identifiers",
-      async (operation, input) => {
-        fixture = await openFixture();
-        await defineResource(fixture);
-
-        const wire = await committedCall(fixture, operation, input);
-
-        expect(wire).toMatchObject({
-          ok: false,
-          error: { code: "invalid_command" },
-        });
       },
-    );
+    });
+    await expectRequestAbsent(fixture.owner, requestId(4));
+  });
 
-    it("rejects negative integer Policy context before evaluation and rolls back", async () => {
+  it.each([
+    ["after_command_binding", 10],
+    ["before_policy_evaluation", 11],
+    ["after_policy_evaluation", 12],
+    ["after_policy_evidence", 13],
+    ["after_domain_mutation", 14],
+    ["after_history_insertion", 15],
+    ["after_result_storage", 16],
+  ] as const)(
+    "rolls back the complete governed command at %s",
+    async (checkpoint, requestIndex) => {
       fixture = await openFixture();
       await seedGovernedRoot(fixture, basePolicy());
-
-      const wire = await committedCall(fixture, "requestBudget", {
-        commandId: requestId(4),
-        parentBudgetId: ROOT_ID,
-        resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: -1 },
-      });
-
-      expect(wire).toEqual({
-        ok: false,
-        error: {
-          kind: "error",
-          code: "invalid_policy_context",
-          details: {
-            operation: "requestBudget",
-            path: "$.context.request_ceiling",
-            rule: "type",
-          },
-        },
-      });
-      await expectRequestAbsent(fixture.owner, requestId(4));
-    });
-
-    it.each([
-      ["after_command_binding", 10],
-      ["before_policy_evaluation", 11],
-      ["after_policy_evaluation", 12],
-      ["after_policy_evidence", 13],
-      ["after_domain_mutation", 14],
-      ["after_history_insertion", 15],
-      ["after_result_storage", 16],
-    ] as const)(
-      "rolls back the complete governed command at %s",
-      async (checkpoint, requestIndex) => {
-        fixture = await openFixture();
-        await seedGovernedRoot(fixture, basePolicy());
-        const commandId = requestId(requestIndex);
-        const transaction = await beginApplicationAttempt(fixture);
-        await transaction.connection.query(
-          `select
+      const commandId = requestId(requestIndex);
+      const transaction = await beginApplicationAttempt(fixture);
+      await transaction.connection.query(
+        `select
            set_config('keynes.tenant_id', $1, true),
            set_config('keynes.principal_id', $2, true),
            set_config('keynes.test_checkpoint', $3, true)`,
-          [
-            FIXTURE_TENANT_ID,
-            FIXTURE_PRINCIPALS["product-fixture"],
-            checkpoint,
-          ],
-        );
+        [FIXTURE_TENANT_ID, FIXTURE_PRINCIPALS["product-fixture"], checkpoint],
+      );
 
-        await expect(
-          transaction.connection.query("select keynes.request($1::jsonb)", [
-            JSON.stringify({
-              commandId,
-              parentBudgetId: ROOT_ID,
-              resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
-              context: { request_ceiling: 5 },
-            }),
-          ]),
-        ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
-        await transaction.rollback();
+      await expect(
+        transaction.connection.query("select keynes.request($1::jsonb)", [
+          JSON.stringify({
+            commandId,
+            parentBudgetId: ROOT_ID,
+            resources: [{ resourceTypeId: RESOURCE_ID, amount: 4 }],
+            context: { request_ceiling: 5 },
+          }),
+        ]),
+      ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+      await transaction.rollback();
 
-        await expectRequestAbsent(fixture.owner, commandId);
-      },
-    );
-  },
-);
+      await expectRequestAbsent(fixture.owner, commandId);
+    },
+  );
+});
 
 async function openFixture(): Promise<SecurityFixture> {
   const owner = await openInstalledPostgresDatabase(

@@ -19,167 +19,162 @@ import {
   type RemoteIdentityFixture,
 } from "./support/remote-identity.js";
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "remote PostgreSQL Budget authority",
-  () => {
-    let fixture: RemoteIdentityFixture | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await fixture?.close();
-      fixture = undefined;
+describe("remote PostgreSQL Budget authority", () => {
+  let fixture: RemoteIdentityFixture | undefined;
+
+  afterEach(async () => {
+    await fixture?.close();
+    fixture = undefined;
+  });
+
+  it("completes one remote create, request, inspect, and settlement loop", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    const resource = "remote_lifecycle_tokens";
+    const created = await queryResponse(client, "keynes.remote_create_budget", {
+      operationKey: operationKey("create"),
+      resources: [{ definition: resourceDefinition(resource), amount: 10 }],
     });
+    const rootReference = requireBudgetReference(created);
 
-    it("completes one remote create, request, inspect, and settlement loop", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const client = await fixture.connect(fixture.primary);
-      const resource = "remote_lifecycle_tokens";
-      const created = await queryResponse(
-        client,
-        "keynes.remote_create_budget",
-        {
-          operationKey: operationKey("create"),
-          resources: [{ definition: resourceDefinition(resource), amount: 10 }],
-        },
-      );
-      const rootReference = requireBudgetReference(created);
-
-      const requested = await queryResponse(client, "keynes.remote_request", {
-        operationKey: operationKey("request"),
+    const requested = await queryResponse(client, "keynes.remote_request", {
+      operationKey: operationKey("request"),
+      parentBudgetReference: rootReference,
+      resources: [{ resource, amount: 4 }],
+    });
+    const childReference = requireResultReference(
+      requested,
+      "childBudgetReference",
+    );
+    expect(requested).toMatchObject({
+      ok: true,
+      result: {
+        kind: "approved",
         parentBudgetReference: rootReference,
+        childBudgetReference: childReference,
         resources: [{ resource, amount: 4 }],
-      });
-      const childReference = requireResultReference(
-        requested,
-        "childBudgetReference",
-      );
-      expect(requested).toMatchObject({
-        ok: true,
-        result: {
-          kind: "approved",
-          parentBudgetReference: rootReference,
-          childBudgetReference: childReference,
-          resources: [{ resource, amount: 4 }],
-        },
-      });
-
-      expect(
-        await queryResponse(client, "keynes.remote_get_budget", {
-          budgetReference: childReference,
-        }),
-      ).toMatchObject({
-        ok: true,
-        result: {
-          budget: {
-            budgetReference: childReference,
-            lifecycle: "active",
-            resources: [
-              {
-                resource: resourceDefinition(resource),
-                allocated: 4,
-              },
-            ],
-          },
-        },
-      });
-
-      expect(
-        await queryResponse(client, "keynes.remote_settle", {
-          operationKey: operationKey("settle"),
-          budgetReference: childReference,
-          usage: [{ resource, amount: 4 }],
-        }),
-      ).toMatchObject({ ok: true, result: { kind: "settled" } });
-      expect(
-        await queryResponse(client, "keynes.remote_get_budget", {
-          budgetReference: childReference,
-        }),
-      ).toMatchObject({
-        ok: true,
-        result: { budget: { lifecycle: "settled" } },
-      });
+      },
     });
 
-    it("enforces a generated Policy through canonical remote Resources", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const client = await fixture.connect(fixture.primary);
-      const created = await queryResponse(
-        client,
-        "keynes.remote_create_budget",
-        {
-          operationKey: operationKey("canonical"),
+    expect(
+      await queryResponse(client, "keynes.remote_get_budget", {
+        budgetReference: childReference,
+      }),
+    ).toMatchObject({
+      ok: true,
+      result: {
+        budget: {
+          budgetReference: childReference,
+          lifecycle: "active",
           resources: [
-            { definition: resourceDefinition("remote_zebra"), amount: 10 },
-            { definition: resourceDefinition("remote_alpha"), amount: 20 },
+            {
+              resource: resourceDefinition(resource),
+              allocated: 4,
+            },
           ],
-          policies: [requestCeilingPolicy("remote_alpha")],
         },
-      );
-      const budgetReference = requireBudgetReference(created);
-
-      expect(created).toMatchObject({
-        ok: true,
-        result: {
-          budget: {
-            resources: [
-              {
-                resource: resourceDefinition("remote_alpha"),
-                allocated: 20,
-              },
-              {
-                resource: resourceDefinition("remote_zebra"),
-                allocated: 10,
-              },
-            ],
-          },
-        },
-      });
-      const approved = await queryResponse(client, "keynes.remote_request", {
-        operationKey: operationKey("policy-approved"),
-        parentBudgetReference: budgetReference,
-        resources: [{ resource: "remote_alpha", amount: 5 }],
-        context: { remote_ceiling: 5 },
-      });
-      expect(approved).toMatchObject({
-        ok: true,
-        result: {
-          kind: "approved",
-          resources: [{ resource: "remote_alpha", amount: 5 }],
-          policyEvidence: {
-            decision: "approved",
-            policies: [expect.objectContaining({ name: "remote_ceiling" })],
-            effectiveCeilings: [
-              expect.objectContaining({ resource: "remote_alpha", ceiling: 5 }),
-            ],
-          },
-        },
-      });
-      const denied = await queryResponse(client, "keynes.remote_request", {
-        operationKey: operationKey("policy-denied"),
-        parentBudgetReference: budgetReference,
-        resources: [{ resource: "remote_alpha", amount: 6 }],
-        context: { remote_ceiling: 5 },
-      });
-      expect(denied).toMatchObject({
-        ok: true,
-        result: {
-          kind: "denied",
-          reasons: [
-            expect.objectContaining({
-              code: "policy_ceiling",
-              resource: "remote_alpha",
-              requested: 6,
-              ceiling: 5,
-              policyName: "remote_ceiling",
-            }),
-          ],
-          policyEvidence: { decision: "denied" },
-        },
-      });
+      },
     });
-  },
-);
+
+    expect(
+      await queryResponse(client, "keynes.remote_settle", {
+        operationKey: operationKey("settle"),
+        budgetReference: childReference,
+        usage: [{ resource, amount: 4 }],
+      }),
+    ).toMatchObject({ ok: true, result: { kind: "settled" } });
+    expect(
+      await queryResponse(client, "keynes.remote_get_budget", {
+        budgetReference: childReference,
+      }),
+    ).toMatchObject({
+      ok: true,
+      result: { budget: { lifecycle: "settled" } },
+    });
+  });
+
+  it("enforces a generated Policy through canonical remote Resources", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    const created = await queryResponse(client, "keynes.remote_create_budget", {
+      operationKey: operationKey("canonical"),
+      resources: [
+        { definition: resourceDefinition("remote_zebra"), amount: 10 },
+        { definition: resourceDefinition("remote_alpha"), amount: 20 },
+      ],
+      policies: [requestCeilingPolicy("remote_alpha")],
+    });
+    const budgetReference = requireBudgetReference(created);
+
+    expect(created).toMatchObject({
+      ok: true,
+      result: {
+        budget: {
+          resources: [
+            {
+              resource: resourceDefinition("remote_alpha"),
+              allocated: 20,
+            },
+            {
+              resource: resourceDefinition("remote_zebra"),
+              allocated: 10,
+            },
+          ],
+        },
+      },
+    });
+    const approved = await queryResponse(client, "keynes.remote_request", {
+      operationKey: operationKey("policy-approved"),
+      parentBudgetReference: budgetReference,
+      resources: [{ resource: "remote_alpha", amount: 5 }],
+      context: { remote_ceiling: 5 },
+    });
+    expect(approved).toMatchObject({
+      ok: true,
+      result: {
+        kind: "approved",
+        resources: [{ resource: "remote_alpha", amount: 5 }],
+        policyEvidence: {
+          decision: "approved",
+          policies: [expect.objectContaining({ name: "remote_ceiling" })],
+          effectiveCeilings: [
+            expect.objectContaining({ resource: "remote_alpha", ceiling: 5 }),
+          ],
+        },
+      },
+    });
+    const denied = await queryResponse(client, "keynes.remote_request", {
+      operationKey: operationKey("policy-denied"),
+      parentBudgetReference: budgetReference,
+      resources: [{ resource: "remote_alpha", amount: 6 }],
+      context: { remote_ceiling: 5 },
+    });
+    expect(denied).toMatchObject({
+      ok: true,
+      result: {
+        kind: "denied",
+        reasons: [
+          expect.objectContaining({
+            code: "policy_ceiling",
+            resource: "remote_alpha",
+            requested: 6,
+            ceiling: 5,
+            policyName: "remote_ceiling",
+          }),
+        ],
+        policyEvidence: { decision: "denied" },
+      },
+    });
+  });
+});
 
 function operationKey(suffix: string): string {
   return `kop_v1_${suffix.padEnd(43, "x")}`;

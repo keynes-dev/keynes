@@ -8,202 +8,204 @@ import {
   type RemoteIdentityFixture,
 } from "./support/remote-identity.js";
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "remote PostgreSQL identity and security",
-  () => {
-    let fixture: RemoteIdentityFixture | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await fixture?.close();
-      fixture = undefined;
-    });
+describe("remote PostgreSQL identity and security", () => {
+  let fixture: RemoteIdentityFixture | undefined;
 
-    it("validates the exact input shape of all eight wrappers before mutation", async () => {
-      fixture = await openRemoteIdentityFixture();
-      const client = await fixture.connect(fixture.primary);
-      const before = await protectedState(fixture);
+  afterEach(async () => {
+    await fixture?.close();
+    fixture = undefined;
+  });
 
-      for (const candidate of invalidRemoteInputs()) {
-        for (const input of candidate.inputs) {
-          const response = await queryResponse(
-            client,
-            candidate.procedure,
-            input,
-          );
-          expectInvalidCommand(response, candidate.operation);
-        }
+  it("validates the exact input shape of all eight wrappers before mutation", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const client = await fixture.connect(fixture.primary);
+    const before = await protectedState(fixture);
+
+    for (const candidate of invalidRemoteInputs()) {
+      for (const input of candidate.inputs) {
+        const response = await queryResponse(
+          client,
+          candidate.procedure,
+          input,
+        );
+        expectInvalidCommand(response, candidate.operation);
       }
+    }
 
-      expect(await protectedState(fixture)).toEqual(before);
-    });
+    expect(await protectedState(fixture)).toEqual(before);
+  });
 
-    it("returns authorization-safe errors before validating an unmapped caller", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.provision(fixture.secondary);
-      const client = await fixture.connect(fixture.secondary);
-      const before = await protectedState(fixture);
+  it("returns authorization-safe errors before validating an unmapped caller", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.provision(fixture.secondary);
+    const client = await fixture.connect(fixture.secondary);
+    const before = await protectedState(fixture);
 
-      for (const candidate of invalidRemoteInputs()) {
-        const response = await queryResponse(client, candidate.procedure, null);
-        expect(response).toEqual({
-          ok: false,
-          error: {
-            kind: "error",
-            code: "unauthorized",
-            details: {
-              operation: candidate.operation,
-              requiredPermission: "remote_access",
-            },
+    for (const candidate of invalidRemoteInputs()) {
+      const response = await queryResponse(client, candidate.procedure, null);
+      expect(response).toEqual({
+        ok: false,
+        error: {
+          kind: "error",
+          code: "unauthorized",
+          details: {
+            operation: candidate.operation,
+            requiredPermission: "remote_access",
           },
-        });
-        expectSafeRemoteResponse(response);
-      }
+        },
+      });
+      expectSafeRemoteResponse(response);
+    }
 
-      expect(await protectedState(fixture)).toEqual(before);
-    });
+    expect(await protectedState(fixture)).toEqual(before);
+  });
 
-    it("derives tenant and principal from the authenticated role on every call", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const client = await fixture.connect(fixture.primary);
-      await client.query("begin");
-      await client.query("select set_config('keynes.tenant_id', $1, true)", [
-        fixture.secondary.tenantId,
-      ]);
-      await client.query("select set_config('keynes.principal_id', $1, true)", [
-        fixture.secondary.principalId,
-      ]);
+  it("derives tenant and principal from the authenticated role on every call", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    await client.query("begin");
+    await client.query("select set_config('keynes.tenant_id', $1, true)", [
+      fixture.secondary.tenantId,
+    ]);
+    await client.query("select set_config('keynes.principal_id', $1, true)", [
+      fixture.secondary.principalId,
+    ]);
 
-      const response = await queryResponse(
-        client,
-        "keynes.remote_create_budget",
-        createRoot("a"),
-      );
-      await client.query("commit");
-      expect(response).toMatchObject({ ok: true });
+    const response = await queryResponse(
+      client,
+      "keynes.remote_create_budget",
+      createRoot("a"),
+    );
+    await client.query("commit");
+    expect(response).toMatchObject({ ok: true });
 
-      const budgets = await fixture.administrator.query<{
-        readonly tenant_id: string;
-        readonly count: string;
-      }>(
-        `select tenant_id::text, count(*)::text
+    const budgets = await fixture.administrator.query<{
+      readonly tenant_id: string;
+      readonly count: string;
+    }>(
+      `select tenant_id::text, count(*)::text
            from keynes_internal.budgets
           group by tenant_id
           order by tenant_id`,
-      );
-      expect(budgets.rows).toEqual([
-        { tenant_id: fixture.primary.tenantId, count: "1" },
-      ]);
-    });
+    );
+    expect(budgets.rows).toEqual([
+      { tenant_id: fixture.primary.tenantId, count: "1" },
+    ]);
+  });
 
-    it("scopes overlapping Resource names and operation keys to each authenticated tenant", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      await fixture.register(fixture.secondary);
-      const primary = await fixture.connect(fixture.primary);
-      const secondary = await fixture.connect(fixture.secondary);
-      const primaryResult = await completeTenantLifecycle(primary, 7, 3);
-      const secondaryResult = await completeTenantLifecycle(secondary, 11, 4);
-      expect(secondaryResult.rootReference).not.toBe(
-        primaryResult.rootReference,
-      );
-      expect(secondaryResult.childReference).not.toBe(
-        primaryResult.childReference,
-      );
+  it("scopes overlapping Resource names and operation keys to each authenticated tenant", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    await fixture.register(fixture.secondary);
+    const primary = await fixture.connect(fixture.primary);
+    const secondary = await fixture.connect(fixture.secondary);
+    const primaryResult = await completeTenantLifecycle(primary, 7, 3);
+    const secondaryResult = await completeTenantLifecycle(secondary, 11, 4);
+    expect(secondaryResult.rootReference).not.toBe(primaryResult.rootReference);
+    expect(secondaryResult.childReference).not.toBe(
+      primaryResult.childReference,
+    );
 
-      for (const { client, result, allocated, available } of [
-        { client: primary, result: primaryResult, allocated: 7, available: 4 },
-        {
-          client: secondary,
-          result: secondaryResult,
-          allocated: 11,
-          available: 7,
+    for (const { client, result, allocated, available } of [
+      { client: primary, result: primaryResult, allocated: 7, available: 4 },
+      {
+        client: secondary,
+        result: secondaryResult,
+        allocated: 11,
+        available: 7,
+      },
+    ]) {
+      expect(
+        await queryResponse(
+          client,
+          "keynes.remote_create_budget",
+          result.createInput,
+        ),
+      ).toMatchObject({
+        ok: true,
+        result: {
+          kind: "created",
+          replayed: true,
+          budget: { budgetReference: result.rootReference },
         },
-      ]) {
-        expect(
-          await queryResponse(
-            client,
-            "keynes.remote_create_budget",
-            result.createInput,
-          ),
-        ).toMatchObject({
-          ok: true,
-          result: {
-            kind: "created",
-            replayed: true,
-            budget: { budgetReference: result.rootReference },
-          },
-        });
-        expect(
-          await queryResponse(client, "keynes.remote_get_budget", {
-            budgetReference: result.rootReference,
-          }),
-        ).toMatchObject({
-          ok: true,
-          result: { budget: { resources: [{ allocated, available }] } },
-        });
-        expect(
-          await queryResponse(client, "keynes.remote_get_budget", {
-            budgetReference: result.childReference,
-          }),
-        ).toMatchObject({
-          ok: true,
-          result: { budget: { lifecycle: "settled" } },
-        });
-      }
-      const primaryBefore = await Promise.all([
+      });
+      expect(
+        await queryResponse(client, "keynes.remote_get_budget", {
+          budgetReference: result.rootReference,
+        }),
+      ).toMatchObject({
+        ok: true,
+        result: { budget: { resources: [{ allocated, available }] } },
+      });
+      expect(
+        await queryResponse(client, "keynes.remote_get_budget", {
+          budgetReference: result.childReference,
+        }),
+      ).toMatchObject({
+        ok: true,
+        result: { budget: { lifecycle: "settled" } },
+      });
+    }
+    const primaryBefore = await Promise.all([
+      queryResponse(primary, "keynes.remote_get_budget", {
+        budgetReference: primaryResult.rootReference,
+      }),
+      queryResponse(primary, "keynes.remote_get_budget", {
+        budgetReference: primaryResult.childReference,
+      }),
+    ]);
+    const crossTenant = await queryResponse(
+      secondary,
+      "keynes.remote_get_budget",
+      { budgetReference: primaryResult.rootReference },
+    );
+    expect(crossTenant).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    expectSafeRemoteResponse(crossTenant);
+    for (const crossTenantMutation of [
+      await queryResponse(secondary, "keynes.remote_request", {
+        operationKey: operationKey("w"),
+        parentBudgetReference: primaryResult.rootReference,
+        resources: [{ resource: "shared_tenant_tokens", amount: 1 }],
+      }),
+      await queryResponse(secondary, "keynes.remote_settle", {
+        operationKey: operationKey("x"),
+        budgetReference: primaryResult.childReference,
+        usage: [{ resource: "shared_tenant_tokens", amount: 1 }],
+      }),
+    ]) {
+      expect(crossTenantMutation).toMatchObject({
+        ok: false,
+        error: { code: "unauthorized" },
+      });
+      expectSafeRemoteResponse(crossTenantMutation);
+    }
+    await expect(
+      Promise.all([
         queryResponse(primary, "keynes.remote_get_budget", {
           budgetReference: primaryResult.rootReference,
         }),
         queryResponse(primary, "keynes.remote_get_budget", {
           budgetReference: primaryResult.childReference,
         }),
-      ]);
-      const crossTenant = await queryResponse(
-        secondary,
-        "keynes.remote_get_budget",
-        { budgetReference: primaryResult.rootReference },
-      );
-      expect(crossTenant).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-      expectSafeRemoteResponse(crossTenant);
-      for (const crossTenantMutation of [
-        await queryResponse(secondary, "keynes.remote_request", {
-          operationKey: operationKey("w"),
-          parentBudgetReference: primaryResult.rootReference,
-          resources: [{ resource: "shared_tenant_tokens", amount: 1 }],
-        }),
-        await queryResponse(secondary, "keynes.remote_settle", {
-          operationKey: operationKey("x"),
-          budgetReference: primaryResult.childReference,
-          usage: [{ resource: "shared_tenant_tokens", amount: 1 }],
-        }),
-      ]) {
-        expect(crossTenantMutation).toMatchObject({
-          ok: false,
-          error: { code: "unauthorized" },
-        });
-        expectSafeRemoteResponse(crossTenantMutation);
-      }
-      await expect(
-        Promise.all([
-          queryResponse(primary, "keynes.remote_get_budget", {
-            budgetReference: primaryResult.rootReference,
-          }),
-          queryResponse(primary, "keynes.remote_get_budget", {
-            budgetReference: primaryResult.childReference,
-          }),
-        ]),
-      ).resolves.toEqual(primaryBefore);
+      ]),
+    ).resolves.toEqual(primaryBefore);
 
-      const counts = await fixture.administrator.query<{
-        readonly tenant_id: string;
-        readonly budget_count: string;
-        readonly operation_count: string;
-      }>(
-        `select tenants.tenant_id::text,
+    const counts = await fixture.administrator.query<{
+      readonly tenant_id: string;
+      readonly budget_count: string;
+      readonly operation_count: string;
+    }>(
+      `select tenants.tenant_id::text,
                 count(distinct budgets.budget_id)::text as budget_count,
                 count(distinct operations.operation_key)::text as operation_count
            from (values ($1::uuid), ($2::uuid)) as tenants(tenant_id)
@@ -213,189 +215,188 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
              on operations.tenant_id = tenants.tenant_id
           group by tenants.tenant_id
           order by tenants.tenant_id`,
-        [fixture.primary.tenantId, fixture.secondary.tenantId],
-      );
-      expect(counts.rows).toEqual([
-        {
-          tenant_id: fixture.primary.tenantId,
-          budget_count: "2",
-          operation_count: "3",
-        },
-        {
-          tenant_id: fixture.secondary.tenantId,
-          budget_count: "2",
-          operation_count: "5",
-        },
-      ]);
+      [fixture.primary.tenantId, fixture.secondary.tenantId],
+    );
+    expect(counts.rows).toEqual([
+      {
+        tenant_id: fixture.primary.tenantId,
+        budget_count: "2",
+        operation_count: "3",
+      },
+      {
+        tenant_id: fixture.secondary.tenantId,
+        budget_count: "2",
+        operation_count: "5",
+      },
+    ]);
+  });
+
+  it("checks enabled mappings again on an already-open session", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+
+    expect(await compatibility(client)).toMatchObject({ ok: true });
+    await fixture.setEnabled(fixture.primary.role, false);
+    expect(await compatibility(client)).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    await fixture.setEnabled(fixture.primary.role, true);
+    expect(await compatibility(client)).toMatchObject({ ok: true });
+  });
+
+  it("rejects a recreated login until an operator explicitly registers the stale name and new OID", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const previousOid = await fixture.roleOid(fixture.primary.role);
+
+    const nextOid = await fixture.recreate(fixture.primary);
+    expect(nextOid).not.toBe(previousOid);
+    const recreated = await fixture.connect(fixture.primary);
+    expect(await compatibility(recreated)).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
     });
 
-    it("checks enabled mappings again on an already-open session", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const client = await fixture.connect(fixture.primary);
-
-      expect(await compatibility(client)).toMatchObject({ ok: true });
-      await fixture.setEnabled(fixture.primary.role, false);
-      expect(await compatibility(client)).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-      await fixture.setEnabled(fixture.primary.role, true);
-      expect(await compatibility(client)).toMatchObject({ ok: true });
+    expect(await fixture.register(fixture.primary)).toEqual({
+      roleName: fixture.primary.role,
+      status: "enabled",
+      tenantId: fixture.primary.tenantId,
+      principalId: fixture.primary.principalId,
     });
-
-    it("rejects a recreated login until an operator explicitly registers the stale name and new OID", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const previousOid = await fixture.roleOid(fixture.primary.role);
-
-      const nextOid = await fixture.recreate(fixture.primary);
-      expect(nextOid).not.toBe(previousOid);
-      const recreated = await fixture.connect(fixture.primary);
-      expect(await compatibility(recreated)).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-
-      expect(await fixture.register(fixture.primary)).toEqual({
-        roleName: fixture.primary.role,
-        status: "enabled",
-        tenantId: fixture.primary.tenantId,
-        principalId: fixture.primary.principalId,
-      });
-      const mappings = await fixture.administrator.query<{
-        readonly role_oid: number;
-      }>(
-        `select role_oid
+    const mappings = await fixture.administrator.query<{
+      readonly role_oid: number;
+    }>(
+      `select role_oid
            from keynes_internal.remote_role_mappings
           where role_name = $1`,
-        [fixture.primary.role],
-      );
-      expect(mappings.rows).toEqual([{ role_oid: nextOid }]);
-      expect(await compatibility(recreated)).toMatchObject({ ok: true });
+      [fixture.primary.role],
+    );
+    expect(mappings.rows).toEqual([{ role_oid: nextOid }]);
+    expect(await compatibility(recreated)).toMatchObject({ ok: true });
+  });
+
+  it("rotates mappings atomically and disables the old pooled credential", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    await fixture.provision(fixture.secondary);
+    const oldClient = await fixture.connect(fixture.primary);
+    const administrator = await fixture.connect({
+      role: fixture.administrationRole,
+      password: fixture.administrationPassword,
     });
 
-    it("rotates mappings atomically and disables the old pooled credential", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      await fixture.provision(fixture.secondary);
-      const oldClient = await fixture.connect(fixture.primary);
-      const administrator = await fixture.connect({
-        role: fixture.administrationRole,
-        password: fixture.administrationPassword,
-      });
-
-      await administrator.query(
-        "select keynes_internal.rotate_remote_role_v0006($1::name, $2::name)",
-        [fixture.primary.role, fixture.secondary.role],
-      );
-      expect(await compatibility(oldClient)).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-      const nextClient = await fixture.connect(fixture.secondary);
-      expect(await compatibility(nextClient)).toMatchObject({ ok: true });
-      const state = await fixture.administrator.query<{
-        readonly role_name: string;
-        readonly enabled: boolean;
-      }>(
-        `select role_name::text, enabled
+    await administrator.query(
+      "select keynes_internal.rotate_remote_role_v0006($1::name, $2::name)",
+      [fixture.primary.role, fixture.secondary.role],
+    );
+    expect(await compatibility(oldClient)).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    const nextClient = await fixture.connect(fixture.secondary);
+    expect(await compatibility(nextClient)).toMatchObject({ ok: true });
+    const state = await fixture.administrator.query<{
+      readonly role_name: string;
+      readonly enabled: boolean;
+    }>(
+      `select role_name::text, enabled
            from keynes_internal.remote_role_mappings
           where role_name = any($1::text[])
           order by role_name`,
-        [[fixture.primary.role, fixture.secondary.role]],
-      );
-      expect(state.rows).toEqual(
-        [
-          { role_name: fixture.primary.role, enabled: false },
-          { role_name: fixture.secondary.role, enabled: true },
-        ].sort((left, right) => left.role_name.localeCompare(right.role_name)),
-      );
+      [[fixture.primary.role, fixture.secondary.role]],
+    );
+    expect(state.rows).toEqual(
+      [
+        { role_name: fixture.primary.role, enabled: false },
+        { role_name: fixture.secondary.role, enabled: true },
+      ].sort((left, right) => left.role_name.localeCompare(right.role_name)),
+    );
+  });
+
+  it("revokes an existing session and records no reusable credential", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const runtime = await fixture.connect(fixture.primary);
+    const administrator = await fixture.connect({
+      role: fixture.administrationRole,
+      password: fixture.administrationPassword,
     });
 
-    it("revokes an existing session and records no reusable credential", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const runtime = await fixture.connect(fixture.primary);
-      const administrator = await fixture.connect({
-        role: fixture.administrationRole,
-        password: fixture.administrationPassword,
-      });
-
-      await administrator.query(
-        "select keynes_internal.revoke_remote_role_v0006($1::name)",
-        [fixture.primary.role],
-      );
-      expect(await compatibility(runtime)).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-      const audit = await fixture.administrator.query<{
-        readonly action: string;
-        readonly leaked: boolean;
-      }>(
-        `select action,
+    await administrator.query(
+      "select keynes_internal.revoke_remote_role_v0006($1::name)",
+      [fixture.primary.role],
+    );
+    expect(await compatibility(runtime)).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    const audit = await fixture.administrator.query<{
+      readonly action: string;
+      readonly leaked: boolean;
+    }>(
+      `select action,
                 to_jsonb(audit)::text ~ '(password|secret|token)' as leaked
            from keynes_internal.remote_credential_audit audit
           where role_oid = $1
           order by occurred_at desc
           limit 1`,
-        [await fixture.roleOid(fixture.primary.role)],
-      );
-      expect(audit.rows).toEqual([{ action: "revoked", leaked: false }]);
+      [await fixture.roleOid(fixture.primary.role)],
+    );
+    expect(audit.rows).toEqual([{ action: "revoked", leaked: false }]);
+  });
+
+  it("keeps a revoked credential terminal when registration is retried", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const runtime = await fixture.connect(fixture.primary);
+    const administrator = await fixture.connect({
+      role: fixture.administrationRole,
+      password: fixture.administrationPassword,
     });
 
-    it("keeps a revoked credential terminal when registration is retried", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const runtime = await fixture.connect(fixture.primary);
-      const administrator = await fixture.connect({
-        role: fixture.administrationRole,
-        password: fixture.administrationPassword,
-      });
-
-      await administrator.query(
-        "select keynes_internal.revoke_remote_role_v0006($1::name)",
-        [fixture.primary.role],
-      );
-      await expect(fixture.register(fixture.primary)).rejects.toThrow(
-        "remote login role is revoked",
-      );
-      expect(await compatibility(runtime)).toMatchObject({
-        ok: false,
-        error: { code: "unauthorized" },
-      });
-      await fixture.recreate(fixture.primary);
-      await expect(fixture.register(fixture.primary)).rejects.toThrow(
-        "remote login role is revoked",
-      );
+    await administrator.query(
+      "select keynes_internal.revoke_remote_role_v0006($1::name)",
+      [fixture.primary.role],
+    );
+    await expect(fixture.register(fixture.primary)).rejects.toThrow(
+      "remote login role is revoked",
+    );
+    expect(await compatibility(runtime)).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
     });
+    await fixture.recreate(fixture.primary);
+    await expect(fixture.register(fixture.primary)).rejects.toThrow(
+      "remote login role is revoked",
+    );
+  });
 
-    it("denies private objects, canonical procedures, role assumption, and public SQL creation", async () => {
-      fixture = await openRemoteIdentityFixture();
-      await fixture.register(fixture.primary);
-      const runtime = await fixture.connect(fixture.primary);
-      const before = await protectedState(fixture);
+  it("denies private objects, canonical procedures, role assumption, and public SQL creation", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const runtime = await fixture.connect(fixture.primary);
+    const before = await protectedState(fixture);
 
-      for (const statement of [
-        "select * from keynes_internal.remote_role_mappings",
-        "select keynes_internal.apply_command('createBudget', '{}'::jsonb)",
-        "select keynes_internal.register_remote_role_v0006(current_user, gen_random_uuid(), gen_random_uuid())",
-        `set role ${identifier(fixture.ownerRole)}`,
-        "create table keynes.remote_sql_probe(value integer)",
-      ]) {
-        await expect(runtime.query(statement)).rejects.toThrow();
-      }
-      expect(await protectedState(fixture)).toEqual(before);
-      const generic = await fixture.administrator.query<{
-        readonly present: boolean;
-      }>(
-        "select to_regprocedure('keynes.remote_execute(text,jsonb)') is not null as present",
-      );
-      expect(generic.rows[0]?.present).toBe(false);
-    });
-  },
-);
+    for (const statement of [
+      "select * from keynes_internal.remote_role_mappings",
+      "select keynes_internal.apply_command('createBudget', '{}'::jsonb)",
+      "select keynes_internal.register_remote_role_v0006(current_user, gen_random_uuid(), gen_random_uuid())",
+      `set role ${identifier(fixture.ownerRole)}`,
+      "create table keynes.remote_sql_probe(value integer)",
+    ]) {
+      await expect(runtime.query(statement)).rejects.toThrow();
+    }
+    expect(await protectedState(fixture)).toEqual(before);
+    const generic = await fixture.administrator.query<{
+      readonly present: boolean;
+    }>(
+      "select to_regprocedure('keynes.remote_execute(text,jsonb)') is not null as present",
+    );
+    expect(generic.rows[0]?.present).toBe(false);
+  });
+});
 
 function createRoot(suffix: string): Record<string, unknown> {
   return {

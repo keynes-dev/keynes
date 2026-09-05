@@ -1,0 +1,704 @@
+{
+  "sourceRevision": "30f678ca548de0aef74260e4b1a3383342de7c36",
+  "evidence": [
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/manifest.json",
+      "sha256": "b9d737249f89973c85f0cae24c8ab3c67779996f80d1a885bb7826435180bd99"
+    },
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/postgresql.json",
+      "sha256": "c2a6276c589b547d7859930bf3497ea3794abb1663230a86bac561b03b63ff73"
+    },
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/postgresql.json.observations.json",
+      "sha256": "a535b3c60099bce695909021e0dc6e10ccfacd74f562b0ecdaf1a298cd418441"
+    },
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/postgresql.json.vitest.json",
+      "sha256": "74dab75171299f97d59e935d31d7bd0eaf0c7b3b6e021f68c7beb9bdf9f1042b"
+    },
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/sqlite.vitest.json",
+      "sha256": "481310467a0418913dfe68c406835df923ebaa0cca0a00706e6dd98ab9709b7e"
+    },
+    {
+      "path": ".artifacts/key-91/full/phase6-30f678c/timing.json",
+      "sha256": "696bbba3464fecc1308f62649a78fb0b18b4ccb411c3b4facecf3f89f11536dd"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/cancelled/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/cancelled/initial.json",
+      "sha256": "be93fc9c5e8f313c0cab4df7deeb8367f447009b9059121f609eda959cd17fce"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/cancelled/manifest.json",
+      "sha256": "05096620bf3b87156417a12493c700bb5921496e98e53d3a54ec7b123af59338"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/observations.json",
+      "sha256": "c91f083950d62a9f42ed0fbc913aaf058442be4e1cf2c1b79ae6dc23100d77c8"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/consumer.json",
+      "sha256": "3e708cfbff0e4f230c21cf9e332dc989fe969fadf62cfe4599a8a625d6324443"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/initial.json",
+      "sha256": "b980fdf950f8534cba92a85c7965d60b43bd1adb891573a6aa45a309e9b462fa"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/manifest.json",
+      "sha256": "84838563abd977d31e482c9d63f64377564c06d33b82d84bf37e9757e82233c8"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/sql.json",
+      "sha256": "924165de7fdad6324af5c7a4a5ac8becc71b172eb9a74505540546bff4aa192f"
+    },
+    {
+      "path": ".artifacts/key-91/remote/concurrent-phase6-30f678c/survivor/tls.json",
+      "sha256": "b674fdbaaaad90fe652db2e1d37505be94e48441cb235b9a1736377d0efc5e85"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/consumer.json",
+      "sha256": "31b0e4c7db6d9189654251854a1045e187ccfd216e1362e9f9e9b62b6ee084d6"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/initial.json",
+      "sha256": "df2dd9ccef665da3216fe15d22cb0374e88cf7adb9e1f6a0cb4310b00359b499"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/manifest.json",
+      "sha256": "97e41df76bf455e56d68a106adc935ea8f04f054c89004ff04c845d7e248bdbb"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/sql.json",
+      "sha256": "0f35556046894d6ba8159a27bea56de9addfcc8423ce8c7be9f68828f705b991"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/all/tls.json",
+      "sha256": "76d6541d6740a60da0f159fbcd2d65ffc14c39c717a497347533d4334b9baf44"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-acquisition-cleanup-red.log",
+      "sha256": "62583fdb23d6d9a186da026dc19d5e7cf4f32e2ee57760de8d5766e76d0ba684"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-cli-red.log",
+      "sha256": "03010598939b966021aa1150a448e8f693e6f80ee5882a1381ad21839cafa5b1"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-consumer-cancel-red.log",
+      "sha256": "609f4da14eafa475c16f171b612ab6f2d9418a5f5258559f035bb255d0bc1d88"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-consumer-red.log",
+      "sha256": "40f63f5686e7ab009efaf6132378f6b749e547a2d24e9a4fb3d4a601613377ac"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-evidence-validation-red.log",
+      "sha256": "65ba0ee31fea2007de65d4dfd2c269959614d4a5e02f925586fd453b148312dd"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-native-cleanup-red.log",
+      "sha256": "0ebcea5f0897c6b39902cd35643be451a98f6562016944d85cabd726b408a0b4"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-pr-final.log",
+      "sha256": "dbb108008c5d0a79da4ae0214b2b19dc66faa0436343d5eeb1c84d36160155d5"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-selection-red.log",
+      "sha256": "288302d03a0cef1166077fdcfe2648a4f783654356f868450d8f5cc040960c65"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-timeout-red.log",
+      "sha256": "dba2339ecaf38b1d2e5f958a398209243cfe99a0ddb67188c839c318a343bb2d"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/phase6-tls-red.log",
+      "sha256": "c7e5b52e98bb52d2cbf517f1f8c3d6baec49e8d598a1591e808588ad55072301"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/diagnostics/provenance.json",
+      "sha256": "20794b98a68b96fed78a4292dfd78e004d61078e7422ebd3d8f2c2f10062deaa"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/consumer.json",
+      "sha256": "6b6d62169eb3407dd0724b259684edd7e2439e24ce823d5cdab7403c441e6fff"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/initial.json",
+      "sha256": "db31a94f71d49d6654369c6de966670e54645bed769fb5ea04f55a828debf2f1"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/manifest.json",
+      "sha256": "7a782b8fe06828bbc0eb1696c0d45a8c08b11eb7a0788f8b7194d7a561c7fd08"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/sql.json",
+      "sha256": "54f9c058556433f7d52957a05822aa66c905cd515055dac1e4be64053185ca1c"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/direct/tls.json",
+      "sha256": "659bc45ce61ecfd34e226a8caace59c1a8fd79b9df4c9948e3a21fd929bf96b9"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/regressions.json",
+      "sha256": "dd8724ced9fe550821bb1704ff028c12f0e55965b191b7c70e44ca9f7fd6edb8"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/rejections.json",
+      "sha256": "85c57f983686ec435d1782b59e3b9734bc7cedaa4b819101938ad23c54670105"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/consumer.json",
+      "sha256": "d64f32b683cb4f537644edbaea2681313348228810b393ae207d84054ece0b33"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/initial.json",
+      "sha256": "ade4e814ddafe9d8005410be0ea5cb3c3d617c197d80c46511a8df6b251d7c54"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/manifest.json",
+      "sha256": "fd682b43846a0a89c5c2006065f50c2901778d122aa5fcb430e247b8423b810d"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/sql.json",
+      "sha256": "b9ab99c195e246dd4aa5896d982371d2aa93d246fb202eda94b91652380c8051"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/session-pool/tls.json",
+      "sha256": "e09715889dca0f0116a2fb9b5e9d26a5b46d34812979a9bb4c8a34971d961152"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/timings.json",
+      "sha256": "ed698b406d09446380f88c718e6090791f888b45b0457fe6047744d9d3a408fc"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/archives.json",
+      "sha256": "e24d7f05dfe1deb87cca46527f73d11d78a82ef6b728230d7d361e63b31ffd20"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/consumer.json",
+      "sha256": "273d94a92b198e4c81facd0263b0b9c761c04ce8cf25d0c74a8bfbf399446378"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/initial.json",
+      "sha256": "6b42ea8a7a504e086db90f8f2971e443e8c64c7c2ab4b6f0f19b1ae4632952b9"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/manifest.json",
+      "sha256": "710e2baa775975c747cb45c2cbe9b3bbcc5b5ec4e7c9beb9c60edf44abbb69a2"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/sql.json",
+      "sha256": "2335ad11e9f475036696b5da72d85d031e13c55453f369982e50e160018fbb44"
+    },
+    {
+      "path": ".artifacts/key-91/remote/phase6-30f678c/transaction-pool/tls.json",
+      "sha256": "0706ae0be921acc08558ebd8357c982af179361a3360abab511f0e21c720abd1"
+    }
+  ],
+  "remoteAttempts": [
+    {
+      "mode": "all",
+      "attemptId": "6d25b31e-f664-4522-a8ea-01be6b81ea2e",
+      "candidate": {
+        "before": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        },
+        "after": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        }
+      },
+      "outcome": "passed",
+      "archives": {
+        "postgresql": {
+          "sha256": "e128393d70b71e04519b92a404146dbb09a7a4eb0ca131355a89efc34d000a52",
+          "provenance": "prepared for this attempt"
+        },
+        "sdk": {
+          "sha256": "97c4bc5571f1ad6ff1f499cfe2acc9a8c4abbdb8845724a1798a50641c1a662a",
+          "provenance": "prepared for this attempt"
+        }
+      },
+      "sqlAssertions": 105,
+      "installedChecks": 21,
+      "cleanup": {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "passed",
+          "packages": "passed"
+        }
+      },
+      "tls": {
+        "attemptId": "6d25b31e-f664-4522-a8ea-01be6b81ea2e",
+        "dockerVersion": "29.6.2",
+        "pnpmVersion": "11.21.0",
+        "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "postgresVersion": "180006",
+        "observedPoolers": [
+          {
+            "profile": "session-pool",
+            "poolMode": "session",
+            "imageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+            "version": "1.25.2"
+          },
+          {
+            "profile": "transaction-pool",
+            "poolMode": "transaction",
+            "imageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+            "version": "1.25.2"
+          }
+        ],
+        "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+        "poolers": [
+          "session-pool",
+          "transaction-pool"
+        ],
+        "certificateSha256": "3a296b3e2be01130cfc5ae01d2c5be2d8608b3b02c8fbc8bf364719ab64054ba"
+      }
+    },
+    {
+      "mode": "direct",
+      "attemptId": "f84a526f-b1e5-432a-8185-64e4744ea7fb",
+      "candidate": {
+        "before": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        },
+        "after": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        }
+      },
+      "outcome": "passed",
+      "archives": {
+        "postgresql": {
+          "sha256": "e128393d70b71e04519b92a404146dbb09a7a4eb0ca131355a89efc34d000a52",
+          "provenance": "prepared for this attempt"
+        },
+        "sdk": {
+          "sha256": "97c4bc5571f1ad6ff1f499cfe2acc9a8c4abbdb8845724a1798a50641c1a662a",
+          "provenance": "prepared for this attempt"
+        }
+      },
+      "sqlAssertions": 100,
+      "installedChecks": 7,
+      "cleanup": {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "passed",
+          "packages": "passed"
+        }
+      },
+      "tls": {
+        "attemptId": "f84a526f-b1e5-432a-8185-64e4744ea7fb",
+        "dockerVersion": "29.6.2",
+        "pnpmVersion": "11.21.0",
+        "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "postgresVersion": "180006",
+        "observedPoolers": [],
+        "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+        "poolers": [],
+        "certificateSha256": "51394c77512c2f6ef357eaefadeae739e5367d02225af0e911bd6d85e348d4a5"
+      }
+    },
+    {
+      "mode": "session-pool",
+      "attemptId": "c70a0556-9eb0-48a7-94b6-6cda51948fdd",
+      "candidate": {
+        "before": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        },
+        "after": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        }
+      },
+      "outcome": "passed",
+      "archives": {
+        "postgresql": {
+          "sha256": "e128393d70b71e04519b92a404146dbb09a7a4eb0ca131355a89efc34d000a52",
+          "provenance": "prepared for this attempt"
+        },
+        "sdk": {
+          "sha256": "97c4bc5571f1ad6ff1f499cfe2acc9a8c4abbdb8845724a1798a50641c1a662a",
+          "provenance": "prepared for this attempt"
+        }
+      },
+      "sqlAssertions": 101,
+      "installedChecks": 7,
+      "cleanup": {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "passed",
+          "packages": "passed"
+        }
+      },
+      "tls": {
+        "attemptId": "c70a0556-9eb0-48a7-94b6-6cda51948fdd",
+        "dockerVersion": "29.6.2",
+        "pnpmVersion": "11.21.0",
+        "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "postgresVersion": "180006",
+        "observedPoolers": [
+          {
+            "profile": "session-pool",
+            "poolMode": "session",
+            "imageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+            "version": "1.25.2"
+          }
+        ],
+        "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+        "poolers": [
+          "session-pool"
+        ],
+        "certificateSha256": "4d865a8d446ede67261e5795937e9b120c25ec070acb146934f4bd3ce8b9de94"
+      }
+    },
+    {
+      "mode": "transaction-pool",
+      "attemptId": "844a7f42-c095-427f-b151-e2e7e4c8496e",
+      "candidate": {
+        "before": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        },
+        "after": {
+          "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+          "clean": true,
+          "dirtyInputSha256": null
+        }
+      },
+      "outcome": "passed",
+      "archives": {
+        "postgresql": {
+          "sha256": "e128393d70b71e04519b92a404146dbb09a7a4eb0ca131355a89efc34d000a52",
+          "provenance": "prepared for this attempt"
+        },
+        "sdk": {
+          "sha256": "97c4bc5571f1ad6ff1f499cfe2acc9a8c4abbdb8845724a1798a50641c1a662a",
+          "provenance": "prepared for this attempt"
+        }
+      },
+      "sqlAssertions": 101,
+      "installedChecks": 7,
+      "cleanup": {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "passed",
+          "packages": "passed"
+        }
+      },
+      "tls": {
+        "attemptId": "844a7f42-c095-427f-b151-e2e7e4c8496e",
+        "dockerVersion": "29.6.2",
+        "pnpmVersion": "11.21.0",
+        "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "postgresVersion": "180006",
+        "observedPoolers": [
+          {
+            "profile": "transaction-pool",
+            "poolMode": "transaction",
+            "imageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+            "version": "1.25.2"
+          }
+        ],
+        "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+        "poolers": [
+          "transaction-pool"
+        ],
+        "certificateSha256": "8dcef83e9b1ea263d80649ba232008f30acde0fef44154d11918dfb7a115f79a"
+      }
+    }
+  ],
+  "timings": [
+    {
+      "mode": "all",
+      "command": [
+        "pnpm",
+        "test:remote",
+        "--",
+        "--output",
+        ".artifacts/key-91/remote/phase6-30f678c/all"
+      ],
+      "seconds": 22.315411249990575,
+      "exitCode": 0
+    },
+    {
+      "mode": "direct",
+      "command": [
+        "pnpm",
+        "test:remote",
+        "--",
+        "--output",
+        ".artifacts/key-91/remote/phase6-30f678c/direct",
+        "--mode",
+        "direct"
+      ],
+      "seconds": 20.371705375029705,
+      "exitCode": 0
+    },
+    {
+      "mode": "session-pool",
+      "command": [
+        "pnpm",
+        "test:remote",
+        "--",
+        "--output",
+        ".artifacts/key-91/remote/phase6-30f678c/session-pool",
+        "--mode",
+        "session-pool"
+      ],
+      "seconds": 21.001714416895993,
+      "exitCode": 0
+    },
+    {
+      "mode": "transaction-pool",
+      "command": [
+        "pnpm",
+        "test:remote",
+        "--",
+        "--output",
+        ".artifacts/key-91/remote/phase6-30f678c/transaction-pool",
+        "--mode",
+        "transaction-pool"
+      ],
+      "seconds": 21.222472207969986,
+      "exitCode": 0
+    }
+  ],
+  "pairedManifest": {
+    "schemaVersion": "keynes.sqlite-postgres/v1",
+    "candidate": {
+      "commit": "30f678ca548de0aef74260e4b1a3383342de7c36",
+      "event": "local",
+      "pullRequest": {},
+      "cleanBefore": true,
+      "cleanAfter": true,
+      "afterCommit": "30f678ca548de0aef74260e4b1a3383342de7c36"
+    },
+    "attempt": {
+      "id": "b2c79b8c-a756-48ae-a67d-27b92b641ea5"
+    },
+    "host": {
+      "os": "darwin",
+      "release": "25.5.0",
+      "architecture": "arm64",
+      "identity": "571a26261ad83163"
+    },
+    "environment": {
+      "node": "v26.5.0",
+      "pnpm": "11.21.0",
+      "vitest": "4.1.11",
+      "sdk": "0.0.0",
+      "postgresql": "0.0.0",
+      "pg": "8.23.0",
+      "postgresqlPg": "8.23.0"
+    },
+    "inputs": {
+      "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
+      "lockfileSha256": "da737ab4f37bcad423502447a96050c16e5f4cb0d009d0067eb4915bc45c94e3",
+      "installationRecordSha256": "9832e7ddc790119cccb4a4e349fa16994eaa831d5732d9d902027f6b6b6bc89b"
+    },
+    "startedAt": "2026-09-05T17:53:39.056Z",
+    "finishedAt": "2026-09-05T17:54:03.739Z",
+    "runtimes": [
+      {
+        "authority": "sqlite",
+        "environment": {
+          "sqliteVersion": "3.53.3"
+        },
+        "execution": {
+          "status": "completed",
+          "exitStatus": 0
+        },
+        "cleanup": "passed",
+        "report": {
+          "path": "sqlite.vitest.json",
+          "sha256": "481310467a0418913dfe68c406835df923ebaa0cca0a00706e6dd98ab9709b7e"
+        }
+      },
+      {
+        "authority": "postgresql",
+        "environment": {
+          "runId": "c5fe9d84-6fb5-4b77-a7a3-dbe1f487759a",
+          "dockerVersion": "29.6.2",
+          "postgresVersion": "180006",
+          "pgbouncerVersion": "1.25.2",
+          "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+          "pgbouncerImageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340"
+        },
+        "execution": {
+          "status": "completed",
+          "exitStatus": 0
+        },
+        "cleanup": "passed",
+        "report": {
+          "path": "postgresql.json.vitest.json",
+          "sha256": "74dab75171299f97d59e935d31d7bd0eaf0c7b3b6e021f68c7beb9bdf9f1042b"
+        },
+        "nativeAcceptance": {
+          "path": "postgresql.json",
+          "sha256": "c2a6276c589b547d7859930bf3497ea3794abb1663230a86bac561b03b63ff73"
+        }
+      }
+    ],
+    "outcome": "passed",
+    "failures": []
+  },
+  "cancellation": {
+    "exits": [
+      1,
+      0
+    ],
+    "attemptIds": [
+      "851f0e6f-9985-4788-85fc-ede957039f96",
+      "68da8015-c5b8-4dd7-90bc-e53528b4a38e"
+    ],
+    "outcomes": [
+      "failed",
+      "passed"
+    ],
+    "cleanup": [
+      {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "NOT RUN",
+          "packages": "passed"
+        }
+      },
+      {
+        "name": "cleanup",
+        "coverage": [
+          "owned resources removed"
+        ],
+        "kind": "completed",
+        "observations": {
+          "sqlFixtures": "passed",
+          "tlsFixtures": "passed",
+          "packages": "passed"
+        }
+      }
+    ],
+    "remainingOwnedContainers": [],
+    "remainingOwnedNetworks": []
+  },
+  "supersededCancellationFailure": {
+    "sourceRevision": "c90e0378ab257850775cc6ed74c7bc157894a6c6",
+    "qualified": false,
+    "observations": {
+      "exits": [
+        1,
+        0
+      ],
+      "attemptIds": [
+        "3b4e4776-549d-49d4-9120-7640e300205d",
+        "835d5c23-909f-474a-8b28-189fe9117b0f"
+      ],
+      "outcomes": [
+        "failed",
+        "passed"
+      ],
+      "cleanup": [
+        {
+          "name": "cleanup",
+          "coverage": [
+            "owned resources removed"
+          ],
+          "kind": "completed"
+        },
+        {
+          "name": "cleanup",
+          "coverage": [
+            "owned resources removed"
+          ],
+          "kind": "completed"
+        }
+      ],
+      "remainingOwnedContainers": [],
+      "remainingOwnedNetworks": [
+        "3b4e4776-549d-49d4-9120-7640e300205d"
+      ]
+    },
+    "repair": {
+      "command": [
+        "docker",
+        "network",
+        "rm",
+        "3b4e4776-549d-49d4-9120-7640e300205d"
+      ],
+      "exitCode": 0
+    }
+  },
+  "providerFreeAssertions": 194,
+  "review": {
+    "finding": "Derive temporary report directory from its path instead of maintaining redundant state.",
+    "resolution": "Applied before c90e037. Follow-up cleanup changes reviewed: Lean already. Ship."
+  },
+  "exclusions": {
+    "installedEmbedded": "NOT RUN",
+    "actualHosted": "NOT RUN",
+    "windowsProcessTree": "NOT RUN",
+    "ci": "NOT RUN"
+  }
+}

@@ -12,3 +12,10 @@ export {
   type InstalledPackage,
   type PackAndInstallWorkspacePackageOptions,
 } from "./package.js";
+
+export {
+  manageChild,
+  waitWithCancellation,
+  type RunningTestChild,
+} from "./process.ts";
+export { parsePassingReport, type ParsedTestFile } from "./report.ts";

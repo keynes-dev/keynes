@@ -1,3 +1,8 @@
+import {
+  manageChild,
+  waitWithCancellation,
+} from "../packages/testkit/src/process.ts";
+import { parsePassingReport } from "../packages/testkit/src/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
@@ -9,8 +14,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   runPostgresqlSystemTests,
   sanitizeVitestReport,
-  manageChild,
-  waitWithCancellation,
   validatePostgresqlSystemReport,
 } from "../packages/postgresql/test/system/run.ts";
 import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgresql/test/system/required-scenarios.ts";
@@ -26,92 +29,23 @@ export function validateTestReport(
   value: unknown,
   aggregate: string,
 ): string[] {
-  const invalid = () => new Error("Incomplete test report");
+  if (record(value) && "schemaVersion" in value)
+    throw new Error("Incomplete test report");
+  const files = parsePassingReport(value);
+  const names = files.flatMap((file) => file.assertions);
+  if (new Set(names).size !== names.length)
+    throw new Error("Incomplete test report");
+  const shared = files.filter(
+    (file) => file.name === aggregate || file.name.endsWith(`/${aggregate}`),
+  );
+  const first = shared[0];
   if (
-    !record(value) ||
-    value.success !== true ||
-    !Array.isArray(value.testResults) ||
-    value.testResults.length === 0
+    shared.length !== 1 ||
+    first === undefined ||
+    (aggregate === SQLITE_AGGREGATE && files.length !== 1)
   )
-    throw invalid();
-  for (const key of [
-    "numFailedTests",
-    "numPendingTests",
-    "numTodoTests",
-    "numFailedTestSuites",
-    "numPendingTestSuites",
-  ]) {
-    if (value[key] !== 0) throw invalid();
-  }
-  for (const key of ["unhandledErrors", "errors"]) {
-    if (
-      value[key] !== undefined &&
-      (!Array.isArray(value[key]) || value[key].length !== 0)
-    )
-      throw invalid();
-  }
-  let count = 0;
-  const files = new Set<string>();
-  const fullNames = new Set<string>();
-  const suites = new Set<string>();
-  let shared: string[] | undefined;
-  for (const file of value.testResults) {
-    if (
-      !record(file) ||
-      typeof file.name !== "string" ||
-      file.status !== "passed" ||
-      (file.message !== undefined && file.message !== "") ||
-      !Array.isArray(file.assertionResults) ||
-      file.assertionResults.length === 0
-    )
-      throw invalid();
-    const name = file.name.replaceAll("\\", "/");
-    if (files.has(name)) throw invalid();
-    files.add(name);
-    suites.add(JSON.stringify([name]));
-    const names: string[] = [];
-    for (const assertion of file.assertionResults) {
-      if (
-        !record(assertion) ||
-        typeof assertion.fullName !== "string" ||
-        assertion.fullName.trim() === "" ||
-        assertion.status !== "passed" ||
-        (assertion.failureMessages !== undefined &&
-          (!Array.isArray(assertion.failureMessages) ||
-            assertion.failureMessages.length !== 0))
-      )
-        throw invalid();
-      if (fullNames.has(assertion.fullName)) throw invalid();
-      if (
-        !Array.isArray(assertion.ancestorTitles) ||
-        !assertion.ancestorTitles.every(
-          (title: unknown) => typeof title === "string",
-        )
-      )
-        throw invalid();
-      for (let depth = 1; depth <= assertion.ancestorTitles.length; depth++)
-        suites.add(
-          JSON.stringify([name, ...assertion.ancestorTitles.slice(0, depth)]),
-        );
-      fullNames.add(assertion.fullName);
-      names.push(assertion.fullName);
-      count++;
-    }
-    if (name === aggregate || name.endsWith(`/${aggregate}`)) {
-      if (shared !== undefined) throw invalid();
-      shared = names.sort();
-    }
-  }
-  if (
-    shared === undefined ||
-    value.numPassedTests !== count ||
-    value.numTotalTests !== count ||
-    value.numTotalTestSuites !== suites.size ||
-    value.numPassedTestSuites !== value.numTotalTestSuites
-  )
-    throw invalid();
-  if (aggregate === SQLITE_AGGREGATE && files.size !== 1) throw invalid();
-  return shared;
+    throw new Error("Incomplete test report");
+  return [...first.assertions];
 }
 
 export async function verifySqlitePostgresResults(

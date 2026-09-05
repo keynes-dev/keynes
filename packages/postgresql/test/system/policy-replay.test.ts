@@ -54,179 +54,179 @@ interface SuccessfulWire {
   readonly replayed: boolean;
 }
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL governed Policy replay",
-  () => {
-    let fixture: ReplayFixture | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await fixture?.owner.close();
-      fixture = undefined;
+describe("PostgreSQL governed Policy replay", () => {
+  let fixture: ReplayFixture | undefined;
+
+  afterEach(async () => {
+    await fixture?.owner.close();
+    fixture = undefined;
+  });
+
+  it("returns the exact stored result, evidence, and Context", async () => {
+    fixture = await openFixture();
+    const parentPolicy = requestLimitPolicy({ revision: 1 });
+    const firstChildPolicy = receivingChildPolicy(
+      requestLimitPolicy({
+        name: "child_a",
+        revision: 1,
+      }),
+    );
+    const secondChildPolicy = receivingChildPolicy(
+      requestLimitPolicy({
+        name: "child_b",
+        revision: 1,
+      }),
+    );
+    await seedGovernedRoot(fixture, parentPolicy);
+    const command = requestCommand({
+      childPolicies: [firstChildPolicy, secondChildPolicy],
     });
 
-    it("returns the exact stored result, evidence, and Context", async () => {
-      fixture = await openFixture();
-      const parentPolicy = requestLimitPolicy({ revision: 1 });
-      const firstChildPolicy = receivingChildPolicy(
-        requestLimitPolicy({
-          name: "child_a",
-          revision: 1,
-        }),
-      );
-      const secondChildPolicy = receivingChildPolicy(
-        requestLimitPolicy({
-          name: "child_b",
-          revision: 1,
-        }),
-      );
-      await seedGovernedRoot(fixture, parentPolicy);
-      const command = requestCommand({
-        childPolicies: [firstChildPolicy, secondChildPolicy],
-      });
+    const original = await committedCall(fixture, "requestBudget", command);
+    const replay = await committedCall(
+      fixture,
+      "requestBudget",
+      requestCommand({
+        childPolicies: [
+          reversePolicyDeclarations(secondChildPolicy),
+          reversePolicyDeclarations(firstChildPolicy),
+        ],
+      }),
+    );
 
-      const original = await committedCall(fixture, "requestBudget", command);
-      const replay = await committedCall(
-        fixture,
-        "requestBudget",
-        requestCommand({
-          childPolicies: [
-            reversePolicyDeclarations(secondChildPolicy),
-            reversePolicyDeclarations(firstChildPolicy),
-          ],
-        }),
-      );
-
-      expect(original.replayed).toBe(false);
-      expect(replay).toEqual({ ...original, replayed: true });
-      expect(replay.result).toMatchObject({
-        kind: "approved",
-        policyEvidence: {
-          context: { request_ceiling: 5, request_enabled: true },
-          policies: [
-            {
-              name: parentPolicy.name,
-              revision: parentPolicy.revision,
-              sourceDigest: parentPolicy.sourceDigest,
-              definitionDigest: parentPolicy.definitionDigest,
-            },
-          ],
-        },
-      });
+    expect(original.replayed).toBe(false);
+    expect(replay).toEqual({ ...original, replayed: true });
+    expect(replay.result).toMatchObject({
+      kind: "approved",
+      policyEvidence: {
+        context: { request_ceiling: 5, request_enabled: true },
+        policies: [
+          {
+            name: parentPolicy.name,
+            revision: parentPolicy.revision,
+            sourceDigest: parentPolicy.sourceDigest,
+            definitionDigest: parentPolicy.definitionDigest,
+          },
+        ],
+      },
     });
+  });
 
-    it("ignores changed availability, an external fact, and an unrelated Policy revision", async () => {
-      fixture = await openFixture();
-      await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
-      let externalCeiling = 5;
-      const command = requestCommand({ contextCeiling: externalCeiling });
-      const original = await committedCall(fixture, "requestBudget", command);
+  it("ignores changed availability, an external fact, and an unrelated Policy revision", async () => {
+    fixture = await openFixture();
+    await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
+    let externalCeiling = 5;
+    const command = requestCommand({ contextCeiling: externalCeiling });
+    const original = await committedCall(fixture, "requestBudget", command);
 
-      externalCeiling = 0;
-      await fixture.owner.database.query(
-        `update keynes_internal.budget_resources
+    externalCeiling = 0;
+    await fixture.owner.database.query(
+      `update keynes_internal.budget_resources
             set allocated_amount = 4
           where tenant_id = $1::uuid
             and budget_id = $2::uuid
             and resource_type_id = $3::uuid`,
-        [FIXTURE_TENANT_ID, ROOT_ID, RESOURCE_ID],
-      );
-      await createOtherGovernedRoot(
-        fixture,
-        requestLimitPolicy({ revision: 2 }),
-      );
+      [FIXTURE_TENANT_ID, ROOT_ID, RESOURCE_ID],
+    );
+    await createOtherGovernedRoot(fixture, requestLimitPolicy({ revision: 2 }));
 
-      expect(externalCeiling).toBe(0);
-      const replay = await committedCall(fixture, "requestBudget", command);
-      expect(replay).toEqual({ ...original, replayed: true });
-    });
+    expect(externalCeiling).toBe(0);
+    const replay = await committedCall(fixture, "requestBudget", command);
+    expect(replay).toEqual({ ...original, replayed: true });
+  });
 
-    it("rejects command identity reuse with changed Context without changing state", async () => {
-      fixture = await openFixture();
-      await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
-      await committedCall(fixture, "requestBudget", requestCommand());
-      const before = await authorityState(fixture.owner);
+  it("rejects command identity reuse with changed Context without changing state", async () => {
+    fixture = await openFixture();
+    await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
+    await committedCall(fixture, "requestBudget", requestCommand());
+    const before = await authorityState(fixture.owner);
 
-      const conflict = await committedRawCall(
-        fixture,
-        "requestBudget",
-        requestCommand({ contextCeiling: 4 }),
-      );
+    const conflict = await committedRawCall(
+      fixture,
+      "requestBudget",
+      requestCommand({ contextCeiling: 4 }),
+    );
 
-      expectCommandConflict(conflict);
-      expect(await authorityState(fixture.owner)).toEqual(before);
-    });
+    expectCommandConflict(conflict);
+    expect(await authorityState(fixture.owner)).toEqual(before);
+  });
 
-    it("rejects command identity reuse with changed child Policies without changing state", async () => {
-      fixture = await openFixture();
-      const originalChildPolicy = receivingChildPolicy(
-        requestLimitPolicy({
-          name: "child_limit",
-          revision: 1,
-        }),
-      );
-      await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
-      await committedCall(
-        fixture,
-        "requestBudget",
-        requestCommand({ childPolicies: [originalChildPolicy] }),
-      );
-      const before = await authorityState(fixture.owner);
+  it("rejects command identity reuse with changed child Policies without changing state", async () => {
+    fixture = await openFixture();
+    const originalChildPolicy = receivingChildPolicy(
+      requestLimitPolicy({
+        name: "child_limit",
+        revision: 1,
+      }),
+    );
+    await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
+    await committedCall(
+      fixture,
+      "requestBudget",
+      requestCommand({ childPolicies: [originalChildPolicy] }),
+    );
+    const before = await authorityState(fixture.owner);
 
-      const conflict = await committedRawCall(
-        fixture,
-        "requestBudget",
-        requestCommand({
-          childPolicies: [
-            receivingChildPolicy(
-              requestLimitPolicy({ name: "child_limit", revision: 2 }),
-            ),
-          ],
-        }),
-      );
+    const conflict = await committedRawCall(
+      fixture,
+      "requestBudget",
+      requestCommand({
+        childPolicies: [
+          receivingChildPolicy(
+            requestLimitPolicy({ name: "child_limit", revision: 2 }),
+          ),
+        ],
+      }),
+    );
 
-      expectCommandConflict(conflict);
-      expect(await authorityState(fixture.owner)).toEqual(before);
-    });
+    expectCommandConflict(conflict);
+    expect(await authorityState(fixture.owner)).toEqual(before);
+  });
 
-    it("returns before reading the parent Policy snapshot or invoking the evaluator", async () => {
-      fixture = await openFixture();
-      await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
-      const command = requestCommand();
-      const original = await committedCall(fixture, "requestBudget", command);
-      const blocker = await fixture.owner.beginTransaction();
-      await blocker.connection.query(
-        "lock table keynes_internal.budgets in access exclusive mode",
-      );
-      const transaction = await beginApplicationAttempt(fixture);
+  it("returns before reading the parent Policy snapshot or invoking the evaluator", async () => {
+    fixture = await openFixture();
+    await seedGovernedRoot(fixture, requestLimitPolicy({ revision: 1 }));
+    const command = requestCommand();
+    const original = await committedCall(fixture, "requestBudget", command);
+    const blocker = await fixture.owner.beginTransaction();
+    await blocker.connection.query(
+      "lock table keynes_internal.budgets in access exclusive mode",
+    );
+    const transaction = await beginApplicationAttempt(fixture);
 
-      try {
-        await transaction.connection.query(
-          `select
+    try {
+      await transaction.connection.query(
+        `select
              set_config('keynes.tenant_id', $1, true),
              set_config('keynes.principal_id', $2, true),
              set_config('keynes.test_checkpoint', 'before_policy_evaluation', true)`,
-          [FIXTURE_TENANT_ID, FIXTURE_PRINCIPALS["product-fixture"]],
-        );
-        await transaction.connection.query("set local lock_timeout = '250ms'");
-        const response = await transaction.connection.query<{
-          readonly response: unknown;
-        }>("select keynes.request($1::jsonb) as response", [
-          JSON.stringify(command),
-        ]);
-        const replay = requireSuccess(
-          normalizeWireResponse(response.rows[0]?.response),
-        );
-        expect(replay).toEqual({ ...original, replayed: true });
-        await transaction.commit();
-      } catch (error: unknown) {
-        await transaction.rollback();
-        throw error;
-      } finally {
-        await blocker.rollback();
-      }
-    });
-  },
-);
+        [FIXTURE_TENANT_ID, FIXTURE_PRINCIPALS["product-fixture"]],
+      );
+      await transaction.connection.query("set local lock_timeout = '250ms'");
+      const response = await transaction.connection.query<{
+        readonly response: unknown;
+      }>("select keynes.request($1::jsonb) as response", [
+        JSON.stringify(command),
+      ]);
+      const replay = requireSuccess(
+        normalizeWireResponse(response.rows[0]?.response),
+      );
+      expect(replay).toEqual({ ...original, replayed: true });
+      await transaction.commit();
+    } catch (error: unknown) {
+      await transaction.rollback();
+      throw error;
+    } finally {
+      await blocker.rollback();
+    }
+  });
+});
 
 async function openFixture(): Promise<ReplayFixture> {
   const owner = await openInstalledPostgresDatabase(

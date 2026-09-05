@@ -204,3 +204,109 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
   ],
 } as const;
+
+export const REMOTE_MODES = [
+  "direct",
+  "session-pool",
+  "transaction-pool",
+] as const;
+export type RemoteMode = (typeof REMOTE_MODES)[number];
+export interface RemoteSelection {
+  readonly kind: "remote";
+  readonly modes: readonly RemoteMode[];
+}
+
+export function validateRemoteSelection(value: unknown): RemoteSelection {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("kind" in value) ||
+    value.kind !== "remote" ||
+    !("modes" in value) ||
+    !Array.isArray(value.modes) ||
+    value.modes.length === 0 ||
+    new Set(value.modes).size !== value.modes.length ||
+    !value.modes.every((mode: unknown) =>
+      REMOTE_MODES.some((known) => known === mode),
+    )
+  )
+    throw new Error("Invalid remote selection");
+  const modes = value.modes;
+  return {
+    kind: "remote",
+    modes: REMOTE_MODES.filter((mode) => modes.includes(mode)),
+  };
+}
+
+export function remoteScenarioInventory(
+  selection: RemoteSelection,
+): Readonly<Record<string, readonly string[]>> {
+  const { modes } = validateRemoteSelection(selection);
+  const files = [
+    "packages/postgresql/test/integration/installation.test.ts",
+    "packages/postgresql/test/integration/recheck.test.ts",
+    "packages/postgresql/test/integration/remote-identity.test.ts",
+    "packages/postgresql/test/system/remote-budget.test.ts",
+    "packages/postgresql/test/system/remote-recovery.test.ts",
+    "packages/postgresql/test/system/remote-security.test.ts",
+  ] as const;
+  const connectionFile =
+    "packages/postgresql/test/system/remote-connections.test.ts";
+  const connections: string[] = REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
+    connectionFile
+  ].filter((name) => {
+    if (
+      name.endsWith(
+        "proves the runner routes through the requested PgBouncer modes",
+      )
+    )
+      return modes.length === 3;
+    return REMOTE_MODES.every(
+      (mode) => !name.includes(` ${mode} `) || modes.includes(mode),
+    );
+  });
+  if (modes.length !== 3)
+    for (const mode of modes)
+      if (mode !== "direct")
+        connections.push(
+          `remote PostgreSQL connection profiles proves the runner routes through the ${mode} mode`,
+        );
+  return {
+    [POSTGRESQL_BUDGET_AGGREGATE]: [],
+    ...Object.fromEntries(
+      files.map((file) => [file, REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[file]]),
+    ),
+    [connectionFile]: connections,
+  };
+}
+
+export interface EmbeddedSelection {
+  readonly kind: "embedded";
+}
+export type NativeSelection = RemoteSelection | EmbeddedSelection;
+export function selectedScenarioInventory(
+  selection: NativeSelection,
+): Readonly<Record<string, readonly string[]>> {
+  return selection.kind === "remote"
+    ? remoteScenarioInventory(selection)
+    : {
+        [POSTGRESQL_BUDGET_AGGREGATE]: [],
+        "packages/postgresql/test/system/embedded-transactions.test.ts":
+          REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
+            "packages/postgresql/test/system/embedded-transactions.test.ts"
+          ],
+      };
+}
+
+export function validateNativeSelection(value: unknown): NativeSelection {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "kind" in value &&
+    value.kind === "embedded" &&
+    !("modes" in value) &&
+    !("installed" in value)
+  )
+    return { kind: "embedded" };
+  return validateRemoteSelection(value);
+}

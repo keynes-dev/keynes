@@ -1,0 +1,53 @@
+{
+  "sourceRevision": "a0a597809df4d0b145a26ab6ca10e02cb80a54a4",
+  "evidence": [
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/availability.json",
+      "sha256": "7e333ba7c195da9bfdf8533bc381f38b1db7fbfdf62a50091f56f50fe1e9561a"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/cleanup-readback.json",
+      "sha256": "044164d24f5054546d437acd72cbf16893bf2935868cb9120e8fd051f031d434"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/fixture-command.json",
+      "sha256": "e24297b64cddc4319deab6a6992181138b9e89fa1e9bccbc2408011566275f5c"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/fixtures/archives.json",
+      "sha256": "9b319163ac6bba9cae81080a4ca380a2c2194ea7b685a3260beb7a5c017859aa"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/fixtures/initial.json",
+      "sha256": "432f6022023402862fa2e22dd164461806b29d2d6a5c9605145543193aee560e"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/fixtures/manifest.json",
+      "sha256": "b351c294a6761e415fbf8fb24e29619b51cb5efd5373dc447cc24d4d3efea89e"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/fixtures/sql.json",
+      "sha256": "9780989ed1a3b649678c8bc20e2ca263a7f6e13b5fbb5d1924cddec060ba77da"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/installed/initial.json",
+      "sha256": "89ca4c2a727e25e442a26ee68a8295d4dd1742e9d2a8d177964745f7b1a953ed"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/installed/manifest.json",
+      "sha256": "2476882cc444d61f49d4c85fc047aab924a107fb76ec86101bbed29cfd88cad1"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/pr-check.log",
+      "sha256": "89adf64ef3151eb730073da8b86e7ff39886716c299388f118e1c54feba715eb"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/provider-free-checks.log",
+      "sha256": "c7970e5faf8fd3d3f08108d85600ea29aa311cfbda2d390164c62f728349f4b0"
+    },
+    {
+      "path": ".artifacts/key-91/embedded/phase7-a0a5978/refusal-command.json",
+      "sha256": "c0c2ea1301b72f677bc84011ac0ca9e16b875ba6687ec6dd26b777405b5a50ee"
+    }
+  ]
+}

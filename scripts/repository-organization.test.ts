@@ -53,6 +53,18 @@ const removedCommands = [
 ] as const;
 
 describe("repository organization", () => {
+  it("runs contracts through Turbo without a duplicate generator test invocation", () => {
+    const scripts = requireObject(
+      readJsonObject(join(repositoryRoot, "package.json")),
+      "scripts",
+    );
+    expect(scripts["test:pr"]).not.toContain("pnpm test:generator");
+    expect(scripts["test:pr"]).toContain("turbo run quality typecheck test");
+    expect(scripts["test:generator"]).toBe(
+      "pnpm --filter @keynes/contracts test",
+    );
+  });
+
   it("materializes every target owner", () => {
     for (const directory of targetDirectories) {
       expect(existsSync(join(repositoryRoot, directory)), directory).toBe(true);

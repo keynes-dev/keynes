@@ -14,9 +14,12 @@ export const POSTGRESQL_PACKAGE_ARCHIVE_ENV =
 
 export async function packAndInstallPostgresql(
   repositoryRoot: string,
+  signal?: AbortSignal,
 ): Promise<PackedPostgresqlPackage> {
   return packAndInstallWorkspacePackage({
     workspaceRoot: resolve(repositoryRoot, "packages/postgresql"),
+    repositoryRoot,
+    signal,
     archiveFileName: "keynes-postgresql-0.0.0.tgz",
     consumerName: "keynes-postgresql-consumer",
     executable: "keynes-postgresql",
@@ -28,6 +31,7 @@ export async function installPostgresqlArchive(
   suppliedWorkspace?: string,
   suppliedConsumerRoot?: string,
   environment?: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
 ): Promise<PackedPostgresqlPackage> {
   return installPackageArchive({
     archivePath,
@@ -36,6 +40,7 @@ export async function installPostgresqlArchive(
     workspace: suppliedWorkspace,
     consumerRoot: suppliedConsumerRoot,
     environment,
+    signal,
   });
 }
 
