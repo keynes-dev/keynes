@@ -24,7 +24,8 @@ export function validateLocalReport(
     .sort();
   if (
     expected.length === 0 ||
-    JSON.stringify(files) !== JSON.stringify([...expected].sort())
+    JSON.stringify(files) !==
+      JSON.stringify(expected.map((path) => path.replaceAll("\\", "/")).sort())
   )
     throw new Error("Local suite selection is incomplete");
 }
