@@ -20,6 +20,6 @@ are N/A because product behavior is unchanged; real CLI and repository checks ap
 - [x] T007 [US1] Exercise a small feature through the restored stock lifecycle.
 - [x] T008 [US1] Verify resume, worktree isolation, clean checkout, and repeated upgrade.
 - [x] T009 [US1] Run focused repository checks and inspect the final diff.
-- [ ] T010 [US1] Record exact evidence and link the feature and PR from Linear.
+- [x] T010 [US1] Record exact evidence and link the feature and PR from Linear.
 
 Completion in Linear still requires merge and acceptance; these tasks do not close the issue.

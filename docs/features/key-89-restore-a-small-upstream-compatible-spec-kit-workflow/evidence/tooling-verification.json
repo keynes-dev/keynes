@@ -1,8 +1,8 @@
 {
-  "proof_root": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1",
-  "fixture_worktree": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+  "proof_root": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b",
+  "fixture_worktree": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-a",
   "fixture_directory": "docs/features/key-89-small-feature",
-  "staged_tree": "e95e9596ed2397beec74bb251db9a2bb6b996bca",
+  "staged_tree": "57ddc014c34ea94cd356935afb0a216dd02cf8f9",
   "historical_files_preserved": 168,
   "managed_files": 22,
   "checks": [
@@ -24,7 +24,7 @@
         "git",
         "checkout-index",
         "--all",
-        "--prefix=/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo/"
+        "--prefix=/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo/"
       ],
       "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
       "exit": 0,
@@ -38,7 +38,7 @@
         "status",
         "--json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
       "stderr": ""
@@ -52,7 +52,7 @@
         "--script",
         "sh"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "\u26a0  12 shared infrastructure path(s) already exist and were not updated:\n    .specify/scripts/bash/common.sh\n    .specify/scripts/bash/setup-plan.sh\n    .specify/scripts/bash/setup-tasks.sh\n    .specify/scripts/bash/check-prerequisites.sh\n    .specify/scripts/bash/resolve-template.sh\n    .specify/scripts/bash/create-new-feature.sh\n    .specify/templates/constitution-template.md\n    .specify/templates/checklist-template.md\n    .specify/templates/tasks-template.md\n    .specify/templates/spec-template.md\n    .specify/templates/plan-template.md\n    .specify/.gitignore\nTo refresh shared infrastructure, run specify init --here --force or specify \nintegration upgrade --force.\nUpgrading integration: codex\nUpdated execute permissions on 6 script(s) recursively\n\n\u2713 Integration 'Codex CLI' upgraded successfully\n",
       "stderr": ""
@@ -64,7 +64,7 @@
         "status",
         "--json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
       "stderr": ""
@@ -78,7 +78,7 @@
         "--script",
         "sh"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "\u26a0  12 shared infrastructure path(s) already exist and were not updated:\n    .specify/scripts/bash/common.sh\n    .specify/scripts/bash/setup-plan.sh\n    .specify/scripts/bash/setup-tasks.sh\n    .specify/scripts/bash/check-prerequisites.sh\n    .specify/scripts/bash/resolve-template.sh\n    .specify/scripts/bash/create-new-feature.sh\n    .specify/templates/constitution-template.md\n    .specify/templates/checklist-template.md\n    .specify/templates/tasks-template.md\n    .specify/templates/spec-template.md\n    .specify/templates/plan-template.md\n    .specify/.gitignore\nTo refresh shared infrastructure, run specify init --here --force or specify \nintegration upgrade --force.\nUpgrading integration: codex\nUpdated execute permissions on 6 script(s) recursively\n\n\u2713 Integration 'Codex CLI' upgraded successfully\n",
       "stderr": ""
@@ -90,7 +90,7 @@
         "status",
         "--json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
       "stderr": ""
@@ -99,7 +99,7 @@
       "command": [
         "specify",
         "init",
-        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/pristine",
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/pristine",
         "--integration",
         "codex",
         "--script",
@@ -107,9 +107,9 @@
         "--non-interactive",
         "--ignore-agent-tools"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
-      "stdout": "              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557   \u2588\u2588\u2557              \n              \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u255a\u2588\u2588\u2557 \u2588\u2588\u2554\u255d              \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557   \u255a\u2588\u2588\u2588\u2588\u2554\u255d               \n              \u255a\u2550\u2550\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u255d \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d    \u255a\u2588\u2588\u2554\u255d                \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2551        \u2588\u2588\u2551                 \n              \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d     \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d\u255a\u2550\u255d        \u255a\u2550\u255d                 \n                                                                                \n               GitHub Spec Kit - Spec-Driven Development Toolkit                \n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Specify Project Setup                                                       \u2502\n\u2502                                                                              \u2502\n\u2502  Project         pristine                                                    \u2502\n\u2502  Working Path                                                                \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -gudj4wi1/repo                                                              \u2502\n\u2502  Target Path                                                                 \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -gudj4wi1/pristine                                                          \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\nSelected coding agent integration: codex\nSelected script type: sh\nInitialize Specify Project\n\u251c\u2500\u2500 \u25cf Check required tools (ok)\n\u251c\u2500\u2500 \u25cf Select coding agent integration (codex)\n\u251c\u2500\u2500 \u25cf Select script type (sh)\n\u251c\u2500\u2500 \u25cf Install integration (Codex CLI)\n\u251c\u2500\u2500 \u25cf Install shared infrastructure (scripts (sh) + templates)\n\u251c\u2500\u2500 \u25cf Ensure scripts executable (6 updated)\n\u251c\u2500\u2500 \u25cf Constitution setup (copied from template)\n\u251c\u2500\u2500 \u25cf Install bundled workflow (speckit installed)\n\u2514\u2500\u2500 \u25cf Finalize (project ready)\n\nProject ready.\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Agent Folder Security \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Some agents may store credentials, auth tokens, or other identifying and    \u2502\n\u2502  private artifacts in the agent folder within your project.                  \u2502\n\u2502  Consider adding .agents/ (or parts of it) to .gitignore to prevent          \u2502\n\u2502  accidental credential leakage.                                              \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Next Steps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  1. Go to the project folder: cd                                             \u2502\n\u2502  /var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi  \u2502\n\u2502  1/pristine                                                                  \u2502\n\u2502  2. Start Codex in this project directory; spec-kit skills were installed    \u2502\n\u2502  to .agents/skills                                                           \u2502\n\u2502  3. Start using skills with your coding agent:                               \u2502\n\u2502     3.1 $speckit-constitution - Establish project principles                 \u2502\n\u2502     3.2 $speckit-specify - Create baseline specification                     \u2502\n\u2502     3.3 $speckit-plan - Create implementation plan                           \u2502\n\u2502     3.4 $speckit-tasks - Generate actionable tasks                           \u2502\n\u2502     3.5 $speckit-implement - Execute implementation                          \u2502\n\u2502     3.6 $speckit-converge - Assess the codebase and append remaining work    \u2502\n\u2502  as tasks                                                                    \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Enhancement Skills \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Optional skills that you can use for your specs (improve quality &          \u2502\n\u2502  confidence)                                                                 \u2502\n\u2502                                                                              \u2502\n\u2502  \u25cb $speckit-clarify (optional) - Ask structured questions to de-risk         \u2502\n\u2502  ambiguous areas before planning (run before $speckit-plan if used)          \u2502\n\u2502  \u25cb $speckit-analyze (optional) - Cross-artifact consistency & alignment      \u2502\n\u2502  report (after $speckit-tasks, before $speckit-implement)                    \u2502\n\u2502  \u25cb $speckit-checklist (optional) - Generate quality checklists to validate   \u2502\n\u2502  requirements completeness, clarity, and consistency (after $speckit-plan)   \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n",
+      "stdout": "              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557   \u2588\u2588\u2557              \n              \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u255a\u2588\u2588\u2557 \u2588\u2588\u2554\u255d              \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557   \u255a\u2588\u2588\u2588\u2588\u2554\u255d               \n              \u255a\u2550\u2550\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u255d \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d    \u255a\u2588\u2588\u2554\u255d                \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2551        \u2588\u2588\u2551                 \n              \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d     \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d\u255a\u2550\u255d        \u255a\u2550\u255d                 \n                                                                                \n               GitHub Spec Kit - Spec-Driven Development Toolkit                \n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Specify Project Setup                                                       \u2502\n\u2502                                                                              \u2502\n\u2502  Project         pristine                                                    \u2502\n\u2502  Working Path                                                                \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -n5w_1x6b/repo                                                              \u2502\n\u2502  Target Path                                                                 \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -n5w_1x6b/pristine                                                          \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\nSelected coding agent integration: codex\nSelected script type: sh\nInitialize Specify Project\n\u251c\u2500\u2500 \u25cf Check required tools (ok)\n\u251c\u2500\u2500 \u25cf Select coding agent integration (codex)\n\u251c\u2500\u2500 \u25cf Select script type (sh)\n\u251c\u2500\u2500 \u25cf Install integration (Codex CLI)\n\u251c\u2500\u2500 \u25cf Install shared infrastructure (scripts (sh) + templates)\n\u251c\u2500\u2500 \u25cf Ensure scripts executable (6 updated)\n\u251c\u2500\u2500 \u25cf Constitution setup (copied from template)\n\u251c\u2500\u2500 \u25cf Install bundled workflow (speckit installed)\n\u2514\u2500\u2500 \u25cf Finalize (project ready)\n\nProject ready.\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Agent Folder Security \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Some agents may store credentials, auth tokens, or other identifying and    \u2502\n\u2502  private artifacts in the agent folder within your project.                  \u2502\n\u2502  Consider adding .agents/ (or parts of it) to .gitignore to prevent          \u2502\n\u2502  accidental credential leakage.                                              \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Next Steps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  1. Go to the project folder: cd                                             \u2502\n\u2502  /var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6  \u2502\n\u2502  b/pristine                                                                  \u2502\n\u2502  2. Start Codex in this project directory; spec-kit skills were installed    \u2502\n\u2502  to .agents/skills                                                           \u2502\n\u2502  3. Start using skills with your coding agent:                               \u2502\n\u2502     3.1 $speckit-constitution - Establish project principles                 \u2502\n\u2502     3.2 $speckit-specify - Create baseline specification                     \u2502\n\u2502     3.3 $speckit-plan - Create implementation plan                           \u2502\n\u2502     3.4 $speckit-tasks - Generate actionable tasks                           \u2502\n\u2502     3.5 $speckit-implement - Execute implementation                          \u2502\n\u2502     3.6 $speckit-converge - Assess the codebase and append remaining work    \u2502\n\u2502  as tasks                                                                    \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Enhancement Skills \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Optional skills that you can use for your specs (improve quality &          \u2502\n\u2502  confidence)                                                                 \u2502\n\u2502                                                                              \u2502\n\u2502  \u25cb $speckit-clarify (optional) - Ask structured questions to de-risk         \u2502\n\u2502  ambiguous areas before planning (run before $speckit-plan if used)          \u2502\n\u2502  \u25cb $speckit-analyze (optional) - Cross-artifact consistency & alignment      \u2502\n\u2502  report (after $speckit-tasks, before $speckit-implement)                    \u2502\n\u2502  \u25cb $speckit-checklist (optional) - Generate quality checklists to validate   \u2502\n\u2502  requirements completeness, clarity, and consistency (after $speckit-plan)   \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n",
       "stderr": ""
     },
     {
@@ -118,7 +118,7 @@
         "init",
         "-q"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "",
       "stderr": ""
@@ -129,7 +129,7 @@
         "add",
         "."
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "",
       "stderr": ""
@@ -145,7 +145,7 @@
         "-qm",
         "Disposable fixture base"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
       "stdout": "",
       "stderr": ""
@@ -157,11 +157,11 @@
         "add",
         "-b",
         "fixture/key-89-small-feature",
-        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a"
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-a"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
-      "stdout": "HEAD is now at 5a13faa Disposable fixture base\n",
+      "stdout": "HEAD is now at aa22869 Disposable fixture base\n",
       "stderr": "Preparing worktree (new branch 'fixture/key-89-small-feature')\n"
     },
     {
@@ -171,11 +171,11 @@
         "add",
         "-b",
         "fixture/key-89-resume",
-        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b"
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/repo",
       "exit": 0,
-      "stdout": "HEAD is now at 5a13faa Disposable fixture base\n",
+      "stdout": "HEAD is now at aa22869 Disposable fixture base\n",
       "stderr": "Preparing worktree (new branch 'fixture/key-89-resume')\n"
     },
     {
@@ -185,7 +185,7 @@
         "--json",
         "--paths-only"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-a",
       "exit": 1,
       "stdout": "",
       "stderr": "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .specify/feature.json.\nERROR: Failed to resolve feature paths\n"
@@ -197,9 +197,9 @@
         "--json",
         "--paths-only"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b",
       "exit": 0,
-      "stdout": "{\"REPO_ROOT\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"TASKS\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/tasks.md\"}\n",
+      "stdout": "{\"REPO_ROOT\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"TASKS\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/tasks.md\"}\n",
       "stderr": ""
     },
     {
@@ -208,10 +208,10 @@
         ".specify/scripts/bash/setup-plan.sh",
         "--json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b",
       "exit": 0,
-      "stdout": "{\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"SPECS_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\"}\n",
-      "stderr": "Plan already exists at /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md, skipping template copy\n"
+      "stdout": "{\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"SPECS_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\"}\n",
+      "stderr": "Plan already exists at /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md, skipping template copy\n"
     },
     {
       "command": [
@@ -219,7 +219,7 @@
         "check-ignore",
         ".specify/feature.json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-a",
       "exit": 0,
       "stdout": ".specify/feature.json\n",
       "stderr": ""
@@ -230,7 +230,7 @@
         "ls-files",
         ".specify/feature.json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-a",
       "exit": 0,
       "stdout": "",
       "stderr": ""
@@ -241,7 +241,7 @@
         "check-ignore",
         ".specify/feature.json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b",
       "exit": 0,
       "stdout": ".specify/feature.json\n",
       "stderr": ""
@@ -252,7 +252,7 @@
         "ls-files",
         ".specify/feature.json"
       ],
-      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-n5w_1x6b/feature-b",
       "exit": 0,
       "stdout": "",
       "stderr": ""
@@ -290,10 +290,11 @@
       ],
       "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
       "exit": 0,
-      "stdout": "e95e9596ed2397beec74bb251db9a2bb6b996bca\n",
+      "stdout": "57ddc014c34ea94cd356935afb0a216dd02cf8f9\n",
       "stderr": ""
     }
   ],
+  "source_revision": "faac3cd80976947349c3d37d77c40d4f9bb0d2d3",
   "fixture": {
     "cases": 4,
     "red_exit": 1,
@@ -312,7 +313,10 @@
       "docs/features/key-89-small-feature/contracts/cli.md": "491c99c315b5c24b25b6b0a0996210c2dd38be9e82be1257aef12b2f9e95c3b7",
       "greet.py": "b863111edcddd28f855865265b0cd8081847982255d222d9bb006066749860a3",
       "test_greet.py": "d79f19aa015ff0f9641b769cdf29614025a6b5fb85ef2a2fc0786d7e0144cc6f"
-    }
+    },
+    "evidence_boundary": "Agent-followed stock lifecycle ran before the implementation commit; its managed tooling matches the committed revision. The retained four-case code suite was rerun after commit."
   },
-  "retained_demo": "The fixture artifact Markdown was formatted after its lifecycle run; requirements and code are unchanged. Final reviewed fixture digests are recorded here. evidence/stock-lifecycle flattens its directory for review."
+  "retained_demo": "The fixture artifact Markdown was formatted after its lifecycle run; requirements and code are unchanged. Final reviewed fixture digests are recorded here. evidence/stock-lifecycle flattens its directory for review.",
+  "verification_script_sha256": "cb744ee9b3b98da113d8faa12ce01b591354383b64986e1004d4e7e99c7ba624",
+  "pr_suite_log_sha256": "db946314a78baa7cd4c987f9a10c70a734b766ec9f0e4fda1f78fb7588262707"
 }
