@@ -227,3 +227,31 @@ T040-T045 are complete. Hosted refusal and final integration remain pending.
 Installed Embedded, actual Hosted, the OS/Node matrix, Windows process handling,
 CI and merge enforcement remain NOT RUN. This evidence checkpoint follows the
 implementation commit; it does not change the source identity of retained runs.
+
+## Phase 8 - Hosted refusal
+
+Source revision: `53f8e3a3b92e4fffd80c3a06db2173954edc3625`. The clean Hosted command retained
+`NOT RUN: supported Hosted product runner unavailable` and exited 1 with
+synthetic ambient credentials. Reused output, target flags, and unknown flags
+also exited 1. Evidence is indexed in `evidence/phase8.json` and retained locally
+under `.artifacts/key-91/hosted/phase8-53f8e3a`.
+
+All 14 Hosted regressions failed before implementation and pass on the committed
+source. A real subprocess with credentials aimed at a local listener observed
+zero database connections, no package/provisioning subprocess calls, exit 1,
+and a refusal manifest without credentials. Other regressions cover output reuse,
+source changes and snapshot failure, safe retained errors, evidence hashes,
+linked evidence, and invalid arguments. This verifies the unavailable boundary;
+actual Hosted acceptance remains NOT RUN.
+
+The PR gate passed on the implementation tree before commit, including the 14
+Hosted tests under the SDK owner. The committed command retained identical clean
+source snapshots before and after. Ponytail review: Lean already. Ship.
+No service, database, or package resources were acquired by the Hosted command.
+Future execution still needs product ownership, target/deployed-artifact identity,
+provisioning, credential delivery, verified TLS, mutation/spend authorization,
+and cleanup ownership as documented in the deployment contract.
+
+T046-T049 are complete. Final integration remains pending. Actual Hosted,
+installed Embedded, external CI and merge enforcement remain NOT RUN. No
+publication or lifecycle update was performed.

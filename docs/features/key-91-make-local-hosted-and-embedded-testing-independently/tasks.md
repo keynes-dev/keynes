@@ -112,10 +112,10 @@ Do not initialize a new project or edit upstream-managed Spec Kit files. New sou
 
 **Independent Test**: Hosted writes safe NOT RUN evidence and exits 1 with zero external calls, with or without synthetic ambient credentials.
 
-- [ ] T046 [US5] Add failing tests in packages/sdk/test/system/run-hosted.test.ts for unavailable product runner, synthetic ambient credentials, rejected target/unknown flags, safe local evidence, exit 1, and zero provisioning/database/package-qualification calls; include output reuse, source identity, hashes and safe failure evidence.
-- [ ] T047 [US5] Implement packages/sdk/test/system/run-hosted.ts using shared output/snapshot mechanics and the explicit unavailable reason from contracts/deployment-checks.md; do not read service credentials or call the authorized-database walkthrough. Keep Hosted schema construction and sensitive-data rules in this runner.
-- [ ] T048 [US5] Wire test:hosted in packages/sdk/package.json and package.json and document product owner, provisioning, target identity, credential/TLS, authorization limits, evidence, and cleanup prerequisites in docs/workflow.md without enabling live execution.
-- [ ] T049 [US5] Execute the provider-free Hosted negative boundary cases and retain NOT RUN observations in .artifacts/key-91/hosted/ and acceptance.md; explicitly distinguish successful validation of refusal behavior from actual Hosted acceptance.
+- [x] T046 [US5] Add failing tests in packages/sdk/test/system/run-hosted.test.ts for unavailable product runner, synthetic ambient credentials, rejected target/unknown flags, safe local evidence, exit 1, and zero provisioning/database/package-qualification calls; include output reuse, source identity, hashes and safe failure evidence.
+- [x] T047 [US5] Implement packages/sdk/test/system/run-hosted.ts using shared output/snapshot mechanics and the explicit unavailable reason from contracts/deployment-checks.md; do not read service credentials or call the authorized-database walkthrough. Keep Hosted schema construction and sensitive-data rules in this runner.
+- [x] T048 [US5] Wire test:hosted in packages/sdk/package.json and package.json and document product owner, provisioning, target identity, credential/TLS, authorization limits, evidence, and cleanup prerequisites in docs/workflow.md without enabling live execution.
+- [x] T049 [US5] Execute the provider-free Hosted negative boundary cases and retain NOT RUN observations in .artifacts/key-91/hosted/ and acceptance.md; explicitly distinguish successful validation of refusal behavior from actual Hosted acceptance.
 
 ## Phase 9: Polish and cross-cutting acceptance
 
