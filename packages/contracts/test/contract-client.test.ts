@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import fixtures from "../fixtures/source.json" with { type: "json" };
-import { createContractClient } from "../conformance/host.ts";
+import { createContractClient } from "../contract-tests/host.ts";
 
-describe("contract conformance client", () => {
+describe("contract test client", () => {
   it("rejects a schema-invalid operation result", async () => {
     const client = createContractClient({
       execute: async () => ({

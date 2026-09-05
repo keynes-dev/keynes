@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ContractClient } from "@keynes/contracts/conformance";
+import type { ContractClient } from "@keynes/contracts/contract-tests";
 import {
   openNativeTestKeynes,
   type NativeTestKeynes,

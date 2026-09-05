@@ -1,5 +1,5 @@
 import type { ExpressionNodeV1, PolicyResultRowV1 } from "@keynes/contracts";
-import { POLICY_RUNTIME_CONFORMANCE_CASES } from "@keynes/contracts/conformance";
+import { POLICY_RUNTIME_TEST_CASES } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -30,7 +30,7 @@ interface PostgresqlPolicyRow {
 }
 
 describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL Policy runtime conformance",
+  "PostgreSQL Policy runtime behavior",
   () => {
     let fixture: PostgresDatabase | undefined;
     let transaction: PostgresTransaction | undefined;
@@ -42,7 +42,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       fixture = undefined;
     });
 
-    it("executes every shared runtime conformance program through the installed renderer", async () => {
+    it("executes every shared runtime test program through the installed renderer", async () => {
       fixture = await openInstalledPostgresDatabase(
         requirePostgresqlSystemAdministratorUrl(),
         FIXTURE_INSTALLATION,
@@ -54,7 +54,7 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
         `set local role "${ownerRole.replaceAll('"', '""')}"`,
       );
 
-      for (const testCase of POLICY_RUNTIME_CONFORMANCE_CASES) {
+      for (const testCase of POLICY_RUNTIME_TEST_CASES) {
         const rendered = await transaction.connection.query<RenderedPolicy>(
           "select keynes_internal.render_policy_program($1::jsonb) as sql",
           [JSON.stringify(testCase.program)],

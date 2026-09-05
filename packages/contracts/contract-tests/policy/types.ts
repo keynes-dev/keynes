@@ -4,7 +4,7 @@ import type {
   PolicyResultRowV1,
 } from "../../generated/policy-types.ts";
 
-export type PolicyConformanceCategory =
+export type PolicyTestCategory =
   | "kysely"
   | "kysely_sql"
   | "raw_sql"
@@ -17,22 +17,22 @@ export type PolicyConformanceCategory =
   | "limit"
   | "mutation";
 
-export interface PolicyConformanceCase {
+export interface PolicyTestCase {
   readonly name: string;
-  readonly category: PolicyConformanceCategory;
+  readonly category: PolicyTestCategory;
   readonly source?: string;
   readonly parameters?: readonly (string | boolean | number | null)[];
-  readonly evaluationInput?: PolicySourceConformanceInput;
+  readonly evaluationInput?: PolicySourceTestInput;
   readonly expected: unknown;
 }
 
-export interface PolicySourceConformanceInput {
+export interface PolicySourceTestInput {
   readonly requested: readonly PolicyResourceValue[];
   readonly available: readonly PolicyResourceValue[];
   readonly context: Readonly<PolicyContextV1>;
 }
 
-export interface PolicyRuntimeConformanceCase {
+export interface PolicyRuntimeTestCase {
   readonly name: string;
   readonly category:
     | "property"

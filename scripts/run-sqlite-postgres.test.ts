@@ -7,16 +7,16 @@ import {
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
 } from "../packages/postgresql/test/system/required-scenarios.ts";
 import {
-  qualifyConformance,
-  validateConformanceReport,
+  verifySqlitePostgresResults,
+  validateTestReport,
   parseArguments,
   SQLITE_AGGREGATE,
   runSqlite,
-  runConformance,
+  runSqlitePostgresTests,
   validateNativeEvidence,
   verifyEvidenceFiles,
   validateManifestIdentity,
-} from "./run-conformance.ts";
+} from "./run-sqlite-postgres.ts";
 
 beforeEach(() => {
   vi.stubEnv("GITHUB_SHA", undefined);
@@ -64,7 +64,7 @@ function report(native = false) {
   };
 }
 
-describe("paired conformance qualification", () => {
+describe("SQLite and PostgreSQL result verification", () => {
   it.each([0, 1])(
     "honors actual SQLite process exit %i with success-shaped JSON",
     async (exitCode) => {
@@ -130,7 +130,7 @@ describe("paired conformance qualification", () => {
       return report();
     };
     await expect(
-      qualifyConformance(
+      verifySqlitePostgresResults(
         { sqlite: execute, postgresql: execute },
         controller.signal,
       ),
@@ -140,14 +140,14 @@ describe("paired conformance qualification", () => {
   it("attempts native after malformed SQLite JSON", async () => {
     let attempted = false;
     await expect(
-      qualifyConformance({
+      verifySqlitePostgresResults({
         sqlite: async () => JSON.parse("{"),
         postgresql: async () => {
           attempted = true;
           return report(true);
         },
       }),
-    ).rejects.toThrow("conformance failed");
+    ).rejects.toThrow("sqlite-postgres failed");
     expect(attempted).toBe(true);
   });
   it("reconciles nested suite counts and rejects inflated passing totals", () => {
@@ -164,9 +164,9 @@ describe("paired conformance qualification", () => {
         })),
       })),
     };
-    expect(validateConformanceReport(nested, SQLITE_AGGREGATE)).toHaveLength(2);
+    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(2);
     expect(() =>
-      validateConformanceReport(
+      validateTestReport(
         { ...nested, numTotalTestSuites: 4, numPassedTestSuites: 4 },
         SQLITE_AGGREGATE,
       ),
@@ -174,7 +174,7 @@ describe("paired conformance qualification", () => {
   });
   it("accepts complete equal shared coverage and all native-only coverage", async () => {
     await expect(
-      qualifyConformance({
+      verifySqlitePostgresResults({
         sqlite: async () => report(),
         postgresql: async () => report(true),
       }),
@@ -190,11 +190,11 @@ describe("paired conformance qualification", () => {
         return report(name === "postgresql");
       };
       await expect(
-        qualifyConformance({
+        verifySqlitePostgresResults({
           sqlite: () => execute("sqlite"),
           postgresql: () => execute("postgresql"),
         }),
-      ).rejects.toThrow("conformance failed");
+      ).rejects.toThrow("sqlite-postgres failed");
       expect(attempted).toEqual(["sqlite", "postgresql"]);
     },
   );
@@ -202,7 +202,7 @@ describe("paired conformance qualification", () => {
     const controller = new AbortController();
     let native = false;
     await expect(
-      qualifyConformance(
+      verifySqlitePostgresResults(
         {
           sqlite: async () => {
             controller.abort();
@@ -224,11 +224,11 @@ describe("paired conformance qualification", () => {
     native.numTotalTests--;
     native.numPassedTests--;
     await expect(
-      qualifyConformance({
+      verifySqlitePostgresResults({
         sqlite: async () => report(),
         postgresql: async () => native,
       }),
-    ).rejects.toThrow("conformance failed");
+    ).rejects.toThrow("sqlite-postgres failed");
   });
   it.each(["skipped", "pending", "todo", "failed"])(
     "rejects %s assertions",
@@ -236,9 +236,7 @@ describe("paired conformance qualification", () => {
       const value = report();
       const assertion = value.testResults[0]?.assertionResults[0];
       if (assertion) assertion.status = status;
-      expect(() =>
-        validateConformanceReport(value, SQLITE_AGGREGATE),
-      ).toThrow();
+      expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
     },
   );
   it.each([
@@ -253,19 +251,17 @@ describe("paired conformance qualification", () => {
   ] as const)("rejects inconsistent %s", (field) => {
     const value = report();
     value[field]++;
-    expect(() => validateConformanceReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
   });
   it.each([null, {}, "malformed", { success: true }])(
     "rejects missing or malformed reports: %j",
     (value) => {
-      expect(() =>
-        validateConformanceReport(value, SQLITE_AGGREGATE),
-      ).toThrow();
+      expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
     },
   );
   it("rejects empty execution", () => {
     expect(() =>
-      validateConformanceReport(
+      validateTestReport(
         { ...report(), testResults: [], numTotalTests: 0, numPassedTests: 0 },
         SQLITE_AGGREGATE,
       ),
@@ -276,15 +272,15 @@ describe("paired conformance qualification", () => {
     const assertions = value.testResults[0]?.assertionResults;
     if (assertions?.[0] && assertions[1])
       assertions[1].fullName = assertions[0].fullName;
-    expect(() => validateConformanceReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
   });
   it("rejects collection and unhandled errors", () => {
     const value = report();
     if (value.testResults[0])
       value.testResults[0].message = "collection failed";
-    expect(() => validateConformanceReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
     expect(() =>
-      validateConformanceReport(
+      validateTestReport(
         { ...report(), unhandledErrors: ["error"] },
         SQLITE_AGGREGATE,
       ),
@@ -294,7 +290,7 @@ describe("paired conformance qualification", () => {
     const native = report(true);
     native.testResults.pop();
     await expect(
-      qualifyConformance({
+      verifySqlitePostgresResults({
         sqlite: async () => report(),
         postgresql: async () => native,
       }),
@@ -320,7 +316,7 @@ describe("paired evidence", () => {
     let calls = 0;
     try {
       await expect(
-        runConformance(
+        runSqlitePostgresTests(
           join(temporary, "attempt"),
           new AbortController().signal,
           {
@@ -541,17 +537,17 @@ describe("evidence identity and retention", () => {
       if (mode === "reuse") {
         await mkdir(output);
         await expect(
-          runConformance(output, controller.signal, runtime),
+          runSqlitePostgresTests(output, controller.signal, runtime),
         ).rejects.toThrow();
         expect(snapshots).toBe(0);
         return;
       }
-      const result = runConformance(output, controller.signal, runtime);
+      const result = runSqlitePostgresTests(output, controller.signal, runtime);
       if (mode === "pass") await expect(result).resolves.toBeUndefined();
       else await expect(result).rejects.toThrow();
       const bytes = await readFile(join(output, "manifest.json"), "utf8");
       const manifest = JSON.parse(bytes);
-      expect(manifest.schemaVersion).toBe("keynes.conformance/v1");
+      expect(manifest.schemaVersion).toBe("keynes.sqlite-postgres/v1");
       expect(manifest.outcome).toBe(mode === "pass" ? "passed" : "failed");
       expect(manifest.runtimes).toHaveLength(2);
       expect(bytes).not.toContain("postgresql://");
@@ -604,7 +600,7 @@ it.each([
 ])("rejects stale manifest %s against invocation", (field) => {
   const snapshot = evidenceSnapshot();
   const value = {
-    schemaVersion: "keynes.conformance/v1",
+    schemaVersion: "keynes.sqlite-postgres/v1",
     candidate: { commit: snapshot.commit },
     attempt: { id: "current-attempt" },
     inputs: { ...snapshot.inputs },

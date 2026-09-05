@@ -6,7 +6,7 @@
   "include": [
     "scripts/**/*.ts",
     "src/**/*.ts",
-    "conformance/**/*.ts",
+    "contract-tests/**/*.ts",
     "test/**/*.ts"
   ]
 }

@@ -98,9 +98,9 @@ Record the source revision, commands, results, and relevant digests in feature
 acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
 CI or inspecting code does not establish runtime behavior.
 
-### SQLite and PostgreSQL conformance
+### SQLite and PostgreSQL behavior tests
 
-The PR job `SQLite and PostgreSQL conformance` runs independently of
+The PR job `SQLite and PostgreSQL behavior tests` runs independently of
 `Repository and tests`. It runs the same Budget registration on real private SQLite
 and the complete native PostgreSQL suite. Every assertion must pass, the shared
 names must match, and native-only coverage must be complete. Missing Docker,
@@ -111,7 +111,7 @@ supported Node.js, pnpm, and Docker:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm test:conformance -- --output ".artifacts/conformance/$(node -p 'crypto.randomUUID()')"
+pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$(node -p 'crypto.randomUUID()')"
 ```
 
 The output directory must be new. `manifest.json` identifies the candidate, attempt,
@@ -135,7 +135,7 @@ SIGINT and SIGTERM stop new work and initiate bounded child and fixture cleanup.
 Forced termination can prevent final writes; canceled work cannot qualify, and
 GitHub-hosted VM disposal is the final cleanup boundary after loss of the runner.
 
-Protected-branch acceptance requires the exact observed conformance check from
+Protected-branch acceptance requires the exact observed database behavior check from
 GitHub Actions, existing required checks, and up-to-date candidates. Workflow YAML
 alone does not establish enforcement. The owning feature must retain policy
 readback and a native-failure blocked-merge demonstration. Each later shared

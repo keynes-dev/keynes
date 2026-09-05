@@ -666,7 +666,7 @@ describe("PostgreSQL system-test runner", () => {
       "registerBudgetContractTests(openPostgresqlContractTestHost)",
     );
     const shared = await readFile(
-      "packages/contracts/conformance/scenarios/index.ts",
+      "packages/contracts/contract-tests/scenarios/index.ts",
       "utf8",
     );
     expect(shared).toContain(

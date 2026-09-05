@@ -1,7 +1,7 @@
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
-import { canonicalizePolicyCommand } from "../conformance/index.ts";
+import { canonicalizePolicyCommand } from "../contract-tests/index.ts";
 import policySchema from "../generated/policy-schema.json" with { type: "json" };
 import type {
   BudgetHistory,
