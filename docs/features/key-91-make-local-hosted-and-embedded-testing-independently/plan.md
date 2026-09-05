@@ -6,7 +6,7 @@
 
 ## Resume boundary
 
-The next implementation begins at T055 in [tasks.md](tasks.md). T013-T049 describe
+Phase A is complete. The next implementation begins at T057 in [tasks.md](tasks.md). T013-T049 describe
 historical work now subject to reduction; T050-T054 are superseded. This planning
 checkpoint changes no runtime behavior. `a50ee5b` is the expanded implementation
 reference; `5b294f4` is the pre-implementation comparison baseline.
@@ -33,8 +33,9 @@ the canonical Budget registrar directly. Do not freeze another copy of shared
 or Local assertion names. Preserve selected-file presence and skip checks through
 existing report parsing, without a second evidence schema.
 
-Local retains the existing 18 source files as suite groups, not the copied
-244-name inventory. Remote retains the currently selected native suite groups;
+Local selects the documented source directories and Budget aggregate, not a copied
+assertion-name inventory. Provider-free public remote API tests in those directories
+remain included; file counts can grow as tests are added. Remote retains the currently selected native suite groups;
 Embedded retains Budget and transaction fixtures. The exact groups and supported
 flags are defined once in [the command contract](contracts/deployment-checks.md).
 

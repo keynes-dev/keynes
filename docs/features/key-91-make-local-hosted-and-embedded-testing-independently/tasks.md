@@ -2,7 +2,7 @@
 
 ## Resume here
 
-**Next task: T055.** Only T055-T061 are active implementation work. The user
+**Next task: T057.** T055-T056 are complete; T057-T061 are active implementation work. The user
 approved focused feedback through existing runners with separate existing
 installed qualification. Follow [spec.md](spec.md), [plan.md](plan.md), and the
 [command contract](contracts/deployment-checks.md). Do not continue old Phase 9.
@@ -45,8 +45,8 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 ## Phase A: thin Local and Hosted feedback
 
-- [ ] T055 [US1] Check the assertion disposition map in research.md before deletion; retain product tests and classify any unmapped affected assertion. Reduce Local to the existing SDK source suite groups in the command contract. Remove Local package/consumer orchestration, selected manifests and validators, copied assertion names, and tests used only by them. Keep separate SDK package qualification intact. Wire root/package commands without archive or output requirements; check selected groups, failure propagation, and absence of service/package preparation.
-- [ ] T056 [US5] Reduce Hosted to a minimal NOT RUN reason and exit 1, with standalone help and invalid-argument rejection. Remove snapshot/evidence machinery and its tests. Verify no external work with a focused regression. Run affected SDK checks; run ponytail-review and the cumulative scope review from plan.md, fix findings, and commit Phase A before T057.
+- [x] T055 [US1] Check the assertion disposition map in research.md before deletion; retain product tests and classify any unmapped affected assertion. Reduce Local to the existing SDK source suite groups in the command contract. Remove Local package/consumer orchestration, selected manifests and validators, copied assertion names, and tests used only by them. Keep separate SDK package qualification intact. Wire root/package commands without archive or output requirements; check selected groups, failure propagation, and absence of service/package preparation.
+- [x] T056 [US5] Reduce Hosted to a minimal NOT RUN reason and exit 1, with standalone help and invalid-argument rejection. Remove snapshot/evidence machinery and its tests. Verify no external work with a focused regression. Run affected SDK checks; run ponytail-review and the cumulative scope review from plan.md, fix findings, and commit Phase A before T057.
 
 ## Phase B: selection in the existing native runner
 
@@ -75,5 +75,5 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 SC-001/SC-003/SC-005/SC-006 are checked during the affected command phases;
 SC-002/SC-004 at T060; SC-007-SC-009 at T061 and the retained study.
 
-There are seven active tasks, all unchecked.
+Of seven reduction tasks, two are complete and five remain unchecked.
 Follow the [plan's checkpoint rules](plan.md#delivery-and-guardrails).

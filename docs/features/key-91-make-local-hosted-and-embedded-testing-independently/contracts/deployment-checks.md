@@ -2,8 +2,8 @@
 
 ## Status and interface
 
-This is the reduced target approved on 2026-09-05. T055-T061 have not implemented
-it yet. The current expanded commands still require their earlier output flags;
+This is the reduced target approved on 2026-09-05. Local and Hosted now implement it. T057-T061 remain pending. The current native
+commands still require their earlier output flags;
 see Git at `a50ee5b` for that historical interface. Do not add compatibility
 machinery for the superseded feature-branch interface.
 
@@ -27,10 +27,10 @@ is limited to selection; existing full/package commands keep their interfaces.
 ## Suite ownership
 
 Local selects `test/unit/local`, `test/unit/public`, `test/unit/policy`, and
-`test/contract/budget.test.ts` under the SDK. These are the existing 18 source
-files at the correction baseline. Keep canonical registration and test names;
-do not copy their 244 assertion names into a new registry. Broader provider-free
-remote and tooling tests remain in the package's normal test command.
+`test/contract/budget.test.ts` under the SDK. Select all test files in those directories, including provider-free public remote
+API tests. Keep canonical registration and test names; do not copy assertion names
+into a new registry. Other remote and tooling suites remain in the package's
+normal test command.
 
 Remote selects the PostgreSQL Budget aggregate; integration installation,
 recheck and remote identity; and system remote connections, Budget, recovery and

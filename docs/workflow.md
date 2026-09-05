@@ -101,10 +101,11 @@ CI or inspecting code does not establish runtime behavior.
 ### KEY-91 feedback command correction
 
 KEY-91 is being reduced to focused feedback using existing tests and runners.
-The scope correction changes planning documents only; T055-T061 in
+Phase A has reduced Local and Hosted. T057-T061 in
 [the active task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md)
-implement the reduced commands. Until then, the feature branch still contains
-its earlier output-required orchestration. Do not treat its installed-consumer
+complete the native reduction. `pnpm test:local` runs source feedback without
+packaging; `pnpm test:hosted` prints NOT RUN and exits 1. Native commands still
+contain their earlier output-required orchestration. Do not treat its installed-consumer
 or manifest behavior as the target design.
 
 The planned commands are `pnpm test:local`, `pnpm test:remote`, and

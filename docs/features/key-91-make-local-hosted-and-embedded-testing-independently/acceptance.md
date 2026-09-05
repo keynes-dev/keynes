@@ -265,3 +265,27 @@ and cleanup ownership as documented in the deployment contract.
 T046-T049 are complete. Final integration remains pending. Actual Hosted,
 installed Embedded, external CI and merge enforcement remain NOT RUN. No
 publication or lifecycle update was performed.
+
+## Reduction Phase A: Local and Hosted
+
+T055-T056 are complete in the Phase A reduction checkpoint. Validation ran on
+the implementation tree before committing this checkpoint; final clean-candidate
+acceptance remains T060. `pnpm test:local` passes 261 assertions in 20 existing
+source files without package preparation. Directory selection includes 17
+provider-free public remote assertions that the old copied inventory omitted.
+The source directories, rather than a frozen assertion-name list, define scope.
+
+A separate Local run with synthetic ambient credentials and failing Docker,
+psql and pnpm shims exited 0 with no shim calls. Hosted's real subprocess check
+observed zero database connections or provisioning/package calls, its fixed
+NOT RUN message, and exit 1. Help and unsupported-option checks pass.
+The two focused runner test files pass six assertions. `pnpm test:pr` and test
+TypeScript checking pass. Existing installed SDK qualification and semantic tests
+remain intact. The shared snapshot regression stays covered while its acceptance
+callers remain; Local itself no longer captures source snapshots.
+
+Ponytail review and cumulative scope review retain only Local suite selection,
+existing strict report parsing and child cleanup, plus the minimal Hosted refusal.
+No new schema, registry or fixture system is introduced. The copied Local inventory
+and manifest/consumer orchestration tests are removed. Installed remote, installed
+Embedded and actual Hosted acceptance remain NOT RUN.
