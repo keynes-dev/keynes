@@ -402,3 +402,39 @@ The walkthrough leaves one owner for common behavior, setup and each distinct
 boundary. Unused remote registrar activation and future TLS/product provisioning
 remain deferred. No publication, PR, Linear lifecycle update or Hosted execution
 was performed.
+
+## Follow-up: shared validation and smaller tests
+
+Runtime commit `73883dcc3f97409780651d3e7b6d45e5f11e37a0`, after validation
+commit `d81648a`, removes 214 net code/test lines from `498e490`. Full and selected
+native reports now share coverage checking after the existing strict parser.
+Direct validator cases replace fake lifecycle runs; their counters are coherent,
+so missing/renamed coverage tests reach coverage validation. One integration case
+retains rejection-before-publication and cleanup proof. Selection cases share a
+table, and Vitest cleanup hooks replace 16 temporary-directory wrappers.
+
+The source-text registration assertion is removed. Real final reports have exactly
+the same file/assertion names as the previous reduced acceptance: 37 SQLite and
+208 native assertions, including all five Resource-bound root cases on each
+backend. Acceptance schemas, product tests, process management and package locking
+are unchanged. Ponytail and cumulative reviews passed before both code commits.
+
+| Command                                                                                                                                                          | Result                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `pnpm exec vitest run packages/postgresql/test/system/run.test.ts scripts/run-sqlite-postgres.test.ts packages/sdk/test/system/run-local.test.ts --maxWorkers=1` | PASS: 174 assertions                                                                  |
+| `pnpm test:pr`                                                                                                                                                   | PASS, including type checking and dependency boundaries                               |
+| `pnpm test:local`                                                                                                                                                | PASS: 261 assertions                                                                  |
+| `pnpm test:remote` and explicit `-- --mode direct`, `-- --mode session-pool`, `-- --mode transaction-pool`                                                       | PASS: 105/100/101/101 assertions                                                      |
+| `pnpm test:embedded`                                                                                                                                             | PASS: 51 assertions                                                                   |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-91/slim-full-73883dc`                                                                                      | PASS: 37 SQLite, 208 native, shared parity and clean source before/after              |
+| `pnpm pack:sdk` then `pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-91/slim-sdk-73883dc.json`     | PASS: 22 package assertions and 12 installed provider-free checks, clean before/after |
+| `pnpm format`                                                                                                                                                    | PASS                                                                                  |
+
+The local full manifest SHA-256 is `7761c99ce64ca4e871432443217182dca788e8953b19f0406f5c4c034577305b`;
+SDK result SHA-256 is `4eaee66ba52914d3d5d55630459061ff33f10b71d29c577df77aefef5b1d0419`.
+The PR now adds 1,170 net lines excluding docs/evidence: 646 tests, 520 other code
+and 4 root configuration lines. The 214-line reduction is evenly split between
+tests and other code. Gross diff churn includes removed wrapper indentation.
+Historical evidence remains unchanged; no speedup is claimed. Installed remote
+SDK/TLS, supported installed Embedded, Hosted and full Windows execution remain
+NOT RUN. This follow-up's local evidence does not establish GitHub CI success.
