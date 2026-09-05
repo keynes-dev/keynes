@@ -1,5 +1,10 @@
 # Agents
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/speckit-*/
+.agents/skills/speckit-*/*
+!.agents/skills/speckit-*/SKILL.md
 .claude/
 .codex/
 .cursor/

@@ -1,0 +1,318 @@
+{
+  "proof_root": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1",
+  "fixture_worktree": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+  "fixture_directory": "docs/features/key-89-small-feature",
+  "staged_tree": "e95e9596ed2397beec74bb251db9a2bb6b996bca",
+  "historical_files_preserved": 168,
+  "managed_files": 22,
+  "checks": [
+    "fresh checkout: all 10 core skills and no tracked pointer",
+    "no installed extension or custom workflow",
+    "analysis retains constitution authority",
+    "two non-forced same-version upgrades preserve authored and managed bytes",
+    "managed bytes equal independent pristine 1.0.4 install",
+    "missing selection fails without creating pointer",
+    "read-only resolution does not write pointer",
+    "existing KEY-74 plan and authored files survive setup",
+    "separate worktree pointers are independent and ignored",
+    "historical features and ADRs preserve exact bytes",
+    "core constitution principles and product constraints preserve exact text"
+  ],
+  "commands": [
+    {
+      "command": [
+        "git",
+        "checkout-index",
+        "--all",
+        "--prefix=/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo/"
+      ],
+      "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "integration",
+        "status",
+        "--json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "integration",
+        "upgrade",
+        "codex",
+        "--script",
+        "sh"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "\u26a0  12 shared infrastructure path(s) already exist and were not updated:\n    .specify/scripts/bash/common.sh\n    .specify/scripts/bash/setup-plan.sh\n    .specify/scripts/bash/setup-tasks.sh\n    .specify/scripts/bash/check-prerequisites.sh\n    .specify/scripts/bash/resolve-template.sh\n    .specify/scripts/bash/create-new-feature.sh\n    .specify/templates/constitution-template.md\n    .specify/templates/checklist-template.md\n    .specify/templates/tasks-template.md\n    .specify/templates/spec-template.md\n    .specify/templates/plan-template.md\n    .specify/.gitignore\nTo refresh shared infrastructure, run specify init --here --force or specify \nintegration upgrade --force.\nUpgrading integration: codex\nUpdated execute permissions on 6 script(s) recursively\n\n\u2713 Integration 'Codex CLI' upgraded successfully\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "integration",
+        "status",
+        "--json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "integration",
+        "upgrade",
+        "codex",
+        "--script",
+        "sh"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "\u26a0  12 shared infrastructure path(s) already exist and were not updated:\n    .specify/scripts/bash/common.sh\n    .specify/scripts/bash/setup-plan.sh\n    .specify/scripts/bash/setup-tasks.sh\n    .specify/scripts/bash/check-prerequisites.sh\n    .specify/scripts/bash/resolve-template.sh\n    .specify/scripts/bash/create-new-feature.sh\n    .specify/templates/constitution-template.md\n    .specify/templates/checklist-template.md\n    .specify/templates/tasks-template.md\n    .specify/templates/spec-template.md\n    .specify/templates/plan-template.md\n    .specify/.gitignore\nTo refresh shared infrastructure, run specify init --here --force or specify \nintegration upgrade --force.\nUpgrading integration: codex\nUpdated execute permissions on 6 script(s) recursively\n\n\u2713 Integration 'Codex CLI' upgraded successfully\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "integration",
+        "status",
+        "--json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "{\n  \"status\": \"ok\",\n  \"default_integration\": \"codex\",\n  \"installed_integrations\": [\n    \"codex\"\n  ],\n  \"recorded_installed_integrations\": [\n    \"codex\"\n  ],\n  \"manifest_checked_integrations\": [\n    \"codex\",\n    \"speckit\"\n  ],\n  \"multi_install_safe\": true,\n  \"shared_templates_target_alignment\": \"codex\",\n  \"missing_managed_files\": 0,\n  \"modified_managed_files\": 0,\n  \"invalid_manifest_paths\": 0,\n  \"unchecked_manifests\": 0,\n  \"manifests\": {\n    \"codex\": {\n      \"manifest\": \".specify/integrations/codex.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 10,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    },\n    \"speckit\": {\n      \"manifest\": \".specify/integrations/speckit.manifest.json\",\n      \"readable\": true,\n      \"tracked_files\": 12,\n      \"missing_files\": [],\n      \"modified_files\": [],\n      \"invalid_files\": []\n    }\n  },\n  \"findings\": []\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "specify",
+        "init",
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/pristine",
+        "--integration",
+        "codex",
+        "--script",
+        "sh",
+        "--non-interactive",
+        "--ignore-agent-tools"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2557   \u2588\u2588\u2557              \n              \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u255a\u2588\u2588\u2557 \u2588\u2588\u2554\u255d              \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557   \u255a\u2588\u2588\u2588\u2588\u2554\u255d               \n              \u255a\u2550\u2550\u2550\u2550\u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u2550\u255d \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2551     \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d    \u255a\u2588\u2588\u2554\u255d                \n              \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551\u2588\u2588\u2551        \u2588\u2588\u2551                 \n              \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d     \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d\u255a\u2550\u255d        \u255a\u2550\u255d                 \n                                                                                \n               GitHub Spec Kit - Spec-Driven Development Toolkit                \n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Specify Project Setup                                                       \u2502\n\u2502                                                                              \u2502\n\u2502  Project         pristine                                                    \u2502\n\u2502  Working Path                                                                \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -gudj4wi1/repo                                                              \u2502\n\u2502  Target Path                                                                 \u2502\n\u2502  /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89  \u2502\n\u2502  -gudj4wi1/pristine                                                          \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\nSelected coding agent integration: codex\nSelected script type: sh\nInitialize Specify Project\n\u251c\u2500\u2500 \u25cf Check required tools (ok)\n\u251c\u2500\u2500 \u25cf Select coding agent integration (codex)\n\u251c\u2500\u2500 \u25cf Select script type (sh)\n\u251c\u2500\u2500 \u25cf Install integration (Codex CLI)\n\u251c\u2500\u2500 \u25cf Install shared infrastructure (scripts (sh) + templates)\n\u251c\u2500\u2500 \u25cf Ensure scripts executable (6 updated)\n\u251c\u2500\u2500 \u25cf Constitution setup (copied from template)\n\u251c\u2500\u2500 \u25cf Install bundled workflow (speckit installed)\n\u2514\u2500\u2500 \u25cf Finalize (project ready)\n\nProject ready.\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Agent Folder Security \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Some agents may store credentials, auth tokens, or other identifying and    \u2502\n\u2502  private artifacts in the agent folder within your project.                  \u2502\n\u2502  Consider adding .agents/ (or parts of it) to .gitignore to prevent          \u2502\n\u2502  accidental credential leakage.                                              \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Next Steps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  1. Go to the project folder: cd                                             \u2502\n\u2502  /var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi  \u2502\n\u2502  1/pristine                                                                  \u2502\n\u2502  2. Start Codex in this project directory; spec-kit skills were installed    \u2502\n\u2502  to .agents/skills                                                           \u2502\n\u2502  3. Start using skills with your coding agent:                               \u2502\n\u2502     3.1 $speckit-constitution - Establish project principles                 \u2502\n\u2502     3.2 $speckit-specify - Create baseline specification                     \u2502\n\u2502     3.3 $speckit-plan - Create implementation plan                           \u2502\n\u2502     3.4 $speckit-tasks - Generate actionable tasks                           \u2502\n\u2502     3.5 $speckit-implement - Execute implementation                          \u2502\n\u2502     3.6 $speckit-converge - Assess the codebase and append remaining work    \u2502\n\u2502  as tasks                                                                    \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Enhancement Skills \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Optional skills that you can use for your specs (improve quality &          \u2502\n\u2502  confidence)                                                                 \u2502\n\u2502                                                                              \u2502\n\u2502  \u25cb $speckit-clarify (optional) - Ask structured questions to de-risk         \u2502\n\u2502  ambiguous areas before planning (run before $speckit-plan if used)          \u2502\n\u2502  \u25cb $speckit-analyze (optional) - Cross-artifact consistency & alignment      \u2502\n\u2502  report (after $speckit-tasks, before $speckit-implement)                    \u2502\n\u2502  \u25cb $speckit-checklist (optional) - Generate quality checklists to validate   \u2502\n\u2502  requirements completeness, clarity, and consistency (after $speckit-plan)   \u2502\n\u2502                                                                              \u2502\n\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "init",
+        "-q"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "add",
+        "."
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "-c",
+        "user.name=Spec Kit verification",
+        "-c",
+        "user.email=verification@example.invalid",
+        "commit",
+        "-qm",
+        "Disposable fixture base"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "worktree",
+        "add",
+        "-b",
+        "fixture/key-89-small-feature",
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "HEAD is now at 5a13faa Disposable fixture base\n",
+      "stderr": "Preparing worktree (new branch 'fixture/key-89-small-feature')\n"
+    },
+    {
+      "command": [
+        "git",
+        "worktree",
+        "add",
+        "-b",
+        "fixture/key-89-resume",
+        "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/repo",
+      "exit": 0,
+      "stdout": "HEAD is now at 5a13faa Disposable fixture base\n",
+      "stderr": "Preparing worktree (new branch 'fixture/key-89-resume')\n"
+    },
+    {
+      "command": [
+        "bash",
+        ".specify/scripts/bash/check-prerequisites.sh",
+        "--json",
+        "--paths-only"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .specify/feature.json.\nERROR: Failed to resolve feature paths\n"
+    },
+    {
+      "command": [
+        "bash",
+        ".specify/scripts/bash/check-prerequisites.sh",
+        "--json",
+        "--paths-only"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "exit": 0,
+      "stdout": "{\"REPO_ROOT\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"TASKS\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/tasks.md\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "bash",
+        ".specify/scripts/bash/setup-plan.sh",
+        "--json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "exit": 0,
+      "stdout": "{\"FEATURE_SPEC\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\",\"IMPL_PLAN\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\",\"SPECS_DIR\":\"/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\",\"BRANCH\":\"key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr\"}\n",
+      "stderr": "Plan already exists at /private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b/docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md, skipping template copy\n"
+    },
+    {
+      "command": [
+        "git",
+        "check-ignore",
+        ".specify/feature.json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "exit": 0,
+      "stdout": ".specify/feature.json\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "ls-files",
+        ".specify/feature.json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "check-ignore",
+        ".specify/feature.json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "exit": 0,
+      "stdout": ".specify/feature.json\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "ls-files",
+        ".specify/feature.json"
+      ],
+      "cwd": "/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-b",
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "ls-tree",
+        "-r",
+        "--name-only",
+        "8a432f0",
+        "docs/features",
+        "docs/adr"
+      ],
+      "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
+      "exit": 0,
+      "stdout": "docs/adr/0001-repository-boundaries.md\ndocs/adr/0002-feature-identity-and-roadmap-stages.md\ndocs/adr/0003-sqlite-and-postgresql.md\ndocs/adr/0004-apache-2-open-core.md\ndocs/adr/0005-repository-organization.md\ndocs/adr/0006-idiomatic-monorepo.md\ndocs/adr/0007-direct-postgresql-remote-access.md\ndocs/adr/0008-linear-planning-and-spec-kit-identity.md\ndocs/adr/0009-independent-feature-delivery.md\ndocs/features/key-43-implement-executable-budget-lifecycle/checklists/requirements.md\ndocs/features/key-43-implement-executable-budget-lifecycle/contracts/api.md\ndocs/features/key-43-implement-executable-budget-lifecycle/data-model.md\ndocs/features/key-43-implement-executable-budget-lifecycle/plan.md\ndocs/features/key-43-implement-executable-budget-lifecycle/quickstart.md\ndocs/features/key-43-implement-executable-budget-lifecycle/research.md\ndocs/features/key-43-implement-executable-budget-lifecycle/spec.md\ndocs/features/key-43-implement-executable-budget-lifecycle/tasks.md\ndocs/features/key-44-define-repository-and-code-architecture/checklists/requirements.md\ndocs/features/key-44-define-repository-and-code-architecture/data-model.md\ndocs/features/key-44-define-repository-and-code-architecture/plan.md\ndocs/features/key-44-define-repository-and-code-architecture/quickstart.md\ndocs/features/key-44-define-repository-and-code-architecture/research.md\ndocs/features/key-44-define-repository-and-code-architecture/spec.md\ndocs/features/key-44-define-repository-and-code-architecture/tasks.md\ndocs/features/key-45-build-local-runtime-and-sdk/checklists/requirements.md\ndocs/features/key-45-build-local-runtime-and-sdk/contracts/sdk.md\ndocs/features/key-45-build-local-runtime-and-sdk/data-model.md\ndocs/features/key-45-build-local-runtime-and-sdk/plan.md\ndocs/features/key-45-build-local-runtime-and-sdk/quickstart.md\ndocs/features/key-45-build-local-runtime-and-sdk/research.md\ndocs/features/key-45-build-local-runtime-and-sdk/spec.md\ndocs/features/key-45-build-local-runtime-and-sdk/tasks.md\ndocs/features/key-46-qualify-local-preview/checklists/requirements.md\ndocs/features/key-46-qualify-local-preview/contracts/qualification.md\ndocs/features/key-46-qualify-local-preview/data-model.md\ndocs/features/key-46-qualify-local-preview/plan.md\ndocs/features/key-46-qualify-local-preview/quickstart.md\ndocs/features/key-46-qualify-local-preview/research.md\ndocs/features/key-46-qualify-local-preview/spec.md\ndocs/features/key-46-qualify-local-preview/tasks.md\ndocs/features/key-47-build-cloud-runtime-and-service/checklists/requirements.md\ndocs/features/key-47-build-cloud-runtime-and-service/contracts/private-rpc.md\ndocs/features/key-47-build-cloud-runtime-and-service/data-model.md\ndocs/features/key-47-build-cloud-runtime-and-service/evidence/README.md\ndocs/features/key-47-build-cloud-runtime-and-service/evidence/cloud-1fa83d1.json\ndocs/features/key-47-build-cloud-runtime-and-service/plan.md\ndocs/features/key-47-build-cloud-runtime-and-service/quickstart.md\ndocs/features/key-47-build-cloud-runtime-and-service/research.md\ndocs/features/key-47-build-cloud-runtime-and-service/spec.md\ndocs/features/key-47-build-cloud-runtime-and-service/tasks.md\ndocs/features/key-48-gate-shared-core-platform/checklists/requirements.md\ndocs/features/key-48-gate-shared-core-platform/contracts/qualification.md\ndocs/features/key-48-gate-shared-core-platform/data-model.md\ndocs/features/key-48-gate-shared-core-platform/plan.md\ndocs/features/key-48-gate-shared-core-platform/quickstart.md\ndocs/features/key-48-gate-shared-core-platform/research.md\ndocs/features/key-48-gate-shared-core-platform/spec.md\ndocs/features/key-48-gate-shared-core-platform/tasks.md\ndocs/features/key-49-define-runtime-and-deployment-model/checklists/requirements.md\ndocs/features/key-49-define-runtime-and-deployment-model/contracts/document-contract.md\ndocs/features/key-49-define-runtime-and-deployment-model/data-model.md\ndocs/features/key-49-define-runtime-and-deployment-model/plan.md\ndocs/features/key-49-define-runtime-and-deployment-model/quickstart.md\ndocs/features/key-49-define-runtime-and-deployment-model/research.md\ndocs/features/key-49-define-runtime-and-deployment-model/spec.md\ndocs/features/key-49-define-runtime-and-deployment-model/tasks.md\ndocs/features/key-50-build-sqlite-local-runtime/checklists/requirements.md\ndocs/features/key-50-build-sqlite-local-runtime/contracts/command-executor.md\ndocs/features/key-50-build-sqlite-local-runtime/data-model.md\ndocs/features/key-50-build-sqlite-local-runtime/evidence/README.md\ndocs/features/key-50-build-sqlite-local-runtime/evidence/cloud-430edf6.json\ndocs/features/key-50-build-sqlite-local-runtime/evidence/local-preview-run-32963676499/acceptance.json\ndocs/features/key-50-build-sqlite-local-runtime/evidence/local-preview-run-32963676499/measurement.json\ndocs/features/key-50-build-sqlite-local-runtime/plan.md\ndocs/features/key-50-build-sqlite-local-runtime/quickstart.md\ndocs/features/key-50-build-sqlite-local-runtime/research.md\ndocs/features/key-50-build-sqlite-local-runtime/spec.md\ndocs/features/key-50-build-sqlite-local-runtime/tasks.md\ndocs/features/key-51-integrate-postgresql-transactions/checklists/requirements.md\ndocs/features/key-51-integrate-postgresql-transactions/contracts/acceptance-record.md\ndocs/features/key-51-integrate-postgresql-transactions/contracts/embedded-transaction.md\ndocs/features/key-51-integrate-postgresql-transactions/contracts/postgresql-distribution.md\ndocs/features/key-51-integrate-postgresql-transactions/data-model.md\ndocs/features/key-51-integrate-postgresql-transactions/evidence/README.md\ndocs/features/key-51-integrate-postgresql-transactions/evidence/postgresql-7edb1ee.json\ndocs/features/key-51-integrate-postgresql-transactions/plan.md\ndocs/features/key-51-integrate-postgresql-transactions/quickstart.md\ndocs/features/key-51-integrate-postgresql-transactions/research.md\ndocs/features/key-51-integrate-postgresql-transactions/spec.md\ndocs/features/key-51-integrate-postgresql-transactions/tasks.md\ndocs/features/key-52-organize-repository/baseline.md\ndocs/features/key-52-organize-repository/checklists/requirements.md\ndocs/features/key-52-organize-repository/contracts/evidence-records.md\ndocs/features/key-52-organize-repository/contracts/package-contracts.md\ndocs/features/key-52-organize-repository/contracts/repository-ownership.md\ndocs/features/key-52-organize-repository/data-model.md\ndocs/features/key-52-organize-repository/historical-artifacts.sha256\ndocs/features/key-52-organize-repository/plan.md\ndocs/features/key-52-organize-repository/quickstart.md\ndocs/features/key-52-organize-repository/research.md\ndocs/features/key-52-organize-repository/spec.md\ndocs/features/key-52-organize-repository/tasks.md\ndocs/features/key-53-adopt-idiomatic-monorepo/baseline.md\ndocs/features/key-53-adopt-idiomatic-monorepo/checklists/requirements.md\ndocs/features/key-53-adopt-idiomatic-monorepo/contracts/ownership.md\ndocs/features/key-53-adopt-idiomatic-monorepo/data-model.md\ndocs/features/key-53-adopt-idiomatic-monorepo/evidence-migration.md\ndocs/features/key-53-adopt-idiomatic-monorepo/plan.md\ndocs/features/key-53-adopt-idiomatic-monorepo/quickstart.md\ndocs/features/key-53-adopt-idiomatic-monorepo/research.md\ndocs/features/key-53-adopt-idiomatic-monorepo/spec.md\ndocs/features/key-53-adopt-idiomatic-monorepo/tasks.md\ndocs/features/key-54-add-portable-policy-evaluation/checklists/post-implementation-review.md\ndocs/features/key-54-add-portable-policy-evaluation/checklists/requirements.md\ndocs/features/key-54-add-portable-policy-evaluation/contracts/acceptance-record.md\ndocs/features/key-54-add-portable-policy-evaluation/contracts/architecture.md\ndocs/features/key-54-add-portable-policy-evaluation/contracts/command-contract.md\ndocs/features/key-54-add-portable-policy-evaluation/contracts/policy-query-profile.md\ndocs/features/key-54-add-portable-policy-evaluation/data-model.md\ndocs/features/key-54-add-portable-policy-evaluation/evidence/policy-acceptance.json\ndocs/features/key-54-add-portable-policy-evaluation/evidence/review-decisions.tsv\ndocs/features/key-54-add-portable-policy-evaluation/plan.md\ndocs/features/key-54-add-portable-policy-evaluation/quickstart.md\ndocs/features/key-54-add-portable-policy-evaluation/research.md\ndocs/features/key-54-add-portable-policy-evaluation/spec.md\ndocs/features/key-54-add-portable-policy-evaluation/tasks.md\ndocs/features/key-55-build-remote-postgresql-sdk/checklists/post-implementation-review.md\ndocs/features/key-55-build-remote-postgresql-sdk/checklists/requirements.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/acceptance-record.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/cloud-retirement.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/external-qualification.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/identity-and-tls.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/postgresql-procedures.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/remote-operation.md\ndocs/features/key-55-build-remote-postgresql-sdk/contracts/typescript-sdk.md\ndocs/features/key-55-build-remote-postgresql-sdk/data-model.md\ndocs/features/key-55-build-remote-postgresql-sdk/decisions.md\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/README.md\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/postgresql-package.json\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/postgresql-system.json\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/review-decisions.tsv\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/sdk-hosted-measurement.json\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/sdk-hosted.json\ndocs/features/key-55-build-remote-postgresql-sdk/evidence/sdk-package.json\ndocs/features/key-55-build-remote-postgresql-sdk/plan.md\ndocs/features/key-55-build-remote-postgresql-sdk/quickstart.md\ndocs/features/key-55-build-remote-postgresql-sdk/research.md\ndocs/features/key-55-build-remote-postgresql-sdk/spec.md\ndocs/features/key-55-build-remote-postgresql-sdk/tasks.md\ndocs/features/key-56-bind-budget-creation-to-resources/checklists/requirements.md\ndocs/features/key-56-bind-budget-creation-to-resources/contracts/acceptance-record.md\ndocs/features/key-56-bind-budget-creation-to-resources/contracts/postgresql-migration.md\ndocs/features/key-56-bind-budget-creation-to-resources/contracts/root-creation.md\ndocs/features/key-56-bind-budget-creation-to-resources/contracts/typescript-sdk.md\ndocs/features/key-56-bind-budget-creation-to-resources/data-model.md\ndocs/features/key-56-bind-budget-creation-to-resources/evidence/README.md\ndocs/features/key-56-bind-budget-creation-to-resources/evidence/acceptance.json\ndocs/features/key-56-bind-budget-creation-to-resources/evidence/postgresql-system.json\ndocs/features/key-56-bind-budget-creation-to-resources/plan.md\ndocs/features/key-56-bind-budget-creation-to-resources/quickstart.md\ndocs/features/key-56-bind-budget-creation-to-resources/research.md\ndocs/features/key-56-bind-budget-creation-to-resources/spec.md\ndocs/features/key-56-bind-budget-creation-to-resources/tasks.md\ndocs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/checklists/requirements.md\ndocs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/evidence/verification.md\ndocs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md\ndocs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/spec.md\ndocs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/tasks.md\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "show",
+        "8a432f0:.specify/memory/constitution.md"
+      ],
+      "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
+      "exit": 0,
+      "stdout": "<!--\nSync Impact Report\n- Version change: 6.0.0 -> 7.0.0\n- Rationale: approved KEY-74 replaces mandatory phase sub-issues/stacks with independent feature delivery.\n- Modified principles: None\n- Modified sections: Delivery and evidence gates\n- Added sections: None\n- Removed requirements: Phase 1 parent binding and later phase sub-issue branches\n- Updated templates: tasks-template.md, plan-template.md, spec-template.md\n- Validated unchanged templates: checklist-template.md, constitution-template.md\n- Updated guidance: docs/workflow.md, docs/README.md, AGENTS.md, PR template, tracked Spec Kit skills and workflow\n- Superseding decision: docs/adr/0009-independent-feature-delivery.md\n- Migration: preserve historical feature artifacts/evidence; retire active phase publication commands and hooks\n- Runtime contracts: unchanged\n- Follow-up TODOs: None\n-->\n\n# Keynes Constitution\n\n## Core principles\n\n### I. One source of truth per Budget\n\nEach Budget MUST be stored and changed in exactly one place. The process-local\nSQLite runtime MUST own the committed state and state transitions for a local Budget.\nThe `keynes.*` PostgreSQL procedures MUST own the committed state and state\ntransitions for a durable Budget. SDKs, services, and integrations MUST NOT\nreproduce those transitions outside the selected implementation or write its\nprivate state directly.\n\nA command MUST publish one complete result atomically or change no state.\nResource conservation, availability, settlement, exact replay, conflicting\ncommand reuse, missing usage, overage, and unresolved work MUST retain one\nunambiguous meaning. Keynes MUST NOT copy a live Budget between deployments or\nwrite it to two places. Public SDK configuration MUST select exactly one access\npath. A remote access path MUST authenticate and resolve to exactly one trusted\nBudget authority. Missing, invalid, or incompatible remote configuration MUST\nfail and MUST NOT select local state, another service, or another database.\n\n### II. Application-owned effects\n\nKeynes MUST govern Resource limits and accounting without taking ownership of\napplication work. Applications own workflow validity, request construction,\nPolicy context, effect execution, provider idempotency and retries, usage\nobservation, business outcomes, fallback behavior, and analysis. An approved\nchild Budget permits only its Resource envelope; it MUST NOT be represented as\nproof that external work ran or succeeded. Keynes MUST NOT invent, dispatch,\nretry, reorder, or substitute application behavior.\n\nThis boundary keeps Budget decisions composable with any application workflow\nand prevents a command retry from duplicating external work.\n\n### III. Restricted, fail-closed Policies\n\nA Policy MUST be optional, local to one Budget, deterministic, read-only, and\nlimited to Resource ceilings. Its public format MUST be a restricted\nPostgreSQL-style query over the requested Resources, the parent Budget's\navailable Resources, and one fixed context object supplied by the application.\nIt MUST NOT access Keynes private storage, application tables, secrets,\nhistory, or unrelated requests.\n\nThe TypeScript SDK MUST use Kysely as the normal Policy authoring path and MUST\nalso accept advanced raw SQL within the same supported profile. Kysely-compiled\nSQL and raw SQL MUST pass through one pinned PostgreSQL parser, validator, and\nnormalizer into a versioned Keynes Policy program. Policy evaluation MUST occur\ninside the selected Budget authority's atomic command, and Keynes MUST NOT trust\nan application-supplied Policy decision. Keynes MUST define one versioned\nsemantics contract for that program. Deployments MAY use one shared evaluator\nor deployment-native backends when each backend enforces the same contract and\npasses the canonical conformance corpus. Kysely's operation tree, the parser's\nsyntax tree, and backend-specific representations are not public or durable\ncontracts.\n\nInvalid SQL, forbidden access, nondeterministic behavior, an execution-limit\nfailure, invalid context, or an invalid result MUST fail the request. None may\nbecome an approval or denial. Keynes MUST record the exact context used for a\ndecision, and replay MUST NOT query application data again. Policy context MUST\nbe free of secrets.\n\n### IV. Consistent behavior across deployments\n\nThe in-memory SQLite runtime and PostgreSQL MUST implement the same Budget commands,\nresults, errors, replay behavior, accounting rules, and evidence format. The\ngenerated TypeScript client MUST depend on a deployment-neutral command\nboundary. Local lifecycle code, PostgreSQL procedure clients, and remote\ntransport clients MAY differ in storage, authentication, transactions,\nconcurrency controls, recovery, and operations, but they MUST NOT change the\npublic meaning of a Budget command.\n\nEvery shared Budget example MUST run as a black-box comparison against the\nin-memory SQLite runtime and native PostgreSQL. Results, errors, replay flags, history,\nand final Budget state MUST agree. Separate suites MUST cover local lifecycle\nand memory, PostgreSQL concurrency and transactions, remote authentication and\ntenant isolation, recovery, packaging, and managed operations. A pass in one\ndeployment MUST NOT be reported as evidence for another.\n\nSubtree issuance, multi-source funding, or another Resource path MUST use an\nexplicit contract and pass its own permission, conservation, recovery, replay,\nand deployment comparison gates before release.\n\n### V. Evidence-first, test-first delivery\n\nEvery behavioral change MUST begin with an automated test that is observed\nfailing for the expected reason before implementation begins. The default\nverification lane MUST be deterministic and provider-free. Networked, paid,\nmanaged-provider, fault, and benchmark lanes MUST remain explicit and, where\nthey can spend money or mutate external state, separately authorized.\n\nSpecs and plans MUST define measurable acceptance evidence, including security,\nrecovery, migration, compatibility, shared behavior, deployment-specific, and\nperformance evidence when those qualities are in scope. A result that was not\nexecuted MUST remain marked `NOT RUN`. Release or readiness claims MUST cite\nretained evidence from the exact source revision, artifact, dependency versions,\nhost, and attempt that produced it.\n\n## Product constraints\n\n- `Budget` MUST remain the only public stateful governance object. Defining a\n  Resource type creates no quantity or permission to spend.\n- An ordinary request MUST name one exact Resource envelope and be funded\n  entirely by its structural parent. It MUST atomically return a denial or\n  reserve Resources and create one child Budget.\n- Policies MUST remain optional and local to the Budget that declares them.\n  Request context MUST be immutable, typed, application-supplied, recorded as\n  evidence, and absent from child inheritance.\n- Settlement MUST record direct known usage and derive subtree state without\n  silently treating missing evidence as zero or charging ancestors to hide a\n  child deficit.\n- Public contracts MUST preserve exact values, stable identities, canonical\n  serialization, explicit error families, and idempotent command replay.\n- Secrets MUST NOT appear in Policy context, committed fixtures, generated\n  artifacts, logs, prompts, or retained evidence.\n- Local mode MUST run privately inside one Node.js process, expose no persistence\n  or database handle, and lose its state when the process exits.\n- PostgreSQL MUST be the only durable database implementation. It MAY be\n  installed in an application's database, reached directly by the SDK in a\n  customer-operated deployment, or operated by Keynes as managed Cloud.\n- Supporting MySQL, SQLite, or another durable database implementation requires\n  a later constitution amendment and its own behavior, migration, concurrency,\n  security, recovery, packaging, and operations evidence.\n- TypeScript MUST remain the only supported SDK until a later product and\n  architecture decision adds another language.\n- `docs/product.md` owns the product thesis and commitments;\n  `docs/architecture.md` owns runtime semantics and boundaries; accepted ADRs\n  own architectural decisions; and Linear projects and issues own implementation\n  order, current status, priority, assignment, dependencies, and current issue\n  disposition. Feature artifacts MUST refine product and architecture without\n  silently redefining them, and MUST own their detailed implementation contracts,\n  tasks, and retained exact-revision evidence.\n\n## Delivery and evidence gates\n\n- Every feature specification MUST define independently testable user value,\n  boundary and failure scenarios, measurable outcomes, and any application\n  effect, Budget behavior, Policy, contract, deployment, or evidence\n  implications. A non-applicable concern MUST be marked `N/A` with a concrete\n  rationale.\n- Every feature specification MUST use one Linear issue as its identity.\n  The version 3 manifest MUST store the exact title, identifier, UUID, URL,\n  branch-final-segment directory, specification path, and `gitBranchName`. Repository code\n  MUST NOT allocate another number, derive a branch, or parse identity from a\n  branch. Proving live Linear values requires an explicit synchronization and\n  is not part of the deterministic repository gate.\n  Feature specifications MUST NOT duplicate mutable lifecycle status, priority,\n  assignment, or project sequencing from Linear.\n- Linear issues MAY summarize engineering work and link to accepted evidence,\n  but detailed Spec Kit tasks and retained exact-revision evidence MUST remain\n  in the repository. A mutable field MUST have only one owner.\n- Each feature MUST complete its Spec Kit lifecycle on one Linear-generated\n  branch and normally one independently accepted PR. Internal phases MUST stay\n  in tasks.md, end with concrete checkpoints, and MUST NOT require sub-issue\n  publication or PR stacks. Analysis MUST verify one acceptance outcome and\n  landed prerequisites. Each shared behavior feature MUST own passing SQLite\n  and native PostgreSQL evidence before acceptance. Linear content MUST NOT\n  copy tasks, requirements, checkpoints, completion counts, or evidence.\n- Every implementation plan MUST pass the Constitution Check before research\n  and again after design. It MUST identify where each affected Budget is stored,\n  application-owned effects, Policy and security boundaries, shared command\n  implications, and exact verification lanes.\n- Every task list for a behavioral change MUST order failing behavioral tests\n  before the corresponding implementation. Documentation-only,\n  generated-output, or mechanical changes MAY use focused validation, but the\n  task list MUST state why no behavioral test applies.\n- A runtime or deployment change MUST name the shared behavior examples and the\n  deployment-specific lifecycle, transaction, security, recovery, packaging, or\n  managed-operations tests that apply.\n- A Policy change MUST name changes to context, Kysely compilation, raw-SQL\n  parsing, Policy-program normalization, the shared semantic definition, every\n  selected execution backend, cross-backend conformance, evidence, and replay.\n- Provider-free verification MUST pass before any authorized live, paid, or\n  externally mutating validation. Authorization MUST bind the exact plan,\n  inputs, credential boundary, spend or mutation ceiling, and retained artifact\n  location.\n- Reviews MUST distinguish proposed, implemented, verified, failed, skipped, and\n  `NOT RUN` states. Evidence MUST identify the relevant contract and artifact\n  digests, tool versions, host, and explicit attempt when reproducibility\n  depends on them.\n- Any constitutional exception MUST be documented in the plan's Complexity\n  Tracking section with the violated rule, why the exception is necessary, the\n  simpler compliant alternative that was rejected, and a removal or migration\n  path.\n\n## Governance\n\nThis constitution supersedes conflicting repository practices and feature-local\nguidance. An amendment MUST document its rationale and migration impact, update\nthe Sync Impact Report, synchronize dependent templates and runtime guidance,\nand pass repository validation before approval.\n\nConstitution versions follow semantic versioning. A MAJOR version removes or\nredefines a governing principle incompatibly; a MINOR version adds a principle,\nsection, or materially stronger obligation; and a PATCH version clarifies\nwording without changing required behavior. The ratification date records the\nfirst accepted constitution, while the last-amended date changes with every\napproved amendment.\n\nEvery feature plan and review MUST verify constitutional compliance. Reviewers\nMUST reject unexplained violations, more than one source of truth for a Budget,\nhidden external effects, fail-open Policy behavior, unsupported deployment\nequivalence, and claims that exceed retained evidence. Governance review does\nnot replace technical judgment: every rule and exception MUST be justified by\nthe concrete correctness, security, operability, or product risk it controls.\n\n**Version**: 7.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "write-tree"
+      ],
+      "cwd": "/Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset",
+      "exit": 0,
+      "stdout": "e95e9596ed2397beec74bb251db9a2bb6b996bca\n",
+      "stderr": ""
+    }
+  ],
+  "fixture": {
+    "cases": 4,
+    "red_exit": 1,
+    "green_exit": 0,
+    "method": "agent followed installed stock commands; helper scripts and tests executed",
+    "artifacts": {
+      "docs/features/key-89-small-feature/quickstart.md": "7e6ef5067192e267794eb43a4104a7f1f2a91bbb8b9790a22f91c8c6feb75a0b",
+      "docs/features/key-89-small-feature/analysis.md": "9270f395209bafc6a0459527ed7583cae3b87df1a3062b23bfbf378b93a8e662",
+      "docs/features/key-89-small-feature/tasks.md": "24d8870bd00a09fbbda1fad6d03c938e4fca67ef095ef2ea9581846bdf4251b2",
+      "docs/features/key-89-small-feature/research.md": "01c9fc57feafaac863a054cecaf158be434857ca039a0290253c141fce2531ee",
+      "docs/features/key-89-small-feature/data-model.md": "34f022339853e12c4e6bc8b62622e092ff82d0c2be918a5ad38fd5296a9f8417",
+      "docs/features/key-89-small-feature/plan.md": "a77b6c2c3dbdbee78f049c270f1e8cf4c01797f1659b6e5d1be987c9e4efb712",
+      "docs/features/key-89-small-feature/spec.md": "23b07a0d91acfdad638b0ba261133eb39cfec81550855252d67a5f3d130042e3",
+      "docs/features/key-89-small-feature/review.md": "8937941db4613ca4c3b56dfd38408b7912a5dcd0dceff00274246e3737a176ee",
+      "docs/features/key-89-small-feature/checklists/requirements.md": "28a085a189e8af7257caeb4356b5a6d6934124a9587920c7b98ae12d25b7a3e3",
+      "docs/features/key-89-small-feature/contracts/cli.md": "491c99c315b5c24b25b6b0a0996210c2dd38be9e82be1257aef12b2f9e95c3b7",
+      "greet.py": "b863111edcddd28f855865265b0cd8081847982255d222d9bb006066749860a3",
+      "test_greet.py": "d79f19aa015ff0f9641b769cdf29614025a6b5fb85ef2a2fc0786d7e0144cc6f"
+    }
+  },
+  "retained_demo": "The fixture artifact Markdown was formatted after its lifecycle run; requirements and code are unchanged. Final reviewed fixture digests are recorded here. evidence/stock-lifecycle flattens its directory for review."
+}
