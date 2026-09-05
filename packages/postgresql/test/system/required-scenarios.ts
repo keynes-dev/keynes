@@ -1,3 +1,6 @@
+export const POSTGRESQL_BUDGET_AGGREGATE =
+  "packages/postgresql/test/system/budget.test.ts";
+
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   "packages/postgresql/test/integration/installation.test.ts": [
     "native PostgreSQL installation installs a fresh target atomically",
@@ -27,12 +30,6 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL exact recheck and application-role conformance checks bootstrap permissions and schema and function ACLs",
     "PostgreSQL exact recheck and application-role conformance allows the application role to call exactly the eight remote functions",
     "PostgreSQL exact recheck and application-role conformance denies private and unsupported function access without changing state",
-  ],
-  "packages/postgresql/test/system/budget-lifecycle.test.ts": [
-    "Budget lifecycle defines a Resource type without creating Budget quantity",
-    "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
-    "Budget lifecycle returns canonical Resource definition errors",
-    "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
   ],
   "packages/postgresql/test/system/installation.test.ts": [
     "PostgreSQL installation installs explicit principal permission records",
@@ -70,26 +67,6 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "embedded PostgreSQL caller-owned transactions allows a rolled-back command identity to be reused and committed",
     "embedded PostgreSQL caller-owned transactions returns the committed result when another session replays exactly",
     "embedded PostgreSQL caller-owned transactions rejects conflicting command reuse without changing committed state",
-  ],
-  "packages/postgresql/test/system/replay.test.ts": [
-    "command replay recovers all four canonical results across principals without duplicate history",
-    "command replay replays a structurally equal command across principals despite object key order",
-    "command replay recovers Resource definition after its committed response is lost",
-    "command replay recovers root allocation after its committed response is lost",
-    "command replay recovers an approved request after its committed response is lost",
-    "command replay recovers settlement after its committed response is lost",
-    "command replay rejects changed bodies for each mutation, including across principals",
-    "command replay rejects reuse by a different operation",
-    "command replay rejects reuse against a different target",
-  ],
-  "packages/postgresql/test/system/request-denial.test.ts": [
-    "Budget request denial denies one unavailable Resource without changing the parent",
-    "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
-    "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
-    "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
-    "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
-    "Budget request denial rejects a request after its parent becomes inactive",
-    "Budget request denial keeps request, settlement, and read permissions independent",
   ],
   "packages/postgresql/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
@@ -222,22 +199,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
   ],
   "packages/postgresql/test/system/rollback.test.ts": [
-    "command rollback rolls back Resource definition checkpoints",
-    "command rollback rolls back root allocation facts, result, and history",
-    "command rollback rolls back child reservation, result, and history",
-    "command rollback rolls back usage, result, and settlement history",
     "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
     "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
     "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
-  ],
-  "packages/postgresql/test/system/settlement.test.ts": [
-    "Budget settlement keeps a sealed parent settling until its open descendant settles",
-    "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
-    "Budget settlement returns a reusable child allocation in full after settlement",
-    "Budget settlement isolates child overage without charging its parent or sibling",
-    "Budget settlement bounds settled nested charges before returning them to an ancestor",
-    "Budget settlement settles a subset while keeping an omitted Resource unresolved",
-    "Budget settlement sorts multiple isolated deficits by Resource identity",
-    "Budget settlement rejects derived arithmetic overflow without committing settlement",
   ],
 } as const;

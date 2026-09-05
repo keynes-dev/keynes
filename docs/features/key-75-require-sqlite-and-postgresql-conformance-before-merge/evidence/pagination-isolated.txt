@@ -1,0 +1,26 @@
+
+ RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes
+
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reports semantic compatibility before any mutation 338ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > recovers a committed response without adding a command or history entry 180ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > recovers a committed mutation after its transport response is lost 217ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > returns known-failure and expired recovery states without mutation 190ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reports an in-flight mutation as unresolved without changing authority state 196ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > converges concurrent exact retries on one committed mutation 237ms
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reopens a Budget only for the mapped tenant and exact Resource binding 192ms
+stdout | packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > paginates one bounded history snapshot with expiring single-use cursors
+KEY75 fixture milliseconds 157.18399999999997
+
+stdout | packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > paginates one bounded history snapshot with expiring single-use cursors
+KEY75 requests milliseconds 3025.4967500000002
+
+stdout | packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > paginates one bounded history snapshot with expiring single-use cursors
+KEY75 pagination milliseconds 3056.2819580000005
+
+ ✓ packages/postgresql/test/system/.artifacts/key-75-diagnostic/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > paginates one bounded history snapshot with expiring single-use cursors 3070ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  20:12:47
+   Duration  4.91s (transform 133ms, setup 0ms, import 225ms, tests 4.62s, environment 0ms)
+

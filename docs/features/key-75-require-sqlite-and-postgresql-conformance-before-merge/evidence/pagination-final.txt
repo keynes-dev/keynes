@@ -1,0 +1,217 @@
+
+ RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes
+
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > installs a fresh target atomically 758ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > installs explicit principal permission records 758ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget lifecycle > defines a Resource type without creating Budget quantity 884ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > installs and rechecks the complete remote procedure contract without changing state 767ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > validates the exact input shape of all eight wrappers before mutation 770ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > funds at most one sibling after proving the second request waits 1037ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > installs the current graph and rechecks it without changes 445ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > gives the runtime role only remote procedures and no private authority 447ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > approves within the Policy ceiling and records canonical evidence 1023ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > returns an exact no-op result without changing installed state 670ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > commits an approved request and application outbox row together 1036ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a malformed durable program with a sanitized invalid_policy error and no state 1013ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > returns authorization-safe errors before validating an unmapped caller 446ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget lifecycle > preserves definition identity and distinguishes replay from redefinition 776ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > rejects a request that waits behind a committed settlement seal 635ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the first CASE condition 630ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rejects a contract digest mismatch before installation 443ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > derives tenant and principal from the authenticated role on every call 452ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > installs the additive Resource-bound Budget and remote access migrations 449ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > keeps owner, execution, administration, and runtime roles distinct 459ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > leaves neither Budget state nor outbox state after explicit rollback 629ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > denies above the Policy ceiling without reserving or creating a child 625ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget lifecycle > returns canonical Resource definition errors 664ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > orders a waiting settlement after the committed request 662ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > records OID and name mappings without credential secrets 662ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > scopes overlapping Resource names and operation keys to each authenticated tenant 668ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > moves Resource provenance to the defining command 670ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > evaluates requested, availability, and Context through the installed request path 664ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > rolls back Keynes when the application write fails after approval 668ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the later CASE condition 666ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rejects migration byte drift before applying it 673ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > returns the stored result when a matching command waits for commit 630ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget lifecycle > completes one funded child lifecycle and reads its root-lineage history 693ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects an unsupported PostgreSQL version before mutation 600ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > checks enabled mappings again on an already-open session 611ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rejects an installed-object mismatch after fresh migration 641ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects 'INHERIT' candidates for registration and rotation 633ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > uses available Resources when they are the Policy ceiling 631ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > commits a denial without creating application work 629ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the first CASE result 610ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > converges concurrent absent-name roots on one Resource 767ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > recovers all four canonical results across principals without duplicate history 702ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0001-storage' atomically when its final statement fails 767ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > rejects a recreated login until an operator explicitly registers the stale name and new OID 785ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects 'ownerRole membership' candidates for registration and rotation 763ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > returns invalid_command for malformed input without opening application work 764ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the later CASE result 791ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects an operator without installation privilege before mutation 785ms
+ ✓ packages/postgresql/test/system/contention.test.ts > native PostgreSQL contention > returns root Resources in canonical name order despite opposite standalone UUID order 596ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > replays a structurally equal command across principals despite object key order 599ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects missing prepared owner, execution, administration, and application roles 578ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > enforces Policies for a contract-valid non-RFC request command UUID 774ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0002-budget' atomically when its final statement fails 597ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > rotates mappings atomically and disables the old pooled credential 603ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects 'executionRole membership' candidates for registration and rotation 608ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the CASE else result 594ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > uses the caller-owned transaction lifecycle 599ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0003-public' atomically when its final statement fails 627ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > rolls back a Resource-bound root with caller-owned application work 635ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > derives the same identity through the direct profile 425ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects role login and database privilege contract violations 670ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects 'administrationRole membership' candidates for registration and rotation 633ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > preserves root Policies created with a contract-valid non-RFC UUID 1210ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > revokes an existing session and records no reusable credential 636ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > recovers Resource definition after its committed response is lost 634ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the nested second coalesce argument 636ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0004-policy' atomically when its final statement fails 647ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects an application role with membership in any privileged role 656ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > keeps a revoked credential terminal when registration is retried 655ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > derives the same identity through the session-pool profile 660ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects registration over a mapping occupied by another identity 655ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > recovers root allocation after its committed response is lost 663ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > preserves the original definition provenance for later definition 664ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > attaches only the explicit child Policy set and evaluates it on the next request 676ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a direct durable aggregate in the nested later coalesce argument 658ms
+ ✓ packages/postgresql/test/system/remote-security.test.ts > remote PostgreSQL identity and security > denies private objects, canonical procedures, role assumption, and public SQL creation 635ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > recovers an approved request after its committed response is lost 629ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > keeps a pending child and outbox row invisible to another session 626ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > accepts a direct durable aggregate in first coalesce argument 631ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > rejects a root Policy declaration outside the receiving Budget holdings 634ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects an incompatible partial target without repairing it 613ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects rotation onto an occupied mapped role 624ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > derives the same identity through the transaction-pool profile 631ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > proves the runner routes through the requested PgBouncer modes 16ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0005-resource-bound-budget' atomically when its final statement fails 644ms
+ ✓ packages/postgresql/test/system/installation.test.ts > PostgreSQL installation > rolls back '0006-remote-access' atomically when its final statement fails 660ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > classifies two empty Keynes schemas as incompatible live state 630ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > lets the private administration role manage metadata but not run Budget calls 683ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reports semantic compatibility before any mutation 464ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > clears transaction-local identity after a direct call 664ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > recovers settlement after its committed response is lost 678ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > rejects a child Policy declaration outside the receiving child holdings 803ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > accepts a direct durable aggregate in least 808ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > exposes bounded credential audit without table access 710ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > clears transaction-local identity after a session-pool call 707ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects a migration-byte mismatch without changing the target 775ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > makes the child and outbox row visible after the caller commits 1157ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > recovers a committed response without adding a command or history entry 712ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > rejects changed bodies for each mutation, including across principals 818ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > recovers a committed mutation after its transport response is lost 543ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects a migration contract-digest mismatch 545ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > clears transaction-local identity after a transaction-pool call 548ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > accepts a direct durable aggregate in greatest 1063ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > approves an ungoverned parent request with child Policies without parent Policy evidence 1066ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > makes remote privilege and schema CREATE drift fail exact recheck 547ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > leaves neither child nor outbox row visible after the caller rolls back 775ms
+ ✓ packages/postgresql/test/system/policy-replay.test.ts > PostgreSQL governed Policy replay > returns the exact stored result, evidence, and Context 1082ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > rejects reuse by a different operation 659ms
+ ✓ packages/postgresql/test/integration/remote-identity.test.ts > remote PostgreSQL installation and administration > rejects unsafe enabled mappings during exact recheck 704ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > returns known-failure and expired recovery states without mutation 704ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > rejects the native plaintext endpoint when verified TLS is required 704ms
+ ✓ packages/postgresql/test/system/policy-replay.test.ts > PostgreSQL governed Policy replay > ignores changed availability, an external fact, and an unrelated Policy revision 820ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects a contract mismatch without changing the target 678ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > preserves exact no-Policy request bytes and canonical root history 768ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > allows a rolled-back command identity to be reused and committed 709ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects canonical SQL that does not match the durable program without executing it 766ms
+ ✓ packages/postgresql/test/system/remote-connections.test.ts > remote PostgreSQL connection profiles > fails closed when the database is unavailable 739ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command replay > rejects reuse against a different target 1001ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects a changed live function body during exact recheck 765ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reports an in-flight mutation as unresolved without changing authority state 741ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > orders effective ceilings and tied reasons by canonical text, not Resource UUID 946ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > returns the committed result when another session replays exactly 945ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a noncanonical Policy name before mutation 946ms
+ ✓ packages/postgresql/test/system/rollback.test.ts > PostgreSQL Resource-bound root authorization and rollback > requires definition then root-allocation permission 971ms
+ ✓ packages/postgresql/test/system/policy-replay.test.ts > PostgreSQL governed Policy replay > rejects command identity reuse with changed Context without changing state 1075ms
+ ✓ packages/postgresql/test/system/embedded-transactions.test.ts > embedded PostgreSQL caller-owned transactions > rejects conflicting command reuse without changing committed state 833ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > denies one unavailable Resource without changing the parent 1028ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > converges concurrent exact retries on one committed mutation 951ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects changed live function security properties 950ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects an invalid Policy revision before mutation 834ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > keeps governed state pending until the caller commits 831ms
+ ✓ packages/postgresql/test/system/policy-conformance.test.ts > PostgreSQL Policy runtime conformance > executes every shared runtime conformance program through the installed renderer 989ms
+ ✓ packages/postgresql/test/system/policy-replay.test.ts > PostgreSQL governed Policy replay > rejects command identity reuse with changed child Policies without changing state 802ms
+ ✓ packages/postgresql/test/system/rollback.test.ts > PostgreSQL Resource-bound root authorization and rollback > rolls back an inserted Resource at its private checkpoint 805ms
+ ✓ packages/postgresql/test/system/policy-conformance.test.ts > PostgreSQL Policy runtime conformance > keeps nested boolean rendering linear 532ms
+ ✓ packages/postgresql/test/system/rollback.test.ts > PostgreSQL Resource-bound root authorization and rollback > rejects a malformed root projection without committing authority state 535ms
+ ✓ packages/postgresql/test/system/policy-replay.test.ts > PostgreSQL governed Policy replay > returns before reading the parent Policy snapshot or invoking the evaluator 542ms
+ ✓ packages/postgresql/test/system/remote-budget.test.ts > remote PostgreSQL Budget authority > completes one remote create, request, inspect, and settlement loop 556ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > rolls back governed evidence, reservation, child, history, and command identity 747ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > denies a multi-Resource envelope without reserving its fundable part 969ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a noncanonical Policy reason before mutation 749ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rejects live object, permission, ownership, and ACL drift 839ms
+ ✓ packages/postgresql/test/integration/installation.test.ts > native PostgreSQL installation > rolls back every migration after an injected failure 497ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > rechecks the exact graph read-only 58ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > checks the server, checksums, contract, and complete object inventory 10ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > rejects an otherwise exact target that lacks the final migration 18ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > checks owners, bodies, languages, security, and fixed search paths 8ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > checks bootstrap permissions and schema and function ACLs 18ms
+ ✓ packages/postgresql/test/system/remote-budget.test.ts > remote PostgreSQL Budget authority > enforces a generated Policy through canonical remote Resources 608ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > allows the application role to call exactly the eight remote functions 5ms
+ ✓ packages/postgresql/test/integration/recheck.test.ts > PostgreSQL exact recheck and application-role conformance > denies private and unsupported function access without changing state 18ms
+ ✓ packages/postgresql/test/system/policy-request.test.ts > PostgreSQL governed Policy requests > locks an unrequested declared availability holding in Resource UUID order 633ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > reopens a Budget only for the mapped tenant and exact Resource binding 840ms
+ ✓ packages/postgresql/test/system/remote-recovery.test.ts > remote PostgreSQL recovery and bounded reads > paginates one bounded history snapshot with expiring single-use cursors 884ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects duplicate Policy names before mutation 630ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects Policy output Resources outside its declared input Resources 357ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > conserves 100 sibling overlaps through public serialization, not multi-connection contention 1491ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a context reference outside the Policy contextSchema 485ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > rejects malformed, duplicate, and caller-selected funding envelopes 369ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a Policy canonical source over the per-Policy byte limit 376ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a Policy set over the aggregate canonical source byte limit 400ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > rejects a Resource type that has not been defined before evaluating funding 402ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > filters requested and available rows to each Policy input declaration 382ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > rejects a request after its parent becomes inactive 380ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects duplicate result Resources as invalid_result 377ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget request denial > keeps request, settlement, and read permissions independent 378ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Resource-bound root creation > binds Resource definitions, allocations, and creation history in one root command 325ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > pins every security-definer search path to trusted schemas with pg_temp last 322ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > prevents the application role from reading or invoking private Policy authority 330ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Resource-bound root creation > replays an identical combined root command without duplicating history 327ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Resource-bound root creation > rejects a changed definition-bearing root body under the same command identity 345ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects an emitted requested input Resource outside outputResources 386ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Resource-bound root creation > commits an attached Policy with the Resource-bound root 354ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > maps generated-query failure to stable sanitized details and rolls back 374ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Resource-bound root creation > rolls back definitions, root state, and history after Resource insertion 346ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > maps generated numeric overflow to arithmetic_overflow and rolls back 348ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command rollback > rolls back Resource definition checkpoints 345ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > maps aggregate transition overflow to arithmetic_overflow and rolls back 373ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command rollback > rolls back root allocation facts, result, and history 370ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects noncanonical decimal literal precision before evaluation 338ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command rollback > rolls back child reservation, result, and history 390ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with non-object 332ms
+ ✓ packages/postgresql/test/system/budget.test.ts > command rollback > rolls back usage, result, and settlement history 366ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with array 362ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > keeps a sealed parent settling until its open descendant settles 333ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with extra key 334ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with invalid name 355ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > resolves missing usage and records an exact known repeat as a no-op 355ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > returns a reusable child allocation in full after settlement 353ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with invalid type 355ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with invalid nullability 334ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > isolates child overage without charging its parent or sibling 335ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects a contextSchema member with duplicate name 348ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > bounds settled nested charges before returning them to an ancestor 348ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > accepts contextSchema names in canonical C byte order 349ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > settles a subset while keeping an omitted Resource unresolved 348ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > returns invalid_command for malformed createBudget identifiers 334ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > sorts multiple isolated deficits by Resource identity 336ms
+ ✓ packages/postgresql/test/system/budget.test.ts > Budget settlement > rejects derived arithmetic overflow without committing settlement 340ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > returns invalid_command for malformed requestBudget identifiers 339ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rejects negative integer Policy context before evaluation and rolls back 337ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_command_binding 327ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at before_policy_evaluation 330ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_policy_evaluation 325ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_policy_evidence 325ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_domain_mutation 333ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_history_insertion 327ms
+ ✓ packages/postgresql/test/system/policy-security.test.ts > PostgreSQL Policy security > rolls back the complete governed command at after_result_storage 333ms
+
+ Test Files  16 passed (16)
+      Tests  208 passed (208)
+   Start at  20:16:23
+   Duration  23.40s (transform 1.11s, setup 0ms, import 3.57s, tests 125.20s, environment 1ms)
+

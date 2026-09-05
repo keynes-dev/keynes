@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   PGBOUNCER_IMAGE,
   POSTGRES_IMAGE,
+  POSTGRESQL_SYSTEM_TEST_FILES,
   runPostgresqlSystemTests,
   type PostgresqlSystemRuntime,
 } from "./run.js";
@@ -156,6 +157,67 @@ function fakeRuntime(options?: {
 }
 
 describe("PostgreSQL system-test runner", () => {
+  it("executes the same complete Budget registration as SQLite", async () => {
+    const native = "packages/postgresql/test/system/budget.test.ts";
+    expect(POSTGRESQL_SYSTEM_TEST_FILES).toContain(native);
+    const registration = await readFile(native, "utf8");
+    expect(registration).toContain(
+      "registerBudgetContractTests(openPostgresqlContractTestHost)",
+    );
+    const shared = await readFile(
+      "packages/contracts/conformance/scenarios/index.ts",
+      "utf8",
+    );
+    expect(shared).toContain(
+      "registerResourceBoundRootContractTests(openHost)",
+    );
+  });
+
+  it.each(["missing", "skipped", "empty", "duplicate"])(
+    "rejects %s aggregate coverage",
+    async (kind) => {
+      const output = await temporaryOutputPath();
+      const report = passingVitestReport();
+      const aggregate = report.testResults.find((result) =>
+        result.name.endsWith("/system/budget.test.ts"),
+      );
+      expect(aggregate).toBeDefined();
+      const testResults = report.testResults.flatMap((result) => {
+        if (result !== aggregate)
+          return [
+            { ...result, assertionResults: [...result.assertionResults] },
+          ];
+        if (kind === "missing") return [];
+        return [
+          {
+            ...result,
+            assertionResults:
+              kind === "empty"
+                ? []
+                : kind === "duplicate"
+                  ? [...result.assertionResults, ...result.assertionResults]
+                  : result.assertionResults.map((assertion) => ({
+                      ...assertion,
+                      status: "pending",
+                    })),
+          },
+        ];
+      });
+      try {
+        await expect(
+          runPostgresqlSystemTests(
+            fakeRuntime({ vitestReport: { ...report, testResults } }).runtime,
+            {},
+            { outputPath: output.path },
+          ),
+        ).rejects.toThrow();
+        await expect(readFile(output.path)).rejects.toThrow();
+      } finally {
+        await rm(output.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
   async function temporaryOutputPath(): Promise<{
     readonly directory: string;
     readonly path: string;
@@ -590,16 +652,19 @@ function passingVitestReport(): {
     }[];
   }[];
 } {
-  const testResults = Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).map(
-    ([file, names]) => ({
-      name: `/repository/packages/${file}`,
+  const testResults = Object.entries({
+    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+    "packages/postgresql/test/system/budget.test.ts": [
+      "shared Budget scenario fixture",
+    ],
+  }).map(([file, names]) => ({
+    name: `/repository/packages/${file}`,
+    status: "passed" as const,
+    assertionResults: names.map((fullName) => ({
+      fullName,
       status: "passed" as const,
-      assertionResults: names.map((fullName) => ({
-        fullName,
-        status: "passed" as const,
-      })),
-    }),
-  );
+    })),
+  }));
   return {
     numFailedTests: 0,
     numPendingTests: 0,

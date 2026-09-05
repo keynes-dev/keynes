@@ -19,7 +19,10 @@ import {
   packAndInstallPostgresql,
   type PackedPostgresqlPackage,
 } from "../support/packed-package.ts";
-import { REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS } from "./required-scenarios.ts";
+import {
+  POSTGRESQL_BUDGET_AGGREGATE,
+  REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+} from "./required-scenarios.ts";
 
 export const POSTGRES_IMAGE =
   "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941";
@@ -33,7 +36,8 @@ const READINESS_TIMEOUT_MS = 30_000;
 const READINESS_INTERVAL_MS = 100;
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 
-const POSTGRESQL_SYSTEM_TEST_FILES = [
+export const POSTGRESQL_SYSTEM_TEST_FILES = [
+  POSTGRESQL_BUDGET_AGGREGATE,
   "packages/postgresql/test/system/contention.test.ts",
   "packages/postgresql/test/system/embedded-transactions.test.ts",
   "packages/postgresql/test/system/installation.test.ts",
@@ -41,15 +45,11 @@ const POSTGRESQL_SYSTEM_TEST_FILES = [
   "packages/postgresql/test/system/policy-request.test.ts",
   "packages/postgresql/test/system/policy-replay.test.ts",
   "packages/postgresql/test/system/policy-security.test.ts",
-  "packages/postgresql/test/system/budget-lifecycle.test.ts",
-  "packages/postgresql/test/system/replay.test.ts",
-  "packages/postgresql/test/system/request-denial.test.ts",
   "packages/postgresql/test/system/remote-connections.test.ts",
   "packages/postgresql/test/system/remote-budget.test.ts",
   "packages/postgresql/test/system/remote-recovery.test.ts",
   "packages/postgresql/test/system/remote-security.test.ts",
   "packages/postgresql/test/system/rollback.test.ts",
-  "packages/postgresql/test/system/settlement.test.ts",
   "packages/postgresql/test/integration/installation.test.ts",
   "packages/postgresql/test/integration/remote-identity.test.ts",
   "packages/postgresql/test/integration/recheck.test.ts",
@@ -561,7 +561,7 @@ interface VitestReport {
   readonly [key: string]: unknown;
 }
 
-function validatePostgresqlSystemReport(
+export function validatePostgresqlSystemReport(
   value: unknown,
 ): asserts value is VitestReport {
   if (!isRecord(value)) {
@@ -577,9 +577,10 @@ function validatePostgresqlSystemReport(
     throw new Error("Vitest did not produce a passing report");
   }
 
-  const remaining = new Map<string, readonly string[]>(
-    Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
-  );
+  const remaining = new Map<string, readonly string[]>([
+    [POSTGRESQL_BUDGET_AGGREGATE, []],
+    ...Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
+  ]);
   let passed = 0;
   for (const candidate of value.testResults) {
     if (!isRecord(candidate) || typeof candidate.name !== "string") {
@@ -615,7 +616,12 @@ function validatePostgresqlSystemReport(
       .map(({ fullName }) => fullName as string)
       .sort();
     const expectedNames = [...(remaining.get(file) ?? [])].sort();
-    if (!sameStrings(actualNames, expectedNames)) {
+    if (
+      file === POSTGRESQL_BUDGET_AGGREGATE
+        ? actualNames.length === 0 ||
+          new Set(actualNames).size !== actualNames.length
+        : !sameStrings(actualNames, expectedNames)
+    ) {
       throw new Error(
         "Vitest report omitted a required PostgreSQL system scenario",
       );

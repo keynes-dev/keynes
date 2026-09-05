@@ -10,7 +10,7 @@ description: "Implementation tasks for KEY-75 required SQLite and PostgreSQL con
 
 **Tests**: The specification and plan require gate regressions and real runtime demonstrations. Observe behavioral tests failing for the intended reason before implementing the corresponding change. Controlled runner fixtures prove gate logic only. Documentation changes use focused validation.
 
-**Organization**: Two story phases, followed by combined acceptance for one feature PR. All tasks are pending. Implementation and acceptance demonstrations have not run.
+**Organization**: Two story phases, followed by combined acceptance for one feature PR. The foundation pagination timeout is resolved; later implementation phases remain pending. See evidence/acceptance.md for executed checks and pending acceptance.
 
 ## Format and paths
 
@@ -22,15 +22,15 @@ description: "Implementation tasks for KEY-75 required SQLite and PostgreSQL con
 
 **Purpose**: Confirm the existing implementation inputs without adding infrastructure.
 
-- [ ] T001 Confirm the exact KEY-75 branch, clean baseline, supported Node.js, pnpm, and Docker availability against `package.json` and `docs/features/key-75-require-sqlite-and-postgresql-conformance-before-merge/quickstart.md`; initialize `docs/features/key-75-require-sqlite-and-postgresql-conformance-before-merge/evidence/acceptance.md` with the baseline and pending evidence lanes.
+- [x] T001 Confirm the exact KEY-75 branch, clean baseline, supported Node.js, pnpm, and Docker availability against `package.json` and `docs/features/key-75-require-sqlite-and-postgresql-conformance-before-merge/quickstart.md`; initialize `docs/features/key-75-require-sqlite-and-postgresql-conformance-before-merge/evidence/acceptance.md` with the baseline and pending evidence lanes.
 
 ## Phase 2: Foundational shared registration
 
 **Purpose**: Both authorities must execute the same registration before paired qualification is implemented.
 
 - [ ] T002 Add and observe failing native coverage regressions in `packages/postgresql/test/system/run.test.ts` for the aggregate entrypoint, all existing native-only requirements, and rejection of missing or skipped required coverage; include the five Resource-bound root cases currently absent from native shared registration.
-- [ ] T003 Add `packages/postgresql/test/system/budget.test.ts` using the same `registerBudgetContractTests` exported by `packages/contracts/conformance/scenarios/index.ts` and used by `packages/sdk/test/conformance/budget.test.ts`; reuse `packages/postgresql/test/system/support/test-keynes.ts`, remove redundant shared-only `budget-lifecycle.test.ts`, `replay.test.ts`, `request-denial.test.ts`, and `settlement.test.ts` from that system directory, and remove only shared registration from `packages/postgresql/test/system/rollback.test.ts`, preserving its three native-only cases and all shared assertions.
-- [ ] T004 Update `packages/postgresql/test/system/required-scenarios.ts` and its validation in `packages/postgresql/test/system/run.ts` for the aggregate while preserving the full native-only inventory; pass T002 without copying the shared assertion-name list or treating the observed 37 scenarios as a permanent ceiling.
+- [x] T003 Add `packages/postgresql/test/system/budget.test.ts` using the same `registerBudgetContractTests` exported by `packages/contracts/conformance/scenarios/index.ts` and used by `packages/sdk/test/conformance/budget.test.ts`; reuse `packages/postgresql/test/system/support/test-keynes.ts`, remove redundant shared-only `budget-lifecycle.test.ts`, `replay.test.ts`, `request-denial.test.ts`, and `settlement.test.ts` from that system directory, and remove only shared registration from `packages/postgresql/test/system/rollback.test.ts`, preserving its three native-only cases and all shared assertions.
+- [x] T004 Update `packages/postgresql/test/system/required-scenarios.ts` and its validation in `packages/postgresql/test/system/run.ts` for the aggregate while preserving the full native-only inventory; pass T002 without copying the shared assertion-name list or treating the observed 37 scenarios as a permanent ceiling.
 
 **Checkpoint**: Both entrypoints use one shared registration. Any newly exposed runtime defect blocks qualification and is reported; this feature does not change Budget semantics to make tests pass.
 

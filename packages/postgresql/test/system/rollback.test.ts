@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createContractClient,
-  registerRollbackContractTests,
   type ContractClient,
   type ContractTestHost,
 } from "@keynes/contracts/conformance";
@@ -17,8 +16,6 @@ import {
   requirePostgresqlSystemAdministratorUrl,
   requirePostgresqlSystemCommandPath,
 } from "./support/test-keynes.js";
-
-registerRollbackContractTests(openPostgresqlContractTestHost);
 
 const ROOT_COMMAND_ID = "26000000-0000-4000-8000-000000000001";
 const RETRY_DEFINITION_ID = "16000000-0000-4000-8000-000000000001";
