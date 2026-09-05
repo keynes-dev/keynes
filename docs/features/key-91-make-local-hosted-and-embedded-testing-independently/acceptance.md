@@ -184,3 +184,46 @@ pending. Installed Embedded, actual Hosted, Windows process-tree handling, the
 package OS/Node matrix, CI, required-check enforcement and release acceptance
 remain NOT RUN. This run did not push, publish a PR, or update Linear. The source
 revision above and this evidence checkpoint are separate commits.
+
+## Phase 7 - Independent Embedded fixtures
+
+Source revision: `a0a597809df4d0b145a26ab6ca10e02cb80a54a4` (clean before and after each acceptance
+attempt). Evidence index: `evidence/phase7.json`. Local artifacts are retained at
+`.artifacts/key-91/embedded/phase7-a0a5978`; they have not been published.
+
+`pnpm test:embedded -- --output <fixtures>` passed all 37 canonical Budget
+assertions and all 14 Embedded transaction assertions. The latter prove atomic
+application/Keynes commit and rollback, cross-session visibility, exact replay,
+and conflicting reuse. The command prepared only PostgreSQL, recorded zero
+poolers, and did not run TLS or an installed SDK consumer. Its manifest labels
+acceptance `fixture-only` and application grants `fixture-provided`.
+
+The observed runtime was Node 26.5.0, pnpm 11.21.0, Vitest 4.1.11, Docker 29.6.2,
+and PostgreSQL 18.6 on macOS arm64. SQL evidence retains the queried server
+version and Docker image identity. SQL and package cleanup passed; a separate
+Docker readback found no remaining containers or networks for the attempt.
+
+`--installed --postgresql-archive /unavailable/archive.tgz` exited 1 with `NOT RUN`
+while synthetic database credentials were present. PATH shims observed no Docker,
+psql, or pnpm calls. This proves refusal before archive inspection or provisioning,
+not installed-profile acceptance. The refusal retains its own stable source
+identity and hashed initial result. Output reuse and tampered evidence regressions
+also pass.
+
+A fresh Linear read on 2026-09-05 found KEY-10, Build embedded Budget authority,
+and KEY-11, Compose embedded transactions, both in Backlog without completion.
+KEY-11 remains blocked by KEY-10. The current installer accepts six role/identity
+keys, has no Embedded profile selector, and rejects a profile override in its
+configuration regression. Fixture grants therefore cannot qualify product
+availability. No installer grants or product support were changed.
+
+The initial selection/refusal tests failed before implementation. The final
+provider-free deployment suite passes 41 assertions; the broader runner check
+passed 115 assertions before the final observation validation. `pnpm test:pr`
+passes on the clean source revision, including format, generation, type checks,
+package tests, and dependency boundaries. Ponytail review: Lean already. Ship.
+
+T040-T045 are complete. Hosted refusal and final integration remain pending.
+Installed Embedded, actual Hosted, the OS/Node matrix, Windows process handling,
+CI and merge enforcement remain NOT RUN. This evidence checkpoint follows the
+implementation commit; it does not change the source identity of retained runs.

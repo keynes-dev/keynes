@@ -99,12 +99,12 @@ Do not initialize a new project or edit upstream-managed Spec Kit files. New sou
 
 **Independent Test**: The canonical native Budget aggregate and all 14 transaction cases pass with zero poolers; --installed exits nonzero with NOT RUN before packaging or provisioning.
 
-- [ ] T040 [US3] Add failing Embedded tests in packages/postgresql/test/system/run-deployment.test.ts for the canonical/14-scenario inventory, zero poolers, no remote SDK credentials, fixture-only result labels, and --installed refusal before package or database mutation.
-- [ ] T041 [US3] Declare Embedded fixture selection in packages/postgresql/test/system/required-scenarios.ts and wire it through packages/postgresql/test/system/run-deployment.ts using existing transaction fixtures and shared cleanup, without changing installer grants or product profile support.
-- [ ] T042 [US3] Implement the unavailable installed Embedded result in packages/postgresql/test/system/run-deployment.ts, retaining prerequisite reasons and non-success even when a PostgreSQL archive or ambient credentials are supplied.
-- [ ] T043 [US3] Wire test:embedded in packages/postgresql/package.json and package.json and document fixture-provided permissions versus installed-profile acceptance in docs/workflow.md.
-- [ ] T044 [US3] Execute the fixture command and --installed refusal from quickstart.md; verify atomic application/Keynes commit and rollback, exact required names, zero poolers, and no unsupported-product mutation, retaining attempts in .artifacts/key-91/embedded/ and acceptance.md.
-- [ ] T045 [US3] Recheck KEY-10/KEY-11 implementation availability and record the precise installed-profile boundary in acceptance.md; do not silently enable supported acceptance from fixture grants, and revise plan.md/tasks.md first if product support has actually landed.
+- [x] T040 [US3] Add failing Embedded tests in packages/postgresql/test/system/run-deployment.test.ts for the canonical/14-scenario inventory, zero poolers, no remote SDK credentials, fixture-only result labels, and --installed refusal before package or database mutation.
+- [x] T041 [US3] Declare Embedded fixture selection in packages/postgresql/test/system/required-scenarios.ts and wire it through packages/postgresql/test/system/run-deployment.ts using existing transaction fixtures and shared cleanup, without changing installer grants or product profile support.
+- [x] T042 [US3] Implement the unavailable installed Embedded result in packages/postgresql/test/system/run-deployment.ts, retaining prerequisite reasons and non-success even when a PostgreSQL archive or ambient credentials are supplied.
+- [x] T043 [US3] Wire test:embedded in packages/postgresql/package.json and package.json and document fixture-provided permissions versus installed-profile acceptance in docs/workflow.md.
+- [x] T044 [US3] Execute the fixture command and --installed refusal from quickstart.md; verify atomic application/Keynes commit and rollback, exact required names, zero poolers, and no unsupported-product mutation, retaining attempts in .artifacts/key-91/embedded/ and acceptance.md.
+- [x] T045 [US3] Recheck KEY-10/KEY-11 implementation availability and record the precise installed-profile boundary in acceptance.md; do not silently enable supported acceptance from fixture grants, and revise plan.md/tasks.md first if product support has actually landed.
 
 ## Phase 8: User Story 5 - Report unavailable Hosted acceptance (Priority: P2)
 
