@@ -1,10 +1,10 @@
 # Quickstart: validate required conformance
 
-This guide specifies implementation acceptance. The new command and regression test file are planned, not implemented. Runtime, hosted, concurrency, cancellation, and merge-enforcement demonstrations are `NOT RUN` at planning time.
+This guide specifies implementation acceptance. The paired command and runner regressions are implemented locally. See [acceptance evidence](evidence/acceptance.md) for exact executed revisions and outstanding demonstrations.
 
 ## Prerequisites
 
-Use a clean checkout of the implementation revision, Node.js 24 or 26 as permitted by the current packages, pnpm 11.21.0, and working Docker. CI will use Node.js 24 on `ubuntu-24.04`. Docker may pull the existing digest-pinned PostgreSQL and PgBouncer images. This is local disposable database execution, not hosted provider qualification.
+Use a clean checkout of the implementation revision, Node.js 24 or 26 as permitted by the current packages, pnpm 11.21.0, and working Docker. CI uses Node.js 24 on `ubuntu-24.04`. Docker may pull the existing digest-pinned PostgreSQL and PgBouncer images. This is local disposable database execution, not hosted provider qualification.
 
 Run from the repository root:
 
@@ -55,9 +55,9 @@ conformance_attempt_id="$(node -p 'crypto.randomUUID()')"
 pnpm test:conformance -- --output ".artifacts/conformance/$conformance_attempt_id"
 ```
 
-Expected outcome: zero exit status, separately identified SQLite and PostgreSQL results for the actual checkout, the same nonempty complete shared scenario set, full native-only coverage, observed environment metadata, matching input/file digests, and successful cleanup. The inspected baseline has 37 shared scenarios, including the five Resource-bound root cases missing from current native registration. Future additions increase this count through shared registration.
+Expected outcome: zero exit status, separately identified SQLite and PostgreSQL results for the actual checkout, the same nonempty complete shared scenario set, full native-only coverage, observed environment metadata, matching input/file digests, and successful cleanup. The aggregate currently has 37 shared scenarios, including the five Resource-bound root cases. Both authorities use the shared registration; future additions increase the count together.
 
-Inspect the attempt record and runtime files using [the evidence model](data-model.md). Verify both file hashes against the manifest. Confirm that stored testedCommit equals `git rev-parse HEAD` and status remains clean. Missing values, skipped scenarios, or partial results must exit nonzero.
+Inspect the attempt record and runtime files using [the evidence model](data-model.md). Verify both file hashes against the manifest. Confirm that the manifest candidate commit equals `git rev-parse HEAD` and status remains clean. Missing values, skipped scenarios, or partial results must exit nonzero.
 
 For native-only diagnosis with the existing acceptance record and sanitized report:
 

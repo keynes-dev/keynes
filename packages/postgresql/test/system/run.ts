@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -15,10 +15,7 @@ import { parseArgs } from "node:util";
 
 import { Client } from "pg";
 
-import {
-  packAndInstallPostgresql,
-  type PackedPostgresqlPackage,
-} from "../support/packed-package.ts";
+import { type PackedPostgresqlPackage } from "../support/packed-package.ts";
 import {
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
@@ -78,6 +75,12 @@ const EXCLUSIONS = {
 
 export interface PostgresqlSystemRunOptions {
   readonly outputPath?: string;
+  readonly signal?: AbortSignal;
+}
+
+interface PostgresqlSystemObservation {
+  readonly stage: string;
+  readonly status: "passed" | "failed" | "cancelled";
 }
 
 export interface RunningTestChild {
@@ -94,28 +97,98 @@ export interface PostgresqlSystemRuntime {
     executable: string,
     arguments_: readonly string[],
     environment?: NodeJS.ProcessEnv,
+    signal?: AbortSignal,
   ): Promise<{ readonly stdout: string }>;
   spawnTests(environment: NodeJS.ProcessEnv): RunningTestChild;
-  probe(connectionUrl: string): Promise<string>;
-  preparePackage(): Promise<PackedPostgresqlPackage>;
+  probe(connectionUrl: string, signal?: AbortSignal): Promise<string>;
+  preparePackage(signal?: AbortSignal): Promise<PackedPostgresqlPackage>;
 }
 
 export async function runPostgresqlSystemTests(
   runtime: PostgresqlSystemRuntime = productionRuntime,
   environment: NodeJS.ProcessEnv = process.env,
   options: PostgresqlSystemRunOptions = {},
-): Promise<void> {
+): Promise<string> {
   if (environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] !== undefined) {
     throw new Error("PostgreSQL system context must be runner-owned");
   }
 
+  const stages: PostgresqlSystemObservation[] = [];
+  const observedEnvironment: Record<string, string> = {
+    postgresImage: POSTGRES_IMAGE,
+    pgbouncerImage: PGBOUNCER_IMAGE,
+  };
+  const observe = (observation: PostgresqlSystemObservation): void => {
+    stages.push(observation);
+  };
+  const activeRuntime: PostgresqlSystemRuntime = {
+    ...runtime,
+    run: async (executable, args, env) => {
+      checkCancellation(options.signal);
+      const commandSignal =
+        executable === "git"
+          ? AbortSignal.any([
+              AbortSignal.timeout(10_000),
+              ...(options.signal === undefined ? [] : [options.signal]),
+            ])
+          : options.signal;
+      try {
+        const result = await runtime.run(executable, args, env, commandSignal);
+        checkCancellation(commandSignal);
+        return result;
+      } catch (error: unknown) {
+        // Cancellation may race Docker's success response; remove attempted resources too.
+        if (options.signal?.aborted && executable === "docker") {
+          if (args[0] === "network" && args[1] === "create")
+            networkCreated = true;
+          if (args[0] === "run") {
+            const name = args[args.indexOf("--name") + 1];
+            if (name === runId) containerStarted = true;
+            else if (name !== undefined) poolerContainers.push(name);
+          }
+        }
+        throw error;
+      }
+    },
+    delay: async (milliseconds) => {
+      checkCancellation(options.signal);
+      await runtime.delay(milliseconds);
+      checkCancellation(options.signal);
+    },
+    probe: (url) => {
+      checkCancellation(options.signal);
+      return runtime.probe(url, options.signal);
+    },
+    preparePackage: () => runtime.preparePackage(options.signal),
+  };
+  const executeStage = async <Result>(
+    run: string,
+    name: string,
+    operation: () => Promise<Result>,
+  ): Promise<Result> => {
+    try {
+      checkCancellation(options.signal);
+      const result = await stage(run, name, operation);
+      observe({ stage: name, status: "passed" });
+      return result;
+    } catch (error: unknown) {
+      observe({
+        stage: name,
+        status: options.signal?.aborted ? "cancelled" : "failed",
+      });
+      if (options.signal?.aborted)
+        throw new Error("PostgreSQL system run cancelled");
+      throw error;
+    }
+  };
+  checkCancellation(options.signal);
   const runId = runtime.randomUUID();
   const password = runtime.randomPassword();
   const outputPath = options.outputPath;
   const recordWorkspace =
     outputPath === undefined
       ? undefined
-      : await prepareAcceptanceRecord(runtime, outputPath);
+      : await prepareAcceptanceRecord(activeRuntime, outputPath);
   let containerStarted = false;
   let networkCreated = false;
   let poolerWorkspace: PoolerWorkspace | undefined;
@@ -126,18 +199,18 @@ export async function runPostgresqlSystemTests(
   let failure: unknown;
 
   try {
-    packed = await stage(runId, "package-install", () =>
-      runtime.preparePackage(),
+    packed = await executeStage(runId, "package-install", () =>
+      activeRuntime.preparePackage(),
     );
     if (recordWorkspace !== undefined) {
       testedDistribution = await readTestedDistribution(packed.archivePath);
     }
-    await stage(runId, "network-create", () =>
-      runtime.run("docker", ["network", "create", runId], environment),
+    await executeStage(runId, "network-create", () =>
+      activeRuntime.run("docker", ["network", "create", runId], environment),
     );
     networkCreated = true;
-    await stage(runId, "container-start", () =>
-      runtime.run(
+    await executeStage(runId, "container-start", () =>
+      activeRuntime.run(
         "docker",
         [
           "run",
@@ -160,8 +233,8 @@ export async function runPostgresqlSystemTests(
     );
     containerStarted = true;
 
-    const port = await stage(runId, "port-discovery", async () => {
-      const result = await runtime.run(
+    const port = await executeStage(runId, "port-discovery", async () => {
+      const result = await activeRuntime.run(
         "docker",
         ["port", runId, "5432/tcp"],
         environment,
@@ -169,20 +242,36 @@ export async function runPostgresqlSystemTests(
       return parseLoopbackPort(result.stdout);
     });
     const connectionUrl = postgresUrl(password, port);
-    const serverVersion = await waitForPostgres(runtime, runId, connectionUrl);
+    const serverVersion = await executeStage(runId, "readiness", () =>
+      waitForPostgres(activeRuntime, runId, connectionUrl),
+    );
+    observedEnvironment.postgresVersion = serverVersion;
     if (serverVersion !== EXPECTED_SERVER_VERSION) {
+      observe({ stage: "version-check", status: "failed" });
       throw postgresqlSystemFailure(runId, "version-check");
     }
     poolerWorkspace = await createPoolerWorkspace(password);
-    const poolers = await startPoolers({
-      runtime,
-      environment,
-      runId,
-      password,
-      workspace: poolerWorkspace,
-      containers: poolerContainers,
-    });
+    const workspace = poolerWorkspace;
+    const poolers = await executeStage(runId, "poolers", () =>
+      startPoolers({
+        runtime: activeRuntime,
+        environment,
+        runId,
+        password,
+        workspace,
+        containers: poolerContainers,
+      }),
+    );
+    if (recordWorkspace !== undefined) {
+      Object.assign(
+        observedEnvironment,
+        await executeStage(runId, "runtime-observations", () =>
+          observeRuntime(activeRuntime, environment, runId),
+        ),
+      );
+    }
 
+    checkCancellation(options.signal);
     child = runtime.spawnTests({
       ...environment,
       [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify({
@@ -195,9 +284,13 @@ export async function runPostgresqlSystemTests(
         ? {}
         : { [POSTGRESQL_SYSTEM_REPORT_ENV]: recordWorkspace.reportPath }),
     });
-    await stage(runId, "tests", () => child?.wait() ?? Promise.resolve());
+    await executeStage(runId, "tests", () =>
+      waitWithCancellation(child?.wait() ?? Promise.resolve(), options.signal),
+    );
   } catch (error: unknown) {
-    failure = error;
+    failure = options.signal?.aborted
+      ? new Error("PostgreSQL system run cancelled")
+      : error;
   }
 
   let cleanupFailed = false;
@@ -210,21 +303,36 @@ export async function runPostgresqlSystemTests(
   }
   for (const pooler of poolerContainers.reverse()) {
     try {
-      await runtime.run("docker", ["stop", pooler], environment);
+      await runtime.run(
+        "docker",
+        ["stop", pooler],
+        environment,
+        AbortSignal.timeout(10_000),
+      );
     } catch {
       cleanupFailed = true;
     }
   }
   if (containerStarted) {
     try {
-      await runtime.run("docker", ["stop", runId], environment);
+      await runtime.run(
+        "docker",
+        ["stop", runId],
+        environment,
+        AbortSignal.timeout(10_000),
+      );
     } catch {
       cleanupFailed = true;
     }
   }
   if (networkCreated) {
     try {
-      await runtime.run("docker", ["network", "rm", runId], environment);
+      await runtime.run(
+        "docker",
+        ["network", "rm", runId],
+        environment,
+        AbortSignal.timeout(10_000),
+      );
     } catch {
       cleanupFailed = true;
     }
@@ -244,24 +352,98 @@ export async function runPostgresqlSystemTests(
     }
   }
 
+  if (options.signal?.aborted && failure === undefined)
+    failure = new Error("PostgreSQL system run cancelled");
+  observe({
+    stage: "cleanup",
+    status: cleanupFailed ? "failed" : "passed",
+  });
+
   if (recordWorkspace !== undefined) {
+    let report: unknown;
+    let prohibited = false;
     try {
-      if (failure !== undefined) throw failure;
-      if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
-      if (testedDistribution === undefined) {
-        throw new Error("PostgreSQL system test produced no archive identity");
-      }
-      await writeAcceptanceRecord(runtime, recordWorkspace, testedDistribution);
-    } finally {
+      const raw: unknown = JSON.parse(
+        await readFile(recordWorkspace.reportPath, "utf8"),
+      );
+      prohibited = containsProhibitedContent(JSON.stringify(raw));
+      report = sanitizeVitestReport(raw, [password, runId]);
+      await mkdir(dirname(recordWorkspace.outputPath), { recursive: true });
+      await writeFile(
+        `${recordWorkspace.outputPath}.vitest.json`,
+        `${JSON.stringify(report, null, 2)}\n`,
+        { flag: "wx" },
+      );
+      observe({ stage: "report-retention", status: "passed" });
+    } catch (error: unknown) {
+      const missing = isRecord(error) && error.code === "ENOENT";
+      observe({
+        stage: missing ? "report-missing" : "report-retention",
+        status: "failed",
+      });
+      if (failure === undefined)
+        failure = postgresqlSystemFailure(
+          runId,
+          missing ? "report-missing" : "report-retention",
+        );
+    }
+    try {
       await rm(dirname(recordWorkspace.reportPath), {
         recursive: true,
         force: true,
       });
+    } catch {
+      cleanupFailed = true;
+      observe({ stage: "report-cleanup", status: "failed" });
     }
-    return;
+    try {
+      await mkdir(dirname(recordWorkspace.outputPath), { recursive: true });
+      await writeFile(
+        `${recordWorkspace.outputPath}.observations.json`,
+        `${JSON.stringify(
+          {
+            runId,
+            environment: observedEnvironment,
+            distribution: testedDistribution,
+            stages,
+            cleanup: cleanupFailed ? "failed" : "passed",
+          },
+          null,
+          2,
+        )}\n`,
+        { flag: "wx" },
+      );
+    } catch {
+      if (failure === undefined)
+        failure = postgresqlSystemFailure(runId, "observation-retention");
+    }
+    if (failure !== undefined) throw failure;
+    if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
+    if (prohibited)
+      throw new Error("Acceptance record contains prohibited content");
+    if (testedDistribution === undefined)
+      throw new Error("PostgreSQL system test produced no archive identity");
+    checkCancellation(options.signal);
+    await writeAcceptanceRecord(
+      activeRuntime,
+      recordWorkspace,
+      testedDistribution,
+      report,
+      options.signal,
+    );
+    return runId;
   }
-  if (failure !== undefined) throw failure;
+
+  if (failure !== undefined) {
+    if (cleanupFailed)
+      throw new AggregateError(
+        [failure, postgresqlSystemFailure(runId, "cleanup")],
+        `${String(failure)}; cleanup also failed`,
+      );
+    throw failure;
+  }
   if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
+  return runId;
 }
 
 interface PoolerWorkspace {
@@ -403,15 +585,20 @@ async function prepareAcceptanceRecord(
   runtime: PostgresqlSystemRuntime,
   outputPath: string,
 ): Promise<AcceptanceWorkspace> {
-  try {
-    await stat(outputPath);
-  } catch (error: unknown) {
-    if (isRecord(error) && error.code === "ENOENT") {
-      return prepareAcceptanceWorkspace(runtime, outputPath);
+  for (const path of [
+    outputPath,
+    `${outputPath}.vitest.json`,
+    `${outputPath}.observations.json`,
+  ]) {
+    try {
+      await stat(path);
+    } catch (error: unknown) {
+      if (isRecord(error) && error.code === "ENOENT") continue;
+      throw error;
     }
-    throw error;
+    throw new Error("Acceptance record already exists");
   }
-  throw new Error("Acceptance record already exists");
+  return prepareAcceptanceWorkspace(runtime, outputPath);
 }
 
 async function prepareAcceptanceWorkspace(
@@ -462,10 +649,9 @@ async function writeAcceptanceRecord(
   runtime: PostgresqlSystemRuntime,
   workspace: AcceptanceWorkspace,
   distribution: AcceptanceDistribution,
+  report: unknown,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const report: unknown = JSON.parse(
-    await readFile(workspace.reportPath, "utf8"),
-  );
   validatePostgresqlSystemReport(report);
   const installationRecord = JSON.parse(
     await readFile(
@@ -535,10 +721,153 @@ async function writeAcceptanceRecord(
   }
   await verifyAcceptanceRevision(runtime, workspace.revision);
   await mkdir(dirname(workspace.outputPath), { recursive: true });
+  checkCancellation(signal);
   await writeFile(workspace.outputPath, serialized, {
     encoding: "utf8",
     flag: "wx",
+    signal,
   });
+}
+
+async function observeRuntime(
+  runtime: PostgresqlSystemRuntime,
+  environment: NodeJS.ProcessEnv,
+  runId: string,
+): Promise<Record<string, string>> {
+  const docker = (
+    await runtime.run(
+      "docker",
+      ["version", "--format", "{{.Server.Version}}"],
+      environment,
+    )
+  ).stdout.trim();
+  const pooler = (
+    await runtime.run(
+      "docker",
+      ["exec", `${runId}-session-pool`, "pgbouncer", "--version"],
+      environment,
+    )
+  ).stdout.trim();
+  const postgresImageId = (
+    await runtime.run(
+      "docker",
+      ["inspect", "--format", "{{.Image}}", runId],
+      environment,
+    )
+  ).stdout.trim();
+  const pgbouncerImageId = (
+    await runtime.run(
+      "docker",
+      ["inspect", "--format", "{{.Image}}", `${runId}-session-pool`],
+      environment,
+    )
+  ).stdout.trim();
+  const poolerVersion = /^PgBouncer (\d+\.\d+\.\d+)/i.exec(pooler)?.[1];
+  if (
+    !/^\d+\.\d+\.\d+(?:[-+.][a-zA-Z0-9.]+)?$/.test(docker) ||
+    poolerVersion === undefined ||
+    !/^sha256:[a-f0-9]{64}$/.test(postgresImageId) ||
+    !/^sha256:[a-f0-9]{64}$/.test(pgbouncerImageId)
+  )
+    throw new Error("Native runtime observation unavailable");
+  return {
+    dockerVersion: docker,
+    pgbouncerVersion: poolerVersion,
+    postgresImageId,
+    pgbouncerImageId,
+  };
+}
+
+export function sanitizeVitestReport(
+  value: unknown,
+  secrets: readonly string[] = [],
+): Record<string, unknown> {
+  if (!isRecord(value)) return { errors: ["invalid report"] };
+  const result: Record<string, unknown> = {};
+  for (const key of [
+    "success",
+    "numFailedTests",
+    "numPendingTests",
+    "numTodoTests",
+    "numPassedTests",
+    "numTotalTests",
+    "numFailedTestSuites",
+    "numPendingTestSuites",
+    "numPassedTestSuites",
+    "numTotalTestSuites",
+    "startTime",
+  ]) {
+    if (key in value)
+      result[key] =
+        typeof value[key] === "number" || typeof value[key] === "boolean"
+          ? value[key]
+          : null;
+  }
+  const diagnostic = (item: unknown): unknown =>
+    Array.isArray(item)
+      ? item.map(() => "diagnostic omitted")
+      : "diagnostic omitted";
+  for (const key of ["errors", "unhandledErrors"])
+    if (key in value) result[key] = diagnostic(value[key]);
+  const identity = (item: unknown): string | null =>
+    typeof item === "string" &&
+    item.length <= 2_000 &&
+    !containsProhibitedContent(item) &&
+    !secrets.some((secret) => secret.length > 0 && item.includes(secret))
+      ? item
+      : null;
+  if ("testResults" in value)
+    result.testResults = Array.isArray(value.testResults)
+      ? value.testResults.map((file: unknown) => {
+          if (!isRecord(file)) return null;
+          const name = identity(file.name)?.replaceAll("\\", "/");
+          const marker = name?.lastIndexOf("/packages/") ?? -1;
+          const retained: Record<string, unknown> = {
+            name:
+              name === undefined
+                ? null
+                : marker >= 0
+                  ? `.${name.slice(marker)}`
+                  : name.startsWith("packages/")
+                    ? `./${name}`
+                    : null,
+            status: identity(file.status),
+          };
+          if ("message" in file)
+            retained.message = file.message === "" ? "" : "diagnostic omitted";
+          for (const key of ["startTime", "endTime"])
+            if (key in file)
+              retained[key] = typeof file[key] === "number" ? file[key] : null;
+          if ("assertionResults" in file)
+            retained.assertionResults = Array.isArray(file.assertionResults)
+              ? file.assertionResults.map((assertion: unknown) => {
+                  if (!isRecord(assertion)) return null;
+                  const retainedAssertion: Record<string, unknown> = {
+                    fullName: identity(assertion.fullName),
+                    status: identity(assertion.status),
+                  };
+                  if ("ancestorTitles" in assertion)
+                    retainedAssertion.ancestorTitles = Array.isArray(
+                      assertion.ancestorTitles,
+                    )
+                      ? assertion.ancestorTitles.map(identity)
+                      : null;
+                  if ("duration" in assertion)
+                    retainedAssertion.duration =
+                      typeof assertion.duration === "number"
+                        ? assertion.duration
+                        : null;
+                  if ("failureMessages" in assertion)
+                    retainedAssertion.failureMessages = diagnostic(
+                      assertion.failureMessages,
+                    );
+                  return retainedAssertion;
+                })
+              : null;
+          return retained;
+        })
+      : null;
+  return result;
 }
 
 interface VitestAssertion {
@@ -577,6 +906,19 @@ export function validatePostgresqlSystemReport(
     throw new Error("Vitest did not produce a passing report");
   }
 
+  if (
+    ("success" in value && value.success !== true) ||
+    ["numFailedTestSuites", "numPendingTestSuites"].some(
+      (key) => key in value && value[key] !== 0,
+    ) ||
+    ["errors", "unhandledErrors"].some(
+      (key) =>
+        key in value && (!Array.isArray(value[key]) || value[key].length !== 0),
+    )
+  ) {
+    throw new Error("Vitest did not produce a passing report");
+  }
+
   const remaining = new Map<string, readonly string[]>([
     [POSTGRESQL_BUDGET_AGGREGATE, []],
     ...Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
@@ -587,12 +929,14 @@ export function validatePostgresqlSystemReport(
       throw new Error("Vitest did not produce a passing report");
     }
     const normalizedName = candidate.name.replaceAll("\\", "/");
-    const file = [...remaining.keys()].find((suffix) =>
-      normalizedName.endsWith(`/${suffix}`),
+    const file = [...remaining.keys()].find(
+      (suffix) =>
+        normalizedName === suffix || normalizedName.endsWith(`/${suffix}`),
     );
     if (
       file === undefined ||
       candidate.status !== "passed" ||
+      ("message" in candidate && candidate.message !== "") ||
       !Array.isArray(candidate.assertionResults)
     ) {
       throw new Error(
@@ -605,7 +949,10 @@ export function validatePostgresqlSystemReport(
         (assertion): assertion is Record<string, unknown> =>
           isRecord(assertion) &&
           typeof assertion.fullName === "string" &&
-          assertion.status === "passed",
+          assertion.status === "passed" &&
+          (!("failureMessages" in assertion) ||
+            (Array.isArray(assertion.failureMessages) &&
+              assertion.failureMessages.length === 0)),
       )
     ) {
       throw new Error(
@@ -629,7 +976,11 @@ export function validatePostgresqlSystemReport(
     passed += assertions.length;
     remaining.delete(file);
   }
-  if (remaining.size !== 0 || value.numPassedTests !== passed) {
+  if (
+    remaining.size !== 0 ||
+    value.numPassedTests !== passed ||
+    ("numTotalTests" in value && value.numTotalTests !== passed)
+  ) {
     throw new Error(
       "Vitest report omitted a required PostgreSQL system scenario",
     );
@@ -773,7 +1124,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
   delay: (milliseconds) =>
     new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
   run: runCommand,
-  preparePackage: () => packAndInstallPostgresql(REPOSITORY_ROOT),
+  preparePackage: preparePackageChild,
   spawnTests: (environment) =>
     spawnTestChild(
       [
@@ -781,6 +1132,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
         "vitest",
         "run",
         "--passWithNoTests=false",
+        "--allowOnly=false",
         "--root=.",
         "--exclude=.claude/**",
         ...(environment[POSTGRESQL_SYSTEM_REPORT_ENV] === undefined
@@ -794,7 +1146,11 @@ const productionRuntime: PostgresqlSystemRuntime = {
       environment,
     ),
   async probe(connectionUrl) {
-    const client = new Client({ connectionString: connectionUrl });
+    const client = new Client({
+      connectionString: connectionUrl,
+      connectionTimeoutMillis: 1_000,
+      query_timeout: 1_000,
+    });
     try {
       await client.connect();
       const result = await client.query<{
@@ -811,66 +1167,175 @@ const productionRuntime: PostgresqlSystemRuntime = {
   },
 };
 
-function runCommand(
-  executable: string,
-  arguments_: readonly string[],
-  environment: NodeJS.ProcessEnv = process.env,
-): Promise<{ readonly stdout: string }> {
-  return new Promise((resolveCommand, rejectCommand) => {
-    const child = spawn(executable, arguments_, {
-      env: environment,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
-    child.once("error", rejectCommand);
-    child.once("close", (exitCode) => {
-      if (exitCode === 0) {
-        resolveCommand({ stdout });
-        return;
-      }
-      rejectCommand(new Error(`${executable} exited ${exitCode}`));
-    });
-  });
+function checkCancellation(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("PostgreSQL system run cancelled");
 }
 
-function spawnTestChild(
-  arguments_: readonly string[],
-  environment: NodeJS.ProcessEnv,
-): RunningTestChild {
-  const child = spawn("pnpm", arguments_, {
-    cwd: REPOSITORY_ROOT,
-    env: { ...process.env, ...environment },
-    stdio: "inherit",
+export async function waitWithCancellation<Result>(
+  operation: Promise<Result>,
+  signal?: AbortSignal,
+): Promise<Result> {
+  let abort: (() => void) | undefined;
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => reject(new Error("PostgreSQL system run cancelled"));
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
   });
+  try {
+    return await Promise.race([operation, cancelled]);
+  } finally {
+    if (abort !== undefined) signal?.removeEventListener("abort", abort);
+  }
+}
+
+// Own a process group so pnpm's grandchildren cannot outlive cancellation.
+export function manageChild(
+  child: ChildProcess,
+  graceMs = 2_000,
+): RunningTestChild {
   let completed = false;
+  const closed = new Promise<void>((resolveClosed) =>
+    child.once("close", () => {
+      completed = true;
+      resolveClosed();
+    }),
+  );
   const completion = new Promise<void>((resolveChild, rejectChild) => {
     child.once("error", rejectChild);
-    child.once("close", (exitCode) => {
-      completed = true;
-      if (exitCode === 0) {
-        resolveChild();
-      } else {
-        rejectChild(new Error(`PostgreSQL system tests exited ${exitCode}`));
-      }
-    });
+    child.once("close", (code) =>
+      code === 0
+        ? resolveChild()
+        : rejectChild(new Error("Native subprocess failed")),
+    );
   });
-
+  void completion.catch(() => {});
+  function kill(signal: NodeJS.Signals): void {
+    if (child.pid === undefined) return;
+    try {
+      if (process.platform === "win32") child.kill(signal);
+      else process.kill(-child.pid, signal);
+    } catch (error: unknown) {
+      if (!isRecord(error) || error.code !== "ESRCH") throw error;
+    }
+  }
   return {
     wait: () => completion,
     async terminate() {
-      if (completed) return;
-      child.kill("SIGTERM");
+      if (completed) {
+        kill("SIGKILL");
+        return;
+      }
+      kill("SIGTERM");
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        await completion;
-      } catch {
-        // Termination is complete when the child closes, even with a nonzero exit.
+        await Promise.race([
+          closed,
+          new Promise<void>((resolveGrace) => {
+            timer = setTimeout(resolveGrace, graceMs);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+      // The group can still contain descendants after its leader closes.
+      kill("SIGKILL");
+      let killTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          closed,
+          new Promise<never>((_, reject) => {
+            killTimer = setTimeout(
+              () => reject(new Error("Native subprocess cleanup timed out")),
+              graceMs,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(killTimer);
       }
     },
   };
+}
+
+async function runCommand(
+  executable: string,
+  arguments_: readonly string[],
+  environment: NodeJS.ProcessEnv = process.env,
+  signal?: AbortSignal,
+): Promise<{ readonly stdout: string }> {
+  checkCancellation(signal);
+  const child = spawn(executable, arguments_, {
+    env: environment,
+    detached: process.platform !== "win32",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  const managed = manageChild(child);
+  let stdout = "";
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  try {
+    await waitWithCancellation(managed.wait(), signal);
+    return { stdout };
+  } finally {
+    await managed.terminate();
+  }
+}
+
+export function spawnTestChild(
+  arguments_: readonly string[],
+  environment: NodeJS.ProcessEnv,
+): RunningTestChild {
+  return manageChild(
+    spawn("pnpm", arguments_, {
+      cwd: REPOSITORY_ROOT,
+      env: { ...process.env, ...environment },
+      detached: process.platform !== "win32",
+      stdio: "ignore",
+    }),
+  );
+}
+
+async function preparePackageChild(
+  signal?: AbortSignal,
+): Promise<PackedPostgresqlPackage> {
+  const root = await mkdtemp(join(tmpdir(), "keynes-native-package-"));
+  try {
+    const helper = new URL("../support/packed-package.ts", import.meta.url)
+      .href;
+    const result = await runCommand(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { packAndInstallPostgresql } from ${JSON.stringify(helper)};
+      const packed = await packAndInstallPostgresql(${JSON.stringify(REPOSITORY_ROOT)});
+      process.stdout.write(JSON.stringify({archivePath: packed.archivePath, commandPath: packed.commandPath, consumerRoot: packed.consumerRoot}));
+    `,
+      ],
+      { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
+      signal,
+    );
+    const packed: unknown = JSON.parse(result.stdout);
+    if (
+      !isRecord(packed) ||
+      typeof packed.archivePath !== "string" ||
+      typeof packed.commandPath !== "string" ||
+      typeof packed.consumerRoot !== "string"
+    )
+      throw new Error("Package child produced invalid paths");
+    return {
+      archivePath: packed.archivePath,
+      commandPath: packed.commandPath,
+      consumerRoot: packed.consumerRoot,
+      close: () => rm(root, { recursive: true, force: true }),
+    };
+  } catch (error: unknown) {
+    await rm(root, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 const executedPath = process.argv[1];
@@ -878,12 +1343,23 @@ if (
   executedPath !== undefined &&
   import.meta.url === pathToFileURL(resolve(executedPath)).href
 ) {
-  void runPostgresqlSystemTests(
-    productionRuntime,
-    process.env,
-    parseArguments(process.argv.slice(2)),
-  ).catch((error: unknown) => {
-    process.stderr.write(`${String(error)}\n`);
-    process.exitCode = 1;
-  });
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  process.on("SIGINT", cancel);
+  process.on("SIGTERM", cancel);
+  void Promise.resolve()
+    .then(() =>
+      runPostgresqlSystemTests(productionRuntime, process.env, {
+        ...parseArguments(process.argv.slice(2)),
+        signal: controller.signal,
+      }),
+    )
+    .catch((error: unknown) => {
+      process.stderr.write(`${String(error)}\n`);
+      process.exitCode = 1;
+    })
+    .finally(() => {
+      process.off("SIGINT", cancel);
+      process.off("SIGTERM", cancel);
+    });
 }
