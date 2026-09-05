@@ -1,44 +1,14 @@
-# [EXACT LINEAR ACTION TITLE]
+# Feature Specification: [FEATURE NAME]
 
-**Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/example)
-**Git branch**: `[EXACT LINEAR GIT BRANCH NAME]`
-<!-- linear-issue-id: [STABLE LINEAR UUID] -->
+**Feature Branch**: `[###-feature-name]`
 
 **Created**: [DATE]
+
+**Status**: Draft
+
 **Input**: User description: "$ARGUMENTS"
 
-## Feature story _(mandatory)_
-
-_The feature story explains intent. Numbered requirements and success criteria define acceptance. Do not introduce implementation decisions or unsupported evidence claims here._
-
-### Before this feature
-
-[Explain what users can do today and what remains incomplete, costly, confusing, or unavailable.]
-
-### Why this feature exists
-
-[Explain why the product needs this work now. Use product and user language, not implementation details.]
-
-### What changes for users
-
-[Describe the resulting experience in plain language.]
-
-### What must stay true
-
-[Name the public behavior, vocabulary, compatibility promises, and ownership boundaries that the feature preserves.]
-
-### What this feature does not include
-
-[State the deliberate limits, deferred capabilities, and unproved claims.]
-
-### Where this leads
-
-[Explain how this feature relates to its Linear project and what later work it enables.]
-
-<!-- Keep one bounded acceptance outcome. Split unrelated capabilities into peer
-Linear issues. Internal stories and phases do not become phase sub-issues. -->
-
-## User Scenarios & Testing _(mandatory)_
+## User Scenarios & Testing *(mandatory)*
 
 <!--
   IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
@@ -108,7 +78,7 @@ Linear issues. Internal stories and phases do not become phase sub-issues. -->
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
 
-## Requirements _(mandatory)_
+## Requirements *(mandatory)*
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
@@ -123,40 +93,17 @@ Linear issues. Internal stories and phases do not become phase sub-issues. -->
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
-_Example of marking unclear requirements:_
+*Example of marking unclear requirements:*
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Constitutional Requirements _(mandatory)_
-
-Document each item below as a requirement or mark it `N/A` with a concrete
-rationale:
-
-- **Budget behavior and storage**: Identify where each affected Budget is stored
-  and the atomicity, conservation, idempotency, settlement, replay, history, and
-  error behavior the feature preserves or changes.
-- **Application boundary**: Identify any external effects and confirm which
-  application component owns execution, retry, observation, outcomes, and
-  fallback behavior.
-- **Policy and security**: Define Policy context, supported query behavior,
-  fail-closed handling, permission boundaries, tenant isolation, and secret
-  handling when relevant.
-- **Contracts and deployments**: Identify which runtime or deployment changes,
-  which shared Budget behavior tests must pass, and which local lifecycle,
-  PostgreSQL transaction, remote security, recovery, packaging, or managed
-  operations tests must pass separately.
-- **Evidence classification**: State which acceptance evidence is provider-free
-  and which evidence is live, paid, externally mutating, fault-based, or
-  benchmark-based and therefore requires a separate lane or authorization. List
-  every claim that remains untested.
-
-### Key Entities _(include if feature involves data)_
+### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
-## Success Criteria _(mandatory)_
+## Success Criteria *(mandatory)*
 
 <!--
   ACTION REQUIRED: Define measurable success criteria.
@@ -170,10 +117,6 @@ rationale:
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
 
-At least one success criterion MUST name the retained provider-free acceptance
-evidence. Criteria MUST NOT represent an unexecuted live, paid, managed-provider,
-fault, or benchmark lane as passing.
-
 ## Assumptions
 
 <!--
@@ -183,6 +126,6 @@ fault, or benchmark lane as passing.
 -->
 
 - [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for the first release"]
+- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
 - [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
 - [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]

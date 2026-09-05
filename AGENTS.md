@@ -1,19 +1,16 @@
-<!-- SPECKIT START -->
+For contributor setup, Linear intake, feature selection, delivery, and verification,
+follow `docs/workflow.md`. Read `docs/product.md`, `docs/architecture.md`, and
+`.specify/memory/constitution.md` for the governing product and engineering constraints.
 
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read
-`docs/features/key-74-deliver-each-spec-kit-feature-through-one-issue-and-pr/plan.md`.
-<!-- SPECKIT END -->
+Use the unmodified Spec Kit 1.0.4 Codex skills. Select one Linear issue, use its exact
+`gitBranchName`, and explicitly provide the feature directory to stock Spec Kit.
+The issue link belongs in spec.md; `.specify/feature.json` is a checkout-local,
+ignored directory pointer. Resume existing artifacts instead of recreating them.
 
-For feature delivery and engineering review, follow
-`docs/workflow.md`. Spec Kit owns the durable lifecycle artifacts;
-pstack methods operate inside the current phase.
-
-Linear is the naming and mutable planning authority. Use `KEY-N` as the only
-public Spec Kit identity, name each feature directory after the final segment
-of Linear's exact `gitBranchName`, and use that branch unchanged. Each feature completes its lifecycle on one
-branch and normally one independently accepted PR. Phases and checkpoints stay
-in tasks.md; do not publish phase sub-issues. Never derive a branch in tooling.
+One feature normally has one independently accepted PR. Keep phases in tasks.md;
+do not invoke taskstoissues, create phase sub-issues, or require PR stacks.
+Existing engineering skills operate on those artifacts and introduce no second
+lifecycle. Keep generated Spec Kit files and manifest hashes upstream-managed.
 
 ## Pull request descriptions
 

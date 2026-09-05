@@ -1,18 +1,15 @@
 <!--
 Sync Impact Report
-- Version change: 6.0.0 -> 7.0.0
-- Rationale: approved KEY-74 replaces mandatory phase sub-issues/stacks with independent feature delivery.
-- Modified principles: None
-- Modified sections: Delivery and evidence gates
-- Added sections: None
-- Removed requirements: Phase 1 parent binding and later phase sub-issue branches
-- Updated templates: tasks-template.md, plan-template.md, spec-template.md
-- Validated unchanged templates: checklist-template.md, constitution-template.md
-- Updated guidance: docs/workflow.md, docs/README.md, AGENTS.md, PR template, tracked Spec Kit skills and workflow
-- Superseding decision: docs/adr/0009-independent-feature-delivery.md
-- Migration: preserve historical feature artifacts/evidence; retire active phase publication commands and hooks
+- Version change: 7.0.0 -> 8.0.0
+- Rationale: approved KEY-89 restores stock Spec Kit 1.0.4 with connector-based Linear intake.
+- Core principles and product constraints: unchanged
+- Modified sections: Delivery and evidence gates; Governance
+- Removed requirements: custom identity schema, identity synchronization, mandatory phase checkpoints, template propagation
+- Managed templates and commands: restored by Spec Kit, never edited to propagate this amendment
+- Updated guidance: docs/workflow.md, docs/README.md, AGENTS.md
+- Superseding decision: docs/adr/0010-upstream-spec-kit-workflow.md
+- Migration: preserve historical artifacts; use a checkout-local feature directory pointer
 - Runtime contracts: unchanged
-- Follow-up TODOs: None
 -->
 
 # Keynes Constitution
@@ -155,12 +152,10 @@ host, and attempt that produced it.
   effect, Budget behavior, Policy, contract, deployment, or evidence
   implications. A non-applicable concern MUST be marked `N/A` with a concrete
   rationale.
-- Every feature specification MUST use one Linear issue as its identity.
-  The version 3 manifest MUST store the exact title, identifier, UUID, URL,
-  branch-final-segment directory, specification path, and `gitBranchName`. Repository code
-  MUST NOT allocate another number, derive a branch, or parse identity from a
-  branch. Proving live Linear values requires an explicit synchronization and
-  is not part of the deterministic repository gate.
+- Every feature specification MUST link to one Linear issue. Linear owns its
+  identifier and title. Use its exact `gitBranchName` when preparing the branch.
+  Spec Kit resolves an explicitly selected feature directory using its stock
+  checkout-local pointer; no custom identity schema or synchronization is required.
   Feature specifications MUST NOT duplicate mutable lifecycle status, priority,
   assignment, or project sequencing from Linear.
 - Linear issues MAY summarize engineering work and link to accepted evidence,
@@ -168,8 +163,7 @@ host, and attempt that produced it.
   in the repository. A mutable field MUST have only one owner.
 - Each feature MUST complete its Spec Kit lifecycle on one Linear-generated
   branch and normally one independently accepted PR. Internal phases MUST stay
-  in tasks.md, end with concrete checkpoints, and MUST NOT require sub-issue
-  publication or PR stacks. Analysis MUST verify one acceptance outcome and
+  in tasks.md and MUST NOT require sub-issue publication or PR stacks. Analysis MUST verify one acceptance outcome and
   landed prerequisites. Each shared behavior feature MUST own passing SQLite
   and native PostgreSQL evidence before acceptance. Linear content MUST NOT
   copy tasks, requirements, checkpoints, completion counts, or evidence.
@@ -204,8 +198,11 @@ host, and attempt that produced it.
 
 This constitution supersedes conflicting repository practices and feature-local
 guidance. An amendment MUST document its rationale and migration impact, update
-the Sync Impact Report, synchronize dependent templates and runtime guidance,
-and pass repository validation before approval.
+the Sync Impact Report, update affected repository guidance, and pass relevant
+validation. Keep generated Spec Kit commands, scripts, and templates upstream-managed;
+do not propagate constitutional amendments by editing those files. If customization
+becomes necessary, use supported preset composition. Product principles remain
+in this constitution and are checked by stock planning and analysis commands.
 
 Constitution versions follow semantic versioning. A MAJOR version removes or
 redefines a governing principle incompatibly; a MINOR version adds a principle,
@@ -221,4 +218,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 7.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
+**Version**: 8.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
