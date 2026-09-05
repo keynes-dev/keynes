@@ -2,6 +2,8 @@
 
 The commands in this document are proposed by KEY-91 and become available during implementation. They are contributor interfaces, not public SDK additions.
 
+The [required testing-strategy study](../plan.md#required-study-before-downstream-implementation) may refine command composition and focused-feedback invocations before downstream implementation. It must preserve default-all remote coverage, installed-consumer acceptance, unavailable product boundaries, and the full gate. Update this contract with any adopted design changes; a focused feedback result cannot replace deployment acceptance.
+
 ## Commands
 
 Run from the repository root. Every selected command requires `--output <new-directory>`. Paths resolve from the repository root, including when a root alias delegates to a package. Existing output destinations are refused.

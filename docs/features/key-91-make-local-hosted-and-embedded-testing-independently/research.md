@@ -4,6 +4,25 @@
 
 Research inspected repository source at `f9d04ec` with the accepted remote-default clarification in the working tree on 2026-09-05. No deployment or installed-consumer tests ran. Linear issue contents were refreshed to confirm the exact feature branch and prerequisite ownership. Product target documentation is not proof that its installation profiles exist.
 
+## Added strategy study: initial observations only
+
+The user added the testing-strategy study after the initial plan. Its scope and exit criteria are defined in [Phase 0 of the plan](plan.md#phase-0-research-and-testing-strategy-study). The observations below are inputs to that study, not evidence that it is complete.
+
+- At `837c0d9`, one local `/usr/bin/time -p pnpm test:pr` run passed in 9.81 seconds. It executed the 51 contracts tests twice: once through `test:generator` and once through Turbo. This is one existing-checkout sample, not a controlled baseline or claimed optimization.
+- [CI run 33951807112](https://github.com/keynes-dev/keynes/actions/runs/33951807112) at earlier revision `0573735130274f54c4eefe36fefcf42d3148aa6c` recorded 58 seconds for repository checks and 136 seconds for paired database checks. These are historical step durations on another host, not comparable before/after samples.
+- `packages/postgresql/test/system/support/postgres-database.ts` invokes the packed installer twice for each installed fixture. Dedicated installation tests already verify the `already-installed` result. Native setup savings have not been measured.
+- `packages/sdk/test/package/qualify.test.ts` builds twice to test determinism, then packs through a build-running prepack hook. The SDK workflow runs qualification-tool tests in the build job and again via `test:package` in consumer jobs. Separate intentional determinism proof from redundant repetition before changing these paths.
+- Shared Budget registrars and the shared Policy evaluation corpus already exist. Local/PostgreSQL Policy request/replay files total about 2,557 lines, but that total is not a deletion estimate. Their public SDK and transaction-specific assertions need distinct coverage mapping.
+- The root paired runner and native runner validate overlapping report structure. Their completeness rules differ. Sharing parsing must retain the union of structural checks and separate owner-specific acceptance rules.
+
+**Decision:** Complete the coverage map, comparable baseline, and bounded pilot before downstream implementation. Use existing scenario registrars, explicit fixtures, and coverage policies as the starting design.
+
+**Rationale:** Independent deployment wrappers alone would carry repeated work into the new commands. Measurement and coverage mapping establish which simplifications reduce cost without losing proof.
+
+**Alternatives considered:** A wholesale test rewrite, blanket database reuse, automatic test discovery, and reducing backend coverage to lower runtime are rejected. Broad Policy-corpus migration needs its own coverage assessment and an explicit inclusion or deferral decision.
+
+**Outstanding work:** The controlled baseline, native/package phase timings, affected code-size comparison, and measured pilot are NOT RUN. Create the completed `testing-strategy.md` only when conducting the study; do not treat these source observations as its acceptance record.
+
 ## Keep the complete runner as the default
 
 **Decision:** Preserve `runPostgresqlSystemTests` full defaults, `validatePostgresqlSystemReport`, and `test:sqlite-postgres`. Add an explicit selected invocation that cannot emit the full acceptance schema.

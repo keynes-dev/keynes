@@ -1,6 +1,12 @@
 # Validate independent deployment checks
 
-This guide describes validation after KEY-91 implementation. The new commands and proposed regression-test files do not exist at planning time. Runtime, native, installed-consumer, and Hosted acceptance are NOT RUN during planning.
+This guide covers the required study as the first task phase and validation after KEY-91 implementation. The new commands and proposed regression-test files do not exist at planning time. The study's comparative measurements and pilot, and the feature's runtime/native/installed-consumer/Hosted acceptance, remain NOT RUN.
+
+## Complete the study before downstream implementation
+
+Follow [the plan's study protocol](plan.md#required-study-before-downstream-implementation). Produce `testing-strategy.md` with the coverage/ownership map, cost measurements, and pilot decision. Use existing commands for the baseline: `pnpm test:pr`, `pnpm test:sqlite-postgres -- --output <new-directory>`, and SDK archive preparation plus `pnpm test:package:sdk -- --archive <archive> --output <new-file>`.
+
+Meet the plan's [study exit criteria](plan.md#study-exit-and-design-revision) and reconcile the remaining tasks before executing the implementation validation below.
 
 ## Prepare the checkout
 
@@ -11,7 +17,6 @@ Start from a clean implementation revision with frozen dependencies. Record that
 ```sh
 pnpm install --frozen-lockfile
 pnpm test:pr
-pnpm test:repository
 pnpm format
 git rev-parse HEAD
 git status --short

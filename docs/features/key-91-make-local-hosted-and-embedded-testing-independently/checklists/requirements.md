@@ -35,6 +35,8 @@
 - Existing deployment names, package owners, TLS, and the paired behavior gate express constraints from the issue and constitution. Command spelling, runner design, and implementation choices remain for planning.
 - Stories 1-3 cover FR-001, FR-002, FR-004, FR-005, and FR-006. Story 4 and the edge cases cover FR-003 and FR-007 through FR-009. Story 5 covers FR-010. The independent-test instructions and ownership constraints make FR-011 and FR-012 reviewable in contributor guidance and the implementation diff.
 - SC-001 through SC-006 define independent execution, coverage preservation, negative outcomes, installed-consumer evidence, attempt isolation, and Hosted boundaries.
+- Revalidated after the strategy-study scope addition on 2026-09-05. Story 6, FR-013 through FR-017, and SC-007 through SC-009 require a coverage map, comparable cost measurements, a bounded pilot, and a design revision before downstream implementation. All 16 specification-quality criteria still pass.
+- Study completion is a separate execution prerequisite. Its comparative measurements and pilot remain NOT RUN; passing this checklist does not permit execution beyond the study checkpoint in `tasks.md`.
 - Installed Embedded acceptance depends on its owning features. Fixture success cannot satisfy it. Hosted execution depends on a product environment and authorization; a documented unavailable result can satisfy this feature's reporting requirement.
 - Checked items mean specification quality only. Deployment tests, installed-consumer acceptance, and Hosted acceptance are NOT RUN during specification work.
 - Items marked incomplete require spec updates before `$speckit-clarify` or `$speckit-plan`.
