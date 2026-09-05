@@ -29,96 +29,99 @@ interface PostgresqlPolicyRow {
   readonly reason: string;
 }
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL Policy runtime behavior",
-  () => {
-    let fixture: PostgresDatabase | undefined;
-    let transaction: PostgresTransaction | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await transaction?.close();
-      transaction = undefined;
-      await fixture?.close();
-      fixture = undefined;
-    });
+describe("PostgreSQL Policy runtime behavior", () => {
+  let fixture: PostgresDatabase | undefined;
+  let transaction: PostgresTransaction | undefined;
 
-    it("executes every shared runtime test program through the installed renderer", async () => {
-      fixture = await openInstalledPostgresDatabase(
-        requirePostgresqlSystemAdministratorUrl(),
-        FIXTURE_INSTALLATION,
-        requirePostgresqlSystemCommandPath(),
+  afterEach(async () => {
+    await transaction?.close();
+    transaction = undefined;
+    await fixture?.close();
+    fixture = undefined;
+  });
+
+  it("executes every shared runtime test program through the installed renderer", async () => {
+    fixture = await openInstalledPostgresDatabase(
+      requirePostgresqlSystemAdministratorUrl(),
+      FIXTURE_INSTALLATION,
+      requirePostgresqlSystemCommandPath(),
+    );
+    transaction = await fixture.beginTransaction();
+    const ownerRole = await requirePolicyOwner(transaction);
+    await transaction.connection.exec(
+      `set local role "${ownerRole.replaceAll('"', '""')}"`,
+    );
+
+    for (const testCase of POLICY_RUNTIME_TEST_CASES) {
+      const rendered = await transaction.connection.query<RenderedPolicy>(
+        "select keynes_internal.render_policy_program($1::jsonb) as sql",
+        [JSON.stringify(testCase.program)],
       );
-      transaction = await fixture.beginTransaction();
-      const ownerRole = await requirePolicyOwner(transaction);
-      await transaction.connection.exec(
-        `set local role "${ownerRole.replaceAll('"', '""')}"`,
-      );
-
-      for (const testCase of POLICY_RUNTIME_TEST_CASES) {
-        const rendered = await transaction.connection.query<RenderedPolicy>(
-          "select keynes_internal.render_policy_program($1::jsonb) as sql",
-          [JSON.stringify(testCase.program)],
-        );
-        const sql = rendered.rows[0]?.sql;
-        if (sql === undefined) {
-          throw new Error(`PostgreSQL did not render ${testCase.name}`);
-        }
-
-        const parameters = [
-          JSON.stringify(testCase.input.requested),
-          JSON.stringify(testCase.input.available),
-          JSON.stringify(testCase.input.context),
-        ];
-
-        if ("error" in testCase.expected) {
-          await expect(
-            transaction.connection.query<PostgresqlPolicyRow>(sql, parameters),
-            testCase.name,
-          ).rejects.toMatchObject({ code: "22003" });
-          continue;
-        }
-
-        const result = await transaction.connection.query<PostgresqlPolicyRow>(
-          sql,
-          parameters,
-        );
-
-        expect(normalizePolicyRows(result.rows), testCase.name).toEqual(
-          testCase.expected,
-        );
+      const sql = rendered.rows[0]?.sql;
+      if (sql === undefined) {
+        throw new Error(`PostgreSQL did not render ${testCase.name}`);
       }
-    });
 
-    it("keeps nested boolean rendering linear", async () => {
-      fixture = await openInstalledPostgresDatabase(
-        requirePostgresqlSystemAdministratorUrl(),
-        FIXTURE_INSTALLATION,
-        requirePostgresqlSystemCommandPath(),
-      );
-      transaction = await fixture.beginTransaction();
-      const ownerRole = await requirePolicyOwner(transaction);
-      await transaction.connection.exec(
-        `set local role "${ownerRole.replaceAll('"', '""')}"`,
+      const parameters = [
+        JSON.stringify(testCase.input.requested),
+        JSON.stringify(testCase.input.available),
+        JSON.stringify(testCase.input.context),
+      ];
+
+      if ("error" in testCase.expected) {
+        await expect(
+          transaction.connection.query<PostgresqlPolicyRow>(sql, parameters),
+          testCase.name,
+        ).rejects.toMatchObject({ code: "22003" });
+        continue;
+      }
+
+      const result = await transaction.connection.query<PostgresqlPolicyRow>(
+        sql,
+        parameters,
       );
 
-      const result = await transaction.connection.query<RenderedPolicySizes>(
-        `select
+      expect(normalizePolicyRows(result.rows), testCase.name).toEqual(
+        testCase.expected,
+      );
+    }
+  });
+
+  it("keeps nested boolean rendering linear", async () => {
+    fixture = await openInstalledPostgresDatabase(
+      requirePostgresqlSystemAdministratorUrl(),
+      FIXTURE_INSTALLATION,
+      requirePostgresqlSystemCommandPath(),
+    );
+    transaction = await fixture.beginTransaction();
+    const ownerRole = await requirePolicyOwner(transaction);
+    await transaction.connection.exec(
+      `set local role "${ownerRole.replaceAll('"', '""')}"`,
+    );
+
+    const result = await transaction.connection.query<RenderedPolicySizes>(
+      `select
            octet_length(keynes_internal.render_boolean_binary($1::jsonb))::integer as shallow_bytes,
            octet_length(keynes_internal.render_boolean_binary($2::jsonb))::integer as deep_bytes`,
-        [
-          JSON.stringify(alternatingBooleanExpression(6)),
-          JSON.stringify(alternatingBooleanExpression(10)),
-        ],
-      );
-      const sizes = result.rows[0];
-      if (sizes === undefined) {
-        throw new Error("PostgreSQL did not return rendered Policy sizes");
-      }
+      [
+        JSON.stringify(alternatingBooleanExpression(6)),
+        JSON.stringify(alternatingBooleanExpression(10)),
+      ],
+    );
+    const sizes = result.rows[0];
+    if (sizes === undefined) {
+      throw new Error("PostgreSQL did not return rendered Policy sizes");
+    }
 
-      expect(sizes.deep_bytes).toBeLessThanOrEqual(sizes.shallow_bytes * 4);
-    });
-  },
-);
+    expect(sizes.deep_bytes).toBeLessThanOrEqual(sizes.shallow_bytes * 4);
+  });
+});
 
 function alternatingBooleanExpression(depth: number): ExpressionNodeV1 {
   let expression: ExpressionNodeV1 = {

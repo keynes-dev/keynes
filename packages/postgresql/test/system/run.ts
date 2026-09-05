@@ -31,6 +31,10 @@ import {
   type PackedPostgresqlPackage,
 } from "../support/packed-package.ts";
 import {
+  REMOTE_MODES,
+  remoteScenarioInventory,
+  validateRemoteSelection,
+  type RemoteSelection,
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
 } from "./required-scenarios.ts";
@@ -87,7 +91,25 @@ const EXCLUSIONS = {
   productionReadiness: "NOT RUN",
 } as const;
 
+interface NativeContextFields {
+  readonly runId: string;
+  readonly administratorUrl: string;
+  readonly commandPath: string;
+  readonly poolers: PoolerUrls;
+}
+export type PostgresqlSystemContext =
+  | (NativeContextFields & {
+      readonly scope: "full";
+      readonly selection?: never;
+    })
+  | (NativeContextFields & {
+      readonly scope: "selected";
+      readonly selection: RemoteSelection;
+    });
+
 export interface PostgresqlSystemRunOptions {
+  readonly selection?: RemoteSelection;
+  readonly selectedReportPath?: string;
   readonly outputPath?: string;
   readonly signal?: AbortSignal;
 }
@@ -122,6 +144,13 @@ export async function runPostgresqlSystemTests(
     throw new Error("PostgreSQL system context must be runner-owned");
   }
 
+  const selection =
+    options.selection === undefined
+      ? undefined
+      : validateRemoteSelection(options.selection);
+  if (selection !== undefined && options.outputPath !== undefined)
+    throw new Error("Selected execution cannot produce full acceptance");
+  const modes = selection?.modes ?? REMOTE_MODES;
   const stages: PostgresqlSystemObservation[] = [];
   const observedEnvironment: Record<string, string> = {
     postgresImage: POSTGRES_IMAGE,
@@ -198,6 +227,11 @@ export async function runPostgresqlSystemTests(
     outputPath === undefined
       ? undefined
       : await prepareAcceptanceRecord(activeRuntime, outputPath);
+  const reportPath =
+    recordWorkspace?.reportPath ??
+    join(await mkdtemp(join(tmpdir(), "keynes-native-report-")), "vitest.json");
+  const transientReportRoot =
+    recordWorkspace === undefined ? dirname(reportPath) : undefined;
   let containerStarted = false;
   let networkCreated = false;
   let poolerWorkspace: PoolerWorkspace | undefined;
@@ -259,7 +293,9 @@ export async function runPostgresqlSystemTests(
       observe({ stage: "version-check", status: "failed" });
       throw postgresqlSystemFailure(runId, "version-check");
     }
-    poolerWorkspace = await createPoolerWorkspace(password);
+    poolerWorkspace = modes.some((mode) => mode !== "direct")
+      ? await createPoolerWorkspace(password)
+      : undefined;
     const workspace = poolerWorkspace;
     const poolers = await executeStage(runId, "poolers", () =>
       startPoolers({
@@ -268,6 +304,7 @@ export async function runPostgresqlSystemTests(
         runId,
         password,
         workspace,
+        modes,
         containers: poolerContainers,
       }),
     );
@@ -281,17 +318,20 @@ export async function runPostgresqlSystemTests(
     }
 
     checkCancellation(options.signal);
+    const fields: NativeContextFields = {
+      runId,
+      administratorUrl: connectionUrl,
+      poolers,
+      commandPath: packed.commandPath,
+    };
+    const context: PostgresqlSystemContext =
+      selection === undefined
+        ? { ...fields, scope: "full" }
+        : { ...fields, scope: "selected", selection };
     child = runtime.spawnTests({
       ...environment,
-      [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify({
-        runId,
-        administratorUrl: connectionUrl,
-        poolers,
-        commandPath: packed.commandPath,
-      }),
-      ...(recordWorkspace === undefined
-        ? {}
-        : { [POSTGRESQL_SYSTEM_REPORT_ENV]: recordWorkspace.reportPath }),
+      [POSTGRESQL_SYSTEM_CONTEXT_ENV]: JSON.stringify(context),
+      [POSTGRESQL_SYSTEM_REPORT_ENV]: reportPath,
     });
     await executeStage(runId, "tests", () =>
       waitWithCancellation(child?.wait() ?? Promise.resolve(), options.signal),
@@ -443,6 +483,30 @@ export async function runPostgresqlSystemTests(
     return runId;
   }
 
+  if (transientReportRoot !== undefined) {
+    try {
+      const report = sanitizeVitestReport(
+        JSON.parse(await readFile(reportPath, "utf8")),
+        [password, runId],
+      );
+      if (options.selectedReportPath !== undefined)
+        await writeFile(
+          options.selectedReportPath,
+          `${JSON.stringify(report, null, 2)}\n`,
+          { flag: "wx" },
+        );
+      if (selection === undefined) validatePostgresqlSystemReport(report);
+      else validateSelectedPostgresqlReport(report, selection);
+    } catch (error: unknown) {
+      if (failure === undefined) failure = error;
+    } finally {
+      try {
+        await rm(transientReportRoot, { recursive: true, force: true });
+      } catch {
+        cleanupFailed = true;
+      }
+    }
+  }
   if (failure !== undefined) {
     if (cleanupFailed)
       throw new AggregateError(
@@ -463,8 +527,8 @@ interface PoolerWorkspace {
 }
 
 interface PoolerUrls {
-  readonly sessionUrl: string;
-  readonly transactionUrl: string;
+  readonly sessionUrl?: string;
+  readonly transactionUrl?: string;
 }
 
 async function createPoolerWorkspace(
@@ -503,28 +567,27 @@ async function startPoolers(input: {
   readonly environment: NodeJS.ProcessEnv;
   readonly runId: string;
   readonly password: string;
-  readonly workspace: PoolerWorkspace;
+  readonly workspace: PoolerWorkspace | undefined;
+  readonly modes: readonly (typeof REMOTE_MODES)[number][];
   readonly containers: string[];
 }): Promise<PoolerUrls> {
-  const session = `${input.runId}-session-pool`;
-  const transaction = `${input.runId}-transaction-pool`;
-  const sessionPort = await startPooler({
-    ...input,
-    name: session,
-    mode: "session",
-  });
-  const transactionPort = await startPooler({
-    ...input,
-    name: transaction,
-    mode: "transaction",
-  });
-  const sessionUrl = postgresUrl(input.password, sessionPort);
-  const transactionUrl = postgresUrl(input.password, transactionPort);
-  await Promise.all([
-    waitForPostgres(input.runtime, input.runId, sessionUrl),
-    waitForPostgres(input.runtime, input.runId, transactionUrl),
-  ]);
-  return { sessionUrl, transactionUrl };
+  const urls: { sessionUrl?: string; transactionUrl?: string } = {};
+  for (const profile of input.modes) {
+    if (profile === "direct") continue;
+    if (input.workspace === undefined)
+      throw new Error("Missing pooler workspace");
+    const port = await startPooler({
+      ...input,
+      workspace: input.workspace,
+      name: `${input.runId}-${profile}`,
+      mode: profile === "session-pool" ? "session" : "transaction",
+    });
+    const url = postgresUrl(input.password, port);
+    await waitForPostgres(input.runtime, input.runId, url);
+    if (profile === "session-pool") urls.sessionUrl = url;
+    else urls.transactionUrl = url;
+  }
+  return urls;
 }
 
 async function startPooler(input: {
@@ -1128,7 +1191,7 @@ function postgresqlSystemFailure(runId: string, stageName: string): Error {
   return new Error(`PostgreSQL system run ${runId} failed during ${stageName}`);
 }
 
-const productionRuntime: PostgresqlSystemRuntime = {
+export const productionRuntime: PostgresqlSystemRuntime = {
   randomUUID,
   randomPassword: () => randomBytes(24).toString("base64url"),
   now: Date.now,
@@ -1152,7 +1215,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
               "--reporter=json",
               `--outputFile=${environment[POSTGRESQL_SYSTEM_REPORT_ENV]}`,
             ]),
-        ...POSTGRESQL_SYSTEM_TEST_FILES,
+        ...testFilesForContext(environment),
       ],
       environment,
     ),
@@ -1246,4 +1309,41 @@ if (
       process.off("SIGINT", cancel);
       process.off("SIGTERM", cancel);
     });
+}
+
+function testFilesForContext(
+  environment: NodeJS.ProcessEnv,
+): readonly string[] {
+  const value: unknown = JSON.parse(
+    environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "{}",
+  );
+  return isRecord(value) && value.selection !== undefined
+    ? Object.keys(
+        remoteScenarioInventory(validateRemoteSelection(value.selection)),
+      )
+    : POSTGRESQL_SYSTEM_TEST_FILES;
+}
+
+export function validateSelectedPostgresqlReport(
+  value: unknown,
+  selection: RemoteSelection,
+): void {
+  if (isRecord(value) && "schemaVersion" in value)
+    throw new Error("Expected a selected Vitest report");
+  const remaining = new Map(Object.entries(remoteScenarioInventory(selection)));
+  for (const file of parsePassingReport(value)) {
+    const path = [...remaining.keys()].find(
+      (path) => file.name === path || file.name.endsWith(`/${path}`),
+    );
+    const names = path === undefined ? undefined : remaining.get(path);
+    if (
+      path === undefined ||
+      names === undefined ||
+      !sameStrings(file.assertions, [...names].sort())
+    )
+      throw new Error("Incomplete selected native coverage");
+    remaining.delete(path);
+  }
+  if (remaining.size !== 0)
+    throw new Error("Incomplete selected native coverage");
 }

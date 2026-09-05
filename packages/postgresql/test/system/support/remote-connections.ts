@@ -1,5 +1,10 @@
 import { Client } from "pg";
 
+import {
+  REMOTE_MODES,
+  validateRemoteSelection,
+} from "../required-scenarios.ts";
+
 import type { RemoteLogin } from "./remote-identity.js";
 
 export type RemoteConnectionProfile =
@@ -94,4 +99,15 @@ function profileUrl(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function selectedConnectionProfiles(): readonly RemoteConnectionProfile[] {
+  const source = process.env.KEYNES_POSTGRESQL_SYSTEM_CONTEXT;
+  if (source === undefined)
+    throw new Error("Remote profiles require runner context");
+  const context: unknown = JSON.parse(source);
+  if (!isRecord(context)) throw new Error("Invalid runner context");
+  return context.selection === undefined
+    ? REMOTE_MODES
+    : validateRemoteSelection(context.selection).modes;
 }

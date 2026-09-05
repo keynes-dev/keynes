@@ -1,6 +1,6 @@
 # Validate independent deployment checks
 
-The [study](testing-strategy.md) and Phase 4 full-gate safeguards are complete. Local is implemented. See [acceptance.md](acceptance.md) for the current evidence. Remote, Embedded and Hosted entrypoints remain pending until their phases execute.
+The [study](testing-strategy.md) and Phase 4 full-gate safeguards are complete. Local and remote PostgreSQL commands are implemented. See [acceptance.md](acceptance.md) for the current evidence. Embedded and Hosted entrypoints remain pending until their phases execute.
 
 ## Complete the study before downstream implementation
 
@@ -55,6 +55,8 @@ pnpm test:remote -- --mode direct --output .artifacts/key-91/remote-direct-01
 pnpm test:remote -- --mode session-pool --output .artifacts/key-91/remote-session-01
 pnpm test:remote -- --mode transaction-pool --output .artifacts/key-91/remote-transaction-01
 ```
+
+The command runs plaintext SQL fixtures and removes them before starting its separate TLS fixture. The installed CLI prepares the target; installed SDK calls use ordinary tenant credentials. Generated keys, certificate files, connection URLs, and temporary consumers are removed during cleanup. PgBouncer ignores the SDK startup `statement_timeout` because the fixture enforces the same 30-second timeout on PostgreSQL.
 
 Default execution requires both poolers. Direct requires neither. Each narrower pool selection requires exactly its selected pooler. Verify fixture and installed SDK results separately. Inspect observed pool modes, verified-TLS positive cases, wrong-CA/hostname failures, ordinary-credential isolation, and replay/conflict recovery. Local remote success does not prove Hosted product acceptance.
 

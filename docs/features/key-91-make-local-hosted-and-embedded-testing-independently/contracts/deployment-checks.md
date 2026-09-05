@@ -1,6 +1,6 @@
 # Contributor contract: deployment checks
 
-The Local command is implemented. Remote, Embedded and Hosted entrypoints remain planned until their implementation phases. These commands are contributor interfaces, not public SDK additions.
+Local and remote PostgreSQL commands are implemented. Embedded and Hosted entrypoints remain planned until their implementation phases. These commands are contributor interfaces, not public SDK additions.
 
 The [required testing-strategy study](../plan.md#required-study-before-downstream-implementation) may refine command composition and focused-feedback invocations before downstream implementation. It must preserve default-all remote coverage, installed-consumer acceptance, unavailable product boundaries, and the full gate. Update this contract with any adopted design changes; a focused feedback result cannot replace deployment acceptance.
 

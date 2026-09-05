@@ -31,6 +31,7 @@ export async function installPostgresqlArchive(
   suppliedWorkspace?: string,
   suppliedConsumerRoot?: string,
   environment?: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
 ): Promise<PackedPostgresqlPackage> {
   return installPackageArchive({
     archivePath,
@@ -39,6 +40,7 @@ export async function installPostgresqlArchive(
     workspace: suppliedWorkspace,
     consumerRoot: suppliedConsumerRoot,
     environment,
+    signal,
   });
 }
 

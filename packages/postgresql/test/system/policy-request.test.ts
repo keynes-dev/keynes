@@ -63,585 +63,578 @@ interface SuccessfulWire {
   readonly replayed: boolean;
 }
 
-describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL governed Policy requests",
-  () => {
-    let fixture: PolicyFixture | undefined;
+if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
+  throw new Error(
+    "Native tests require runner context; use a PostgreSQL deployment runner",
+  );
+}
 
-    afterEach(async () => {
-      await fixture?.owner.close();
-      fixture = undefined;
+describe("PostgreSQL governed Policy requests", () => {
+  let fixture: PolicyFixture | undefined;
+
+  afterEach(async () => {
+    await fixture?.owner.close();
+    fixture = undefined;
+  });
+
+  it("approves within the Policy ceiling and records canonical evidence", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
     });
+    const evidence = policyEvidence(policy, 5, "approved");
 
-    it("approves within the Policy ceiling and records canonical evidence", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-      const evidence = policyEvidence(policy, 5, "approved");
-
-      expect(request).toEqual({
-        ok: true,
-        replayed: false,
-        result: {
-          kind: "approved",
-          commandId: REQUEST_ID,
-          parentBudgetId: ROOT_BUDGET_ID,
-          childBudgetId: REQUEST_ID,
-          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-          policyEvidence: evidence,
-        },
-      });
-
-      const read = await committed(fixture, "getBudget", {
-        budgetId: ROOT_BUDGET_ID,
-      });
-      expect(read.result).toMatchObject({
-        history: {
-          entries: [
-            expect.any(Object),
-            {
-              kind: "request_approved",
-              commandId: REQUEST_ID,
-              policyEvidence: evidence,
-            },
-          ],
-        },
-      });
-    });
-
-    it("denies above the Policy ceiling without reserving or creating a child", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 6 }],
-        context: { request_ceiling: 5 },
-      });
-      const evidence = policyEvidence(policy, 5, "denied");
-
-      expect(request).toEqual({
-        ok: true,
-        replayed: false,
-        result: {
-          kind: "denied",
-          commandId: REQUEST_ID,
-          parentBudgetId: ROOT_BUDGET_ID,
-          reasons: [
-            {
-              code: "policy_ceiling",
-              resourceTypeId: MODEL_RESOURCE_ID,
-              requested: 6,
-              ceiling: 5,
-              policyName: policy.name,
-              policyRevision: policy.revision,
-              reason: "request_limit",
-            },
-          ],
-          policyEvidence: evidence,
-        },
-      });
-      await expectBudgetState(fixture.owner, REQUEST_ID, false);
-      await expectRootHolding(fixture.owner, {
-        committed: 0,
-        historyEntries: 2,
-      });
-    });
-
-    it("evaluates requested, availability, and Context through the installed request path", async () => {
-      fixture = await openPolicyFixture();
-      const policy = inputSensitivePolicy();
-      await seedGovernedRoot(fixture, policy);
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-        context: { input_offset: 2 },
-      });
-      const evidence = policyEvidence(policy, 6, "approved", 2);
-
-      expect(request).toEqual({
-        ok: true,
-        replayed: false,
-        result: {
-          kind: "approved",
-          commandId: REQUEST_ID,
-          parentBudgetId: ROOT_BUDGET_ID,
-          childBudgetId: REQUEST_ID,
-          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-          policyEvidence: evidence,
-        },
-      });
-    });
-
-    it("uses available Resources when they are the Policy ceiling", async () => {
-      fixture = await openPolicyFixture();
-      const policy = inputSensitivePolicy();
-      await seedGovernedRoot(fixture, policy, 5);
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-        context: { input_offset: 2 },
-      });
-      const evidence = policyEvidence(policy, 5, "approved", 2);
-
-      expect(request).toEqual({
-        ok: true,
-        replayed: false,
-        result: {
-          kind: "approved",
-          commandId: REQUEST_ID,
-          parentBudgetId: ROOT_BUDGET_ID,
-          childBudgetId: REQUEST_ID,
-          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-          policyEvidence: evidence,
-        },
-      });
-      await expectRootHolding(fixture.owner, {
-        committed: 4,
-        historyEntries: 2,
-      });
-    });
-
-    it("enforces Policies for a contract-valid non-RFC request command UUID", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: NON_RFC_REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
-        context: { request_ceiling: 0 },
-      });
-
-      expect(request.result).toMatchObject({
-        kind: "denied",
-        policyEvidence: {
-          decision: "denied",
-          effectiveCeilings: [
-            { resourceTypeId: MODEL_RESOURCE_ID, ceiling: 0 },
-          ],
-        },
-      });
-    });
-
-    it("preserves root Policies created with a contract-valid non-RFC UUID", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await definePolicyResources(fixture);
-      await committed(fixture, "createBudget", {
-        commandId: NON_RFC_ROOT_BUDGET_ID,
-        resources: [
-          rootResource(SEARCH_RESOURCE_ID, 100),
-          rootResource(MODEL_RESOURCE_ID, 100),
-        ],
-        policies: [policy],
-      });
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: NON_RFC_ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
-        context: { request_ceiling: 0 },
-      });
-
-      expect(request.result).toMatchObject({
-        kind: "denied",
-        policyEvidence: { decision: "denied" },
-      });
-    });
-
-    it("attaches only the explicit child Policy set and evaluates it on the next request", async () => {
-      fixture = await openPolicyFixture();
-      const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
-      const childPolicy = resealDeclarations(
-        requestLimitPolicy("child_ceiling", "child_limit"),
-        ["model_tokens"],
-        ["model_tokens"],
-      );
-      await seedGovernedRoot(fixture, parentPolicy);
-
-      const child = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 8 }],
-        context: { parent_ceiling: 10 },
-        childPolicies: [childPolicy],
-      });
-      expect(child.result).toMatchObject({
+    expect(request).toEqual({
+      ok: true,
+      replayed: false,
+      result: {
         kind: "approved",
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
         childBudgetId: REQUEST_ID,
-      });
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        policyEvidence: evidence,
+      },
+    });
 
-      const grandchild = await committed(fixture, "requestBudget", {
-        commandId: SECOND_REQUEST_ID,
-        parentBudgetId: REQUEST_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 5 }],
-        context: { child_ceiling: 4 },
-      });
-      expect(grandchild.result).toMatchObject({
+    const read = await committed(fixture, "getBudget", {
+      budgetId: ROOT_BUDGET_ID,
+    });
+    expect(read.result).toMatchObject({
+      history: {
+        entries: [
+          expect.any(Object),
+          {
+            kind: "request_approved",
+            commandId: REQUEST_ID,
+            policyEvidence: evidence,
+          },
+        ],
+      },
+    });
+  });
+
+  it("denies above the Policy ceiling without reserving or creating a child", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 6 }],
+      context: { request_ceiling: 5 },
+    });
+    const evidence = policyEvidence(policy, 5, "denied");
+
+    expect(request).toEqual({
+      ok: true,
+      replayed: false,
+      result: {
         kind: "denied",
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
         reasons: [
           {
             code: "policy_ceiling",
-            policyName: childPolicy.name,
-            reason: "child_limit",
-          },
-        ],
-        policyEvidence: {
-          context: { child_ceiling: 4 },
-          policies: [{ name: childPolicy.name }],
-          decision: "denied",
-        },
-      });
-    });
-
-    it("rejects a root Policy declaration outside the receiving Budget holdings", async () => {
-      fixture = await openPolicyFixture();
-      await definePolicyResources(fixture);
-      const invalidPolicy = requestLimitPolicy(
-        "request_ceiling",
-        "a_outside_root",
-        "search_queries",
-      );
-      const validPolicy = requestLimitPolicy(
-        "request_ceiling",
-        "z_inside_root",
-        "model_tokens",
-      );
-      const transaction = await beginApplicationAttempt(fixture);
-      await transaction.connection.query(
-        "select set_config('keynes.policy_operation', 'requestBudget', true)",
-      );
-      const wire = await call(transaction, "createBudget", {
-        commandId: ROOT_BUDGET_ID,
-        resources: [rootResource(MODEL_RESOURCE_ID, 100)],
-        policies: [invalidPolicy, validPolicy],
-      });
-      await transaction.commit();
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: {
-            operation: "createBudget",
-            policyName: "a_outside_root",
-            policyRevision: 1,
-            path: "$.policies",
-            rule: "allocatedResourceTypes",
-          },
-        },
-      });
-      await expectBudgetState(fixture.owner, ROOT_BUDGET_ID, false);
-    });
-
-    it("rejects a child Policy declaration outside the receiving child holdings", async () => {
-      fixture = await openPolicyFixture();
-      const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
-      await seedGovernedRoot(fixture, parentPolicy);
-      const childPolicy = resealDeclarations(
-        requestLimitPolicy("child_ceiling", "child_limit"),
-        ["search_queries"],
-        ["search_queries"],
-      );
-      const transaction = await beginApplicationAttempt(fixture);
-      const wire = await call(transaction, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 8 }],
-        context: { parent_ceiling: 10 },
-        childPolicies: [childPolicy],
-      });
-      await transaction.commit();
-
-      expect(wire).toMatchObject({
-        ok: false,
-        error: {
-          code: "invalid_policy",
-          details: { path: "$.policies", rule: "allocatedResourceTypes" },
-        },
-      });
-      await expectBudgetState(fixture.owner, REQUEST_ID, false);
-    });
-
-    it("approves an ungoverned parent request with child Policies without parent Policy evidence", async () => {
-      fixture = await openPolicyFixture();
-      await definePolicyResources(fixture);
-      const childPolicy = resealDeclarations(
-        requestLimitPolicy("child_ceiling", "child_limit"),
-        ["model_tokens"],
-        ["model_tokens"],
-      );
-      await committed(fixture, "createBudget", {
-        commandId: ROOT_BUDGET_ID,
-        resources: [rootResource(MODEL_RESOURCE_ID, 100)],
-      });
-
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-        childPolicies: [childPolicy],
-      });
-
-      expect(request.result).toMatchObject({
-        kind: "approved",
-        childBudgetId: REQUEST_ID,
-      });
-      expect(request.result).not.toHaveProperty("policyEvidence");
-    });
-
-    it("preserves exact no-Policy request bytes and canonical root history", async () => {
-      fixture = await openPolicyFixture();
-      await definePolicyResources(fixture);
-      await committed(fixture, "createBudget", {
-        commandId: ROOT_BUDGET_ID,
-        resources: [
-          rootResource(SEARCH_RESOURCE_ID, 10),
-          rootResource(MODEL_RESOURCE_ID, 10),
-        ],
-      });
-
-      const command = {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [
-          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 11 },
-          { resourceTypeId: MODEL_RESOURCE_ID, amount: 11 },
-        ],
-      };
-      const commandBytes = `{"commandId":"${REQUEST_ID}","parentBudgetId":"${ROOT_BUDGET_ID}","resources":[{"resourceTypeId":"${SEARCH_RESOURCE_ID}","amount":11},{"resourceTypeId":"${MODEL_RESOURCE_ID}","amount":11}]}`;
-      expect(JSON.stringify(command)).toBe(commandBytes);
-
-      const request = await committed(fixture, "requestBudget", command);
-      const expectedResult = {
-        kind: "denied",
-        reasons: [
-          {
-            code: "insufficient_available",
-            available: 10,
-            requested: 11,
-            resourceTypeId: SEARCH_RESOURCE_ID,
-          },
-          {
-            code: "insufficient_available",
-            available: 10,
-            requested: 11,
             resourceTypeId: MODEL_RESOURCE_ID,
+            requested: 6,
+            ceiling: 5,
+            policyName: policy.name,
+            policyRevision: policy.revision,
+            reason: "request_limit",
           },
         ],
+        policyEvidence: evidence,
+      },
+    });
+    await expectBudgetState(fixture.owner, REQUEST_ID, false);
+    await expectRootHolding(fixture.owner, {
+      committed: 0,
+      historyEntries: 2,
+    });
+  });
+
+  it("evaluates requested, availability, and Context through the installed request path", async () => {
+    fixture = await openPolicyFixture();
+    const policy = inputSensitivePolicy();
+    await seedGovernedRoot(fixture, policy);
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      context: { input_offset: 2 },
+    });
+    const evidence = policyEvidence(policy, 6, "approved", 2);
+
+    expect(request).toEqual({
+      ok: true,
+      replayed: false,
+      result: {
+        kind: "approved",
         commandId: REQUEST_ID,
         parentBudgetId: ROOT_BUDGET_ID,
-      };
-      expect(JSON.stringify(request)).toBe(
-        JSON.stringify({ ok: true, result: expectedResult, replayed: false }),
-      );
+        childBudgetId: REQUEST_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        policyEvidence: evidence,
+      },
+    });
+  });
 
-      const replay = await committed(fixture, "requestBudget", command);
-      expect(JSON.stringify(replay)).toBe(
-        JSON.stringify({ ok: true, result: expectedResult, replayed: true }),
-      );
+  it("uses available Resources when they are the Policy ceiling", async () => {
+    fixture = await openPolicyFixture();
+    const policy = inputSensitivePolicy();
+    await seedGovernedRoot(fixture, policy, 5);
 
-      const read = await committed(fixture, "getBudget", {
-        budgetId: ROOT_BUDGET_ID,
-      });
-      expect(read.result).toMatchObject({
-        history: {
-          entries: [
-            { kind: "budget_created" },
-            { kind: "request_denied", reasons: expectedResult.reasons },
-          ],
-        },
-      });
-      if (!isRecord(read.result.history)) {
-        throw new Error("expected no-Policy history");
-      }
-      const entries = read.result.history.entries;
-      if (
-        !Array.isArray(entries) ||
-        !isRecord(entries[0]) ||
-        !isRecord(entries[1])
-      ) {
-        throw new Error("expected two no-Policy history entries");
-      }
-      expect(JSON.stringify(read.result.history)).toBe(
-        JSON.stringify({
-          entries: [
-            {
-              kind: "budget_created",
-              entryId: entries[0].entryId,
-              sequence: 1,
-              commandId: ROOT_BUDGET_ID,
-              resources: [
-                { amount: 10, resourceTypeId: MODEL_RESOURCE_ID },
-                { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
-              ],
-              rootBudgetId: ROOT_BUDGET_ID,
-              subjectBudgetId: ROOT_BUDGET_ID,
-            },
-            {
-              kind: "request_denied",
-              entryId: entries[1].entryId,
-              reasons: expectedResult.reasons,
-              sequence: 2,
-              commandId: REQUEST_ID,
-              parentBudgetId: ROOT_BUDGET_ID,
-              subjectBudgetId: ROOT_BUDGET_ID,
-            },
-          ],
-          rootBudgetId: ROOT_BUDGET_ID,
-        }),
-      );
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      context: { input_offset: 2 },
+    });
+    const evidence = policyEvidence(policy, 5, "approved", 2);
+
+    expect(request).toEqual({
+      ok: true,
+      replayed: false,
+      result: {
+        kind: "approved",
+        commandId: REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        childBudgetId: REQUEST_ID,
+        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+        policyEvidence: evidence,
+      },
+    });
+    await expectRootHolding(fixture.owner, {
+      committed: 4,
+      historyEntries: 2,
+    });
+  });
+
+  it("enforces Policies for a contract-valid non-RFC request command UUID", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: NON_RFC_REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
+      context: { request_ceiling: 0 },
     });
 
-    it("orders effective ceilings and tied reasons by canonical text, not Resource UUID", async () => {
-      fixture = await openPolicyFixture();
-      const policies = [
-        requestLimitPolicy("request_ceiling", "policy_", "model_tokens"),
-        requestLimitPolicy("request_ceiling", "policy0", "model_tokens"),
-        requestLimitPolicy(
-          "request_ceiling",
-          "search_policy",
-          "search_queries",
-        ),
-      ];
-      await seedGovernedRoot(fixture, policies);
+    expect(request.result).toMatchObject({
+      kind: "denied",
+      policyEvidence: {
+        decision: "denied",
+        effectiveCeilings: [{ resourceTypeId: MODEL_RESOURCE_ID, ceiling: 0 }],
+      },
+    });
+  });
 
-      const request = await committed(fixture, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [
-          { resourceTypeId: SEARCH_RESOURCE_ID, amount: 1 },
-          { resourceTypeId: MODEL_RESOURCE_ID, amount: 1 },
+  it("preserves root Policies created with a contract-valid non-RFC UUID", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await definePolicyResources(fixture);
+    await committed(fixture, "createBudget", {
+      commandId: NON_RFC_ROOT_BUDGET_ID,
+      resources: [
+        rootResource(SEARCH_RESOURCE_ID, 100),
+        rootResource(MODEL_RESOURCE_ID, 100),
+      ],
+      policies: [policy],
+    });
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: NON_RFC_ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 1 }],
+      context: { request_ceiling: 0 },
+    });
+
+    expect(request.result).toMatchObject({
+      kind: "denied",
+      policyEvidence: { decision: "denied" },
+    });
+  });
+
+  it("attaches only the explicit child Policy set and evaluates it on the next request", async () => {
+    fixture = await openPolicyFixture();
+    const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
+    const childPolicy = resealDeclarations(
+      requestLimitPolicy("child_ceiling", "child_limit"),
+      ["model_tokens"],
+      ["model_tokens"],
+    );
+    await seedGovernedRoot(fixture, parentPolicy);
+
+    const child = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 8 }],
+      context: { parent_ceiling: 10 },
+      childPolicies: [childPolicy],
+    });
+    expect(child.result).toMatchObject({
+      kind: "approved",
+      childBudgetId: REQUEST_ID,
+    });
+
+    const grandchild = await committed(fixture, "requestBudget", {
+      commandId: SECOND_REQUEST_ID,
+      parentBudgetId: REQUEST_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 5 }],
+      context: { child_ceiling: 4 },
+    });
+    expect(grandchild.result).toMatchObject({
+      kind: "denied",
+      reasons: [
+        {
+          code: "policy_ceiling",
+          policyName: childPolicy.name,
+          reason: "child_limit",
+        },
+      ],
+      policyEvidence: {
+        context: { child_ceiling: 4 },
+        policies: [{ name: childPolicy.name }],
+        decision: "denied",
+      },
+    });
+  });
+
+  it("rejects a root Policy declaration outside the receiving Budget holdings", async () => {
+    fixture = await openPolicyFixture();
+    await definePolicyResources(fixture);
+    const invalidPolicy = requestLimitPolicy(
+      "request_ceiling",
+      "a_outside_root",
+      "search_queries",
+    );
+    const validPolicy = requestLimitPolicy(
+      "request_ceiling",
+      "z_inside_root",
+      "model_tokens",
+    );
+    const transaction = await beginApplicationAttempt(fixture);
+    await transaction.connection.query(
+      "select set_config('keynes.policy_operation', 'requestBudget', true)",
+    );
+    const wire = await call(transaction, "createBudget", {
+      commandId: ROOT_BUDGET_ID,
+      resources: [rootResource(MODEL_RESOURCE_ID, 100)],
+      policies: [invalidPolicy, validPolicy],
+    });
+    await transaction.commit();
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: {
+          operation: "createBudget",
+          policyName: "a_outside_root",
+          policyRevision: 1,
+          path: "$.policies",
+          rule: "allocatedResourceTypes",
+        },
+      },
+    });
+    await expectBudgetState(fixture.owner, ROOT_BUDGET_ID, false);
+  });
+
+  it("rejects a child Policy declaration outside the receiving child holdings", async () => {
+    fixture = await openPolicyFixture();
+    const parentPolicy = requestLimitPolicy("parent_ceiling", "parent_limit");
+    await seedGovernedRoot(fixture, parentPolicy);
+    const childPolicy = resealDeclarations(
+      requestLimitPolicy("child_ceiling", "child_limit"),
+      ["search_queries"],
+      ["search_queries"],
+    );
+    const transaction = await beginApplicationAttempt(fixture);
+    const wire = await call(transaction, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 8 }],
+      context: { parent_ceiling: 10 },
+      childPolicies: [childPolicy],
+    });
+    await transaction.commit();
+
+    expect(wire).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid_policy",
+        details: { path: "$.policies", rule: "allocatedResourceTypes" },
+      },
+    });
+    await expectBudgetState(fixture.owner, REQUEST_ID, false);
+  });
+
+  it("approves an ungoverned parent request with child Policies without parent Policy evidence", async () => {
+    fixture = await openPolicyFixture();
+    await definePolicyResources(fixture);
+    const childPolicy = resealDeclarations(
+      requestLimitPolicy("child_ceiling", "child_limit"),
+      ["model_tokens"],
+      ["model_tokens"],
+    );
+    await committed(fixture, "createBudget", {
+      commandId: ROOT_BUDGET_ID,
+      resources: [rootResource(MODEL_RESOURCE_ID, 100)],
+    });
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      childPolicies: [childPolicy],
+    });
+
+    expect(request.result).toMatchObject({
+      kind: "approved",
+      childBudgetId: REQUEST_ID,
+    });
+    expect(request.result).not.toHaveProperty("policyEvidence");
+  });
+
+  it("preserves exact no-Policy request bytes and canonical root history", async () => {
+    fixture = await openPolicyFixture();
+    await definePolicyResources(fixture);
+    await committed(fixture, "createBudget", {
+      commandId: ROOT_BUDGET_ID,
+      resources: [
+        rootResource(SEARCH_RESOURCE_ID, 10),
+        rootResource(MODEL_RESOURCE_ID, 10),
+      ],
+    });
+
+    const command = {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [
+        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 11 },
+        { resourceTypeId: MODEL_RESOURCE_ID, amount: 11 },
+      ],
+    };
+    const commandBytes = `{"commandId":"${REQUEST_ID}","parentBudgetId":"${ROOT_BUDGET_ID}","resources":[{"resourceTypeId":"${SEARCH_RESOURCE_ID}","amount":11},{"resourceTypeId":"${MODEL_RESOURCE_ID}","amount":11}]}`;
+    expect(JSON.stringify(command)).toBe(commandBytes);
+
+    const request = await committed(fixture, "requestBudget", command);
+    const expectedResult = {
+      kind: "denied",
+      reasons: [
+        {
+          code: "insufficient_available",
+          available: 10,
+          requested: 11,
+          resourceTypeId: SEARCH_RESOURCE_ID,
+        },
+        {
+          code: "insufficient_available",
+          available: 10,
+          requested: 11,
+          resourceTypeId: MODEL_RESOURCE_ID,
+        },
+      ],
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+    };
+    expect(JSON.stringify(request)).toBe(
+      JSON.stringify({ ok: true, result: expectedResult, replayed: false }),
+    );
+
+    const replay = await committed(fixture, "requestBudget", command);
+    expect(JSON.stringify(replay)).toBe(
+      JSON.stringify({ ok: true, result: expectedResult, replayed: true }),
+    );
+
+    const read = await committed(fixture, "getBudget", {
+      budgetId: ROOT_BUDGET_ID,
+    });
+    expect(read.result).toMatchObject({
+      history: {
+        entries: [
+          { kind: "budget_created" },
+          { kind: "request_denied", reasons: expectedResult.reasons },
         ],
-        context: { request_ceiling: 5 },
-      });
+      },
+    });
+    if (!isRecord(read.result.history)) {
+      throw new Error("expected no-Policy history");
+    }
+    const entries = read.result.history.entries;
+    if (
+      !Array.isArray(entries) ||
+      !isRecord(entries[0]) ||
+      !isRecord(entries[1])
+    ) {
+      throw new Error("expected two no-Policy history entries");
+    }
+    expect(JSON.stringify(read.result.history)).toBe(
+      JSON.stringify({
+        entries: [
+          {
+            kind: "budget_created",
+            entryId: entries[0].entryId,
+            sequence: 1,
+            commandId: ROOT_BUDGET_ID,
+            resources: [
+              { amount: 10, resourceTypeId: MODEL_RESOURCE_ID },
+              { amount: 10, resourceTypeId: SEARCH_RESOURCE_ID },
+            ],
+            rootBudgetId: ROOT_BUDGET_ID,
+            subjectBudgetId: ROOT_BUDGET_ID,
+          },
+          {
+            kind: "request_denied",
+            entryId: entries[1].entryId,
+            reasons: expectedResult.reasons,
+            sequence: 2,
+            commandId: REQUEST_ID,
+            parentBudgetId: ROOT_BUDGET_ID,
+            subjectBudgetId: ROOT_BUDGET_ID,
+          },
+        ],
+        rootBudgetId: ROOT_BUDGET_ID,
+      }),
+    );
+  });
 
-      expect(request.result).toMatchObject({
-        kind: "approved",
-        policyEvidence: {
-          effectiveCeilings: [
-            {
-              resourceTypeId: MODEL_RESOURCE_ID,
-              reasons: [
-                { policyName: "policy0", reason: "policy0" },
-                { policyName: "policy_", reason: "policy_" },
-              ],
-            },
-            {
-              resourceTypeId: SEARCH_RESOURCE_ID,
-              reasons: [
-                { policyName: "search_policy", reason: "search_policy" },
-              ],
-            },
-          ],
-        },
-      });
+  it("orders effective ceilings and tied reasons by canonical text, not Resource UUID", async () => {
+    fixture = await openPolicyFixture();
+    const policies = [
+      requestLimitPolicy("request_ceiling", "policy_", "model_tokens"),
+      requestLimitPolicy("request_ceiling", "policy0", "model_tokens"),
+      requestLimitPolicy("request_ceiling", "search_policy", "search_queries"),
+    ];
+    await seedGovernedRoot(fixture, policies);
+
+    const request = await committed(fixture, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [
+        { resourceTypeId: SEARCH_RESOURCE_ID, amount: 1 },
+        { resourceTypeId: MODEL_RESOURCE_ID, amount: 1 },
+      ],
+      context: { request_ceiling: 5 },
     });
 
-    it("keeps governed state pending until the caller commits", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-      const attempt = await beginApplicationAttempt(fixture);
-
-      const request = requireSuccess(
-        await call(attempt, "requestBudget", {
-          commandId: REQUEST_ID,
-          parentBudgetId: ROOT_BUDGET_ID,
-          resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-          context: { request_ceiling: 5 },
-        }),
-      );
-      expect(request.result).toMatchObject({
-        kind: "approved",
-        policyEvidence: { decision: "approved" },
-      });
-      await expectBudgetState(fixture.owner, REQUEST_ID, false);
-
-      await attempt.commit();
-      await expectBudgetState(fixture.owner, REQUEST_ID, true);
+    expect(request.result).toMatchObject({
+      kind: "approved",
+      policyEvidence: {
+        effectiveCeilings: [
+          {
+            resourceTypeId: MODEL_RESOURCE_ID,
+            reasons: [
+              { policyName: "policy0", reason: "policy0" },
+              { policyName: "policy_", reason: "policy_" },
+            ],
+          },
+          {
+            resourceTypeId: SEARCH_RESOURCE_ID,
+            reasons: [{ policyName: "search_policy", reason: "search_policy" }],
+          },
+        ],
+      },
     });
+  });
 
-    it("rolls back governed evidence, reservation, child, history, and command identity", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-      const command = {
+  it("keeps governed state pending until the caller commits", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+    const attempt = await beginApplicationAttempt(fixture);
+
+    const request = requireSuccess(
+      await call(attempt, "requestBudget", {
         commandId: REQUEST_ID,
         parentBudgetId: ROOT_BUDGET_ID,
         resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
         context: { request_ceiling: 5 },
-      };
-      const attempt = await beginApplicationAttempt(fixture);
+      }),
+    );
+    expect(request.result).toMatchObject({
+      kind: "approved",
+      policyEvidence: { decision: "approved" },
+    });
+    await expectBudgetState(fixture.owner, REQUEST_ID, false);
 
-      const first = requireSuccess(
-        await call(attempt, "requestBudget", command),
-      );
-      expect(first.result).toMatchObject({ kind: "approved" });
-      await attempt.rollback();
+    await attempt.commit();
+    await expectBudgetState(fixture.owner, REQUEST_ID, true);
+  });
 
-      await expectBudgetState(fixture.owner, REQUEST_ID, false);
-      await expectRootHolding(fixture.owner, {
-        committed: 0,
-        historyEntries: 1,
-      });
+  it("rolls back governed evidence, reservation, child, history, and command identity", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+    const command = {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
+    };
+    const attempt = await beginApplicationAttempt(fixture);
 
-      const retry = await committed(fixture, "requestBudget", command);
-      expect(retry).toMatchObject({
-        replayed: false,
-        result: { kind: "approved", childBudgetId: REQUEST_ID },
-      });
+    const first = requireSuccess(await call(attempt, "requestBudget", command));
+    expect(first.result).toMatchObject({ kind: "approved" });
+    await attempt.rollback();
+
+    await expectBudgetState(fixture.owner, REQUEST_ID, false);
+    await expectRootHolding(fixture.owner, {
+      committed: 0,
+      historyEntries: 1,
     });
 
-    it("locks an unrequested declared availability holding in Resource UUID order", async () => {
-      fixture = await openPolicyFixture();
-      const policy = requestLimitPolicy("request_ceiling", "request_limit");
-      await seedGovernedRoot(fixture, policy);
-      const blocker = await fixture.owner.beginTransaction();
-      const request = await beginApplicationAttempt(fixture);
-      const probe = await fixture.owner.beginTransaction();
-
-      await lockHolding(blocker, SEARCH_RESOURCE_ID);
-      const pending = call(request, "requestBudget", {
-        commandId: REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
-        context: { request_ceiling: 5 },
-      });
-
-      await fixture.owner.requireBlockedBy(
-        request.backendPid,
-        blocker.backendPid,
-      );
-      await expect(
-        lockHolding(probe, MODEL_RESOURCE_ID, true),
-      ).resolves.toBeUndefined();
-      await probe.rollback();
-
-      await blocker.commit();
-      expect(requireSuccess(await pending).result).toMatchObject({
-        kind: "approved",
-        policyEvidence: { decision: "approved" },
-      });
-      await request.commit();
+    const retry = await committed(fixture, "requestBudget", command);
+    expect(retry).toMatchObject({
+      replayed: false,
+      result: { kind: "approved", childBudgetId: REQUEST_ID },
     });
-  },
-);
+  });
+
+  it("locks an unrequested declared availability holding in Resource UUID order", async () => {
+    fixture = await openPolicyFixture();
+    const policy = requestLimitPolicy("request_ceiling", "request_limit");
+    await seedGovernedRoot(fixture, policy);
+    const blocker = await fixture.owner.beginTransaction();
+    const request = await beginApplicationAttempt(fixture);
+    const probe = await fixture.owner.beginTransaction();
+
+    await lockHolding(blocker, SEARCH_RESOURCE_ID);
+    const pending = call(request, "requestBudget", {
+      commandId: REQUEST_ID,
+      parentBudgetId: ROOT_BUDGET_ID,
+      resources: [{ resourceTypeId: MODEL_RESOURCE_ID, amount: 4 }],
+      context: { request_ceiling: 5 },
+    });
+
+    await fixture.owner.requireBlockedBy(
+      request.backendPid,
+      blocker.backendPid,
+    );
+    await expect(
+      lockHolding(probe, MODEL_RESOURCE_ID, true),
+    ).resolves.toBeUndefined();
+    await probe.rollback();
+
+    await blocker.commit();
+    expect(requireSuccess(await pending).result).toMatchObject({
+      kind: "approved",
+      policyEvidence: { decision: "approved" },
+    });
+    await request.commit();
+  });
+});
 
 async function openPolicyFixture(): Promise<PolicyFixture> {
   const owner = await openInstalledPostgresDatabase(

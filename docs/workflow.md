@@ -132,6 +132,49 @@ test:unit` or `pnpm --filter @keynes/sdk test:contract`. These omit installed
 consumer acceptance. Tests for runner behavior stay in `test/system` under the
 SDK owner and run once in its provider-free test command.
 
+### Remote PostgreSQL source and installed SDK checks
+
+Run the PostgreSQL-owned selection with Docker and OpenSSL available:
+
+```sh
+pnpm test:remote -- --output .artifacts/key-91/remote/<new-attempt>
+pnpm test:remote -- --output .artifacts/key-91/remote/<new-direct-attempt> --mode direct
+```
+
+The default runs direct, session-pool, and transaction-pool. `--mode` accepts
+`all`, `direct`, `session-pool`, or `transaction-pool`. Direct starts no pooler;
+each narrower pool selection starts exactly one. Each command first runs and
+cleans up its plaintext SQL fixture inventory, then provisions a fresh TLS target
+using the installed PostgreSQL CLI and tests the installed SDK outside the workspace.
+The fixed SQL inventory includes the canonical Budget aggregate, installation,
+recheck, identity, Budget, recovery, security, and selected connection profiles.
+Seven installed SDK checks per mode cover Budget workflow, tenant isolation,
+reconnect/exact replay, conflicting reuse, unavailable endpoints, and incorrect
+CA and hostname rejection. Native test files require runner context; invoking
+those files directly is an error rather than a successful skipped suite.
+
+The TLS fixture generates a private one-day CA and a certificate for loopback,
+localhost, and its PostgreSQL backend. Poolers require encrypted clients and
+verify the backend certificate. The fixture enforces the SDK's 30-second statement
+timeout on PostgreSQL and tells PgBouncer to ignore that startup parameter;
+PgBouncer cannot track it as a session parameter. This is a fixture configuration,
+not a change to SDK connection behavior. See the
+[PgBouncer setting](https://www.pgbouncer.org/config#ignore_startup_parameters).
+
+Use `--sdk-archive <file>` and `--postgresql-archive <file>` to test supplied
+immutable archives. Omitted archives are prepared under the checkout's package
+lock. Evidence records each archive's digest without inferring the source of a
+supplied archive. Ordinary tenant credentials, CA keys, and connection URLs stay
+in private temporary files. SIGINT/SIGTERM terminate test children before removing
+poolers, PostgreSQL, the network, and private material.
+
+The selected manifest records expected coverage, source identity, observed runtime
+and pool modes, sanitized reports, hashes, and cleanup. Existing output directories
+are refused. A dirty but stable run is diagnostic; clean-revision evidence is
+required for acceptance. Remote selection does not qualify Hosted or the complete
+paired gate. Provider-free runner and TLS configuration tests execute once under
+the PostgreSQL owner; installed consumer tests execute once under the SDK owner.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

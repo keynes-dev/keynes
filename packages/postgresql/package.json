@@ -21,11 +21,12 @@
     "generate:check": "node scripts/generate.ts --check",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test/unit test/qualification --maxWorkers=1",
+    "test": "vitest run test/unit test/qualification test/system/run-deployment.test.ts test/system/support/tls-fixture.test.ts --maxWorkers=1",
     "test:integration": "vitest run test/integration --maxWorkers=1",
     "test:external": "node test/qualification/run-external.ts",
     "test:package": "node test/package/run.ts",
-    "test:system": "node test/system/run.ts"
+    "test:system": "node test/system/run.ts",
+    "test:remote": "node test/system/run-deployment.ts"
   },
   "dependencies": {
     "pg": "8.23.0"
