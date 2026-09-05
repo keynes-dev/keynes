@@ -128,6 +128,15 @@ for post-implementation checks. Historical phase results are retained in
 they do not qualify the reduced implementation. No publication or live Hosted
 execution is authorized by these contributor commands.
 
+For incremental deployment work, shared scenarios own common semantics, fixtures
+own target setup/cleanup, and package-owned boundary tests cover lifecycle,
+authentication/transport and caller transactions. Extend existing adapters when
+concrete products land; extract shared setup when real callers need the same
+lifecycle. See KEY-91's [development model](features/key-91-make-local-hosted-and-embedded-testing-independently/plan.md#development-as-modes-mature).
+Deleting runner machinery must preserve or explicitly defer its product assertions,
+as recorded in the feature's research document. Fewer lines alone do not prove
+that future development avoids duplicated behavior or setup.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

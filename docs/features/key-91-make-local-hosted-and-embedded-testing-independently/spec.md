@@ -20,6 +20,16 @@ Do not resume superseded T050-T054.
 The accepted clarification remains: remote defaults to all supported connection
 modes; narrower modes require explicit selection.
 
+## Incremental development
+
+Each behavior has a clear owning scenario suite. Reuse canonical semantics through
+applicable existing adapters; fixtures own target setup and cleanup; commands
+select suites. Preserve Local lifecycle, remote transport/identity and Embedded
+transaction proof at their actual boundaries. See the development model in
+[plan.md](plan.md) and the [assertion dispositions](research.md#assertion-disposition-before-deletion).
+Future product work should extend these owners without copying semantics or
+creating equivalent fixture lifecycles. No future adapter is required now.
+
 ## User stories and acceptance
 
 | Story                 | Contributor outcome                                                                                   | Required demonstration                                                                                                                             |
@@ -56,8 +66,8 @@ provisioner or new consumer protocol to fill that gap.
 - **FR-013**: The completed study satisfies the study prerequisite. Do not repeat it as a completion gate for this correction.
 - **FR-014**: Preserve the study's candidate dispositions and defer installer recheck removal, packaging CI changes, unused registrar activation, and broad Policy migration.
 - **FR-015**: Report cumulative code/test additions and deletions against the pre-implementation baseline. Cite the original study for its measured result; make no new speed claim without comparable measurements.
-- **FR-016**: Compose existing suite groups and fixtures. Keep focused feedback separate from installed acceptance and preserve boundary-specific assertions.
-- **FR-017**: Preserve required semantic coverage and demonstrated cleanup/failure fixes while removing machinery and tests that exist only to support it. Review the entire remaining diff after each phase.
+- **FR-016**: Compose existing suite groups and fixtures. Keep focused feedback separate from installed acceptance and preserve boundary-specific assertions. Share setup only when concrete callers need equivalent lifecycles; do not build speculative adapters.
+- **FR-017**: Preserve required semantic coverage and demonstrated cleanup/failure fixes while removing machinery and tests that exist only to support it. Classify affected assertions as retained or explicitly deferred before deletion. Review the entire remaining diff after each phase for duplicated semantics, equivalent fixture lifecycles and unclear ownership.
 
 ## Success criteria
 
@@ -69,7 +79,7 @@ provisioner or new consumer protocol to fill that gap.
 - **SC-006**: Hosted and installed Embedded refusal acquire no resources or acceptance claims.
 - **SC-007**: The completed study remains historical evidence, with no new measurement campaign required.
 - **SC-008**: Duplicate contracts execution stays removed and existing coverage remains owned by its package.
-- **SC-009**: The cumulative implementation is smaller than `a50ee5b`; every retained addition against `5b294f4` serves an active requirement. The prohibited infrastructure is absent.
+- **SC-009**: The cumulative implementation is smaller than `a50ee5b`; every retained addition against `5b294f4` serves an active requirement. The prohibited infrastructure is absent. A walkthrough of a common Budget operation, supported Embedded installation and an installed remote consumer identifies reused scenarios/setup and distinct boundary proof without implementing future capabilities.
 
 ## Limits
 

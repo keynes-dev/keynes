@@ -45,19 +45,19 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 ## Phase A: thin Local and Hosted feedback
 
-- [ ] T055 [US1] Reduce Local to the existing SDK source suite groups in the command contract. Remove Local package/consumer orchestration, selected manifests and validators, copied assertion names, and tests used only by them. Keep separate SDK package qualification intact. Wire root/package commands without archive or output requirements; check selected groups, failure propagation, and absence of service/package preparation.
+- [ ] T055 [US1] Check the assertion disposition map in research.md before deletion; retain product tests and classify any unmapped affected assertion. Reduce Local to the existing SDK source suite groups in the command contract. Remove Local package/consumer orchestration, selected manifests and validators, copied assertion names, and tests used only by them. Keep separate SDK package qualification intact. Wire root/package commands without archive or output requirements; check selected groups, failure propagation, and absence of service/package preparation.
 - [ ] T056 [US5] Reduce Hosted to a minimal NOT RUN reason and exit 1, with standalone help and invalid-argument rejection. Remove snapshot/evidence machinery and its tests. Verify no external work with a focused regression. Run affected SDK checks; run ponytail-review and the cumulative scope review from plan.md, fix findings, and commit Phase A before T057.
 
 ## Phase B: selection in the existing native runner
 
-- [ ] T057 [US2] Move only required remote/Embedded selection and unavailable installed refusal into the existing PostgreSQL runner. Keep full as its default, remote default-all and explicit modes, zero Embedded poolers, required runner context, existing fixture lifecycle and report checks. Wire aliases and reject invalid selections; selected feedback cannot write full acceptance. Use existing suite groups and canonical registration without copied shared-name inventories.
-- [ ] T058 [US2] Delete the separate deployment orchestrator, TLS fixture/provisioner, SDK remote-consumer driver/program, selected manifest validators and tests used only by that machinery. Trim now-unused exports, callbacks and helpers. Preserve full/package callers, existing SDK qualification, and demonstrated package-lock/process/container cleanup repairs. Document remote installed acceptance as deferred; do not substitute another external walkthrough.
+- [ ] T057 [US2] Move only required remote/Embedded selection and unavailable installed refusal into the existing PostgreSQL runner. Keep full as its default, remote default-all and explicit modes, zero Embedded poolers, required runner context, existing fixture lifecycle and report checks. Wire aliases and reject invalid selections; selected feedback cannot write full acceptance. Use existing suite groups and canonical registration without copied shared-name inventories. Keep selection, fixture setup and semantic registration distinct within existing owners; extract only for concrete duplication.
+- [ ] T058 [US2] Check all seven remote consumer cases and the other affected assertions against the disposition map in research.md. Record retained coverage and deferred installed-boundary owners before deletion; no product assertion may disappear unclassified. Delete the separate deployment orchestrator, TLS fixture/provisioner, SDK remote-consumer driver/program, selected manifest validators and tests used only by that machinery. Trim now-unused exports, callbacks and helpers. Preserve full/package callers, existing SDK qualification, and demonstrated package-lock/process/container cleanup repairs. Document remote installed acceptance as deferred; do not substitute another external walkthrough.
 - [ ] T059 [US3] Verify remote default and each explicit mode, Embedded Budget/transaction selection, installed refusal before setup, missing context, failure/skip propagation, and retained cleanup through focused existing tests and real native runs. Record fixture-only limits. Run ponytail-review and cumulative scope review, fix findings, and commit Phase B before T060.
 
 ## Phase C: preservation and completion
 
 - [ ] T060 [US4] Run the unchanged full paired gate and separate existing provider-free SDK package qualification on the reduced candidate. Run Local feedback, pnpm test:pr and pnpm format; reuse existing full-report/parity/cleanup/package-lock negatives. Preserve full scenario names and source/artifact validation. Record exact commands/results and unavailable product lanes in acceptance.md; do not create another evidence framework or repeat study measurements.
-- [ ] T061 Reconcile contributor guidance and all active feature documents with actual reduced commands. Map retained additions against baseline 5b294f4 to active requirements and report code/test reduction from a50ee5b, including untracked files and removed support tests. Confirm prohibited machinery is absent and historical records unchanged. Run ponytail-review plus whole-diff scope review, resolve findings, and commit Phase C. No push, PR, Linear Done, or live Hosted operation is implied.
+- [ ] T061 Reconcile contributor guidance and all active feature documents with actual reduced commands. Map retained additions against baseline 5b294f4 to active requirements and report code/test reduction from a50ee5b, including untracked files and removed support tests. Confirm prohibited machinery is absent and historical records unchanged. Walk through a common Budget operation, supported Embedded installation and an installed remote consumer without implementing them: name the owning tests, reused scenarios/setup and distinct boundary proof. Require no copied semantic corpus, duplicate equivalent fixture lifecycle, or unclear owner; line reduction alone is insufficient. Run ponytail-review plus whole-diff scope review, resolve findings, and commit Phase C. No push, PR, Linear Done, or live Hosted operation is implied.
 
 ## Acceptance map
 
@@ -74,6 +74,11 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 SC-001/SC-003/SC-005/SC-006 are checked during the affected command phases;
 SC-002/SC-004 at T060; SC-007-SC-009 at T061 and the retained study.
+The assertion disposition map is an input to T055/T058, not a new test registry.
+FR-016/FR-017 and SC-009 additionally require the ownership/reuse walkthrough at
+T061. Small extractions for concrete duplication are allowed; future frameworks
+and speculative adapters are not.
+
 There are seven active tasks, all unchecked. Each phase ends with validation,
 ponytail-review, cumulative review, and a commit. Do not mark runtime tasks done
 for this documentation-only checkpoint. A capability requiring new infrastructure

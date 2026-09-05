@@ -59,3 +59,10 @@ phase checkpoint. Confirm the removed systems have not been recreated under new
 names, run ponytail-review, and commit before proceeding. Record the final result
 in acceptance.md. Do not repeat the study or infer new speed, Hosted, installed
 Embedded, OS-matrix, CI enforcement, or release qualification claims.
+
+Before deleting tests in T055/T058, check the assertion disposition map in
+research.md. At the final review, walk through a common Budget operation,
+supported Embedded installation and an installed remote consumer. Name where
+scenarios, setup and boundary assertions belong and what is reused. Do not build
+those features for the walkthrough. A smaller diff is insufficient if future
+work still requires copied semantics or an equivalent second fixture lifecycle.

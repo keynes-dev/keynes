@@ -29,3 +29,12 @@ Preserve existing fixture ownership and cleanup. Keep package preparation lockin
 and immutable archives where surviving full/package callers need them. Local
 feedback does not prepare an archive; no new resource lifecycle is introduced.
 No product types, database schemas, or public SDK interfaces change.
+
+## Reuse as implementations grow
+
+Shared scenarios describe semantics; existing host adapters and fixtures provide
+the applicable target; boundary tests retain their own guarantees. No durable
+model is needed to express this separation. Extend actual callers as products
+land, sharing equivalent setup only after concrete duplication appears. Do not
+turn capability selection into a generic scenario/target registry. See the
+[development model](plan.md#development-as-modes-mature).

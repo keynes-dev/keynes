@@ -65,3 +65,15 @@ Hosted delivery must later supply its product/target identity, provisioning owne
 isolated scope, approved credentials, verified TLS, explicit mutation/spend
 authorization, and cleanup ownership. This feature documents those prerequisites
 without implementing or executing them. No automatic fallback is permitted.
+
+## Adding behavior over time
+
+A new shared behavior extends canonical scenarios and applicable adapters. A
+boundary-specific guarantee stays with its SDK/PostgreSQL owner and existing
+fixture. Commands continue selecting those suites. Supported Embedded installation
+replaces fixture-provided setup; eventual Hosted acceptance reuses applicable
+remote consumer behavior and adds product operations proof. These are future
+ownership rules, not extra command capabilities required by this correction.
+Use the [assertion disposition map](../research.md#assertion-disposition-before-deletion)
+before removing current consumer tests; no feedback pass closes its deferred
+installed-endpoint obligations.
