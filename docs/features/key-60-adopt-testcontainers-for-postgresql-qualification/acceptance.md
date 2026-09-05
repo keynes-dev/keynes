@@ -150,10 +150,67 @@ preparation removed duplication, but new tests and source selection currently co
 more total lines. This is not yet the final reduction gate. Ponytail review found
 no unused option or single-caller abstraction in the phase diff: Lean already. Ship.
 
+## Checkpoint 3: reject the pilot and qualify Docker
+
+Chosen lifecycle: existing Docker runner, with checkpoint 2's source feedback and
+shared fixture preparation. Source revision for operational checks:
+`d1ec563`. The worktree was clean for the retained full-run records.
+
+The pinned `testcontainers@12.1.0` trial added 123 packages and 1,023 lockfile lines.
+Installation exited 1 because cpu-features, protobufjs and ssh2 required explicit
+build-policy choices. None were approved or executed. A focused test first failed
+because unsafe defaults were accepted, then passed after adding the refusal.
+The direct Vitest executable ran that provider-free test without executing those
+blocked dependency build scripts.
+
+A standard Vitest global-setup pilot then read the actual default bridge binding,
+`0.0.0.0`, and exited 1 before starting Network, PostgreSQL or Ryuk. Only the
+refusal path ran. Container startup, SQL readiness, selected poolers, actual/reused
+Ryuk bindings and library teardown remain NOT RUN. This does not prove that the
+library cannot work in a configured environment. It establishes that this host
+would require additional operator setup, while the dependency trial introduced
+additional build-policy decisions. The approved fallback avoids both costs.
+
+Removed the pilot setup, configuration, test, dependency, lockfile additions and
+all generated build-policy placeholders. `pnpm install --frozen-lockfile` passed
+again. The original lockfile digest and the single Docker lifecycle are restored.
+Local rejected-trial material is under `.artifacts/key-60/pilot/`, with logs at
+`/tmp/key60-pilot-*.log`; it is not shipped code. No developer daemon was changed,
+no Ryuk was started, and no unsafe service was published by the pilot.
+
+Chosen-lifecycle checks passed using temporary CLI observation/fault injection,
+without adding a maintained operational framework:
+
+- Two real full-native invocations started distinct PostgreSQL/pooler resources.
+  Actual published bindings on all six containers were `127.0.0.1`.
+- A table created in one invocation was absent in the other. SIGTERM canceled the
+  first, cleanup passed, and no acceptance file appeared. The second still answered
+  SQL after the first closed, then finished with a passing full acceptance record.
+- Injected Docker startup failure exited nonzero, retained no acceptance, and
+  reported cleanup passed. Injected removal failure exited nonzero and retained
+  cleanup failed, even though the underlying removal had completed.
+- A synthetic secret sentinel in failure diagnostics did not reach runner output.
+  All owned containers were absent after teardown.
+- A separate real PostgreSQL smoke test spied on the source installer: two ordinary
+  fixtures called it exactly twice, kept table state separate, and the second
+  answered SQL after the first closed. Both fixtures closed successfully.
+
+Records and safe observations are in `.artifacts/key-60/fallback-operations/`.
+The survivor's `overlap-survivor.json` retains exact source/archive identity.
+`fixture-isolation.log` retains the passing real fixture check. Existing runner
+regressions additionally retain selection, startup cancellation, deadline, report,
+source-drift, package-cleanup and immutable-output checks.
+
+Cumulative maintained code remains **41,990 physical, 39,207 nonblank lines**.
+Dependency/lockfile growth is zero. Final whole-result reduction and timing gates
+remain open. T015 is N/A. T011-T013 are an attempted pilot rejected before resource
+acquisition, not completed Testcontainers qualification. Ponytail review of the
+retained checkpoint: Lean already. Ship.
+
 ## Remaining acceptance
 
-Checkpoints 1 and 2 are implemented and verified as described above.
-Testcontainers feasibility, final code reduction, final timing
+Checkpoints 1-3 are complete with the documented Docker fallback.
+Final code reduction, final timing
 comparisons and final package identity checks are NOT RUN. External TLS, additional
 installed-consumer scope, Hosted, backup, failover and production qualification
 remain outside this feature and NOT RUN. No publication, Linear attachment update,

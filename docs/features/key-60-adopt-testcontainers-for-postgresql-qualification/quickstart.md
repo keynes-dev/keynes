@@ -50,7 +50,15 @@ removed assertion to retained dedicated proof or explain its obsolete orchestrat
 meaning. Test counts alone do not prove preservation. Preserve assertions inside
 tests, not merely names.
 
-## Controlled Docker environment for the pilot
+## Chosen lifecycle
+
+The implementation selected the existing Docker lifecycle. The guarded
+Testcontainers pilot rejected this host's wildcard default before acquiring
+resources, and its dependency/build-policy changes were removed. See
+[acceptance.md](acceptance.md). Ordinary contributor commands require no new
+daemon configuration or library setup.
+
+## Rejected pilot environment requirements
 
 Use an explicitly selected, isolated Docker environment for this feature. Document
 the environment used and its operator setup; tests must not rewrite or restart a

@@ -57,15 +57,22 @@ invocations remain isolated; cleanup failures and cancellation cannot qualify.
 
 ### Tests and pilot
 
-- [ ] T011 [US2] Document and prepare the explicitly controlled Docker environment in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/quickstart.md`; pin `testcontainers@12.1.0` as a development dependency in `packages/postgresql/package.json` and `pnpm-lock.yaml`, preserving PostgreSQL/PgBouncer digests and enabled Ryuk. Do not change a general developer daemon.
-- [ ] T012 [US2] Add and observe focused failing binding, selected-pooler, ordinary cleanup-failure and cancellation regressions in `packages/postgresql/test/system/run.test.ts` and a bounded `native-setup.native.test.ts`; cover real concurrent isolation and secret-sentinel diagnostics, including active/reused Ryuk, without testing a worker protocol.
-- [ ] T013 [US2] Pilot one standard global setup in `packages/postgresql/test/system/native.setup.ts` with shared `vitest.config.ts`, Vitest provide/inject, ordinary partial-start cleanup/teardown and a focused binding check; run T012 on real Docker using existing SQL readiness and image/version checks. Add no subclass, worker, supervision or reconciliation framework.
+- [x] T011 [US2] Document and prepare the explicitly controlled Docker environment in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/quickstart.md`; pin `testcontainers@12.1.0` as a development dependency in `packages/postgresql/package.json` and `pnpm-lock.yaml`, preserving PostgreSQL/PgBouncer digests and enabled Ryuk. Do not change a general developer daemon.
+- [x] T012 [US2] Add and observe focused failing binding, selected-pooler, ordinary cleanup-failure and cancellation regressions in `packages/postgresql/test/system/run.test.ts` and a bounded `native-setup.native.test.ts`; cover real concurrent isolation and secret-sentinel diagnostics, including active/reused Ryuk, without testing a worker protocol.
+- [x] T013 [US2] Pilot one standard global setup in `packages/postgresql/test/system/native.setup.ts` with shared `vitest.config.ts`, Vitest provide/inject, ordinary partial-start cleanup/teardown and a focused binding check; run T012 on real Docker using existing SQL readiness and image/version checks. Add no subclass, worker, supervision or reconciliation framework.
 
 ### Adoption or fallback
 
-- [ ] T014 [US2] Evaluate complete pilot code size, dependencies, diagnostics and environment burden in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. If it fails simplification or operational gates, remove the pilot/config/tests/dependencies from `packages/postgresql/` and `pnpm-lock.yaml`, retain the existing Docker lifecycle, and record the fallback decision.
-- [ ] T015 [US2] If adopted, integrate the same global setup for both command paths in `packages/postgresql/test/system/run.ts`, migrate existing context callers under `packages/postgresql/test/system/support/` and `test/integration/`, and delete superseded Docker service lifecycle and implementation-coupled `run.test.ts` cases in the same change. If fallback, record this conditional task as not applicable with its reason.
-- [ ] T016 [US2] Run selection, overlap, safe diagnostics, startup/normal cleanup failure and cancellation checks for the chosen lifecycle; recount cumulative maintained code and confirm one final lifecycle in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. On any later Testcontainers gate failure, remove it as in T014 and requalify Docker.
+- [x] T014 [US2] Evaluate complete pilot code size, dependencies, diagnostics and environment burden in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. If it fails simplification or operational gates, remove the pilot/config/tests/dependencies from `packages/postgresql/` and `pnpm-lock.yaml`, retain the existing Docker lifecycle, and record the fallback decision.
+- [x] T015 [US2] If adopted, integrate the same global setup for both command paths in `packages/postgresql/test/system/run.ts`, migrate existing context callers under `packages/postgresql/test/system/support/` and `test/integration/`, and delete superseded Docker service lifecycle and implementation-coupled `run.test.ts` cases in the same change. If fallback, record this conditional task as not applicable with its reason.
+- [x] T016 [US2] Run selection, overlap, safe diagnostics, startup/normal cleanup failure and cancellation checks for the chosen lifecycle; recount cumulative maintained code and confirm one final lifecycle in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. On any later Testcontainers gate failure, remove it as in T014 and requalify Docker.
+
+**Executed decision**: Docker fallback. T011-T013 stopped at the observed unsafe
+Docker-default gate; the guarded pilot never acquired services. Dependency setup
+also required three new build-policy decisions. The unexecuted Testcontainers
+operational cases are NOT RUN, not passes. T014 removed the complete pilot and
+dependency changes; T015 is N/A because adoption was rejected. T016 qualified the
+chosen Docker path. See acceptance.md for exact evidence and remaining final gates.
 
 **Checkpoint decision**: Adopt only the standard replacement that passes its gates.
 The fallback retains T007-T010 reductions and no pilot dependencies. Do not ship two
