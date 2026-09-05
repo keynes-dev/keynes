@@ -161,3 +161,30 @@ it("refuses a missing endpoint and cleans attempted fixtures", async () => {
     true,
   );
 });
+
+it.each([false, true])(
+  "reports cleanup after failed TLS acquisition, including removal failure=%s",
+  async (removalFails) => {
+    const context = fake();
+    context.runtime.ready = async () => {
+      throw new Error("readiness failed");
+    };
+    const run = context.runtime.run;
+    context.runtime.run = (executable, args, env, signal) =>
+      removalFails && args[0] === "rm"
+        ? Promise.reject(new Error("removal failed"))
+        : run(executable, args, env, signal);
+    const outcomes: string[] = [];
+    await expect(
+      openTlsFixture(
+        {
+          commandPath: "/installed/cli",
+          modes: ["direct"],
+          onCleanup: (status) => outcomes.push(status),
+        },
+        context.runtime,
+      ),
+    ).rejects.toThrow();
+    expect(outcomes).toEqual([removalFails ? "failed" : "passed"]);
+  },
+);

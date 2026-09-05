@@ -46,6 +46,7 @@ export async function openTlsFixture(
     commandPath: string;
     modes: readonly RemoteMode[];
     attemptId?: string;
+    onCleanup?: (status: "passed" | "failed") => void;
     signal?: AbortSignal;
   },
   runtime: TlsRuntime = production,
@@ -115,6 +116,7 @@ export async function openTlsFixture(
     } catch (error) {
       failures.push(error);
     }
+    input.onCleanup?.(failures.length === 0 ? "passed" : "failed");
     if (failures.length)
       throw new AggregateError(failures, "TLS fixture cleanup failed");
   };

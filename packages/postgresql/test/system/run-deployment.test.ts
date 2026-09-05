@@ -154,7 +154,7 @@ async function attempt() {
       order.push("sql-cleanup");
       onCleanup?.("passed");
     },
-    tls: async () => {
+    tls: async (_command, _modes, _id, _signal, onCleanup) => {
       order.push("tls");
       return {
         root,
@@ -172,6 +172,7 @@ async function attempt() {
         },
         close: async () => {
           order.push("tls-cleanup");
+          onCleanup?.("passed");
         },
       };
     },
@@ -425,3 +426,33 @@ it("keeps a SQL fixture cleanup failure in the selected cleanup result", async (
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
+
+it.each(["preparation", "TLS"])(
+  "does not claim confirmed cleanup after failed %s acquisition",
+  async (failure) => {
+    const fixture = await attempt();
+    if (failure === "preparation")
+      fixture.runtime.prepare = async () => {
+        throw new Error("Preparation cleanup unconfirmed");
+      };
+    else
+      fixture.runtime.tls = async (
+        _command,
+        _modes,
+        _id,
+        _signal,
+        onCleanup,
+      ) => {
+        onCleanup?.("failed");
+        throw new Error("TLS cleanup failed");
+      };
+    try {
+      const result = await runDeployment(fixture.args, fixture.runtime);
+      expect(
+        result.stages.find((stage) => stage.name === "cleanup")?.kind,
+      ).toBe("failed");
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  },
+);

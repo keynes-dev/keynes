@@ -77,6 +77,7 @@ export interface DeploymentRuntime {
     modes: RemoteSelection["modes"],
     attemptId: string,
     signal?: AbortSignal,
+    onCleanup?: (status: "passed" | "failed") => void,
   ): ReturnType<typeof openTlsFixture>;
   consumer(
     inputPath: string,
@@ -177,6 +178,8 @@ export async function runDeployment(
   let prepared: Awaited<ReturnType<DeploymentRuntime["prepare"]>> | undefined;
   let fixture: Awaited<ReturnType<DeploymentRuntime["tls"]>> | undefined;
   let inputs: unknown;
+  let preparationAttempted = false;
+  let tlsCleanup: "passed" | "failed" | "NOT RUN" | undefined;
   let sqlCleanup: "passed" | "failed" | "NOT RUN" | undefined;
   const stage = async <T>(
     name: string,
@@ -213,6 +216,7 @@ export async function runDeployment(
     | undefined;
   try {
     await stage("archives", async () => {
+      preparationAttempted = true;
       prepared = await runtime.prepare(workspace, args, signal);
       archiveIdentities = {
         postgresql: await archiveIdentity(
@@ -279,11 +283,15 @@ export async function runDeployment(
       );
     });
     await stage("tls-fixtures", async () => {
+      tlsCleanup = "NOT RUN";
       fixture = await runtime.tls(
         ready.postgresql.commandPath,
         selection.modes,
         attemptId,
         signal,
+        (status) => {
+          tlsCleanup = status;
+        },
       );
       await retain("tls.json", { attemptId, ...fixture.observations });
     });
@@ -328,7 +336,9 @@ export async function runDeployment(
   const cleanup = stages.find((stage) => stage.name === "cleanup");
   if (cleanup === undefined) throw new Error("Missing cleanup stage");
   const failures: unknown[] = [];
-  cleanup.observations = { sqlFixtures: sqlCleanup ?? "NOT RUN" };
+  let packageCleanup = preparationAttempted ? "unconfirmed" : "NOT RUN";
+  if (preparationAttempted && prepared === undefined)
+    failures.push(new Error("Preparation cleanup unconfirmed"));
   if (sqlCleanup !== undefined && sqlCleanup !== "passed")
     failures.push(new Error("SQL fixture cleanup failed or unconfirmed"));
   if (fixture !== undefined)
@@ -337,12 +347,21 @@ export async function runDeployment(
     } catch (error) {
       failures.push(error);
     }
+  if (tlsCleanup !== undefined && tlsCleanup !== "passed")
+    failures.push(new Error("TLS fixture cleanup failed or unconfirmed"));
   if (prepared !== undefined)
     try {
       await prepared.postgresql.close();
+      packageCleanup = "passed";
     } catch (error) {
+      packageCleanup = "failed";
       failures.push(error);
     }
+  cleanup.observations = {
+    sqlFixtures: sqlCleanup ?? "NOT RUN",
+    tlsFixtures: tlsCleanup ?? "NOT RUN",
+    packages: packageCleanup,
+  };
   try {
     await runtime.cleanup(workspace);
   } catch (error) {
@@ -528,8 +547,8 @@ const production: DeploymentRuntime = {
       { selection, selectedReportPath: reportPath, signal, onCleanup },
     );
   },
-  tls: (commandPath, modes, attemptId, signal) =>
-    openTlsFixture({ commandPath, modes, attemptId, signal }),
+  tls: (commandPath, modes, attemptId, signal, onCleanup) =>
+    openTlsFixture({ commandPath, modes, attemptId, signal, onCleanup }),
   async consumer(inputPath, outputPath, signal) {
     await runProcess({
       executable: process.execPath,
@@ -669,7 +688,9 @@ export async function validateDeploymentEvidence(
   if (
     !record(cleanupStage) ||
     !record(cleanupStage.observations) ||
-    cleanupStage.observations.sqlFixtures !== "passed"
+    cleanupStage.observations.sqlFixtures !== "passed" ||
+    cleanupStage.observations.tlsFixtures !== "passed" ||
+    cleanupStage.observations.packages !== "passed"
   )
     throw new Error("SQL cleanup observation missing");
   if (
