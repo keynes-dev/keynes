@@ -72,11 +72,11 @@ jobs:
         with:
           name: conformance-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           path: |
-            ${{ runner.temp }}/conformance/manifest.json
-            ${{ runner.temp }}/conformance/sqlite.vitest.json
-            ${{ runner.temp }}/conformance/postgresql.json
-            ${{ runner.temp }}/conformance/postgresql.json.vitest.json
-            ${{ runner.temp }}/conformance/postgresql.json.observations.json
+            ${{ runner.temp }}/key-75-intentionally-missing-upload/manifest.json
+            ${{ runner.temp }}/key-75-intentionally-missing-upload/sqlite.vitest.json
+            ${{ runner.temp }}/key-75-intentionally-missing-upload/postgresql.json
+            ${{ runner.temp }}/key-75-intentionally-missing-upload/postgresql.json.vitest.json
+            ${{ runner.temp }}/key-75-intentionally-missing-upload/postgresql.json.observations.json
           if-no-files-found: error
           overwrite: false
           retention-days: 14
