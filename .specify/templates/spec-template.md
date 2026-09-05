@@ -3,6 +3,7 @@
 **Linear issue**: [KEY-123](https://linear.app/keynes/issue/KEY-123/example)
 **Git branch**: `[EXACT LINEAR GIT BRANCH NAME]`
 <!-- linear-issue-id: [STABLE LINEAR UUID] -->
+
 **Created**: [DATE]
 **Input**: User description: "$ARGUMENTS"
 
@@ -33,6 +34,9 @@ _The feature story explains intent. Numbered requirements and success criteria d
 ### Where this leads
 
 [Explain how this feature relates to its Linear project and what later work it enables.]
+
+<!-- Keep one bounded acceptance outcome. Split unrelated capabilities into peer
+Linear issues. Internal stories and phases do not become phase sub-issues. -->
 
 ## User Scenarios & Testing _(mandatory)_
 

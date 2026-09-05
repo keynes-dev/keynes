@@ -10,8 +10,8 @@
     ".specify/scripts/bash/create-new-feature.sh": "3618026d979c590ef04c33bf2d21e715408f5f8e3178a846b74e258d40e0a821",
     ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
     ".specify/templates/checklist-template.md": "c37695297e5d3153d64f82c21223509940b13932046c7961c42d1d669516130c",
-    ".specify/templates/tasks-template.md": "213bba9196d2e63732ea1c4778fdbf36309c53c6ecfb0edb1fe5265dd5c54569",
-    ".specify/templates/spec-template.md": "343bd4ac62060eeefcf218862cfed518c96e7045bfa6f2ec8b84a5a2aa1509d3",
-    ".specify/templates/plan-template.md": "f048b8f86a780d2f0d02a9c852b3fddda0f8a95055e656b2c21a541aa8f2315e"
+    ".specify/templates/tasks-template.md": "b5497abf42204095a5106180441b2699fe832b05f34d2a2d6c02dad98ef852fc",
+    ".specify/templates/spec-template.md": "d8e84e0b9baf79c1929462347ca430da42970bce956406a4cc069033cf01ec4d",
+    ".specify/templates/plan-template.md": "e8102ec8de8446a0e49ac6ef8953bae2dc208cc92d7ec12a27bfedb54af24ae4"
   }
 }

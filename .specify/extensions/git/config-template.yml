@@ -1,7 +1,7 @@
 # Git Branching Workflow Extension Configuration
 # Copied to .specify/extensions/git/git-config.yml on install
 
-# Linear returns the exact branch for every feature and phase.
+# Linear returns the exact branch for every feature.
 branch_source: linear
 
 # Commit message used by `git commit` during repository initialization
@@ -30,9 +30,6 @@ auto_commit:
   before_analyze:
     enabled: false
     message: "[Spec Kit] Save progress before analysis"
-  before_taskstoissues:
-    enabled: false
-    message: "[Spec Kit] Save progress before issue sync"
   after_constitution:
     enabled: false
     message: "[Spec Kit] Add project constitution"
@@ -57,6 +54,3 @@ auto_commit:
   after_analyze:
     enabled: false
     message: "[Spec Kit] Add analysis report"
-  after_taskstoissues:
-    enabled: false
-    message: "[Spec Kit] Sync tasks to issues"

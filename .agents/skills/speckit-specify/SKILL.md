@@ -59,6 +59,11 @@ Given that feature description, do this:
 
    Fetch one existing Linear issue before running the hook. Reject terminal, archived, or already-bound issues unless recovery is explicit. Pass its UUID, identifier, exact title, URL, and `gitBranchName` through `--linear-issue-id`, `--linear-issue-identifier`, `--linear-issue-title`, `--linear-issue-url`, and `--linear-branch-name`. The successful `before_specify` hook returns `FEATURE_ID`, `FEATURE_TITLE`, `BRANCH_NAME`, `FEATURE_DIR`, `FEATURE_FILE`, `LINEAR_ISSUE_ID`, `LINEAR_ISSUE_IDENTIFIER`, and `LINEAR_ISSUE_URL`. Treat this result as authoritative. Do not create another identity or derive a branch.
 
+Before creating artifacts, check that the issue describes one independently
+acceptable outcome. If it depends on other features, record their real Linear
+relationships. Keep later feature candidates as briefs until their own lifecycle
+begins. Do not create a parent feature for an entire project.
+
 2. **Create the feature artifacts at the reserved path**:
 
    - Create the returned `FEATURE_DIR` under `docs/features/`.
@@ -102,9 +107,9 @@ Given that feature description, do this:
    8. Identify Key Entities (if data involved)
    9. Return: SUCCESS (spec ready for planning)
 
-6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 
-7. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
@@ -198,13 +203,13 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-8. **Report completion** to the user with:
+7. **Report completion** to the user with:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary
    - Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
 
-9. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
+8. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_specify` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.

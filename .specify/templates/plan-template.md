@@ -27,6 +27,13 @@
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
+## Independent acceptance
+
+[State the one outcome this feature accepts. Name actual prerequisite features
+and evidence that they have landed before implementation. Explain how this PR
+can merge without another branch or future feature finishing its scope. Keep
+mutable status and scheduling in Linear.]
+
 ## Constitution Check
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._

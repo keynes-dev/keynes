@@ -3,8 +3,8 @@
   "workflows": {
     "speckit": {
       "name": "Full SDD Cycle",
-      "version": "1.0.0",
-      "description": "Runs specify \u2192 plan \u2192 tasks \u2192 implement with review gates",
+      "version": "2.0.0",
+      "description": "One Linear feature issue and branch through specification, planning, tasks, analysis, implementation, review, and acceptance",
       "source": "bundled",
       "installed_at": "2026-08-21T21:09:58.555512+00:00",
       "updated_at": "2026-08-21T21:09:58.555522+00:00"

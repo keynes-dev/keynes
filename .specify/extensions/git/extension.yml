@@ -4,7 +4,7 @@ extension:
   id: git
   name: "Git Branching Workflow"
   version: "1.0.0"
-  description: "Linear-native Keynes identity, phase stacks, branch validation, and Git remote detection"
+  description: "Linear-native Keynes identity, independent feature branches, validation, and Git remote detection"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
   license: MIT
@@ -31,10 +31,7 @@ provides:
       description: "Initialize a Git repository with an initial commit"
     - name: speckit.git.commit
       file: commands/speckit.git.commit.md
-      description: "Auto-commit changes after a Spec Kit command completes"
-    - name: speckit.git.stack
-      file: commands/speckit.git.stack.md
-      description: "Manage the GitHub PR stack from recorded phase branches"
+      description: "Commit reviewed changes owned by the invoking Spec Kit command"
 
   config:
     - name: "git-config.yml"
@@ -81,11 +78,6 @@ hooks:
     optional: true
     prompt: "Commit outstanding changes before analysis?"
     description: "Auto-commit before analysis"
-  before_taskstoissues:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit outstanding changes before issue sync?"
-    description: "Auto-commit before tasks-to-issues conversion"
   after_constitution:
     command: speckit.git.commit
     optional: true
@@ -126,15 +118,8 @@ hooks:
     optional: true
     prompt: "Commit analysis results?"
     description: "Auto-commit after analysis"
-  after_taskstoissues:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit after syncing issues?"
-    description: "Auto-commit after tasks-to-issues conversion"
-
 tags:
   - "git"
-  - "stacked-prs"
   - "workflow"
 
 config:
