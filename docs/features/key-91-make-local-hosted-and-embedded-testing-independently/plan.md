@@ -6,9 +6,8 @@
 
 ## Resume boundary
 
-Phase A is complete. The next implementation begins at T057 in [tasks.md](tasks.md). T013-T049 describe
-historical work now subject to reduction; T050-T054 are superseded. This planning
-checkpoint changes no runtime behavior. `a50ee5b` is the expanded implementation
+Phases A and B are complete. Final acceptance begins at T060 in [tasks.md](tasks.md). T013-T049 describe
+historical work now subject to reduction; T050-T054 are superseded. `a50ee5b` is the expanded implementation
 reference; `5b294f4` is the pre-implementation comparison baseline.
 
 The user selected separate feedback and installed acceptance. Reuse existing tests

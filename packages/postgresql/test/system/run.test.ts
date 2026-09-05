@@ -1,9 +1,3 @@
-import {
-  fakeRuntime,
-  passingVitestReport,
-  RUN_ID,
-  PASSWORD,
-} from "./support/runner-fixture.ts";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
@@ -28,6 +22,10 @@ import {
 } from "@keynes/testkit/package";
 
 import {
+  parseArguments,
+  validateSelectedPostgresqlReport,
+  PGBOUNCER_IMAGE,
+  type PostgresqlSystemRuntime,
   manageChild,
   sanitizeVitestReport,
   POSTGRES_IMAGE,
@@ -35,7 +33,11 @@ import {
   runPostgresqlSystemTests,
   validatePostgresqlSystemReport,
 } from "./run.js";
-import { REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS } from "./required-scenarios.js";
+import {
+  REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+  selectedScenarioInventory,
+  validateNativeSelection,
+} from "./required-scenarios.js";
 
 describe("PostgreSQL system-test runner", () => {
   it("rejects a selected schema with otherwise complete native assertions", () => {
@@ -1340,3 +1342,386 @@ it.each([
     expect(result.output).toContain("runner context");
   },
 );
+
+describe("remote native selection", () => {
+  it.each([
+    ["direct", 0],
+    ["session-pool", 1],
+    ["transaction-pool", 1],
+  ] as const)("starts only dependencies for %s", async (mode, poolers) => {
+    const fake = fakeRuntime();
+    await runPostgresqlSystemTests(
+      fake.runtime,
+      {},
+      { selection: { kind: "remote", modes: [mode] } },
+    );
+    const started = fake.commands.filter(
+      (command) =>
+        command.arguments[0] === "run" &&
+        command.arguments.includes(PGBOUNCER_IMAGE),
+    );
+    expect(started).toHaveLength(poolers);
+    const context = fake.commands.find(
+      (command) => command.executable === "pnpm",
+    )?.environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT;
+    expect(JSON.parse(context ?? "{}").selection).toEqual({
+      kind: "remote",
+      modes: [mode],
+    });
+  });
+  it("rejects empty native selection before any preparation", async () => {
+    const fake = fakeRuntime();
+    await expect(
+      runPostgresqlSystemTests(
+        fake.runtime,
+        {},
+        { selection: { kind: "remote", modes: [] } },
+      ),
+    ).rejects.toThrow();
+    expect(fake.packagePreparations.count).toBe(0);
+  });
+});
+
+it("removes containers before their network instead of racing Docker automatic removal", async () => {
+  const fake = fakeRuntime();
+  const run = fake.runtime.run;
+  const containers = new Set<string>();
+  fake.runtime.run = async (executable, args, env, signal) => {
+    if (executable === "docker" && args[0] === "run")
+      containers.add(args[args.indexOf("--name") + 1] ?? "");
+    if (executable === "docker" && args[0] === "rm")
+      containers.delete(args.at(-1) ?? "");
+    if (
+      executable === "docker" &&
+      args[0] === "network" &&
+      args[1] === "rm" &&
+      containers.size > 0
+    )
+      throw new Error("network has active endpoints");
+    return run(executable, args, env, signal);
+  };
+  await expect(
+    runPostgresqlSystemTests(fake.runtime, {}),
+  ).resolves.toBeDefined();
+  expect(containers.size).toBe(0);
+});
+
+it("starts one PostgreSQL fixture and zero poolers for Embedded", async () => {
+  const fake = fakeRuntime();
+  await runPostgresqlSystemTests(
+    fake.runtime,
+    {},
+    { selection: { kind: "embedded" } },
+  );
+  const started = fake.commands.filter(
+    (command) => command.arguments[0] === "run",
+  );
+  expect(
+    started.filter((command) => command.arguments.includes(POSTGRES_IMAGE)),
+  ).toHaveLength(1);
+  expect(
+    started.filter((command) => command.arguments.includes(PGBOUNCER_IMAGE)),
+  ).toHaveLength(0);
+  const context = JSON.parse(
+    fake.commands.find((command) => command.executable === "pnpm")?.environment
+      ?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT ?? "{}",
+  );
+  expect(context.selection).toEqual({ kind: "embedded" });
+  expect(context.poolers).toEqual({});
+});
+
+describe("native feedback commands", () => {
+  it("keeps full as default and selects all remote modes unless narrowed", () => {
+    expect(parseArguments([])).toEqual({});
+    expect(parseArguments(["--output", "acceptance"])).toHaveProperty(
+      "outputPath",
+    );
+    expect(parseArguments(["remote"])).toEqual(
+      parseArguments(["remote", "--mode", "all"]),
+    );
+    expect(parseArguments(["remote", "--", "--mode", "direct"])).toEqual({
+      selection: { kind: "remote", modes: ["direct"] },
+    });
+    expect(parseArguments(["embedded"])).toEqual({
+      selection: { kind: "embedded" },
+    });
+    expect(parseArguments(["embedded", "--", "--installed"])).toBe(
+      "unavailable",
+    );
+    expect(parseArguments(["remote", "--help"])).toBe("help");
+    expect(parseArguments(["embedded", "--help"])).toBe("help");
+  });
+  it.each([
+    ["remote", "--mode", "invalid"],
+    ["remote", "--mode"],
+    ["remote", "--mode", "direct", "--mode", "all"],
+    ["remote", "--help", "--mode", "direct"],
+    ["remote", "--output", "unused"],
+    ["embedded", "--installed", "--installed"],
+    ["embedded", "--mode", "direct"],
+    ["embedded", "--postgresql-archive", "unused"],
+  ])("rejects invalid native feedback arguments %j", (...args) => {
+    expect(() => parseArguments(args)).toThrow();
+  });
+  it("rejects selected output before package preparation", async () => {
+    const fake = fakeRuntime();
+    await expect(
+      runPostgresqlSystemTests(
+        fake.runtime,
+        {},
+        { selection: { kind: "embedded" }, outputPath: "unused" },
+      ),
+    ).rejects.toThrow(/full acceptance/);
+    expect(fake.packagePreparations.count).toBe(0);
+  });
+  it("requires selected native coverage and a nonempty canonical Budget aggregate", () => {
+    const selection = { kind: "embedded" } as const;
+    const report = passingVitestReport({
+      KEYNES_POSTGRESQL_SYSTEM_CONTEXT: JSON.stringify({ selection }),
+    });
+    expect(() =>
+      validateSelectedPostgresqlReport(report, selection),
+    ).not.toThrow();
+    expect(() =>
+      validateSelectedPostgresqlReport(
+        { ...report, schemaVersion: "keynes.deployment-test/v1" },
+        selection,
+      ),
+    ).toThrow();
+    const missing = { ...report, testResults: report.testResults.slice(1) };
+    expect(() =>
+      validateSelectedPostgresqlReport(missing, selection),
+    ).toThrow();
+    const budget = report.testResults.find((file) =>
+      file.name.endsWith("/budget.test.ts"),
+    );
+    if (budget === undefined) throw new Error("Missing Budget fixture");
+    budget.assertionResults = [];
+    expect(() => validateSelectedPostgresqlReport(report, selection)).toThrow();
+  });
+  it.each(["skipped", "failed"])(
+    "propagates %s selected reports and cleans fixtures",
+    async (failure) => {
+      const selection = { kind: "embedded" } as const;
+      const report = passingVitestReport({
+        KEYNES_POSTGRESQL_SYSTEM_CONTEXT: JSON.stringify({ selection }),
+      });
+      const fake = fakeRuntime({
+        vitestReport: {
+          ...report,
+          ...(failure === "skipped"
+            ? { numPendingTests: 1 }
+            : { success: false }),
+        },
+      });
+      await expect(
+        runPostgresqlSystemTests(fake.runtime, {}, { selection }),
+      ).rejects.toThrow();
+      expect(
+        fake.commands.some(
+          (command) =>
+            command.arguments[0] === "network" && command.arguments[1] === "rm",
+        ),
+      ).toBe(true);
+      expect(fake.childTerminations.count).toBe(1);
+    },
+  );
+});
+
+const RUN_ID = "f0e1d2c3-b4a5-4678-9012-3456789abcde";
+const PASSWORD = "generated-test-password";
+
+interface RecordedCommand {
+  readonly executable: string;
+  readonly arguments: readonly string[];
+  readonly environment: NodeJS.ProcessEnv | undefined;
+}
+
+interface FakeRuntime {
+  readonly runtime: PostgresqlSystemRuntime;
+  readonly commands: RecordedCommand[];
+  readonly probeUrls: string[];
+  readonly childTerminations: { count: number };
+  readonly packagePreparations: { count: number };
+  readonly poolerPermissions: {
+    readonly directories: number[];
+    readonly files: number[];
+  };
+}
+
+function fakeRuntime(options?: {
+  readonly dockerFailure?: Error;
+  readonly childFailure?: Error;
+  readonly gitStatus?: string;
+  readonly gitStatuses?: readonly string[];
+  readonly revisions?: readonly string[];
+  readonly vitestReport?: Record<string, unknown>;
+  readonly probe?: (attempt: number) => Promise<string>;
+}): FakeRuntime {
+  const commands: RecordedCommand[] = [];
+  const probeUrls: string[] = [];
+  const childTerminations = { count: 0 };
+  const packagePreparations = { count: 0 };
+  const poolerPermissions = {
+    directories: [] as number[],
+    files: [] as number[],
+  };
+  let clock = 1_000;
+  let probeAttempt = 0;
+  let statusAttempt = 0;
+  let revisionAttempt = 0;
+
+  return {
+    commands,
+    probeUrls,
+    childTerminations,
+    packagePreparations,
+    poolerPermissions,
+    runtime: {
+      randomUUID: () => RUN_ID,
+      randomPassword: () => PASSWORD,
+      now: () => clock,
+      delay: async (milliseconds) => {
+        clock += milliseconds;
+      },
+      async run(executable, arguments_, environment) {
+        commands.push({
+          executable,
+          arguments: arguments_,
+          environment,
+        });
+        if (executable === "pnpm" && arguments_[0] === "--version")
+          return { stdout: "11.21.0" };
+        if (executable === "git" && arguments_[0] === "status") {
+          const stdout =
+            options?.gitStatuses?.[statusAttempt] ?? options?.gitStatus ?? "";
+          statusAttempt += 1;
+          return { stdout };
+        }
+        if (executable === "git" && arguments_[0] === "rev-parse") {
+          const stdout =
+            options?.revisions?.[revisionAttempt] ??
+            "0123456789abcdef0123456789abcdef01234567\n";
+          revisionAttempt += 1;
+          return { stdout };
+        }
+        if (options?.dockerFailure !== undefined) {
+          throw options.dockerFailure;
+        }
+        if (executable === "docker" && arguments_[0] === "version")
+          return { stdout: "29.0.1" };
+        if (executable === "docker" && arguments_[0] === "exec")
+          return { stdout: "PgBouncer 1.25.1\nlibevent 2.1" };
+        if (executable === "docker" && arguments_[0] === "inspect")
+          return { stdout: `sha256:${"a".repeat(64)}` };
+        if (executable === "docker" && arguments_[0] === "port") {
+          return { stdout: "127.0.0.1:49152\n" };
+        }
+        if (executable === "docker" && arguments_.includes(PGBOUNCER_IMAGE)) {
+          for (const argument of arguments_) {
+            const [source, target] = argument.split(":/etc/pgbouncer/");
+            if (source === undefined || target === undefined) continue;
+            const [directory, file] = await Promise.all([
+              stat(dirname(source)),
+              stat(source),
+            ]);
+            poolerPermissions.directories.push(directory.mode & 0o777);
+            poolerPermissions.files.push(file.mode & 0o777);
+          }
+        }
+        return { stdout: "" };
+      },
+      async preparePackage() {
+        packagePreparations.count += 1;
+        const packageRoot = await mkdtemp(
+          join(tmpdir(), "keynes-postgresql-fake-package-"),
+        );
+        const archivePath = join(packageRoot, "keynes-postgresql-0.0.0.tgz");
+        await writeFile(archivePath, "archive");
+        return {
+          archivePath,
+          commandPath: join(packageRoot, "node_modules/.bin/keynes-postgresql"),
+          consumerRoot: join(packageRoot, "consumer"),
+          close: () => rm(packageRoot, { recursive: true, force: true }),
+        };
+      },
+      spawnTests(environment) {
+        commands.push({
+          executable: "pnpm",
+          arguments: ["exec", "vitest", "run"],
+          environment,
+        });
+        return {
+          async wait() {
+            const reportPath = environment.KEYNES_POSTGRESQL_SYSTEM_REPORT_PATH;
+            if (reportPath !== undefined) {
+              await writeFile(
+                reportPath,
+                JSON.stringify(
+                  options?.vitestReport ?? passingVitestReport(environment),
+                ),
+              );
+            }
+            if (options?.childFailure !== undefined) {
+              throw options.childFailure;
+            }
+          },
+          async terminate() {
+            childTerminations.count += 1;
+          },
+        };
+      },
+      async probe(connectionUrl) {
+        probeUrls.push(connectionUrl);
+        probeAttempt += 1;
+        return options?.probe?.(probeAttempt) ?? "180006";
+      },
+    },
+  };
+}
+
+function passingVitestReport(environment?: NodeJS.ProcessEnv) {
+  const context = JSON.parse(
+    environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT ?? "{}",
+  );
+  const testResults = Object.entries(
+    context.selection === undefined
+      ? {
+          ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+          "packages/postgresql/test/system/budget.test.ts": [
+            "shared Budget scenario fixture",
+          ],
+        }
+      : selectedScenarioInventory(validateNativeSelection(context.selection)),
+  ).map(([file, names]) => ({
+    name: `/repository/packages/${file}`,
+    status: "passed" as const,
+    assertionResults: (file === "packages/postgresql/test/system/budget.test.ts"
+      ? ["shared Budget scenario fixture"]
+      : names
+    ).map((fullName) => ({
+      fullName,
+      ancestorTitles: [],
+      status: "passed" as const,
+    })),
+  }));
+  return {
+    success: true,
+    numTotalTests: testResults.reduce(
+      (sum, file) => sum + file.assertionResults.length,
+      0,
+    ),
+    numTotalTestSuites: testResults.length,
+    numPassedTestSuites: testResults.length,
+    numFailedTestSuites: 0,
+    numPendingTestSuites: 0,
+    numFailedTests: 0,
+    numPendingTests: 0,
+    numTodoTests: 0,
+    numPassedTests: testResults.reduce(
+      (total, result) => total + result.assertionResults.length,
+      0,
+    ),
+    testResults,
+  };
+}

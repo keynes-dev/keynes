@@ -20,4 +20,3 @@ export {
   type RunningTestChild,
 } from "./process.ts";
 export { parsePassingReport, type ParsedTestFile } from "./report.ts";
-export { readSourceSnapshot, type SourceSnapshot } from "./snapshot.ts";

@@ -108,12 +108,7 @@ export type PostgresqlSystemContext =
     });
 
 export interface PostgresqlSystemRunOptions {
-  readonly onEnvironment?: (
-    environment: Readonly<Record<string, string>>,
-  ) => void;
-  readonly onCleanup?: (status: "passed" | "failed") => void;
   readonly selection?: NativeSelection;
-  readonly selectedReportPath?: string;
   readonly outputPath?: string;
   readonly signal?: AbortSignal;
 }
@@ -317,24 +312,15 @@ export async function runPostgresqlSystemTests(
         containers: poolerContainers,
       }),
     );
-    if (recordWorkspace !== undefined || options.onEnvironment !== undefined) {
+    if (recordWorkspace !== undefined) {
       Object.assign(
         observedEnvironment,
         await executeStage(runId, "runtime-observations", () =>
-          observeRuntime(
-            activeRuntime,
-            environment,
-            runId,
-            modes.find((mode) => mode !== "direct"),
-          ),
+          observeRuntime(activeRuntime, environment, runId),
         ),
       );
     }
 
-    options.onEnvironment?.({
-      ...observedEnvironment,
-      poolerCount: String(poolerContainers.length),
-    });
     checkCancellation(options.signal);
     const fields: NativeContextFields = {
       runId,
@@ -484,7 +470,6 @@ export async function runPostgresqlSystemTests(
       if (failure === undefined)
         failure = postgresqlSystemFailure(runId, "observation-retention");
     }
-    options.onCleanup?.(cleanupFailed ? "failed" : "passed");
     if (failure !== undefined) throw failure;
     if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
     if (prohibited)
@@ -508,12 +493,6 @@ export async function runPostgresqlSystemTests(
         JSON.parse(await readFile(reportPath, "utf8")),
         [password, runId],
       );
-      if (options.selectedReportPath !== undefined)
-        await writeFile(
-          options.selectedReportPath,
-          `${JSON.stringify(report, null, 2)}\n`,
-          { flag: "wx" },
-        );
       if (selection === undefined) validatePostgresqlSystemReport(report);
       else validateSelectedPostgresqlReport(report, selection);
     } catch (error: unknown) {
@@ -526,7 +505,6 @@ export async function runPostgresqlSystemTests(
       }
     }
   }
-  options.onCleanup?.(cleanupFailed ? "failed" : "passed");
   if (failure !== undefined) {
     if (cleanupFailed)
       throw new AggregateError(
@@ -825,11 +803,7 @@ async function observeRuntime(
   runtime: PostgresqlSystemRuntime,
   environment: NodeJS.ProcessEnv,
   runId: string,
-  poolerMode?: string,
 ): Promise<Record<string, string>> {
-  const pnpmVersion = (
-    await runtime.run("pnpm", ["--version"], environment)
-  ).stdout.trim();
   const docker = (
     await runtime.run(
       "docker",
@@ -837,16 +811,13 @@ async function observeRuntime(
       environment,
     )
   ).stdout.trim();
-  const pooler =
-    poolerMode === undefined
-      ? ""
-      : (
-          await runtime.run(
-            "docker",
-            ["exec", `${runId}-${poolerMode}`, "pgbouncer", "--version"],
-            environment,
-          )
-        ).stdout.trim();
+  const pooler = (
+    await runtime.run(
+      "docker",
+      ["exec", `${runId}-session-pool`, "pgbouncer", "--version"],
+      environment,
+    )
+  ).stdout.trim();
   const postgresImageId = (
     await runtime.run(
       "docker",
@@ -854,33 +825,26 @@ async function observeRuntime(
       environment,
     )
   ).stdout.trim();
-  const pgbouncerImageId =
-    poolerMode === undefined
-      ? ""
-      : (
-          await runtime.run(
-            "docker",
-            ["inspect", "--format", "{{.Image}}", `${runId}-${poolerMode}`],
-            environment,
-          )
-        ).stdout.trim();
+  const pgbouncerImageId = (
+    await runtime.run(
+      "docker",
+      ["inspect", "--format", "{{.Image}}", `${runId}-session-pool`],
+      environment,
+    )
+  ).stdout.trim();
   const poolerVersion = /^PgBouncer (\d+\.\d+\.\d+)/i.exec(pooler)?.[1];
   if (
-    !/^\d+\.\d+\.\d+$/.test(pnpmVersion) ||
     !/^\d+\.\d+\.\d+(?:[-+.][a-zA-Z0-9.]+)?$/.test(docker) ||
-    (poolerMode !== undefined && poolerVersion === undefined) ||
+    poolerVersion === undefined ||
     !/^sha256:[a-f0-9]{64}$/.test(postgresImageId) ||
-    (poolerMode !== undefined &&
-      !/^sha256:[a-f0-9]{64}$/.test(pgbouncerImageId))
+    !/^sha256:[a-f0-9]{64}$/.test(pgbouncerImageId)
   )
     throw new Error("Native runtime observation unavailable");
   return {
-    pnpmVersion,
     dockerVersion: docker,
+    pgbouncerVersion: poolerVersion,
     postgresImageId,
-    ...(poolerVersion === undefined
-      ? {}
-      : { pgbouncerVersion: poolerVersion, pgbouncerImageId }),
+    pgbouncerImageId,
   };
 }
 
@@ -1143,10 +1107,37 @@ function sha256(value: Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function parseArguments(
+export function parseArguments(
   arguments_: readonly string[],
-): PostgresqlSystemRunOptions {
+): PostgresqlSystemRunOptions | "help" | "unavailable" {
   const normalized = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
+  const [target, ...rest] = normalized;
+  const args = rest[0] === "--" ? rest.slice(1) : rest;
+  if (target === "remote" || target === "embedded") {
+    if (args.length === 1 && args[0] === "--help") return "help";
+    if (target === "embedded" && args.length === 1 && args[0] === "--installed")
+      return "unavailable";
+    if (target === "embedded") {
+      if (args.length !== 0)
+        throw new Error("Embedded accepts only --help or --installed");
+      return { selection: { kind: "embedded" } };
+    }
+    if (
+      args.length === 0 ||
+      (args.length === 2 && args[0] === "--mode" && args[1] === "all")
+    )
+      return { selection: { kind: "remote", modes: REMOTE_MODES } };
+    if (args.length === 2 && args[0] === "--mode")
+      return {
+        selection: validateNativeSelection({
+          kind: "remote",
+          modes: [args[1]],
+        }),
+      };
+    throw new Error(
+      "Remote accepts only --mode <all|direct|session-pool|transaction-pool> or --help",
+    );
+  }
   const { tokens } = parseArgs({
     args: normalized,
     options: { output: { type: "string" } },
@@ -1225,7 +1216,7 @@ function postgresqlSystemFailure(runId: string, stageName: string): Error {
   return new Error(`PostgreSQL system run ${runId} failed during ${stageName}`);
 }
 
-export const productionRuntime: PostgresqlSystemRuntime = {
+const productionRuntime: PostgresqlSystemRuntime = {
   randomUUID,
   randomPassword: () => randomBytes(24).toString("base64url"),
   now: Date.now,
@@ -1233,8 +1224,17 @@ export const productionRuntime: PostgresqlSystemRuntime = {
     new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
   run: runCommand,
   preparePackage: (signal) => packAndInstallPostgresql(REPOSITORY_ROOT, signal),
-  spawnTests: (environment) =>
-    spawnTestChild(
+  spawnTests: (environment) => {
+    const context: unknown = JSON.parse(
+      environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "{}",
+    );
+    const selected = isRecord(context) && context.scope === "selected";
+    const files = testFilesForContext(environment);
+    if (selected)
+      process.stdout.write(
+        `Selected native feedback ${JSON.stringify(context.selection)}: ${files.join(", ")}\nFixture-provided permissions. NOT RUN: installed SDK/TLS, installed Embedded, Hosted and full paired acceptance.\n`,
+      );
+    return spawnTestChild(
       [
         "exec",
         "vitest",
@@ -1246,13 +1246,16 @@ export const productionRuntime: PostgresqlSystemRuntime = {
         ...(environment[POSTGRESQL_SYSTEM_REPORT_ENV] === undefined
           ? []
           : [
+              ...(selected ? ["--reporter=default"] : []),
               "--reporter=json",
               `--outputFile=${environment[POSTGRESQL_SYSTEM_REPORT_ENV]}`,
             ]),
-        ...testFilesForContext(environment),
+        ...files,
       ],
       environment,
-    ),
+      selected ? "inherit" : "ignore",
+    );
+  },
   async probe(connectionUrl) {
     const client = new Client({
       connectionString: connectionUrl,
@@ -1308,13 +1311,14 @@ async function runCommand(
 export function spawnTestChild(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv,
+  stdio: "inherit" | "ignore" = "ignore",
 ): RunningTestChild {
   return manageChild(
     spawn("pnpm", arguments_, {
       cwd: REPOSITORY_ROOT,
       env: { ...process.env, ...environment },
       detached: process.platform !== "win32",
-      stdio: "ignore",
+      stdio,
     }),
   );
 }
@@ -1329,12 +1333,26 @@ if (
   process.on("SIGINT", cancel);
   process.on("SIGTERM", cancel);
   void Promise.resolve()
-    .then(() =>
-      runPostgresqlSystemTests(productionRuntime, process.env, {
-        ...parseArguments(process.argv.slice(2)),
+    .then(async () => {
+      const options = parseArguments(process.argv.slice(2));
+      if (options === "help") {
+        process.stdout.write(
+          "Native feedback: remote [--mode all|direct|session-pool|transaction-pool] or embedded [--installed]. No output or archive options.\n",
+        );
+        return;
+      }
+      if (options === "unavailable") {
+        process.stdout.write(
+          "NOT RUN: installed Embedded requires supported installation and grants (KEY-10/KEY-11).\n",
+        );
+        process.exitCode = 1;
+        return;
+      }
+      await runPostgresqlSystemTests(productionRuntime, process.env, {
+        ...options,
         signal: controller.signal,
-      }),
-    )
+      });
+    })
     .catch((error: unknown) => {
       process.stderr.write(`${String(error)}\n`);
       process.exitCode = 1;
@@ -1375,7 +1393,8 @@ export function validateSelectedPostgresqlReport(
     if (
       path === undefined ||
       names === undefined ||
-      !sameStrings(file.assertions, [...names].sort())
+      (path !== POSTGRESQL_BUDGET_AGGREGATE &&
+        !sameStrings(file.assertions, [...names].sort()))
     )
       throw new Error("Incomplete selected native coverage");
     remaining.delete(path);

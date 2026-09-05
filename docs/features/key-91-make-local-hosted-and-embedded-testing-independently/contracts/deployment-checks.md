@@ -2,10 +2,9 @@
 
 ## Status and interface
 
-This is the reduced target approved on 2026-09-05. Local and Hosted now implement it. T057-T061 remain pending. The current native
-commands still require their earlier output flags;
-see Git at `a50ee5b` for that historical interface. Do not add compatibility
-machinery for the superseded feature-branch interface.
+The reduced commands are implemented through T059. Final clean-candidate acceptance
+and document reconciliation remain T060-T061. Git at `a50ee5b` retains the
+superseded output-required interface; no compatibility layer is retained.
 
 | Target command                                | Owner      | Selected feedback                                                                             |
 | --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |

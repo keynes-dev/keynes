@@ -1,12 +1,12 @@
 # Scope correction notice, 2026-09-05
 
-The phase records below describe the expanded implementation and remain unchanged
-as historical evidence. The user superseded that design with thin focused
-feedback and separate existing acceptance. T055-T061 are pending; none of these
-records qualifies the reduced implementation. Old T050-T054 are cancelled, even
-where partial integration runs exist. See [plan.md](plan.md) and [tasks.md](tasks.md)
-for the only active implementation scope. The documentation checkpoint performs
-no runtime reduction or new acceptance run.
+The Phase 4-8 records below describe the expanded implementation and remain
+unchanged as historical evidence. The user superseded that design with focused
+feedback and separate existing acceptance. Reduction Phases A and B are complete;
+T060-T061 remain for final clean-candidate acceptance and reconciliation. Old
+T050-T054 are cancelled, even where partial integration runs exist. See
+[plan.md](plan.md) and [tasks.md](tasks.md) for the active scope. Historical records
+do not qualify the reduced implementation.
 
 # KEY-91 implementation acceptance
 
@@ -289,3 +289,40 @@ existing strict report parsing and child cleanup, plus the minimal Hosted refusa
 No new schema, registry or fixture system is introduced. The copied Local inventory
 and manifest/consumer orchestration tests are removed. Installed remote, installed
 Embedded and actual Hosted acceptance remain NOT RUN.
+
+## Reduction Phase B: native selection and removed machinery
+
+T057-T059 are complete on the implementation tree preceding the Phase B commit.
+The seven remote consumer cases match the assertion disposition map in research.md.
+Their existing canonical, native SQL and SDK unit coverage is retained; every
+installed SDK endpoint case is explicitly deferred to SDK remote delivery. The
+separate deployment runner, TLS fixture/provisioner, SDK remote-consumer program,
+selected manifests, copied shared names and support-only tests are deleted.
+Unused observation callbacks, dirty-input hashing and single-caller helper modules
+are removed. Package locks, process termination, container-before-network cleanup,
+full acceptance validation and separate SDK qualification remain.
+
+| Command or check                                                         | Result                                                     |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `pnpm test:remote`                                                       | PASS: 8 files, 105 assertions                              |
+| `pnpm test:remote -- --mode direct`                                      | PASS: 8 files, 100 assertions                              |
+| `pnpm test:remote -- --mode session-pool`                                | PASS: 8 files, 101 assertions                              |
+| `pnpm test:remote -- --mode transaction-pool`                            | PASS: 8 files, 101 assertions                              |
+| `pnpm test:embedded`                                                     | PASS: 2 files, 51 assertions; fixture-provided permissions |
+| Existing native/paired runner tests plus Local runner tests              | PASS: 3 files, 171 assertions                              |
+| Embedded installed refusal and invalid selection with failing tool shims | Exit 1, no Docker, psql or package calls; help exits 0     |
+| `pnpm exec tsc --project tsconfig.tests.json --noEmit`                   | PASS                                                       |
+
+Focused regressions retain zero poolers for direct/Embedded, one per explicit
+pool mode, full default selection, missing runner context, selected report failure
+and skip propagation, and cleanup. Real runs leave no test-owned containers or
+networks. Root command checks caught forwarded `--` handling and verified its fix.
+The first PR check caught an overly specific test expectation for a deliberately
+broken SDK archive; the expectation now checks the actual consumer failure stage.
+
+Ponytail review removed the now-single-caller fake fixture module and optional
+pooler-observation branch. The cumulative review against `5b294f4` retains only
+selection, strict existing report/process reuse and demonstrated cleanup repairs.
+No new fixture lifecycle or semantic corpus was introduced. Historical study and
+phase records remain unchanged; current installed remote, installed Embedded and
+Hosted product acceptance remain NOT RUN. `pnpm test:pr` passes all 11 tasks, including formatting, package tests, type checks and dependency boundaries. Clean full/package acceptance is T060.

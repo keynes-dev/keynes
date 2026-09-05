@@ -310,7 +310,7 @@ describe("SDK package-test runner", () => {
     });
   });
 
-  it("retains an installed consumer failure and successful cleanup", async () => {
+  it("propagates an installed consumer failure and preserves the supplied archive", async () => {
     const bytes = gunzipSync(await readFile(archivePath));
     const entry = archiveEntries.get("package/dist/index.js");
     if (!entry) throw new Error("Missing SDK entrypoint");
@@ -321,39 +321,10 @@ describe("SDK package-test runner", () => {
     const supplied = resolve(suiteRoot, "failed-consumer.tgz");
     await writeFile(supplied, gzipSync(bytes));
     const original = await readFile(supplied);
-    const observations: { readonly check: string; readonly status: string }[] =
-      [];
-    await expect(
-      qualifyArchive({ archivePath: supplied }, (entry) =>
-        observations.push(entry),
-      ),
-    ).rejects.toThrow();
-    expect(observations).toContainEqual({
-      check: "remote-exports",
-      status: "failed",
-    });
-    expect(observations).toContainEqual({ check: "cleanup", status: "passed" });
-    expect(observations).not.toContainEqual({
-      check: "budget-loop",
-      status: "passed",
-    });
-    expect(await readFile(supplied)).toEqual(original);
-  }, 30_000);
-
-  it("observes provider-free checks and cleanup while preserving the supplied archive", async () => {
-    const before = await readFile(archivePath);
-    const observations: { readonly check: string; readonly status: string }[] =
-      [];
-    const result = await qualifyArchive({ archivePath }, (observation) =>
-      observations.push(observation),
+    await expect(qualifyArchive({ archivePath: supplied })).rejects.toThrow(
+      /SDK consumer remote-exports failed/,
     );
-    expect(result.checks).not.toContain("authorized-database-walkthrough");
-    expect(observations).toContainEqual({
-      check: "budget-loop",
-      status: "passed",
-    });
-    expect(observations).toContainEqual({ check: "cleanup", status: "passed" });
-    expect(await readFile(archivePath)).toEqual(before);
+    expect(await readFile(supplied)).toEqual(original);
   }, 30_000);
 
   it("retains the exact archive identity, installs externally, and cleans up", async () => {

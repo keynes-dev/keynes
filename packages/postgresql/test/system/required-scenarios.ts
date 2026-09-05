@@ -205,46 +205,6 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
 } as const;
 
-export const REQUIRED_SHARED_BUDGET_SCENARIOS = [
-  "Budget lifecycle defines a Resource type without creating Budget quantity",
-  "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
-  "Budget lifecycle returns canonical Resource definition errors",
-  "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
-  "command replay recovers all four canonical results across principals without duplicate history",
-  "command replay replays a structurally equal command across principals despite object key order",
-  "command replay recovers Resource definition after its committed response is lost",
-  "command replay recovers root allocation after its committed response is lost",
-  "command replay recovers an approved request after its committed response is lost",
-  "command replay recovers settlement after its committed response is lost",
-  "command replay rejects changed bodies for each mutation, including across principals",
-  "command replay rejects reuse by a different operation",
-  "command replay rejects reuse against a different target",
-  "Budget request denial denies one unavailable Resource without changing the parent",
-  "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
-  "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
-  "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
-  "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
-  "Budget request denial rejects a request after its parent becomes inactive",
-  "Budget request denial keeps request, settlement, and read permissions independent",
-  "Resource-bound root creation binds Resource definitions, allocations, and creation history in one root command",
-  "Resource-bound root creation replays an identical combined root command without duplicating history",
-  "Resource-bound root creation rejects a changed definition-bearing root body under the same command identity",
-  "Resource-bound root creation commits an attached Policy with the Resource-bound root",
-  "Resource-bound root creation rolls back definitions, root state, and history after Resource insertion",
-  "command rollback rolls back Resource definition checkpoints",
-  "command rollback rolls back root allocation facts, result, and history",
-  "command rollback rolls back child reservation, result, and history",
-  "command rollback rolls back usage, result, and settlement history",
-  "Budget settlement keeps a sealed parent settling until its open descendant settles",
-  "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
-  "Budget settlement returns a reusable child allocation in full after settlement",
-  "Budget settlement isolates child overage without charging its parent or sibling",
-  "Budget settlement bounds settled nested charges before returning them to an ancestor",
-  "Budget settlement settles a subset while keeping an omitted Resource unresolved",
-  "Budget settlement sorts multiple isolated deficits by Resource identity",
-  "Budget settlement rejects derived arithmetic overflow without committing settlement",
-] as const;
-
 export const REMOTE_MODES = [
   "direct",
   "session-pool",
@@ -312,7 +272,7 @@ export function remoteScenarioInventory(
           `remote PostgreSQL connection profiles proves the runner routes through the ${mode} mode`,
         );
   return {
-    [POSTGRESQL_BUDGET_AGGREGATE]: REQUIRED_SHARED_BUDGET_SCENARIOS,
+    [POSTGRESQL_BUDGET_AGGREGATE]: [],
     ...Object.fromEntries(
       files.map((file) => [file, REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[file]]),
     ),
@@ -330,7 +290,7 @@ export function selectedScenarioInventory(
   return selection.kind === "remote"
     ? remoteScenarioInventory(selection)
     : {
-        [POSTGRESQL_BUDGET_AGGREGATE]: REQUIRED_SHARED_BUDGET_SCENARIOS,
+        [POSTGRESQL_BUDGET_AGGREGATE]: [],
         "packages/postgresql/test/system/embedded-transactions.test.ts":
           REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
             "packages/postgresql/test/system/embedded-transactions.test.ts"

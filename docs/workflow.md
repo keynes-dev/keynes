@@ -100,15 +100,10 @@ CI or inspecting code does not establish runtime behavior.
 
 ### KEY-91 feedback command correction
 
-KEY-91 is being reduced to focused feedback using existing tests and runners.
-Phase A has reduced Local and Hosted. T057-T061 in
+KEY-91 provides focused feedback using existing tests and runners. Phases A and B
+implement the reduction; T060-T061 in
 [the active task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md)
-complete the native reduction. `pnpm test:local` runs source feedback without
-packaging; `pnpm test:hosted` prints NOT RUN and exits 1. Native commands still
-contain their earlier output-required orchestration. Do not treat its installed-consumer
-or manifest behavior as the target design.
-
-The planned commands are `pnpm test:local`, `pnpm test:remote`, and
+complete final acceptance. The commands are `pnpm test:local`, `pnpm test:remote`, and
 `pnpm test:embedded`. Local selects existing SDK source tests without package
 preparation or services. Native selections reuse the existing PostgreSQL runner.
 Remote defaults to all modes and permits explicit `--mode` selection; Embedded

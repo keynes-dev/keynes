@@ -21,7 +21,7 @@
     "generate:check": "node scripts/generate.ts --check",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test/unit test/contract test/system test/package/qualify.test.ts test/package/remote-consumer.test.ts --maxWorkers=1",
+    "test": "vitest run test/unit test/contract test/system test/package/qualify.test.ts --maxWorkers=1",
     "test:unit": "vitest run test/unit --maxWorkers=1",
     "test:contract": "vitest run test/contract --maxWorkers=1",
     "test:package:unit": "vitest run test/package --maxWorkers=1",

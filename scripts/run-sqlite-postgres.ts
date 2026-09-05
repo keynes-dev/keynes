@@ -3,7 +3,6 @@ import {
   waitWithCancellation,
 } from "../packages/testkit/src/process.ts";
 import { parsePassingReport } from "../packages/testkit/src/report.ts";
-import { readSourceSnapshot } from "../packages/testkit/src/snapshot.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
@@ -297,24 +296,26 @@ async function command(executable: string, args: string[]): Promise<string> {
   }
 }
 async function snapshot(): Promise<SqlitePostgresSnapshot> {
-  const [source, pnpm, lock, contractBytes, installation] = await Promise.all([
-    readSourceSnapshot(ROOT),
-    command("pnpm", ["--version"]),
-    readFile(join(ROOT, "pnpm-lock.yaml")),
-    readFile(
-      join(ROOT, "packages/contracts/generated/contract-digest.json"),
-      "utf8",
-    ),
-    readFile(
-      join(ROOT, "packages/postgresql/generated/installation-record.json"),
-    ),
-  ]);
+  const [commit, status, pnpm, lock, contractBytes, installation] =
+    await Promise.all([
+      command("git", ["rev-parse", "HEAD"]),
+      command("git", ["status", "--porcelain", "--untracked-files=all"]),
+      command("pnpm", ["--version"]),
+      readFile(join(ROOT, "pnpm-lock.yaml")),
+      readFile(
+        join(ROOT, "packages/contracts/generated/contract-digest.json"),
+        "utf8",
+      ),
+      readFile(
+        join(ROOT, "packages/postgresql/generated/installation-record.json"),
+      ),
+    ]);
   const contract: unknown = JSON.parse(contractBytes);
   if (
     !record(contract) ||
     typeof contract.digest !== "string" ||
     !/^[0-9a-f]{64}$/.test(contract.digest) ||
-    !/^[0-9a-f]{40}$/.test(source.commit)
+    !/^[0-9a-f]{40}$/.test(commit)
   )
     throw new Error("Invalid input identity");
   const require = createRequire(import.meta.url);
@@ -335,8 +336,8 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
     database.close();
   }
   return {
-    commit: source.commit,
-    clean: source.clean,
+    commit,
+    clean: status === "",
     inputs: {
       contractDigest: contract.digest,
       lockfileSha256: hash(lock),

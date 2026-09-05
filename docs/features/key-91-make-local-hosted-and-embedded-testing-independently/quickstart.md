@@ -2,8 +2,7 @@
 
 ## Current boundary
 
-Local and Hosted have been reduced in Phase A. T057-T061 remain pending; native
-commands below describe their target after Phase B.
+Phases A and B implement the commands below. T060-T061 remain for final acceptance and reconciliation.
 See [tasks.md](tasks.md) to resume and [acceptance.md](acceptance.md) for historical
 results. The [completed study](testing-strategy.md) is not a task to repeat.
 

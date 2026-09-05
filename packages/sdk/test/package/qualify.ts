@@ -83,7 +83,7 @@ export interface QualificationArguments {
   readonly authorizedDatabase?: true;
 }
 
-export const PROVIDER_FREE_PACKAGE_CHECKS = [
+const PROVIDER_FREE_PACKAGE_CHECKS = [
   "parser-wasm",
   "public-types",
   "package-root-import",
@@ -257,10 +257,6 @@ export function assertOutsideRepository(root: string, candidate: string): void {
 
 export async function qualifyArchive(
   args: QualificationArguments,
-  observe: (observation: {
-    readonly check: string;
-    readonly status: "passed" | "failed";
-  }) => void = () => {},
 ): Promise<QualificationResult> {
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
@@ -269,38 +265,16 @@ export async function qualifyArchive(
     productionBytes: 0,
   });
 
-  const check = async <Result>(
-    name: string,
-    operation: () => Result | Promise<Result>,
-  ): Promise<Result> => {
-    try {
-      const result = await operation();
-      observe({ check: name, status: "passed" });
-      return result;
-    } catch (error: unknown) {
-      observe({ check: name, status: "failed" });
-      throw error;
-    }
-  };
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
-    observe,
-  ).catch((error: unknown) => {
-    observe({ check: "installation", status: "failed" });
-    throw error;
-  });
+  );
   const consumer = resolve(external.root, "build/consumer.mjs");
   const execution = await Promise.resolve()
-    .then(async () => {
-      observe({ check: "installation", status: "passed" });
-      observe({ check: "parser-wasm", status: "passed" });
-      observe({ check: "public-types", status: "passed" });
-      await check("deep-imports-blocked", () =>
-        runExpectedPackagePathFailure(
-          resolve(external.root, "build/private-imports.mjs"),
-          external.root,
-        ),
+    .then(() => {
+      runExpectedPackagePathFailure(
+        resolve(external.root, "build/private-imports.mjs"),
+        external.root,
       );
       for (const name of [
         "remote-exports",
@@ -310,28 +284,21 @@ export async function qualifyArchive(
         "policy-runtime",
         "isolation",
         "closure",
-      ]) {
-        await check(name, () => runConsumer(consumer, name, external.root));
-        if (name === "remote-exports")
-          observe({ check: "package-root-import", status: "passed" });
-      }
-      await check("process-loss", () => {
-        assertProcessState(
-          runConsumer(consumer, "write-then-exit", external.root),
-        );
-        runConsumer(consumer, "read-after-restart", external.root);
-      });
+      ])
+        runConsumer(consumer, name, external.root);
+      assertProcessState(
+        runConsumer(consumer, "write-then-exit", external.root),
+      );
+      runConsumer(consumer, "read-after-restart", external.root);
       if (args.authorizedDatabase === true)
-        await check("authorized-database-walkthrough", () =>
-          runConsumer(consumer, "authorized-database", external.root, true),
-        );
+        runConsumer(consumer, "authorized-database", external.root, true);
     })
     .then(
       () => ({ kind: "passed" }) as const,
       (error: unknown) => ({ kind: "failed", error }) as const,
     );
   try {
-    await check("cleanup", () => external.close());
+    await external.close();
   } catch (cleanup: unknown) {
     if (execution.kind === "failed")
       throw new AggregateError(
@@ -414,10 +381,6 @@ function readSourceRevision(): {
 export async function installExternalConsumer(
   archivePath: string,
   compressedBytes: number,
-  observe: (observation: {
-    readonly check: string;
-    readonly status: "passed" | "failed";
-  }) => void = () => {},
 ): Promise<ExternalConsumer> {
   await mkdir(tmpdir(), { recursive: true });
   const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-package-test-"));
@@ -527,9 +490,7 @@ export async function installExternalConsumer(
   } catch (error: unknown) {
     try {
       await rm(root, { recursive: true, force: true });
-      observe({ check: "cleanup", status: "passed" });
     } catch (cleanup: unknown) {
-      observe({ check: "cleanup", status: "failed" });
       throw new AggregateError(
         [error, cleanup],
         "SDK installation failed and cleanup failed",

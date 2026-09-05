@@ -2,7 +2,7 @@
 
 ## Resume here
 
-**Next task: T057.** T055-T056 are complete; T057-T061 are active implementation work. The user
+**Next task: T060.** T055-T059 are complete; T060-T061 are active acceptance work. The user
 approved focused feedback through existing runners with separate existing
 installed qualification. Follow [spec.md](spec.md), [plan.md](plan.md), and the
 [command contract](contracts/deployment-checks.md). Do not continue old Phase 9.
@@ -50,9 +50,9 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 ## Phase B: selection in the existing native runner
 
-- [ ] T057 [US2] Move only required remote/Embedded selection and unavailable installed refusal into the existing PostgreSQL runner. Keep full as its default, remote default-all and explicit modes, zero Embedded poolers, required runner context, existing fixture lifecycle and report checks. Wire aliases and reject invalid selections; selected feedback cannot write full acceptance. Use existing suite groups and canonical registration without copied shared-name inventories. Keep selection, fixture setup and semantic registration distinct within existing owners; extract only for concrete duplication.
-- [ ] T058 [US2] Check all seven remote consumer cases and the other affected assertions against the disposition map in research.md. Record retained coverage and deferred installed-boundary owners before deletion; no product assertion may disappear unclassified. Delete the separate deployment orchestrator, TLS fixture/provisioner, SDK remote-consumer driver/program, selected manifest validators and tests used only by that machinery. Trim now-unused exports, callbacks and helpers. Preserve full/package callers, existing SDK qualification, and demonstrated package-lock/process/container cleanup repairs. Document remote installed acceptance as deferred; do not substitute another external walkthrough.
-- [ ] T059 [US3] Verify remote default and each explicit mode, Embedded Budget/transaction selection, installed refusal before setup, missing context, failure/skip propagation, and retained cleanup through focused existing tests and real native runs. Record fixture-only limits. Run ponytail-review and cumulative scope review, fix findings, and commit Phase B before T060.
+- [x] T057 [US2] Move only required remote/Embedded selection and unavailable installed refusal into the existing PostgreSQL runner. Keep full as its default, remote default-all and explicit modes, zero Embedded poolers, required runner context, existing fixture lifecycle and report checks. Wire aliases and reject invalid selections; selected feedback cannot write full acceptance. Use existing suite groups and canonical registration without copied shared-name inventories. Keep selection, fixture setup and semantic registration distinct within existing owners; extract only for concrete duplication.
+- [x] T058 [US2] Check all seven remote consumer cases and the other affected assertions against the disposition map in research.md. Record retained coverage and deferred installed-boundary owners before deletion; no product assertion may disappear unclassified. Delete the separate deployment orchestrator, TLS fixture/provisioner, SDK remote-consumer driver/program, selected manifest validators and tests used only by that machinery. Trim now-unused exports, callbacks and helpers. Preserve full/package callers, existing SDK qualification, and demonstrated package-lock/process/container cleanup repairs. Document remote installed acceptance as deferred; do not substitute another external walkthrough.
+- [x] T059 [US3] Verify remote default and each explicit mode, Embedded Budget/transaction selection, installed refusal before setup, missing context, failure/skip propagation, and retained cleanup through focused existing tests and real native runs. Record fixture-only limits. Run ponytail-review and cumulative scope review, fix findings, and commit Phase B before T060.
 
 ## Phase C: preservation and completion
 

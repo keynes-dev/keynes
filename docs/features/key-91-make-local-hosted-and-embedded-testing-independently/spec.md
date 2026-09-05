@@ -12,8 +12,7 @@ requirements. Independent commands select existing tests and use existing runner
 Installed-package qualification and the full SQLite/PostgreSQL gate remain
 separate commands with their existing evidence requirements.
 
-The implementation at `a50ee5b` still contains the expanded design. Phase A has reduced Local and Hosted. This
-specification remains the target for unfinished T057-T061. Earlier phase results retain their original scope in [acceptance.md](acceptance.md).
+The implementation at `a50ee5b` still contains the expanded design. Phases A and B implement the reduced commands; T060-T061 verify and reconcile the final candidate. Earlier phase results retain their original scope in [acceptance.md](acceptance.md).
 Do not resume superseded T050-T054.
 
 The accepted clarification remains: remote defaults to all supported connection
