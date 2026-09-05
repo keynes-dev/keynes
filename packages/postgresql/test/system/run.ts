@@ -941,122 +941,11 @@ export function sanitizeVitestReport(
   return result;
 }
 
-interface VitestAssertion {
-  readonly fullName: string;
-  readonly status: string;
-}
-
-interface VitestFileResult {
-  readonly name: string;
-  readonly status: string;
-  readonly assertionResults: readonly VitestAssertion[];
-}
-
-interface VitestReport {
-  readonly numFailedTests: number;
-  readonly numPendingTests: number;
-  readonly numTodoTests: number;
-  readonly numPassedTests: number;
-  readonly testResults: readonly VitestFileResult[];
-  readonly [key: string]: unknown;
-}
-
-export function validatePostgresqlSystemReport(
-  value: unknown,
-): asserts value is VitestReport {
-  if (!isRecord(value) || "schemaVersion" in value) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-  if (
-    value.numFailedTests !== 0 ||
-    value.numPendingTests !== 0 ||
-    value.numTodoTests !== 0 ||
-    typeof value.numPassedTests !== "number" ||
-    !Array.isArray(value.testResults)
-  ) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-
-  if (
-    ("success" in value && value.success !== true) ||
-    ["numFailedTestSuites", "numPendingTestSuites"].some(
-      (key) => key in value && value[key] !== 0,
-    ) ||
-    ["errors", "unhandledErrors"].some(
-      (key) =>
-        key in value && (!Array.isArray(value[key]) || value[key].length !== 0),
-    )
-  ) {
-    throw new Error("Vitest did not produce a passing report");
-  }
-
-  const remaining = new Map<string, readonly string[]>([
-    [POSTGRESQL_BUDGET_AGGREGATE, []],
-    ...Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
-  ]);
-  let passed = 0;
-  for (const candidate of value.testResults) {
-    if (!isRecord(candidate) || typeof candidate.name !== "string") {
-      throw new Error("Vitest did not produce a passing report");
-    }
-    const normalizedName = candidate.name.replaceAll("\\", "/");
-    const file = [...remaining.keys()].find(
-      (suffix) =>
-        normalizedName === suffix || normalizedName.endsWith(`/${suffix}`),
-    );
-    if (
-      file === undefined ||
-      candidate.status !== "passed" ||
-      ("message" in candidate && candidate.message !== "") ||
-      !Array.isArray(candidate.assertionResults)
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    const assertions = candidate.assertionResults;
-    if (
-      !assertions.every(
-        (assertion): assertion is Record<string, unknown> =>
-          isRecord(assertion) &&
-          typeof assertion.fullName === "string" &&
-          assertion.status === "passed" &&
-          (!("failureMessages" in assertion) ||
-            (Array.isArray(assertion.failureMessages) &&
-              assertion.failureMessages.length === 0)),
-      )
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    const actualNames = assertions
-      .map(({ fullName }) => fullName as string)
-      .sort();
-    const expectedNames = [...(remaining.get(file) ?? [])].sort();
-    if (
-      file === POSTGRESQL_BUDGET_AGGREGATE
-        ? actualNames.length === 0 ||
-          new Set(actualNames).size !== actualNames.length
-        : !sameStrings(actualNames, expectedNames)
-    ) {
-      throw new Error(
-        "Vitest report omitted a required PostgreSQL system scenario",
-      );
-    }
-    passed += assertions.length;
-    remaining.delete(file);
-  }
-  if (
-    remaining.size !== 0 ||
-    value.numPassedTests !== passed ||
-    ("numTotalTests" in value && value.numTotalTests !== passed)
-  ) {
-    throw new Error(
-      "Vitest report omitted a required PostgreSQL system scenario",
-    );
-  }
-  parsePassingReport(value);
+export function validatePostgresqlSystemReport(value: unknown): void {
+  validateNativeCoverage(value, {
+    [POSTGRESQL_BUDGET_AGGREGATE]: [],
+    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+  });
 }
 
 async function verifyAcceptanceRevision(
@@ -1380,11 +1269,16 @@ export function validateSelectedPostgresqlReport(
   value: unknown,
   selection: NativeSelection,
 ): void {
+  validateNativeCoverage(value, selectedScenarioInventory(selection));
+}
+
+function validateNativeCoverage(
+  value: unknown,
+  expected: Readonly<Record<string, readonly string[]>>,
+): void {
   if (isRecord(value) && "schemaVersion" in value)
-    throw new Error("Expected a selected Vitest report");
-  const remaining = new Map(
-    Object.entries(selectedScenarioInventory(selection)),
-  );
+    throw new Error("Expected a Vitest report");
+  const remaining = new Map(Object.entries(expected));
   for (const file of parsePassingReport(value)) {
     const path = [...remaining.keys()].find(
       (path) => file.name === path || file.name.endsWith(`/${path}`),
@@ -1396,9 +1290,8 @@ export function validateSelectedPostgresqlReport(
       (path !== POSTGRESQL_BUDGET_AGGREGATE &&
         !sameStrings(file.assertions, [...names].sort()))
     )
-      throw new Error("Incomplete selected native coverage");
+      throw new Error("Incomplete native coverage");
     remaining.delete(path);
   }
-  if (remaining.size !== 0)
-    throw new Error("Incomplete selected native coverage");
+  if (remaining.size !== 0) throw new Error("Incomplete native coverage");
 }
