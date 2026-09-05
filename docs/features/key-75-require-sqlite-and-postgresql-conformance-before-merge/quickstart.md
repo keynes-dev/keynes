@@ -59,14 +59,14 @@ Expected outcome: zero exit status, separately identified SQLite and PostgreSQL 
 
 Inspect the attempt record and runtime files using [the evidence model](data-model.md). Verify both file hashes against the manifest. Confirm that stored testedCommit equals `git rev-parse HEAD` and status remains clean. Missing values, skipped scenarios, or partial results must exit nonzero.
 
-For native-only diagnosis with retained v2 results:
+For native-only diagnosis with the existing acceptance record and sanitized report:
 
 ```sh
 native_attempt_id="$(node -p 'crypto.randomUUID()')"
 pnpm test:system:postgresql -- --output ".artifacts/system-tests/postgresql/$native_attempt_id.json"
 ```
 
-A native-only pass does not qualify the paired check.
+The sanitized report is retained at `<output>.vitest.json` when available, including on failure; the acceptance record exists only on success. A native-only pass does not qualify the paired check.
 
 ## Negative acceptance matrix
 
@@ -105,7 +105,7 @@ gh pr checks <demonstration-pr-number>
 gh pr view <demonstration-pr-number> --json headRefOid,baseRefName,mergeStateStatus,statusCheckRollup
 ```
 
-The owner has upgraded keynes-dev to Team. Fresh readback confirms `plan.name: team`; the protection endpoint returns HTTP 404 with `Branch not protected`, and effective rules return `[]`. The earlier HTTP 403 restriction is resolved. Required-check policy still needs configuration. Configure the observed check context according to [the operational contract](contracts/conformance-check.md), preserving existing requirements. Retain policy readback and evidence that the native failure specifically blocks the covered merge path. A draft PR alone is not proof that conformance blocks merging. Do not merge as a test.
+See [research.md](research.md#required-policy-is-an-independent-acceptance-condition) for dated policy observations. Refresh policy readback during acceptance. Configure the observed check context according to [the operational contract](contracts/conformance-check.md), preserving existing requirements. Retain policy readback and evidence that the native failure specifically blocks the covered merge path. A draft PR alone is not proof that conformance blocks merging. Do not merge as a test.
 
 ## Acceptance record
 

@@ -28,13 +28,13 @@ Use execution JSON and process exit status. Reject pending/todo/skipped assertio
 
 ## Retain failed attempts without accepting them
 
-**Decision**: Evolve native `--output` to `keynes.system-test.postgresql/v2`, distinguishing success, failure, and unavailable execution metadata. Add a conformance attempt record referencing each runtime result and its digest. Sanitize before retention and return nonzero on qualification/write failure.
+**Decision**: Add one conformance manifest with common metadata and two execution entries referencing sanitized Vitest reports and existing native acceptance evidence. Preserve native `--output` success semantics; retain available sanitized reports beside the output as `<output>.vitest.json`, even on test failure. Capture safe stage/runtime/cleanup observations in the paired manifest. Qualification and write failures remain nonzero exits.
 
 **Rationale**: Current `run.ts` writes v1 only after test and cleanup success, then deletes temporary JSON even on failure. The manual workflow uploads only under `success()`. Extend the existing owner and reuse its revision, archive, installation, image, contract, and cleanup checks. Active v1 references are the runner and its tests; historical artifacts are not rewritten.
 
-Record observed runtime/dependency versions, host and attempt identity, contract and shared source digests, scenario identity digest, lockfile hash, native distribution digest, and retained file digests. Missing required version observations cannot qualify a pass. Startup failures mark observations unavailable and tests `NOT RUN`.
+Record observed runtime/dependency versions, host and attempt identity, contract digest, lockfile hash, native distribution digest, and retained file digests. The clean commit identifies shared source bytes; compare scenario names directly from the retained reports. Missing required version observations cannot qualify a pass. Startup failures mark observations unavailable and tests `NOT RUN`.
 
-**Alternatives considered**: Unrestricted raw logs can expose credentials or private fixture data. Success-shaped failure records defeat the gate. Parallel v1-success and new-failure formats add branching; use one explicitly versioned result model.
+**Alternatives considered**: Unrestricted raw logs can expose credentials or private fixture data. Success-shaped failure records defeat the gate. Separate versioned SQLite/native result envelopes duplicate the manifest metadata. Keep existing native evidence and represent partial failure in the single new manifest.
 
 Upload an allowlisted bundle under a unique name and require confirmed upload success. Stage hosted upload files under a non-hidden directory in `RUNNER_TEMP` to avoid hidden `.artifacts` exclusions. Reuse the pinned action and verify its inputs during implementation. See [upload-artifact documentation](https://github.com/actions/upload-artifact).
 
@@ -52,9 +52,9 @@ Record cleanup failure without discarding the original failure and attempt all c
 
 **Decision**: Require the observed GitHub Actions context `SQLite and PostgreSQL conformance` on `main`, preserve existing requirements including `Repository and tests`, and require up-to-date candidate checks. Read back effective policy and demonstrate blocked merging after authorized configuration.
 
-**Rationale**: Planning readbacks of `repos/keynes-dev/keynes/branches/main/protection` and `repos/keynes-dev/keynes/rules/branches/main` both returned HTTP 403 with `Upgrade to GitHub Pro or make this repository public to enable this feature.` Neither returned an effective policy. GitHub documents private-repository protection as plan-dependent. See [protected branch availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
+**Rationale, observed 2026-09-04 America/Los_Angeles**: Planning readbacks of `repos/keynes-dev/keynes/branches/main/protection` and `repos/keynes-dev/keynes/rules/branches/main` both returned HTTP 403 with `Upgrade to GitHub Pro or make this repository public to enable this feature.` Neither returned an effective policy. GitHub documents private-repository protection as plan-dependent. See [protected branch availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
 
-**Follow-up observation**: The owner upgraded keynes-dev to Team. A fresh organization API read confirms `plan.name: team`. The protection endpoint now returns HTTP 404 with `Branch not protected`, and effective branch rules return `[]`. The plan restriction is resolved; main has no observed enforcement policy. No repository settings were changed by this planning command.
+**Follow-up observation, 2026-09-04 America/Los_Angeles**: The owner upgraded keynes-dev to Team. A fresh organization API read confirms `plan.name: team`. The protection endpoint now returns HTTP 404 with `Branch not protected`, and effective branch rules return `[]`. The plan restriction is resolved; main has no observed enforcement policy. No repository settings were changed by this planning command.
 
 **Alternatives considered**: A maintainer convention or green job without policy cannot meet FR-004. Configure and demonstrate the required checks during acceptance; do not narrow the spec silently.
 

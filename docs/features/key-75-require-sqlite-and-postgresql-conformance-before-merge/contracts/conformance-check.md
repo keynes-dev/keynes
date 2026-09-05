@@ -18,7 +18,7 @@ The command invokes the existing SQLite Budget aggregate and the full native Doc
 pnpm test:system:postgresql -- --output <new-native-result-file>
 ```
 
-The native command's result evolves to v2. A failed v2 record is diagnostic evidence and the process exits nonzero. Existing v1 files are preserved but cannot qualify this new gate.
+The native command preserves its existing success-record format and retains its sanitized Vitest report at `<output>.vitest.json` when available, including on failure. Failed execution exits nonzero and creates no success record. Startup failure retains safe stage diagnostics. The paired manifest references fresh native evidence; historical records cannot substitute for this attempt.
 
 Exit zero requires fresh complete results from both authorities, matching current candidate/attempt/input digests, exact shared parity, all native-only required coverage, successful cleanup, and successful local evidence writes. Any other outcome exits nonzero. Failure to execute SQLite does not prevent an ordinary native attempt, and vice versa. Cancellation stops new work.
 
@@ -30,7 +30,7 @@ Checkout uses the event's candidate revision and disabled credential persistence
 
 After ordinary success or failure, an `always()` retention step uploads only sanitized attempt files. Stage those files in a non-hidden directory under `RUNNER_TEMP`. Use a name containing tested commit, run ID, run attempt, and job identity, with no overwrite and a 14-day retention period. Require files to exist and the action to confirm an artifact ID and digest; publish them in the workflow summary. Local qualification plus upload success are both required for a successful job. Missing setup, report, upload, cleanup, or final verification remains failure or cancellation.
 
-The manual PostgreSQL workflow keeps its distinct `PostgreSQL System` check name, uses the same v2 native writer, and retains available failure records. It cannot substitute for the PR conformance job.
+The manual PostgreSQL workflow keeps its distinct `PostgreSQL System` check name, uses the existing native writer, and retains available sanitized reports and safe failure diagnostics. It cannot substitute for the PR conformance job.
 
 ## Coverage and evidence acceptance
 
@@ -46,4 +46,4 @@ Effective policy on `main` must require this exact check from GitHub Actions and
 
 Retain a passing demonstration and a separate intentional native-failure demonstration with SQLite passing. Read back effective policy and the PR's blocked merge state. Do not attempt an actual merge as a test.
 
-The owner upgraded keynes-dev to Team, and live readback confirms the plan restriction is resolved. main currently has no branch protection or effective rules. Configure and verify the required policy during acceptance; workflow implementation alone does not satisfy FR-004. No policy settings changed during planning.
+Dated policy observations are in [research.md](../research.md#required-policy-is-an-independent-acceptance-condition). Workflow implementation alone does not satisfy FR-004.
