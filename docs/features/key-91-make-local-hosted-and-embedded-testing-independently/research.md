@@ -11,7 +11,7 @@ The user rejected that expansion and chose separate feedback and acceptance.
 This decision supersedes the earlier selected-evidence, TLS-provisioning, and
 consumer-composition decisions. Their original rationale remains in Git at
 `a50ee5b`. Current target behavior is defined in spec.md and plan.md; the reduced
-commands are implemented through T059, with final acceptance pending T060-T061.
+commands and final acceptance are complete through T061.
 
 ## Reuse and removal decisions
 

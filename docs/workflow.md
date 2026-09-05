@@ -100,10 +100,8 @@ CI or inspecting code does not establish runtime behavior.
 
 ### KEY-91 feedback command correction
 
-KEY-91 provides focused feedback using existing tests and runners. Phases A and B
-implement the reduction; T060-T061 in
-[the active task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md)
-complete final acceptance. The commands are `pnpm test:local`, `pnpm test:remote`, and
+KEY-91 provides focused feedback using existing tests and runners. The reduction and local acceptance are complete in
+[the feature task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md). The commands are `pnpm test:local`, `pnpm test:remote`, and
 `pnpm test:embedded`. Local selects existing SDK source tests without package
 preparation or services. Native selections reuse the existing PostgreSQL runner.
 Remote defaults to all modes and permits explicit `--mode` selection; Embedded
@@ -114,14 +112,14 @@ Existing SDK package qualification and the full paired gate remain separate
 acceptance commands with their current evidence requirements. Installed remote
 SDK acceptance beyond existing qualification is deferred. Installed Embedded
 remains NOT RUN pending KEY-10/KEY-11; actual Hosted remains NOT RUN pending its
-product environment and operating contract. The planned Hosted command only
+product environment and operating contract. The Hosted command only
 prints its unavailable reason and exits 1, acquiring no resources.
 
 See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md)
 for target selection and the [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md)
-for post-implementation checks. Historical phase results are retained in
+for repeatable checks. Current and historical results are distinguished in
 [acceptance.md](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md);
-they do not qualify the reduced implementation. No publication or live Hosted
+the final reduction section records the verified candidate. No publication or live Hosted
 execution is authorized by these contributor commands.
 
 For incremental deployment work, shared scenarios own common semantics, fixtures

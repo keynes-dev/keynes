@@ -2,8 +2,7 @@
 
 ## Status and interface
 
-The reduced commands are implemented through T059. Final clean-candidate acceptance
-and document reconciliation remain T060-T061. Git at `a50ee5b` retains the
+The reduced commands and final acceptance are complete through T061. Git at `a50ee5b` retains the
 superseded output-required interface; no compatibility layer is retained.
 
 | Target command                                | Owner      | Selected feedback                                                                             |

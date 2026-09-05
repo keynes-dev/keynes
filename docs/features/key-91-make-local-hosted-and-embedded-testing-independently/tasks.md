@@ -2,7 +2,7 @@
 
 ## Resume here
 
-**Next task: T060.** T055-T059 are complete; T060-T061 are active acceptance work. The user
+**Complete: T055-T061.** No implementation task remains in this correction. The user
 approved focused feedback through existing runners with separate existing
 installed qualification. Follow [spec.md](spec.md), [plan.md](plan.md), and the
 [command contract](contracts/deployment-checks.md). Do not continue old Phase 9.
@@ -56,8 +56,8 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 ## Phase C: preservation and completion
 
-- [ ] T060 [US4] Run the unchanged full paired gate and separate existing provider-free SDK package qualification on the reduced candidate. Run Local feedback, pnpm test:pr and pnpm format; reuse existing full-report/parity/cleanup/package-lock negatives. Preserve full scenario names and source/artifact validation. Record exact commands/results and unavailable product lanes in acceptance.md; do not create another evidence framework or repeat study measurements.
-- [ ] T061 Reconcile contributor guidance and all active feature documents with actual reduced commands. Map retained additions against baseline 5b294f4 to active requirements and report code/test reduction from a50ee5b, including untracked files and removed support tests. Confirm prohibited machinery is absent and historical records unchanged. Walk through a common Budget operation, supported Embedded installation and an installed remote consumer without implementing them: name the owning tests, reused scenarios/setup and distinct boundary proof. Require no copied semantic corpus, duplicate equivalent fixture lifecycle, or unclear owner; line reduction alone is insufficient. Run ponytail-review plus whole-diff scope review, resolve findings, and commit Phase C. No push, PR, Linear Done, or live Hosted operation is implied.
+- [x] T060 [US4] Run the unchanged full paired gate and separate existing provider-free SDK package qualification on the reduced candidate. Run Local feedback, pnpm test:pr and pnpm format; reuse existing full-report/parity/cleanup/package-lock negatives. Preserve full scenario names and source/artifact validation. Record exact commands/results and unavailable product lanes in acceptance.md; do not create another evidence framework or repeat study measurements.
+- [x] T061 Reconcile contributor guidance and all active feature documents with actual reduced commands. Map retained additions against baseline 5b294f4 to active requirements and report code/test reduction from a50ee5b, including untracked files and removed support tests. Confirm prohibited machinery is absent and historical records unchanged. Walk through a common Budget operation, supported Embedded installation and an installed remote consumer without implementing them: name the owning tests, reused scenarios/setup and distinct boundary proof. Require no copied semantic corpus, duplicate equivalent fixture lifecycle, or unclear owner; line reduction alone is insufficient. Run ponytail-review plus whole-diff scope review, resolve findings, and commit Phase C. No push, PR, Linear Done, or live Hosted operation is implied.
 
 ## Acceptance map
 
@@ -75,5 +75,5 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 SC-001/SC-003/SC-005/SC-006 are checked during the affected command phases;
 SC-002/SC-004 at T060; SC-007-SC-009 at T061 and the retained study.
 
-Of seven reduction tasks, two are complete and five remain unchecked.
+All seven reduction tasks are complete. Final source and evidence are recorded in [acceptance.md](acceptance.md#reduction-phase-c-final-acceptance).
 Follow the [plan's checkpoint rules](plan.md#delivery-and-guardrails).

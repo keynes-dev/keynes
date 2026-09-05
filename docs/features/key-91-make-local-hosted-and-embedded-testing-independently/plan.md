@@ -6,7 +6,7 @@
 
 ## Resume boundary
 
-Phases A and B are complete. Final acceptance begins at T060 in [tasks.md](tasks.md). T013-T049 describe
+Phases A-C are complete. [Acceptance](acceptance.md#reduction-phase-c-final-acceptance) records the final candidate and checks; [tasks.md](tasks.md) has no remaining reduction work. T013-T049 describe
 historical work now subject to reduction; T050-T054 are superseded. `a50ee5b` is the expanded implementation
 reference; `5b294f4` is the pre-implementation comparison baseline.
 

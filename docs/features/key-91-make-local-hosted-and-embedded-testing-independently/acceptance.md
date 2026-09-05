@@ -2,8 +2,7 @@
 
 The Phase 4-8 records below describe the expanded implementation and remain
 unchanged as historical evidence. The user superseded that design with focused
-feedback and separate existing acceptance. Reduction Phases A and B are complete;
-T060-T061 remain for final clean-candidate acceptance and reconciliation. Old
+feedback and separate existing acceptance. Reduction Phases A-C are complete; the final section records acceptance of the reduced candidate. Old
 T050-T054 are cancelled, even where partial integration runs exist. See
 [plan.md](plan.md) and [tasks.md](tasks.md) for the active scope. Historical records
 do not qualify the reduced implementation.
@@ -326,3 +325,80 @@ selection, strict existing report/process reuse and demonstrated cleanup repairs
 No new fixture lifecycle or semantic corpus was introduced. Historical study and
 phase records remain unchanged; current installed remote, installed Embedded and
 Hosted product acceptance remain NOT RUN. `pnpm test:pr` passes all 11 tasks, including formatting, package tests, type checks and dependency boundaries. Clean full/package acceptance is T060.
+
+## Reduction Phase C: final acceptance
+
+T060-T061 are complete. Runtime source is clean commit
+`1fd7fb0b35e53b3b96d88a2b5c72894d346273f1`, following Phase A `1781927` and
+Phase B `0d08f14`. The final cumulative review removed an unused subprocess
+wrapper, committed that deletion, then repeated acceptance on this final source.
+The subsequent completion commit updates documentation only.
+
+| Command                                                                                                                                  | Result on the final source                                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-91/reduced-full-final`                                                             | PASS: 37 SQLite assertions, 208 native assertions in all 16 files; exact shared-name parity; clean before/after and cleanup passed     |
+| `pnpm pack:sdk`                                                                                                                          | PASS: existing SDK archive preparation                                                                                                 |
+| `pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-91/reduced-sdk-final.json` | PASS: 22 package unit assertions and all 12 provider-free installed checks; clean before/after                                         |
+| `pnpm test:local`                                                                                                                        | PASS: 20 files, 261 assertions, no package preparation                                                                                 |
+| `pnpm test:pr`                                                                                                                           | PASS: 11 Turbo tasks, 168 native/paired runner assertions, package/repository tests, generation, type checks and dependency boundaries |
+| `pnpm format`                                                                                                                            | PASS: 485 files                                                                                                                        |
+
+Existing acceptance outputs are local and unpushed:
+
+- Full manifest: `.artifacts/key-91/reduced-full-final/manifest.json`, SHA-256 `b2af8e366d96dec62ff7719c0f4faf899f534f3fb9b48986383175df29a494c3`.
+- SDK result: `.artifacts/key-91/reduced-sdk-final.json`, SHA-256 `a2a96ba8d2cdd502339d95ba4f00419ff542c4193064e9fef9352aed79f81d4c`.
+- Tested SDK archive SHA-256: `8ad26e4fef912ece98eceaff7fb08ba1b09a772741575db06e30729aa0b65c21`.
+- Tested PostgreSQL archive SHA-256: `3c6b0e693739f92ba3555903757d9883842ff63b210bd693d95d8805e7dd1080`.
+
+Native selection results are recorded in Phase B. The unchanged full native
+inventory still contains all 171 native-only names; canonical Budget registration
+remains in the two original aggregate files. Existing negative tests cover missing
+and skipped results, parity drift, selected-schema refusal, source/artifact drift,
+package locking and cancellation/cleanup. No test-owned containers, networks or
+package lock remain after final acceptance. Node 26.5.0 and pnpm 11.21.0 ran locally
+on macOS arm64. Installed remote SDK/TLS, supported installed Embedded, actual
+Hosted, OS/Node matrix, external CI and merge enforcement remain NOT RUN.
+
+### Cumulative scope review
+
+Counts use `git diff --numstat` over `packages` and `scripts`, the same scope as the
+original 5,969-line expansion. The expanded candidate added 10,322 and deleted
+4,353 lines against `5b294f4`; the reduced source adds 5,654 and deletes 4,282, a
+net addition of 1,372. Compared with `a50ee5b`, this removes 4,597 net lines (77%).
+Test files account for 746 of the remaining net lines and 1,166 of the removed
+net lines; other code accounts for 626 remaining and 3,431 removed. Native suite
+indentation changes contribute to gross churn, not new assertions. The root
+package script changes are outside this count. There are no untracked source
+files; ignored local acceptance outputs are not new implementation machinery.
+
+| Retained change against `5b294f4`                                                                                     | Active obligation                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Root/package aliases and duplicate contracts-invocation removal; repository regression                                | FR-001, FR-012, FR-014: thin ownership and adopted study result                                        |
+| SDK Local/Hosted entrypoints and focused runner tests; unique generated-client case names                             | FR-001, FR-007, FR-008, FR-010: source selection, ordinary results, strict report identity and refusal |
+| Native selection map, connection-profile selection and existing runner changes                                        | FR-002, FR-004, FR-004a, FR-006: selected dependencies and fixture-only boundaries                     |
+| Explicit context failures in existing native suites; native/paired runner regressions                                 | FR-003, FR-008, FR-009: no silent skips or incomplete full acceptance                                  |
+| Shared report parser and child management reused by Local/native/paired callers                                       | FR-008, FR-016: one implementation for equivalent report/process mechanics                             |
+| Existing package preparation lock, cancellation and cleanup repairs; SDK qualification failure preservation and tests | FR-005, FR-017: retain demonstrated correctness for surviving callers                                  |
+
+The deployment orchestrator, TLS fixture/provisioner, SDK remote consumer protocol,
+selected manifests, copied Local/shared assertion inventories, snapshots and unused
+observers are absent. All seven removed installed remote cases retain the explicit
+dispositions in research.md. The study, evidence index and historical phase files
+are byte-for-byte unchanged from `a50ee5b`; no timing study was repeated and no
+new speedup is claimed. No product API, migration, installer grant or CI topology
+was added. Ponytail review after the unused-wrapper deletion: Lean already. Ship.
+
+### Future development walkthrough
+
+This is an ownership check, not authorization or implementation of future work.
+
+| Future change                   | Existing owner and reuse                                                                                                                                                                                                                                        | Distinct proof to add when supported                                                                                                                                                                                                                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common Budget operation         | Add semantics once under `packages/contracts/contract-tests/scenarios`; extend `registerBudgetContractTests` and the existing SQLite/PostgreSQL test hosts as needed. Both aggregate files continue to call that registrar.                                     | SDK public binding and native SQL/transaction tests cover their own boundary. Commands select the aggregates; they do not copy scenarios.                                                                                                                                                                     |
+| Supported Embedded installation | KEY-10 owns installer/profile/grant support. Reuse native startup and installation fixtures; replace fixture-provided grants through the supported path. KEY-11 retains `embedded-transactions.test.ts` and its caller-owned transaction cases.                 | Prove supported installation plus commit/rollback composition using the real product interface. Reuse equivalent setup without sharing mutable test state or adding a second provisioning lifecycle.                                                                                                          |
+| Installed remote SDK consumer   | SDK remote delivery owns `test/package` acceptance and reuses the existing external package installation/cleanup owner. Existing canonical behavior and native identity/recovery fixtures remain the starting points for applicable scenarios and target setup. | Add installed SDK authentication, replay and real TLS endpoint proof at that boundary; configuration mocks are insufficient. Define the real endpoint owner when delivery is scoped, and share equivalent setup with concrete callers. Do not recreate a generic deployment runner or copy a semantic corpus. |
+
+The walkthrough leaves one owner for common behavior, setup and each distinct
+boundary. Unused remote registrar activation and future TLS/product provisioning
+remain deferred. No publication, PR, Linear lifecycle update or Hosted execution
+was performed.

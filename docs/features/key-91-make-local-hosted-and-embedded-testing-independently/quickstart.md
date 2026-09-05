@@ -2,9 +2,8 @@
 
 ## Current boundary
 
-Phases A and B implement the commands below. T060-T061 remain for final acceptance and reconciliation.
-See [tasks.md](tasks.md) to resume and [acceptance.md](acceptance.md) for historical
-results. The [completed study](testing-strategy.md) is not a task to repeat.
+T055-T061 are complete. The commands below describe the reduced implementation.
+See [tasks.md](tasks.md) for completed work and [acceptance.md](acceptance.md#reduction-phase-c-final-acceptance) for final results. The [completed study](testing-strategy.md) is not a task to repeat.
 
 ## Focused feedback
 
