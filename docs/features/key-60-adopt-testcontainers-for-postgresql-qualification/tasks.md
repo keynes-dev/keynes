@@ -4,10 +4,9 @@
 [data-model.md](data-model.md), [qualification contract](contracts/qualification.md),
 and [quickstart.md](quickstart.md).
 
-All tasks below describe future implementation and remain unchecked. The documentation
-replacement uses focused consistency/format/repository validation; it changes no
-runtime behavior. Implementation regressions must fail for the expected behavioral
-reason before corresponding edits.
+Completed tasks are checked below. Baseline documentation uses focused
+format/repository validation and changes no runtime behavior. Implementation
+regressions must fail for the expected behavioral reason before corresponding edits.
 
 One issue, one normal PR and four cumulative checkpoints. Paths are repository-relative.
 `[P]` marks independent work within a checkpoint after its predecessors, not a
@@ -17,13 +16,13 @@ request for phase issues or concurrent timing runs.
 
 ### Setup
 
-- [ ] T001 Read KEY-60, current Git/PR state and governing docs; select Linear's exact branch and retain this directory, recording the clean baseline revision and measurement scope in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. Do not infer a Hosted prerequisite.
-- [ ] T002 Capture maintained physical/nonblank code totals, file scope, duplicated preparation sites, observed installer/package/consumer invocation counts, and existing product assertion identities per `quickstart.md` in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`.
+- [x] T001 Read KEY-60, current Git/PR state and governing docs; select Linear's exact branch and retain this directory, recording the clean baseline revision and measurement scope in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`. Do not infer a Hosted prerequisite.
+- [x] T002 Capture maintained physical/nonblank code totals, file scope, duplicated preparation sites, observed installer/package/consumer invocation counts, and existing product assertion identities per `quickstart.md` in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`.
 
 ### Baseline verification
 
-- [ ] T003 Run baseline provider-free checks, full native and paired gates, and five warm-cache runs for every feedback command and full acceptance per `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/quickstart.md`; retain sanitized reports, all durations, environment/cache conditions and archive identities in `acceptance.md`.
-- [ ] T004 Review the baseline inventory in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`; map duplicate setup/no-op checks to dedicated installer tests and name the deletion targets before implementation.
+- [x] T003 Run baseline provider-free checks, full native and paired gates, and five warm-cache runs for every feedback command and full acceptance per `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/quickstart.md`; retain sanitized reports, all durations, environment/cache conditions and archive identities in `acceptance.md`.
+- [x] T004 Review the baseline inventory in `docs/features/key-60-adopt-testcontainers-for-postgresql-qualification/acceptance.md`; map duplicate setup/no-op checks to dedicated installer tests and name the deletion targets before implementation.
 
 **Checkpoint decision**: Baseline measurements and unique product proof are recorded.
 Missing baseline runs remain NOT RUN and cannot support comparison.
