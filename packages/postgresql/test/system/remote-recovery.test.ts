@@ -355,13 +355,26 @@ describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
       );
       const budgetReference = requireBudgetReference(created);
 
-      for (let index = 0; index < 512; index += 1) {
-        const response = await queryResponse(client, "keynes.remote_request", {
-          operationKey: indexedOperationKey(index),
-          parentBudgetReference: budgetReference,
-          resources: [{ resource: "history_tokens", amount: 1 }],
+      // Fill three history pages with one child allocation and ordinary denials.
+      const commands = Array.from({ length: 512 }, (_, index) => ({
+        operationKey: indexedOperationKey(index),
+        parentBudgetReference: budgetReference,
+        resources: [
+          { resource: "history_tokens", amount: index === 0 ? 1 : 300 },
+        ],
+      }));
+      const seeded = await client.query<{ readonly response: unknown }>(
+        `select keynes.remote_request(command) as response
+           from jsonb_array_elements($1::jsonb) with ordinality as commands(command, ordinal)
+          order by ordinal`,
+        [JSON.stringify(commands)],
+      );
+      expect(seeded.rows).toHaveLength(commands.length);
+      for (const [index, { response }] of seeded.rows.entries()) {
+        expect(response).toMatchObject({
+          ok: true,
+          result: { kind: index === 0 ? "approved" : "denied" },
         });
-        expect(response).toMatchObject({ ok: true });
       }
 
       const first = requirePage(

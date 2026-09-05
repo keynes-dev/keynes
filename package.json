@@ -29,7 +29,8 @@
     "test": "turbo run test",
     "check:deps": "turbo boundaries --ui=stream",
     "check:repo": "pnpm generate:check && turbo run quality typecheck && pnpm check:deps",
-    "test:pr": "pnpm generate:check && pnpm test:generator && pnpm test:repository && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps"
+    "test:pr": "pnpm generate:check && pnpm test:generator && pnpm test:repository && pnpm exec vitest run scripts/run-conformance.test.ts packages/postgresql/test/system/run.test.ts --maxWorkers=1 && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps",
+    "test:conformance": "node scripts/run-conformance.ts"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

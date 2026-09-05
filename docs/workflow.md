@@ -16,8 +16,8 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
    `docs/features/<final segment of the fetched gitBranchName>/`. For existing
    features, use the directory linked from the issue; do not rename it on resume.
 4. Invoke `$speckit-specify` with the brief, issue URL, and explicit
-   `SPECIFY_FEATURE_DIRECTORY`. Put the issue link in spec.md. After the spec is
-   published on the branch, add its GitHub link to the issue without copying it.
+   `SPECIFY_FEATURE_DIRECTORY`. Put the issue link in spec.md. After publication,
+   link the spec from Linear as described in [Publish feature artifacts](#publish-feature-artifacts).
 
 The standard specify command creates `.specify/feature.json` with the selected
 `feature_directory`. This pointer is ignored, local to the checkout, and contains
@@ -44,6 +44,26 @@ appends remaining tasks; it does not replace review or runtime verification.
 Link the PR to the Linear issue using native GitHub linking. Mark Done only after
 merge and required acceptance passes. Task completion or an open PR is insufficient.
 This workflow does not authorize automatic merging or publication.
+
+## Publish feature artifacts
+
+Spec Kit commands produce local artifacts. After an authorized commit and push,
+update the owning Linear issue with links to the published artifacts:
+
+- **Feature specification** links to `spec.md`.
+- **Implementation plan** links to `plan.md`, which links to the applicable
+  research, data model, contracts, and quickstart artifacts.
+- **Implementation tasks** links to `tasks.md`.
+- **Acceptance evidence** links to the feature's acceptance record after
+  verification.
+
+Update existing attachments rather than creating duplicates. Use branch URLs for
+working documents and commit-pinned URLs for acceptance evidence. Keep document
+contents and detailed task tracking in Git.
+
+Each command's completion report must state whether its artifacts are local-only
+or published, and whether Linear links were updated. Generating artifacts alone
+does not authorize publication.
 
 ## Resume in a checkout
 
@@ -77,6 +97,49 @@ feature tests. See [product](product.md), [architecture](architecture.md), and t
 Record the source revision, commands, results, and relevant digests in feature
 acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
 CI or inspecting code does not establish runtime behavior.
+
+### SQLite and PostgreSQL conformance
+
+The PR job `SQLite and PostgreSQL conformance` runs independently of
+`Repository and tests`. It runs the same Budget registration on real private SQLite
+and the complete native PostgreSQL suite. Every assertion must pass, the shared
+names must match, and native-only coverage must be complete. Missing Docker,
+skipped tests, stale or incomplete evidence, and failed cleanup fail the command.
+
+Reproduce the paired check from a clean checkout with frozen dependencies,
+supported Node.js, pnpm, and Docker:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm test:conformance -- --output ".artifacts/conformance/$(node -p 'crypto.randomUUID()')"
+```
+
+The output directory must be new. `manifest.json` identifies the candidate, attempt,
+observed environment, both authorities, and retained file hashes. `sqlite.vitest.json`
+and `postgresql.json.vitest.json` contain sanitized scenario results. The native
+success record is `postgresql.json`; `postgresql.json.observations.json` retains
+safe startup and cleanup observations. A scenario failure has an executed assertion
+result. Startup failure may have no test report and must remain `NOT RUN`, with its
+cause recorded in the attempt. Failure diagnostics never qualify an attempt.
+
+For native-only diagnosis, use `pnpm test:system:postgresql -- --output
+<new-result-file>`. Its sanitized report and observations use `.vitest.json` and
+`.observations.json` suffixes. This command does not replace paired qualification.
+
+CI retains only the named evidence files under a candidate/run/attempt/job-specific
+artifact for 14 days. The job summary records the artifact ID and SHA-256 receipt.
+Download the bundle for review and retain durable acceptance copies before expiry.
+Missing upload receipts fail the job even when local tests pass.
+
+SIGINT and SIGTERM stop new work and initiate bounded child and fixture cleanup.
+Forced termination can prevent final writes; canceled work cannot qualify, and
+GitHub-hosted VM disposal is the final cleanup boundary after loss of the runner.
+
+Protected-branch acceptance requires the exact observed conformance check from
+GitHub Actions, existing required checks, and up-to-date candidates. Workflow YAML
+alone does not establish enforcement. The owning feature must retain policy
+readback and a native-failure blocked-merge demonstration. Each later shared
+behavior feature still owns its own real SQLite and native PostgreSQL evidence.
 
 Use existing investigation, design, TypeScript, and review skills when they resolve
 a real uncertainty. They operate on the same Spec Kit artifacts and introduce no

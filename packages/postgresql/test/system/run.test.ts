@@ -1,14 +1,21 @@
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
+  manageChild,
+  sanitizeVitestReport,
   PGBOUNCER_IMAGE,
   POSTGRES_IMAGE,
+  POSTGRESQL_SYSTEM_TEST_FILES,
   runPostgresqlSystemTests,
+  validatePostgresqlSystemReport,
   type PostgresqlSystemRuntime,
 } from "./run.js";
 import { REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS } from "./required-scenarios.js";
@@ -91,6 +98,12 @@ function fakeRuntime(options?: {
         if (options?.dockerFailure !== undefined) {
           throw options.dockerFailure;
         }
+        if (executable === "docker" && arguments_[0] === "version")
+          return { stdout: "29.0.1" };
+        if (executable === "docker" && arguments_[0] === "exec")
+          return { stdout: "PgBouncer 1.25.1\nlibevent 2.1" };
+        if (executable === "docker" && arguments_[0] === "inspect")
+          return { stdout: `sha256:${"a".repeat(64)}` };
         if (executable === "docker" && arguments_[0] === "port") {
           return { stdout: "127.0.0.1:49152\n" };
         }
@@ -156,6 +169,556 @@ function fakeRuntime(options?: {
 }
 
 describe("PostgreSQL system-test runner", () => {
+  it.each(["preflight", "final"])(
+    "cancels pending %s Git verification before publishing success",
+    async (phase) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime();
+      const controller = new AbortController();
+      const run = fake.runtime.run;
+      let revisions = 0;
+      fake.runtime.run = async (executable, args, env, signal) => {
+        if (executable === "git" && args[0] === "rev-parse") {
+          revisions++;
+          if (revisions === (phase === "preflight" ? 1 : 2)) {
+            return new Promise((_, reject) => {
+              signal?.addEventListener(
+                "abort",
+                () => reject(new Error("cancelled")),
+                { once: true },
+              );
+              controller.abort();
+            });
+          }
+        }
+        return run(executable, args, env, signal);
+      };
+      try {
+        const outcome = runPostgresqlSystemTests(
+          fake.runtime,
+          {},
+          { outputPath: output.path, signal: controller.signal },
+        ).then(
+          () => "passed",
+          () => "cancelled",
+        );
+        expect(
+          await Promise.race([
+            outcome,
+            new Promise((resolve) => setTimeout(() => resolve("pending"), 100)),
+          ]),
+        ).toBe("cancelled");
+        await expect(readFile(output.path)).rejects.toThrow();
+        if (phase === "preflight")
+          expect(fake.packagePreparations.count).toBe(0);
+      } finally {
+        await rm(output.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("rejects cancellation delivered with the final Git response", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime();
+    const controller = new AbortController();
+    const run = fake.runtime.run;
+    let revisions = 0;
+    fake.runtime.run = async (...args) => {
+      const response = await run(...args);
+      if (args[0] === "git" && args[1][0] === "rev-parse" && ++revisions === 2)
+        controller.abort();
+      return response;
+    };
+    try {
+      await expect(
+        runPostgresqlSystemTests(
+          fake.runtime,
+          {},
+          { outputPath: output.path, signal: controller.signal },
+        ),
+      ).rejects.toThrow("cancelled");
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    { success: false },
+    { errors: ["collection error"] },
+    { unhandledErrors: ["unhandled rejection"] },
+    { numFailedTestSuites: 1 },
+    { numTotalTests: 999999 },
+  ])("rejects failure metadata even with passed assertions: %j", (metadata) => {
+    expect(() =>
+      validatePostgresqlSystemReport({ ...passingVitestReport(), ...metadata }),
+    ).toThrow();
+  });
+
+  it("does not forward private test subprocess diagnostics to runner logs", async () => {
+    const result = await promisify(execFile)(process.execPath, [
+      "--input-type=module",
+      "-e",
+      `
+      import { spawnTestChild } from './packages/postgresql/test/system/run.ts';
+      const child = spawnTestChild(['exec','node','-e', 'process.stdout.write("private-fixture-secret"); process.stderr.write("private-fixture-secret"); process.exitCode=1'], process.env);
+      try { await child.wait(); } catch { process.stdout.write("tests failed"); } finally { await child.terminate(); }
+    `,
+    ]);
+    expect(result.stdout).toBe("tests failed");
+    expect(result.stderr).toBe("");
+  });
+
+  it("retains sanitized failed reports and startup diagnostics without publishing acceptance", async () => {
+    const output = await temporaryOutputPath();
+    const report = passingVitestReport();
+    const fake = fakeRuntime({
+      childFailure: new Error(PASSWORD),
+      vitestReport: {
+        ...report,
+        success: false,
+        numFailedTests: 1,
+        errors: [
+          { message: `postgresql://postgres:${PASSWORD}@localhost/private` },
+        ],
+        privateContext: {
+          password: PASSWORD,
+          principalId: "private-principal",
+        },
+      },
+    });
+    try {
+      await expect(
+        runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("during tests");
+      const retained = await readFile(`${output.path}.vitest.json`, "utf8");
+      expect(JSON.parse(retained)).toMatchObject({
+        success: false,
+        numFailedTests: 1,
+      });
+      expect(retained).not.toContain(PASSWORD);
+      expect(retained).not.toContain("postgresql://");
+      expect(retained).not.toContain("private-principal");
+      expect(
+        JSON.parse(await readFile(`${output.path}.observations.json`, "utf8")),
+      ).toMatchObject({
+        runId: RUN_ID,
+        cleanup: "passed",
+        stages: expect.arrayContaining([{ stage: "tests", status: "failed" }]),
+      });
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("retains Docker startup failure without inventing a test report", async () => {
+    const output = await temporaryOutputPath();
+    try {
+      await expect(
+        runPostgresqlSystemTests(
+          fakeRuntime({ dockerFailure: new Error(PASSWORD) }).runtime,
+          {},
+          { outputPath: output.path },
+        ),
+      ).rejects.toThrow("network-create");
+      const observations = await readFile(
+        `${output.path}.observations.json`,
+        "utf8",
+      );
+      expect(JSON.parse(observations)).toMatchObject({
+        cleanup: "passed",
+        stages: expect.arrayContaining([
+          { stage: "network-create", status: "failed" },
+        ]),
+      });
+      expect(observations).not.toContain(PASSWORD);
+      await expect(readFile(`${output.path}.vitest.json`)).rejects.toThrow();
+      await expect(readFile(output.path)).rejects.toThrow();
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a reused report sidecar before starting work", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime();
+    try {
+      await writeFile(`${output.path}.vitest.json`, "existing");
+      await expect(
+        runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("already exists");
+      expect(fake.commands).toEqual([]);
+      expect(await readFile(`${output.path}.vitest.json`, "utf8")).toBe(
+        "existing",
+      );
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("records observed runtime versions and images with the existing acceptance schema", async () => {
+    const output = await temporaryOutputPath();
+    try {
+      await expect(
+        runPostgresqlSystemTests(
+          fakeRuntime().runtime,
+          {},
+          { outputPath: output.path },
+        ),
+      ).resolves.toBe(RUN_ID);
+      const observations = JSON.parse(
+        await readFile(`${output.path}.observations.json`, "utf8"),
+      );
+      expect(observations.environment).toMatchObject({
+        dockerVersion: "29.0.1",
+        postgresVersion: "180006",
+        pgbouncerVersion: "1.25.1",
+        postgresImageId: `sha256:${"a".repeat(64)}`,
+        pgbouncerImageId: `sha256:${"a".repeat(64)}`,
+      });
+      const record = JSON.parse(await readFile(output.path, "utf8"));
+      expect(record.schemaVersion).toBe("keynes.system-test.postgresql/v1");
+      expect(record.tests).toEqual(
+        JSON.parse(await readFile(`${output.path}.vitest.json`, "utf8")),
+      );
+      expect(observations.distribution).toEqual(
+        expect.objectContaining({
+          archiveSha256: record.distribution.archiveSha256,
+        }),
+      );
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails retention if another writer takes the report path during execution", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime();
+    const spawn = fake.runtime.spawnTests;
+    fake.runtime.spawnTests = (environment) => {
+      const child = spawn(environment);
+      return {
+        ...child,
+        async wait() {
+          await child.wait();
+          await writeFile(`${output.path}.vitest.json`, "other writer");
+        },
+      };
+    };
+    try {
+      await expect(
+        runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("report-retention");
+      expect(await readFile(`${output.path}.vitest.json`, "utf8")).toBe(
+        "other writer",
+      );
+      await expect(readFile(output.path)).rejects.toThrow();
+      expect(
+        JSON.parse(await readFile(`${output.path}.observations.json`, "utf8")),
+      ).toMatchObject({
+        stages: expect.arrayContaining([
+          { stage: "report-retention", status: "failed" },
+        ]),
+      });
+    } finally {
+      await rm(output.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("removes known fixture secrets even from dynamic test identities", () => {
+    const retained = sanitizeVitestReport(
+      {
+        testResults: [
+          {
+            name: "/repo/packages/file.ts",
+            assertionResults: [
+              {
+                fullName: `case ${PASSWORD}`,
+                status: "failed",
+                ancestorTitles: [PASSWORD],
+              },
+            ],
+          },
+        ],
+      },
+      [PASSWORD],
+    );
+    expect(JSON.stringify(retained)).not.toContain(PASSWORD);
+  });
+
+  it("sanitizes execution diagnostics without concealing error presence", () => {
+    const report = sanitizeVitestReport({
+      success: true,
+      errors: [{ message: PASSWORD }],
+      testResults: [
+        {
+          name: "/machine/packages/test.ts",
+          message: PASSWORD,
+          assertionResults: [
+            {
+              fullName: "a case",
+              ancestorTitles: ["suite"],
+              status: "failed",
+              failureMessages: [PASSWORD],
+              duration: 2,
+            },
+          ],
+        },
+      ],
+    });
+    const serialized = JSON.stringify(report);
+    expect(serialized).not.toContain(PASSWORD);
+    expect(report).toMatchObject({
+      errors: ["diagnostic omitted"],
+      testResults: [
+        {
+          name: "./packages/test.ts",
+          message: "diagnostic omitted",
+          assertionResults: [
+            {
+              ancestorTitles: ["suite"],
+              failureMessages: ["diagnostic omitted"],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("kills a real child that ignores graceful termination within the cleanup deadline", async () => {
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        'process.on("SIGTERM", () => {}); process.stdout.write("ready"); setInterval(() => {}, 1000)',
+      ],
+      {
+        detached: process.platform !== "win32",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    const managed = manageChild(child, 50);
+    try {
+      await once(child.stdout, "data");
+      const start = Date.now();
+      await managed.terminate();
+      expect(Date.now() - start).toBeLessThan(1000);
+      expect(child.signalCode).toBe("SIGKILL");
+      await expect(managed.wait()).rejects.toThrow("Native subprocess failed");
+    } finally {
+      await managed.terminate();
+    }
+  });
+
+  it("stops after cancellation during package preparation and closes the package", async () => {
+    const fake = fakeRuntime();
+    const controller = new AbortController();
+    let closed = false;
+    const prepare = fake.runtime.preparePackage;
+    fake.runtime.preparePackage = async () => {
+      const packed = await prepare();
+      controller.abort();
+      return {
+        ...packed,
+        async close() {
+          closed = true;
+          await packed.close();
+        },
+      };
+    };
+    await expect(
+      runPostgresqlSystemTests(fake.runtime, {}, { signal: controller.signal }),
+    ).rejects.toThrow("cancelled");
+    expect(fake.commands).toEqual([]);
+    expect(closed).toBe(true);
+  });
+
+  it.each(["SIGINT", "SIGTERM"])(
+    "cancels active tests on %s and completes cleanup without a success record",
+    async (signal) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime();
+      const controller = new AbortController();
+      let stopped = false;
+      fake.runtime.spawnTests = () => ({
+        wait: () =>
+          new Promise<void>(() => {
+            controller.abort(signal);
+          }),
+        terminate: async () => {
+          stopped = true;
+        },
+      });
+      try {
+        await expect(
+          runPostgresqlSystemTests(
+            fake.runtime,
+            {},
+            { outputPath: output.path, signal: controller.signal },
+          ),
+        ).rejects.toThrow("cancelled");
+        expect(stopped).toBe(true);
+        expect(
+          fake.commands.some(
+            ({ arguments: args }) => args[0] === "network" && args[1] === "rm",
+          ),
+        ).toBe(true);
+        await expect(readFile(output.path)).rejects.toThrow();
+      } finally {
+        await rm(output.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "preserves test failure and cleanup failure with retained output=%s",
+    async (retain) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime({
+        childFailure: new Error("private primary failure"),
+      });
+      const run = fake.runtime.run;
+      fake.runtime.run = async (...args) => {
+        const result = await run(...args);
+        if (args[1][0] === "stop") throw new Error("private cleanup failure");
+        return result;
+      };
+      try {
+        await expect(
+          runPostgresqlSystemTests(
+            fake.runtime,
+            {},
+            retain ? { outputPath: output.path } : {},
+          ),
+        ).rejects.toThrow(
+          retain ? "during tests" : /during tests.*cleanup also failed/,
+        );
+        expect(
+          fake.commands.filter(({ arguments: args }) => args[0] === "stop"),
+        ).toHaveLength(3);
+        expect(
+          fake.commands.some(({ arguments: args }) => args[1] === "rm"),
+        ).toBe(true);
+        if (retain) {
+          const observations = JSON.parse(
+            await readFile(`${output.path}.observations.json`, "utf8"),
+          );
+          expect(observations.stages).toContainEqual({
+            stage: "cleanup",
+            status: "failed",
+          });
+          expect(observations.stages).toContainEqual({
+            stage: "tests",
+            status: "failed",
+          });
+          await expect(readFile(output.path)).rejects.toThrow();
+        }
+      } finally {
+        await rm(output.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS))(
+    "requires every native-only assertion in %s",
+    (file, names) => {
+      for (const name of names) {
+        for (const status of ["missing", "pending"]) {
+          const report = passingVitestReport();
+          const testResults = report.testResults.map((result) => ({
+            ...result,
+            assertionResults: result.name.endsWith(`/${file}`)
+              ? result.assertionResults
+                  .filter(
+                    (assertion) =>
+                      status !== "missing" || assertion.fullName !== name,
+                  )
+                  .map((assertion) => ({
+                    ...assertion,
+                    status:
+                      assertion.fullName === name ? status : assertion.status,
+                  }))
+              : result.assertionResults,
+          }));
+          expect(
+            () =>
+              validatePostgresqlSystemReport({
+                ...report,
+                numPassedTests: testResults.reduce(
+                  (total, result) => total + result.assertionResults.length,
+                  0,
+                ),
+                testResults,
+              }),
+            `${name}: ${status}`,
+          ).toThrow("required PostgreSQL system scenario");
+        }
+      }
+    },
+  );
+
+  it("executes the same complete Budget registration as SQLite", async () => {
+    const native = "packages/postgresql/test/system/budget.test.ts";
+    expect(POSTGRESQL_SYSTEM_TEST_FILES).toContain(native);
+    const registration = await readFile(native, "utf8");
+    expect(registration).toContain(
+      "registerBudgetContractTests(openPostgresqlContractTestHost)",
+    );
+    const shared = await readFile(
+      "packages/contracts/conformance/scenarios/index.ts",
+      "utf8",
+    );
+    expect(shared).toContain(
+      "registerResourceBoundRootContractTests(openHost)",
+    );
+  });
+
+  it.each(["missing", "skipped", "empty", "duplicate"])(
+    "rejects %s aggregate coverage",
+    async (kind) => {
+      const output = await temporaryOutputPath();
+      const report = passingVitestReport();
+      const aggregate = report.testResults.find((result) =>
+        result.name.endsWith("/system/budget.test.ts"),
+      );
+      expect(aggregate).toBeDefined();
+      const testResults = report.testResults.flatMap((result) => {
+        if (result !== aggregate)
+          return [
+            { ...result, assertionResults: [...result.assertionResults] },
+          ];
+        if (kind === "missing") return [];
+        return [
+          {
+            ...result,
+            assertionResults:
+              kind === "empty"
+                ? []
+                : kind === "duplicate"
+                  ? [...result.assertionResults, ...result.assertionResults]
+                  : result.assertionResults.map((assertion) => ({
+                      ...assertion,
+                      status: "pending",
+                    })),
+          },
+        ];
+      });
+      try {
+        await expect(
+          runPostgresqlSystemTests(
+            fakeRuntime({ vitestReport: { ...report, testResults } }).runtime,
+            {},
+            { outputPath: output.path },
+          ),
+        ).rejects.toThrow();
+        await expect(readFile(output.path)).rejects.toThrow();
+      } finally {
+        await rm(output.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
   async function temporaryOutputPath(): Promise<{
     readonly directory: string;
     readonly path: string;
@@ -169,7 +732,9 @@ describe("PostgreSQL system-test runner", () => {
   it("owns the exact loopback-only container and removes it after success", async () => {
     const fake = fakeRuntime();
 
-    await runPostgresqlSystemTests(fake.runtime, {});
+    await expect(runPostgresqlSystemTests(fake.runtime, {})).resolves.toBe(
+      RUN_ID,
+    );
 
     expect(fake.commands[0]).toEqual({
       executable: "docker",
@@ -590,16 +1155,19 @@ function passingVitestReport(): {
     }[];
   }[];
 } {
-  const testResults = Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).map(
-    ([file, names]) => ({
-      name: `/repository/packages/${file}`,
+  const testResults = Object.entries({
+    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+    "packages/postgresql/test/system/budget.test.ts": [
+      "shared Budget scenario fixture",
+    ],
+  }).map(([file, names]) => ({
+    name: `/repository/packages/${file}`,
+    status: "passed" as const,
+    assertionResults: names.map((fullName) => ({
+      fullName,
       status: "passed" as const,
-      assertionResults: names.map((fullName) => ({
-        fullName,
-        status: "passed" as const,
-      })),
-    }),
-  );
+    })),
+  }));
   return {
     numFailedTests: 0,
     numPendingTests: 0,
