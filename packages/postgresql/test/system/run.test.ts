@@ -460,7 +460,7 @@ describe("PostgreSQL system-test runner", () => {
       const run = fake.runtime.run;
       fake.runtime.run = async (...args) => {
         const result = await run(...args);
-        if (args[1][0] === "stop") throw new Error("private cleanup failure");
+        if (args[1][0] === "rm") throw new Error("private cleanup failure");
         return result;
       };
       try {
@@ -474,7 +474,7 @@ describe("PostgreSQL system-test runner", () => {
           retain ? "during tests" : /during tests.*cleanup also failed/,
         );
         expect(
-          fake.commands.filter(({ arguments: args }) => args[0] === "stop"),
+          fake.commands.filter(({ arguments: args }) => args[0] === "rm"),
         ).toHaveLength(3);
         expect(
           fake.commands.some(({ arguments: args }) => args[1] === "rm"),
@@ -695,7 +695,7 @@ describe("PostgreSQL system-test runner", () => {
     expect(fake.probeUrls.length).toBeLessThanOrEqual(301);
     expect(
       fake.commands.some(
-        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+        ({ arguments: commandArguments }) => commandArguments[0] === "rm",
       ),
     ).toBe(true);
   });
@@ -709,7 +709,7 @@ describe("PostgreSQL system-test runner", () => {
 
     expect(
       fake.commands.some(
-        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+        ({ arguments: commandArguments }) => commandArguments[0] === "rm",
       ),
     ).toBe(true);
   });
@@ -735,7 +735,7 @@ describe("PostgreSQL system-test runner", () => {
     expect(String(failure)).not.toContain(privateUrl);
     expect(
       fake.commands.some(
-        ({ arguments: commandArguments }) => commandArguments[0] === "stop",
+        ({ arguments: commandArguments }) => commandArguments[0] === "rm",
       ),
     ).toBe(true);
     expect(fake.childTerminations.count).toBe(1);

@@ -108,6 +108,7 @@ export type PostgresqlSystemContext =
     });
 
 export interface PostgresqlSystemRunOptions {
+  readonly onCleanup?: (status: "passed" | "failed") => void;
   readonly selection?: RemoteSelection;
   readonly selectedReportPath?: string;
   readonly outputPath?: string;
@@ -354,7 +355,7 @@ export async function runPostgresqlSystemTests(
     try {
       await runtime.run(
         "docker",
-        ["stop", pooler],
+        ["rm", "--force", pooler],
         environment,
         AbortSignal.timeout(10_000),
       );
@@ -366,7 +367,7 @@ export async function runPostgresqlSystemTests(
     try {
       await runtime.run(
         "docker",
-        ["stop", runId],
+        ["rm", "--force", runId],
         environment,
         AbortSignal.timeout(10_000),
       );
@@ -466,6 +467,7 @@ export async function runPostgresqlSystemTests(
       if (failure === undefined)
         failure = postgresqlSystemFailure(runId, "observation-retention");
     }
+    options.onCleanup?.(cleanupFailed ? "failed" : "passed");
     if (failure !== undefined) throw failure;
     if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
     if (prohibited)
@@ -507,6 +509,7 @@ export async function runPostgresqlSystemTests(
       }
     }
   }
+  options.onCleanup?.(cleanupFailed ? "failed" : "passed");
   if (failure !== undefined) {
     if (cleanupFailed)
       throw new AggregateError(

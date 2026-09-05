@@ -70,6 +70,7 @@ export interface DeploymentRuntime {
     packed: PackedPostgresqlPackage,
     attemptId: string,
     signal?: AbortSignal,
+    onCleanup?: (status: "passed" | "failed") => void,
   ): Promise<void>;
   tls(
     commandPath: string,
@@ -99,6 +100,7 @@ type Stage = {
   kind: "NOT RUN" | "completed" | "failed";
   readonly coverage: readonly string[];
   cause?: string;
+  observations?: Readonly<Record<string, string>>;
 };
 function expectedStages(selection: RemoteSelection): Stage[] {
   return [
@@ -175,6 +177,7 @@ export async function runDeployment(
   let prepared: Awaited<ReturnType<DeploymentRuntime["prepare"]>> | undefined;
   let fixture: Awaited<ReturnType<DeploymentRuntime["tls"]>> | undefined;
   let inputs: unknown;
+  let sqlCleanup: "passed" | "failed" | "NOT RUN" | undefined;
   const stage = async <T>(
     name: string,
     operation: () => Promise<T>,
@@ -253,6 +256,7 @@ export async function runDeployment(
     const identities = archiveIdentities;
     await stage("sql-fixtures", async () => {
       const reportPath = join(workspace, "sql.json");
+      sqlCleanup = "NOT RUN";
       await runWithReport(
         () =>
           runtime.sql(
@@ -261,6 +265,9 @@ export async function runDeployment(
             ready.postgresql,
             attemptId,
             signal,
+            (status) => {
+              sqlCleanup = status;
+            },
           ),
         reportPath,
         "sql.json",
@@ -321,6 +328,9 @@ export async function runDeployment(
   const cleanup = stages.find((stage) => stage.name === "cleanup");
   if (cleanup === undefined) throw new Error("Missing cleanup stage");
   const failures: unknown[] = [];
+  cleanup.observations = { sqlFixtures: sqlCleanup ?? "NOT RUN" };
+  if (sqlCleanup !== undefined && sqlCleanup !== "passed")
+    failures.push(new Error("SQL fixture cleanup failed or unconfirmed"));
   if (fixture !== undefined)
     try {
       await fixture.close();
@@ -507,7 +517,7 @@ const production: DeploymentRuntime = {
       throw error;
     }
   },
-  async sql(selection, reportPath, packed, attemptId, signal) {
+  async sql(selection, reportPath, packed, attemptId, signal, onCleanup) {
     await runPostgresqlSystemTests(
       {
         ...productionRuntime,
@@ -515,7 +525,7 @@ const production: DeploymentRuntime = {
         preparePackage: async () => ({ ...packed, close: async () => {} }),
       },
       providerFreeEnvironment(process.env),
-      { selection, selectedReportPath: reportPath, signal },
+      { selection, selectedReportPath: reportPath, signal, onCleanup },
     );
   },
   tls: (commandPath, modes, attemptId, signal) =>
@@ -653,6 +663,15 @@ export async function validateDeploymentEvidence(
   )
     throw new Error("Native attempt identity changed");
   if (value.outcome !== "passed") return;
+  const cleanupStage: unknown = value.stages.find(
+    (stage: Record<string, unknown>) => stage.name === "cleanup",
+  );
+  if (
+    !record(cleanupStage) ||
+    !record(cleanupStage.observations) ||
+    cleanupStage.observations.sqlFixtures !== "passed"
+  )
+    throw new Error("SQL cleanup observation missing");
   if (
     !record(value.candidate) ||
     !validSnapshot(value.candidate.before) ||

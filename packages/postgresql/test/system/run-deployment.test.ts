@@ -141,7 +141,7 @@ async function attempt() {
         },
       };
     },
-    sql: async (selection, path) => {
+    sql: async (selection, path, _packed, _id, _signal, onCleanup) => {
       order.push("sql");
       await writeFile(
         path,
@@ -152,6 +152,7 @@ async function attempt() {
         ),
       );
       order.push("sql-cleanup");
+      onCleanup?.("passed");
     },
     tls: async () => {
       order.push("tls");
@@ -376,4 +377,51 @@ it("rejects empty full execution even without an output path", async () => {
   });
   await expect(runPostgresqlSystemTests(fake.runtime, {})).rejects.toThrow();
   expect(fake.childTerminations.count).toBe(1);
+});
+
+it("removes containers before their network instead of racing Docker automatic removal", async () => {
+  const fake = fakeRuntime();
+  const run = fake.runtime.run;
+  const containers = new Set<string>();
+  fake.runtime.run = async (executable, args, env, signal) => {
+    if (executable === "docker" && args[0] === "run")
+      containers.add(args[args.indexOf("--name") + 1] ?? "");
+    if (executable === "docker" && args[0] === "rm")
+      containers.delete(args.at(-1) ?? "");
+    if (
+      executable === "docker" &&
+      args[0] === "network" &&
+      args[1] === "rm" &&
+      containers.size > 0
+    )
+      throw new Error("network has active endpoints");
+    return run(executable, args, env, signal);
+  };
+  await expect(
+    runPostgresqlSystemTests(fake.runtime, {}),
+  ).resolves.toBeDefined();
+  expect(containers.size).toBe(0);
+});
+
+it("keeps a SQL fixture cleanup failure in the selected cleanup result", async () => {
+  const fixture = await attempt();
+  fixture.runtime.sql = async (
+    _selection,
+    _path,
+    _packed,
+    _id,
+    _signal,
+    onCleanup,
+  ) => {
+    onCleanup?.("failed");
+    throw new Error("SQL cleanup failed");
+  };
+  try {
+    const result = await runDeployment(fixture.args, fixture.runtime);
+    expect(result.stages.find((stage) => stage.name === "cleanup")?.kind).toBe(
+      "failed",
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
 });
