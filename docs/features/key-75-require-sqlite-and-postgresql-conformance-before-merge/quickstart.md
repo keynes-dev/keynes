@@ -1,4 +1,6 @@
-# Quickstart: validate required conformance
+# Quickstart: validate required shared behavior tests
+
+Terminology updated by KEY-92. Historical execution evidence remains unchanged.
 
 This guide specifies implementation acceptance. The paired command and runner regressions are implemented locally. See [acceptance evidence](evidence/acceptance.md) for exact executed revisions and outstanding demonstrations.
 
@@ -30,7 +32,7 @@ pnpm format
 During implementation, first observe the new fail-closed gate regressions failing for the intended reasons. Then implement them and run:
 
 ```sh
-pnpm exec vitest run scripts/run-conformance.test.ts packages/postgresql/test/system/run.test.ts --maxWorkers=1
+pnpm exec vitest run scripts/run-sqlite-postgres.test.ts packages/postgresql/test/system/run.test.ts --maxWorkers=1
 ```
 
 These focused tests use controlled runner/report fixtures and prove qualification logic only. Wire them into the provider-free PR gate so later changes cannot bypass these regressions.
@@ -40,7 +42,7 @@ These focused tests use controlled runner/report fixtures and prove qualificatio
 The current commands remain useful for diagnosis:
 
 ```sh
-pnpm --filter @keynes/sdk test:conformance
+pnpm --filter @keynes/sdk test:contract
 pnpm test:system:postgresql
 ```
 
@@ -51,8 +53,8 @@ The SDK command also includes executor tests; those are not additional SQLite Bu
 Run the new command with a fresh output directory:
 
 ```sh
-conformance_attempt_id="$(node -p 'crypto.randomUUID()')"
-pnpm test:conformance -- --output ".artifacts/conformance/$conformance_attempt_id"
+sqlite_postgres_attempt_id="$(node -p 'crypto.randomUUID()')"
+pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$sqlite_postgres_attempt_id"
 ```
 
 Expected outcome: zero exit status, separately identified SQLite and PostgreSQL results for the actual checkout, the same nonempty complete shared scenario set, full native-only coverage, observed environment metadata, matching input/file digests, and successful cleanup. The aggregate currently has 37 shared scenarios, including the five Resource-bound root cases. Both authorities use the shared registration; future additions increase the count together.
@@ -105,7 +107,7 @@ gh pr checks <demonstration-pr-number>
 gh pr view <demonstration-pr-number> --json headRefOid,baseRefName,mergeStateStatus,statusCheckRollup
 ```
 
-See [research.md](research.md#required-policy-is-an-independent-acceptance-condition) for dated policy observations. Refresh policy readback during acceptance. Configure the observed check context according to [the operational contract](contracts/conformance-check.md), preserving existing requirements. Retain policy readback and evidence that the native failure specifically blocks the covered merge path. A draft PR alone is not proof that conformance blocks merging. Do not merge as a test.
+See [research.md](research.md#required-policy-is-an-independent-acceptance-condition) for dated policy observations. Refresh policy readback during acceptance. Configure the observed check context according to [the operational contract](contracts/sqlite-postgres-check.md), preserving existing requirements. Retain policy readback and evidence that the native failure specifically blocks the covered merge path. A draft PR alone is not proof that the database behavior check blocks merging. Do not merge as a test.
 
 ## Acceptance record
 

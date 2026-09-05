@@ -1,6 +1,8 @@
-# Data model: conformance evidence
+# Data model: database test evidence
 
-This feature changes test evidence, not Budget storage. Use one new manifest, `keynes.conformance/v1`, for each paired attempt. Reference sanitized Vitest reports and the existing native acceptance record; do not introduce separate versioned runtime envelopes.
+Terminology updated by KEY-92. Historical execution evidence remains unchanged.
+
+This feature changes test evidence, not Budget storage. Use one new manifest, `keynes.sqlite-postgres/v1`, for each paired attempt. Reference sanitized Vitest reports and the existing native acceptance record; do not introduce separate versioned runtime envelopes.
 
 ## Attempt manifest
 
@@ -41,7 +43,7 @@ Compare the actual full-name assertion sets from both aggregate reports. Require
 
 Sanitized reports retain status, count, full name, relative file, duration, and bounded safe diagnostics. Strip secrets and private fixture values before writing or logging. Preserve the failure status and safe stage when an assertion message cannot be retained safely.
 
-Hosted success additionally requires confirmed upload of the attempt's files, as specified in [the hosted-check contract](contracts/conformance-check.md#required-hosted-check). Uploading failure diagnostics cannot qualify failed work; forced cancellation may prevent retention and remains nonpassing.
+Hosted success additionally requires confirmed upload of the attempt's files, as specified in [the hosted-check contract](contracts/sqlite-postgres-check.md#required-hosted-check). Uploading failure diagnostics cannot qualify failed work; forced cancellation may prevent retention and remains nonpassing.
 
 ## Required check policy observation
 

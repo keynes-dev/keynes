@@ -15,18 +15,18 @@ import {
 } from "../packages/postgresql/test/system/run.ts";
 import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgresql/test/system/required-scenarios.ts";
 
-export const SQLITE_AGGREGATE = "packages/sdk/test/conformance/budget.test.ts";
+export const SQLITE_AGGREGATE = "packages/sdk/test/contract/budget.test.ts";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function validateConformanceReport(
+export function validateTestReport(
   value: unknown,
   aggregate: string,
 ): string[] {
-  const invalid = () => new Error("Incomplete conformance report");
+  const invalid = () => new Error("Incomplete test report");
   if (
     !record(value) ||
     value.success !== true ||
@@ -114,17 +114,17 @@ export function validateConformanceReport(
   return shared;
 }
 
-export async function qualifyConformance(
+export async function verifySqlitePostgresResults(
   executors: { sqlite(): Promise<unknown>; postgresql(): Promise<unknown> },
   signal?: AbortSignal,
 ): Promise<void> {
   const failures: string[] = [];
   const results: string[][] = [];
   for (const authority of ["sqlite", "postgresql"] as const) {
-    if (signal?.aborted) throw new Error("conformance cancelled");
+    if (signal?.aborted) throw new Error("sqlite-postgres cancelled");
     try {
       const report = await executors[authority]();
-      const shared = validateConformanceReport(
+      const shared = validateTestReport(
         report,
         authority === "sqlite" ? SQLITE_AGGREGATE : POSTGRESQL_BUDGET_AGGREGATE,
       );
@@ -134,7 +134,7 @@ export async function qualifyConformance(
       failures.push(authority);
     }
   }
-  if (signal?.aborted) throw new Error("conformance cancelled");
+  if (signal?.aborted) throw new Error("sqlite-postgres cancelled");
   const [sqlite, postgresql] = results;
   if (
     failures.length !== 0 ||
@@ -144,7 +144,7 @@ export async function qualifyConformance(
     sqlite.some((name, index) => name !== postgresql[index])
   ) {
     throw new Error(
-      `conformance failed: ${failures.length === 0 ? "shared coverage differs" : failures.join(", ")}`,
+      `sqlite-postgres failed: ${failures.length === 0 ? "shared coverage differs" : failures.join(", ")}`,
     );
   }
 }
@@ -167,7 +167,7 @@ export async function runSqlite(
   reportPath: string,
   signal: AbortSignal,
 ): Promise<unknown> {
-  if (signal.aborted) throw new Error("conformance cancelled");
+  if (signal.aborted) throw new Error("sqlite-postgres cancelled");
   const child = spawn(
     "pnpm",
     [
@@ -218,10 +218,13 @@ if (
   process.once("SIGTERM", cancel);
   void Promise.resolve()
     .then(() =>
-      runConformance(parseArguments(process.argv.slice(2)), controller.signal),
+      runSqlitePostgresTests(
+        parseArguments(process.argv.slice(2)),
+        controller.signal,
+      ),
     )
     .catch(() => {
-      process.stderr.write("SQLite and PostgreSQL conformance failed\n");
+      process.stderr.write("SQLite and PostgreSQL behavior tests failed\n");
       process.exitCode = 1;
     })
     .finally(() => {
@@ -230,7 +233,7 @@ if (
     });
 }
 
-export interface ConformanceSnapshot {
+export interface SqlitePostgresSnapshot {
   readonly commit: string;
   readonly clean: boolean;
   readonly inputs: {
@@ -242,7 +245,7 @@ export interface ConformanceSnapshot {
   readonly sqliteVersion: string;
 }
 export interface EvidenceRuntime {
-  snapshot(): Promise<ConformanceSnapshot>;
+  snapshot(): Promise<SqlitePostgresSnapshot>;
   sqlite(path: string, signal: AbortSignal): Promise<unknown>;
   native(path: string, signal: AbortSignal): Promise<string>;
 }
@@ -358,7 +361,7 @@ async function command(executable: string, args: string[]): Promise<string> {
     await managed.terminate();
   }
 }
-async function snapshot(): Promise<ConformanceSnapshot> {
+async function snapshot(): Promise<SqlitePostgresSnapshot> {
   const [commit, status, pnpm, lock, contractBytes, installation] =
     await Promise.all([
       command("git", ["rev-parse", "HEAD"]),
@@ -453,7 +456,7 @@ export function validateManifestIdentity(
 ): void {
   if (
     !record(value) ||
-    value.schemaVersion !== "keynes.conformance/v1" ||
+    value.schemaVersion !== "keynes.sqlite-postgres/v1" ||
     !record(value.candidate) ||
     value.candidate.commit !== expected.commit ||
     !record(value.attempt) ||
@@ -477,7 +480,7 @@ export function validateManifestIdentity(
     throw new Error("Invalid attempt timestamps");
 }
 
-function validateSnapshot(value: ConformanceSnapshot): void {
+function validateSnapshot(value: SqlitePostgresSnapshot): void {
   if (
     !value.clean ||
     !/^[0-9a-f]{40}$/.test(value.commit) ||
@@ -501,7 +504,7 @@ function validateSnapshot(value: ConformanceSnapshot): void {
 export function validateNativeEvidence(
   value: unknown,
   observations: unknown,
-  expected: ConformanceSnapshot,
+  expected: SqlitePostgresSnapshot,
   report: unknown,
   expectedRunId: string | undefined,
 ): void {
@@ -563,7 +566,7 @@ export function validateNativeEvidence(
       throw new Error("Native image observation missing");
 }
 
-export async function runConformance(
+export async function runSqlitePostgresTests(
   outputPath: string,
   signal: AbortSignal,
   runtime: EvidenceRuntime = evidenceRuntime,
@@ -597,8 +600,8 @@ export async function runConformance(
     }),
   );
   const failures: string[] = [];
-  let before: ConformanceSnapshot | undefined;
-  let after: ConformanceSnapshot | undefined;
+  let before: SqlitePostgresSnapshot | undefined;
+  let after: SqlitePostgresSnapshot | undefined;
   let temporary: string | undefined;
   let pullRequest: { head?: string; base?: string } = {};
   const references: FileReference[] = [];
@@ -621,7 +624,7 @@ export async function runConformance(
       process.env.GITHUB_SHA !== before.commit
     )
       throw new Error("Candidate differs from invocation");
-    temporary = await mkdtemp(join(tmpdir(), "keynes-conformance-"));
+    temporary = await mkdtemp(join(tmpdir(), "keynes-sqlite-postgres-"));
     for (const entry of runtimes) {
       if (signal.aborted) {
         entry.execution = { status: "NOT RUN", cause: "cancelled" };
@@ -735,7 +738,7 @@ export async function runConformance(
       }
     }
     stage = "coverage";
-    await qualifyConformance(
+    await verifySqlitePostgresResults(
       {
         sqlite: async () => reports.get("sqlite"),
         postgresql: async () => reports.get("postgresql"),
@@ -799,7 +802,7 @@ export async function runConformance(
     }),
   );
   const manifest = {
-    schemaVersion: "keynes.conformance/v1",
+    schemaVersion: "keynes.sqlite-postgres/v1",
     candidate: {
       commit,
       event: safeLabel(process.env.GITHUB_EVENT_NAME) ?? "local",
@@ -849,5 +852,5 @@ export async function runConformance(
   );
   await verifyEvidenceFiles(outputPath, references);
   if (failures.length !== 0)
-    throw new Error("conformance failed; inspect manifest.json");
+    throw new Error("sqlite-postgres failed; inspect manifest.json");
 }

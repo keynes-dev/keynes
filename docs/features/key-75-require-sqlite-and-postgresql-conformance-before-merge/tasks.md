@@ -6,7 +6,7 @@ description: "Implementation tasks for KEY-75 required SQLite and PostgreSQL con
 
 **Input**: Design documents in `docs/features/key-75-require-sqlite-and-postgresql-conformance-before-merge/`.
 
-**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/conformance-check.md](contracts/conformance-check.md), and [quickstart.md](quickstart.md).
+**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/sqlite-postgres-check.md](contracts/sqlite-postgres-check.md), and [quickstart.md](quickstart.md).
 
 **Tests**: The specification and plan require gate regressions and real runtime demonstrations. Observe behavioral tests failing for the intended reason before implementing the corresponding change. Controlled runner fixtures prove gate logic only. Documentation changes use focused validation.
 

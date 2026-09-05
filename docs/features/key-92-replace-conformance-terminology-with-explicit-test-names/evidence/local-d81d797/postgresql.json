@@ -1,0 +1,2144 @@
+{
+  "schemaVersion": "keynes.system-test.postgresql/v1",
+  "sourceRevision": {
+    "commit": "d81d797acab894899e7787a7b09e14cd6cc1e8a8",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "distribution": {
+    "package": "@keynes/postgresql",
+    "version": "0.0.0",
+    "archiveSha256": "1a623d6ad020b5eecd712a6e7825952c9841db78431ff470b25dce9edf853ccc",
+    "installationRecordSha256": "9832e7ddc790119cccb4a4e349fa16994eaa831d5732d9d902027f6b6b6bc89b"
+  },
+  "profile": {
+    "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+    "postgresServerVersionNum": "180006",
+    "profileId": "embedded-postgresql-18.6-preview",
+    "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
+    "migrations": [
+      {
+        "id": "0001-storage",
+        "path": "0001-storage.sql",
+        "sha256": "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd"
+      },
+      {
+        "id": "0002-budget",
+        "path": "0002-budget.sql",
+        "sha256": "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b"
+      },
+      {
+        "id": "0003-public",
+        "path": "0003-public.generated.sql",
+        "sha256": "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753"
+      },
+      {
+        "id": "0004-policy",
+        "path": "0004-policy.sql",
+        "sha256": "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
+        "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
+      },
+      {
+        "id": "0005-resource-bound-budget",
+        "path": "0005-resource-bound-budget.sql",
+        "sha256": "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
+        "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5"
+      },
+      {
+        "id": "0006-remote-access",
+        "path": "0006-remote-access.sql",
+        "sha256": "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+        "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+      }
+    ]
+  },
+  "roles": {
+    "owner": {
+      "name": "keynes_owner",
+      "privileges": [
+        "NOLOGIN",
+        "database CREATE"
+      ]
+    },
+    "execution": {
+      "name": "keynes_execution",
+      "privileges": [
+        "NOLOGIN",
+        "NOINHERIT",
+        "remote wrapper ownership"
+      ]
+    },
+    "administration": {
+      "name": "keynes_admin",
+      "privileges": [
+        "LOGIN",
+        "NOINHERIT"
+      ],
+      "grants": [
+        "EXECUTE ON five private administration functions"
+      ]
+    },
+    "application": {
+      "name": "keynes_app",
+      "privileges": [
+        "LOGIN",
+        "NOINHERIT"
+      ],
+      "grants": [
+        "USAGE ON SCHEMA keynes",
+        "EXECUTE ON eight remote wrapper functions"
+      ]
+    },
+    "privateAccessDenials": [
+      "private schema access",
+      "PUBLIC function execution"
+    ]
+  },
+  "tests": {
+    "success": true,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "numPassedTests": 208,
+    "numTotalTests": 208,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numPassedTestSuites": 37,
+    "numTotalTestSuites": 37,
+    "startTime": 1788590702423,
+    "testResults": [
+      {
+        "name": "./packages/postgresql/test/integration/installation.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702627,
+        "endTime": 1788590713418.3987,
+        "assertionResults": [
+          {
+            "fullName": "native PostgreSQL installation installs a fresh target atomically",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 1036.293625,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation returns an exact no-op result without changing installed state",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 669.7101250000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation installs the additive Resource-bound Budget and remote access migrations",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 520.0278330000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation moves Resource provenance to the defining command",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 616.5133329999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects an unsupported PostgreSQL version before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 586.1267080000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects an operator without installation privilege before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 705.3939999999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects missing prepared owner, execution, administration, and application roles",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 89.86754199999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects role login and database privilege contract violations",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 842.1225410000006,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects an application role with membership in any privileged role",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 710.6123340000004,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects an incompatible partial target without repairing it",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 564.2060000000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation classifies two empty Keynes schemas as incompatible live state",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 642.9436659999992,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects a migration-byte mismatch without changing the target",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 839.0919160000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects a migration contract-digest mismatch",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 664.4504999999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects a contract mismatch without changing the target",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 649.231584000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects a changed live function body during exact recheck",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 565.2439169999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects changed live function security properties",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 399.612083,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rejects live object, permission, ownership, and ACL drift",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 463.4941660000004,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL installation rolls back every migration after an injected failure",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL installation"
+            ],
+            "duration": 226.39858300000014,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/integration/recheck.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590703232,
+        "endTime": 1788590703418.38,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions rechecks the exact graph read-only",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 88.57279199999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions checks the server, checksums, contract, and complete object inventory",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 12.478666999999973,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks the final migration",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 29.896875000000023,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions checks owners, bodies, languages, security, and fixed search paths",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 7.514249999999947,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions checks bootstrap permissions and schema and function ACLs",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 16.272459000000026,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the eight remote functions",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 5.799874999999929,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL exact recheck and application-role permissions"
+            ],
+            "duration": 25.379999999999995,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/integration/remote-identity.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702832,
+        "endTime": 1788590712328.655,
+        "assertionResults": [
+          {
+            "fullName": "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 852.073042,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 644.6284579999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 529.137917,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 613.1338329999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects 'INHERIT' candidates for registration and rotation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 621.6062499999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects 'ownerRole membership' candidates for registration and rotation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 732.5016250000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects 'executionRole membership' candidates for registration and rotation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 866.4805420000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects 'administrationRole membership' candidates for registration and rotation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 701.9050830000006,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects registration over a mapping occupied by another identity",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 575.8950829999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects rotation onto an occupied mapped role",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 707.3386249999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration lets the private administration role manage metadata but not run Budget calls",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 774.0620840000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration exposes bounded credential audit without table access",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 676.6133749999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration makes remote privilege and schema CREATE drift fail exact recheck",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 643.9537499999988,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL installation and administration rejects unsafe enabled mappings during exact recheck",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL installation and administration"
+            ],
+            "duration": 556.6550829999996,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/budget.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590711308,
+        "endTime": 1788590725223.9873,
+        "assertionResults": [
+          {
+            "fullName": "Budget lifecycle defines a Resource type without creating Budget quantity",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget lifecycle"
+            ],
+            "duration": 1009.0740840000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget lifecycle"
+            ],
+            "duration": 412.47841600000015,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget lifecycle returns canonical Resource definition errors",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget lifecycle"
+            ],
+            "duration": 462.0958340000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget lifecycle"
+            ],
+            "duration": 482.0986250000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay recovers all four canonical results across principals without duplicate history",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 349.7282500000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay replays a structurally equal command across principals despite object key order",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 326.10129099999995,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay recovers Resource definition after its committed response is lost",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 336.14212499999985,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay recovers root allocation after its committed response is lost",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 348.83645799999977,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay recovers an approved request after its committed response is lost",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 348.01895799999966,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay recovers settlement after its committed response is lost",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 335.7249579999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay rejects changed bodies for each mutation, including across principals",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 338.73712500000056,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay rejects reuse by a different operation",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 349.81395900000007,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command replay rejects reuse against a different target",
+            "status": "passed",
+            "ancestorTitles": [
+              "command replay"
+            ],
+            "duration": 336.73720800000046,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial denies one unavailable Resource without changing the parent",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 351.58958299999995,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 339.4065840000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 941.045709,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 349.8451670000004,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 327.7425409999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial rejects a request after its parent becomes inactive",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 331.41812500000106,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget request denial keeps request, settlement, and read permissions independent",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget request denial"
+            ],
+            "duration": 326.41433400000096,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Resource-bound root creation binds Resource definitions, allocations, and creation history in one root command",
+            "status": "passed",
+            "ancestorTitles": [
+              "Resource-bound root creation"
+            ],
+            "duration": 321.05912499999977,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Resource-bound root creation replays an identical combined root command without duplicating history",
+            "status": "passed",
+            "ancestorTitles": [
+              "Resource-bound root creation"
+            ],
+            "duration": 342.3109999999997,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Resource-bound root creation rejects a changed definition-bearing root body under the same command identity",
+            "status": "passed",
+            "ancestorTitles": [
+              "Resource-bound root creation"
+            ],
+            "duration": 331.27683400000024,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Resource-bound root creation commits an attached Policy with the Resource-bound root",
+            "status": "passed",
+            "ancestorTitles": [
+              "Resource-bound root creation"
+            ],
+            "duration": 323.7034590000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Resource-bound root creation rolls back definitions, root state, and history after Resource insertion",
+            "status": "passed",
+            "ancestorTitles": [
+              "Resource-bound root creation"
+            ],
+            "duration": 323.82945799999834,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command rollback rolls back Resource definition checkpoints",
+            "status": "passed",
+            "ancestorTitles": [
+              "command rollback"
+            ],
+            "duration": 327.29425000000083,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command rollback rolls back root allocation facts, result, and history",
+            "status": "passed",
+            "ancestorTitles": [
+              "command rollback"
+            ],
+            "duration": 344.8892500000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command rollback rolls back child reservation, result, and history",
+            "status": "passed",
+            "ancestorTitles": [
+              "command rollback"
+            ],
+            "duration": 349.096583999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "command rollback rolls back usage, result, and settlement history",
+            "status": "passed",
+            "ancestorTitles": [
+              "command rollback"
+            ],
+            "duration": 362.60812500000065,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement keeps a sealed parent settling until its open descendant settles",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 335.855458,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 341.1209999999992,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement returns a reusable child allocation in full after settlement",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 327.89570899999853,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement isolates child overage without charging its parent or sibling",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 305.21816599999875,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement bounds settled nested charges before returning them to an ancestor",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 297.03141700000015,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement settles a subset while keeping an omitted Resource unresolved",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 293.5280419999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement sorts multiple isolated deficits by Resource identity",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 295.8133339999986,
+            "failureMessages": []
+          },
+          {
+            "fullName": "Budget settlement rejects derived arithmetic overflow without committing settlement",
+            "status": "passed",
+            "ancestorTitles": [
+              "Budget settlement"
+            ],
+            "duration": 289.98725000000013,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/contention.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590707048,
+        "endTime": 1788590711129.9668,
+        "assertionResults": [
+          {
+            "fullName": "native PostgreSQL contention funds at most one sibling after proving the second request waits",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 642.240041,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 713.95475,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL contention orders a waiting settlement after the committed request",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 748.0528750000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL contention returns the stored result when a matching command waits for commit",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 745.7961660000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL contention converges concurrent absent-name roots on one Resource",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 558.1180420000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
+            "status": "passed",
+            "ancestorTitles": [
+              "native PostgreSQL contention"
+            ],
+            "duration": 672.9667499999996,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/embedded-transactions.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702842,
+        "endTime": 1788590712332.4497,
+        "assertionResults": [
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions commits an approved request and application outbox row together",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 845.547667,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions leaves neither Budget state nor outbox state after explicit rollback",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 639.9469590000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions rolls back Keynes when the application write fails after approval",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 536.455958,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions commits a denial without creating application work",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 591.7973750000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions returns invalid_command for malformed input without opening application work",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 637.1121250000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions uses the caller-owned transaction lifecycle",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 732.0524590000005,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions rolls back a Resource-bound root with caller-owned application work",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 868.5504580000006,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions preserves the original definition provenance for later definition",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 711.0821249999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions keeps a pending child and outbox row invisible to another session",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 565.7500420000006,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions makes the child and outbox row visible after the caller commits",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 705.6714579999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions leaves neither child nor outbox row visible after the caller rolls back",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 773.470875,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions allows a rolled-back command identity to be reused and committed",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 683.8197910000008,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions returns the committed result when another session replays exactly",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 646.5504579999997,
+            "failureMessages": []
+          },
+          {
+            "fullName": "embedded PostgreSQL caller-owned transactions rejects conflicting command reuse without changing committed state",
+            "status": "passed",
+            "ancestorTitles": [
+              "embedded PostgreSQL caller-owned transactions"
+            ],
+            "duration": 552.4497909999991,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/installation.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590703844,
+        "endTime": 1788590710358.745,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL installation installs explicit principal permission records",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 448.291375,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation installs the current graph and rechecks it without changes",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 531.1857089999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rejects a contract digest mismatch before installation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 633.7155420000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rejects migration byte drift before applying it",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 593.5778339999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rejects an installed-object mismatch after fresh migration",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 707.1121669999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0001-storage' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 138.79145800000015,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0002-budget' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 771.5631670000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0003-public' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 694.1933340000005,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0004-policy' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 580.0524580000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0005-resource-bound-budget' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 662.0256669999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL installation rolls back '0006-remote-access' atomically when its final statement fails",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL installation"
+            ],
+            "duration": 753.7452090000006,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/policy-replay.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702861,
+        "endTime": 1788590706855.831,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL governed Policy replay returns the exact stored result, evidence, and Context",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy replay"
+            ],
+            "duration": 1018.0835840000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy replay ignores changed availability, an external fact, and an unrelated Policy revision",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy replay"
+            ],
+            "duration": 974.7533329999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy replay rejects command identity reuse with changed Context without changing state",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy replay"
+            ],
+            "duration": 615.2694999999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy replay rejects command identity reuse with changed child Policies without changing state",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy replay"
+            ],
+            "duration": 768.3263750000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy replay returns before reading the parent Policy snapshot or invoking the evaluator",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy replay"
+            ],
+            "duration": 617.8310419999998,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/policy-request.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702859,
+        "endTime": 1788590713545.473,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL governed Policy requests approves within the Policy ceiling and records canonical evidence",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 852.621584,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests denies above the Policy ceiling without reserving or creating a child",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 621.365084,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests evaluates requested, availability, and Context through the installed request path",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 1110.8200419999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests uses available Resources when they are the Policy ceiling",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 649.2526659999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests enforces Policies for a contract-valid non-RFC request command UUID",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 734.5211250000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests preserves root Policies created with a contract-valid non-RFC UUID",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 865.6260419999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests attaches only the explicit child Policy set and evaluates it on the next request",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 720.0294159999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests rejects a root Policy declaration outside the receiving Budget holdings",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 557.6390000000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests rejects a child Policy declaration outside the receiving child holdings",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 704.3606249999993,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests approves an ungoverned parent request with child Policies without parent Policy evidence",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 773.4171660000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests preserves exact no-Policy request bytes and canonical root history",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 693.3202499999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests orders effective ceilings and tied reasons by canonical text, not Resource UUID",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 632.4451669999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests keeps governed state pending until the caller commits",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 554.8006249999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 660.4719580000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL governed Policy requests"
+            ],
+            "duration": 555.4729580000003,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/policy-runtime.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590709850,
+        "endTime": 1788590711127.1604,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL Policy runtime behavior executes every shared runtime test program through the installed renderer",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy runtime behavior"
+            ],
+            "duration": 653.969333,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy runtime behavior keeps nested boolean rendering linear",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy runtime behavior"
+            ],
+            "duration": 623.1604580000001,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/policy-security.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702850,
+        "endTime": 1788590723744.6384,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL Policy security rejects a malformed durable program with a sanitized invalid_policy error and no state",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 838.4331669999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the first CASE condition",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 644.4199999999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the later CASE condition",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 530.654,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the first CASE result",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 618.4421660000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the later CASE result",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 605.4683330000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the CASE else result",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 739.4629169999998,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the nested second coalesce argument",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 867.8772920000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a direct durable aggregate in the nested later coalesce argument",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 695.4697919999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security accepts a direct durable aggregate in first coalesce argument",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 578.6734159999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security accepts a direct durable aggregate in least",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 707.4297919999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security accepts a direct durable aggregate in greatest",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 771.2345840000007,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects canonical SQL that does not match the durable program without executing it",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 682.0554160000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a noncanonical Policy name before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 644.3971249999995,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects an invalid Policy revision before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 556.3502909999988,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a noncanonical Policy reason before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 398.25787499999933,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects duplicate Policy names before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 574.6877499999991,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects Policy output Resources outside its declared input Resources",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 388.160167,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a context reference outside the Policy contextSchema",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 333.4054589999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a Policy canonical source over the per-Policy byte limit",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 326.02470900000117,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a Policy set over the aggregate canonical source byte limit",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 336.2740420000009,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security filters requested and available rows to each Policy input declaration",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 348.54462500000045,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects duplicate result Resources as invalid_result",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 348.48770800000057,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security pins every security-definer search path to trusted schemas with pg_temp last",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 332.3664580000004,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security prevents the application role from reading or invoking private Policy authority",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 338.8336250000011,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects an emitted requested input Resource outside outputResources",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 351.3230829999993,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security maps generated-query failure to stable sanitized details and rolls back",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 338.35833400000047,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security maps generated numeric overflow to arithmetic_overflow and rolls back",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 351.58037499999955,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security maps aggregate transition overflow to arithmetic_overflow and rolls back",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 339.3374160000003,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects noncanonical decimal literal precision before evaluation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 351.91441699999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with non-object",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 305.88883299999907,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with array",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 322.4903750000012,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with extra key",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 310.102667000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with invalid name",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 328.70929100000103,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with invalid type",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 330.757916999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with invalid nullability",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 326.45420899999954,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects a contextSchema member with duplicate name",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 321.2814580000013,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security accepts contextSchema names in canonical C byte order",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 342.2872499999976,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security returns invalid_command for malformed createBudget identifiers",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 330.82712500000343,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security returns invalid_command for malformed requestBudget identifiers",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 321.70150000000285,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rejects negative integer Policy context before evaluation and rolls back",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 326.3639159999984,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_command_binding",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 327.5586669999975,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at before_policy_evaluation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 342.1209999999992,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_policy_evaluation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 349.060042000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_policy_evidence",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 361.70308300000033,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_domain_mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 339.67075000000114,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_history_insertion",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 341.0049590000017,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Policy security"
+            ],
+            "duration": 327.63837500000227,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/remote-budget.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590709144,
+        "endTime": 1788590710452.3235,
+        "assertionResults": [
+          {
+            "fullName": "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL Budget authority"
+            ],
+            "duration": 532.2046250000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL Budget authority"
+            ],
+            "duration": 775.323375,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/remote-connections.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590710670,
+        "endTime": 1788590714010.5144,
+        "assertionResults": [
+          {
+            "fullName": "remote PostgreSQL connection profiles derives the same identity through the direct profile",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 463.478542,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles derives the same identity through the session-pool profile",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 638.0635000000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles derives the same identity through the transaction-pool profile",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 560.1377500000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles proves the runner routes through the requested PgBouncer modes",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 7.648415999999997,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles clears transaction-local identity after a direct call",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 384.86533299999996,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles clears transaction-local identity after a session-pool call",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 396.28904200000034,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles clears transaction-local identity after a transaction-pool call",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 389.60720800000036,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles rejects the native plaintext endpoint when verified TLS is required",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 241.89924999999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL connection profiles fails closed when the database is unavailable",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL connection profiles"
+            ],
+            "duration": 258.5142920000003,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/remote-recovery.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702833,
+        "endTime": 1788590708969.2212,
+        "assertionResults": [
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 854.699916,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 639.9236250000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads recovers a committed mutation after its transport response is lost",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 526.642292,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads returns known-failure and expired recovery states without mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 616.317,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads reports an in-flight mutation as unresolved without changing authority state",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 617.6625839999997,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads converges concurrent exact retries on one committed mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 738.6473329999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads reopens a Budget only for the mapped tenant and exact Resource binding",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 866.2822080000005,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL recovery and bounded reads paginates one bounded history snapshot with expiring single-use cursors",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL recovery and bounded reads"
+            ],
+            "duration": 1276.221208,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/remote-security.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590702832,
+        "endTime": 1788590709675.409,
+        "assertionResults": [
+          {
+            "fullName": "remote PostgreSQL identity and security validates the exact input shape of all eight wrappers before mutation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 856.1097090000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security returns authorization-safe errors before validating an unmapped caller",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 646.1292500000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security derives tenant and principal from the authenticated role on every call",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 520.4652500000002,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security scopes overlapping Resource names and operation keys to each authenticated tenant",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 615.5514169999997,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security checks enabled mappings again on an already-open session",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 622.6732920000004,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security rejects a recreated login until an operator explicitly registers the stale name and new OID",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 733.9152500000005,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security rotates mappings atomically and disables the old pooled credential",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 865.4040829999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security revokes an existing session and records no reusable credential",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 715.7758749999994,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security keeps a revoked credential terminal when registration is retried",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 563.1374169999999,
+            "failureMessages": []
+          },
+          {
+            "fullName": "remote PostgreSQL identity and security denies private objects, canonical procedures, role assumption, and public SQL creation",
+            "status": "passed",
+            "ancestorTitles": [
+              "remote PostgreSQL identity and security"
+            ],
+            "duration": 704.408958,
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "name": "./packages/postgresql/test/system/rollback.test.ts",
+        "status": "passed",
+        "message": "",
+        "startTime": 1788590710518,
+        "endTime": 1788590712329.0825,
+        "assertionResults": [
+          {
+            "fullName": "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Resource-bound root authorization and rollback"
+            ],
+            "duration": 614.076375,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Resource-bound root authorization and rollback"
+            ],
+            "duration": 642.0006670000001,
+            "failureMessages": []
+          },
+          {
+            "fullName": "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
+            "status": "passed",
+            "ancestorTitles": [
+              "PostgreSQL Resource-bound root authorization and rollback"
+            ],
+            "duration": 554.0825,
+            "failureMessages": []
+          }
+        ]
+      }
+    ]
+  },
+  "outcome": "passed",
+  "exclusions": {
+    "otherPostgresqlVersions": "NOT RUN",
+    "managedProvider": "NOT RUN",
+    "upgradeDowngrade": "NOT RUN",
+    "rollingDeployment": "NOT RUN",
+    "extensionPackaging": "NOT RUN",
+    "backupRecovery": "NOT RUN",
+    "failover": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "faultCampaign": "NOT RUN",
+    "benchmark": "NOT RUN",
+    "selfHosted": "NOT RUN",
+    "managedCloud": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}

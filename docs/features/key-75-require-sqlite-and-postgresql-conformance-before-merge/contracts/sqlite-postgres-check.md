@@ -1,4 +1,6 @@
-# Conformance command and required-check contract
+# Shared behavior test command and required-check contract
+
+Terminology updated by KEY-92. Historical execution evidence remains unchanged.
 
 This is an operational contract for contributors and CI. No SDK method or PostgreSQL procedure changes.
 
@@ -7,7 +9,7 @@ This is an operational contract for contributors and CI. No SDK method or Postgr
 Planned entrypoint:
 
 ```sh
-pnpm test:conformance -- --output <new-attempt-directory>
+pnpm test:sqlite-postgres -- --output <new-attempt-directory>
 ```
 
 The command requires a clean exact revision, installed frozen dependencies, a Node.js version supported by the current package manifests, and working Docker. CI uses Node.js 24. Paths resolve from the repository root. The output directory must not exist; duplicate or unknown options, missing arguments, and output reuse fail before execution.
@@ -24,13 +26,13 @@ Exit zero requires fresh complete results from both authorities, matching curren
 
 ## Required hosted check
 
-The unique check name is `SQLite and PostgreSQL conformance`. It runs on every PR in `.github/workflows/ci.yml`, independently of `Repository and tests`. It has no path, branch, job-level condition, or dependency that can silently skip required execution. No `continue-on-error` applies to qualification or artifact upload.
+The unique check name is `SQLite and PostgreSQL behavior tests`. It runs on every PR in `.github/workflows/ci.yml`, independently of `Repository and tests`. It has no path, branch, job-level condition, or dependency that can silently skip required execution. No `continue-on-error` applies to qualification or artifact upload.
 
-Checkout uses the event's candidate revision and disabled credential persistence. Dependencies use the frozen lockfile; the conformance execution itself is never served from Turbo or result caches. Do not fetch historical artifacts to complete an attempt. Untrusted PR code receives read-only repository permissions and no repository/provider secrets.
+Checkout uses the event's candidate revision and disabled credential persistence. Dependencies use the frozen lockfile; the database test execution itself is never served from Turbo or result caches. Do not fetch historical artifacts to complete an attempt. Untrusted PR code receives read-only repository permissions and no repository/provider secrets.
 
 After ordinary success or failure, an `always()` retention step uploads only sanitized attempt files. Stage those files in a non-hidden directory under `RUNNER_TEMP`. Use a name containing tested commit, run ID, run attempt, and job identity, with no overwrite and a 14-day retention period. Require files to exist and the action to confirm an artifact ID and digest; publish them in the workflow summary. Local qualification plus upload success are both required for a successful job. Missing setup, report, upload, cleanup, or final verification remains failure or cancellation.
 
-The manual PostgreSQL workflow keeps its distinct `PostgreSQL System` check name, uses the existing native writer, and retains available sanitized reports and safe failure diagnostics. It cannot substitute for the PR conformance job.
+The manual PostgreSQL workflow keeps its distinct `PostgreSQL System` check name, uses the existing native writer, and retains available sanitized reports and safe failure diagnostics. It cannot substitute for the PR database behavior job.
 
 ## Coverage and evidence acceptance
 

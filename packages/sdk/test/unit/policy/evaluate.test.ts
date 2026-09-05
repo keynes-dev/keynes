@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { POLICY_RUNTIME_CONFORMANCE_CASES } from "@keynes/contracts/conformance";
+import { POLICY_RUNTIME_TEST_CASES } from "@keynes/contracts/contract-tests";
 
 import {
   POLICY_CANONICAL_VECTORS,
@@ -69,8 +69,8 @@ function evaluationError(run: () => unknown): unknown {
 }
 
 describe("local Policy interpreter", () => {
-  it("executes every shared runtime conformance program", () => {
-    for (const testCase of POLICY_RUNTIME_CONFORMANCE_CASES) {
+  it("executes every shared runtime test program", () => {
+    for (const testCase of POLICY_RUNTIME_TEST_CASES) {
       try {
         if ("error" in testCase.expected) {
           expect(

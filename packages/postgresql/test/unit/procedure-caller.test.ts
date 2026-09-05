@@ -1,4 +1,4 @@
-import type { ContractExecutor } from "@keynes/contracts/conformance";
+import type { ContractExecutor } from "@keynes/contracts/contract-tests";
 import { describe, expect, it, vi } from "vitest";
 
 import type {

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { loadInstallationAssets } from "../../../src/installer/run-installation.js";
 
 import { CONTRACT_DIGEST, type PermissionName } from "@keynes/contracts";
-import { KeynesError } from "@keynes/contracts/conformance";
+import { KeynesError } from "@keynes/contracts/contract-tests";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 
 const DATABASE_ROOT = new URL("../../../", import.meta.url);

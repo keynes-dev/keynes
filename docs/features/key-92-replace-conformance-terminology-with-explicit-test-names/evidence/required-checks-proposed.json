@@ -1,0 +1,13 @@
+{
+  "strict": true,
+  "checks": [
+    {
+      "context": "Repository and tests",
+      "app_id": 15368
+    },
+    {
+      "context": "SQLite and PostgreSQL behavior tests",
+      "app_id": 15368
+    }
+  ]
+}
