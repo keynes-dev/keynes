@@ -318,5 +318,6 @@
   },
   "retained_demo": "The fixture artifact Markdown was formatted after its lifecycle run; requirements and code are unchanged. Final reviewed fixture digests are recorded here. evidence/stock-lifecycle flattens its directory for review.",
   "verification_script_sha256": "cb744ee9b3b98da113d8faa12ce01b591354383b64986e1004d4e7e99c7ba624",
-  "pr_suite_log_sha256": "db946314a78baa7cd4c987f9a10c70a734b766ec9f0e4fda1f78fb7588262707"
+  "pr_suite_log_sha256": "aebe5e4087fb5301815d9fbe52a2cac51fccc043ac9926aed7dd3a6d42137e0d",
+  "pr_suite_log_normalization": "Trailing whitespace removed from the retained console transcript; raw console output remains in the local .artifacts directory."
 }

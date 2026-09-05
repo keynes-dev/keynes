@@ -50,8 +50,8 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 @keynes/contracts:typecheck: $ tsc --project tsconfig.json --noEmit
 //:lint: $ oxlint .
 //:format: Checking formatting...
-//:format: 
-//:lint: 
+//:format:
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/sdk/src/generated/policy-profile.ts:772:13]
 //:lint:  771 |             },
@@ -60,7 +60,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  773 |               kind: "decimal_literal",
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:       ,-[packages/sdk/src/generated/policy-profile.ts:1630:13]
 //:lint:  1629 |             },
@@ -69,7 +69,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  1631 |               $ref: "#/$defs/ExpressionNodeV1",
 //:lint:       `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:427:20]
 //:lint:  426 |     );
@@ -78,7 +78,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  428 |   });
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:454:34]
 //:lint:  453 |       branches: [
@@ -87,7 +87,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  455 |         ...branches.slice(1).map((branch) => ({
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:457:11]
 //:lint:  456 |           when: branch.when.node,
@@ -96,7 +96,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  458 |         })),
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:       ,-[packages/sdk/src/generated/validators.ts:2874:13]
 //:lint:  2873 |             },
@@ -105,7 +105,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  2875 |               $ref: "#/$defs/ExpressionNodeV1",
 //:lint:       `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:       ,-[packages/postgresql/test/system/policy-security.test.ts:1302:7]
 //:lint:  1301 |       when: position === "first_when" ? aggregateCondition : truth,
@@ -114,7 +114,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  1303 |     },
 //:lint:       `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:       ,-[packages/postgresql/test/system/policy-security.test.ts:1306:7]
 //:lint:  1305 |       when: position === "later_when" ? aggregateCondition : truth,
@@ -123,7 +123,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  1307 |     },
 //:lint:       `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-unused-expressions): Expected expression to be used
 //:lint:      ,-[packages/sdk/test/package/compatibility/remote-api.mts:116:1]
 //:lint:  115 | // @ts-expect-error Local Budget handles have no durable reference.
@@ -132,7 +132,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  117 | // @ts-expect-error Local Keynes handles cannot reopen durable Budgets.
 //:lint:      `----
 //:lint:   help: Consider using this expression or removing it
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
 //:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:319:45]
 //:lint:  318 |               and p.proargtypes = '3802'::oidvector
@@ -141,7 +141,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  320 |             order by target`,
 //:lint:      `----
 //:lint:   help: Replace `\_` with `_`.
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
 //:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:384:78]
 //:lint:  383 |                   bool_or(has_function_privilege($1, p.oid, 'EXECUTE')) filter (
@@ -150,7 +150,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  385 |                   ) as application_canonical_execute,
 //:lint:      `----
 //:lint:   help: Replace `\_` with `_`.
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
 //:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:392:74]
 //:lint:  391 |                   bool_and(p.proowner = (select oid from pg_roles where rolname = $3)) filter (
@@ -159,7 +159,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  393 |                   ) as execution_owns_remote
 //:lint:      `----
 //:lint:   help: Replace `\_` with `_`.
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/sdk/test/unit/policy/rejection.test.ts:407:24]
 //:lint:  406 |     kind: "case",
@@ -168,7 +168,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  408 |     else: otherwise,
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/contracts/generated/policy-profile.ts:775:13]
 //:lint:  774 |             },
@@ -177,7 +177,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  776 |               kind: "decimal_literal",
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
 //:lint:      ,-[packages/contracts/conformance/policy/runtime-cases.ts:344:13]
 //:lint:  343 |             },
@@ -186,7 +186,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  345 |           },
 //:lint:      `----
 //:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-unused-expressions): Expected expression to be used
 //:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:222:1]
 //:lint:  221 | // @ts-expect-error Resource installation identifiers stay private.
@@ -195,7 +195,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  223 | // @ts-expect-error Runtime identifiers stay private.
 //:lint:      `----
 //:lint:   help: Consider using this expression or removing it
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-unused-expressions): Expected expression to be used
 //:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:224:1]
 //:lint:  223 | // @ts-expect-error Runtime identifiers stay private.
@@ -204,7 +204,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  225 | // @ts-expect-error Budget identifiers stay private.
 //:lint:      `----
 //:lint:   help: Consider using this expression or removing it
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-unused-expressions): Expected expression to be used
 //:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:226:1]
 //:lint:  225 | // @ts-expect-error Budget identifiers stay private.
@@ -213,7 +213,7 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:  227 | const requestResult = await root.request({ usdCents: 1 });
 //:lint:      `----
 //:lint:   help: Consider using this expression or removing it
-//:lint: 
+//:lint:
 //:lint:   ! eslint(no-unused-expressions): Expected expression to be used
 //:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:229:1]
 //:lint:  228 | // @ts-expect-error Command identifiers stay private.
@@ -221,26 +221,26 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 //:lint:      : ^^^^^^^^^^^^^^^^^^^^^^^^
 //:lint:      `----
 //:lint:   help: Consider using this expression or removing it
-//:lint: 
+//:lint:
 //:lint: Found 19 warnings and 0 errors.
 //:lint: Finished in 147ms on 224 files with 96 rules using 10 threads.
 @keynes/postgresql:test: cache bypass, force executing f4a7477a21169051
-@keynes/contracts:test: 
+@keynes/contracts:test:
 @keynes/contracts:test:  RUN  v4.1.11 /Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset/packages/contracts
-@keynes/contracts:test: 
-@keynes/web:test: 
+@keynes/contracts:test:
+@keynes/web:test:
 @keynes/web:test:  RUN  v4.1.11 /Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset/apps/web
-@keynes/web:test: 
-@keynes/sdk:test: 
+@keynes/web:test:
+@keynes/sdk:test:
 @keynes/sdk:test:  RUN  v4.1.11 /Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset/packages/sdk
-@keynes/sdk:test: 
+@keynes/sdk:test:
 @keynes/postgresql:test: $ vitest run test/unit test/qualification --maxWorkers=1
 //:format: All matched files use the correct format.
 //:format: Finished in 1992ms on 438 files using 10 threads.
 @keynes/contracts:test:  ✓ test/policy-generation.test.ts (16 tests) 725ms
-@keynes/postgresql:test: 
+@keynes/postgresql:test:
 @keynes/postgresql:test:  RUN  v4.1.11 /Users/shubhankarsharan/.codex/worktrees/keynes-speckit-reset/packages/postgresql
-@keynes/postgresql:test: 
+@keynes/postgresql:test:
 @keynes/web:test:  ✓ src/lib/charts.test.ts (16 tests) 9ms
 @keynes/sdk:test:  ✓ test/unit/local/policy-request.test.ts (13 tests) 74ms
 @keynes/web:typecheck: 18:52:40 [types] Generated 84ms
@@ -254,12 +254,12 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 @keynes/web:test:  ✓ src/components/pages/home/Charts.test.tsx (4 tests) 266ms
 @keynes/postgresql:test:  ✓ test/unit/policy-backend.test.ts (11 tests) 4ms
 @keynes/web:test:  ✓ src/components/pages/home/HowItWorks.test.tsx (3 tests) 235ms
-@keynes/web:test: 
+@keynes/web:test:
 @keynes/web:test:  Test Files  4 passed (4)
 @keynes/web:test:       Tests  24 passed (24)
 @keynes/web:test:    Start at  18:52:39
 @keynes/web:test:    Duration  2.24s (transform 195ms, setup 0ms, import 1.03s, tests 675ms, environment 5.33s)
-@keynes/web:test: 
+@keynes/web:test:
 @keynes/sdk:test:  ✓ test/unit/remote/recovery.test.ts (8 tests) 52ms
 @keynes/postgresql:test:  ✓ test/qualification/external-record.test.ts (10 tests) 10ms
 @keynes/contracts:test:  ✓ test/policy-contract.test.ts (16 tests) 26ms
@@ -269,22 +269,22 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 @keynes/postgresql:test:  ✓ test/qualification/external-target.test.ts (21 tests) 3ms
 @keynes/postgresql:test:  ✓ test/unit/config.test.ts (4 tests) 2ms
 @keynes/contracts:test:  ✓ test/policy-conformance.test.ts (2 tests) 4ms
-@keynes/contracts:test: 
+@keynes/contracts:test:
 @keynes/contracts:test:  Test Files  5 passed (5)
 @keynes/contracts:test:       Tests  51 passed (51)
 @keynes/contracts:test:    Start at  18:52:38
 @keynes/contracts:test:    Duration  2.74s (transform 403ms, setup 0ms, import 1.06s, tests 1.04s, environment 0ms)
-@keynes/contracts:test: 
+@keynes/contracts:test:
 @keynes/postgresql:test:  ✓ test/qualification/required-scenarios.test.ts (3 tests) 3ms
 @keynes/postgresql:test:  ✓ test/unit/procedure-caller.test.ts (7 tests) 3ms
 @keynes/sdk:test:  ✓ test/conformance/budget.test.ts (37 tests) 76ms
 @keynes/postgresql:test:  ✓ test/qualification/provider-free-environment.test.ts (1 test) 1ms
-@keynes/postgresql:test: 
+@keynes/postgresql:test:
 @keynes/postgresql:test:  Test Files  11 passed (11)
 @keynes/postgresql:test:       Tests  76 passed (76)
 @keynes/postgresql:test:    Start at  18:52:40
 @keynes/postgresql:test:    Duration  1.36s (transform 205ms, setup 0ms, import 383ms, tests 100ms, environment 1ms)
-@keynes/postgresql:test: 
+@keynes/postgresql:test:
 @keynes/sdk:test:  ✓ test/unit/local/policy-replay.test.ts (5 tests) 66ms
 @keynes/sdk:test:  ✓ test/unit/remote/postgresql-command-executor.test.ts (13 tests) 59ms
 @keynes/sdk:test:  ✓ test/unit/public/local.test.ts (23 tests) 15ms
@@ -294,11 +294,11 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 @keynes/sdk:test:  ✓ test/unit/policy/authoring.test.ts (19 tests) 17ms
 @keynes/sdk:test:  ✓ test/unit/local/local-lifecycle.test.ts (9 tests) 18ms
 @keynes/sdk:test:  ✓ test/unit/policy/evaluate.test.ts (8 tests) 17ms
-@keynes/web:typecheck: Result (42 files): 
+@keynes/web:typecheck: Result (42 files):
 @keynes/web:typecheck: - 0 errors
 @keynes/web:typecheck: - 0 warnings
 @keynes/web:typecheck: - 0 hints
-@keynes/web:typecheck: 
+@keynes/web:typecheck:
 @keynes/sdk:test:  ✓ test/unit/public/remote.test.ts (14 tests) 8ms
 @keynes/sdk:test:  ✓ test/unit/remote/connection-options.test.ts (43 tests) 8ms
 @keynes/sdk:test:  ✓ test/unit/policy/parser.test.ts (12 tests) 10ms
@@ -310,16 +310,16 @@ $ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '*
 @keynes/sdk:test:  ✓ test/conformance/remote.test.ts (2 tests) 3ms
 @keynes/sdk:test:  ✓ test/unit/remote/errors.test.ts (14 tests) 2ms
 @keynes/sdk:test:  ✓ test/unit/public/public-exports.test.ts (3 tests) 2ms
-@keynes/sdk:test: 
+@keynes/sdk:test:
 @keynes/sdk:test:  Test Files  25 passed (25)
 @keynes/sdk:test:       Tests  341 passed (341)
 @keynes/sdk:test:    Start at  18:52:39
 @keynes/sdk:test:    Duration  4.95s (transform 957ms, setup 0ms, import 2.43s, tests 767ms, environment 1ms)
-@keynes/sdk:test: 
+@keynes/sdk:test:
 
  Tasks:    11 successful, 11 total
 Cached:    0 cached, 11 total
-  Time:    6.225s 
+  Time:    6.225s
 
 $ turbo boundaries --ui=stream
 • turbo 2.10.11
