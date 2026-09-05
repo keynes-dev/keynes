@@ -4,7 +4,7 @@ import type {
   FixturePrincipal,
   RemoteContractTestHost,
   RollbackCheckpoint,
-} from "@keynes/contracts/conformance";
+} from "@keynes/contracts/contract-tests";
 
 import {
   createKeynesClient,

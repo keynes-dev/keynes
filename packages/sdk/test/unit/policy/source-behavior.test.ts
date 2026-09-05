@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  POLICY_CONFORMANCE_CASES,
-  type PolicyConformanceCase,
-} from "@keynes/contracts/conformance";
+  POLICY_TEST_CASES,
+  type PolicyTestCase,
+} from "@keynes/contracts/contract-tests";
 
 import {
   definePolicySql,
@@ -17,11 +17,11 @@ const resources = defineResources({
 });
 const modelTokenInput = ["modelTokens"] satisfies readonly ["modelTokens"];
 
-const sourceCases = POLICY_CONFORMANCE_CASES.filter(
+const sourceCases = POLICY_TEST_CASES.filter(
   (testCase) => testCase.source !== undefined,
 );
 
-describe("Policy source conformance", () => {
+describe("Policy source behavior", () => {
   it("normalizes every accepted source fixture through the public authoring boundary", () => {
     const canonicalSqlByGroup = new Map<string, string>();
 
@@ -90,7 +90,7 @@ describe("Policy source conformance", () => {
 
 function declaration() {
   return {
-    name: "source_conformance",
+    name: "source_behavior",
     revision: 1,
     inputs: modelTokenInput,
     outputs: modelTokenInput,
@@ -110,18 +110,14 @@ function declaration() {
   };
 }
 
-function sourceFor(testCase: PolicyConformanceCase): string {
+function sourceFor(testCase: PolicyTestCase): string {
   if (testCase.source === undefined) {
-    throw new Error(
-      `Source conformance fixture has no source: ${testCase.name}`,
-    );
+    throw new Error(`Source behavior fixture has no source: ${testCase.name}`);
   }
   return testCase.source;
 }
 
-function acceptedCanonicalGroup(
-  testCase: PolicyConformanceCase,
-): string | undefined {
+function acceptedCanonicalGroup(testCase: PolicyTestCase): string | undefined {
   if (!isRecord(testCase.expected)) return undefined;
   return testCase.expected.outcome === "accepted" &&
     typeof testCase.expected.canonicalGroup === "string"
@@ -130,8 +126,8 @@ function acceptedCanonicalGroup(
 }
 
 function isInvalidPolicyCase(
-  testCase: PolicyConformanceCase,
-): testCase is PolicyConformanceCase & {
+  testCase: PolicyTestCase,
+): testCase is PolicyTestCase & {
   readonly expected: {
     readonly outcome: "invalid_policy";
     readonly rule: string;
@@ -144,7 +140,7 @@ function isInvalidPolicyCase(
   );
 }
 
-function expectedRows(testCase: PolicyConformanceCase): unknown {
+function expectedRows(testCase: PolicyTestCase): unknown {
   if (
     !isRecord(testCase.expected) ||
     testCase.expected.outcome !== "rows" ||

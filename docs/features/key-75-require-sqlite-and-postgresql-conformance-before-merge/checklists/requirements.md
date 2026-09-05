@@ -1,4 +1,6 @@
-# Specification Quality Checklist: Require SQLite and PostgreSQL conformance before merge
+# Specification Quality Checklist: Require SQLite and PostgreSQL behavior tests before merge
+
+Terminology updated by KEY-92. Historical execution evidence remains unchanged.
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 

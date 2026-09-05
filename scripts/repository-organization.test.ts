@@ -12,7 +12,7 @@ const targetDirectories = [
   "packages/sdk",
   "packages/postgresql",
   "packages/testkit",
-  "packages/sdk/test/conformance",
+  "packages/sdk/test/contract",
   "packages/sdk/test/package",
   "packages/sdk/test/performance",
   "packages/postgresql/test/integration",

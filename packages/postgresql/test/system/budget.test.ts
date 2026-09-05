@@ -1,4 +1,4 @@
-import { registerBudgetContractTests } from "@keynes/contracts/conformance";
+import { registerBudgetContractTests } from "@keynes/contracts/contract-tests";
 
 import { openPostgresqlContractTestHost } from "./support/test-keynes.js";
 

@@ -1,15 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 7.0.0 -> 8.0.0
-- Rationale: approved KEY-89 restores stock Spec Kit 1.0.4 with connector-based Linear intake.
-- Core principles and product constraints: unchanged
-- Modified sections: Delivery and evidence gates; Governance
-- Removed requirements: custom identity schema, identity synchronization, mandatory phase checkpoints, template propagation
-- Managed templates and commands: restored by Spec Kit, never edited to propagate this amendment
-- Updated guidance: docs/workflow.md, docs/README.md, AGENTS.md
-- Superseding decision: docs/adr/0010-upstream-spec-kit-workflow.md
-- Migration: preserve historical artifacts; use a checkout-local feature directory pointer
-- Runtime contracts: unchanged
+- Version change: 8.0.0 -> 8.0.1
+- Rationale: KEY-92 terminology clarification; engineering requirements are unchanged.
+- Modified principle: III, canonical Policy behavior test corpus wording only.
+- Modified section: Delivery and evidence gates, cross-backend Policy behavior tests wording only.
+- Added sections: none
+- Removed sections: none
+- Migration impact: no runtime or governance behavior changes; existing evidence remains valid for its original revision.
+- Managed templates and commands: unchanged; read the constitution at runtime.
+- Follow-up TODOs: none
 -->
 
 # Keynes Constitution
@@ -64,7 +63,7 @@ inside the selected Budget authority's atomic command, and Keynes MUST NOT trust
 an application-supplied Policy decision. Keynes MUST define one versioned
 semantics contract for that program. Deployments MAY use one shared evaluator
 or deployment-native backends when each backend enforces the same contract and
-passes the canonical conformance corpus. Kysely's operation tree, the parser's
+passes the canonical Policy behavior test corpus. Kysely's operation tree, the parser's
 syntax tree, and backend-specific representations are not public or durable
 contracts.
 
@@ -180,7 +179,7 @@ host, and attempt that produced it.
   managed-operations tests that apply.
 - A Policy change MUST name changes to context, Kysely compilation, raw-SQL
   parsing, Policy-program normalization, the shared semantic definition, every
-  selected execution backend, cross-backend conformance, evidence, and replay.
+  selected execution backend, cross-backend Policy behavior tests, evidence, and replay.
 - Provider-free verification MUST pass before any authorized live, paid, or
   externally mutating validation. Authorization MUST bind the exact plan,
   inputs, credential boundary, spend or mutation ceiling, and retained artifact
@@ -218,4 +217,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 8.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
+**Version**: 8.0.1 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04

@@ -1,4 +1,4 @@
-import type { PolicyConformanceCase } from "./types.ts";
+import type { PolicyTestCase } from "./types.ts";
 
 export const sourceCases = [
   acceptedSource(
@@ -72,7 +72,7 @@ export const sourceCases = [
     }),
     "grouped-sum",
   ),
-] as const satisfies readonly PolicyConformanceCase[];
+] as const satisfies readonly PolicyTestCase[];
 
 export const evaluationCases = [
   evaluation("numeric addition", "numeric", "1 + 2", 3),
@@ -116,7 +116,7 @@ export const evaluationCases = [
     undefined,
     "requested.resource",
   ),
-] as const satisfies readonly PolicyConformanceCase[];
+] as const satisfies readonly PolicyTestCase[];
 
 export const mutationCases = [
   rejected(
@@ -170,7 +170,7 @@ export const mutationCases = [
     selectSource("$1", "'parameter_limit'"),
     "parameter_missing",
   ),
-] as const satisfies readonly PolicyConformanceCase[];
+] as const satisfies readonly PolicyTestCase[];
 
 function acceptedSource(
   name: string,
@@ -178,7 +178,7 @@ function acceptedSource(
   source: string,
   canonicalGroup: string,
   parameters: readonly (string | number)[] = [],
-): PolicyConformanceCase {
+): PolicyTestCase {
   return {
     name,
     category,
@@ -196,7 +196,7 @@ function evaluation(
   where?: string,
   groupBy?: string,
   emitsRow = true,
-): PolicyConformanceCase {
+): PolicyTestCase {
   return {
     name,
     category,
@@ -226,7 +226,7 @@ function rejected(
   category: "limit" | "mutation",
   source: string,
   rule: string,
-): PolicyConformanceCase {
+): PolicyTestCase {
   return {
     name,
     category,

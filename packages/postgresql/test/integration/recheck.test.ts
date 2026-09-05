@@ -105,7 +105,7 @@ interface NativeTarget {
 }
 
 describe.skipIf(process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined)(
-  "PostgreSQL exact recheck and application-role conformance",
+  "PostgreSQL exact recheck and application-role permissions",
   () => {
     let target: NativeTarget;
 

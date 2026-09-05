@@ -1,7 +1,7 @@
 import type { ExpressionNodeV1 } from "../../generated/policy-types.ts";
-import type { PolicyRuntimeConformanceCase } from "./types.ts";
+import type { PolicyRuntimeTestCase } from "./types.ts";
 
-export const POLICY_RUNTIME_CONFORMANCE_CASES = Object.freeze([
+export const POLICY_RUNTIME_TEST_CASES = Object.freeze([
   ...Array.from({ length: 32 }, (_, index) =>
     propertyProgram(index + 1, "property"),
   ),
@@ -14,12 +14,12 @@ export const POLICY_RUNTIME_CONFORMANCE_CASES = Object.freeze([
   shortCircuitProgram("and"),
   shortCircuitProgram("or"),
   aggregateTransitionOverflowProgram(),
-] satisfies readonly PolicyRuntimeConformanceCase[]);
+] satisfies readonly PolicyRuntimeTestCase[]);
 
 function propertyProgram(
   seed: number,
   category: "property" | "numeric",
-): PolicyRuntimeConformanceCase {
+): PolicyRuntimeTestCase {
   const requestedAmount = (seed % 5) + 1;
   const availableAmount = requestedAmount + (seed % 3) + 1;
   const variant = seed % 8;
@@ -59,7 +59,7 @@ function propertyProgram(
   };
 }
 
-function nullProgram(seed: number): PolicyRuntimeConformanceCase {
+function nullProgram(seed: number): PolicyRuntimeTestCase {
   const requestedAmount = seed + 1;
   return {
     name: `null coalesce program seed ${seed}`,
@@ -94,7 +94,7 @@ function nullProgram(seed: number): PolicyRuntimeConformanceCase {
   };
 }
 
-function orderingProgram(seed: number): PolicyRuntimeConformanceCase {
+function orderingProgram(seed: number): PolicyRuntimeTestCase {
   const first = `a_${seed}`;
   const second = `b_${seed}`;
   return {
@@ -130,7 +130,7 @@ function orderingProgram(seed: number): PolicyRuntimeConformanceCase {
   };
 }
 
-function aggregationProgram(seed: number): PolicyRuntimeConformanceCase {
+function aggregationProgram(seed: number): PolicyRuntimeTestCase {
   const functions = ["sum", "avg", "min", "max", "count"] as const;
   const aggregate = functions[(seed - 1) % functions.length];
   const amounts = [seed + 1, seed + 3] as const;
@@ -188,9 +188,7 @@ function aggregationProgram(seed: number): PolicyRuntimeConformanceCase {
   };
 }
 
-function shortCircuitProgram(
-  operator: "and" | "or",
-): PolicyRuntimeConformanceCase {
+function shortCircuitProgram(operator: "and" | "or"): PolicyRuntimeTestCase {
   const divisionByZero = {
     kind: "comparison",
     operator: ">",
@@ -245,7 +243,7 @@ function shortCircuitProgram(
   };
 }
 
-function aggregateTransitionOverflowProgram(): PolicyRuntimeConformanceCase {
+function aggregateTransitionOverflowProgram(): PolicyRuntimeTestCase {
   const amounts = [
     60_000_000_000_000_000_000, 60_000_000_000_000_000_000,
     -60_000_000_000_000_000_000, -59_999_999_999_999_990_000,

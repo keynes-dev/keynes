@@ -4,7 +4,7 @@ import {
   createContractClient,
   KeynesError,
   type ContractClient,
-} from "@keynes/contracts/conformance";
+} from "@keynes/contracts/contract-tests";
 import { openInstalledPostgresDatabase } from "./support/postgres-database.js";
 import type { PostgresTransaction } from "./support/postgres-database.js";
 import type { TransactionalDatabase } from "./support/database.js";

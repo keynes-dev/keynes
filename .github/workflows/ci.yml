@@ -36,8 +36,8 @@ jobs:
       - name: Run repository checks and tests
         run: pnpm test:pr
 
-  conformance:
-    name: SQLite and PostgreSQL conformance
+  sqlite-postgres:
+    name: SQLite and PostgreSQL behavior tests
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -62,21 +62,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run both conformance authorities
-        run: pnpm test:conformance -- --output "$RUNNER_TEMP/conformance"
+      - name: Run SQLite and PostgreSQL behavior tests
+        run: pnpm test:sqlite-postgres -- --output "$RUNNER_TEMP/sqlite-postgres"
 
-      - name: Retain conformance evidence
+      - name: Retain SQLite and PostgreSQL evidence
         id: upload
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: conformance-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          name: sqlite-postgres-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           path: |
-            ${{ runner.temp }}/conformance/manifest.json
-            ${{ runner.temp }}/conformance/sqlite.vitest.json
-            ${{ runner.temp }}/conformance/postgresql.json
-            ${{ runner.temp }}/conformance/postgresql.json.vitest.json
-            ${{ runner.temp }}/conformance/postgresql.json.observations.json
+            ${{ runner.temp }}/sqlite-postgres/manifest.json
+            ${{ runner.temp }}/sqlite-postgres/sqlite.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.observations.json
           if-no-files-found: error
           overwrite: false
           retention-days: 14
@@ -89,4 +89,4 @@ jobs:
         run: |
           [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || exit 1
           [[ "$ARTIFACT_DIGEST" =~ ^[0-9a-fA-F]{64}$ ]] || exit 1
-          printf 'Conformance artifact ID: `%s`\n\nSHA-256: `%s`\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf 'SQLite and PostgreSQL artifact ID: `%s`\n\nSHA-256: `%s`\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"

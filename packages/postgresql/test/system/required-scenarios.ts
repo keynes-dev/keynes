@@ -23,13 +23,13 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL installation rejects live object, permission, ownership, and ACL drift",
   ],
   "packages/postgresql/test/integration/recheck.test.ts": [
-    "PostgreSQL exact recheck and application-role conformance rechecks the exact graph read-only",
-    "PostgreSQL exact recheck and application-role conformance checks the server, checksums, contract, and complete object inventory",
-    "PostgreSQL exact recheck and application-role conformance rejects an otherwise exact target that lacks the final migration",
-    "PostgreSQL exact recheck and application-role conformance checks owners, bodies, languages, security, and fixed search paths",
-    "PostgreSQL exact recheck and application-role conformance checks bootstrap permissions and schema and function ACLs",
-    "PostgreSQL exact recheck and application-role conformance allows the application role to call exactly the eight remote functions",
-    "PostgreSQL exact recheck and application-role conformance denies private and unsupported function access without changing state",
+    "PostgreSQL exact recheck and application-role permissions rechecks the exact graph read-only",
+    "PostgreSQL exact recheck and application-role permissions checks the server, checksums, contract, and complete object inventory",
+    "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks the final migration",
+    "PostgreSQL exact recheck and application-role permissions checks owners, bodies, languages, security, and fixed search paths",
+    "PostgreSQL exact recheck and application-role permissions checks bootstrap permissions and schema and function ACLs",
+    "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the eight remote functions",
+    "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgresql/test/system/installation.test.ts": [
     "PostgreSQL installation installs explicit principal permission records",
@@ -138,9 +138,9 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL governed Policy requests rolls back governed evidence, reservation, child, history, and command identity",
     "PostgreSQL governed Policy requests locks an unrequested declared availability holding in Resource UUID order",
   ],
-  "packages/postgresql/test/system/policy-conformance.test.ts": [
-    "PostgreSQL Policy runtime conformance executes every shared runtime conformance program through the installed renderer",
-    "PostgreSQL Policy runtime conformance keeps nested boolean rendering linear",
+  "packages/postgresql/test/system/policy-runtime.test.ts": [
+    "PostgreSQL Policy runtime behavior executes every shared runtime test program through the installed renderer",
+    "PostgreSQL Policy runtime behavior keeps nested boolean rendering linear",
   ],
   "packages/postgresql/test/system/policy-replay.test.ts": [
     "PostgreSQL governed Policy replay returns the exact stored result, evidence, and Context",
