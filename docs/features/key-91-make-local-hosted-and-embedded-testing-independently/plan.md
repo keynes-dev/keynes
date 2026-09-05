@@ -6,7 +6,7 @@
 
 ## Summary
 
-Complete a bounded testing-strategy study as the first blocking phase in tasks.md. Map coverage and ownership, measure setup separately from assertions, and run one small consolidation pilot. Use the findings to revise the command and fixture design before adding independent entrypoints.
+The Phase 3 study is complete in [testing-strategy.md](testing-strategy.md). Adopt the measured removal of duplicate contracts execution from `test:pr`. Preserve all fixture and packaging behavior. Keep selected manifest construction with the SDK/PostgreSQL runners and share only neutral mechanics. The remaining phases add independent entrypoints.
 
 Add Local, remote PostgreSQL, Embedded, and Hosted contributor commands under the existing package owners. Reuse native startup/cleanup, canonical Budget scenarios, and installed SDK qualification. Remote runs all supported connection modes by default. Explicit narrower runs start only the dependencies they need and produce evidence that cannot satisfy the complete gate.
 
@@ -34,7 +34,7 @@ Preserve `pnpm test:sqlite-postgres` and its complete native inventory. Embedded
 
 ## Constitution Check
 
-The original pre-research and post-design checks passed against constitution 8.0.1. The added study requirements remain consistent with those principles. Repeat the post-design check after the study changes the design; the downstream-implementation prerequisite below is currently unmet.
+The original pre-research and post-design checks passed against constitution 8.0.1. The added study requirements remain consistent with those principles. The post-study check below repeats those gates after the measured pilot and ownership revision. The study prerequisite is satisfied; the requested execution scope stops at tasks.md Phase 3.
 
 | Gate                      | Design and verification obligation                                                                                                                                              | Pre-research | Post-design |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
@@ -57,12 +57,12 @@ No constitutional exception is required. Product security, recovery, migration, 
 - [data-model.md](data-model.md) defines selection and evidence states.
 - [contracts/deployment-checks.md](contracts/deployment-checks.md) defines contributor commands, inventories, and exit behavior.
 - [quickstart.md](quickstart.md) defines implementation validation scenarios.
-- `testing-strategy.md` will hold the completed study, coverage map, measurements, and pilot decision. It does not yet exist and must be completed before downstream implementation.
+- [testing-strategy.md](testing-strategy.md) contains the completed study, coverage map, measurements, and pilot decision, with [retained observations](evidence/testing-strategy.json).
 - [tasks.md](tasks.md) orders the study first, then the initial implementation work behind its design-revision checkpoint.
 
 ### Source code
 
-Existing owners remain unchanged. These additions are proposed paths, not implemented files:
+Existing owners remain unchanged. The root-command pilot and repository regression are implemented. The deployment additions below remain proposed paths:
 
 ```text
 packages/contracts/contract-tests/              canonical shared Budget registration, preserved
@@ -75,7 +75,7 @@ packages/postgresql/test/system/run.ts           reuse full runner; explicit sel
 packages/postgresql/test/system/run-deployment.ts new selected CLI
 packages/postgresql/test/system/required-scenarios.ts preserve full inventory; declare selections
 packages/postgresql/test/system/support/         selected context and TLS fixtures
-packages/testkit/src/                           shared report/process/snapshot/archive-lock helpers
+packages/testkit/src/                           neutral report/process/snapshot/archive-lock mechanics
 scripts/run-sqlite-postgres.ts                   full comparison remains here
 package.json                                   thin aliases
 packages/sdk/package.json                       SDK-owned commands
@@ -120,11 +120,11 @@ Broad Policy-corpus migration is assessed here but is not automatically included
 
 Execution beyond the study checkpoint requires the coverage map, comparable measurements, and one measured pilot with an adopt or reject decision. An evidence-backed rejection permits downstream implementation with the existing coverage intact; missing measurements do not. Record adopted, rejected, and deferred changes with reasons. Reconcile the design and remaining tasks, then repeat the Constitution Check. The study stays in the existing Spec Kit artifacts and introduces no second task system.
 
-**Current boundary:** Initial source assessment and one provider-free timing exist. Comparable native/package baselines and the pilot are NOT RUN. Execute the study phase in `tasks.md` first; do not start downstream deployment-test implementation yet. Existing images, verified SDK connections, Embedded/Hosted exclusions, and the complete gate remain constraints on the study.
+**Current boundary:** The study has three passing baseline samples for each required command, three passing pilot PR samples, and an observed failing contracts assertion through the retained Turbo stage. The pilot removes one repeated 51-test execution. All 37 SQLite and 208 PostgreSQL assertions and installed SDK qualification passed at the intake revision. These are study observations, not acceptance of the unbuilt deployment commands. T012 releases the study gate; execution in this request stops at Phase 3.
 
 ## Phase 1: design
 
-This is the initial design to revise after the study. The accepted deployment defaults and evidence obligations remain binding; module extraction and feedback-command choices are provisional until the study completes and its findings are reconciled into the remaining tasks.
+This design incorporates the study. Retain deployment defaults and evidence obligations. Extract shared structural report validation and process cleanup only when a second runner uses them. Retain existing owner commands for narrower source feedback. Defer installer recheck removal, packaging CI changes, remote-registrar activation, and broad Policy request/replay migration. T016-T020 must keep full/parity/selected coverage verdicts and manifest schema construction with their runners; testkit stays product-neutral.
 
 ### Selection and execution
 
@@ -150,7 +150,7 @@ Hosted accepts an output destination, writes NOT RUN with the unavailable produc
 
 ### Resource and evidence ownership
 
-Extract reusable child termination, report parsing/sanitization, source snapshot, and exclusive archive preparation only where the study demonstrates shared mechanics. Parse reports into validated results, then retain separate selected, complete-native, and cross-backend coverage policies. Preserve all existing structural/count/duplicate checks; do not choose a more permissive validator during extraction. Reuse current cancellation behavior, including tracking resource creation that races cancellation. Clean up test children before poolers, database, network, and temporary workspaces. Record all cleanup failures; never overwrite an assertion failure with a cleanup success.
+Extract reusable child termination, structural report parsing, source snapshots, and exclusive archive preparation only where the study demonstrates shared mechanics. The SDK and PostgreSQL runners construct selected manifests, apply schema/coverage policy, and sanitize owner-specific sensitive data. Testkit accepts neutral records and owns no `schemaVersion`, deployment evidence vocabulary, or coverage verdict. Do not add cross-imports between the SDK and PostgreSQL test owners. Parse reports into validated results, then retain separate selected, complete-native, and cross-backend coverage policies. Preserve all existing structural/count/duplicate checks; do not choose a more permissive validator during extraction. Reuse current cancellation behavior, including tracking resource creation that races cancellation. Clean up test children before poolers, database, network, and temporary workspaces. Record all cleanup failures; never overwrite an assertion failure with a cleanup success.
 
 Use a single checkout-local build/pack lock for the entrypoints involved here, including full native package preparation. Lock acquisition has a bounded wait and honors cancellation. A contender never deletes a lock it did not acquire. A stale lock fails with an actionable diagnostic; automatic unsafe lock stealing is excluded. Once archives are immutable, release the lock and allow attempts to execute concurrently. Supplied archives are read-only inputs and are never deleted by attempt cleanup.
 
@@ -164,7 +164,7 @@ Reuse existing provider-free negative tests for report structure and full covera
 
 ## Verification strategy
 
-Order failing behavioral tests before the corresponding implementation in the later task list. The study pilot must also observe the expected regression before its experimental change. This document update runs only document/repository validation; it does not execute the study or pilot.
+Order failing behavioral tests before the corresponding implementation in the later task list. The study pilot must also observe the expected regression before its experimental change. The completed study retains the expected red regression, restored negative experiment, and passing baseline/pilot samples. Later behavioral tasks still require their own expected failures before implementation.
 
 Before downstream implementation, require the study evidence defined in Phase 0. After implementation, compare adopted optimizations with that baseline under equivalent conditions, retain the coverage mapping, and report any regression. A lower line count or cached run alone cannot qualify the change.
 
@@ -180,8 +180,23 @@ Before downstream implementation, require the study evidence defined in Phase 0.
 | Negative acceptance    | Inject missing/duplicate/skipped scenarios, shared mismatch, stale evidence, startup failure, and cleanup failure in separate controlled attempts; no attempt qualifies |
 | Repository             | `pnpm test:pr` covers repository tests, type checks, and dependency boundaries; run `pnpm format` separately                                                            |
 
-Use [quickstart.md](quickstart.md) for study prerequisites and implementation validation examples. Retain current-revision evidence under this feature only after execution. The initial provider-free timing is recorded in research; comparative native, installed-consumer, and pilot evidence remains NOT RUN. Earlier CI timings do not establish acceptance of this revision.
+Use [quickstart.md](quickstart.md) for study prerequisites and implementation validation examples. Retain current-revision evidence under this feature only after execution. The initial provider-free timing remains historical in research; the completed comparison is in testing-strategy.md. New deployment entrypoints, selected evidence, concurrency, installed remote TLS, Embedded product acceptance, and actual Hosted operations remain NOT RUN. Earlier CI timings do not establish acceptance of this revision.
 
 ## Complexity Tracking
 
 No exceptions. The separate selected manifest prevents partial/full evidence confusion. The package lock addresses an observed shared-directory race. Both additions serve existing test owners and introduce no new lifecycle or product abstraction.
+
+## Post-study Constitution Check
+
+All eight gates in the Constitution Check remain Pass after the study. The
+adopted command change leaves Budget authorities, application effects, Policy
+semantics, security and native coverage unchanged. A failing regression preceded
+the edit, the retained Turbo stage detected an injected contracts failure, and
+three native/package baseline attempts passed with exact identities and cleanup.
+No external target was used. The revised T018 keeps selected schema construction
+in the runners and neutral snapshot/serialization mechanics in testkit, preserving
+the existing ownership test. No constitutional exception is required.
+
+T012's design reconciliation does not complete KEY-91. Phases 4-9 retain all
+selected/full report negatives, package locking, independent deployment commands,
+TLS consumer, cancellation and final exact-revision acceptance obligations.

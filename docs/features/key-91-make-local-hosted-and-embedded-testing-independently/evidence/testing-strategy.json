@@ -1,0 +1,1830 @@
+{
+  "source": {
+    "source": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+    "artifacts": "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3",
+    "workspaces": {
+      "baseline": "/tmp/key91-study-d1de673a/baseline",
+      "pilot": "/tmp/key91-study-d1de673a/pilot"
+    },
+    "host": "macOS-26.5.2-arm64-arm-64bit",
+    "node": "v26.5.0",
+    "pnpm": "11.21.0",
+    "digests": {
+      "pnpm-lock.yaml": "da737ab4f37bcad423502447a96050c16e5f4cb0d009d0067eb4915bc45c94e3",
+      "package.json": "8e9fc358f9b5b6df72bc643d32bde2136737d5ece385a7ecd0434359dd4f667d",
+      "turbo.json": "84c2c688a28e5073d2188d5e529e9033f3fe6dc90b7ae19e50d86fb1bebebc73",
+      "packages/postgresql/generated/installation-record.json": "9832e7ddc790119cccb4a4e349fa16994eaa831d5732d9d902027f6b6b6bc89b"
+    },
+    "images": [
+      {
+        "reference": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "id": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941"
+      },
+      {
+        "reference": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+        "id": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340"
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "condition": "baseline",
+      "lane": "native",
+      "attempt": "final-1",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:sqlite-postgres",
+            "--",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-final-1/paired"
+          ],
+          "seconds": 25.44805929204449,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "docker-exec": {
+          "count": 1,
+          "unionSeconds": 0.040766
+        },
+        "docker-inspect": {
+          "count": 2,
+          "unionSeconds": 0.028582
+        },
+        "docker-network": {
+          "count": 2,
+          "unionSeconds": 0.238354
+        },
+        "docker-other": {
+          "count": 4,
+          "unionSeconds": 0.802718
+        },
+        "docker-port": {
+          "count": 3,
+          "unionSeconds": 0.048893
+        },
+        "docker-run": {
+          "count": 3,
+          "unionSeconds": 0.341023
+        },
+        "external-install": {
+          "count": 1,
+          "unionSeconds": 0.300152
+        },
+        "filesystem-cleanup": {
+          "count": 140,
+          "unionSeconds": 0.077137
+        },
+        "installer-install": {
+          "count": 258,
+          "unionSeconds": 15.935867
+        },
+        "pack": {
+          "count": 1,
+          "unionSeconds": 0.802893
+        },
+        "process-git": {
+          "count": 8,
+          "unionSeconds": 0.056215
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.144383
+        },
+        "process-other": {
+          "count": 2,
+          "unionSeconds": 0.472247
+        },
+        "process-pnpm": {
+          "count": 4,
+          "unionSeconds": 25.350141
+        },
+        "process-sh": {
+          "count": 3,
+          "unionSeconds": 25.18741
+        },
+        "sql-create-database": {
+          "count": 212,
+          "unionSeconds": 2.602206
+        },
+        "sql-create-role": {
+          "count": 960,
+          "unionSeconds": 1.379382
+        },
+        "sql-drop-database": {
+          "count": 212,
+          "unionSeconds": 9.462704
+        },
+        "sql-drop-role": {
+          "count": 965,
+          "unionSeconds": 0.458135
+        },
+        "vitest": {
+          "count": 3,
+          "unionSeconds": 21.554001
+        }
+      },
+      "vitestSummaries": [],
+      "contractsExecutions": null,
+      "totalSeconds": 25.44805929204449,
+      "pairedOutcome": "passed",
+      "runtimeCleanup": [
+        "passed",
+        "passed"
+      ],
+      "reports": {
+        "sqlite.vitest.json": {
+          "tests": 37,
+          "files": 1,
+          "testFileWallSeconds": 0.065676,
+          "assertionReportedSeconds": 0.06511,
+          "coverageSha256": "70e2f068e35a384be0a11bd8175fc71c89556ab3eed3233d6998c6c2cd5b5dc2"
+        },
+        "postgresql.json.vitest.json": {
+          "tests": 208,
+          "files": 16,
+          "testFileWallSeconds": 20.53736,
+          "assertionReportedSeconds": 107.911609,
+          "coverageSha256": "3ae09a73f1ee98a09ac2ee61142bc695f7b48f13eb1d44d271f1424342b86e59"
+        }
+      },
+      "evidence": {
+        "baseline-native-final-1/command-0.log": "7ea29d967d0f2f8062ac5b5b0240a00459ee24321f69356963f9c477bb4df9c7",
+        "baseline-native-final-1/observe.cjs": "f6791397107634c1a6035ea07bbdb0a363c68949f0052973e8d465876e2a6d1d",
+        "baseline-native-final-1/operations.jsonl": "f310aa46ff7682f16011ee731ea2bbeabb102a2996e4279e3f91f94dde385219",
+        "baseline-native-final-1/paired/manifest.json": "16e2f619cc2854f8a43270c4731709e70081bf78daf22766fbad3d11ba28b029",
+        "baseline-native-final-1/paired/postgresql.json": "ffdcf1ba9f978d7d2e1da2fcf4556c729b955b5023fbe97e2bc9bd66fe43ebe3",
+        "baseline-native-final-1/paired/postgresql.json.observations.json": "240126feb0f7da034b47f1b8262e20b37361524e00b2b0accdb67291eeb8fa48",
+        "baseline-native-final-1/paired/postgresql.json.vitest.json": "b2df6545907a86609791f25ac537e3e567f176ffe0601108e16239dad49d4d1e",
+        "baseline-native-final-1/paired/sqlite.vitest.json": "a25a256b2f891ec62b482ea5ea1377295e0771dea3558322d79b59819e443c34",
+        "baseline-native-final-1/result.json": "01de99ecd6d2b7f4535895daefd429a39663937032b6e5f5b23b1b59f5b773c9"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "native",
+      "attempt": "final-2",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:sqlite-postgres",
+            "--",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-final-2/paired"
+          ],
+          "seconds": 24.854683625046164,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "docker-exec": {
+          "count": 1,
+          "unionSeconds": 0.046013
+        },
+        "docker-inspect": {
+          "count": 2,
+          "unionSeconds": 0.024855
+        },
+        "docker-network": {
+          "count": 2,
+          "unionSeconds": 0.241975
+        },
+        "docker-other": {
+          "count": 4,
+          "unionSeconds": 0.691052
+        },
+        "docker-port": {
+          "count": 3,
+          "unionSeconds": 0.051075
+        },
+        "docker-run": {
+          "count": 3,
+          "unionSeconds": 0.338897
+        },
+        "external-install": {
+          "count": 1,
+          "unionSeconds": 0.317443
+        },
+        "filesystem-cleanup": {
+          "count": 140,
+          "unionSeconds": 0.080128
+        },
+        "installer-install": {
+          "count": 258,
+          "unionSeconds": 15.467476
+        },
+        "pack": {
+          "count": 1,
+          "unionSeconds": 0.802238
+        },
+        "process-git": {
+          "count": 8,
+          "unionSeconds": 0.06418
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.162609
+        },
+        "process-other": {
+          "count": 2,
+          "unionSeconds": 0.472981
+        },
+        "process-pnpm": {
+          "count": 4,
+          "unionSeconds": 24.754283
+        },
+        "process-sh": {
+          "count": 3,
+          "unionSeconds": 24.592453
+        },
+        "sql-create-database": {
+          "count": 212,
+          "unionSeconds": 2.232866
+        },
+        "sql-create-role": {
+          "count": 960,
+          "unionSeconds": 1.19072
+        },
+        "sql-drop-database": {
+          "count": 212,
+          "unionSeconds": 8.010867
+        },
+        "sql-drop-role": {
+          "count": 965,
+          "unionSeconds": 0.424883
+        },
+        "vitest": {
+          "count": 3,
+          "unionSeconds": 21.039861
+        }
+      },
+      "vitestSummaries": [],
+      "contractsExecutions": null,
+      "totalSeconds": 24.854683625046164,
+      "pairedOutcome": "passed",
+      "runtimeCleanup": [
+        "passed",
+        "passed"
+      ],
+      "reports": {
+        "sqlite.vitest.json": {
+          "tests": 37,
+          "files": 1,
+          "testFileWallSeconds": 0.065933,
+          "assertionReportedSeconds": 0.065626,
+          "coverageSha256": "70e2f068e35a384be0a11bd8175fc71c89556ab3eed3233d6998c6c2cd5b5dc2"
+        },
+        "postgresql.json.vitest.json": {
+          "tests": 208,
+          "files": 16,
+          "testFileWallSeconds": 20.032912,
+          "assertionReportedSeconds": 103.84208,
+          "coverageSha256": "3ae09a73f1ee98a09ac2ee61142bc695f7b48f13eb1d44d271f1424342b86e59"
+        }
+      },
+      "evidence": {
+        "baseline-native-final-2/command-0.log": "1c0672634e8baafc1404e54c1353714454bfa9d9a4c6e57d98e7ac33039ea79a",
+        "baseline-native-final-2/observe.cjs": "6be9fa62a63444c9ac9f27f891474c286ae5ecb921cf1809bf4acc520be717b4",
+        "baseline-native-final-2/operations.jsonl": "f34009256efaddd1fd290f542caf55b1e0d2a5b2a299a8a160c0aaec216650be",
+        "baseline-native-final-2/paired/manifest.json": "f5905b3a4fac43fe6dd25a562c86a0035b6b33a2c8b1f57a0b1cb5bed6f6af76",
+        "baseline-native-final-2/paired/postgresql.json": "60a814985e7be8354d0ef8ff3447499a00b8d5c892d28826f4e47fe3e0d3b882",
+        "baseline-native-final-2/paired/postgresql.json.observations.json": "ba0659496d29e2d48c48e9ae3e10e9aa4306d815b2f148ad7dc6152276134b83",
+        "baseline-native-final-2/paired/postgresql.json.vitest.json": "28fff45407eb2c7c321c0ab31c4f91668dbc594a8ef5eb517f6ed1a54002d500",
+        "baseline-native-final-2/paired/sqlite.vitest.json": "79988313d4f5118b963dae770a210e1e26ae5a49e9da8b2e10c75c0a25463c68",
+        "baseline-native-final-2/result.json": "9f58e54e946cb7ea93dc9e5345dc9a1ad71c9f1ba6f0074c30d90db94f41dbac"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "native",
+      "attempt": "final-3",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:sqlite-postgres",
+            "--",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-final-3/paired"
+          ],
+          "seconds": 25.165754874935374,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "docker-exec": {
+          "count": 1,
+          "unionSeconds": 0.05342
+        },
+        "docker-inspect": {
+          "count": 2,
+          "unionSeconds": 0.028981
+        },
+        "docker-network": {
+          "count": 2,
+          "unionSeconds": 0.237017
+        },
+        "docker-other": {
+          "count": 4,
+          "unionSeconds": 0.912215
+        },
+        "docker-port": {
+          "count": 3,
+          "unionSeconds": 0.050426
+        },
+        "docker-run": {
+          "count": 3,
+          "unionSeconds": 0.334038
+        },
+        "external-install": {
+          "count": 1,
+          "unionSeconds": 0.308331
+        },
+        "filesystem-cleanup": {
+          "count": 140,
+          "unionSeconds": 0.082625
+        },
+        "installer-install": {
+          "count": 258,
+          "unionSeconds": 16.122646
+        },
+        "pack": {
+          "count": 1,
+          "unionSeconds": 0.805209
+        },
+        "process-git": {
+          "count": 8,
+          "unionSeconds": 0.056229
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.155283
+        },
+        "process-other": {
+          "count": 2,
+          "unionSeconds": 0.485794
+        },
+        "process-pnpm": {
+          "count": 4,
+          "unionSeconds": 25.064358
+        },
+        "process-sh": {
+          "count": 3,
+          "unionSeconds": 24.900201
+        },
+        "sql-create-database": {
+          "count": 212,
+          "unionSeconds": 2.353079
+        },
+        "sql-create-role": {
+          "count": 960,
+          "unionSeconds": 1.351059
+        },
+        "sql-drop-database": {
+          "count": 212,
+          "unionSeconds": 9.854242
+        },
+        "sql-drop-role": {
+          "count": 965,
+          "unionSeconds": 0.523874
+        },
+        "vitest": {
+          "count": 3,
+          "unionSeconds": 21.14062
+        }
+      },
+      "vitestSummaries": [],
+      "contractsExecutions": null,
+      "totalSeconds": 25.165754874935374,
+      "pairedOutcome": "passed",
+      "runtimeCleanup": [
+        "passed",
+        "passed"
+      ],
+      "reports": {
+        "sqlite.vitest.json": {
+          "tests": 37,
+          "files": 1,
+          "testFileWallSeconds": 0.064678,
+          "assertionReportedSeconds": 0.064716,
+          "coverageSha256": "70e2f068e35a384be0a11bd8175fc71c89556ab3eed3233d6998c6c2cd5b5dc2"
+        },
+        "postgresql.json.vitest.json": {
+          "tests": 208,
+          "files": 16,
+          "testFileWallSeconds": 20.118232,
+          "assertionReportedSeconds": 107.030739,
+          "coverageSha256": "3ae09a73f1ee98a09ac2ee61142bc695f7b48f13eb1d44d271f1424342b86e59"
+        }
+      },
+      "evidence": {
+        "baseline-native-final-3/command-0.log": "3be9cc0752803d50c89bcbddc583b4680ffc3cb987ef83cd0bc219466aee515d",
+        "baseline-native-final-3/observe.cjs": "31eb4845b1946d175c0db7bf109e18d3f5e84fe1210dd5e36aa67115267359db",
+        "baseline-native-final-3/operations.jsonl": "0e93f0601dfdbc61209f6e1b2fcbc0f526783e5463e50e11207d54381f83eefe",
+        "baseline-native-final-3/paired/manifest.json": "7b9540b1b21218271deb5dc31098c135bb4cd7ba01d2c8c8c69a38079a5a4612",
+        "baseline-native-final-3/paired/postgresql.json": "0f7fa5a131870483e81bfbf0ccae661433ab694e0111585ffe9a85037ad87385",
+        "baseline-native-final-3/paired/postgresql.json.observations.json": "af14fd5a5030285d5a41b81c62b69e25492629325c8f5cb75ee8dd0fb8f98628",
+        "baseline-native-final-3/paired/postgresql.json.vitest.json": "bd1e4c43c1232c363d45212c0436748640560ca23b864a56ed7478ed2dc1c10e",
+        "baseline-native-final-3/paired/sqlite.vitest.json": "72c1b065c5140921023d1e1133781f09ab16b5492355ff5469096a8807c45591",
+        "baseline-native-final-3/result.json": "c4385338a09adcc33836439551c59df5d77ee2673b237ef68df0abfb63a9f02a"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "package",
+      "attempt": "final-1",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "pack:sdk"
+          ],
+          "seconds": 1.1298523750156164,
+          "exit": 0
+        },
+        {
+          "argv": [
+            "pnpm",
+            "test:package:sdk",
+            "--",
+            "--archive",
+            "/tmp/key91-study-d1de673a/baseline/.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-package-final-1/consumer.json"
+          ],
+          "seconds": 7.89627762499731,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "build": {
+          "count": 2,
+          "unionSeconds": 1.041218
+        },
+        "consumer-assertions": {
+          "count": 27,
+          "unionSeconds": 2.290272
+        },
+        "consumer-negative": {
+          "count": 3,
+          "unionSeconds": 0.064072
+        },
+        "consumer-typecheck": {
+          "count": 3,
+          "unionSeconds": 0.183777
+        },
+        "external-install": {
+          "count": 3,
+          "unionSeconds": 1.175689
+        },
+        "filesystem-cleanup": {
+          "count": 26,
+          "unionSeconds": 0.17667
+        },
+        "pack": {
+          "count": 2,
+          "unionSeconds": 1.898025
+        },
+        "process-git": {
+          "count": 12,
+          "unionSeconds": 0.07653
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.64599
+        },
+        "process-other": {
+          "count": 4,
+          "unionSeconds": 0.611325
+        },
+        "process-pnpm": {
+          "count": 8,
+          "unionSeconds": 8.109531
+        },
+        "process-sh": {
+          "count": 9,
+          "unionSeconds": 8.509949
+        },
+        "vitest": {
+          "count": 1,
+          "unionSeconds": 5.793714
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  21 passed (21)",
+        "   Duration  5.64s (transform 45ms, setup 0ms, import 60ms, tests 5.48s, environment 0ms)"
+      ],
+      "contractsExecutions": null,
+      "totalSeconds": 9.026130000012927,
+      "consumer": {
+        "outcome": "passed",
+        "checks": [
+          "parser-wasm",
+          "public-types",
+          "package-root-import",
+          "remote-exports",
+          "configuration-rejection",
+          "environment-isolation",
+          "budget-loop",
+          "policy-runtime",
+          "isolation",
+          "closure",
+          "process-loss",
+          "deep-imports-blocked"
+        ],
+        "archive": {
+          "sha256": "82b973a60f6e265ba9a739db04e8f8915af70112ca4f5e9485c4fc9bfb3f18f2",
+          "compressedBytes": 1007636,
+          "productionBytes": 4996303,
+          "packageVersion": "0.0.0",
+          "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+        },
+        "environment": {
+          "node": "v26.5.0",
+          "pnpm": "11.21.0",
+          "os": "darwin",
+          "osRelease": "25.5.0",
+          "architecture": "arm64"
+        }
+      },
+      "evidence": {
+        "baseline-package-final-1/command-0.log": "257f7c24c22bbdcc786b5eb2ccc284d56273e0409ce9f8c03cb35f4def7fb720",
+        "baseline-package-final-1/command-1.log": "4ca230d4e43aed273c666d2be671cffed3b453365a4d635ff050c78832a56008",
+        "baseline-package-final-1/consumer.json": "9aa985abb6f3fc32a57e04d7e28d341b16415209bd22fce3c557b7049597812b",
+        "baseline-package-final-1/observe.cjs": "f64313b423728961a665ac74f96ee04b84f7a2879931a4beb2ebec796aa4a2d9",
+        "baseline-package-final-1/operations.jsonl": "677f4b36997d6649cf9314ac1a70bf858a4e54ea26d4d56fce9e2067414d6ddb",
+        "baseline-package-final-1/result.json": "6182b95f2ed08d1101280e78d7bd27314ad9eb4ace73e64f6ec306aac159f89a"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "package",
+      "attempt": "final-2",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "pack:sdk"
+          ],
+          "seconds": 1.134996541077271,
+          "exit": 0
+        },
+        {
+          "argv": [
+            "pnpm",
+            "test:package:sdk",
+            "--",
+            "--archive",
+            "/tmp/key91-study-d1de673a/baseline/.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-package-final-2/consumer.json"
+          ],
+          "seconds": 7.9654947080416605,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "build": {
+          "count": 2,
+          "unionSeconds": 1.062243
+        },
+        "consumer-assertions": {
+          "count": 27,
+          "unionSeconds": 2.283639
+        },
+        "consumer-negative": {
+          "count": 3,
+          "unionSeconds": 0.066518
+        },
+        "consumer-typecheck": {
+          "count": 3,
+          "unionSeconds": 0.182485
+        },
+        "external-install": {
+          "count": 3,
+          "unionSeconds": 1.169896
+        },
+        "filesystem-cleanup": {
+          "count": 26,
+          "unionSeconds": 0.177142
+        },
+        "pack": {
+          "count": 2,
+          "unionSeconds": 1.921322
+        },
+        "process-git": {
+          "count": 12,
+          "unionSeconds": 0.082884
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.640066
+        },
+        "process-other": {
+          "count": 4,
+          "unionSeconds": 0.621489
+        },
+        "process-pnpm": {
+          "count": 8,
+          "unionSeconds": 8.182527
+        },
+        "process-sh": {
+          "count": 9,
+          "unionSeconds": 8.58159
+        },
+        "vitest": {
+          "count": 1,
+          "unionSeconds": 5.832656
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  21 passed (21)",
+        "   Duration  5.68s (transform 45ms, setup 0ms, import 60ms, tests 5.52s, environment 0ms)"
+      ],
+      "contractsExecutions": null,
+      "totalSeconds": 9.100491249118932,
+      "consumer": {
+        "outcome": "passed",
+        "checks": [
+          "parser-wasm",
+          "public-types",
+          "package-root-import",
+          "remote-exports",
+          "configuration-rejection",
+          "environment-isolation",
+          "budget-loop",
+          "policy-runtime",
+          "isolation",
+          "closure",
+          "process-loss",
+          "deep-imports-blocked"
+        ],
+        "archive": {
+          "sha256": "82b973a60f6e265ba9a739db04e8f8915af70112ca4f5e9485c4fc9bfb3f18f2",
+          "compressedBytes": 1007636,
+          "productionBytes": 4996303,
+          "packageVersion": "0.0.0",
+          "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+        },
+        "environment": {
+          "node": "v26.5.0",
+          "pnpm": "11.21.0",
+          "os": "darwin",
+          "osRelease": "25.5.0",
+          "architecture": "arm64"
+        }
+      },
+      "evidence": {
+        "baseline-package-final-2/command-0.log": "257f7c24c22bbdcc786b5eb2ccc284d56273e0409ce9f8c03cb35f4def7fb720",
+        "baseline-package-final-2/command-1.log": "88743bffbf49e984df6a527e2a37bb699af429a71a4da5d2daa7b67bfeab2d2f",
+        "baseline-package-final-2/consumer.json": "9aa985abb6f3fc32a57e04d7e28d341b16415209bd22fce3c557b7049597812b",
+        "baseline-package-final-2/observe.cjs": "519acc4cb5e02251f6f3b64d5015db95e2520117deef3d4e0a0b0602b1e34155",
+        "baseline-package-final-2/operations.jsonl": "80ad65510d7d52fdb503edab52f519ca89cf63524839afc04efad0e073192594",
+        "baseline-package-final-2/result.json": "18316d04fe744b748482b90644edb17bf1db77023d67731bbe9e1f9291f4b9f8"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "package",
+      "attempt": "final-3",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "pack:sdk"
+          ],
+          "seconds": 1.1336338330293074,
+          "exit": 0
+        },
+        {
+          "argv": [
+            "pnpm",
+            "test:package:sdk",
+            "--",
+            "--archive",
+            "/tmp/key91-study-d1de673a/baseline/.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz",
+            "--output",
+            "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-package-final-3/consumer.json"
+          ],
+          "seconds": 7.908965792041272,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "build": {
+          "count": 2,
+          "unionSeconds": 1.049287
+        },
+        "consumer-assertions": {
+          "count": 27,
+          "unionSeconds": 2.278212
+        },
+        "consumer-negative": {
+          "count": 3,
+          "unionSeconds": 0.065793
+        },
+        "consumer-typecheck": {
+          "count": 3,
+          "unionSeconds": 0.181292
+        },
+        "external-install": {
+          "count": 3,
+          "unionSeconds": 1.167696
+        },
+        "filesystem-cleanup": {
+          "count": 26,
+          "unionSeconds": 0.177098
+        },
+        "pack": {
+          "count": 2,
+          "unionSeconds": 1.912507
+        },
+        "process-git": {
+          "count": 12,
+          "unionSeconds": 0.079014
+        },
+        "process-node": {
+          "count": 1,
+          "unionSeconds": 1.63109
+        },
+        "process-other": {
+          "count": 4,
+          "unionSeconds": 0.614605
+        },
+        "process-pnpm": {
+          "count": 8,
+          "unionSeconds": 8.117578
+        },
+        "process-sh": {
+          "count": 9,
+          "unionSeconds": 8.517036
+        },
+        "vitest": {
+          "count": 1,
+          "unionSeconds": 5.812991
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  21 passed (21)",
+        "   Duration  5.66s (transform 45ms, setup 0ms, import 60ms, tests 5.50s, environment 0ms)"
+      ],
+      "contractsExecutions": null,
+      "totalSeconds": 9.04259962507058,
+      "consumer": {
+        "outcome": "passed",
+        "checks": [
+          "parser-wasm",
+          "public-types",
+          "package-root-import",
+          "remote-exports",
+          "configuration-rejection",
+          "environment-isolation",
+          "budget-loop",
+          "policy-runtime",
+          "isolation",
+          "closure",
+          "process-loss",
+          "deep-imports-blocked"
+        ],
+        "archive": {
+          "sha256": "82b973a60f6e265ba9a739db04e8f8915af70112ca4f5e9485c4fc9bfb3f18f2",
+          "compressedBytes": 1007636,
+          "productionBytes": 4996303,
+          "packageVersion": "0.0.0",
+          "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+        },
+        "environment": {
+          "node": "v26.5.0",
+          "pnpm": "11.21.0",
+          "os": "darwin",
+          "osRelease": "25.5.0",
+          "architecture": "arm64"
+        }
+      },
+      "evidence": {
+        "baseline-package-final-3/command-0.log": "257f7c24c22bbdcc786b5eb2ccc284d56273e0409ce9f8c03cb35f4def7fb720",
+        "baseline-package-final-3/command-1.log": "fc0bdf8598bd920abfdb8f6b1cce6d51723ca722f7fff448bb754f7fd69986b2",
+        "baseline-package-final-3/consumer.json": "9aa985abb6f3fc32a57e04d7e28d341b16415209bd22fce3c557b7049597812b",
+        "baseline-package-final-3/observe.cjs": "c6301b5d6c8da5959d62a3fa0a39aa93d5536acce34c7c65977d3ccc79878209",
+        "baseline-package-final-3/operations.jsonl": "deb16f6a38c0ea18506cd1bd88b9527db3ccb728b24a1d7d1a61542888219f3f",
+        "baseline-package-final-3/result.json": "0e62e8060778eb994a15582ced215c810de666a216edf748e45b43ed866d7803"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "pr",
+      "attempt": "final-1",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 8.207190999994054,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 153,
+          "unionSeconds": 0.062718
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.092611
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.089537
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 8.111051
+        },
+        "process-sh": {
+          "count": 8,
+          "unionSeconds": 4.749085
+        },
+        "vitest": {
+          "count": 11,
+          "unionSeconds": 7.955154
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  51 passed (51)",
+        "   Duration  853ms (transform 85ms, setup 0ms, import 298ms, tests 321ms, environment 0ms)",
+        "      Tests  8 passed (8)",
+        "   Duration  65ms (transform 8ms, setup 0ms, import 12ms, tests 5ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  975ms (transform 43ms, setup 0ms, import 73ms, tests 805ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  1.07s (transform 137ms, setup 0ms, import 768ms, tests 459ms, environment 1.58s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.45s (transform 199ms, setup 0ms, import 595ms, tests 475ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.50s (transform 270ms, setup 0ms, import 531ms, tests 96ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.62s (transform 386ms, setup 0ms, import 1.40s, tests 858ms, environment 1ms)"
+      ],
+      "contractsExecutions": 2,
+      "totalSeconds": 8.207190999994054,
+      "evidence": {
+        "baseline-pr-final-1/command-0.log": "ab92fabec50e0e68b57e0ceb3ed393bc9680cda42446635c2bb8a49e5e7ab4a9",
+        "baseline-pr-final-1/observe.cjs": "2fbab9bae25a0f824cff95759389ffd8cb275cb87dfbe5fa898ae5c5e6ebf6f3",
+        "baseline-pr-final-1/operations.jsonl": "818bba6d4c582457b80453deab5b0bbbb8ca3a08c553eb7f0fd33047dad51ceb",
+        "baseline-pr-final-1/result.json": "f8d89d3203b1e28238a0fb102f72b8c5ebcbadd568896eca69e0aefe4399a277"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "pr",
+      "attempt": "final-2",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 8.243232916924171,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 153,
+          "unionSeconds": 0.07511
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.091444
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.097031
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 8.148853
+        },
+        "process-sh": {
+          "count": 8,
+          "unionSeconds": 4.681432
+        },
+        "vitest": {
+          "count": 11,
+          "unionSeconds": 7.990032
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  51 passed (51)",
+        "   Duration  872ms (transform 84ms, setup 0ms, import 302ms, tests 332ms, environment 0ms)",
+        "      Tests  8 passed (8)",
+        "   Duration  67ms (transform 8ms, setup 0ms, import 12ms, tests 5ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  981ms (transform 39ms, setup 0ms, import 69ms, tests 813ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  1.06s (transform 160ms, setup 0ms, import 805ms, tests 470ms, environment 1.48s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.50s (transform 246ms, setup 0ms, import 637ms, tests 488ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.61s (transform 296ms, setup 0ms, import 564ms, tests 134ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.71s (transform 429ms, setup 0ms, import 1.45s, tests 909ms, environment 1ms)"
+      ],
+      "contractsExecutions": 2,
+      "totalSeconds": 8.243232916924171,
+      "evidence": {
+        "baseline-pr-final-2/command-0.log": "11e470d6b0b07d4d5e25f905495188d9b4b8930889b7691e833602bf2e9f9356",
+        "baseline-pr-final-2/observe.cjs": "22e3aa3456dddcb3345ea8f958cbc9b83847980129036a0d948c356120859cc2",
+        "baseline-pr-final-2/operations.jsonl": "8d2cba3d2059d549e2bbeba4caa8dcb036f1d2b9b30c992e28ca44b659874bab",
+        "baseline-pr-final-2/result.json": "dd967a3044af8fb631906b2a5cd1d336d67df833fa88e808f09fb82212446cd4"
+      }
+    },
+    {
+      "condition": "baseline",
+      "lane": "pr",
+      "attempt": "final-3",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 8.199725916027091,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 153,
+          "unionSeconds": 0.057311
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.095837
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.099281
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 8.103622
+        },
+        "process-sh": {
+          "count": 8,
+          "unionSeconds": 4.571785
+        },
+        "vitest": {
+          "count": 11,
+          "unionSeconds": 7.943257
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  51 passed (51)",
+        "   Duration  885ms (transform 86ms, setup 0ms, import 309ms, tests 335ms, environment 0ms)",
+        "      Tests  8 passed (8)",
+        "   Duration  68ms (transform 9ms, setup 0ms, import 13ms, tests 5ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  982ms (transform 40ms, setup 0ms, import 72ms, tests 813ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  1.03s (transform 149ms, setup 0ms, import 802ms, tests 492ms, environment 1.33s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.47s (transform 220ms, setup 0ms, import 627ms, tests 450ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.52s (transform 249ms, setup 0ms, import 508ms, tests 91ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.63s (transform 478ms, setup 0ms, import 1.48s, tests 782ms, environment 1ms)"
+      ],
+      "contractsExecutions": 2,
+      "totalSeconds": 8.199725916027091,
+      "evidence": {
+        "baseline-pr-final-3/command-0.log": "02362cfc0dbd2a8ad0304bfa06f1b0a454bf99b03cf0904e90471b615aea6c3c",
+        "baseline-pr-final-3/observe.cjs": "dc074c4c4b32db59bdb896ac0780a5497661beaa6385a30bca87bc18086ae41b",
+        "baseline-pr-final-3/operations.jsonl": "6c177c9c4fbe2b76f38fa3719555414248a8311b3cda275e7c199e22aeae7e12",
+        "baseline-pr-final-3/result.json": "47405995e2a22b387e0c060a5bac3323e111eb07e5f96f95b80354f88679ca33"
+      }
+    },
+    {
+      "condition": "pilot",
+      "lane": "pr",
+      "attempt": "final-1",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "abb4fa4b8cb3e2abda0922e31f8789747b6197042872d7bb6889260c4e5fb27e",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 6.9287330829538405,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 152,
+          "unionSeconds": 0.062533
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.092847
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.098961
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 6.83405
+        },
+        "process-sh": {
+          "count": 7,
+          "unionSeconds": 3.336661
+        },
+        "vitest": {
+          "count": 10,
+          "unionSeconds": 6.67491
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  9 passed (9)",
+        "   Duration  67ms (transform 9ms, setup 0ms, import 13ms, tests 5ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  982ms (transform 39ms, setup 0ms, import 69ms, tests 818ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  968ms (transform 173ms, setup 0ms, import 782ms, tests 410ms, environment 1.23s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.37s (transform 199ms, setup 0ms, import 525ms, tests 420ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.52s (transform 268ms, setup 0ms, import 546ms, tests 110ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.69s (transform 463ms, setup 0ms, import 1.63s, tests 685ms, environment 1ms)"
+      ],
+      "contractsExecutions": 1,
+      "totalSeconds": 6.9287330829538405,
+      "evidence": {
+        "pilot-pr-final-1/command-0.log": "80abe2e07991f0363bf9f8160f0d46ae2a0d1d4ea6cd2dcb6c8a3d4564362072",
+        "pilot-pr-final-1/observe.cjs": "45c210d5a3157fe08420caa649f93834422379cbe9b64ea829ce33d94b8e09f1",
+        "pilot-pr-final-1/operations.jsonl": "123a061acd61cae5e381acf381713afa7da2baf229ee1f543df2f17ef6d91b7e",
+        "pilot-pr-final-1/result.json": "7fbd826e20387f58d544a120a84b8d20c60f43b7a312609dcecfff6467a8c57c"
+      }
+    },
+    {
+      "condition": "pilot",
+      "lane": "pr",
+      "attempt": "final-2",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "abb4fa4b8cb3e2abda0922e31f8789747b6197042872d7bb6889260c4e5fb27e",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 6.832636833074503,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 152,
+          "unionSeconds": 0.055806
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.094371
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.094446
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 6.737803
+        },
+        "process-sh": {
+          "count": 7,
+          "unionSeconds": 3.294829
+        },
+        "vitest": {
+          "count": 10,
+          "unionSeconds": 6.579899
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  9 passed (9)",
+        "   Duration  69ms (transform 9ms, setup 0ms, import 13ms, tests 5ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  976ms (transform 40ms, setup 0ms, import 72ms, tests 804ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  1.03s (transform 179ms, setup 0ms, import 845ms, tests 428ms, environment 1.30s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.38s (transform 242ms, setup 0ms, import 586ms, tests 430ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.53s (transform 249ms, setup 0ms, import 497ms, tests 117ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.61s (transform 445ms, setup 0ms, import 1.60s, tests 655ms, environment 1ms)"
+      ],
+      "contractsExecutions": 1,
+      "totalSeconds": 6.832636833074503,
+      "evidence": {
+        "pilot-pr-final-2/command-0.log": "eedb7420b18df87d26d0671e6fb1dfeb2e76c643ee6df4665baebf1c09ed9862",
+        "pilot-pr-final-2/observe.cjs": "25e6c4c5cbadb96dd7fed3bc7cfc7be7a3943ab3868b9f01e68be8be9464cd71",
+        "pilot-pr-final-2/operations.jsonl": "08e9d3c8b6cf9130cb02e97072928c821ff281e7f931bc0cf92949c0ab0ba5c9",
+        "pilot-pr-final-2/result.json": "ebb327825e966da694ae6c5fb8bd328e147d13be6aa72f4fe4fe7d35bf0bfd87"
+      }
+    },
+    {
+      "condition": "pilot",
+      "lane": "pr",
+      "attempt": "final-3",
+      "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+      "patchSha256": "abb4fa4b8cb3e2abda0922e31f8789747b6197042872d7bb6889260c4e5fb27e",
+      "commands": [
+        {
+          "argv": [
+            "pnpm",
+            "test:pr"
+          ],
+          "seconds": 6.831352750072256,
+          "exit": 0
+        }
+      ],
+      "operations": {
+        "filesystem-cleanup": {
+          "count": 152,
+          "unionSeconds": 0.056001
+        },
+        "process-node": {
+          "count": 2,
+          "unionSeconds": 0.093906
+        },
+        "process-other": {
+          "count": 1,
+          "unionSeconds": 1.107423
+        },
+        "process-pnpm": {
+          "count": 2,
+          "unionSeconds": 6.733731
+        },
+        "process-sh": {
+          "count": 7,
+          "unionSeconds": 3.365178
+        },
+        "vitest": {
+          "count": 10,
+          "unionSeconds": 6.572576
+        }
+      },
+      "vitestSummaries": [
+        "      Tests  9 passed (9)",
+        "   Duration  70ms (transform 9ms, setup 0ms, import 13ms, tests 6ms, environment 0ms)",
+        "      Tests  128 passed (128)",
+        "   Duration  990ms (transform 39ms, setup 0ms, import 71ms, tests 820ms, environment 0ms)",
+        "@keynes/web:test:       Tests  24 passed (24)",
+        "@keynes/web:test:    Duration  1.05s (transform 221ms, setup 0ms, import 855ms, tests 437ms, environment 1.53s)",
+        "@keynes/contracts:test:       Tests  51 passed (51)",
+        "@keynes/contracts:test:    Duration  1.37s (transform 196ms, setup 0ms, import 538ms, tests 439ms, environment 0ms)",
+        "@keynes/postgresql:test:       Tests  79 passed (79)",
+        "@keynes/postgresql:test:    Duration  1.53s (transform 255ms, setup 0ms, import 522ms, tests 98ms, environment 1ms)",
+        "@keynes/sdk:test:       Tests  341 passed (341)",
+        "@keynes/sdk:test:    Duration  3.66s (transform 461ms, setup 0ms, import 1.58s, tests 690ms, environment 1ms)"
+      ],
+      "contractsExecutions": 1,
+      "totalSeconds": 6.831352750072256,
+      "evidence": {
+        "pilot-pr-final-3/command-0.log": "d696ffa84433dba627c96857ac2c18ead94b635491943294e00cb7aaf838454b",
+        "pilot-pr-final-3/observe.cjs": "dbe29e29aa70f17b2a4b7bdfb0244d7c6b39ce94ae81289e36368aaeb98b3dbb",
+        "pilot-pr-final-3/operations.jsonl": "2ef7bf33c75eb4dca512e976a6fe800f151f814637c35b6af1df783943930d3d",
+        "pilot-pr-final-3/result.json": "2dbc4faa169dabd2be4be6b93995d7e59847447e0ce1665141603b9a83df2778"
+      }
+    }
+  ],
+  "medians": {
+    "baseline-native": {
+      "samples": [
+        25.44805929204449,
+        24.854683625046164,
+        25.165754874935374
+      ],
+      "medianSeconds": 25.165754874935374
+    },
+    "baseline-package": {
+      "samples": [
+        9.026130000012927,
+        9.100491249118932,
+        9.04259962507058
+      ],
+      "medianSeconds": 9.04259962507058
+    },
+    "baseline-pr": {
+      "samples": [
+        8.207190999994054,
+        8.243232916924171,
+        8.199725916027091
+      ],
+      "medianSeconds": 8.207190999994054
+    },
+    "pilot-pr": {
+      "samples": [
+        6.9287330829538405,
+        6.832636833074503,
+        6.831352750072256
+      ],
+      "medianSeconds": 6.832636833074503
+    }
+  },
+  "nativePhaseDiagnostics": [
+    {
+      "attempt": "baseline-native-phases-1",
+      "result": {
+        "condition": "baseline",
+        "lane": "native",
+        "attempt": "phases-1",
+        "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+        "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "commands": [
+          {
+            "argv": [
+              "pnpm",
+              "test:sqlite-postgres",
+              "--",
+              "--output",
+              "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-phases-1/paired"
+            ],
+            "seconds": 25.4962008750299,
+            "exit": 0
+          }
+        ]
+      },
+      "moduleDiagnostics": [
+        {
+          "file": "packages/sdk/test/contract/budget.test.ts",
+          "environmentSetupDuration": 0.02850000000000108,
+          "prepareDuration": 1.4586669999999984,
+          "collectDuration": 162.171167,
+          "setupDuration": 0,
+          "duration": 65.84733299999999
+        },
+        {
+          "file": "packages/postgresql/test/system/installation.test.ts",
+          "environmentSetupDuration": 0.033541999999997074,
+          "prepareDuration": 3.0465420000000023,
+          "collectDuration": 263.677708,
+          "setupDuration": 0,
+          "duration": 4848.677417
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-recovery.test.ts",
+          "environmentSetupDuration": 0.033375000000006594,
+          "prepareDuration": 1.745750000000001,
+          "collectDuration": 258.738666,
+          "setupDuration": 0,
+          "duration": 4861.3953329999995
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-security.test.ts",
+          "environmentSetupDuration": 0.033833000000001334,
+          "prepareDuration": 1.7016249999999928,
+          "collectDuration": 262.949709,
+          "setupDuration": 0,
+          "duration": 5482.849292000001
+        },
+        {
+          "file": "packages/postgresql/test/integration/remote-identity.test.ts",
+          "environmentSetupDuration": 0.03512500000000074,
+          "prepareDuration": 3.6798750000000098,
+          "collectDuration": 262.68683400000003,
+          "setupDuration": 0,
+          "duration": 8042.5896250000005
+        },
+        {
+          "file": "packages/postgresql/test/system/embedded-transactions.test.ts",
+          "environmentSetupDuration": 0.032291000000000736,
+          "prepareDuration": 1.7487919999999946,
+          "collectDuration": 262.86258300000003,
+          "setupDuration": 0,
+          "duration": 8682.481291
+        },
+        {
+          "file": "packages/postgresql/test/integration/installation.test.ts",
+          "environmentSetupDuration": 0.03454099999999727,
+          "prepareDuration": 3.7822089999999946,
+          "collectDuration": 88.782375,
+          "setupDuration": 0,
+          "duration": 9592.890917
+        },
+        {
+          "file": "packages/postgresql/test/system/contention.test.ts",
+          "environmentSetupDuration": 0.03349999999999653,
+          "prepareDuration": 1.8610419999999976,
+          "collectDuration": 123.066833,
+          "setupDuration": 0,
+          "duration": 4381.291042
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-replay.test.ts",
+          "environmentSetupDuration": 0.03295800000000071,
+          "prepareDuration": 1.764833000000003,
+          "collectDuration": 113.20754099999999,
+          "setupDuration": 0,
+          "duration": 3770.7502919999997
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-connections.test.ts",
+          "environmentSetupDuration": 0.09462500000000063,
+          "prepareDuration": 1.7869170000000025,
+          "collectDuration": 137.80487499999998,
+          "setupDuration": 0,
+          "duration": 5007.06875
+        },
+        {
+          "file": "packages/postgresql/test/integration/recheck.test.ts",
+          "environmentSetupDuration": 0.03337499999999949,
+          "prepareDuration": 1.7212090000000018,
+          "collectDuration": 117.33825,
+          "setupDuration": 0,
+          "duration": 464.633667
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-runtime.test.ts",
+          "environmentSetupDuration": 0.03733400000000131,
+          "prepareDuration": 1.7435000000000045,
+          "collectDuration": 108.33595899999999,
+          "setupDuration": 0,
+          "duration": 1214.067083
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-request.test.ts",
+          "environmentSetupDuration": 0.08333400000000069,
+          "prepareDuration": 2.628833,
+          "collectDuration": 264.15862500000003,
+          "setupDuration": 0,
+          "duration": 10070.262875
+        },
+        {
+          "file": "packages/postgresql/test/system/rollback.test.ts",
+          "environmentSetupDuration": 0.0344169999999977,
+          "prepareDuration": 1.7402080000000026,
+          "collectDuration": 120.892,
+          "setupDuration": 0,
+          "duration": 1854.022042
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-budget.test.ts",
+          "environmentSetupDuration": 0.03379199999999827,
+          "prepareDuration": 2.1798339999999996,
+          "collectDuration": 108.277334,
+          "setupDuration": 0,
+          "duration": 778.300083
+        },
+        {
+          "file": "packages/postgresql/test/system/budget.test.ts",
+          "environmentSetupDuration": 0.03466600000000142,
+          "prepareDuration": 1.7296249999999986,
+          "collectDuration": 273.093667,
+          "setupDuration": 0,
+          "duration": 17747.558167
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-security.test.ts",
+          "environmentSetupDuration": 0.03320899999999938,
+          "prepareDuration": 1.6897089999999935,
+          "collectDuration": 264.895375,
+          "setupDuration": 0,
+          "duration": 20300.148374999997
+        }
+      ],
+      "summedModuleSeconds": {
+        "environmentSetupDuration": 0.0006824170000000009,
+        "prepareDuration": 0.03600917,
+        "collectDuration": 3.1929395009999997,
+        "setupDuration": 0.0,
+        "duration": 107.164833584
+      },
+      "pairedOutcome": "passed",
+      "evidence": {
+        "baseline-native-phases-1/command-0.log": "ab418bd002665ed4028db67d68e0a7d9cd29df2667709bc1d653ac76d5956a34",
+        "baseline-native-phases-1/native-phases.mjs": "aafaa1ecafa0a091a036474fd4d674f2a3527034a7ba1de26e1384538e32d372",
+        "baseline-native-phases-1/result.json": "e0c00b10be9fa854110efa24c46d44f12f605a945f33012fcb0a47f9119adf46",
+        "baseline-native-phases-1/operations.jsonl": "ae699dd230f390082171934bf4cfffc11a1a7be5a73710b09ef314fbf79cb747",
+        "baseline-native-phases-1/native-phases.jsonl": "d6652d9231412127a503769da1bcef525a2ebcda2703c486c55f2609fb60edf3",
+        "baseline-native-phases-1/observe.cjs": "0d0b51553ca76c27be710e4d93a105b9a9561f89f14359806ceb4a6d9186b74d",
+        "baseline-native-phases-1/paired/sqlite.vitest.json": "23e51e42c7973ad73fe1b8239f3df23b08e431caf055bdbef8322580002ac437",
+        "baseline-native-phases-1/paired/postgresql.json.vitest.json": "3b0afc6af83e824210aa57b215c22e1eb45c5b762bfaefce18d36af32a606d79",
+        "baseline-native-phases-1/paired/manifest.json": "8b71d35005a2db3cb505d103552202c607ffe637bf99ddaa574485110f44eee2",
+        "baseline-native-phases-1/paired/postgresql.json.observations.json": "a70ee8156378307af98e3c2391942f3a3842f85e1a6537226f0a811c77707d4f",
+        "baseline-native-phases-1/paired/postgresql.json": "bc851f618848225b2ef9d79032f7489dc48a3207555c43169f6606cab8710e66"
+      }
+    },
+    {
+      "attempt": "baseline-native-phases-2",
+      "result": {
+        "condition": "baseline",
+        "lane": "native",
+        "attempt": "phases-2",
+        "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+        "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "commands": [
+          {
+            "argv": [
+              "pnpm",
+              "test:sqlite-postgres",
+              "--",
+              "--output",
+              "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-phases-2/paired"
+            ],
+            "seconds": 25.147845375002362,
+            "exit": 0
+          }
+        ]
+      },
+      "moduleDiagnostics": [
+        {
+          "file": "packages/sdk/test/contract/budget.test.ts",
+          "environmentSetupDuration": 0.031374999999997044,
+          "prepareDuration": 1.6252500000000012,
+          "collectDuration": 164.629584,
+          "setupDuration": 0,
+          "duration": 64.472667
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-connections.test.ts",
+          "environmentSetupDuration": 0.034707999999994854,
+          "prepareDuration": 1.9836249999999893,
+          "collectDuration": 227.354958,
+          "setupDuration": 0,
+          "duration": 4354.103042000001
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-recovery.test.ts",
+          "environmentSetupDuration": 0.032833000000003665,
+          "prepareDuration": 1.729875000000007,
+          "collectDuration": 232.571458,
+          "setupDuration": 0,
+          "duration": 4911.402916
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-security.test.ts",
+          "environmentSetupDuration": 0.0646250000000066,
+          "prepareDuration": 1.9375829999999965,
+          "collectDuration": 232.23304199999998,
+          "setupDuration": 0,
+          "duration": 5503.698208
+        },
+        {
+          "file": "packages/postgresql/test/integration/remote-identity.test.ts",
+          "environmentSetupDuration": 0.0344999999999942,
+          "prepareDuration": 1.8404579999999982,
+          "collectDuration": 234.03216600000002,
+          "setupDuration": 0,
+          "duration": 7841.744958
+        },
+        {
+          "file": "packages/postgresql/test/system/embedded-transactions.test.ts",
+          "environmentSetupDuration": 0.03337499999999949,
+          "prepareDuration": 3.9408749999999912,
+          "collectDuration": 244.60366699999997,
+          "setupDuration": 0,
+          "duration": 8556.132916999999
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-replay.test.ts",
+          "environmentSetupDuration": 0.03499999999999659,
+          "prepareDuration": 2.6811250000000015,
+          "collectDuration": 100.94395899999999,
+          "setupDuration": 0,
+          "duration": 3542.875541
+        },
+        {
+          "file": "packages/postgresql/test/system/contention.test.ts",
+          "environmentSetupDuration": 0.031708000000001846,
+          "prepareDuration": 2.0209580000000003,
+          "collectDuration": 111.43875,
+          "setupDuration": 0,
+          "duration": 4125.997333
+        },
+        {
+          "file": "packages/postgresql/test/system/installation.test.ts",
+          "environmentSetupDuration": 0.03216700000000117,
+          "prepareDuration": 1.7831249999999983,
+          "collectDuration": 121.677416,
+          "setupDuration": 0,
+          "duration": 5302.379541
+        },
+        {
+          "file": "packages/postgresql/test/integration/recheck.test.ts",
+          "environmentSetupDuration": 0.036584000000004835,
+          "prepareDuration": 2.8124579999999995,
+          "collectDuration": 125.278583,
+          "setupDuration": 0,
+          "duration": 442.94595899999996
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-request.test.ts",
+          "environmentSetupDuration": 0.06933300000000031,
+          "prepareDuration": 1.8560830000000124,
+          "collectDuration": 240.98691699999998,
+          "setupDuration": 0,
+          "duration": 9840.537292
+        },
+        {
+          "file": "packages/postgresql/test/integration/installation.test.ts",
+          "environmentSetupDuration": 0.036417000000000144,
+          "prepareDuration": 3.9753330000000062,
+          "collectDuration": 80.30783400000001,
+          "setupDuration": 0,
+          "duration": 10369.237084
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-budget.test.ts",
+          "environmentSetupDuration": 0.03512500000000074,
+          "prepareDuration": 1.917625000000001,
+          "collectDuration": 134.701292,
+          "setupDuration": 0,
+          "duration": 842.2938330000001
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-runtime.test.ts",
+          "environmentSetupDuration": 0.035457999999998435,
+          "prepareDuration": 1.783458000000003,
+          "collectDuration": 87.90195800000001,
+          "setupDuration": 0,
+          "duration": 1536.416333
+        },
+        {
+          "file": "packages/postgresql/test/system/rollback.test.ts",
+          "environmentSetupDuration": 0.034292000000000655,
+          "prepareDuration": 3.0241669999999985,
+          "collectDuration": 122.32274999999998,
+          "setupDuration": 0,
+          "duration": 2261.7066250000003
+        },
+        {
+          "file": "packages/postgresql/test/system/budget.test.ts",
+          "environmentSetupDuration": 0.033124999999998295,
+          "prepareDuration": 1.7087920000000025,
+          "collectDuration": 241.958083,
+          "setupDuration": 0,
+          "duration": 17519.115125
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-security.test.ts",
+          "environmentSetupDuration": 0.033250000000002444,
+          "prepareDuration": 1.7686670000000007,
+          "collectDuration": 253.73712500000002,
+          "setupDuration": 0,
+          "duration": 20055.501417
+        }
+      ],
+      "summedModuleSeconds": {
+        "environmentSetupDuration": 0.0006438750000000013,
+        "prepareDuration": 0.03838945700000001,
+        "collectDuration": 2.956679542,
+        "setupDuration": 0.0,
+        "duration": 107.07056079099999
+      },
+      "pairedOutcome": "passed",
+      "evidence": {
+        "baseline-native-phases-2/command-0.log": "209a7bd9a8c2eedb700787a4628244239ab52b33e14ba5244725544d4cf86a97",
+        "baseline-native-phases-2/native-phases.mjs": "aafaa1ecafa0a091a036474fd4d674f2a3527034a7ba1de26e1384538e32d372",
+        "baseline-native-phases-2/result.json": "44d7139b61eb0b3dd94c69a859f781cb242e04d4d3338e49609aebac081ec95a",
+        "baseline-native-phases-2/operations.jsonl": "7af3cb4c59ea019896f19fcd13285a489f76ed5a7a6463689dd5745ab347f653",
+        "baseline-native-phases-2/native-phases.jsonl": "3a21fff7671034ae48d8e3df2b15848a1b8539dba9ee96112c20e801adf1b040",
+        "baseline-native-phases-2/observe.cjs": "1759d36b07c1759fddce9ffbaf6e6c4984917d778da2da690b58a3affe92c7e8",
+        "baseline-native-phases-2/paired/sqlite.vitest.json": "1b7a03815a2edeb56c947245ae4cf7851ceca3913d269531710c16da12f1fd29",
+        "baseline-native-phases-2/paired/postgresql.json.vitest.json": "981c24ba6fdaa7ce6a04ae2c429b481c74fee2e7b9c45b0a5fd8c1992857e86a",
+        "baseline-native-phases-2/paired/manifest.json": "76f6b54bd0cb19de0dac6bc140816c6e7d97d2425924dee181c84e7cf1e6db37",
+        "baseline-native-phases-2/paired/postgresql.json.observations.json": "58f39aefc7a52bf3777f30ce386dc7c080bd4994d30100be12a92e987d093631",
+        "baseline-native-phases-2/paired/postgresql.json": "0ec4fbeff404f5b51e716ec3a98c8191426c9c5a8ed67b1290a20bf0f803c5ce"
+      }
+    },
+    {
+      "attempt": "baseline-native-phases-3",
+      "result": {
+        "condition": "baseline",
+        "lane": "native",
+        "attempt": "phases-3",
+        "revision": "5b294f40899e6a4ac68a71a0e8def7529b5d44c8",
+        "patchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "commands": [
+          {
+            "argv": [
+              "pnpm",
+              "test:sqlite-postgres",
+              "--",
+              "--output",
+              "/Users/shubhankarsharan/Desktop/keynes/.artifacts/key-91/testing-strategy/d1de673a-5dbf-46f1-9271-3c2324f54fe3/baseline-native-phases-3/paired"
+            ],
+            "seconds": 25.53645408304874,
+            "exit": 0
+          }
+        ]
+      },
+      "moduleDiagnostics": [
+        {
+          "file": "packages/sdk/test/contract/budget.test.ts",
+          "environmentSetupDuration": 0.032083000000000084,
+          "prepareDuration": 1.5977910000000008,
+          "collectDuration": 172.98137499999999,
+          "setupDuration": 0,
+          "duration": 65.79329099999998
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-recovery.test.ts",
+          "environmentSetupDuration": 0.03258300000000247,
+          "prepareDuration": 1.7649580000000071,
+          "collectDuration": 214.40779200000003,
+          "setupDuration": 0,
+          "duration": 4690.773625
+        },
+        {
+          "file": "packages/postgresql/test/system/installation.test.ts",
+          "environmentSetupDuration": 0.036874999999994884,
+          "prepareDuration": 1.609291000000006,
+          "collectDuration": 239.057542,
+          "setupDuration": 0,
+          "duration": 5264.983209
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-security.test.ts",
+          "environmentSetupDuration": 0.032249999999990564,
+          "prepareDuration": 2.0445410000000095,
+          "collectDuration": 227.033459,
+          "setupDuration": 0,
+          "duration": 5273.282333
+        },
+        {
+          "file": "packages/postgresql/test/integration/remote-identity.test.ts",
+          "environmentSetupDuration": 0.033292000000002986,
+          "prepareDuration": 1.7830000000000013,
+          "collectDuration": 214.78979100000004,
+          "setupDuration": 0,
+          "duration": 7607.566625
+        },
+        {
+          "file": "packages/postgresql/test/system/embedded-transactions.test.ts",
+          "environmentSetupDuration": 0.03416599999999903,
+          "prepareDuration": 1.7575420000000008,
+          "collectDuration": 236.979625,
+          "setupDuration": 0,
+          "duration": 8243.184084
+        },
+        {
+          "file": "packages/postgresql/test/integration/installation.test.ts",
+          "environmentSetupDuration": 0.036291999999995994,
+          "prepareDuration": 1.7802079999999947,
+          "collectDuration": 75.68083299999998,
+          "setupDuration": 0,
+          "duration": 9037.493791
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-connections.test.ts",
+          "environmentSetupDuration": 0.03249999999999886,
+          "prepareDuration": 1.781958000000003,
+          "collectDuration": 103.99445800000001,
+          "setupDuration": 0,
+          "duration": 4704.0737500000005
+        },
+        {
+          "file": "packages/postgresql/test/system/contention.test.ts",
+          "environmentSetupDuration": 0.04145800000000577,
+          "prepareDuration": 2.1468339999999984,
+          "collectDuration": 119.11825000000002,
+          "setupDuration": 0,
+          "duration": 4193.2115
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-replay.test.ts",
+          "environmentSetupDuration": 0.08299999999999841,
+          "prepareDuration": 3.6049579999999963,
+          "collectDuration": 114.2375,
+          "setupDuration": 0,
+          "duration": 4196.000666000001
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-runtime.test.ts",
+          "environmentSetupDuration": 0.0344169999999977,
+          "prepareDuration": 1.8484999999999943,
+          "collectDuration": 107.05950000000001,
+          "setupDuration": 0,
+          "duration": 1690.8115
+        },
+        {
+          "file": "packages/postgresql/test/integration/recheck.test.ts",
+          "environmentSetupDuration": 0.04179200000000094,
+          "prepareDuration": 1.7466250000000016,
+          "collectDuration": 104.892,
+          "setupDuration": 0,
+          "duration": 395.14983400000006
+        },
+        {
+          "file": "packages/postgresql/test/system/remote-budget.test.ts",
+          "environmentSetupDuration": 0.03108399999999989,
+          "prepareDuration": 1.5007499999999965,
+          "collectDuration": 153.06266699999998,
+          "setupDuration": 0,
+          "duration": 1024.018791
+        },
+        {
+          "file": "packages/postgresql/test/system/rollback.test.ts",
+          "environmentSetupDuration": 0.032583999999999946,
+          "prepareDuration": 1.9057500000000047,
+          "collectDuration": 120.42741700000002,
+          "setupDuration": 0,
+          "duration": 2329.692
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-request.test.ts",
+          "environmentSetupDuration": 0.037165999999999144,
+          "prepareDuration": 1.7639160000000018,
+          "collectDuration": 259.77337500000004,
+          "setupDuration": 0,
+          "duration": 10169.800167
+        },
+        {
+          "file": "packages/postgresql/test/system/budget.test.ts",
+          "environmentSetupDuration": 0.035000000000003695,
+          "prepareDuration": 3.6005420000000044,
+          "collectDuration": 246.33175000000003,
+          "setupDuration": 0,
+          "duration": 17381.164584
+        },
+        {
+          "file": "packages/postgresql/test/system/policy-security.test.ts",
+          "environmentSetupDuration": 0.03262499999999591,
+          "prepareDuration": 1.6935000000000002,
+          "collectDuration": 252.604291,
+          "setupDuration": 0,
+          "duration": 19920.083000000002
+        }
+      ],
+      "summedModuleSeconds": {
+        "environmentSetupDuration": 0.0006391669999999863,
+        "prepareDuration": 0.03393066400000002,
+        "collectDuration": 2.9624316250000002,
+        "setupDuration": 0.0,
+        "duration": 106.18708275
+      },
+      "pairedOutcome": "passed",
+      "evidence": {
+        "baseline-native-phases-3/command-0.log": "757c35d657be95fec6c1b37291c986b1d8bae6edd8f36025a0fe2f3ebdbb9ad1",
+        "baseline-native-phases-3/native-phases.mjs": "aafaa1ecafa0a091a036474fd4d674f2a3527034a7ba1de26e1384538e32d372",
+        "baseline-native-phases-3/result.json": "630a577f32ec2807c21aaf418a533647a02cb62e4197e6dd01241c742edd6f1b",
+        "baseline-native-phases-3/operations.jsonl": "62171f24071794894addf38bb03930db010397248f77d57925179a44f1dec907",
+        "baseline-native-phases-3/native-phases.jsonl": "3be1f7655e0767f4a7033624fe74089ab14e5f95a3be3374efc63b7328edd3ec",
+        "baseline-native-phases-3/observe.cjs": "b9bcf57fd43b401397a0e5178fecb4351846438358ca576cec97a23f3c0fea90",
+        "baseline-native-phases-3/paired/sqlite.vitest.json": "dada78a4dea9db312943cda66ce16843fa605eb702ec1da9a8ec5a74c5bb6ff0",
+        "baseline-native-phases-3/paired/postgresql.json.vitest.json": "078fe2caab001027fa16e3adcac40b894855ab3f7b2f215ea635cebdf1f4d518",
+        "baseline-native-phases-3/paired/manifest.json": "6ed7585fe281c63cc4430aac10d6713978a58cbe08f699619616353e6e1c7d4a",
+        "baseline-native-phases-3/paired/postgresql.json.observations.json": "7afa3bb788766562f5f409fcfabda173d9a0245474760beacdebaef529e963dc",
+        "baseline-native-phases-3/paired/postgresql.json": "9511f0c23220d3f8868bde7a923f39042dc6453d77f4a30b1f52c85c7318b960"
+      }
+    }
+  ],
+  "pilot": {
+    "patchSha256": "abb4fa4b8cb3e2abda0922e31f8789747b6197042872d7bb6889260c4e5fb27e",
+    "redLogSha256": "d955b035eb21ad4f4387df4c27fe3885184245c3ef2d7a4701d74452e617a36a",
+    "negativeLogSha256": "ed8fe24e339f23574f75a3b6e6dd2cb5afecd852ba8446bb531d0c365ef9718d",
+    "negativeExit": 1,
+    "baseLines": 212,
+    "candidateLines": 224,
+    "packageCommandBytesRemoved": 23,
+    "disposition": "adopt"
+  },
+  "measurementTools": {
+    "observe.cjs": "b4feec6e03f5ef35d838791ce9eada7655fb967f4b7039d9039ec0d8f05b033b",
+    "measure.py": "69a1b506cd701b472fc2e37de27651a596183dc93a0f5fbdcecb9e4addbc762a",
+    "summarize.py": "dc6af37d6eba8ce1623c73078feeb5096b23bf02f8afcc251ddb47de8b4328c9",
+    "native-phases.mjs": "aafaa1ecafa0a091a036474fd4d674f2a3527034a7ba1de26e1384538e32d372"
+  },
+  "boundaries": [
+    "Study source is intake revision plus the identified isolated pilot patch, not downstream deployment implementation acceptance.",
+    "Primary native samples use existing reporter; supplemental native phase samples add a read-only diagnostic reporter.",
+    "Durations overlap across workers and subprocesses. Category interval unions and summed module durations are not additive wall time.",
+    "Raw observations and executable measurement scripts remain in the local ignored artifact directory.",
+    "Actual Hosted, installed Embedded, other OS/Node matrix lanes and production performance are NOT RUN."
+  ]
+}

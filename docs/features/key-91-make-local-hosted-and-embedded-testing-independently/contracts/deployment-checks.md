@@ -71,3 +71,17 @@ Hosted delivery must establish all of the following before enabling actual execu
 - Cleanup ownership for success, failure, cancellation, and runner loss, including any resource that cannot be automatically removed.
 
 The later product feature must supply concrete values and tests for those boundaries. This document does not authorize live execution or claim that product support exists.
+
+## Study disposition and ownership
+
+The completed [study](../testing-strategy.md) removes only duplicate contracts
+execution in `test:pr`. The standalone `test:generator` alias remains; all 51
+contracts assertions run through Turbo. Existing SDK `test:unit` and
+`test:contract` commands remain source-feedback entrypoints. None qualifies
+installed deployment acceptance. No new feedback registry or discovery is needed.
+
+The independent commands in this contract are still to be implemented. Their
+runners own schema construction, expected coverage and exclusions. Shared testkit
+helpers own only neutral mechanics. Full evidence validation, native fixture
+installation/recheck, the 171 native-only names and 37 shared names remain
+unchanged by the pilot. Packaging and broad Policy-test consolidation are deferred.

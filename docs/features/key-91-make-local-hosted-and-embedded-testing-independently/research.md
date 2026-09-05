@@ -21,7 +21,7 @@ The user added the testing-strategy study after the initial plan. Its scope and 
 
 **Alternatives considered:** A wholesale test rewrite, blanket database reuse, automatic test discovery, and reducing backend coverage to lower runtime are rejected. Broad Policy-corpus migration needs its own coverage assessment and an explicit inclusion or deferral decision.
 
-**Outstanding work:** The controlled baseline, native/package phase timings, affected code-size comparison, and measured pilot are NOT RUN. Create the completed `testing-strategy.md` only when conducting the study; do not treat these source observations as its acceptance record.
+**Study follow-through:** The subsequent completed [study](testing-strategy.md) supersedes this outstanding-work statement for the study only. It records three comparable baseline/pilot attempts, native/package phase observations, code-size counts, and an adopt decision. Initial observations above remain historical. Downstream deployment implementation is still unbuilt.
 
 ## Keep the complete runner as the default
 
@@ -75,8 +75,24 @@ The TLS fixture follows [PostgreSQL SSL configuration](https://www.postgresql.or
 
 ## Reuse evidence mechanics without broadening full acceptance
 
-**Decision:** Add a selected-deployment manifest, retaining the existing full schemas. Extract only genuinely shared process, report, snapshot, and archive-lock helpers into testkit. Keep scenario inventories with their owners.
+**Decision:** Add a selected-deployment manifest, retaining the existing full schemas. Extract only shared neutral process, structural report, snapshot, and archive-lock mechanics into testkit. Keep selected schema construction, owner-specific sanitization, and scenario/coverage verdicts with SDK/PostgreSQL runners. The study confirmed that the organization test forbids product evidence vocabulary in testkit.
 
 **Rationale:** The current full runner already sanitizes results, uses exclusive output creation, binds revision and digests, and fails on cleanup errors. Its full acceptance requires clean source. Selected diagnostic runs also need a digest of dirty inputs without retaining source contents or secrets.
 
 **Alternatives considered:** Optional scope fields on the existing full schema invite accidental partial qualification. A generic workflow engine or new package introduces an unnecessary ownership boundary. Historical records remain byte-for-byte unchanged.
+
+## Measured study decision
+
+Adopt removal of the duplicate `test:generator` stage from root `test:pr`.
+Contracts still runs all 51 assertions once through Turbo and an injected
+contracts failure still fails the PR command. Median observed PR time changes
+from 8.207 to 6.833 seconds on the same macOS/Node/cache protocol. The standalone
+alias remains. See [study evidence](evidence/testing-strategy.json) for full
+precision, input and report hashes, and the isolated patch identity.
+
+Defer packaging workflow changes, ordinary installer recheck removal, uninvoked
+remote-registrar activation, and broad Policy-corpus migration. Reuse current
+source-feedback commands. Keep neutral shared mechanics and runner-owned schema
+construction in the downstream design; no generic fixture/target registry or
+cross-owner test dependency is needed. The full native scenario inventory is
+unchanged. Local study results do not establish a CI or Hosted pass.

@@ -1,12 +1,12 @@
 # Validate independent deployment checks
 
-This guide covers the required study as the first task phase and validation after KEY-91 implementation. The new commands and proposed regression-test files do not exist at planning time. The study's comparative measurements and pilot, and the feature's runtime/native/installed-consumer/Hosted acceptance, remain NOT RUN.
+This guide covers the required study as the first task phase and validation after KEY-91 implementation. The new commands and proposed regression-test files do not exist at planning time. The [study](testing-strategy.md) is complete with retained baseline/pilot observations. The independent deployment commands and their feature acceptance remain NOT RUN.
 
 ## Complete the study before downstream implementation
 
-Follow [the plan's study protocol](plan.md#required-study-before-downstream-implementation). Produce `testing-strategy.md` with the coverage/ownership map, cost measurements, and pilot decision. Use existing commands for the baseline: `pnpm test:pr`, `pnpm test:sqlite-postgres -- --output <new-directory>`, and SDK archive preparation plus `pnpm test:package:sdk -- --archive <archive> --output <new-file>`.
+Follow [the plan's study protocol](plan.md#required-study-before-downstream-implementation). The completed `testing-strategy.md` holds the coverage/ownership map, cost measurements, and pilot decision. Reproduce its exact protocol when comparing future changes. Use existing commands for the baseline: `pnpm test:pr`, `pnpm test:sqlite-postgres -- --output <new-directory>`, and SDK archive preparation plus `pnpm test:package:sdk -- --archive <archive> --output <new-file>`.
 
-Meet the plan's [study exit criteria](plan.md#study-exit-and-design-revision) and reconcile the remaining tasks before executing the implementation validation below.
+T012 reconciles the completed study with the remaining tasks. The current request stops after Phase 3. Execute the validation below only when the corresponding later implementation exists.
 
 ## Prepare the checkout
 
