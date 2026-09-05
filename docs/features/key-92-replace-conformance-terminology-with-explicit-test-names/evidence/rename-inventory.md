@@ -191,3 +191,15 @@ Every matching file is listed below. Line numbers describe the pre-format invent
 | `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/research.md`                            | 5                                                                                                        | Stable KEY-92 identity, explicit old-to-new mapping, or pre-change observation retained for audit.         |
 | `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/spec.md`                                | 3, 7                                                                                                     | Stable KEY-92 identity, explicit old-to-new mapping, or pre-change observation retained for audit.         |
 | `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/tasks.md`                               | path only                                                                                                | Stable KEY-92 identity, explicit old-to-new mapping, or pre-change observation retained for audit.         |
+
+## Final retained files
+
+Final tracked-plus-authored content and path search: zero active-code or current-guide matches outside classified historical feature and ADR files. Later evidence files inherit the KEY-92 stable directory identity. Newly retained paths:
+
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/acceptance.md`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/local-d81d797/manifest.json`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/local-d81d797/postgresql.json`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/local-d81d797/postgresql.json.observations.json`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/local-d81d797/postgresql.json.vitest.json`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/local-d81d797/sqlite.vitest.json`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
+- `docs/features/key-92-replace-conformance-terminology-with-explicit-test-names/evidence/pr-description.md`: stable KEY-92 identity; any old naming in proposal prose is an explicit historical mapping or observation.
