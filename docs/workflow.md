@@ -16,8 +16,8 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
    `docs/features/<final segment of the fetched gitBranchName>/`. For existing
    features, use the directory linked from the issue; do not rename it on resume.
 4. Invoke `$speckit-specify` with the brief, issue URL, and explicit
-   `SPECIFY_FEATURE_DIRECTORY`. Put the issue link in spec.md. After the spec is
-   published on the branch, add its GitHub link to the issue without copying it.
+   `SPECIFY_FEATURE_DIRECTORY`. Put the issue link in spec.md. After publication,
+   link the spec from Linear as described in [Publish feature artifacts](#publish-feature-artifacts).
 
 The standard specify command creates `.specify/feature.json` with the selected
 `feature_directory`. This pointer is ignored, local to the checkout, and contains
@@ -44,6 +44,26 @@ appends remaining tasks; it does not replace review or runtime verification.
 Link the PR to the Linear issue using native GitHub linking. Mark Done only after
 merge and required acceptance passes. Task completion or an open PR is insufficient.
 This workflow does not authorize automatic merging or publication.
+
+## Publish feature artifacts
+
+Spec Kit commands produce local artifacts. After an authorized commit and push,
+update the owning Linear issue with links to the published artifacts:
+
+- **Feature specification** links to `spec.md`.
+- **Implementation plan** links to `plan.md`, which links to the applicable
+  research, data model, contracts, and quickstart artifacts.
+- **Implementation tasks** links to `tasks.md`.
+- **Acceptance evidence** links to the feature's acceptance record after
+  verification.
+
+Update existing attachments rather than creating duplicates. Use branch URLs for
+working documents and commit-pinned URLs for acceptance evidence. Keep document
+contents and detailed task tracking in Git.
+
+Each command's completion report must state whether its artifacts are local-only
+or published, and whether Linear links were updated. Generating artifacts alone
+does not authorize publication.
 
 ## Resume in a checkout
 
