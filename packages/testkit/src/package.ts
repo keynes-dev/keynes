@@ -237,7 +237,8 @@ export function providerFreeEnvironment(
         ([name]) =>
           name !== "KEYNES_DATABASE_URL" &&
           name !== "KEYNES_QUALIFICATION_TARGET" &&
-          name !== "PGPASSWORD" &&
+          name !== "DATABASE_URL" &&
+          !name.startsWith("PG") &&
           !name.startsWith("KEYNES_EXTERNAL_"),
       ),
     ),

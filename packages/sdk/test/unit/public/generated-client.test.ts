@@ -119,18 +119,21 @@ describe("generated client bindings", () => {
     { ok: "yes" },
     { ok: true },
     { ok: false, error: null },
-  ])("rejects an invalid wire envelope before returning it", async (wire) => {
-    const executor: CommandExecutor = {
-      async execute() {
-        return wire;
-      },
-    };
-    const client = createKeynesClient(executor);
+  ])(
+    "rejects an invalid wire envelope before returning it, case %#",
+    async (wire) => {
+      const executor: CommandExecutor = {
+        async execute() {
+          return wire;
+        },
+      };
+      const client = createKeynesClient(executor);
 
-    await expect(
-      client.defineResource(commands.defineResource),
-    ).rejects.toThrow(/invalid .*response for defineResource/);
-  });
+      await expect(
+        client.defineResource(commands.defineResource),
+      ).rejects.toThrow(/invalid .*response for defineResource/);
+    },
+  );
 
   it("detaches validated output from the executor wire value", async () => {
     const digest = `sha256:${"a".repeat(64)}`;

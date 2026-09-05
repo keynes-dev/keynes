@@ -6,7 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./archive": "./src/archive.ts",
-    "./package": "./src/package.ts"
+    "./package": "./src/package.ts",
+    "./process": "./src/process.ts",
+    "./report": "./src/report.ts",
+    "./snapshot": "./src/snapshot.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit"

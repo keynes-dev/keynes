@@ -25,6 +25,7 @@ import {
   validateSizes,
   writeQualificationResult,
 } from "./qualify.js";
+import { withPackagePreparationLock } from "@keynes/testkit/package";
 import { CONTRACT_DIGEST } from "../../src/generated/client.js";
 import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
@@ -64,18 +65,20 @@ let archiveEntries: Map<string, Buffer>;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-package-test-"));
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  firstBuild = await readTree(distRoot);
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  secondBuild = await readTree(distRoot);
-  run(pnpm, [
-    "--config.node-linker=hoisted",
-    "--filter",
-    "@keynes/sdk",
-    "pack",
-    "--pack-destination",
-    suiteRoot,
-  ]);
+  await withPackagePreparationLock({ repositoryRoot }, async () => {
+    run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+    firstBuild = await readTree(distRoot);
+    run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+    secondBuild = await readTree(distRoot);
+    run(pnpm, [
+      "--config.node-linker=hoisted",
+      "--filter",
+      "@keynes/sdk",
+      "pack",
+      "--pack-destination",
+      suiteRoot,
+    ]);
+  });
   archivePath = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
   archiveEntries = readArchiveEntries(await readFile(archivePath));
 }, 30_000);
@@ -306,6 +309,52 @@ describe("SDK package-test runner", () => {
       contractDigest: CONTRACT_DIGEST,
     });
   });
+
+  it("retains an installed consumer failure and successful cleanup", async () => {
+    const bytes = gunzipSync(await readFile(archivePath));
+    const entry = archiveEntries.get("package/dist/index.js");
+    if (!entry) throw new Error("Missing SDK entrypoint");
+    const offset = bytes.indexOf(entry);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    bytes.fill(32, offset, offset + entry.length);
+    bytes.write('throw new Error("fixture consumer failure");', offset);
+    const supplied = resolve(suiteRoot, "failed-consumer.tgz");
+    await writeFile(supplied, gzipSync(bytes));
+    const original = await readFile(supplied);
+    const observations: { readonly check: string; readonly status: string }[] =
+      [];
+    await expect(
+      qualifyArchive({ archivePath: supplied }, (entry) =>
+        observations.push(entry),
+      ),
+    ).rejects.toThrow();
+    expect(observations).toContainEqual({
+      check: "remote-exports",
+      status: "failed",
+    });
+    expect(observations).toContainEqual({ check: "cleanup", status: "passed" });
+    expect(observations).not.toContainEqual({
+      check: "budget-loop",
+      status: "passed",
+    });
+    expect(await readFile(supplied)).toEqual(original);
+  }, 30_000);
+
+  it("observes provider-free checks and cleanup while preserving the supplied archive", async () => {
+    const before = await readFile(archivePath);
+    const observations: { readonly check: string; readonly status: string }[] =
+      [];
+    const result = await qualifyArchive({ archivePath }, (observation) =>
+      observations.push(observation),
+    );
+    expect(result.checks).not.toContain("authorized-database-walkthrough");
+    expect(observations).toContainEqual({
+      check: "budget-loop",
+      status: "passed",
+    });
+    expect(observations).toContainEqual({ check: "cleanup", status: "passed" });
+    expect(await readFile(archivePath)).toEqual(before);
+  }, 30_000);
 
   it("retains the exact archive identity, installs externally, and cleans up", async () => {
     const consumerRoot = resolve(suiteRoot, "consumers");

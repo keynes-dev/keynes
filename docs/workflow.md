@@ -98,6 +98,40 @@ Record the source revision, commands, results, and relevant digests in feature
 acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
 CI or inspecting code does not establish runtime behavior.
 
+### Local source and installed SDK checks
+
+Run Local without a database, Docker, pooler, or service credentials:
+
+```sh
+pnpm test:local -- --output .artifacts/key-91/local/<new-attempt>
+```
+
+Use a new directory for every attempt. `--sdk-archive <file>` uses an existing
+SDK archive without modifying or deleting it. Omit that option to build and pack
+under the checkout package-preparation lock. Other preparations wait at most
+120 seconds. A stale lock requires owner inspection and is never stolen.
+
+The SDK owns this command in `packages/sdk/test/system/run-local.ts`. Its fixed
+inventory contains 244 assertions across 18 Local, public-client, Policy, and
+shared Budget files. Six generated-client parameter cases have distinct names.
+The installed consumer reuses `test/package/qualify.ts` outside workspace
+resolution and runs all 12 provider-free package checks. Remote export and
+configuration rejection checks require no remote database.
+
+The output contains `manifest.json`, source results, consumer observations,
+archive identity, and file hashes. Passing requires exact coverage, stable source
+inputs, and successful consumer and runner cleanup. Dirty source runs are useful
+for diagnosis and include an input digest. They cannot establish clean-candidate
+acceptance. Source changes, incomplete reports, changed archives, and cleanup
+failures return nonzero. SIGINT and SIGTERM stop child processes and remove only
+the attempt's temporary files. An interrupted incomplete record cannot qualify.
+
+Local does not qualify remote PostgreSQL, Embedded, Hosted, or the complete
+paired gate. For narrower source feedback, use `pnpm --filter @keynes/sdk
+test:unit` or `pnpm --filter @keynes/sdk test:contract`. These omit installed
+consumer acceptance. Tests for runner behavior stay in `test/system` under the
+SDK owner and run once in its provider-free test command.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

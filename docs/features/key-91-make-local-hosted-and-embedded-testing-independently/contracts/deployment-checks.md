@@ -1,6 +1,6 @@
 # Contributor contract: deployment checks
 
-The commands in this document are proposed by KEY-91 and become available during implementation. They are contributor interfaces, not public SDK additions.
+The Local command is implemented. Remote, Embedded and Hosted entrypoints remain planned until their implementation phases. These commands are contributor interfaces, not public SDK additions.
 
 The [required testing-strategy study](../plan.md#required-study-before-downstream-implementation) may refine command composition and focused-feedback invocations before downstream implementation. It must preserve default-all remote coverage, installed-consumer acceptance, unavailable product boundaries, and the full gate. Update this contract with any adopted design changes; a focused feedback result cannot replace deployment acceptance.
 
@@ -27,7 +27,7 @@ Archives omitted by a caller are built and packed into per-attempt locations und
 
 Run `packages/sdk/test/contract/budget.test.ts`, `test/unit/local`, `test/unit/policy`, and these public tests under the SDK owner: `local.test.ts`, `policy-api.test.ts`, `budget-projection.test.ts`, `generated-client.test.ts`, and `public-exports.test.ts`.
 
-Freeze their required file/assertion inventory during implementation and validate it independently of the observed report. Reuse `registerBudgetContractTests`; do not copy shared Budget assertions. Run the existing installed archive qualifier without `--authorized-database`. Its provider-free packaging/export checks are part of Local acceptance and do not require a remote service.
+The fixed inventory in `packages/sdk/test/system/required-scenarios.ts` contains 244 assertions across 18 files and is validated independently of the observed report. Reuse `registerBudgetContractTests`; do not copy shared Budget assertions. Run the existing installed archive qualifier without `--authorized-database`. Its provider-free packaging/export checks are part of Local acceptance and do not require a remote service.
 
 ### Remote PostgreSQL
 
@@ -80,7 +80,7 @@ contracts assertions run through Turbo. Existing SDK `test:unit` and
 `test:contract` commands remain source-feedback entrypoints. None qualifies
 installed deployment acceptance. No new feedback registry or discovery is needed.
 
-The independent commands in this contract are still to be implemented. Their
+Local is implemented. The other independent commands remain pending. Their
 runners own schema construction, expected coverage and exclusions. Shared testkit
 helpers own only neutral mechanics. Full evidence validation, native fixture
 installation/recheck, the 171 native-only names and 37 shared names remain

@@ -1,6 +1,6 @@
 # Validate independent deployment checks
 
-This guide covers the required study as the first task phase and validation after KEY-91 implementation. The new commands and proposed regression-test files do not exist at planning time. The [study](testing-strategy.md) is complete with retained baseline/pilot observations. The independent deployment commands and their feature acceptance remain NOT RUN.
+The [study](testing-strategy.md) and Phase 4 full-gate safeguards are complete. Local is implemented. See [acceptance.md](acceptance.md) for the current evidence. Remote, Embedded and Hosted entrypoints remain pending until their phases execute.
 
 ## Complete the study before downstream implementation
 
@@ -31,6 +31,14 @@ pnpm test:local -- --output .artifacts/key-91/local-01
 ```
 
 Expect exit 0 only after the declared source inventory and installed consumer pass. Verify that no database/pooler resources started. The manifest must identify the SDK archive digest, Local lifecycle/isolation results, and excluded remote/Embedded/Hosted acceptance.
+
+Local is available. Use `--sdk-archive <file>` to qualify a supplied immutable
+archive, or let the command pack one under the checkout lock. `--help` performs
+no preparation. Each output directory is created exclusively. The 244 source
+assertions and 12 installed checks must all pass, including provider-free remote
+configuration/export checks. `consumer-observations.json` records executed checks
+and consumer cleanup. A dirty diagnostic run records its input hash but cannot
+replace clean-candidate acceptance.
 
 ## Run remote PostgreSQL
 

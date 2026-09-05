@@ -270,6 +270,8 @@ describe("PostgreSQL system-test runner", () => {
     { unhandledErrors: ["unhandled rejection"] },
     { numFailedTestSuites: 1 },
     { numTotalTests: 999999 },
+    { numTotalTestSuites: 999999 },
+    { numPassedTestSuites: 0 },
   ])("rejects failure metadata even with passed assertions: %j", (metadata) => {
     expect(() =>
       validatePostgresqlSystemReport({ ...passingVitestReport(), ...metadata }),
@@ -1162,20 +1164,7 @@ describe("PostgreSQL system-test runner", () => {
   });
 });
 
-function passingVitestReport(): {
-  readonly numFailedTests: 0;
-  readonly numPendingTests: 0;
-  readonly numTodoTests: 0;
-  readonly numPassedTests: number;
-  readonly testResults: readonly {
-    readonly name: string;
-    readonly status: "passed";
-    readonly assertionResults: readonly {
-      readonly fullName: string;
-      readonly status: "passed";
-    }[];
-  }[];
-} {
+function passingVitestReport() {
   const testResults = Object.entries({
     ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
     "packages/postgresql/test/system/budget.test.ts": [
@@ -1186,10 +1175,20 @@ function passingVitestReport(): {
     status: "passed" as const,
     assertionResults: names.map((fullName) => ({
       fullName,
+      ancestorTitles: [],
       status: "passed" as const,
     })),
   }));
   return {
+    success: true,
+    numTotalTests: testResults.reduce(
+      (sum, file) => sum + file.assertionResults.length,
+      0,
+    ),
+    numTotalTestSuites: testResults.length,
+    numPassedTestSuites: testResults.length,
+    numFailedTestSuites: 0,
+    numPendingTestSuites: 0,
     numFailedTests: 0,
     numPendingTests: 0,
     numTodoTests: 0,
