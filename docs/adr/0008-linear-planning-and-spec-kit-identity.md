@@ -1,6 +1,6 @@
 # ADR-0008: Use Linear issue identity for Spec Kit features
 
-- **Status:** Accepted
+- **Status:** Accepted for identity and planning ownership; phase publication and stack delivery superseded by [ADR-0009](0009-independent-feature-delivery.md)
 - **Date:** 2026-09-04
 - **Deciders:** Keynes maintainers
 - **Supersedes:** [ADR-0002](0002-feature-identity-and-roadmap-stages.md) for planning ownership and feature identity

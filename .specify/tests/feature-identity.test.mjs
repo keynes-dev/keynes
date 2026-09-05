@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -209,4 +215,78 @@ test("reads historical version 2 manifests without rewriting them", async () => 
     identity.feature_file,
     "docs/features/0014-resource-bound-budget/spec.md",
   );
+});
+
+test("prepares one feature through the real hooks without phase bindings", async () => {
+  const directory = await fixture();
+  for (const path of ["scripts", "templates", "extensions/git/scripts/bash"]) {
+    cpSync(
+      new globalThis.URL(`../${path}`, import.meta.url),
+      join(directory, ".specify", path),
+      {
+        recursive: true,
+      },
+    );
+  }
+  const start = [
+    ".specify/extensions/git/scripts/bash/create-new-feature.sh",
+    "--json",
+    "--linear-issue-id",
+    UUID,
+    "--linear-issue-identifier",
+    IDENTIFIER,
+    "--linear-issue-title",
+    TITLE,
+    "--linear-issue-url",
+    URL,
+    "--linear-branch-name",
+    BRANCH,
+  ];
+  function bash(...args) {
+    const result = spawnSync("bash", args, {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout.trim().split("\n").at(-1));
+  }
+  const reserved = bash(...start);
+  assert.equal(reserved.BRANCH_NAME, BRANCH);
+  assert.equal(parseManifest(directory).feature_id, IDENTIFIER);
+  writeFeature(directory);
+  const prepared = bash(".specify/scripts/bash/setup-plan.sh", "--json");
+  assert.equal(
+    prepared.FEATURE_DIR,
+    realpathSync(join(directory, "docs/features", DIRECTORY)),
+  );
+  writeFileSync(prepared.IMPL_PLAN, `# Implementation plan: ${TITLE}\n`);
+  const tasks = bash(".specify/scripts/bash/setup-tasks.sh", "--json");
+  assert.equal(tasks.FEATURE_DIR, prepared.FEATURE_DIR);
+  const template = readFileSync(tasks.TASKS_TEMPLATE, "utf8");
+  assert.ok(template.length > 0);
+  writeFileSync(
+    join(tasks.FEATURE_DIR, "tasks.md"),
+    `# Tasks: ${TITLE}\n\n## Phase 1: Validate input\n\n` +
+      `- [x] T001 [US1] Validate the selected identity in spec.md\n\n` +
+      `**Checkpoint**: Identity is consistent.\n\n## Phase 2: Verify delivery\n\n` +
+      `- [ ] T002 [US1] Verify the outcome in plan.md\n\n` +
+      `**Checkpoint**: Required feature evidence passes.\n`,
+  );
+  const prerequisites = bash(
+    ".specify/scripts/bash/check-prerequisites.sh",
+    "--json",
+    "--require-tasks",
+    "--include-tasks",
+  );
+  assert.equal(prerequisites.FEATURE_DIR, tasks.FEATURE_DIR);
+  assert.ok(prerequisites.AVAILABLE_DOCS.includes("tasks.md"));
+  assert.equal(resolveActiveFeature(directory).branch, BRANCH);
+  assert.equal(validateRepositoryFeatureSpecs(directory), 1);
+  const repeated = spawnSync("bash", start, {
+    cwd: directory,
+    encoding: "utf8",
+  });
+  assert.notEqual(repeated.status, 0);
+  assert.match(repeated.stderr, /already bound/);
+  assert.equal(validateRepositoryFeatureSpecs(directory), 1);
 });

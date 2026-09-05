@@ -6,28 +6,35 @@ metadata:
   source: "templates/commands/tasks.md"
 ---
 
-
 ## User Input
 
 ```text
 $ARGUMENTS
 ```
 
-## Keynes phase stack rules
+## Keynes feature delivery
 
-- Read `FEATURE_TITLE`, `BRANCH_NAME`, and the Linear work item from `feature-identity.mjs active --json`.
-- Use the exact parent Linear title for Phase 1. Bind Phase 1 to the parent issue, UUID, URL, and branch.
-- Start every phase title with an imperative action verb and name the reviewable outcome. Use `Generate the contract`, not `Generated contract` or `Contract generation`.
-- Add the literal lines `**Linear issue**: \`Unpublished\`` and `**Git branch**: \`Unpublished\`` beneath every later phase heading.
-- End every phase with one concrete review checkpoint.
-- Size one phase for one meaningful PR review question. Split independent questions and fold phases that would produce no meaningful diff. Do not use file, line, or task-count limits.
-- Keep tasks as the detailed implementation authority. Do not add delivery IDs, task-range maps, stack-position fields, or another per-feature file.
+Read the active identity with `node .specify/scripts/feature-identity.mjs active --json`.
+Keep all tasks and checkpoints on that one feature branch. Do not publish phases
+as issues, assign phase branches, or add a delivery manifest.
+
+Generate only the internal phases useful for this feature. A small feature may
+have one story and a short task list. Each phase ends with an observable
+checkpoint; it does not define a PR layer. Split unrelated acceptance outcomes
+into peer feature issues before implementation. Record actual external
+prerequisites in Linear and require them to land before implementation.
+
+For shared behavior, include real SQLite and native PostgreSQL scenarios,
+validation/type checks, replay/conflict/rollback, relevant races, affected
+adapters, documentation, and consumer coverage in this feature. Do not defer
+these into final package qualification.
 
 You **MUST** consider the user input before proceeding (if not empty).
 
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks generation)**:
+
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_tasks` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
@@ -76,20 +83,20 @@ You **MUST** consider the user input before proceeding (if not empty).
    - If research.md exists: Extract decisions for setup tasks
    - Generate tasks organized by user story (see Task Generation Rules below)
    - Generate dependency graph showing user story completion order
-   - Create parallel execution examples per user story
+   - Identify independent tasks only when such tasks exist
    - Validate task completeness (each user story has all needed tasks, independently testable)
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
-   - Phase 1: Use the exact parent Linear title
-   - Phase 2: Cover the blocking prerequisites
-   - Phase 3+: Cover each user-story outcome in priority order from spec.md
+   - Use the exact Linear title for the document title
+   - Group tasks into the smallest useful internal phases by story or behavior
+   - Do not add empty setup, foundation, or polish phases
    - Each phase includes: story goal, independent test criteria, required behavioral tests or a documented non-behavioral validation rationale, implementation tasks, and provider-free evidence tasks
    - Final phase: Cover integrated qualification or cross-cutting work
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
    - Dependencies section showing story completion order
-   - Parallel execution examples per story
+   - Real prerequisites and task dependencies
    - Implementation strategy section (MVP first, incremental delivery)
 
 5. **Report**: Output path to generated tasks.md and summary:
@@ -97,7 +104,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Task count per user story
    - Parallel opportunities identified
    - Independent test criteria for each story
-   - Suggested MVP scope (typically just User Story 1)
+   - Whether the whole issue is independently acceptable
    - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
 6. **Check for extension hooks**: After tasks.md is generated, check if `.specify/extensions.yml` exists in the project root.
@@ -204,12 +211,10 @@ Every task MUST strictly follow this format:
    - Foundational/blocking tasks → Foundational phase (Phase 2)
    - Story-specific setup → within that story's phase
 
-### Phase Structure
+### Phase structure
 
-- **Phase 1**: Setup (project initialization)
-- **Phase 2**: Blocking prerequisites
-- **Phase 3+**: User Stories in priority order (P1, P2, P3...)
-  - Within each story: Failing behavioral tests → Models → Services → Endpoints
-    → Integration → Provider-free verification and retained evidence
-  - Each phase should be a complete, independently testable increment
-- **Final phase**: Integrated qualification or cross-cutting work
+Choose phases to match the actual feature. A phase may group verification and
+implementation for one story. End it with a concrete checkpoint. Keep every
+phase on the same branch. Do not require a separate setup or foundation phase
+when the codebase already supplies those capabilities. The feature owns its full
+acceptance; internal checkpoints do not authorize partial feature completion.

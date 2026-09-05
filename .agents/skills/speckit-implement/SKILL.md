@@ -6,26 +6,40 @@ metadata:
   source: "templates/commands/implement.md"
 ---
 
-
 ## User Input
 
 ```text
 $ARGUMENTS
 ```
 
-## Keynes stacked implementation
+## Keynes independent feature implementation
 
-Before implementation, run `node .specify/scripts/phase-stack.mjs check --json`. Adopt Phase 1 with `node .specify/scripts/phase-stack.mjs init`. For each later phase, use `node .specify/scripts/phase-stack.mjs start <phase-number>`. These commands use only branches recorded from Linear.
+Resolve the active identity with `node .specify/scripts/feature-identity.mjs active --json`.
+Read spec.md, plan.md, and tasks.md. Confirm that real feature prerequisites have
+landed and that this issue has one independently acceptable outcome. Use the
+same exact Linear branch throughout implementation.
 
-Execute one phase at a time. Run its focused verification and stop if its checkpoint fails. Mark only completed tasks, then commit the phase boundary before starting the next phase. Put a correction on the branch that owns the behavior, then run `gh stack rebase --upstack` and `gh stack push`.
+Complete internal phases in dependency order, run each checkpoint, and stop
+when a required checkpoint fails. Mark only completed tasks. Commit only reviewed,
+owned changes. Do not create phase sub-issues, switch phase branches, or invoke
+stack operations. A [P] marker identifies independent tasks; it does not itself
+authorize spawning agents.
 
-The final phase owns integrated feature acceptance. Never run `gh stack submit` automatically. Submission requires a separate explicit user request.
+Each shared behavior change owns real SQLite and PostgreSQL tests, replay and
+rollback, relevant races, types, adapters, documentation, and consumer coverage.
+Missing native execution is NOT RUN and prevents feature acceptance. Final
+archive qualification does not replace feature-level tests.
+
+Review the complete feature and its acceptance evidence as one PR. Link its
+owning Linear issue through native integration. Mark Done only after merge and
+required acceptance pass. Never merge automatically.
 
 You **MUST** consider the user input before proceeding (if not empty).
 
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:
+
 - Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_implement` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally

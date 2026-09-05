@@ -1,6 +1,6 @@
 # Workflow
 
-One Linear parent issue represents one Spec Kit feature. Linear supplies every public name:
+One Linear issue represents one independently accepted Spec Kit feature. Linear supplies every public name:
 
 ```text
 Linear issue: KEY-44 Define repository and code architecture
@@ -8,7 +8,7 @@ Git branch: shubhankarsharan/key-44-define-repository-and-code-architecture
 docs/features/key-44-define-repository-and-code-architecture/
 ```
 
-Linear owns feature and phase names, sequencing, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
+Linear owns feature names, sequencing, current status, priority, assignment, project, cycle, milestone, dependencies, and current disposition. The issue identifier is the Spec Kit identity. The issue UUID is hidden metadata. The repository uses Linear's exact `gitBranchName`; it never generates a branch name.
 
 Every feature specification links to exactly one Linear issue, and that issue links back to the specification. The version 3 `.specify/feature.json` selects work for Spec Kit commands. The feature directory name is the final path segment of the stored Linear branch. Linear branch changes therefore require explicit synchronization of the directory and manifest.
 
@@ -20,16 +20,49 @@ Do not create a pstack specification, plan, or task list when a Spec Kit artifac
 
 Use Spec Kit when work changes product behavior, architecture, public contracts, delivery scope, or acceptance evidence. A complete feature normally moves through this sequence:
 
-1. Select the Linear feature issue.
-2. Use `$speckit-specify`, then review the specification.
-3. Use `$speckit-plan`, then review the plan.
-4. Use `$speckit-tasks` to generate reviewable phases.
-5. Use `$speckit-analyze` to check phase boundaries, bindings, checkpoints, coverage, and dependency order.
-6. Review `tasks.md`.
-7. Run `$speckit-taskstoissues` to preview phase publication. Run it with `--apply` only after approving the preview.
-8. Use `$speckit-implement` to implement phases in order.
+1. Select one available Linear feature issue and fetch its exact identity and branch.
+2. Use `$speckit-specify`, then review the specification. Use `$speckit-clarify` when a material question remains.
+3. Use `$speckit-plan`, then review the implementation plan.
+4. Use `$speckit-tasks` to generate a task list with internal checkpoints.
+5. Use `$speckit-analyze` to check one acceptance outcome, landed prerequisites, requirement coverage, checkpoints, and runtime evidence.
+6. Review `tasks.md`, then use `$speckit-implement` on the same feature branch.
+7. Review the complete feature diff and required acceptance results.
+8. Link the PR to its Linear issue. Mark Done only after merge and required acceptance pass.
 
-Phase 1 uses the parent issue, parent branch, and exact parent title. Every later phase uses one Linear sub-issue and its generated branch. One phase normally becomes one PR layer. The final phase owns integrated acceptance. Do not create a second implementation workflow or another per-feature manifest.
+One feature uses one issue, one branch, and normally one PR. Internal phases do not
+create sub-issues or branches. They need only the checkpoints useful for this
+feature. Scale the full lifecycle documents to the change; do not invent setup or
+foundation phases for a small feature.
+
+Before implementation, ask whether this PR can merge and demonstrate its outcome
+without an unmerged branch or a future feature completing it. Record real
+prerequisites in Linear. Split unrelated outcomes before coding. Thousands of
+handwritten implementation lines trigger a scope review, not a mechanical limit.
+The Local movement-journal conversion is the agreed larger atomic exception.
+
+## Organize work in Linear
+
+Projects own delivery outcomes. Milestones group feature issues by completion
+checkpoint. Issues own bounded capabilities with their own Spec Kit lifecycle.
+Blocking relations express real prerequisites; cycles optionally select work for
+a time period. Do not publish internal task phases as sub-issues.
+
+For Keynes Local, use Accounting complete, Policy governance complete, and Local
+package qualified. Keep canceled planning attempts as history. Later features
+remain concise briefs until their own specification begins.
+
+An issue brief contains the problem, outcome, exclusions, a representative
+demonstration, prerequisites, and links to the specification and PR when those
+artifacts exist. Once specification begins, spec.md owns normative acceptance.
+Do not mirror requirements, task checkboxes, or evidence tables into Linear.
+
+Every shared behavior feature owns SQLite and real PostgreSQL scenarios, relevant
+concurrency, validation/types, replay/conflict/rollback, affected adapters,
+documentation, and consumer coverage. Missing native execution is NOT RUN and
+blocks acceptance. Final package qualification integrates already accepted
+features; it does not collect their deferred tests. Hosted operations, Embedded
+qualification, durable loading, catalog generation, and npm publication remain
+outside Local completion.
 
 ## Keep the feature story in the specification
 
@@ -78,12 +111,15 @@ For non-trivial work:
 5. Make the smallest coherent change that satisfies the approved artifact.
 6. Verify the closest real artifact available. Prefer an exercised behavior over a compile or self-report.
 7. Reconcile the Spec Kit tasks and any in-task plan.
-8. Commit the phase boundary only after its checkpoint passes.
-9. Add the next recorded Linear branch to the GitHub stack.
+8. Verify each checkpoint on the same feature branch and commit only reviewed, owned changes.
+9. Review the feature as one independently acceptable PR.
 10. Update Linear links without copying tasks, requirements, checkpoints, counts, or evidence.
 11. Report what ran, what did not run, and what remains uncertain.
 
-Initialize the bottom layer with `gh stack init "<parent gitBranchName>"`. Add later layers with `gh stack add "<child gitBranchName>"`. Submit only on explicit request with `gh stack submit`. Put corrections on the owning branch, then run `gh stack rebase --upstack` and `gh stack push`. Review and land from the bottom upward. Land the complete stack atomically by default.
+Use Linear's exact feature branch and native GitHub linking. Keep corrections on
+that branch. Issue completion requires both merge and the feature's acceptance
+results; an open PR or passing unrelated CI is insufficient. Neither PR creation
+nor this workflow authorizes automatic merging.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 
@@ -111,7 +147,7 @@ Label unavailable provider, conformance, security, packaging, compatibility, per
 
 ## Skill bundle
 
-The repository tracks the Spec Kit skills that own feature identity, specification, phase generation, phase publication, analysis, and implementation. A fresh checkout receives those workflow rules. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
+The repository tracks the Spec Kit skills that own feature identity, specification, clarification, planning, task generation, analysis, and implementation. A fresh checkout receives those workflow rules. Other `.agents/skills/` entries remain local unless Git tracks them explicitly.
 
 The local pstack bundle is based on pstack `0.14.2` at upstream commit `46125561306434d8a1d7745d540d8932ab0cd2a2`. The local `$poteto-mode` skill records the exact selection and Codex adaptations. When updating pstack, preserve the Budget ownership rules in this document and validate every tracked Spec Kit skill before replacing it.
 

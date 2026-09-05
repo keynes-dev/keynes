@@ -59,7 +59,23 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit-analyze`.
 
-For Keynes, also run `node .specify/scripts/phase-stack.mjs check --json`. Treat any of these as HIGH unless they also violate the constitution: a feature title that differs from Linear, a Phase 1 title or binding that differs from the parent issue, a published phase title that differs from its sub-issue, a missing checkpoint, a duplicate issue or branch binding, uncovered tasks, or phase dependency order that conflicts with the task plan.
+For Keynes, run `node .specify/scripts/feature-identity.mjs active --json` and
+`node .specify/scripts/feature-identity.mjs check-repository --json`. Compare the stored
+identity with the selected Linear issue when live access is available. Report
+unverified live identity separately from offline validation.
+
+Treat these as HIGH unless they violate the constitution and are CRITICAL:
+multiple unrelated acceptance outcomes, an unlanded feature prerequisite,
+missing checkpoints, uncovered requirements/tasks, incompatible dependency
+order, or shared runtime behavior without owned SQLite and native PostgreSQL
+validation. Check whether the PR can merge and demonstrate its outcome without
+an unmerged branch or future feature completing it. A documented journal-cutover
+size exception does not waive accounting or evidence requirements.
+
+Phases are internal task groups on one branch. No phase issue bindings, publication
+step, or stack metadata are required. Do not interpret a missing sub-issue as a
+finding. Product-only tests may be N/A for a workflow/documentation change with
+specific focused validation instead.
 
 ## Execution Steps
 
