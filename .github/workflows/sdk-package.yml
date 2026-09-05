@@ -74,7 +74,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, macos-15, windows-2025]
-        node: ["24", "26"]
+        node: ["24", "latest"]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -116,7 +116,18 @@ jobs:
           console.log(actual);"
 
       - name: Qualify clean provider-free SDK consumer
-        run: pnpm test:package:sdk -- --archive "${{ env.ARCHIVE_PATH }}"
+        run: >-
+          pnpm test:package:sdk --
+          --archive "${{ env.ARCHIVE_PATH }}"
+          --output .artifacts/package-tests/sdk/consumer.json
+
+      - name: Retain consumer qualification
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-consumer-${{ matrix.runner }}-${{ matrix.node }}
+          path: .artifacts/package-tests/sdk/consumer.json
+          if-no-files-found: error
+          retention-days: 14
 
   measurement:
     name: Node SQLite reference measurement

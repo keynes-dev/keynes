@@ -184,7 +184,7 @@ describe("SDK package-test runner", () => {
     ).toThrow("workspace");
   });
 
-  it("packs the exact supported Node lines and production dependencies", () => {
+  it("packs the minimum-only Node range and production dependencies", () => {
     const manifestBytes = archiveEntries.get("package/package.json");
     expect(manifestBytes).toBeDefined();
     const manifest: unknown = JSON.parse(
@@ -193,7 +193,7 @@ describe("SDK package-test runner", () => {
     expect(manifest).toMatchObject({
       name: "@keynes/sdk",
       license: "Apache-2.0",
-      engines: { node: ">=24 <25 || >=26 <27" },
+      engines: { node: ">=24" },
       dependencies: expectedProductionDependencies,
     });
     if (!isRecord(manifest)) throw new Error("package manifest is invalid");
