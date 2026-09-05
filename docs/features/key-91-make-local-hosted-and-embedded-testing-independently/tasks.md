@@ -25,8 +25,8 @@ Do not initialize a new project or edit upstream-managed Spec Kit files. New sou
 
 **Purpose**: Prepare reproducible measurements without changing product or runner behavior. No study experiment begins before these prerequisites are recorded.
 
-- [ ] T003 Define the three-attempt baseline/pilot protocol in testing-strategy.md: equivalent host/runtime/dependencies/cache/images, separate preparation/assertion/cleanup timings, invocation counts, affected code-size counts, and unique .artifacts/key-91/testing-strategy/ output directories.
-- [ ] T004 Prepare isolated baseline and pilot checkouts from the recorded source, verify frozen dependency installation, Docker/image availability, and existing archive commands in package.json; record reproducible commands and input digests in testing-strategy.md, keeping unavailable measurements NOT RUN.
+- [x] T003 Define the three-attempt baseline/pilot protocol in testing-strategy.md: equivalent host/runtime/dependencies/cache/images, separate preparation/assertion/cleanup timings, invocation counts, affected code-size counts, and unique .artifacts/key-91/testing-strategy/ output directories.
+- [x] T004 Prepare isolated baseline and pilot checkouts from the recorded source, verify frozen dependency installation, Docker/image availability, and existing archive commands in package.json; record reproducible commands and input digests in testing-strategy.md, keeping unavailable measurements NOT RUN.
 
 ## Phase 3: User Story 6 - Study and simplify testing (Priority: P1)
 
