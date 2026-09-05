@@ -16,7 +16,6 @@ export {
 export {
   manageChild,
   waitWithCancellation,
-  runProcess,
   type RunningTestChild,
 } from "./process.ts";
 export { parsePassingReport, type ParsedTestFile } from "./report.ts";

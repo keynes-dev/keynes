@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess } from "node:child_process";
 
 export interface RunningTestChild {
   wait(): Promise<void>;
@@ -94,42 +94,4 @@ export function manageChild(
       }
     },
   };
-}
-
-export async function runProcess(options: {
-  readonly executable: string;
-  readonly args: readonly string[];
-  readonly cwd: string;
-  readonly environment?: NodeJS.ProcessEnv;
-  readonly signal?: AbortSignal;
-}): Promise<string> {
-  options.signal?.throwIfAborted();
-  const child = spawn(options.executable, [...options.args], {
-    cwd: options.cwd,
-    env: options.environment,
-    detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "ignore"],
-  });
-  const managed = manageChild(child);
-  let output = "";
-  child.stdout.setEncoding("utf8");
-  child.stdout.on("data", (chunk: string) => {
-    output += chunk;
-  });
-  try {
-    await waitWithCancellation(managed.wait(), options.signal);
-  } catch (failure: unknown) {
-    try {
-      await managed.terminate();
-    } catch (cleanup: unknown) {
-      throw new AggregateError(
-        [failure, cleanup],
-        "Subprocess failed and cleanup failed",
-      );
-    }
-    throw failure;
-  }
-  await managed.terminate();
-  options.signal?.throwIfAborted();
-  return output;
 }
