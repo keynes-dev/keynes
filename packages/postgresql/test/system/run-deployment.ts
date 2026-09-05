@@ -16,8 +16,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import {
   REMOTE_MODES,
-  remoteScenarioInventory,
-  validateRemoteSelection,
+  selectedScenarioInventory,
+  validateNativeSelection,
+  type NativeSelection,
   type RemoteSelection,
 } from "./required-scenarios.ts";
 import {
@@ -53,9 +54,95 @@ const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 export interface DeploymentArguments {
   readonly kind: "run";
   readonly outputPath: string;
-  readonly selection: RemoteSelection;
+  readonly selection: NativeSelection;
   readonly sdkArchive?: string;
   readonly postgresqlArchive?: string;
+}
+export const EMBEDDED_UNAVAILABLE =
+  "Installed Embedded acceptance is NOT RUN pending KEY-10 (Build embedded Budget authority) and KEY-11 (Compose embedded transactions).";
+interface UnavailableArguments {
+  readonly kind: "unavailable";
+  readonly outputPath: string;
+  readonly selection: { readonly kind: "embedded"; readonly installed: true };
+}
+async function runUnavailable(
+  args: UnavailableArguments,
+  runtime: DeploymentRuntime,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  await mkdir(dirname(args.outputPath), { recursive: true });
+  await mkdir(args.outputPath);
+  const before = await runtime.snapshot(signal);
+  const initial = {
+    attemptId: randomUUID(),
+    selection: args.selection,
+    outcome: "NOT RUN",
+    reason: EMBEDDED_UNAVAILABLE,
+  };
+  const bytes = `${JSON.stringify(initial, null, 2)}\n`;
+  await writeFile(join(args.outputPath, "initial.json"), bytes, { flag: "wx" });
+  const manifest = {
+    schemaVersion: "keynes.deployment-test/v1",
+    ...initial,
+    candidate: { before, after: await runtime.snapshot(signal) },
+    stages: [],
+    evidence: [{ path: "initial.json", sha256: hash(bytes) }],
+  };
+  await validateUnavailable(args.outputPath, manifest);
+  await publishManifest(args.outputPath, manifest);
+  return manifest;
+}
+async function validateUnavailable(
+  directory: string,
+  value: Record<string, unknown>,
+) {
+  if (
+    value.schemaVersion !== "keynes.deployment-test/v1" ||
+    value.outcome !== "NOT RUN" ||
+    value.reason !== EMBEDDED_UNAVAILABLE ||
+    typeof value.attemptId !== "string" ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+      value.attemptId,
+    ) ||
+    JSON.stringify(value.selection) !==
+      JSON.stringify({ kind: "embedded", installed: true }) ||
+    !record(value.candidate) ||
+    !validSnapshot(value.candidate.before) ||
+    JSON.stringify(value.candidate.before) !==
+      JSON.stringify(value.candidate.after) ||
+    !Array.isArray(value.stages) ||
+    value.stages.length !== 0 ||
+    value.inputs !== undefined ||
+    !Array.isArray(value.evidence) ||
+    value.evidence.length !== 1 ||
+    !record(value.evidence[0]) ||
+    value.evidence[0].path !== "initial.json"
+  )
+    throw new Error("Invalid installed Embedded refusal");
+  const path = join(directory, "initial.json");
+  if ((await lstat(path)).isSymbolicLink())
+    throw new Error("Unsafe refusal evidence");
+  const bytes = await readFile(path);
+  if (
+    hash(bytes) !== value.evidence[0].sha256 ||
+    JSON.stringify(JSON.parse(bytes.toString())) !==
+      JSON.stringify({
+        attemptId: value.attemptId,
+        selection: value.selection,
+        outcome: "NOT RUN",
+        reason: EMBEDDED_UNAVAILABLE,
+      })
+  )
+    throw new Error("Refusal evidence changed");
+}
+async function publishManifest(directory: string, manifest: unknown) {
+  const pending = join(directory, "manifest.pending.json");
+  await writeFile(pending, `${JSON.stringify(manifest, null, 2)}\n`, {
+    flag: "wx",
+  });
+  await link(pending, join(directory, "manifest.json"));
+  await unlink(pending);
 }
 export interface DeploymentRuntime {
   snapshot(signal?: AbortSignal): Promise<SourceSnapshot>;
@@ -63,14 +150,15 @@ export interface DeploymentRuntime {
     workspace: string,
     args: DeploymentArguments,
     signal?: AbortSignal,
-  ): Promise<{ postgresql: PackedPostgresqlPackage; sdkArchivePath: string }>;
+  ): Promise<{ postgresql: PackedPostgresqlPackage; sdkArchivePath?: string }>;
   sql(
-    selection: RemoteSelection,
+    selection: NativeSelection,
     reportPath: string,
     packed: PackedPostgresqlPackage,
     attemptId: string,
     signal?: AbortSignal,
     onCleanup?: (status: "passed" | "failed") => void,
+    onEnvironment?: (environment: Readonly<Record<string, string>>) => void,
   ): Promise<void>;
   tls(
     commandPath: string,
@@ -103,43 +191,53 @@ type Stage = {
   cause?: string;
   observations?: Readonly<Record<string, string>>;
 };
-function expectedStages(selection: RemoteSelection): Stage[] {
+function expectedStages(selection: NativeSelection): Stage[] {
   return [
     {
       name: "archives",
-      coverage: ["immutable PostgreSQL archive", "immutable SDK archive"],
+      coverage:
+        selection.kind === "remote"
+          ? ["immutable PostgreSQL archive", "immutable SDK archive"]
+          : ["immutable PostgreSQL archive"],
     },
     {
       name: "sql-fixtures",
-      coverage: Object.values(remoteScenarioInventory(selection)).flat(),
+      coverage: Object.values(selectedScenarioInventory(selection)).flat(),
     },
-    {
-      name: "tls-fixtures",
-      coverage: selection.modes.map((mode) => `${mode} verified TLS fixture`),
-    },
-    {
-      name: "installed-sdk",
-      coverage: selection.modes.flatMap((mode) =>
-        REMOTE_INSTALLED_CHECKS.map((check) => `${mode}/${check}`),
-      ),
-    },
+    ...(selection.kind === "remote"
+      ? [
+          {
+            name: "tls-fixtures",
+            coverage: selection.modes.map(
+              (mode) => `${mode} verified TLS fixture`,
+            ),
+          },
+          {
+            name: "installed-sdk",
+            coverage: selection.modes.flatMap((mode) =>
+              REMOTE_INSTALLED_CHECKS.map((check) => `${mode}/${check}`),
+            ),
+          },
+        ]
+      : []),
     { name: "cleanup", coverage: ["owned resources removed"] },
     { name: "source-identity", coverage: ["stable source inputs"] },
   ].map((stage) => ({ ...stage, kind: "NOT RUN", cause: "not reached" }));
 }
 export async function runDeployment(
-  args: DeploymentArguments,
+  args: DeploymentArguments | UnavailableArguments,
   runtime: DeploymentRuntime = production,
   signal?: AbortSignal,
 ) {
-  const selection = validateRemoteSelection(args.selection);
+  if (args.kind === "unavailable") return runUnavailable(args, runtime, signal);
+  const selection = validateNativeSelection(args.selection);
   signal?.throwIfAborted();
   await mkdir(dirname(args.outputPath), { recursive: true });
   await mkdir(args.outputPath, { recursive: false });
   const attemptId = randomUUID();
   const before = await runtime.snapshot(signal);
   const stages = expectedStages(selection);
-  const inventory = remoteScenarioInventory(selection);
+  const inventory = selectedScenarioInventory(selection);
   const evidence: { path: string; sha256: string }[] = [];
   const retain = async (path: string, value: unknown) => {
     const bytes = `${JSON.stringify(value, null, 2)}\n`;
@@ -147,7 +245,7 @@ export async function runDeployment(
     evidence.push({ path, sha256: hash(bytes) });
   };
   await retain("initial.json", { attemptId, selection, stages });
-  const workspace = await mkdtemp(join(tmpdir(), "keynes-remote-attempt-"));
+  const workspace = await mkdtemp(join(tmpdir(), "keynes-native-attempt-"));
   const runWithReport = async (
     operation: () => Promise<void>,
     reportPath: string,
@@ -178,6 +276,7 @@ export async function runDeployment(
   let prepared: Awaited<ReturnType<DeploymentRuntime["prepare"]>> | undefined;
   let fixture: Awaited<ReturnType<DeploymentRuntime["tls"]>> | undefined;
   let inputs: unknown;
+  let sqlEnvironment: Readonly<Record<string, string>> | undefined;
   let preparationAttempted = false;
   let tlsCleanup: "passed" | "failed" | "NOT RUN" | undefined;
   let sqlCleanup: "passed" | "failed" | "NOT RUN" | undefined;
@@ -211,22 +310,28 @@ export async function runDeployment(
   let archiveIdentities:
     | {
         postgresql: { sha256: string; provenance: string };
-        sdk: { sha256: string; provenance: string };
+        sdk?: { sha256: string; provenance: string };
       }
     | undefined;
   try {
     await stage("archives", async () => {
       preparationAttempted = true;
       prepared = await runtime.prepare(workspace, args, signal);
+      if (selection.kind === "remote" && prepared.sdkArchivePath === undefined)
+        throw new Error("Missing SDK archive");
       archiveIdentities = {
         postgresql: await archiveIdentity(
           prepared.postgresql.archivePath,
           args.postgresqlArchive !== undefined,
         ),
-        sdk: await archiveIdentity(
-          prepared.sdkArchivePath,
-          args.sdkArchive !== undefined,
-        ),
+        ...(selection.kind === "remote" && prepared.sdkArchivePath !== undefined
+          ? {
+              sdk: await archiveIdentity(
+                prepared.sdkArchivePath,
+                args.sdkArchive !== undefined,
+              ),
+            }
+          : {}),
       };
       const installation: unknown = JSON.parse(
         await readFile(
@@ -272,6 +377,9 @@ export async function runDeployment(
             (status) => {
               sqlCleanup = status;
             },
+            (observed) => {
+              sqlEnvironment = observed;
+            },
           ),
         reportPath,
         "sql.json",
@@ -281,55 +389,66 @@ export async function runDeployment(
         JSON.parse(await readFile(join(args.outputPath, "sql.json"), "utf8")),
         selection,
       );
-    });
-    await stage("tls-fixtures", async () => {
-      tlsCleanup = "NOT RUN";
-      fixture = await runtime.tls(
-        ready.postgresql.commandPath,
-        selection.modes,
-        attemptId,
-        signal,
-        (status) => {
-          tlsCleanup = status;
-        },
-      );
-      await retain("tls.json", { attemptId, ...fixture.observations });
-    });
-    if (fixture === undefined) throw new Error("Missing TLS fixture");
-    const tls = fixture;
-    await stage("installed-sdk", async () => {
-      const inputPath = join(workspace, "consumer-input.json");
-      const resultPath = join(workspace, "consumer-result.json");
-      await writeFile(
-        inputPath,
-        JSON.stringify({
-          attemptId,
-          archivePath: ready.sdkArchivePath,
-          targets: tls.targets,
-        }),
-        { mode: 0o600, flag: "wx" },
-      );
-      await runWithReport(
-        () => runtime.consumer(inputPath, resultPath, signal),
-        resultPath,
-        "consumer.json",
-        safeConsumerResult,
-      );
-      validateConsumerResult(
-        JSON.parse(
-          await readFile(join(args.outputPath, "consumer.json"), "utf8"),
-        ),
-        selection,
-        identities.sdk.sha256,
-        attemptId,
-      );
       if (
-        hash(await readFile(ready.sdkArchivePath)) !== identities.sdk.sha256 ||
         hash(await readFile(ready.postgresql.archivePath)) !==
-          identities.postgresql.sha256
+        identities.postgresql.sha256
       )
-        throw new Error("Archive changed during execution");
+        throw new Error("PostgreSQL archive changed");
     });
+    if (selection.kind === "remote") {
+      const sdkArchivePath = ready.sdkArchivePath;
+      const sdkIdentity = identities.sdk;
+      if (sdkArchivePath === undefined || sdkIdentity === undefined)
+        throw new Error("Missing SDK archive");
+      await stage("tls-fixtures", async () => {
+        tlsCleanup = "NOT RUN";
+        fixture = await runtime.tls(
+          ready.postgresql.commandPath,
+          selection.modes,
+          attemptId,
+          signal,
+          (status) => {
+            tlsCleanup = status;
+          },
+        );
+        await retain("tls.json", { attemptId, ...fixture.observations });
+      });
+      if (fixture === undefined) throw new Error("Missing TLS fixture");
+      const tls = fixture;
+      await stage("installed-sdk", async () => {
+        const inputPath = join(workspace, "consumer-input.json");
+        const resultPath = join(workspace, "consumer-result.json");
+        await writeFile(
+          inputPath,
+          JSON.stringify({
+            attemptId,
+            archivePath: sdkArchivePath,
+            targets: tls.targets,
+          }),
+          { mode: 0o600, flag: "wx" },
+        );
+        await runWithReport(
+          () => runtime.consumer(inputPath, resultPath, signal),
+          resultPath,
+          "consumer.json",
+          safeConsumerResult,
+        );
+        validateConsumerResult(
+          JSON.parse(
+            await readFile(join(args.outputPath, "consumer.json"), "utf8"),
+          ),
+          selection,
+          sdkIdentity.sha256,
+          attemptId,
+        );
+        if (
+          hash(await readFile(sdkArchivePath)) !== sdkIdentity.sha256 ||
+          hash(await readFile(ready.postgresql.archivePath)) !==
+            identities.postgresql.sha256
+        )
+          throw new Error("Archive changed during execution");
+      });
+    }
   } catch {
     /* The failing stage retains the safe cause; cleanup must still run. */
   }
@@ -390,9 +509,16 @@ export async function runDeployment(
     },
     candidate: { before, after },
     inputs,
+    ...(selection.kind === "embedded"
+      ? { acceptance: "fixture-only", applicationGrants: "fixture-provided" }
+      : {}),
     environment: {
+      sql: sqlEnvironment,
       node: process.versions.node,
-      pnpm: fixture?.observations.pnpmVersion ?? "NOT RUN",
+      pnpm:
+        fixture?.observations.pnpmVersion ??
+        sqlEnvironment?.pnpmVersion ??
+        "NOT RUN",
       vitest: JSON.parse(
         await readFile(join(ROOT, "node_modules/vitest/package.json"), "utf8"),
       ).version,
@@ -405,10 +531,14 @@ export async function runDeployment(
     exclusions: {
       fullAcceptance: "NOT RUN",
       hosted: "NOT RUN",
-      embedded: "NOT RUN",
-      unselectedModes: REMOTE_MODES.filter(
-        (mode) => !selection.modes.includes(mode),
-      ),
+      ...(selection.kind === "remote"
+        ? {
+            embedded: "NOT RUN",
+            unselectedModes: REMOTE_MODES.filter(
+              (mode) => !selection.modes.includes(mode),
+            ),
+          }
+        : { remote: "NOT RUN", installedEmbedded: EMBEDDED_UNAVAILABLE }),
     },
     outcome: stages.every((stage) => stage.kind === "completed")
       ? "passed"
@@ -416,12 +546,7 @@ export async function runDeployment(
     evidence,
   };
   await validateDeploymentEvidence(args.outputPath, manifest);
-  const pending = join(args.outputPath, "manifest.pending.json");
-  await writeFile(pending, `${JSON.stringify(manifest, null, 2)}\n`, {
-    flag: "wx",
-  });
-  await link(pending, join(args.outputPath, "manifest.json"));
-  await unlink(pending);
+  await publishManifest(args.outputPath, manifest);
   return manifest;
 }
 function safeConsumerResult(value: unknown): unknown {
@@ -504,6 +629,7 @@ const production: DeploymentRuntime = {
             undefined,
             signal,
           );
+    if (args.selection.kind === "embedded") return { postgresql };
     try {
       const sdkArchivePath =
         args.sdkArchive ?? join(workspace, "keynes-sdk-0.0.0.tgz");
@@ -536,7 +662,15 @@ const production: DeploymentRuntime = {
       throw error;
     }
   },
-  async sql(selection, reportPath, packed, attemptId, signal, onCleanup) {
+  async sql(
+    selection,
+    reportPath,
+    packed,
+    attemptId,
+    signal,
+    onCleanup,
+    onEnvironment,
+  ) {
     await runPostgresqlSystemTests(
       {
         ...productionRuntime,
@@ -544,7 +678,13 @@ const production: DeploymentRuntime = {
         preparePackage: async () => ({ ...packed, close: async () => {} }),
       },
       providerFreeEnvironment(process.env),
-      { selection, selectedReportPath: reportPath, signal, onCleanup },
+      {
+        selection,
+        selectedReportPath: reportPath,
+        signal,
+        onCleanup,
+        onEnvironment,
+      },
     );
   },
   tls: (commandPath, modes, attemptId, signal, onCleanup) =>
@@ -577,10 +717,17 @@ if (
   process.once("SIGINT", cancel);
   process.once("SIGTERM", cancel);
   try {
-    const args = parseDeploymentArguments(process.argv.slice(2));
+    const commandArgs = process.argv.slice(2);
+    const owner = commandArgs[0] === "embedded" ? "embedded" : "remote";
+    const args = parseDeploymentArguments(
+      owner === "embedded" ? commandArgs.slice(1) : commandArgs,
+      owner,
+    );
     if (args.kind === "help")
       process.stdout.write(
-        "Run remote PostgreSQL SQL fixtures and installed SDK TLS checks. --output <new-directory> [--mode all|direct|session-pool|transaction-pool] [--sdk-archive <file>] [--postgresql-archive <file>]\n",
+        owner === "embedded"
+          ? "Run Embedded SQL fixtures (fixture-provided grants). --output <new-directory> [--postgresql-archive <file>] [--installed (NOT RUN pending KEY-10/KEY-11)]\n"
+          : "Run remote PostgreSQL SQL fixtures and installed SDK TLS checks. --output <new-directory> [--mode all|direct|session-pool|transaction-pool] [--sdk-archive <file>] [--postgresql-archive <file>]\n",
       );
     else {
       const result = await runDeployment(args, production, controller.signal);
@@ -588,7 +735,7 @@ if (
     }
   } catch {
     process.stderr.write(
-      "Remote deployment check failed; inspect its safe evidence\n",
+      "Native deployment check failed; inspect its safe evidence\n",
     );
     process.exitCode = 1;
   } finally {
@@ -600,6 +747,10 @@ export async function validateDeploymentEvidence(
   directory: string,
   value: unknown,
 ): Promise<void> {
+  if (record(value) && value.outcome === "NOT RUN") {
+    await validateUnavailable(directory, value);
+    return;
+  }
   if (
     !record(value) ||
     value.schemaVersion !== "keynes.deployment-test/v1" ||
@@ -613,8 +764,8 @@ export async function validateDeploymentEvidence(
     !["passed", "failed"].includes(String(value.outcome))
   )
     throw new Error("Invalid native deployment manifest");
-  const selection = validateRemoteSelection(value.selection);
-  const expected = remoteScenarioInventory(selection);
+  const selection = validateNativeSelection(value.selection);
+  const expected = selectedScenarioInventory(selection);
   if (
     value.selection.inventorySha256 !== hash(JSON.stringify(expected)) ||
     JSON.stringify(value.selection.expected) !== JSON.stringify(expected)
@@ -689,7 +840,8 @@ export async function validateDeploymentEvidence(
     !record(cleanupStage) ||
     !record(cleanupStage.observations) ||
     cleanupStage.observations.sqlFixtures !== "passed" ||
-    cleanupStage.observations.tlsFixtures !== "passed" ||
+    cleanupStage.observations.tlsFixtures !==
+      (selection.kind === "remote" ? "passed" : "NOT RUN") ||
     cleanupStage.observations.packages !== "passed"
   )
     throw new Error("SQL cleanup observation missing");
@@ -701,19 +853,46 @@ export async function validateDeploymentEvidence(
   )
     throw new Error("Native source identity changed");
   if (
-    files.size !== 5 ||
+    files.size !== (selection.kind === "remote" ? 5 : 3) ||
     JSON.stringify(files.get("archives.json")) !==
       JSON.stringify(value.inputs) ||
     !record(value.inputs) ||
     !record(value.inputs.archives) ||
-    !record(value.inputs.archives.sdk) ||
     !record(value.inputs.archives.postgresql) ||
-    typeof value.inputs.archives.sdk.sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/.test(value.inputs.archives.sdk.sha256) ||
     typeof value.inputs.archives.postgresql.sha256 !== "string" ||
     !/^[a-f0-9]{64}$/.test(value.inputs.archives.postgresql.sha256)
   )
     throw new Error("Native archive identity missing");
+  validateSelectedPostgresqlReport(files.get("sql.json"), selection);
+  if (selection.kind === "embedded") {
+    if (
+      !record(value.environment) ||
+      !record(value.environment.sql) ||
+      value.environment.sql.poolerCount !== "0" ||
+      value.environment.sql.postgresVersion !== "180006" ||
+      typeof value.environment.sql.postgresImageId !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/.test(value.environment.sql.postgresImageId) ||
+      typeof value.environment.sql.dockerVersion !== "string" ||
+      !/^\d+\.\d+\.\d+/.test(value.environment.sql.dockerVersion) ||
+      typeof value.environment.sql.pnpmVersion !== "string" ||
+      !/^\d+\.\d+\.\d+$/.test(value.environment.sql.pnpmVersion) ||
+      value.acceptance !== "fixture-only" ||
+      value.applicationGrants !== "fixture-provided" ||
+      !record(value.exclusions) ||
+      value.exclusions.installedEmbedded !== EMBEDDED_UNAVAILABLE ||
+      value.inputs.archives.sdk !== undefined ||
+      files.has("tls.json") ||
+      files.has("consumer.json")
+    )
+      throw new Error("Embedded fixture boundary changed");
+    return;
+  }
+  if (
+    !record(value.inputs.archives.sdk) ||
+    typeof value.inputs.archives.sdk.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(value.inputs.archives.sdk.sha256)
+  )
+    throw new Error("SDK archive identity missing");
   const tls = files.get("tls.json");
   if (
     !record(tls) ||
@@ -771,7 +950,8 @@ function validSnapshot(value: unknown): boolean {
 
 export function parseDeploymentArguments(
   args: readonly string[],
-): { readonly kind: "help" } | DeploymentArguments {
+  kind: "remote" | "embedded" = "remote",
+): { readonly kind: "help" } | DeploymentArguments | UnavailableArguments {
   const { values, tokens } = parseArgs({
     args: args[0] === "--" ? args.slice(1) : args,
     options: {
@@ -780,6 +960,7 @@ export function parseDeploymentArguments(
       "sdk-archive": { type: "string" },
       "postgresql-archive": { type: "string" },
       help: { type: "boolean" },
+      installed: { type: "boolean" },
     },
     strict: true,
     allowPositionals: false,
@@ -801,6 +982,19 @@ export function parseDeploymentArguments(
     return { kind: "help" };
   }
   if (!values.output) throw new Error("--output is required");
+  if (
+    kind === "embedded" &&
+    (values.mode !== undefined || values["sdk-archive"] !== undefined)
+  )
+    throw new Error("Embedded does not accept remote modes or SDK archives");
+  if (kind === "remote" && values.installed !== undefined)
+    throw new Error("Remote does not accept --installed");
+  if (values.installed)
+    return {
+      kind: "unavailable",
+      outputPath: resolve(ROOT, values.output),
+      selection: { kind: "embedded", installed: true },
+    };
   const mode = values.mode ?? "all";
   const modes =
     mode === "all"
@@ -810,7 +1004,8 @@ export function parseDeploymentArguments(
   return {
     kind: "run",
     outputPath: resolve(ROOT, values.output),
-    selection: { kind: "remote", modes },
+    selection:
+      kind === "embedded" ? { kind: "embedded" } : { kind: "remote", modes },
     ...(values["sdk-archive"] === undefined
       ? {}
       : { sdkArchive: resolve(ROOT, values["sdk-archive"]) }),

@@ -4,6 +4,7 @@ import {
   PGBOUNCER_IMAGE,
   POSTGRES_IMAGE,
 } from "./run.ts";
+import { selectedScenarioInventory } from "./required-scenarios.ts";
 import { createHash } from "node:crypto";
 import {
   mkdir,
@@ -141,7 +142,22 @@ async function attempt() {
         },
       };
     },
-    sql: async (selection, path, _packed, _id, _signal, onCleanup) => {
+    sql: async (
+      selection,
+      path,
+      _packed,
+      _id,
+      _signal,
+      onCleanup,
+      onEnvironment,
+    ) => {
+      onEnvironment?.({
+        poolerCount: "0",
+        postgresVersion: "180006",
+        postgresImageId: `sha256:${"a".repeat(64)}`,
+        dockerVersion: "29.0.1",
+        pnpmVersion: "11.21.0",
+      });
       order.push("sql");
       await writeFile(
         path,
@@ -456,3 +472,189 @@ it.each(["preparation", "TLS"])(
     }
   },
 );
+
+describe("Embedded fixture command", () => {
+  it("selects only the canonical aggregate and fourteen transaction assertions", () => {
+    const inventory = selectedScenarioInventory({ kind: "embedded" });
+    expect(Object.keys(inventory)).toEqual([
+      "packages/postgresql/test/system/budget.test.ts",
+      "packages/postgresql/test/system/embedded-transactions.test.ts",
+    ]);
+    expect(Object.values(inventory).flat()).toHaveLength(51);
+    expect(
+      inventory[
+        "packages/postgresql/test/system/embedded-transactions.test.ts"
+      ],
+    ).toHaveLength(14);
+  });
+  it("parses the Embedded owner without remote modes or SDK archives", () => {
+    expect(
+      parseDeploymentArguments(["--output", "attempt"], "embedded"),
+    ).toMatchObject({ kind: "run", selection: { kind: "embedded" } });
+    expect(() =>
+      parseDeploymentArguments(
+        ["--output", "attempt", "--mode", "direct"],
+        "embedded",
+      ),
+    ).toThrow();
+    expect(() =>
+      parseDeploymentArguments(
+        ["--output", "attempt", "--sdk-archive", "sdk.tgz"],
+        "embedded",
+      ),
+    ).toThrow();
+  });
+  it("refuses installed acceptance before reading supplied archives or provisioning", async () => {
+    const fixture = await attempt();
+    try {
+      const args = parseDeploymentArguments(
+        [
+          "--output",
+          fixture.output,
+          "--installed",
+          "--postgresql-archive",
+          "/unavailable/archive.tgz",
+        ],
+        "embedded",
+      );
+      if (args.kind === "help") throw new Error("Unexpected help");
+      const result = await runDeployment(args, fixture.runtime);
+      expect(result.outcome).toBe("NOT RUN");
+      expect(fixture.order).toEqual([]);
+      expect(JSON.stringify(result)).toContain("KEY-10");
+      expect(JSON.stringify(result)).toContain("KEY-11");
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+});
+
+it("starts one PostgreSQL fixture and zero poolers for Embedded", async () => {
+  const fake = fakeRuntime();
+  await runPostgresqlSystemTests(
+    fake.runtime,
+    {},
+    { selection: { kind: "embedded" } },
+  );
+  const started = fake.commands.filter(
+    (command) => command.arguments[0] === "run",
+  );
+  expect(
+    started.filter((command) => command.arguments.includes(POSTGRES_IMAGE)),
+  ).toHaveLength(1);
+  expect(
+    started.filter((command) => command.arguments.includes(PGBOUNCER_IMAGE)),
+  ).toHaveLength(0);
+  const context = JSON.parse(
+    fake.commands.find((command) => command.executable === "pnpm")?.environment
+      ?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT ?? "{}",
+  );
+  expect(context.selection).toEqual({ kind: "embedded" });
+  expect(context.poolers).toEqual({});
+});
+
+it("runs Embedded with only PostgreSQL packaging and fixture-provided grants", async () => {
+  const fixture = await attempt();
+  const prepare = fixture.runtime.prepare;
+  fixture.runtime.prepare = async (...args) => {
+    const { postgresql } = await prepare(...args);
+    return { postgresql };
+  };
+  try {
+    const result = await runDeployment(
+      {
+        kind: "run",
+        outputPath: fixture.output,
+        selection: { kind: "embedded" },
+      },
+      fixture.runtime,
+    );
+    expect(result).toMatchObject({
+      outcome: "passed",
+      acceptance: "fixture-only",
+      applicationGrants: "fixture-provided",
+    });
+    expect(fixture.order).toEqual([
+      "prepare",
+      "sql",
+      "sql-cleanup",
+      "archive-cleanup",
+      "cleanup",
+    ]);
+    expect(result.evidence.map((entry) => entry.path)).toEqual([
+      "initial.json",
+      "archives.json",
+      "sql.json",
+    ]);
+    await expect(
+      validateDeploymentEvidence(fixture.output, {
+        ...result,
+        acceptance: "installed",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      validateDeploymentEvidence(fixture.output, {
+        ...result,
+        applicationGrants: "supported",
+      }),
+    ).rejects.toThrow();
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+it("retains actual Embedded PostgreSQL observations without querying a pooler", async () => {
+  const fake = fakeRuntime();
+  let observed: Readonly<Record<string, string>> | undefined;
+  await runPostgresqlSystemTests(
+    fake.runtime,
+    {},
+    {
+      selection: { kind: "embedded" },
+      onEnvironment: (value) => {
+        observed = value;
+      },
+    },
+  );
+  expect(observed).toMatchObject({
+    postgresVersion: "180006",
+    dockerVersion: "29.0.1",
+    pnpmVersion: "11.21.0",
+  });
+  expect(observed?.postgresImageId).toMatch(/^sha256:/);
+  expect(observed?.pgbouncerVersion).toBeUndefined();
+  expect(
+    fake.commands.some((command) =>
+      command.arguments.some(
+        (arg) =>
+          arg.includes("-session-pool") || arg.includes("-transaction-pool"),
+      ),
+    ),
+  ).toBe(false);
+});
+
+it("refuses reused and tampered installed-refusal evidence", async () => {
+  const fixture = await attempt();
+  try {
+    const args = parseDeploymentArguments(
+      ["--output", fixture.output, "--installed"],
+      "embedded",
+    );
+    if (args.kind === "help") throw new Error("Unexpected help");
+    const result = await runDeployment(args, fixture.runtime);
+    await expect(runDeployment(args, fixture.runtime)).rejects.toThrow();
+    await expect(
+      validateDeploymentEvidence(fixture.output, {
+        ...result,
+        reason: "available",
+      }),
+    ).rejects.toThrow();
+    await writeFile(join(fixture.output, "initial.json"), "{}");
+    await expect(
+      validateDeploymentEvidence(fixture.output, result),
+    ).rejects.toThrow();
+    expect(fixture.order).toEqual([]);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});

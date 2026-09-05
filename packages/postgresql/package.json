@@ -26,7 +26,8 @@
     "test:external": "node test/qualification/run-external.ts",
     "test:package": "node test/package/run.ts",
     "test:system": "node test/system/run.ts",
-    "test:remote": "node test/system/run-deployment.ts"
+    "test:remote": "node test/system/run-deployment.ts",
+    "test:embedded": "node test/system/run-deployment.ts embedded"
   },
   "dependencies": {
     "pg": "8.23.0"

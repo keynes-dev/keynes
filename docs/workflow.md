@@ -175,6 +175,30 @@ required for acceptance. Remote selection does not qualify Hosted or the complet
 paired gate. Provider-free runner and TLS configuration tests execute once under
 the PostgreSQL owner; installed consumer tests execute once under the SDK owner.
 
+### Embedded fixture checks
+
+```sh
+pnpm test:embedded -- --output .artifacts/key-91/embedded/<new-attempt>
+pnpm test:embedded -- --output .artifacts/key-91/embedded/<new-installed-attempt> --installed
+```
+
+The fixture command runs the canonical 37 Budget assertions and all 14 Embedded
+transaction assertions against one PostgreSQL container. It prepares only the
+PostgreSQL package, starts zero poolers, and creates no remote SDK consumer or TLS
+credentials. Use `--postgresql-archive <file>` to supply an immutable archive.
+The selected evidence labels acceptance `fixture-only` and application grants
+`fixture-provided`. Those grants exercise atomic application and Keynes commit,
+rollback, replay, and conflict behavior; they do not establish an installed
+Embedded product profile.
+
+`--installed` exits 1 with `NOT RUN` and the KEY-10/KEY-11 prerequisite reasons
+before inspecting an archive, packaging, or provisioning a database. Ambient
+connection credentials cannot enable it. KEY-10 owns supported Embedded authority
+and installation permissions; KEY-11 owns supported composed transactions. Both
+implementations require a new availability review before installed acceptance can
+be enabled. Output reuse, source identity, report coverage, evidence hashes, and
+cleanup follow the native selected-run rules.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

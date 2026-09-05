@@ -319,3 +319,34 @@ export function remoteScenarioInventory(
     [connectionFile]: connections,
   };
 }
+
+export interface EmbeddedSelection {
+  readonly kind: "embedded";
+}
+export type NativeSelection = RemoteSelection | EmbeddedSelection;
+export function selectedScenarioInventory(
+  selection: NativeSelection,
+): Readonly<Record<string, readonly string[]>> {
+  return selection.kind === "remote"
+    ? remoteScenarioInventory(selection)
+    : {
+        [POSTGRESQL_BUDGET_AGGREGATE]: REQUIRED_SHARED_BUDGET_SCENARIOS,
+        "packages/postgresql/test/system/embedded-transactions.test.ts":
+          REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
+            "packages/postgresql/test/system/embedded-transactions.test.ts"
+          ],
+      };
+}
+
+export function validateNativeSelection(value: unknown): NativeSelection {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "kind" in value &&
+    value.kind === "embedded" &&
+    !("modes" in value) &&
+    !("installed" in value)
+  )
+    return { kind: "embedded" };
+  return validateRemoteSelection(value);
+}

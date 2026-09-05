@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import { PGBOUNCER_IMAGE, type PostgresqlSystemRuntime } from "../run.ts";
 import {
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
-  remoteScenarioInventory,
-  validateRemoteSelection,
+  selectedScenarioInventory,
+  validateNativeSelection,
 } from "../required-scenarios.ts";
 
 export const RUN_ID = "f0e1d2c3-b4a5-4678-9012-3456789abcde";
@@ -70,6 +70,8 @@ export function fakeRuntime(options?: {
           arguments: arguments_,
           environment,
         });
+        if (executable === "pnpm" && arguments_[0] === "--version")
+          return { stdout: "11.21.0" };
         if (executable === "git" && arguments_[0] === "status") {
           const stdout =
             options?.gitStatuses?.[statusAttempt] ?? options?.gitStatus ?? "";
@@ -170,7 +172,7 @@ export function passingVitestReport(environment?: NodeJS.ProcessEnv) {
             "shared Budget scenario fixture",
           ],
         }
-      : remoteScenarioInventory(validateRemoteSelection(context.selection)),
+      : selectedScenarioInventory(validateNativeSelection(context.selection)),
   ).map(([file, names]) => ({
     name: `/repository/packages/${file}`,
     status: "passed" as const,

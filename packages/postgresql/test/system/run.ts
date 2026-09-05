@@ -32,9 +32,9 @@ import {
 } from "../support/packed-package.ts";
 import {
   REMOTE_MODES,
-  remoteScenarioInventory,
-  validateRemoteSelection,
-  type RemoteSelection,
+  selectedScenarioInventory,
+  validateNativeSelection,
+  type NativeSelection,
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
 } from "./required-scenarios.ts";
@@ -104,12 +104,15 @@ export type PostgresqlSystemContext =
     })
   | (NativeContextFields & {
       readonly scope: "selected";
-      readonly selection: RemoteSelection;
+      readonly selection: NativeSelection;
     });
 
 export interface PostgresqlSystemRunOptions {
+  readonly onEnvironment?: (
+    environment: Readonly<Record<string, string>>,
+  ) => void;
   readonly onCleanup?: (status: "passed" | "failed") => void;
-  readonly selection?: RemoteSelection;
+  readonly selection?: NativeSelection;
   readonly selectedReportPath?: string;
   readonly outputPath?: string;
   readonly signal?: AbortSignal;
@@ -148,10 +151,15 @@ export async function runPostgresqlSystemTests(
   const selection =
     options.selection === undefined
       ? undefined
-      : validateRemoteSelection(options.selection);
+      : validateNativeSelection(options.selection);
   if (selection !== undefined && options.outputPath !== undefined)
     throw new Error("Selected execution cannot produce full acceptance");
-  const modes = selection?.modes ?? REMOTE_MODES;
+  const modes =
+    selection === undefined
+      ? REMOTE_MODES
+      : selection.kind === "remote"
+        ? selection.modes
+        : [];
   const stages: PostgresqlSystemObservation[] = [];
   const observedEnvironment: Record<string, string> = {
     postgresImage: POSTGRES_IMAGE,
@@ -309,15 +317,24 @@ export async function runPostgresqlSystemTests(
         containers: poolerContainers,
       }),
     );
-    if (recordWorkspace !== undefined) {
+    if (recordWorkspace !== undefined || options.onEnvironment !== undefined) {
       Object.assign(
         observedEnvironment,
         await executeStage(runId, "runtime-observations", () =>
-          observeRuntime(activeRuntime, environment, runId),
+          observeRuntime(
+            activeRuntime,
+            environment,
+            runId,
+            modes.find((mode) => mode !== "direct"),
+          ),
         ),
       );
     }
 
+    options.onEnvironment?.({
+      ...observedEnvironment,
+      poolerCount: String(poolerContainers.length),
+    });
     checkCancellation(options.signal);
     const fields: NativeContextFields = {
       runId,
@@ -808,7 +825,11 @@ async function observeRuntime(
   runtime: PostgresqlSystemRuntime,
   environment: NodeJS.ProcessEnv,
   runId: string,
+  poolerMode?: string,
 ): Promise<Record<string, string>> {
+  const pnpmVersion = (
+    await runtime.run("pnpm", ["--version"], environment)
+  ).stdout.trim();
   const docker = (
     await runtime.run(
       "docker",
@@ -816,13 +837,16 @@ async function observeRuntime(
       environment,
     )
   ).stdout.trim();
-  const pooler = (
-    await runtime.run(
-      "docker",
-      ["exec", `${runId}-session-pool`, "pgbouncer", "--version"],
-      environment,
-    )
-  ).stdout.trim();
+  const pooler =
+    poolerMode === undefined
+      ? ""
+      : (
+          await runtime.run(
+            "docker",
+            ["exec", `${runId}-${poolerMode}`, "pgbouncer", "--version"],
+            environment,
+          )
+        ).stdout.trim();
   const postgresImageId = (
     await runtime.run(
       "docker",
@@ -830,26 +854,33 @@ async function observeRuntime(
       environment,
     )
   ).stdout.trim();
-  const pgbouncerImageId = (
-    await runtime.run(
-      "docker",
-      ["inspect", "--format", "{{.Image}}", `${runId}-session-pool`],
-      environment,
-    )
-  ).stdout.trim();
+  const pgbouncerImageId =
+    poolerMode === undefined
+      ? ""
+      : (
+          await runtime.run(
+            "docker",
+            ["inspect", "--format", "{{.Image}}", `${runId}-${poolerMode}`],
+            environment,
+          )
+        ).stdout.trim();
   const poolerVersion = /^PgBouncer (\d+\.\d+\.\d+)/i.exec(pooler)?.[1];
   if (
+    !/^\d+\.\d+\.\d+$/.test(pnpmVersion) ||
     !/^\d+\.\d+\.\d+(?:[-+.][a-zA-Z0-9.]+)?$/.test(docker) ||
-    poolerVersion === undefined ||
+    (poolerMode !== undefined && poolerVersion === undefined) ||
     !/^sha256:[a-f0-9]{64}$/.test(postgresImageId) ||
-    !/^sha256:[a-f0-9]{64}$/.test(pgbouncerImageId)
+    (poolerMode !== undefined &&
+      !/^sha256:[a-f0-9]{64}$/.test(pgbouncerImageId))
   )
     throw new Error("Native runtime observation unavailable");
   return {
+    pnpmVersion,
     dockerVersion: docker,
-    pgbouncerVersion: poolerVersion,
     postgresImageId,
-    pgbouncerImageId,
+    ...(poolerVersion === undefined
+      ? {}
+      : { pgbouncerVersion: poolerVersion, pgbouncerImageId }),
   };
 }
 
@@ -1322,18 +1353,20 @@ function testFilesForContext(
   );
   return isRecord(value) && value.selection !== undefined
     ? Object.keys(
-        remoteScenarioInventory(validateRemoteSelection(value.selection)),
+        selectedScenarioInventory(validateNativeSelection(value.selection)),
       )
     : POSTGRESQL_SYSTEM_TEST_FILES;
 }
 
 export function validateSelectedPostgresqlReport(
   value: unknown,
-  selection: RemoteSelection,
+  selection: NativeSelection,
 ): void {
   if (isRecord(value) && "schemaVersion" in value)
     throw new Error("Expected a selected Vitest report");
-  const remaining = new Map(Object.entries(remoteScenarioInventory(selection)));
+  const remaining = new Map(
+    Object.entries(selectedScenarioInventory(selection)),
+  );
   for (const file of parsePassingReport(value)) {
     const path = [...remaining.keys()].find(
       (path) => file.name === path || file.name.endsWith(`/${path}`),
