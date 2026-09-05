@@ -29,6 +29,7 @@ export function validateTestReport(
   const invalid = () => new Error("Incomplete test report");
   if (
     !record(value) ||
+    "schemaVersion" in value ||
     value.success !== true ||
     !Array.isArray(value.testResults) ||
     value.testResults.length === 0

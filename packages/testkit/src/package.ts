@@ -1,9 +1,113 @@
-import { spawnSync } from "node:child_process";
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+
+export async function withPackagePreparationLock<Result>(
+  options: { readonly repositoryRoot: string; readonly signal?: AbortSignal },
+  prepare: () => Promise<Result>,
+): Promise<Result> {
+  const lock = join(
+    options.repositoryRoot,
+    ".artifacts/package-preparation.lock",
+  );
+  const owner = JSON.stringify({ token: randomUUID(), pid: process.pid });
+  const started = Date.now();
+  await mkdir(join(options.repositoryRoot, ".artifacts"), { recursive: true });
+  for (;;) {
+    options.signal?.throwIfAborted();
+    try {
+      const handle = await open(lock, "wx", 0o600);
+      try {
+        await handle.writeFile(owner);
+      } finally {
+        await handle.close();
+      }
+      break;
+    } catch (error: unknown) {
+      if (
+        !(error instanceof Error) ||
+        !("code" in error) ||
+        error.code !== "EEXIST"
+      )
+        throw error;
+    }
+    let contents: string;
+    try {
+      contents = await readFile(lock, "utf8");
+    } catch (error: unknown) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        continue;
+      throw error;
+    }
+    if (contents !== "") {
+      const holder: unknown = JSON.parse(contents);
+      if (
+        typeof holder !== "object" ||
+        holder === null ||
+        !("pid" in holder) ||
+        typeof holder.pid !== "number" ||
+        !Number.isSafeInteger(holder.pid) ||
+        holder.pid <= 0
+      )
+        throw new Error(
+          `Invalid package lock at ${lock}; inspect its owner before removing it`,
+        );
+      try {
+        process.kill(holder.pid, 0);
+      } catch (error: unknown) {
+        if (error instanceof Error && "code" in error && error.code === "ESRCH")
+          throw new Error(
+            `Stale package lock at ${lock}; inspect its owner before removing it`,
+          );
+        throw error;
+      }
+    }
+    if (Date.now() - started >= 120_000)
+      throw new Error(
+        `Package preparation lock wait exceeded 120 seconds: ${lock}`,
+      );
+    await delay(100, undefined, { signal: options.signal });
+  }
+  const outcome = await Promise.resolve()
+    .then(async () => {
+      options.signal?.throwIfAborted();
+      const result = await prepare();
+      options.signal?.throwIfAborted();
+      return result;
+    })
+    .then(
+      (value) => ({ kind: "passed", value }) as const,
+      (error: unknown) => ({ kind: "failed", error }) as const,
+    );
+  try {
+    if ((await readFile(lock, "utf8")) !== owner)
+      throw new Error("Package preparation lock ownership changed");
+    await unlink(lock);
+  } catch (error: unknown) {
+    if (outcome.kind === "failed")
+      throw new AggregateError(
+        [outcome.error, error],
+        `${String(outcome.error)}; package lock release failed`,
+      );
+    throw error;
+  }
+  if (outcome.kind === "failed") throw outcome.error;
+  return outcome.value;
+}
 
 export interface InstalledPackage {
   readonly archivePath: string;
@@ -20,6 +124,7 @@ export interface InstallPackageArchiveOptions {
   readonly packageManager?: string;
   readonly workspace?: string;
   readonly consumerRoot?: string;
+  readonly signal?: AbortSignal;
 }
 
 export interface PackAndInstallWorkspacePackageOptions {
@@ -28,6 +133,8 @@ export interface PackAndInstallWorkspacePackageOptions {
   readonly executable: string;
   readonly packageManager?: string;
   readonly workspaceRoot: string;
+  readonly repositoryRoot: string;
+  readonly signal?: AbortSignal;
 }
 
 export async function packAndInstallWorkspacePackage(
@@ -38,9 +145,12 @@ export async function packAndInstallWorkspacePackage(
   const consumerRoot = join(workspace, "consumer");
   await Promise.all([mkdir(archiveRoot), mkdir(consumerRoot)]);
   try {
-    run(PNPM, ["pack", "--pack-destination", archiveRoot], {
-      cwd: options.workspaceRoot,
-    });
+    await withPackagePreparationLock(options, () =>
+      run(PNPM, ["pack", "--pack-destination", archiveRoot], {
+        cwd: options.workspaceRoot,
+        signal: options.signal,
+      }),
+    );
     return await installPackageArchive({
       archivePath: join(archiveRoot, options.archiveFileName),
       consumerName: options.consumerName,
@@ -48,10 +158,10 @@ export async function packAndInstallWorkspacePackage(
       packageManager: options.packageManager,
       workspace,
       consumerRoot,
+      signal: options.signal,
     });
   } catch (error: unknown) {
-    await rm(workspace, { recursive: true, force: true });
-    throw error;
+    return removeFailedWorkspace(workspace, error);
   }
 }
 
@@ -78,9 +188,10 @@ export async function installPackageArchive(
         2,
       )}\n`,
     );
-    run(PNPM, ["install", "--ignore-scripts", "--offline", archivePath], {
+    await run(PNPM, ["install", "--ignore-scripts", "--offline", archivePath], {
       cwd: consumerRoot,
       environment: options.environment,
+      signal: options.signal,
     });
     const commandPath = join(
       consumerRoot,
@@ -98,9 +209,23 @@ export async function installPackageArchive(
       close: () => rm(workspace, { recursive: true, force: true }),
     };
   } catch (error: unknown) {
-    await rm(workspace, { recursive: true, force: true });
-    throw error;
+    return removeFailedWorkspace(workspace, error);
   }
+}
+
+async function removeFailedWorkspace(
+  workspace: string,
+  failure: unknown,
+): Promise<never> {
+  try {
+    await rm(workspace, { recursive: true, force: true });
+  } catch (error: unknown) {
+    throw new AggregateError(
+      [failure, error],
+      `${String(failure)}; package cleanup failed`,
+    );
+  }
+  throw failure;
 }
 
 export function providerFreeEnvironment(
@@ -142,23 +267,55 @@ export function runInstalledCommand(
   };
 }
 
-function run(
+async function run(
   executable: string,
   arguments_: readonly string[],
   options: {
     readonly cwd: string;
     readonly environment?: NodeJS.ProcessEnv;
+    readonly signal?: AbortSignal;
   },
-): void {
-  const result = spawnSync(executable, [...arguments_], {
-    cwd: options.cwd,
-    encoding: "utf8",
-    env: options.environment,
+): Promise<void> {
+  options.signal?.throwIfAborted();
+  await new Promise<void>((resolveRun, rejectRun) => {
+    const child = spawn(executable, [...arguments_], {
+      cwd: options.cwd,
+      env: options.environment,
+      detached: process.platform !== "win32",
+      stdio: "ignore",
+    });
+    const abort = () => {
+      if (child.pid === undefined) return;
+      try {
+        if (process.platform === "win32") {
+          const killed = spawnSync(
+            "taskkill",
+            ["/pid", String(child.pid), "/T", "/F"],
+            { stdio: "ignore", timeout: 5_000 },
+          );
+          if (killed.error !== undefined) throw killed.error;
+          if (killed.status !== 0 && child.exitCode === null)
+            throw new Error("Package process tree termination failed");
+        } else process.kill(-child.pid, "SIGKILL");
+      } catch (error: unknown) {
+        if (
+          !(error instanceof Error) ||
+          !("code" in error) ||
+          error.code !== "ESRCH"
+        )
+          rejectRun(error);
+      }
+    };
+    child.once("error", rejectRun);
+    child.once("close", (code) => {
+      options.signal?.removeEventListener("abort", abort);
+      if (options.signal?.aborted)
+        rejectRun(new Error("Package preparation cancelled"));
+      else if (code !== 0)
+        rejectRun(new Error(`Package subprocess exited ${code ?? 1}`));
+      else resolveRun();
+    });
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
   });
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(
-      `${executable} ${arguments_.join(" ")} exited ${result.status ?? 1}: ${result.stderr || result.stdout}`,
-    );
-  }
 }

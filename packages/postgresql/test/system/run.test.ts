@@ -1,12 +1,25 @@
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import {
+  installPackageArchive,
+  packAndInstallWorkspacePackage,
+  withPackagePreparationLock,
+} from "@keynes/testkit/package";
 
 import {
   manageChild,
@@ -169,6 +182,14 @@ function fakeRuntime(options?: {
 }
 
 describe("PostgreSQL system-test runner", () => {
+  it("rejects a selected schema with otherwise complete native assertions", () => {
+    expect(() =>
+      validatePostgresqlSystemReport({
+        ...passingVitestReport(),
+        schemaVersion: "keynes.deployment-test/v1",
+      }),
+    ).toThrow();
+  });
   it.each(["preflight", "final"])(
     "cancels pending %s Git verification before publishing success",
     async (phase) => {
@@ -1179,3 +1200,305 @@ function passingVitestReport(): {
     testResults,
   };
 }
+
+describe("checkout package preparation lock", () => {
+  it("gives two same-checkout pack attempts distinct immutable archives", async () => {
+    const root = await mkdtemp(join(tmpdir(), "keynes-pack-pair-"));
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "pnpm"),
+      `#!${process.execPath}\nconst fs = require('node:fs'); const path = require('node:path'); if (process.argv[2] === 'pack') { const active = path.join(process.cwd(), 'active'); fs.writeFileSync(active, '', { flag: 'wx' }); const archive = path.join(process.argv[4], 'example.tgz'); setTimeout(() => { fs.writeFileSync(archive, String(process.pid)); fs.unlinkSync(active); }, 40); } else { fs.mkdirSync('node_modules/.bin', { recursive: true }); fs.writeFileSync('node_modules/.bin/example', 'installed'); }`,
+      { mode: 0o700 },
+    );
+    vi.stubEnv("PATH", bin);
+    const options = {
+      repositoryRoot: root,
+      workspaceRoot: root,
+      archiveFileName: "example.tgz",
+      consumerName: "consumer",
+      executable: "example",
+    };
+    const results = await Promise.allSettled([
+      packAndInstallWorkspacePackage(options),
+      packAndInstallWorkspacePackage(options),
+    ]);
+    try {
+      const archives: string[] = [];
+      for (const result of results) {
+        if (result.status === "rejected") throw result.reason;
+        archives.push(result.value.archivePath);
+      }
+      expect(new Set(archives).size).toBe(2);
+      const [first, second] = results;
+      if (first?.status !== "fulfilled" || second?.status !== "fulfilled")
+        throw new Error("Both preparations must finish");
+      const retained = await readFile(second.value.archivePath);
+      await first.value.close();
+      expect(await readFile(second.value.archivePath)).toEqual(retained);
+    } finally {
+      for (const result of results)
+        if (result.status === "fulfilled") await result.value.close();
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves supplied archive bytes after installed consumer cleanup", async () => {
+    const root = await mkdtemp(join(tmpdir(), "keynes-supplied-archive-"));
+    const archivePath = join(root, "supplied.tgz");
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(archivePath, "immutable input");
+    await writeFile(
+      join(bin, "pnpm"),
+      `#!${process.execPath}\nconst fs = require('node:fs'); fs.mkdirSync('node_modules/.bin', { recursive: true }); fs.writeFileSync('node_modules/.bin/example', 'installed');`,
+      { mode: 0o700 },
+    );
+    try {
+      const installed = await installPackageArchive({
+        archivePath,
+        consumerName: "test-consumer",
+        executable: "example",
+        environment: { ...process.env, PATH: bin },
+      });
+      expect(installed.consumerRoot.startsWith(root)).toBe(false);
+      await installed.close();
+      expect(await readFile(archivePath, "utf8")).toBe("immutable input");
+      await expect(stat(installed.consumerRoot)).rejects.toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves a pack failure when temporary cleanup also fails", async () => {
+    const root = await mkdtemp(join(tmpdir(), "keynes-pack-cleanup-"));
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "pnpm"),
+      `#!${process.execPath}\nconst fs = require('node:fs'); const path = require('node:path'); const archive = process.argv[4]; fs.writeFileSync('archive-location', archive); fs.writeFileSync(path.join(archive, 'file'), 'bytes'); fs.chmodSync(archive, 0); process.exit(7);`,
+      { mode: 0o700 },
+    );
+    vi.stubEnv("PATH", bin);
+    try {
+      await expect(
+        packAndInstallWorkspacePackage({
+          repositoryRoot: root,
+          workspaceRoot: root,
+          archiveFileName: "unused.tgz",
+          consumerName: "consumer",
+          executable: "example",
+        }),
+      ).rejects.toThrow(/Package subprocess exited 7.*cleanup failed/);
+    } finally {
+      vi.unstubAllEnvs();
+      const archive = await readFile(join(root, "archive-location"), "utf8");
+      await chmod(archive, 0o700);
+      await rm(dirname(archive), { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels a running pack before releasing the lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "keynes-pack-cancel-"));
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "pnpm"),
+      `#!${process.execPath}\nconst fs = require('node:fs'); fs.writeFileSync('started', String(process.pid)); setInterval(() => {}, 1000);`,
+      { mode: 0o700 },
+    );
+    vi.stubEnv("PATH", bin);
+    const controller = new AbortController();
+    const pending = packAndInstallWorkspacePackage({
+      repositoryRoot: root,
+      workspaceRoot: root,
+      archiveFileName: "unused.tgz",
+      consumerName: "consumer",
+      executable: "example",
+      signal: controller.signal,
+    });
+    const outcome = pending.then(
+      () => "passed",
+      (error: unknown) => String(error),
+    );
+    try {
+      await vi.waitFor(async () =>
+        expect(await readFile(join(root, "started"), "utf8")).toMatch(/^\d+$/),
+      );
+      const pid = Number(await readFile(join(root, "started"), "utf8"));
+      controller.abort();
+      expect(await outcome).toMatch(/cancel/i);
+      expect(() => process.kill(pid, 0)).toThrow();
+      await expect(
+        readFile(join(root, ".artifacts/package-preparation.lock")),
+      ).rejects.toThrow();
+    } finally {
+      controller.abort();
+      await outcome;
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels a pack process tree even when a descendant ignores SIGTERM", async () => {
+    const root = await mkdtemp(join(tmpdir(), "keynes-pack-tree-"));
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "pnpm"),
+      `#!${process.execPath}\nconst { spawn } = require('node:child_process'); const child = spawn(process.execPath, ['-e', 'process.on("SIGTERM", () => {}); require("node:fs").writeFileSync("descendant", String(process.pid)); setInterval(() => {}, 1000)'], { stdio: 'ignore' }); setInterval(() => {}, 1000);`,
+      { mode: 0o700 },
+    );
+    vi.stubEnv("PATH", bin);
+    const controller = new AbortController();
+    const outcome = packAndInstallWorkspacePackage({
+      repositoryRoot: root,
+      workspaceRoot: root,
+      archiveFileName: "unused.tgz",
+      consumerName: "consumer",
+      executable: "example",
+      signal: controller.signal,
+    }).then(
+      () => "passed",
+      (error: unknown) => String(error),
+    );
+    let pid: number | undefined;
+    try {
+      await vi.waitFor(async () =>
+        expect(await readFile(join(root, "descendant"), "utf8")).toMatch(
+          /^\d+$/,
+        ),
+      );
+      pid = Number(await readFile(join(root, "descendant"), "utf8"));
+      controller.abort();
+      expect(await outcome).toMatch(/cancel/i);
+      await vi.waitFor(() => expect(() => process.kill(pid!, 0)).toThrow(), {
+        timeout: 1000,
+      });
+    } finally {
+      controller.abort();
+      await outcome;
+      if (pid !== undefined) {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (error: unknown) {
+          if (
+            !(error instanceof Error) ||
+            !("code" in error) ||
+            error.code !== "ESRCH"
+          )
+            throw error;
+        }
+      }
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not erase selected schema identity during report sanitization", () => {
+    expect(() =>
+      validatePostgresqlSystemReport(
+        sanitizeVitestReport({
+          ...passingVitestReport(),
+          schemaVersion: "keynes.deployment-test/v1",
+        }),
+      ),
+    ).toThrow();
+  });
+  it("serializes two preparations and releases before independent work", async () => {
+    const repositoryRoot = await mkdtemp(join(tmpdir(), "keynes-lock-"));
+    const entered = Promise.withResolvers<void>();
+    const finish = Promise.withResolvers<void>();
+    const calls: string[] = [];
+    const first = withPackagePreparationLock({ repositoryRoot }, async () => {
+      calls.push("first");
+      entered.resolve();
+      await finish.promise;
+    });
+    await entered.promise;
+    const second = withPackagePreparationLock({ repositoryRoot }, async () => {
+      calls.push("second");
+    });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(calls).toEqual(["first"]);
+    } finally {
+      finish.resolve();
+      await Promise.all([first, second]);
+      await rm(repositoryRoot, { recursive: true, force: true });
+    }
+    expect(calls).toEqual(["first", "second"]);
+  });
+
+  it.each(["cancel", "timeout", "stale"])(
+    "refuses %s without deleting another owner's lock",
+    async (kind) => {
+      const repositoryRoot = await mkdtemp(join(tmpdir(), "keynes-lock-"));
+      const lock = join(repositoryRoot, ".artifacts/package-preparation.lock");
+      await mkdir(join(repositoryRoot, ".artifacts"));
+      const owner = JSON.stringify({
+        token: "other-owner",
+        pid: kind === "stale" ? 2147483647 : process.pid,
+      });
+      await writeFile(lock, owner);
+      const controller = new AbortController();
+      let calls = 0;
+      if (kind === "timeout")
+        vi.spyOn(Date, "now").mockReturnValueOnce(0).mockReturnValue(120_001);
+      const pending = withPackagePreparationLock(
+        { repositoryRoot, signal: controller.signal },
+        async () => {
+          calls++;
+        },
+      );
+      if (kind === "cancel") controller.abort(new Error("cancelled"));
+      try {
+        await expect(pending).rejects.toThrow(
+          kind === "stale" ? /stale/i : kind === "timeout" ? /120/ : /cancel/i,
+        );
+        expect(calls).toBe(0);
+        expect(await readFile(lock, "utf8")).toBe(owner);
+      } finally {
+        vi.restoreAllMocks();
+        await rm(repositoryRoot, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("preserves the preparation error when lock ownership changes", async () => {
+    const repositoryRoot = await mkdtemp(join(tmpdir(), "keynes-lock-"));
+    const lock = join(repositoryRoot, ".artifacts/package-preparation.lock");
+    try {
+      await expect(
+        withPackagePreparationLock({ repositoryRoot }, async () => {
+          await writeFile(lock, "replacement-owner");
+          throw new Error("preparation failed");
+        }),
+      ).rejects.toThrow(/preparation failed.*lock/i);
+      expect(await readFile(lock, "utf8")).toBe("replacement-owner");
+    } finally {
+      await rm(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("releases its own lock after failure and permits a fresh preparation", async () => {
+    const repositoryRoot = await mkdtemp(join(tmpdir(), "keynes-lock-"));
+    try {
+      await expect(
+        withPackagePreparationLock({ repositoryRoot }, async () => {
+          throw new Error("preparation failed");
+        }),
+      ).rejects.toThrow("preparation failed");
+      await expect(
+        readFile(join(repositoryRoot, ".artifacts/package-preparation.lock")),
+      ).rejects.toThrow();
+      await expect(
+        withPackagePreparationLock({ repositoryRoot }, async () => "next"),
+      ).resolves.toBe("next");
+    } finally {
+      await rm(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+});

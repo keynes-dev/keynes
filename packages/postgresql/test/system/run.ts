@@ -15,7 +15,10 @@ import { parseArgs } from "node:util";
 
 import { Client } from "pg";
 
-import { type PackedPostgresqlPackage } from "../support/packed-package.ts";
+import {
+  packAndInstallPostgresql,
+  type PackedPostgresqlPackage,
+} from "../support/packed-package.ts";
 import {
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
@@ -784,6 +787,7 @@ export function sanitizeVitestReport(
 ): Record<string, unknown> {
   if (!isRecord(value)) return { errors: ["invalid report"] };
   const result: Record<string, unknown> = {};
+  if ("schemaVersion" in value) result.schemaVersion = "unexpected schema";
   for (const key of [
     "success",
     "numFailedTests",
@@ -893,7 +897,7 @@ interface VitestReport {
 export function validatePostgresqlSystemReport(
   value: unknown,
 ): asserts value is VitestReport {
-  if (!isRecord(value)) {
+  if (!isRecord(value) || "schemaVersion" in value) {
     throw new Error("Vitest did not produce a passing report");
   }
   if (
@@ -1124,7 +1128,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
   delay: (milliseconds) =>
     new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
   run: runCommand,
-  preparePackage: preparePackageChild,
+  preparePackage: (signal) => packAndInstallPostgresql(REPOSITORY_ROOT, signal),
   spawnTests: (environment) =>
     spawnTestChild(
       [
@@ -1295,47 +1299,6 @@ export function spawnTestChild(
       stdio: "ignore",
     }),
   );
-}
-
-async function preparePackageChild(
-  signal?: AbortSignal,
-): Promise<PackedPostgresqlPackage> {
-  const root = await mkdtemp(join(tmpdir(), "keynes-native-package-"));
-  try {
-    const helper = new URL("../support/packed-package.ts", import.meta.url)
-      .href;
-    const result = await runCommand(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        `
-      import { packAndInstallPostgresql } from ${JSON.stringify(helper)};
-      const packed = await packAndInstallPostgresql(${JSON.stringify(REPOSITORY_ROOT)});
-      process.stdout.write(JSON.stringify({archivePath: packed.archivePath, commandPath: packed.commandPath, consumerRoot: packed.consumerRoot}));
-    `,
-      ],
-      { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
-      signal,
-    );
-    const packed: unknown = JSON.parse(result.stdout);
-    if (
-      !isRecord(packed) ||
-      typeof packed.archivePath !== "string" ||
-      typeof packed.commandPath !== "string" ||
-      typeof packed.consumerRoot !== "string"
-    )
-      throw new Error("Package child produced invalid paths");
-    return {
-      archivePath: packed.archivePath,
-      commandPath: packed.commandPath,
-      consumerRoot: packed.consumerRoot,
-      close: () => rm(root, { recursive: true, force: true }),
-    };
-  } catch (error: unknown) {
-    await rm(root, { recursive: true, force: true });
-    throw error;
-  }
 }
 
 const executedPath = process.argv[1];
