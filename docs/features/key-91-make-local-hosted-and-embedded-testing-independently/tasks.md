@@ -74,12 +74,6 @@ does not endorse keeping the expanded design or qualify the reduced implementati
 
 SC-001/SC-003/SC-005/SC-006 are checked during the affected command phases;
 SC-002/SC-004 at T060; SC-007-SC-009 at T061 and the retained study.
-The assertion disposition map is an input to T055/T058, not a new test registry.
-FR-016/FR-017 and SC-009 additionally require the ownership/reuse walkthrough at
-T061. Small extractions for concrete duplication are allowed; future frameworks
-and speculative adapters are not.
 
-There are seven active tasks, all unchecked. Each phase ends with validation,
-ponytail-review, cumulative review, and a commit. Do not mark runtime tasks done
-for this documentation-only checkpoint. A capability requiring new infrastructure
-must be deferred and the plan reconciled before expanding implementation.
+There are seven active tasks, all unchecked.
+Follow the [plan's checkpoint rules](plan.md#delivery-and-guardrails).
