@@ -6,6 +6,12 @@
 
 **Input**: [KEY-91](https://linear.app/keynes/issue/KEY-91/make-local-hosted-and-embedded-testing-independently-runnable). Give contributors independent deployment checks while preserving one shared Budget contract and the complete SQLite/PostgreSQL behavior gate.
 
+## Clarifications
+
+### Session 2026-09-05
+
+- Q: Which connection modes should run when a contributor selects the remote PostgreSQL check without further options? → A: All supported connection modes. Narrower runs require an explicit selection.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Check Local behavior without services (Priority: P1)
@@ -35,6 +41,8 @@ A contributor checks remote access against an isolated native PostgreSQL environ
 1. **Given** remote prerequisites, **When** remote PostgreSQL is selected, **Then** the run starts only the database and connection dependencies needed by the selected remote coverage and does not execute Embedded-only scenarios.
 2. **Given** the supported remote connection modes, **When** their acceptance checks run, **Then** they exercise authenticated identity, tenant isolation, connection validation, and recovery through the supported installed consumer interface.
 3. **Given** a local remote PostgreSQL pass, **When** its evidence is read, **Then** the result identifies the local test environment and makes no claim of actual Hosted deployment acceptance.
+4. **Given** no narrower connection selection, **When** remote PostgreSQL is selected, **Then** all supported connection modes and their required dependencies run. An unavailable required mode prevents a passing result.
+5. **Given** an explicit narrower connection selection, **When** the run completes, **Then** it starts only dependencies needed by that selection and identifies the excluded modes. Its result cannot establish complete remote acceptance.
 
 ### User Story 3 - Check Embedded transactions independently (Priority: P1)
 
@@ -101,6 +109,7 @@ A deployment owner has a documented Hosted entrypoint whose prerequisites and ex
 - **FR-002**: A selected check MUST start only dependencies required by its declared coverage. Local MUST require no running external services; Embedded MUST require no remote pooler. Each run MUST isolate and clean up only its own fixtures.
 - **FR-003**: Deployment checks MUST reuse the canonical shared Budget scenarios. Existing full SQLite/PostgreSQL behavior acceptance MUST retain its complete shared and native-only inventory, comparison rules, failure handling, evidence validation, and required-check role.
 - **FR-004**: Local coverage MUST include shared behavior, lifecycle, queue ordering, client isolation, and close/drain behavior. Remote coverage MUST include identity, tenant isolation, supported connections, and recovery. Embedded coverage MUST include application permissions and atomic application/Keynes transactions, subject to the installation boundary in FR-006.
+- **FR-004a**: The default remote PostgreSQL check MUST execute all supported connection modes. Narrower coverage MUST require explicit selection and identify excluded modes. A missing required mode MUST prevent qualification of the default check; a narrower pass MUST NOT qualify complete remote acceptance.
 - **FR-005**: Consumer acceptance MUST exercise installed artifacts through supported public interfaces from outside the workspace's source dependencies. Fixture-only success MUST NOT establish installed-product acceptance.
 - **FR-006**: Embedded execution MUST distinguish fixture-level transaction checks from supported installed-profile acceptance. It MUST reuse the installation and composition behavior owned by KEY-10 and KEY-11. Missing prerequisites MUST leave that acceptance `NOT RUN`; explicitly requesting unavailable installed acceptance MUST return non-success.
 - **FR-007**: Each attempt MUST record its selection, expected and observed scenarios, exclusions, passed/failed/skipped/`NOT RUN` execution, source identity including local changes, relevant artifact digests and dependency/tool versions, environment, unique attempt identity, and cleanup outcome. Secrets MUST be excluded.
