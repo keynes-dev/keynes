@@ -157,6 +157,7 @@ export class PostgresDatabase {
   readonly #databaseName: string;
   readonly #databaseUrl: string;
   readonly #applicationPools = new Set<Pool>();
+  readonly #clientEnds = new Set<Promise<void>>();
   readonly #createdRoles: Set<string>;
   readonly #transactions = new Set<OwnedTransaction>();
   #closePromise: Promise<void> | undefined;
@@ -169,6 +170,7 @@ export class PostgresDatabase {
     createdRoles: readonly string[] = [],
   ) {
     this.#pool = pool;
+    this.#trackClients(pool);
     this.database = new PostgresPoolDatabase(pool);
     this.#administratorUrl = administratorUrl;
     this.#databaseName = databaseName;
@@ -217,6 +219,7 @@ export class PostgresDatabase {
     url.username = role;
     url.password = password;
     const pool = new Pool({ connectionString: url.toString() });
+    this.#trackClients(pool);
     this.#applicationPools.add(pool);
     try {
       return await this.#beginTransaction(pool);
@@ -271,6 +274,16 @@ export class PostgresDatabase {
     return (this.#closePromise ??= this.#close());
   }
 
+  #trackClients(pool: Pool): void {
+    pool.on("connect", (client) => {
+      const ended = new Promise<void>((resolve) => {
+        client.once("end", () => resolve());
+      });
+      this.#clientEnds.add(ended);
+      void ended.then(() => this.#clientEnds.delete(ended));
+    });
+  }
+
   async #close(): Promise<void> {
     const transactionResults = await Promise.allSettled(
       [...this.#transactions].map((transaction) => transaction.close()),
@@ -281,6 +294,8 @@ export class PostgresDatabase {
 
     await this.#pool.end();
     await Promise.all([...this.#applicationPools].map((pool) => pool.end()));
+    // Pool.end can resolve before its clients' sockets close.
+    await Promise.all(this.#clientEnds);
 
     const administrator = new Client({
       connectionString: this.#administratorUrl,

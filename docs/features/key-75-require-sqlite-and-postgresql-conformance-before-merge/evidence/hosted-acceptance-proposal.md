@@ -1,13 +1,17 @@
 # Hosted acceptance proposal
 
-Status: prepared, not authorized or executed. No remote branch, PR, policy, or
-Linear mutation is part of this local record.
+Status: PR #36 now contains user-published commit `810e5a98`. Its repository and
+conformance jobs passed in run `33943777211`. The remaining disposable hosted
+demonstrations and policy changes were authorized by the user on 2026-09-05.
+Execution and final verification are in progress.
+No policy or Linear mutation has occurred.
 
 ## Publication and demonstrations
 
-1. Commit the reviewed implementation and local evidence on the existing KEY-75
-   branch, push it, and update draft PR #36 using the repository PR template.
-   Run its real PR checks and download the complete conformance artifact.
+1. Publish the locally verified socket-drain repair and completed local evidence
+   on the existing KEY-75 branch. Update PR #36 using the repository template,
+   run its real checks, and download and verify the new conformance artifact.
+   Earlier hosted success at merge `915fb0be` does not qualify this later repair.
 2. Create three disposable branches and ready-for-review demonstration PRs against
    `main`, each based on the implementation. Use one deliberate native assertion
    failure, one empty artifact upload target, and one unchanged implementation
@@ -23,6 +27,15 @@ Linear mutation is part of this local record.
 5. Close the three demonstration PRs and delete only their newly created remote
    branches after durable evidence is retained. Keep #36 open and KEY-75 unaccepted
    until the required acceptance conditions are satisfied.
+
+Prepared inputs and the fresh locally executed native-failure result are in
+[repaired-native-failure-and-demo-inputs.tar.gz](repaired-native-failure-and-demo-inputs.tar.gz),
+SHA-256 `c319d89f41193100afd407f4177d9c616a014c9f5524a25360d87d3f20ea318d`.
+They are based on clean verified repair snapshot `63eaec5`: native failure
+`3af80e6f`, upload failure `f768de4c`, and unchanged cancellation `63eaec5`.
+The archive includes exact patches, proposed branch names, expected outcomes, and
+source identities. No demonstration branch has been published. Rebase these
+inputs onto the published repair if its commit differs before execution.
 
 ## Proposed main policy
 
@@ -50,4 +63,6 @@ T025 says: "After authorization, demonstrate hosted success, native failure with
 SQLite passing, failed upload via a disposable empty upload target, and hosted
 cancellation" and then configure the observed required check. T021 also requires
 authorized publication. These tasks explicitly defer remote execution and policy
-mutation; local implementation and disposable verification are complete first.
+mutation. Local verification is complete on the repaired snapshot, including
+overlap, ordinary failure, and SIGTERM cleanup. The independent review found no
+further changes. T025 and final acceptance remain pending execution and verified results.
