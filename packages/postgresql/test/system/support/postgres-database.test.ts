@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { install } from "../../../src/installer/install.js";
 import { runPackedPostgresql } from "../../support/packed-package.js";
+import { FIXTURE_INSTALLATION } from "./test-keynes.js";
 import { openInstalledPostgresDatabase } from "./postgres-database.js";
 
 const query = vi.hoisted(() =>
@@ -26,35 +27,14 @@ vi.mock("../../support/packed-package.js", () => ({
   runPackedPostgresql: vi.fn(),
 }));
 
-const fixture = {
-  tenantId: "tenant",
-  principals: [
-    {
-      principalId: "principal",
-      permissions: [
-        "define_resource_type",
-        "create_root_budget",
-        "request_budget",
-        "settle_budget",
-        "read_budget",
-      ],
-    },
-  ],
-} as const;
-
 afterEach(() => vi.resetAllMocks());
 
 it("removes prepared state when source installation fails", async () => {
   vi.mocked(install).mockRejectedValueOnce(new Error("installation failed"));
-  vi.mocked(runPackedPostgresql).mockReturnValue({
-    status: 0,
-    stderr: "",
-    stdout: '{"ok":true,"outcome":"installed"}',
-  });
   await expect(
     openInstalledPostgresDatabase(
       "postgresql://postgres:fixture@127.0.0.1:5432/postgres",
-      fixture,
+      FIXTURE_INSTALLATION,
       { kind: "source" },
     ),
   ).rejects.toThrow("installation failed");
@@ -82,7 +62,7 @@ it.each([
       });
     const owner = await openInstalledPostgresDatabase(
       "postgresql://postgres:fixture@127.0.0.1:5432/postgres",
-      fixture,
+      FIXTURE_INSTALLATION,
       installation,
     );
     await owner.close();

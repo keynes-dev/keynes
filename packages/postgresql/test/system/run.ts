@@ -23,7 +23,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parseArgs } from "node:util";
+import { isDeepStrictEqual, parseArgs } from "node:util";
 
 import { Client } from "pg";
 
@@ -988,16 +988,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function sameStrings(
-  actual: readonly string[],
-  expected: readonly string[],
-): boolean {
-  return (
-    actual.length === expected.length &&
-    actual.every((value, index) => value === expected[index])
-  );
-}
-
 function sha256(value: Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -1127,7 +1117,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
     const files = testFilesForContext(environment);
     if (selected)
       process.stdout.write(
-        `Selected native feedback ${JSON.stringify(context.selection)}: ${files.join(", ")}\nFixture-provided permissions. NOT RUN: installed SDK/TLS, installed Embedded, Hosted and full paired acceptance.\n`,
+        `Selected native feedback ${JSON.stringify(context.selection)}: ${files.join(", ")}\nSource tests with source PostgreSQL installation and fixture-provided permissions. NOT RUN: installed SDK/TLS, installed Embedded, Hosted and full paired acceptance.\n`,
       );
     return spawnTestChild(
       [
@@ -1294,7 +1284,7 @@ function validateNativeCoverage(
       path === undefined ||
       names === undefined ||
       (path !== POSTGRESQL_BUDGET_AGGREGATE &&
-        !sameStrings(file.assertions, [...names].sort()))
+        !isDeepStrictEqual(file.assertions, [...names].sort()))
     )
       throw new Error("Incomplete native coverage");
     remaining.delete(path);

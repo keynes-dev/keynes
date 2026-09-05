@@ -119,8 +119,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
   });
 
   it("rechecks the exact graph read-only", async () => {
-    const client = new Client({ connectionString: target.databaseUrl });
-    await client.connect();
+    const client = await connect(target.databaseUrl);
     try {
       const before = await installationState(client);
       const querySpy = vi.spyOn(client, "query");

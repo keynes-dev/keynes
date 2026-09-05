@@ -1,7 +1,7 @@
 # Validation guide
 
-This is the implementation validation procedure. The planning replacement does not
-run these runtime gates or claim a code-size or speed improvement.
+This procedure validates the implemented Docker fallback. Read [acceptance.md](acceptance.md)
+for exact revisions, measured results and unexecuted lanes.
 
 ## Select and record the baseline
 
@@ -60,9 +60,10 @@ daemon configuration or library setup.
 
 ## Rejected pilot environment requirements
 
-Use an explicitly selected, isolated Docker environment for this feature. Document
-the environment used and its operator setup; tests must not rewrite or restart a
-developer's general daemon. For that controlled Engine 28+ daemon, configure both:
+The rejected Testcontainers pilot required an explicitly selected, isolated
+Engine 28+ environment with both settings below. These are historical pilot
+requirements, not setup instructions for the chosen Docker runner. The pilot
+did not rewrite or restart the developer's daemon.
 
 ```json
 {
@@ -107,8 +108,7 @@ pnpm test:pr
 pnpm format
 ```
 
-The PR suite must stay provider-free and must not acquire Docker resources through
-the newly registered native global setup.
+The PR suite must stay provider-free and must not acquire Docker resources.
 
 ## Feedback commands
 

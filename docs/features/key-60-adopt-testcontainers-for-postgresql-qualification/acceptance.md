@@ -207,6 +207,33 @@ remain open. T015 is N/A. T011-T013 are an attempted pilot rejected before resou
 acquisition, not completed Testcontainers qualification. Ponytail review of the
 retained checkpoint: Lean already. Ship.
 
+## Checkpoint 4: whole-result review before final qualification
+
+The retained implementation has one Docker service lifecycle, one common role/database
+preparation helper with three real callers, and a closed source/packed choice.
+Ordinary product tests use the existing fixture APIs. No worker, subclass, backend
+registry, new evidence format, dependency or daemon setup remains.
+
+Whole-result count: **41,912 physical, 39,139 nonblank lines** across the union of
+166 paths. Relative to baseline this removes 30 physical and 16 nonblank lines,
+including the new fixture regressions. This is a small total reduction. The main
+runtime reduction is eliminating feedback packaging and repeated installation.
+
+The final review consolidated repeated successful runner executions into one test
+that still checks record schema, archive identity, complete matching reports,
+observed versions/images, private-content exclusion and new parent creation.
+Existing-output tests now cover the record and both sidecars in one table. The
+schema-sanitizer rejection moved beside its existing schema-refusal test. These
+changes remove duplicate test setup, not product proof. The complete native product
+inventory is unchanged. The hand-written string-array comparator now uses Node's
+`isDeepStrictEqual`; retained missing/duplicate/renamed coverage tests passed.
+
+The new fixture regressions reuse `FIXTURE_INSTALLATION` instead of duplicating
+principal definitions. Whole-result Ponytail review: Lean already. Ship.
+`pnpm test:pr`, `pnpm format` and the focused runner/paired/fixture checks passed
+before the clean candidate checkpoint. Exact archive, paired and timing acceptance
+follow on that committed candidate; they are not inferred from this review.
+
 ## Remaining acceptance
 
 Checkpoints 1-3 are complete with the documented Docker fallback.
