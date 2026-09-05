@@ -21,7 +21,7 @@
 
 - [x] T006 [US1] Exercise a real isolated preparation flow in .specify/tests/feature-identity.test.mjs without phase bindings (FR-001, FR-002, FR-006).
 - [x] T007 [US1] Run preparation, skill validation, formatting, repository checks, and pnpm test:pr; record evidence/verification.md (FR-004, FR-005, FR-006).
-- [ ] T008 [US1] Review the diff and link the specification and PR from Linear (FR-003, FR-007).
+- [x] T008 [US1] Review the diff and link the specification and PR from Linear (FR-003, FR-007).
 
 **Checkpoint**: The feature is independently reviewable with exact evidence.
 

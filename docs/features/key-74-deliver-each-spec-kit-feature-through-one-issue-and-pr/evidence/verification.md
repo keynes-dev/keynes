@@ -62,3 +62,17 @@ cross-artifact review are the evidence above.
 
 No feature is merged or accepted merely because a specification draft exists.
 Runtime implementation for KEY-75, KEY-85, and KEY-86 has not started.
+
+## Committed-source verification and delivery
+
+The complete pnpm test:pr gate was rerun and passed at committed source
+`8dc06dbb62e0010b7531f4b2a22942e8f0d67cee` with a clean worktree. The following
+commit only completes this task record and records delivery links.
+
+- Workflow implementation draft: [PR #39](https://github.com/keynes-dev/keynes/pull/39).
+- Independent specifications: [KEY-75 / PR #36](https://github.com/keynes-dev/keynes/pull/36), [KEY-85 / PR #37](https://github.com/keynes-dev/keynes/pull/37), and [KEY-86 / PR #38](https://github.com/keynes-dev/keynes/pull/38).
+- Each of those three specification PRs passed GitHub's Repository and tests check at its own head. These passes validate specification changes, not their planned runtime behavior.
+- Linear links back to each existing specification and PR. No feature was marked Done, merged, or granted runtime acceptance by this delivery step.
+
+The final PR head's CI remains available through GitHub. This record does not
+predict or claim a future run result.
