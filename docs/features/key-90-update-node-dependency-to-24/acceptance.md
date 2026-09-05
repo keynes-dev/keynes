@@ -1,10 +1,12 @@
 # KEY-90 local verification
 
-Implementation is local and uncommitted on `main`, based on
-`6dba2517580da18a088a22f0b05c95bdf594ea0a`. See
-[source file hashes](evidence/source-files.json) for the changed implementation.
-These results describe that working tree, not the unchanged base commit.
-Artifacts are local-only; no Linear artifact links were published.
+Implementation commit `837b0003d0c07b8166163db58d414b7d18151a50` was
+reconciled with `origin/main` in
+`f142785bce9b3e52b92f3bbee868c734efb65443`. See
+[source file hashes](evidence/source-files.json) for the reconciled implementation.
+The retained package-consumer records below were produced from the earlier dirty
+working tree based on `6dba2517580da18a088a22f0b05c95bdf594ea0a` and do not
+qualify the reconciled revision.
 
 ## Results
 
@@ -14,6 +16,7 @@ Artifacts are local-only; no Linear artifact links were published.
 | `pnpm install --frozen-lockfile`                                                                                | 25.4.0                  | PASS, pnpm 11.21.0, engine enforcement enabled                                       |
 | `pnpm exec vitest run scripts/run-conformance.test.ts packages/sdk/test/package/qualify.test.ts --maxWorkers=1` | 25.4.0                  | PASS, 88 tests                                                                       |
 | `pnpm test:pr`                                                                                                  | 25.4.0                  | PASS, provider-free tests, generation, formatting, lint, types, and boundaries       |
+| `pnpm test:pr` at `f142785bce9b3e52b92f3bbee868c734efb65443`                                                    | 26.5.0                  | PASS after reconciliation with PR #44                                                |
 | `pnpm build:sdk` and `pnpm pack:sdk`                                                                            | 24.11.0                 | PASS                                                                                 |
 | Clean consumer of the same packed archive                                                                       | 24.11.0, 25.4.0, 26.5.0 | PASS on macOS arm64                                                                  |
 
@@ -45,10 +48,10 @@ that it is the latest release available upstream.
 Native PostgreSQL conformance, external database qualification, and performance
 measurement are **NOT RUN**. No Budget or database behavior changed. Existing
 provider-free regression and consumer tests do not replace those independent lanes.
-No source revision was committed or published, so full hosted acceptance and issue
-completion remain outstanding.
+The reconciled source revision is committed but not yet published. Full hosted
+acceptance and issue completion remain outstanding.
 
 Spec, plan, and tasks were checked together before implementation: all four
 requirements had task coverage, with no unresolved ambiguity or conflicting
-acceptance criteria. The requirements checklist passed. The user explicitly
-requested implementation on `main` instead of the usual issue branch.
+acceptance criteria. The requirements checklist passed. Delivery now uses
+Linear's exact feature branch.

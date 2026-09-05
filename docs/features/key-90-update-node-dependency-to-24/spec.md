@@ -1,6 +1,6 @@
 # Feature Specification: KEY-90 Update node dependency to 24+
 
-**Feature Branch**: `main`, explicitly requested by the user.
+**Feature Branch**: `key-90-update-node-dependency-to-24`
 
 **Created**: 2026-09-05
 

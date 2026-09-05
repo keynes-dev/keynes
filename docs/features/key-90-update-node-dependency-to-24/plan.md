@@ -1,6 +1,6 @@
 # Implementation Plan: KEY-90 Update node dependency to 24+
 
-**Branch**: `main` by user request | **Date**: 2026-09-05 | **Spec**: [spec.md](spec.md)
+**Branch**: `key-90-update-node-dependency-to-24` | **Date**: 2026-09-05 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
@@ -12,7 +12,7 @@ TypeScript 7, Node.js >=24, pnpm 11.21.0, Vitest 4.1.11. No dependencies added. 
 
 ## Constitution Check
 
-Before and after design: pass. No Budget, Policy, persistence, transaction, replay, or authorization changes. Existing test fixtures will first demonstrate the version-check failure. Source tests cannot establish hosted archive qualification. Record NOT RUN for unavailable hosted lanes. The user explicitly overrides feature-branch creation by asking for work on main. No generated Spec Kit files are modified.
+Before and after design: pass. No Budget, Policy, persistence, transaction, replay, or authorization changes. Existing test fixtures will first demonstrate the version-check failure. Source tests cannot establish hosted archive qualification. Record NOT RUN for unavailable hosted lanes. Delivery uses Linear's exact feature branch. No generated Spec Kit files are modified.
 
 ## Project Structure
 
