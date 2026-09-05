@@ -199,6 +199,27 @@ implementations require a new availability review before installed acceptance ca
 be enabled. Output reuse, source identity, report coverage, evidence hashes, and
 cleanup follow the native selected-run rules.
 
+### Hosted acceptance boundary
+
+```sh
+pnpm test:hosted -- --output .artifacts/key-91/hosted/<new-attempt>
+```
+
+The SDK-owned command records `NOT RUN: supported Hosted product runner unavailable`
+and exits 1. Only `--output` and standalone `--help` are accepted. It does not
+inspect service credentials, qualify a package, provision resources, connect to a
+database, or run the authorized-database walkthrough. Setting ambient credentials
+cannot enable it. Evidence contains source digests and the explicit refusal;
+source changes or failed snapshot capture retain a safe failed result. No target
+URLs or raw errors enter the manifest, and existing output cannot be overwritten.
+
+A future Hosted product owner must supply the environment and deployed artifact
+identity, supported connection modes, provisioning owner and isolated test scope,
+approved credential delivery, ordinary consumer credentials, verified TLS,
+explicit target and mutation/spend authorization, and cleanup ownership for
+success, failure, cancellation, and runner loss. Until those values and their
+tests exist, this command validates refusal behavior only.
+
 ### SQLite and PostgreSQL behavior tests
 
 The PR job `SQLite and PostgreSQL behavior tests` runs independently of

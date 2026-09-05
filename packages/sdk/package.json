@@ -28,7 +28,8 @@
     "test:package": "pnpm test:package:unit && node test/package/qualify.ts",
     "test:performance": "vitest run test/performance --maxWorkers=1",
     "measure:package": "node test/performance/measure.ts",
-    "test:local": "node test/system/run-local.ts"
+    "test:local": "node test/system/run-local.ts",
+    "test:hosted": "node test/system/run-hosted.ts"
   },
   "dependencies": {
     "@pgsql/types": "18.0.0",
