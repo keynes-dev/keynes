@@ -98,15 +98,46 @@ Fetch the selected issue's live identity and blocker relationships before creati
 
 Define an observable done condition, read the owning design and code, and run tests before corresponding behavioral changes. Keep detailed tasks in Git. Commit scoped changes and open a draft PR once the diff is meaningful. Use the exact Linear issue title as `KEY-N Title`; link the parent with a status-neutral relationship, the owning sub-issue, prerequisite PR, design, and exact verification. Keep issue associations status-neutral while acceptance is pending; explicitly complete the sub-issue after merge and acceptance.
 
-Each feature may have independent PRs and several short stacks. Ready a PR after its checkpoint passes, then merge with approval and required checks. Merge approved increments independently. Atomic groups require an explicit reason and selection; never default to a whole-feature merge. The parent remains open until feature acceptance passes.
+Each feature may have independent PRs and several short stacks. Ready an independent PR after its checkpoint passes, then merge with approval and required checks. For dependent changes that cannot land separately, use the atomic-group procedure below. The parent remains open until feature acceptance passes.
 
-After a prerequisite merges into main, `restack KEY-N --merged-pr NUMBER` rebases its direct dependent using the prerequisite's exact head SHA, pushes with a lease, and retargets its PR to main. Inspect the dry run first. This avoids replaying squashed prerequisite commits. Automatic retargeting to main is supported: the command verifies the prerequisite SHA is an ancestor and that local and remote child heads match the inspected PR before rebasing. Restack remaining descendants bottom-up with `gh stack rebase --upstack`, push with leases, and inspect all bases and diffs. Stop on conflicts. A corrected lower branch requires the same descendant verification.
+After an independently mergeable prerequisite merges into main, `restack KEY-N --merged-pr NUMBER` rebases its direct dependent using the prerequisite's exact head SHA, pushes with a lease, and retargets its PR to main. Inspect the dry run first. This avoids replaying squashed prerequisite commits. Automatic retargeting to main is supported: the command verifies the prerequisite SHA is an ancestor and that local and remote child heads match the inspected PR before rebasing. Restack remaining descendants bottom-up with `gh stack rebase --upstack`, push with leases, and inspect all bases and diffs. Stop on conflicts. A corrected lower branch requires the same descendant verification.
 
 Synchronize current documents and immutable evidence links. Report what ran, what did not, and which acceptance obligation remains. Do not automatically start the next issue.
 
 Keep application effects under application control. Preserve one source of truth for each Budget's state, Policy decisions, accounting, idempotency, and recovery. When a change touches those boundaries, use `$architect` before implementation and `$interrogate` before acceptance.
 
 For a coherent diff that adds dependencies, compatibility machinery, wrappers, or several new layers, run `$ponytail-review` before `$interrogate`. Apply accepted simplifications, repeat the focused verification, and then run the broader review. Keep `$ponytail-audit` outside feature delivery as a standalone maintenance review. Do not use `$ponytail ultra` inside an approved feature because it may challenge requirements that Spec Kit already owns.
+
+## Review and land an atomic group
+
+Use an atomic group only when a selected contract or behavior change makes its consumers incompatible until other selected issues are implemented. A shared file or a convenient review order is not sufficient. Atomic means one passing change reaches main; it does not mean several GitHub PR merges happen simultaneously.
+
+### Select the boundary
+
+Record the technical reason, explicitly selected member keys, bottom issue and PR, combined acceptance commands, and excluded work in the feature's existing `tasks.md`. Link that section from the affected Linear issues and PRs. Membership defines a durable acceptance boundary, not a second status or dependency ledger. Keep live blockers and lifecycle state in Linear. Do not add reverse blockers from the contract to its consumers to represent joint landing.
+
+If the smallest complete group is unknown, record the unresolved boundary and affected task owners. Do not treat that candidate list as selected membership or permission to implement every issue. Obtain explicit selection before consolidation, and never default to the whole feature. Starting each member still requires an explicitly selected issue and inspected prerequisite code.
+
+### Build and review the stack
+
+Use `resolve KEY-N --json`, then inspect `start KEY-N --base-issue KEY-M --dry-run` before executing it. These are subcommands of `node .specify/scripts/issue-stack.mjs`. Verify live Linear identities, exact branch names, and implemented prerequisites first. Keep the Linear blocker while the prerequisite is unmerged. Do not revive the parent planning branch.
+
+Each PR targets its prerequisite branch and retains its own exact `KEY-N Title`. Record its focused checks, inherited failures, and owning tasks. Review the scoped diff even when the full repository check fails. Keep that PR draft until its acceptance checks pass. Never suppress inherited failures, remove tests, add casts, or weaken CI to make a layer appear mergeable.
+
+The combined tip must pass `pnpm test:pr` and all backend, package, or other checks required by the selected group's scope. Focused checks do not replace this gate. A passing tip does not qualify earlier revisions.
+
+### Consolidate without changing main
+
+This is a manual procedure; `issue-stack.mjs` has no atomic landing subcommand. Setup and implementation do not authorize consolidation or merging. Obtain approval for the selected group and inspected revisions before these branch mutations.
+
+1. Freeze the selected branches. Record member keys, PR URLs, base and head SHAs, reviewed diffs, approvals, and combined test evidence in the feature's acceptance evidence. Preserve that evidence before changing PR bases or collapsing diffs. Verify the group is one ancestry chain with no unselected work or outside descendants affected by branch movement.
+2. Fetch the authoritative remote and compare every local and remote head with the frozen record. Verify the combined tip contains the current main baseline. If the base or a member changed, rebuild the stack and repeat review and checks before proceeding.
+3. Starting at the top, fast-forward each prerequisite branch to the approved combined descendant commit. Use `git merge --ff-only <verified-descendant-sha>` on the exact prerequisite branch, then a normal push to the verified remote and branch. Read back the remote SHA after each push. Never force-push, squash, or rebase during consolidation. Stop on divergence, unexpected commits, or a branch-rule rejection; do not bypass protection. Main remains untouched.
+4. The bottom PR now contains the whole group. Preserve its bottom issue's exact title and source branch for identity checks. Rewrite its description around the combined behavior, selected members, reviewed PR links and SHAs, acceptance commands, and remaining limits. Other member PRs may now have empty diffs; preserve their review records and defer closing them until the landing succeeds.
+5. Rerun required checks on the bottom PR against main and verify the tested source SHA and current base. Require fresh approval of the combined diff and merge that one passing PR into main. A changed head or base invalidates the landing check. Do not bypass required checks or infer success from the earlier tip run.
+6. Verify the landed content and acceptance evidence. Close any still-open member PRs as incorporated, linking the bottom landing PR. Explicitly mark each Linear issue Done only after its work reached main and its acceptance passed. The parent remains open for its remaining obligations. Preserve branches until incorporated changes and any remaining dependents are accounted for.
+
+Do not call `restack --merged-pr` for a child consolidated into a feature branch or a PR merely closed as incorporated. That helper requires an actual prerequisite merge into main. For descendants outside the group, inspect their exact ancestry and the final landing method before choosing a rebase boundary. Do not replay already incorporated commits or assume the ordinary helper applies after consolidation.
 
 ## Use parallel work carefully
 

@@ -329,13 +329,14 @@ describe("contract source", () => {
   it("rejects operation metadata drift", () => {
     const root = copyContractPackage();
     const path = join(root, "contract.json");
-    writeFileSync(
-      path,
-      readFileSync(path, "utf8").replace(
-        `"permissions": [\n        "read_budget"\n      ]`,
-        `"permissions": [\n        "settle_budget"\n      ]`,
-      ),
+    const source = structuredClone(contractSource);
+    const operation = source.operations.find(
+      ({ method }) => method === "inspectBudget",
     );
+    expect(operation).toBeDefined();
+    if (!operation) throw new Error("Missing inspectBudget operation");
+    operation.permissions = ["settle_budget"];
+    writeFileSync(path, JSON.stringify(source));
     expect(() => loadContract(root)).toThrow(
       /operation metadata mismatch.*permissions/i,
     );
@@ -344,13 +345,14 @@ describe("contract source", () => {
   it("rejects an empty operation permission list", () => {
     const root = copyContractPackage();
     const path = join(root, "contract.json");
-    writeFileSync(
-      path,
-      readFileSync(path, "utf8").replace(
-        `"permissions": [\n        "read_budget"\n      ]`,
-        '"permissions": []',
-      ),
+    const source = structuredClone(contractSource);
+    const operation = source.operations.find(
+      ({ method }) => method === "inspectBudget",
     );
+    expect(operation).toBeDefined();
+    if (!operation) throw new Error("Missing inspectBudget operation");
+    operation.permissions = [];
+    writeFileSync(path, JSON.stringify(source));
     expect(() => loadContract(root)).toThrow(/permissions.*non-empty/i);
   });
 
@@ -379,15 +381,15 @@ describe("contract source", () => {
     {
       name: "duplicate enumeration members",
       file: "schema.json",
-      search: '"consumable",\n            "reusable"',
-      replacement: '"consumable",\n            "consumable"',
+      search: /"consumable",\s*"reusable"/,
+      replacement: '"consumable", "consumable"',
       error: /unstable enumeration/i,
     },
   ])("rejects $name", ({ file, search, replacement, error }) => {
     const root = copyContractPackage();
     const path = join(root, file);
     const source = readFileSync(path, "utf8");
-    expect(source).toContain(search);
+    expect(source).toMatch(search);
     writeFileSync(path, source.replace(search, replacement));
     expect(() => loadContract(root)).toThrow(error);
   });

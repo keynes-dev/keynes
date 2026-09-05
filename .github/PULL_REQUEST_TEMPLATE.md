@@ -19,6 +19,12 @@ Why does this belong in the current feature or maintenance change?
 **Prerequisite PR:** <!-- Link the actual unmerged dependency, or state that this PR targets main independently. -->
 **Acceptance checkpoint:** <!-- Copy the review boundary from tasks.md. -->
 
+<!-- For an explicitly selected atomic group, link its tasks.md section and bottom
+landing PR. Distinguish this layer's focused checks from combined acceptance.
+The bottom PR keeps its exact Linear title and branch, but describes all selected
+members and links their reviewed PRs and SHAs. Consolidation is not completion.
+Omit this note for independently mergeable work. -->
+
 ## What changed
 
 <!--

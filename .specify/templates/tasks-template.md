@@ -31,3 +31,5 @@
 ## Execution notes
 
 Published headings use `## KEY-N Exact Linear title` and retain the same publication ID. Record the exact returned issue link, branch, and hidden `linear-issue-id` UUID. Never rename publication IDs after a title change or reorder. Published blockers and ordering live in Linear. Keep behavioral tests before implementation, meaningful independent increments, and final feature acceptance explicit. Publication does not approve the design.
+
+When selected changes cannot land independently, add an atomic-group section here using `docs/workflow.md#review-and-land-an-atomic-group`. Record the incompatibility reason, explicitly selected member keys, bottom issue and PR, combined acceptance commands, and exclusions. If the boundary is unresolved, record candidate owners and the missing decision instead of inventing membership. This is an acceptance boundary, not a status or execution-order ledger.

@@ -14,6 +14,30 @@
 - Issue-focused scenario selection is development evidence only. Final acceptance requires the complete identical shared inventory on both real backends, with no skipped required scenario. Preserve applicable private regressions and replace obsolete expectations explicitly.
 - KEY-5 is the feature container and remains open through final acceptance. Select one sub-issue explicitly and fetch its live blockers before starting its exact Linear branch. The migration preview has not changed existing issue scopes or blocker relations. This document does not authorize hosted dispatch or paid work.
 
+## Atomic landing boundary for the command migration
+
+Use [the atomic-group procedure](../../workflow.md#review-and-land-an-atomic-group) to review dependent changes separately and land one passing combined PR into main. The user selected this procedure on 2026-09-04. Exact group membership remains unresolved; the owners below are an impact map, not selected implementation work or execution order.
+
+**Reason**: KEY-71 replaces the active generated commands, inputs, results, and PostgreSQL target metadata before existing consumers implement them. Generator checks alone cannot establish a mergeable runtime revision. Keep one active command contract and migrate its consumers in the review stack.
+
+**Bottom issue and draft PR**: [KEY-71](https://linear.app/keynes/issue/KEY-71/generate-the-shared-budget-command-contract), [PR #35](https://github.com/keynes-dev/keynes/pull/35). Its exact Linear branch and title remain authoritative. The parent planning branch is not an integration target.
+
+| Affected consumer                                                                           | Existing task owners             | Boundary to resolve                                                                                                                            |
+| ------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL baseline, installation targets, and real test hosts                              | KEY-61, T005-T012                | Generated targets must correspond to installed procedures and runnable hosts.                                                                  |
+| Batch definitions and binding-only creation                                                 | KEY-62, T013-T018                | Both backends and public callers must agree on definition, membership, and funding.                                                            |
+| Dispatch, public calls, inspection, settlement projection, and deferred private compilation | KEY-63, T019-T024                | Replace old command calls and result assumptions, preserve applicable regressions, and keep deferred code compiling.                           |
+| Newly advertised additions                                                                  | KEY-64, T025-T029                | Implement the command and public behavior rather than accepting an unsupported generated operation.                                            |
+| Remaining request, settlement, replay, and package obligations                              | KEY-65 through KEY-68, T030-T052 | Determine which obligations the combined runtime change exposes before excluding them. Do not assume a passing compile proves these behaviors. |
+
+**Required selection**: Inspect the affected consumers and live Linear prerequisites, then explicitly select the smallest complete member set and exclusions. Record that selection here before consolidation. Do not mark every listed issue selected, start KEY-61 automatically, reverse Linear blockers, or treat the separate delivery-migration preview as approved.
+
+**Combined acceptance**: Require `pnpm test:pr`, the selected tasks' real SQLite and PostgreSQL checks, and any package checks required by the selected public or archive changes. Record exact source and base revisions, executed scenario inventory, outcomes, and relevant `NOT RUN` lanes. Before landing, freeze the selected members and retain their PRs, reviewed base/head SHAs, diffs, and approvals. Fast-forward consolidation must preserve that reviewed content. Rerun required checks on the final bottom PR against main.
+
+**Evidence boundary**: The investigation of `4332fd195b2a8002dcf34a358e4be41558e59a08` with the local fixture repair passed all 53 generator tests. Its full `CI=true pnpm test:pr` run reported 495 TypeScript diagnostics across contracts, PostgreSQL, and SDK consumers. This is retained diagnostic evidence, not acceptance of a later revision. Native backend, package, and combined-group acceptance remain `NOT RUN`. T004 remains incomplete while generated consumers do not compile.
+
+Consolidation into feature branches does not complete member issues. Close incorporated PRs and mark members Done only after the combined landing reaches main and their acceptance passes. KEY-5 remains open for the rest of its feature obligations.
+
 ## KEY-71 Generate the shared Budget command contract
 
 <!-- publication-id: Phase-1 -->
@@ -28,7 +52,7 @@
 - [x] T001 Add failing command-schema and generation cases for atomic definition batches, additions, immutable controls, selected state/tree history, movement reasons, settlement results, and missing error variants in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/conformance-client.test.ts`.
 - [x] T002 Update `packages/contracts/contract.json`, `packages/contracts/schema.json`, and `packages/contracts/src/generation/contract-field-order.ts` for `contracts/shared-commands.md`, including exact safe-integer quantities and strict unknown-field rejection. Keep deferred private commands distinct from the KEY-5 inventory.
 - [x] T003 Adapt generation in `packages/contracts/src/generation.ts`, `packages/sdk/scripts/generate.ts`, and `packages/postgresql/scripts/generate.ts`, then run `pnpm generate` to produce matching types, validators, clients, wrappers, and digests without hand-editing generated outputs.
-- [x] T004 Run `pnpm test:generator` and `pnpm generate:check`, check affected generated consumers compile, and record contract-only evidence under `.artifacts/system-tests/key-5/<attempt>/phase-1.json`. Record runtime and backend execution as `NOT RUN`.
+- [ ] T004 Run `pnpm test:generator` and `pnpm generate:check`, check affected generated consumers compile, and record contract-only evidence under `.artifacts/system-tests/key-5/<attempt>/phase-1.json`. Record runtime and backend execution as `NOT RUN`.
 
 **Checkpoint**: Review whether one generated contract expresses every KEY-5 command and strict failure shape, with passing generator tests and reproducible outputs.
 

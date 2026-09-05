@@ -63,6 +63,8 @@ Check document links against [Link feature artifacts in Linear](../../../docs/wo
 
 For Keynes, run `node .specify/scripts/issue-stack.mjs check --json` and fetch live Linear identities and relationships. Treat parent-as-sub-issue bindings, parent blockers, duplicate identities, missing checkpoints, title/branch drift, dependency cycles, and unsupported completion claims as HIGH. A partial breakdown is valid when undecomposed requirements remain explicit in the design. Do not infer execution order from document position or demand tasks for every future increment. Publication and review readiness are distinct.
 
+For atomic groups, check the existing `tasks.md` for a technical reason, explicit member selection, bottom issue and PR, combined acceptance, and exclusions. An unresolved candidate group is valid planning but is not ready to land. Treat merging a failing lower revision, substituting tip evidence for bottom-PR checks, weakening CI, reverse dependency cycles, or completing Linear issues on consolidation into a feature branch as HIGH. Verify the final landing is one passing PR into main and that member review evidence survives consolidation.
+
 ## Execution Steps
 
 ### 1. Initialize Analysis Context
