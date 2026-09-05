@@ -18,8 +18,8 @@ Do not initialize a new project or edit upstream-managed Spec Kit files. New sou
 
 **Purpose**: Confirm feature scope and preserve the baseline before experiments.
 
-- [ ] T001 Confirm the exact Linear branch, existing uncommitted feature changes, and KEY-10/KEY-11 prerequisite ownership; record the implementation intake revision and current evidence boundaries in testing-strategy.md without duplicating mutable Linear status.
-- [ ] T002 Read the governing constraints in docs/workflow.md and .specify/memory/constitution.md; record the study/implementation boundaries and required full-gate obligations in testing-strategy.md.
+- [x] T001 Confirm the exact Linear branch, existing uncommitted feature changes, and KEY-10/KEY-11 prerequisite ownership; record the implementation intake revision and current evidence boundaries in testing-strategy.md without duplicating mutable Linear status.
+- [x] T002 Read the governing constraints in docs/workflow.md and .specify/memory/constitution.md; record the study/implementation boundaries and required full-gate obligations in testing-strategy.md.
 
 ## Phase 2: Foundational prerequisites
 
