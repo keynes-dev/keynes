@@ -20,7 +20,6 @@ const targetDirectories = [
   "packages/postgresql/test/system",
   "scripts",
   ".specify/scripts",
-  ".specify/tests",
 ] as const;
 
 const removedRootOwners = [
