@@ -6,7 +6,7 @@
 
 ## Summary
 
-The Phase 3 study is complete in [testing-strategy.md](testing-strategy.md). Adopt the measured removal of duplicate contracts execution from `test:pr`. Preserve all fixture and packaging behavior. Keep selected manifest construction with the SDK/PostgreSQL runners and share only neutral mechanics. The remaining phases add independent entrypoints.
+The Phase 3 study is complete in [testing-strategy.md](testing-strategy.md). Adopt the measured removal of duplicate contracts execution from `test:pr`. Preserve all fixture and packaging behavior. Keep selected manifest construction with the SDK/PostgreSQL runners and share only neutral mechanics. The revised remaining phases protect the full gate, then deliver Local before native selection and TLS. Shared mechanics are extracted when concrete runners use them.
 
 Add Local, remote PostgreSQL, Embedded, and Hosted contributor commands under the existing package owners. Reuse native startup/cleanup, canonical Budget scenarios, and installed SDK qualification. Remote runs all supported connection modes by default. Explicit narrower runs start only the dependencies they need and produce evidence that cannot satisfy the complete gate.
 
@@ -34,7 +34,7 @@ Preserve `pnpm test:sqlite-postgres` and its complete native inventory. Embedded
 
 ## Constitution Check
 
-The original pre-research and post-design checks passed against constitution 8.0.1. The added study requirements remain consistent with those principles. The post-study check below repeats those gates after the measured pilot and ownership revision. The study prerequisite is satisfied; the requested execution scope stops at tasks.md Phase 3.
+The original pre-research and post-design checks passed against constitution 8.0.1. The added study requirements remain consistent with those principles. The post-study check below repeats those gates after the measured pilot and ownership revision. The study prerequisite is satisfied. Phases 1-3 are completed history; the Local-first task revision does not implement the remaining commands.
 
 | Gate                      | Design and verification obligation                                                                                                                                              | Pre-research | Post-design |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------- |
@@ -120,11 +120,26 @@ Broad Policy-corpus migration is assessed here but is not automatically included
 
 Execution beyond the study checkpoint requires the coverage map, comparable measurements, and one measured pilot with an adopt or reject decision. An evidence-backed rejection permits downstream implementation with the existing coverage intact; missing measurements do not. Record adopted, rejected, and deferred changes with reasons. Reconcile the design and remaining tasks, then repeat the Constitution Check. The study stays in the existing Spec Kit artifacts and introduces no second task system.
 
-**Current boundary:** The study has three passing baseline samples for each required command, three passing pilot PR samples, and an observed failing contracts assertion through the retained Turbo stage. The pilot removes one repeated 51-test execution. All 37 SQLite and 208 PostgreSQL assertions and installed SDK qualification passed at the intake revision. These are study observations, not acceptance of the unbuilt deployment commands. T012 releases the study gate; execution in this request stops at Phase 3.
+**Current boundary:** The study has three passing baseline samples for each required command, three passing pilot PR samples, and an observed failing contracts assertion through the retained Turbo stage. The pilot removes one repeated 51-test execution. All 37 SQLite and 208 PostgreSQL assertions and installed SDK qualification passed at the intake revision. These are study observations, not acceptance of the unbuilt deployment commands. T012 released the study gate. The subsequent task revision preserves that completed evidence and leaves deployment implementation pending.
 
 ## Phase 1: design
 
-This design incorporates the study. Retain deployment defaults and evidence obligations. Extract shared structural report validation and process cleanup only when a second runner uses them. Retain existing owner commands for narrower source feedback. Defer installer recheck removal, packaging CI changes, remote-registrar activation, and broad Policy request/replay migration. T016-T020 must keep full/parity/selected coverage verdicts and manifest schema construction with their runners; testkit stays product-neutral.
+This design incorporates the study. Retain deployment defaults and evidence obligations. Extract shared structural report validation and process cleanup only when a second runner uses them. Retain existing owner commands for narrower source feedback. Defer installer recheck removal, packaging CI changes, remote-registrar activation, and broad Policy request/replay migration. The Local and native implementation tasks keep full/parity/selected coverage verdicts and manifest schema construction with their runners; testkit stays product-neutral.
+
+### Local-first delivery order
+
+Preserve completed T001-T012. The revised tasks use these checkpoints:
+
+1. **US4 safeguards, T013-T017.** Add missing full-schema rejection and archive-lock regressions, integrate the lock into existing full-native preparation, and pass the complete paired gate. Keep the existing report/process implementation until a concrete second caller needs extraction.
+2. **US1 Local, T018-T026.** Implement Local source inventory and existing installed qualification. Extract neutral report/process/snapshot mechanics shared with existing runners, preserving their strict validations. Local owns its selected manifest. This is the first usable deployment increment and does not depend on native selection or TLS.
+3. **US2 remote, T027-T039.** Implement native selection, required context, exact inventories, selected evidence and sequential SQL/TLS consumer phases. Test fixture cancellation races before implementation; retain full defaults and assertion names.
+4. **US3 Embedded, T040-T045.** Reuse native selection for fixture transactions and refuse unavailable installed acceptance. Recheck product availability without silently enabling a new profile.
+5. **US5 Hosted refusal, T046-T049.** Reuse Local evidence mechanics for the SDK-owned unavailable result. This work depends on Local, not remote execution; shared file edits serialize.
+6. **Final acceptance, T050-T054.** Confirm integrated concurrency, all negative outcomes and the final full gate; retain final measurements and acceptance records.
+
+US4 is only partially discharged by Phase 4. Local and remote checkpoints must prove selected/full separation and owner-safe cancellation; final acceptance closes those obligations. Lock, lifecycle and fixture regressions belong beside their implementations, not first in final integration. Include each new provider-free test once in existing commands and check test TypeScript inclusion and dependency ownership as each runner is wired.
+
+Keep the original study and evidence index unchanged. Record final comparable measurements, coverage and code-size deltas in acceptance.md against the original protocol. The completed study's task numbers refer to its historical revision.
 
 ### Selection and execution
 
@@ -193,9 +208,10 @@ adopted command change leaves Budget authorities, application effects, Policy
 semantics, security and native coverage unchanged. A failing regression preceded
 the edit, the retained Turbo stage detected an injected contracts failure, and
 three native/package baseline attempts passed with exact identities and cleanup.
-No external target was used. The revised T018 keeps selected schema construction
+No external target was used. The study reconciliation kept selected schema construction
 in the runners and neutral snapshot/serialization mechanics in testkit, preserving
-the existing ownership test. No constitutional exception is required.
+the existing ownership test. The later Local-first task revision retains this
+boundary and the eight constitutional gates; it changes delivery order only. No constitutional exception is required.
 
 T012's design reconciliation does not complete KEY-91. Phases 4-9 retain all
 selected/full report negatives, package locking, independent deployment commands,

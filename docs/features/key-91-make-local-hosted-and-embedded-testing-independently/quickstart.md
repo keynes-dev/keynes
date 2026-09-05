@@ -6,7 +6,7 @@ This guide covers the required study as the first task phase and validation afte
 
 Follow [the plan's study protocol](plan.md#required-study-before-downstream-implementation). The completed `testing-strategy.md` holds the coverage/ownership map, cost measurements, and pilot decision. Reproduce its exact protocol when comparing future changes. Use existing commands for the baseline: `pnpm test:pr`, `pnpm test:sqlite-postgres -- --output <new-directory>`, and SDK archive preparation plus `pnpm test:package:sdk -- --archive <archive> --output <new-file>`.
 
-T012 reconciles the completed study with the remaining tasks. The current request stops after Phase 3. Execute the validation below only when the corresponding later implementation exists.
+T012 released the completed study gate. The revised tasks validate full-gate safeguards first, then Local, remote, Embedded and Hosted refusal. Local does not wait for native selection or TLS. Execute the validation below only when the corresponding implementation exists. Repeat the complete paired gate after Phase 4 and on the final candidate; intermediate checks follow affected behavior.
 
 ## Prepare the checkout
 
