@@ -3,6 +3,7 @@ import type {
   CreateBudgetResult,
   DefineResourceTypeCommand,
   DefineResourceTypeResult,
+  DefineResourcesResult,
   ErrorEnvelope,
   GetBudgetQuery,
   GetBudgetResult,
@@ -53,11 +54,13 @@ export type RollbackCheckpoint =
   | "after_result_storage";
 
 export interface ContractClientOptions {
+  readonly forbidResourceWrites?: boolean;
   readonly checkpoint?: RollbackCheckpoint;
   readonly dropResponseAfterCommitOnce?: boolean;
 }
 
 export interface ContractClient {
+  defineResources(input: unknown): Promise<DefineResourcesResult>;
   defineResource(
     input: DefineResourceTypeCommand,
   ): Promise<DefineResourceTypeResult>;
@@ -68,6 +71,14 @@ export interface ContractClient {
 }
 
 export interface ContractTestHost {
+  inspectState(): Promise<{
+    resources: number;
+    commands: number;
+    budgets: number;
+    holdings: number;
+    history: number;
+    quantity: number;
+  }>;
   clientFor(
     fixture: FixturePrincipal,
     options?: ContractClientOptions,
@@ -130,6 +141,8 @@ export function createContractClient(
   executor: ContractExecutor,
 ): ContractClient {
   return {
+    defineResources: (input) =>
+      invoke(executor, "defineResources", input, true),
     defineResource: (input) => invoke(executor, "defineResource", input, true),
     createBudget: (input) => invoke(executor, "createBudget", input, true),
     requestBudget: (input) => invoke(executor, "requestBudget", input, true),

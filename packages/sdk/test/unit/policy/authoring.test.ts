@@ -4,7 +4,6 @@ import {
   PolicyValidationError,
   definePolicy,
   definePolicySql,
-  defineResources,
   policySet,
 } from "../../../src/index.js";
 
@@ -12,10 +11,10 @@ const INPUTS = ["usdCents", "searchQueries"] as const;
 const OUTPUTS = ["usdCents", "searchQueries"] as const;
 const REASONS = ["capacity_limit"] as const;
 
-const resources = defineResources({
+const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
-});
+};
 
 describe("Policy authoring", () => {
   it("normalizes Kysely callbacks, Kysely sql, raw SQL, and parameters to one definition", () => {

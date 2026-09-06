@@ -1,8 +1,8 @@
 # Keynes runtime architecture
 
-> **Status:** Accepted target architecture as of September 3, 2026. Current
-> `main` at `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not
-> implement this architecture. The
+> **Status:** Accepted target architecture, with fixed funding reconciled on September 5, 2026.
+> The historical `main` snapshot at `fb0ca4f50417c76d7f1833f93c46980cc40689ba`
+> does not implement this architecture. The
 > [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation) records the
 > current source and exact-revision evidence. Linear must allocate this target
 > before implementation begins.
@@ -41,6 +41,8 @@ server state from caller types, or maintain a second replay ledger.
 8. Policies evaluate only Budget requests and only against declared inputs.
 9. A settled Budget has zero live quantity and no non-settled descendant.
 10. Application work and external provider effects remain outside Keynes.
+11. Root creation introduces all tree funding; child creation transfers a fixed
+    parent-funded grant. Settlement returns restore availability, never funding.
 
 ## Public contract
 
@@ -73,7 +75,6 @@ and performs no definition write.
 
 Every Budget has a stable method surface:
 
-- `addResources` introduces quantity for existing members.
 - `request` asks the Budget to create and fund one child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
@@ -110,7 +111,8 @@ the batch.
 The result is one immutable, quantity-free `ResourceBinding`. A binding can
 cross client instances connected to the same authority and tenant. It cannot
 be serialized as a public identifier or used against another authority or
-tenant. The receiving client proves its scope before creation.
+tenant. The receiving authority validates its scope within creation; SDK checks
+cannot replace that validation.
 
 The SDK exports the structural definition type for callers that want a
 `satisfies` check. There is no standalone definition helper outside
@@ -145,12 +147,12 @@ A Budget owns:
 - opaque identity and, for PostgreSQL, an opaque public reference;
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
-- immutable `allows.addResources` and `allows.createChildren` booleans;
+- immutable `allows.createChildren` boolean;
 - an immutable list of locally attached Policies;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
 
-Omitted `allows` normalizes to both booleans true before replay hashing.
+Omitted `allows` normalizes to `createChildren: true` before replay hashing.
 Children select their own controls; controls do not inherit or narrow from the
 parent. Methods remain present even when disabled. A disabled mutation rejects
 asynchronously with `budget_operation_not_allowed` and commits no state.
@@ -160,14 +162,23 @@ or binding. An omitted initial amount is zero. Child membership is exactly the
 Resource keys in the approved request. An explicit zero includes the Resource;
 an omitted key excludes it.
 
-Membership never expands. `addResources` can add quantity only to an active
-Budget, only for existing members, and only when its behavior control permits
-the operation. This rule is identical for roots and descendants.
+Membership and original funding never expand. Initial root allocation belongs
+to creation. A child grant belongs to the parent's approved creation request.
+Neither depends on whether the new Budget permits children of its own.
 
-Initial root allocation belongs to creation and does not consult the new
-Budget's `allows.addResources` value. A child grant belongs to the parent's
-approved request and likewise does not consult the child's value. The control
-governs only later `addResources` calls.
+The database rejects any attempt to replenish, top up, or grant additional
+quantity to an existing Budget. Supported direct database callers have the same
+restriction as SDK callers. Settlement returns are the only post-creation inbound
+transfers and restore previously delegated quantity without increasing funding.
+An all-zero root remains valid but cannot later acquire funding.
+
+Applications may reuse definitions to create independently funded roots. Creating
+a root neither reopens an earlier root nor migrates its balances, and does not
+require unrelated roots to settle first. Root-creation authorization controls
+new allowances; conservation within a tree is not a ceiling across separate roots.
+
+Zero availability alone changes no lifecycle state. Requests that exceed available
+quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Policy evaluation
 
@@ -198,9 +209,6 @@ observe the same snapshot. The lowest ceiling for a Resource wins. A denial is
 a committed domain result with evidence but no child or quantity movement. A
 Policy error aborts the command and never becomes an approval or denial.
 
-`addResources` does not evaluate Policies. Its authority comes only from the
-Budget's immutable behavior control and database authorization below the SDK.
-
 ## Quantity accounting
 
 ### Movement journal
@@ -210,7 +218,6 @@ The movement journal records every quantity change:
 | Reason             | Source        | Destination       | Meaning                                 |
 | ------------------ | ------------- | ----------------- | --------------------------------------- |
 | initial allocation | outside       | root Budget       | Introduces initial quantity             |
-| external addition  | outside       | any active Budget | Introduces later quantity               |
 | child grant        | parent Budget | new child Budget  | Transfers ownership                     |
 | consumption        | Budget        | consumed          | Removes consumable quantity             |
 | settlement return  | child Budget  | structural parent | Returns the full remainder              |
@@ -227,13 +234,14 @@ live(B, R) = inbound(B, R) - outbound(B, R)
 live(B, R) >= 0
 ```
 
-Across a tenant:
+For each root tree and Resource:
 
 ```text
-introduced = live + consumed + released
+initial root funding = live quantity + consumed quantity + released quantity
 ```
 
-Internal transfers cancel from the tenant equation. A zero-valued member has a
+Initial allocation is the only external funding movement. Internal transfers
+cancel from the tree equation. A zero-valued member has a
 membership record but creates no movement. A fully settled tree has
 `live = 0`.
 
@@ -248,9 +256,10 @@ never creates a negative balance. For a reusable Resource, usage creates
 evidence without a consumption movement; usage above owned quantity also
 creates deficit evidence.
 
-Later funding, child returns, and ancestor balances do not erase an observed
+Child returns and ancestor balances do not erase an observed
 deficit. Keynes does not track source lots, debit a parent to hide overage, or
-infer unreported usage.
+infer unreported usage. Fixed funding limits authorized quantity, not observed
+external usage; deficit evidence does not add quantity to the conservation equation.
 
 ## Settlement lifecycle
 
@@ -269,8 +278,8 @@ root finalization:     root remainder   -> released
 ```
 
 All remaining quantity is fungible. A child's complete remainder returns to
-its parent, including quantity added directly to the child after creation. A
-root's complete remainder is released outside Keynes governance. Release does
+its parent without increasing the parent's original funding. A root's complete
+remainder is released outside Keynes governance. Release does
 not perform a refund, restore provider quota, or cause another external side
 effect.
 
@@ -288,15 +297,14 @@ from retaining quantity or having a non-settled descendant.
 One generated semantic contract defines the commands implemented by both
 authorities:
 
-| Command              | Meaning                                              |
-| -------------------- | ---------------------------------------------------- |
-| `defineResources`    | Atomically define or exact-reuse a Resource batch    |
-| `definePolicies`     | Atomically define or exact-reuse a Policy batch      |
-| `createBudget`       | Reconcile or resolve definitions and create one root |
-| `addBudgetResources` | Introduce quantity to an eligible active Budget      |
-| `requestBudget`      | Evaluate Policies and transfer quantity to one child |
-| `settleBudget`       | Record usage and finalize every newly ready Budget   |
-| `inspectBudget`      | Read one coherent state and lineage-history snapshot |
+| Command           | Meaning                                              |
+| ----------------- | ---------------------------------------------------- |
+| `defineResources` | Atomically define or exact-reuse a Resource batch    |
+| `definePolicies`  | Atomically define or exact-reuse a Policy batch      |
+| `createBudget`    | Reconcile or resolve definitions and create one root |
+| `requestBudget`   | Evaluate Policies and transfer quantity to one child |
+| `settleBudget`    | Record usage and finalize every newly ready Budget   |
+| `inspectBudget`   | Read one coherent state and lineage-history snapshot |
 
 Each mutation has one canonical operation, operation key, normalized input
 digest, stored result, and ordered history effects. Exact retry returns the
@@ -316,13 +324,11 @@ not an application API and application roles cannot write them directly.
 Mutations lock the smallest shared state needed for their decision:
 
 - request and parent settlement lock the same parent Budget row;
-- addition and settlement lock the same target Budget row;
 - child settlement locks the child, then its parent and ready ancestors;
 - sibling finalizations serialize when they reach their shared parent; and
 - affected Resource memberships lock in canonical Resource order.
 
-A request therefore cannot approve after its parent starts settling. An
-addition cannot commit after its target starts settling. A child return can
+A request therefore cannot approve after its parent starts settling. A child return can
 enter an active or settling parent, and the same transaction either leaves the
 parent waiting or finalizes it.
 
@@ -485,7 +491,7 @@ SQLite and native PostgreSQL for:
 - definition reuse and conflicts;
 - raw and binding-based creation, including all-zero Budgets;
 - immutable membership and behavior controls;
-- additions to roots and descendants;
+- fixed creation funding, settlement returns, and independent successive roots;
 - Policy approval, denial, errors, and namespaced context;
 - exact child subsets and atomic transfer;
 - consumable and reusable usage, deficits, return, and root release;

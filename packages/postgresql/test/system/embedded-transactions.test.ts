@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -43,6 +44,120 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
 
   afterEach(async () => {
     await database?.close();
+  });
+
+  it.each(["commit", "rollback"])(
+    "keeps definition binding, consumption, and application work inside caller %s",
+    async (outcome) => {
+      database = await openFixture();
+      const transaction = await database.beginTransaction();
+      const client = createTransactionClient(transaction);
+      const binding = await client.defineResources({
+        commandId: REDEFINITION_ID,
+        definitions: {
+          modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+      });
+      const created = await client.createBudget({
+        commandId: BOUND_ROOT_ID,
+        resources: {
+          kind: "binding",
+          bindingReference: binding.bindingReference,
+        },
+        allocation: { modelTokens: 7 },
+      });
+      await transaction.connection.query(
+        "insert into application_outbox (outbox_id, command_id, child_budget_id) values ($1, $2, $3)",
+        [OUTBOX_ID, BOUND_ROOT_ID, created.budget.budgetId],
+      );
+      expect(created.budget.resources[0]).toMatchObject({
+        allocated: 7,
+        available: 7,
+      });
+      expect(
+        (
+          await transaction.connection.query(
+            "select count(*)::integer as count from application_outbox",
+          )
+        ).rows,
+      ).toEqual([{ count: 1 }]);
+      expect(await definitionTransactionState(database.database)).toEqual({
+        resources: 0,
+        commands: 0,
+        references: 0,
+        budgets: 0,
+        holdings: 0,
+        history: 0,
+        outbox: 0,
+      });
+      if (outcome === "commit") {
+        await transaction.commit();
+        expect(await definitionTransactionState(database.database)).toEqual({
+          resources: 1,
+          commands: 2,
+          references: 1,
+          budgets: 1,
+          holdings: 1,
+          history: 1,
+          outbox: 1,
+        });
+      } else {
+        await transaction.rollback();
+        expect(await definitionTransactionState(database.database)).toEqual({
+          resources: 0,
+          commands: 0,
+          references: 0,
+          budgets: 0,
+          holdings: 0,
+          history: 0,
+          outbox: 0,
+        });
+      }
+    },
+  );
+
+  it("propagates Resource serialization failure to the caller and rolls back application work", async () => {
+    database = await openFixture();
+    const definitions = {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" as const },
+    };
+    await expect(
+      database.database.transaction(async (transaction) => {
+        await transaction.exec(
+          "set transaction isolation level repeatable read",
+        );
+        await transaction.query("select count(*) from application_outbox");
+        await transaction.query(
+          "insert into application_outbox (outbox_id, command_id, child_budget_id) values ($1, $2, $3)",
+          [OUTBOX_ID, BOUND_ROOT_ID, BOUND_ROOT_ID],
+        );
+        const committed = await database.beginTransaction();
+        await createTransactionClient(committed).defineResources({
+          commandId: REDEFINITION_ID,
+          definitions,
+        });
+        await committed.commit();
+        const client = createContractClient(
+          createTransactionProcedureCaller(transaction, {
+            tenantId: FIXTURE_TENANT_ID,
+            principalId: FIXTURE_PRINCIPALS["product-fixture"],
+          }),
+        );
+        await client.defineResources({
+          commandId: ROOT_BUDGET_ID,
+          definitions,
+        });
+      }),
+    ).rejects.toMatchObject({ code: "40001" });
+    expect(await definitionTransactionState(database.database)).toEqual({
+      resources: 1,
+      commands: 1,
+      references: 1,
+      budgets: 0,
+      holdings: 0,
+      history: 0,
+      outbox: 0,
+    });
   });
 
   it("commits an approved request and application outbox row together", async () => {
@@ -434,6 +549,20 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
   });
 });
 
+async function definitionTransactionState(
+  connection: Pick<TransactionalDatabase, "query">,
+): Promise<unknown> {
+  const { rows } = await connection.query(`select
+    (select count(*)::integer from keynes_internal.resource_types) as resources,
+    (select count(*)::integer from keynes_internal.commands) as commands,
+    (select count(*)::integer from keynes_internal.commands where binding_reference is not null) as references,
+    (select count(*)::integer from keynes_internal.budgets) as budgets,
+    (select count(*)::integer from keynes_internal.budget_resources) as holdings,
+    (select count(*)::integer from keynes_internal.budget_history_entries) as history,
+    (select count(*)::integer from application_outbox) as outbox`);
+  return rows[0];
+}
+
 function createTransactionClient(transaction: PostgresTransaction) {
   return createContractClient(
     createTransactionProcedureCaller(transaction.connection, {
@@ -451,9 +580,9 @@ function createResourceBoundBudget(
   return Reflect.apply(client.createBudget, client, [
     {
       commandId,
-      resources: [
+      ...rootResources([
         { definition: resourceDefinition(canonicalName), amount: 10 },
-      ],
+      ]),
     },
   ]);
 }
@@ -507,7 +636,7 @@ async function seedRoot(
     });
     const root = await client.createBudget({
       commandId: "20000000-0000-4000-8000-000000000001",
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "model_tokens",
@@ -516,7 +645,7 @@ async function seedRoot(
           },
           amount: 10,
         },
-      ],
+      ]),
     });
     await transaction.commit();
     return {

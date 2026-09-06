@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,8 +24,8 @@ vi.mock("pg", () => ({
 }));
 
 const poolConfig = Object.freeze({ host: "db.example.test", max: 10 });
-const createBudgetProcedure = REMOTE_CONTRACT.procedures[0];
-const getBudgetProcedure = REMOTE_CONTRACT.procedures[3];
+const createBudgetProcedure = REMOTE_CONTRACT.procedures[1];
+const getBudgetProcedure = REMOTE_CONTRACT.procedures[4];
 const operationKey = `kop_v1_${"a".repeat(43)}`;
 
 beforeEach(() => {
@@ -77,7 +78,7 @@ describe("PostgreSQL remote command executor", () => {
   it("executes only the generated procedure target with one JSON parameter", async () => {
     const command = {
       operationKey,
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "workUnits",
@@ -86,7 +87,7 @@ describe("PostgreSQL remote command executor", () => {
           },
           amount: 10,
         },
-      ],
+      ]),
     };
     const response = { ok: true, result: { kind: "created" } };
     const pool = createFakePool(async ({ text }) =>
@@ -397,9 +398,14 @@ function compatibilityResult(): GetCompatibilityResult {
     minimumSdkGeneration: REMOTE_CONTRACT.minimumSdkGeneration,
     procedures: [
       {
+        name: "defineResources",
+        target: "keynes.remote_define_resources",
+        revision: 1,
+      },
+      {
         name: "createBudget",
         target: "keynes.remote_create_budget",
-        revision: 1,
+        revision: 2,
       },
       {
         name: "requestBudget",

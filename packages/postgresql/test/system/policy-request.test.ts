@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { createHash } from "node:crypto";
 
 import {
@@ -246,10 +247,10 @@ describe("PostgreSQL governed Policy requests", () => {
     await definePolicyResources(fixture);
     await committed(fixture, "createBudget", {
       commandId: NON_RFC_ROOT_BUDGET_ID,
-      resources: [
+      ...rootResources([
         rootResource(SEARCH_RESOURCE_ID, 100),
         rootResource(MODEL_RESOURCE_ID, 100),
-      ],
+      ]),
       policies: [policy],
     });
 
@@ -330,7 +331,7 @@ describe("PostgreSQL governed Policy requests", () => {
     );
     const wire = await call(transaction, "createBudget", {
       commandId: ROOT_BUDGET_ID,
-      resources: [rootResource(MODEL_RESOURCE_ID, 100)],
+      ...rootResources([rootResource(MODEL_RESOURCE_ID, 100)]),
       policies: [invalidPolicy, validPolicy],
     });
     await transaction.commit();
@@ -390,7 +391,7 @@ describe("PostgreSQL governed Policy requests", () => {
     );
     await committed(fixture, "createBudget", {
       commandId: ROOT_BUDGET_ID,
-      resources: [rootResource(MODEL_RESOURCE_ID, 100)],
+      ...rootResources([rootResource(MODEL_RESOURCE_ID, 100)]),
     });
 
     const request = await committed(fixture, "requestBudget", {
@@ -412,10 +413,10 @@ describe("PostgreSQL governed Policy requests", () => {
     await definePolicyResources(fixture);
     await committed(fixture, "createBudget", {
       commandId: ROOT_BUDGET_ID,
-      resources: [
+      ...rootResources([
         rootResource(SEARCH_RESOURCE_ID, 10),
         rootResource(MODEL_RESOURCE_ID, 10),
-      ],
+      ]),
     });
 
     const command = {
@@ -659,10 +660,10 @@ async function seedGovernedRoot(
   requireSuccess(
     await committed(fixture, "createBudget", {
       commandId: ROOT_BUDGET_ID,
-      resources: [
+      ...rootResources([
         rootResource(SEARCH_RESOURCE_ID, 100),
         rootResource(MODEL_RESOURCE_ID, initialModelTokens),
-      ],
+      ]),
       policies: Array.isArray(policy) ? policy : [policy],
     }),
   );

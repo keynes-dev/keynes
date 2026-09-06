@@ -1,6 +1,7 @@
 {
   "operationMethods": [
     "defineResource",
+    "defineResources",
     "createBudget",
     "requestBudget",
     "settleBudget",
@@ -8,6 +9,7 @@
   ],
   "installedTargets": [
     "keynes.define_resource_type",
+    "keynes.define_resources",
     "keynes.create_budget",
     "keynes.request",
     "keynes.settle",
@@ -17,24 +19,19 @@
     "10000000-0000-0000-0000-000000000001",
     "10000000-0000-0000-0000-000000000002"
   ],
-  "canonicalCreateRootResources": [
-    {
-      "definition": {
-        "canonicalName": "model_tokens",
+  "canonicalCreateRootResources": {
+    "kind": "definitions",
+    "definitions": {
+      "modelTokens": {
         "unit": "token",
         "accountingBehavior": "consumable"
       },
-      "amount": 100
-    },
-    {
-      "definition": {
-        "canonicalName": "worker_slots",
+      "workerSlots": {
         "unit": "slot",
         "accountingBehavior": "reusable"
-      },
-      "amount": 2
+      }
     }
-  ],
+  },
   "canonicalRequestChildResources": [
     {
       "resourceTypeId": "10000000-0000-0000-0000-000000000001",
@@ -54,5 +51,9 @@
       "resourceTypeId": "10000000-0000-0000-0000-000000000002",
       "amount": null
     }
-  ]
+  ],
+  "canonicalCreateRootAllocation": {
+    "modelTokens": 100,
+    "workerSlots": 2
+  }
 }

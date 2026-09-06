@@ -5,11 +5,7 @@ import type {
   RemoteCommandExecutor,
   RemoteProcedureDescriptor,
 } from "../../../src/generated/client.js";
-import {
-  createKeynes,
-  createOperationKey,
-  defineResources,
-} from "../../../src/index.js";
+import { createKeynes, createOperationKey } from "../../../src/index.js";
 import type { BudgetReference, OperationKey } from "../../../src/index.js";
 
 const remoteMocks = vi.hoisted(() => ({
@@ -29,9 +25,9 @@ const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
 const rootReference = `kbr_v1_${"r".repeat(43)}` as BudgetReference;
 const operationKey = `kop_v1_${"o".repeat(43)}` as OperationKey;
-const resources = defineResources({
+const resources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 beforeEach(() => {
   remoteMocks.normalizeDatabaseUrl.mockReset();
@@ -48,6 +44,172 @@ afterEach(() => {
 });
 
 describe("remote Budget reopen and operation recovery", () => {
+  it("recovers a definition as an opaque binding usable for creation", async () => {
+    const executor = fakeExecutor((method) => {
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "defineResources",
+            result: definedResponse().result,
+          },
+        };
+      if (method === "createBudget") return createdResponse();
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const recovered = await remote.recoverOperation(operationKey);
+    expect(recovered).toMatchObject({
+      kind: "committed",
+      operation: "defineResources",
+      operationKey,
+    });
+    const binding = record(recovered).result;
+    expect(binding).toEqual({});
+    expect(Object.isFrozen(binding)).toBe(true);
+    expect(Reflect.ownKeys(record(binding))).toEqual([]);
+    expect(JSON.stringify(recovered)).not.toMatch(
+      /krs_v1_|resourceTypeId|principalId|definitionDigest|00000000/,
+    );
+    const root = await Reflect.apply(remote.createBudget, remote, [
+      binding,
+      { workUnits: 10 },
+    ]);
+    expect(root.reference).toBe(rootReference);
+    expect(record(executor.inputs[1]).resources).toEqual({
+      kind: "binding",
+      bindingReference: definedResponse().result.bindingReference,
+    });
+  });
+
+  it("retries a lost definition response with the same key and returns an opaque binding", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let attempts = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") return createdResponse();
+      if (method !== "defineResources")
+        throw new Error(`unexpected operation ${method}`);
+      if (++attempts === 1)
+        return {
+          ok: false,
+          error: {
+            kind: "error",
+            code: "uncertain_outcome",
+            details: { operation: "defineResources", operationKey },
+          },
+        };
+      return definedResponse();
+    });
+    openWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const binding = await remote.defineResources(resources, { operationKey });
+    expect(executor.inputs.map(inputOperationKey)).toEqual([
+      operationKey,
+      operationKey,
+    ]);
+    expect(executor.inputs[0]).toEqual(executor.inputs[1]);
+    expect(Reflect.ownKeys(binding)).toEqual([]);
+    expect(Object.isFrozen(binding)).toBe(true);
+    await remote.createBudget(binding, { workUnits: 10 });
+  });
+
+  it("keeps definition uncertainty distinct from expired and unresolved recovery", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let attempts = 0;
+    let recoveries = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "defineResources")
+        return ++attempts === 1
+          ? {
+              ok: false,
+              error: {
+                kind: "error",
+                code: "uncertain_outcome",
+                details: { operation: "defineResources", operationKey },
+              },
+            }
+          : {
+              ok: false,
+              error: { kind: "error", code: "client_closed", details: {} },
+            };
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result:
+            ++recoveries === 1
+              ? {
+                  kind: "unresolved",
+                  operationKey,
+                  retryAfterMilliseconds: 100,
+                }
+              : { kind: "expired", operationKey },
+        };
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    await expect(
+      remote.defineResources(resources, { operationKey }),
+    ).rejects.toMatchObject({
+      code: "uncertain_outcome",
+      details: { operation: "defineResources", operationKey },
+    });
+    expect(await remote.recoverOperation(operationKey)).toEqual({
+      kind: "unresolved",
+      operationKey,
+      retryAfterMilliseconds: 100,
+    });
+    expect(await remote.recoverOperation(operationKey)).toEqual({
+      kind: "expired",
+      operationKey,
+    });
+    expect(executor.methods).toEqual([
+      "defineResources",
+      "defineResources",
+      "recoverOperation",
+      "recoverOperation",
+    ]);
+  });
+
+  it.each(["command_conflict", "invalid_command"] as const)(
+    "keeps definition %s failures definitive without fabricating a binding",
+    async (code) => {
+      const details =
+        code === "invalid_command"
+          ? {
+              operation: "defineResources",
+              issues: [{ path: "$.definitions", rule: "type" }],
+            }
+          : {};
+      const executor = fakeExecutor((method) =>
+        method === "defineResources"
+          ? { ok: false, error: { kind: "error", code, details } }
+          : {
+              ok: true,
+              result: {
+                kind: "known_failure",
+                operationKey,
+                error: { kind: "error", code, details },
+              },
+            },
+      );
+      openWith(executor);
+      const remote = await createKeynes({ databaseUrl });
+      await expect(
+        remote.defineResources(resources, { operationKey }),
+      ).rejects.toMatchObject({ code });
+      expect(executor.inputs).toHaveLength(1);
+      expect(await remote.recoverOperation(operationKey)).toEqual({
+        kind: "known_failure",
+        operationKey,
+        error: { kind: "error", code, details },
+      });
+    },
+  );
+
   it("uses caller-created keys unchanged for every remote mutation", async () => {
     const executor = fakeExecutor((method) => {
       if (method === "createBudget") return createdResponse();
@@ -116,9 +278,9 @@ describe("remote Budget reopen and operation recovery", () => {
     await expect(
       remote.openBudget({
         reference: rootReference,
-        resourceTypes: defineResources({
+        resourceTypes: {
           workUnits: { unit: "credit", accountingBehavior: "consumable" },
-        }),
+        },
       }),
     ).rejects.toMatchObject({
       name: "KeynesError",
@@ -460,4 +622,33 @@ function record(value: unknown): Record<string, unknown> {
 
 function inputOperationKey(input: unknown): unknown {
   return record(input).operationKey;
+}
+
+function definedResponse() {
+  return {
+    ok: true,
+    result: {
+      kind: "defined",
+      bindingReference: `krs_v1_${"d".repeat(43)}`,
+      replayed: true,
+      resources: [
+        {
+          key: "workUnits",
+          resourceType: {
+            resourceTypeId: "00000000-0000-4000-8000-000000000001",
+            canonicalName: "work_units",
+            unit: "unit",
+            accountingBehavior: "consumable",
+            definitionDigest: `sha256:${"d".repeat(64)}`,
+          },
+          definitionEvidence: {
+            kind: "resource_type_defined",
+            commandId: "00000000-0000-4000-8000-000000000101",
+            principalId: "00000000-0000-4000-8000-000000000201",
+            definitionDigest: `sha256:${"d".repeat(64)}`,
+          },
+        },
+      ],
+    },
+  };
 }

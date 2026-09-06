@@ -184,6 +184,9 @@ function createClient(
   ];
 
   return {
+    async defineResources() {
+      throw new Error("unexpected defineResources call");
+    },
     async defineResource() {
       throw new Error("unexpected defineResource call");
     },
@@ -264,7 +267,6 @@ function preparedResources(
         accountingBehavior: "consumable",
       },
       amount: amountFor(resource.key),
-      definitionDigest: "a".repeat(64),
     })),
   );
 }

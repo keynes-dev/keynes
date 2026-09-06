@@ -10,7 +10,7 @@ import type {
   KeynesError,
   OpenContractTestHost,
 } from "../host.ts";
-import { rootResource } from "./root-resource.ts";
+import { rootResource, rootResources } from "./root-resource.ts";
 export function registerRequestDenialContractTests(
   openTestKeynes: OpenContractTestHost,
 ): void {
@@ -25,6 +25,75 @@ export function registerRequestDenialContractTests(
       await local.close();
     });
 
+    it("leaves outstanding work active after denial and returns only its unused grant", async () => {
+      const client = local.clientFor("product-fixture");
+      const binding = await client.defineResources({
+        commandId: outstandingId(1),
+        definitions: {
+          modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+      });
+      const root = await client.createBudget({
+        commandId: outstandingId(2),
+        resources: {
+          kind: "binding",
+          bindingReference: binding.bindingReference,
+        },
+        allocation: { modelTokens: 10 },
+      });
+      const resourceTypeId = binding.resources[0].resourceType.resourceTypeId;
+      const child = await client.requestBudget({
+        commandId: outstandingId(3),
+        parentBudgetId: root.budget.budgetId,
+        resources: [{ resourceTypeId, amount: 7 }],
+      });
+      if (child.kind !== "approved")
+        throw new Error("Outstanding child fixture must be approved");
+      const before = await client.getBudget({ budgetId: child.childBudgetId });
+      expect(
+        await client.requestBudget({
+          commandId: outstandingId(4),
+          parentBudgetId: root.budget.budgetId,
+          resources: [{ resourceTypeId, amount: 4 }],
+        }),
+      ).toMatchObject({
+        kind: "denied",
+        reasons: [
+          { code: "insufficient_available", available: 3, requested: 4 },
+        ],
+      });
+      expect(
+        (await client.getBudget({ budgetId: child.childBudgetId })).budget,
+      ).toEqual(before.budget);
+      expect(
+        (await client.getBudget({ budgetId: root.budget.budgetId })).budget,
+      ).toMatchObject({
+        lifecycle: "active",
+        resources: [
+          { allocated: 10, available: 3, committed: 7, directUsage: null },
+        ],
+      });
+      await client.settleBudget({
+        commandId: outstandingId(5),
+        budgetId: child.childBudgetId,
+        usage: [{ resourceTypeId, amount: 2 }],
+      });
+      expect(
+        (await client.getBudget({ budgetId: root.budget.budgetId })).budget,
+      ).toMatchObject({
+        lifecycle: "active",
+        resources: [
+          { allocated: 10, available: 8, committed: 2, directUsage: null },
+        ],
+      });
+      expect(
+        (await client.getBudget({ budgetId: child.childBudgetId })).budget,
+      ).toMatchObject({
+        lifecycle: "settled",
+        resources: [{ allocated: 7, directUsage: 2, available: 5 }],
+      });
+    });
+
     it("denies one unavailable Resource without changing the parent", async () => {
       const client = local.clientFor("product-fixture");
       const resource = await defineResource(
@@ -34,7 +103,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000001",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
       const commandId = "31000000-0000-0000-0000-000000000001";
 
@@ -117,7 +186,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000011",
-        resources: [rootResource(tokens, 10), rootResource(seats, 10)],
+        ...rootResources([rootResource(tokens, 10), rootResource(seats, 10)]),
       });
 
       const denied = await client.requestBudget({
@@ -168,7 +237,7 @@ export function registerRequestDenialContractTests(
       for (let attempt = 1; attempt <= 100; attempt += 1) {
         const root = await client.createBudget({
           commandId: attemptCommandId("21", attempt),
-          resources: [rootResource(resource, 10)],
+          ...rootResources([rootResource(resource, 10)]),
         });
         const requests = await Promise.all([
           requesterA.requestBudget({
@@ -222,7 +291,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000031",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
 
       await expectInvalidRequest(client, {
@@ -256,7 +325,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000041",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
       const unknownResourceTypeId = "99000000-0000-0000-0000-000000000041";
 
@@ -280,7 +349,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await client.createBudget({
         commandId: "21000000-0000-0000-0000-000000000051",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
       await client.settleBudget({
         commandId: "41000000-0000-0000-0000-000000000051",
@@ -308,7 +377,7 @@ export function registerRequestDenialContractTests(
       );
       const root = await product.createBudget({
         commandId: "21000000-0000-0000-0000-000000000061",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
 
       await expectKeynesError(
@@ -388,4 +457,8 @@ async function captureError(operation: Promise<unknown>): Promise<unknown> {
     return error;
   }
   throw new Error("expected operation to reject");
+}
+
+function outstandingId(suffix: number): string {
+  return `19000000-0000-4000-8000-${String(suffix).padStart(12, "0")}`;
 }

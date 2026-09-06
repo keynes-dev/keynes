@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -22,7 +23,104 @@ describe("remote PostgreSQL identity and security", () => {
     fixture = undefined;
   });
 
-  it("validates the exact input shape of all eight wrappers before mutation", async () => {
+  it("rejects foreign tenant and unknown bindings with the same private-safe error", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.secondary);
+    const primary = await fixture.connect(fixture.primary);
+    const secondary = await fixture.connect(fixture.secondary);
+    const definitions = {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    };
+    const defined = await queryResponse(
+      primary,
+      "keynes.remote_define_resources",
+      { operationKey: operationKey("d"), definitions },
+    );
+    const bindingReference = requireResultReference(
+      defined,
+      "bindingReference",
+    );
+    expect(
+      await queryResponse(primary, "keynes.remote_create_budget", {
+        operationKey: operationKey("c"),
+        resources: { kind: "binding", bindingReference },
+        allocation: { modelTokens: 2 },
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      await queryResponse(secondary, "keynes.remote_define_resources", {
+        operationKey: operationKey("d"),
+        definitions,
+      }),
+    ).toMatchObject({ ok: true });
+    const before = await bindingAuthorityState(fixture);
+    for (const [index, reference] of [
+      bindingReference,
+      `krs_v1_${"x".repeat(43)}`,
+      "malformed-reference",
+    ].entries()) {
+      const response = await queryResponse(
+        secondary,
+        "keynes.remote_create_budget",
+        {
+          operationKey: operationKey(String(index)),
+          resources: { kind: "binding", bindingReference: reference },
+          allocation: { modelTokens: 2 },
+        },
+      );
+      expectBindingRefusal(response);
+      expect(await bindingAuthorityState(fixture)).toEqual(before);
+    }
+  });
+
+  it("rejects a binding from another installation despite matching tenant and Resource names", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const producer = await fixture.connect(fixture.primary);
+    const definitions = {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    };
+    const defined = await queryResponse(
+      producer,
+      "keynes.remote_define_resources",
+      { operationKey: operationKey("d"), definitions },
+    );
+    const bindingReference = requireResultReference(
+      defined,
+      "bindingReference",
+    );
+    const other = await openRemoteIdentityFixture();
+    try {
+      const consumer = await other.connect(other.primary);
+      const own = await queryResponse(
+        consumer,
+        "keynes.remote_define_resources",
+        { operationKey: operationKey("d"), definitions },
+      );
+      expect(
+        await queryResponse(consumer, "keynes.remote_create_budget", {
+          operationKey: operationKey("c"),
+          resources: {
+            kind: "binding",
+            bindingReference: requireResultReference(own, "bindingReference"),
+          },
+          allocation: { modelTokens: 2 },
+        }),
+      ).toMatchObject({ ok: true });
+      const before = await bindingAuthorityState(other);
+      expectBindingRefusal(
+        await queryResponse(consumer, "keynes.remote_create_budget", {
+          operationKey: operationKey("f"),
+          resources: { kind: "binding", bindingReference },
+          allocation: { modelTokens: 2 },
+        }),
+      );
+      expect(await bindingAuthorityState(other)).toEqual(before);
+    } finally {
+      await other.close();
+    }
+  });
+
+  it("validates the exact input shape of all nine wrappers before mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     const client = await fixture.connect(fixture.primary);
     const before = await protectedState(fixture);
@@ -401,7 +499,7 @@ describe("remote PostgreSQL identity and security", () => {
 function createRoot(suffix: string): Record<string, unknown> {
   return {
     operationKey: operationKey(suffix),
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName: `remote_tokens_${suffix}`,
@@ -410,7 +508,7 @@ function createRoot(suffix: string): Record<string, unknown> {
         },
         amount: 100,
       },
-    ],
+    ]),
   };
 }
 
@@ -440,6 +538,35 @@ async function protectedState(
   return result.rows[0]?.state;
 }
 
+function expectBindingRefusal(response: unknown): void {
+  expect(response).toEqual({
+    ok: false,
+    error: {
+      kind: "error",
+      code: "invalid_command",
+      details: {
+        operation: "createBudget",
+        issues: [
+          { path: "$.resources.bindingReference", rule: "resourceBinding" },
+        ],
+      },
+    },
+  });
+}
+
+async function bindingAuthorityState(
+  fixture: RemoteIdentityFixture,
+): Promise<unknown> {
+  const result = await fixture.administrator.query(`select jsonb_build_object(
+    'resources', (select jsonb_agg(to_jsonb(r) order by tenant_id, canonical_name) from keynes_internal.resource_types r),
+    'commands', (select jsonb_agg(to_jsonb(c) order by tenant_id, command_id) from keynes_internal.commands c),
+    'budgets', (select count(*) from keynes_internal.budgets),
+    'holdings', (select count(*) from keynes_internal.budget_resources),
+    'history', (select count(*) from keynes_internal.budget_history_entries)
+  ) as state`);
+  return result.rows[0]?.state;
+}
+
 function invalidRemoteInputs(): readonly {
   readonly procedure: string;
   readonly operation: string;
@@ -453,6 +580,25 @@ function invalidRemoteInputs(): readonly {
   };
   return [
     {
+      procedure: "keynes.remote_define_resources",
+      operation: "defineResources",
+      inputs: [
+        null,
+        {},
+        { operationKey: key, definitions: {} },
+        {
+          operationKey: key,
+          definitions: {
+            modelTokens: {
+              unit: "token",
+              accountingBehavior: "consumable",
+              unknown: true,
+            },
+          },
+        },
+      ],
+    },
+    {
       procedure: "keynes.remote_create_budget",
       operation: "createBudget",
       inputs: [
@@ -462,16 +608,16 @@ function invalidRemoteInputs(): readonly {
         { operationKey: key, resources: [root], unexpected: true },
         {
           operationKey: key,
-          resources: [
+          ...rootResources([
             {
               definition: { ...resource("shape_tokens"), unit: "x".repeat(65) },
               amount: 1,
             },
-          ],
+          ]),
         },
         {
           operationKey: key,
-          resources: [{ ...root, definition: resource("Invalid") }],
+          ...rootResources([{ ...root, definition: resource("Invalid") }]),
         },
       ],
     },
@@ -610,7 +756,11 @@ function budgetReference(suffix: string): string {
   return `kbr_v1_${suffix.padEnd(43, "a")}`;
 }
 
-function resource(canonicalName: string): Record<string, string> {
+type ResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
+
+function resource(canonicalName: string): ResourceDefinition {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
 }
 
@@ -644,7 +794,9 @@ async function completeTenantLifecycle(
   const canonicalName = "shared_tenant_tokens";
   const createInput = {
     operationKey: operationKey("t"),
-    resources: [{ definition: resource(canonicalName), amount: allocation }],
+    ...rootResources([
+      { definition: resource(canonicalName), amount: allocation },
+    ]),
   };
   const created = await queryResponse(
     client,

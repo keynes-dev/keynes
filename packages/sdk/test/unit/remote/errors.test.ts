@@ -6,8 +6,8 @@ import {
   type PostgresqlFailurePhase,
 } from "../../../src/remote/errors.js";
 
-const createBudget = REMOTE_CONTRACT.procedures[0];
-const getBudget = REMOTE_CONTRACT.procedures[3];
+const createBudget = REMOTE_CONTRACT.procedures[1];
+const getBudget = REMOTE_CONTRACT.procedures[4];
 const operationKey = `kop_v1_${"a".repeat(43)}`;
 
 describe("remote PostgreSQL error projection", () => {

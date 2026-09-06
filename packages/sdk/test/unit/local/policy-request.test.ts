@@ -3,21 +3,20 @@ import { describe, expect, it } from "vitest";
 import {
   createKeynes,
   definePolicySql,
-  defineResources,
   policySet,
   policyValue,
   type PolicyDefinition,
   type PolicySet,
 } from "../../../src/index.js";
 
-const resources = defineResources({
+const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 
-const orderingResources = defineResources({
+const orderingResources = {
   a0thing: { unit: "token", accountingBehavior: "consumable" },
   aThing: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 
 const contextSchema = {
   limit: policyValue.integer(),

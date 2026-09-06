@@ -1,7 +1,35 @@
 import type {
+  CreateBudgetCommand,
   ResourceTypeProjection,
   RootResourceInput,
 } from "../../generated/types.ts";
+
+export function rootResources(
+  resources: readonly RootResourceInput[],
+): Pick<CreateBudgetCommand, "resources" | "allocation"> {
+  const named = resources.map(({ definition, amount }) => ({
+    key: definition.canonicalName.replaceAll(
+      /_([a-z0-9])/g,
+      (_match, letter: string) => letter.toUpperCase(),
+    ),
+    definition: {
+      unit: definition.unit,
+      accountingBehavior: definition.accountingBehavior,
+    },
+    amount,
+  }));
+  return {
+    resources: {
+      kind: "definitions",
+      definitions: Object.fromEntries(
+        named.map(({ key, definition }) => [key, definition]),
+      ),
+    },
+    allocation: Object.fromEntries(
+      named.map(({ key, amount }) => [key, amount]),
+    ),
+  };
+}
 
 export function rootResource(
   resource: ResourceTypeProjection,

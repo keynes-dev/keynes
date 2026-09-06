@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { createHash } from "node:crypto";
 
 import {
@@ -32,12 +33,16 @@ const SEARCH_RESOURCE_ID = "13000000-0000-4000-8000-000000000002";
 const ROOT_ID = "23000000-0000-4000-8000-000000000001";
 const OTHER_ROOT_ID = "23000000-0000-4000-8000-000000000002";
 const REQUEST_ID = "33000000-0000-4000-8000-000000000001";
-const MODEL_TOKENS = {
+type ResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
+
+const MODEL_TOKENS: ResourceDefinition = {
   canonicalName: "model_tokens",
   unit: "token",
   accountingBehavior: "consumable",
 };
-const SEARCH_QUERIES = {
+const SEARCH_QUERIES: ResourceDefinition = {
   canonicalName: "search_queries",
   unit: "query",
   accountingBehavior: "consumable",
@@ -261,10 +266,10 @@ async function seedGovernedRoot(
   requireSuccess(
     await committedRawCall(fixture, "createBudget", {
       commandId: ROOT_ID,
-      resources: [
+      ...rootResources([
         { definition: MODEL_TOKENS, amount: 100 },
         { definition: SEARCH_QUERIES, amount: 100 },
-      ],
+      ]),
       policies: [policy],
     }),
   );
@@ -277,10 +282,10 @@ async function createOtherGovernedRoot(
   requireSuccess(
     await committedRawCall(fixture, "createBudget", {
       commandId: OTHER_ROOT_ID,
-      resources: [
+      ...rootResources([
         { definition: MODEL_TOKENS, amount: 1 },
         { definition: SEARCH_QUERIES, amount: 1 },
-      ],
+      ]),
       policies: [policy],
     }),
   );

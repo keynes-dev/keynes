@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import {
   preparePostgresInstallation,
   dropPostgresFixture,
@@ -28,7 +29,7 @@ const fixtureSource = {
     },
     createRoot: {
       commandId: "20000000-0000-0000-0000-000000000001",
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "model_tokens",
@@ -37,7 +38,7 @@ const fixtureSource = {
           },
           amount: 100,
         },
-      ],
+      ]),
     },
     requestChild: {
       commandId: "30000000-0000-0000-0000-000000000001",
@@ -89,6 +90,12 @@ const HISTORICAL_MIGRATIONS = [
     sha256: "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
     contractDigest:
       "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
+  },
+  {
+    id: "0006-remote-access",
+    sha256: "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+    contractDigest:
+      "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
   },
 ] as const;
 if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
@@ -208,7 +215,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
         readonly contract_digest: string | null;
       }>(
         `delete from keynes_internal.schema_migrations
-            where migration_id = '0006-remote-access'
+            where migration_id = '0007-resource-definitions'
             returning migration_id, byte_checksum, contract_digest`,
       );
       const migration = removed.rows[0];
@@ -221,7 +228,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           recheckInstallation({ client, config }),
         ).rejects.toMatchObject({
           code: "incompatible_target",
-          check: "migration:0006-remote-access",
+          check: "migration:0007-resource-definitions",
         });
       } finally {
         await client.query(
@@ -235,6 +242,85 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           ],
         );
       }
+    } finally {
+      await client.end();
+    }
+  });
+
+  it("grants the definition wrapper only to the runtime role", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      const privileges = await client.query(
+        `select coalesce(has_function_privilege($1, to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as runtime_remote,
+          coalesce(has_function_privilege($1, to_regprocedure('keynes.define_resources(jsonb)'), 'EXECUTE'), false) as runtime_canonical,
+          coalesce(has_function_privilege('public', to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as public_remote,
+          coalesce(has_function_privilege($2, to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as administration_remote`,
+        [config.applicationRole, config.administrationRole],
+      );
+      expect(privileges.rows).toEqual([
+        {
+          runtime_remote: true,
+          runtime_canonical: false,
+          public_remote: false,
+          administration_remote: false,
+        },
+      ]);
+    } finally {
+      await client.end();
+    }
+  });
+
+  it("rejects a missing definition receipt reference during exact recheck", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      const columns = await client.query(
+        `select column_name from information_schema.columns where table_schema = 'keynes_internal'
+          and table_name = 'commands' and column_name = 'binding_reference'`,
+      );
+      expect(columns.rows).toHaveLength(1);
+      await client.query(
+        "alter table keynes_internal.commands rename column binding_reference to drifted_binding_reference",
+      );
+      try {
+        await expect(
+          recheckInstallation({ client, config }),
+        ).rejects.toMatchObject({ code: "incompatible_target" });
+      } finally {
+        await client.query(
+          "alter table keynes_internal.commands rename column drifted_binding_reference to binding_reference",
+        );
+      }
+      await recheckInstallation({ client, config });
+    } finally {
+      await client.end();
+    }
+  });
+
+  it("rejects a missing unique definition receipt index during exact recheck", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      const indexes = await client.query<{
+        readonly index_name: string;
+        readonly definition: string;
+      }>(
+        `select i.indexrelid::regclass::text as index_name, pg_get_indexdef(i.indexrelid) as definition
+          from pg_index i join pg_attribute a on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+          where i.indrelid = 'keynes_internal.commands'::regclass and i.indisunique
+            and i.indnatts = 1 and a.attname = 'binding_reference'`,
+      );
+      expect(indexes.rows).toHaveLength(1);
+      const index = indexes.rows[0];
+      if (index === undefined)
+        throw new Error("definition receipt index missing");
+      await client.query(`drop index ${index.index_name}`);
+      try {
+        await expect(
+          recheckInstallation({ client, config }),
+        ).rejects.toMatchObject({ code: "incompatible_target" });
+      } finally {
+        await client.query(index.definition);
+      }
+      await recheckInstallation({ client, config });
     } finally {
       await client.end();
     }
@@ -398,7 +484,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("allows the application role to call exactly the eight remote functions", async () => {
+  it("allows the application role to call exactly the nine remote functions", async () => {
     const client = await connect(target.databaseUrl);
     try {
       const privileges = await client.query<{

@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -14,7 +15,7 @@ const operationKey = `kop_v1_${"a".repeat(43)}`;
 const budgetReference = `kbr_v1_${"b".repeat(43)}`;
 const command = {
   operationKey,
-  resources: [
+  ...rootResources([
     {
       definition: {
         canonicalName: "model_tokens",
@@ -23,7 +24,7 @@ const command = {
       },
       amount: 100,
     },
-  ],
+  ]),
 } satisfies RemoteCreateBudgetCommand;
 
 describe("remote contract test host", () => {
@@ -40,7 +41,11 @@ describe("remote contract test host", () => {
           lifecycle: "active",
           resources: [
             {
-              resource: command.resources[0].definition,
+              resource: {
+                canonicalName: "model_tokens",
+                unit: "token",
+                accountingBehavior: "consumable",
+              },
               allocated: 100,
               available: 100,
               committed: 0,
@@ -65,7 +70,7 @@ describe("remote contract test host", () => {
       host.clientFor("product-fixture").createBudget(command),
     ).resolves.toEqual(response.result);
     expect(execute).toHaveBeenCalledExactlyOnceWith(
-      REMOTE_CONTRACT.procedures[0],
+      REMOTE_CONTRACT.procedures[1],
       command,
     );
 

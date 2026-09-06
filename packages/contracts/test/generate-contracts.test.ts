@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("contract source", () => {
-  it("loads the five allowlisted operations in caller order", () => {
+  it("loads the six allowlisted operations in caller order", () => {
     const contract = loadContract(packageRoot);
     expect(contract.source.operations.map(({ method }) => method)).toEqual(
       expectations.operationMethods,
@@ -38,7 +38,8 @@ describe("contract source", () => {
       contract.source.operations.map(({ permissions }) => permissions),
     ).toEqual([
       ["define_resource_type"],
-      ["define_resource_type", "create_root_budget"],
+      ["define_resource_type"],
+      ["create_root_budget"],
       ["request_budget"],
       ["settle_budget"],
       ["read_budget"],
@@ -87,8 +88,8 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toEqual({
-      semanticGeneration: 1,
-      minimumSdkGeneration: 1,
+      semanticGeneration: 2,
+      minimumSdkGeneration: 2,
       semanticIdentities: [
         "installation",
         "command_contract",
@@ -97,9 +98,17 @@ describe("contract source", () => {
       ],
       procedures: [
         {
+          method: "defineResources",
+          target: "keynes.remote_define_resources",
+          revision: 1,
+          mode: "mutation",
+          input: "RemoteDefineResourcesCommand",
+          output: "RemoteDefineResourcesResult",
+        },
+        {
           method: "createBudget",
           target: "keynes.remote_create_budget",
-          revision: 1,
+          revision: 2,
           mode: "mutation",
           input: "RemoteCreateBudgetCommand",
           output: "RemoteCreateBudgetResult",

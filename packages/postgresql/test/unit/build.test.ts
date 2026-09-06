@@ -1,3 +1,8 @@
+import { createHash } from "node:crypto";
+import { loadContract } from "@keynes/contracts";
+import { fileURLToPath } from "node:url";
+import installationRecord from "../../generated/installation-record.json" with { type: "json" };
+
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
   mkdir,
@@ -24,6 +29,72 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL package build promotion", () => {
+  it("publishes independent definition procedures with generation two compatibility", () => {
+    const { source: contract } = loadContract(
+      fileURLToPath(new URL("../../../contracts/", import.meta.url)),
+    );
+    expect(contract.remote.semanticGeneration).toBe(2);
+    expect(contract.remote.minimumSdkGeneration).toBe(2);
+    expect(contract.operations).toContainEqual(
+      expect.objectContaining({
+        method: "defineResources",
+        target: "keynes.define_resources",
+        permissions: ["define_resource_type"],
+        replay: true,
+      }),
+    );
+    expect(contract.remote.procedures).toContainEqual(
+      expect.objectContaining({
+        method: "defineResources",
+        target: "keynes.remote_define_resources",
+        revision: 1,
+      }),
+    );
+    expect(contract.remote.procedures).toContainEqual(
+      expect.objectContaining({
+        method: "createBudget",
+        revision: 2,
+      }),
+    );
+    expect(installationRecord.expectedTargets).toContain(
+      "keynes.define_resources",
+    );
+    expect(installationRecord.expectedObjects).toContain(
+      "function:keynes.remote_define_resources(input jsonb)",
+    );
+  });
+
+  it("preserves every historical migration byte while adding Resource definitions", async () => {
+    const expectedHashes = [
+      "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
+      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
+      "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
+      "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
+      "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
+      "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+    ];
+    for (const [index, migration] of installationRecord.migrations
+      .slice(0, 6)
+      .entries()) {
+      const bytes = await readFile(
+        new URL(`../../migrations/${migration.path}`, import.meta.url),
+      );
+      expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+        expectedHashes[index],
+      );
+      expect(migration.sha256).toBe(expectedHashes[index]);
+    }
+    expect(installationRecord.migrations.map(({ id }) => id)).toEqual([
+      "0001-storage",
+      "0002-budget",
+      "0003-public",
+      "0004-policy",
+      "0005-resource-bound-budget",
+      "0006-remote-access",
+      "0007-resource-definitions",
+    ]);
+  });
+
   it("preserves the previous dist when compilation fails", async () => {
     const root = await makePackageRoot();
     await expect(

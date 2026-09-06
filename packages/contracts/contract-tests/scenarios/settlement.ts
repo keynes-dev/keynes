@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type {
+  CreateBudgetCommand,
   DefineResourceTypeCommand,
   DefineResourceTypeResult,
   RequestApproved,
@@ -12,7 +13,7 @@ import type {
   KeynesError,
   OpenContractTestHost,
 } from "../host.ts";
-import { rootResource } from "./root-resource.ts";
+import { rootResource, rootResources } from "./root-resource.ts";
 const MAX_SAFE_AMOUNT = 9_007_199_254_740_991;
 
 export function registerSettlementContractTests(
@@ -29,6 +30,139 @@ export function registerSettlementContractTests(
       await local.close();
     });
 
+    it("keeps independent roots fixed before and after another root settles", async () => {
+      const client = local.clientFor("product-fixture");
+      const binding = await client.defineResources({
+        commandId: fundingId(1),
+        definitions: {
+          modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+      });
+      const resources = {
+        kind: "binding",
+        bindingReference: binding.bindingReference,
+      } satisfies CreateBudgetCommand["resources"];
+      const command = {
+        commandId: fundingId(2),
+        resources,
+        allocation: { modelTokens: 10 },
+      };
+      const first = await client.createBudget(command);
+      const second = await client.createBudget({
+        commandId: fundingId(3),
+        resources,
+        allocation: { modelTokens: 20 },
+      });
+      await client.settleBudget({
+        commandId: fundingId(4),
+        budgetId: first.budget.budgetId,
+        usage: [
+          {
+            resourceTypeId: binding.resources[0].resourceType.resourceTypeId,
+            amount: 4,
+          },
+        ],
+      });
+      const third = await client.createBudget({
+        commandId: fundingId(5),
+        resources,
+        allocation: { modelTokens: 30 },
+      });
+      expect(await client.createBudget(command)).toEqual({
+        ...first,
+        replayed: true,
+      });
+      await expect(
+        client.createBudget({ ...command, allocation: { modelTokens: 11 } }),
+      ).rejects.toMatchObject({ code: "command_conflict" });
+      const readFirst = await client.getBudget({
+        budgetId: first.budget.budgetId,
+      });
+      expect(readFirst.budget).toMatchObject({
+        lifecycle: "settled",
+        resources: [{ allocated: 10, directUsage: 4, available: 6 }],
+      });
+      expect(
+        (await client.getBudget({ budgetId: second.budget.budgetId })).budget,
+      ).toMatchObject({
+        lifecycle: "active",
+        resources: [{ allocated: 20, available: 20, directUsage: null }],
+      });
+      expect(third.budget).toMatchObject({
+        lifecycle: "active",
+        resources: [{ allocated: 30, available: 30, directUsage: null }],
+      });
+      expect(
+        new Set([
+          first.budget.budgetId,
+          second.budget.budgetId,
+          third.budget.budgetId,
+        ]).size,
+      ).toBe(3);
+      expect(first.budget.resources[0].resourceType).toEqual(
+        third.budget.resources[0].resourceType,
+      );
+    });
+
+    it("keeps explicit zero-funded bound Resources present without permitting later funding", async () => {
+      const client = local.clientFor("product-fixture");
+      const definitions = {
+        modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
+      };
+      const binding = await client.defineResources({
+        commandId: fundingId(6),
+        definitions,
+      });
+      const command = {
+        commandId: fundingId(7),
+        resources: {
+          kind: "binding",
+          bindingReference: binding.bindingReference,
+        },
+        allocation: { modelTokens: 0, reviewerSeats: 0 },
+      } satisfies CreateBudgetCommand;
+      const root = await client.createBudget(command);
+      expect(root.budget.resources).toHaveLength(2);
+      expect(
+        root.budget.resources.map(({ allocated, available, committed }) => ({
+          allocated,
+          available,
+          committed,
+        })),
+      ).toEqual([
+        { allocated: 0, available: 0, committed: 0 },
+        { allocated: 0, available: 0, committed: 0 },
+      ]);
+      expect(
+        await client.requestBudget({
+          commandId: fundingId(8),
+          parentBudgetId: root.budget.budgetId,
+          resources: [
+            {
+              resourceTypeId: binding.resources[0].resourceType.resourceTypeId,
+              amount: 1,
+            },
+          ],
+        }),
+      ).toMatchObject({
+        kind: "denied",
+        reasons: [{ code: "insufficient_available", available: 0 }],
+      });
+      await client.defineResources({ commandId: fundingId(9), definitions });
+      await expect(
+        client.createBudget({
+          ...command,
+          allocation: { modelTokens: 1, reviewerSeats: 0 },
+        }),
+      ).rejects.toMatchObject({ code: "command_conflict" });
+      expect(
+        (
+          await client.getBudget({ budgetId: root.budget.budgetId })
+        ).budget.resources.map((resource) => resource.allocated),
+      ).toEqual([0, 0]);
+    });
+
     it("keeps a sealed parent settling until its open descendant settles", async () => {
       const client = local.clientFor("product-fixture");
       const resource = await defineResource(client, {
@@ -38,7 +172,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000001",
-        resources: [rootResource(resource, 100)],
+        ...rootResources([rootResource(resource, 100)]),
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000001",
@@ -115,6 +249,7 @@ export function registerSettlementContractTests(
         budgetId: root.budget.budgetId,
       });
       expect(returnedToRoot.budget.resources[0]).toMatchObject({
+        allocated: 100,
         committed: 15,
         available: 85,
       });
@@ -129,7 +264,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000011",
-        resources: [rootResource(resource, 10)],
+        ...rootResources([rootResource(resource, 10)]),
       });
 
       const missing = await client.settleBudget({
@@ -219,7 +354,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000021",
-        resources: [rootResource(resource, 100)],
+        ...rootResources([rootResource(resource, 100)]),
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000021",
@@ -244,6 +379,7 @@ export function registerSettlementContractTests(
         budgetId: root.budget.budgetId,
       });
       expect(returned.budget.resources[0]).toMatchObject({
+        allocated: 100,
         committed: 0,
         available: 100,
         subtreeObservedUsage: 25,
@@ -260,7 +396,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000031",
-        resources: [rootResource(resource, 100)],
+        ...rootResources([rootResource(resource, 100)]),
       });
       const overdrawn = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000031",
@@ -291,6 +427,7 @@ export function registerSettlementContractTests(
       });
       const parent = await client.getBudget({ budgetId: root.budget.budgetId });
       expect(parent.budget.resources[0]).toMatchObject({
+        allocated: 100,
         committed: 60,
         available: 40,
         subtreeObservedUsage: 60,
@@ -316,7 +453,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000071",
-        resources: [rootResource(resource, 100)],
+        ...rootResources([rootResource(resource, 100)]),
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000071",
@@ -374,7 +511,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000051",
-        resources: [rootResource(first, 10), rootResource(second, 20)],
+        ...rootResources([rootResource(first, 10), rootResource(second, 20)]),
       });
 
       const partial = await client.settleBudget({
@@ -434,7 +571,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000061",
-        resources: [rootResource(lower, 5), rootResource(higher, 7)],
+        ...rootResources([rootResource(lower, 5), rootResource(higher, 7)]),
       });
 
       await client.settleBudget({
@@ -466,7 +603,7 @@ export function registerSettlementContractTests(
       });
       const root = await client.createBudget({
         commandId: "22000000-0000-0000-0000-000000000041",
-        resources: [rootResource(resource, MAX_SAFE_AMOUNT)],
+        ...rootResources([rootResource(resource, MAX_SAFE_AMOUNT)]),
       });
       const child = await requestApproved(client, {
         commandId: "32000000-0000-0000-0000-000000000041",
@@ -561,4 +698,8 @@ async function expectKeynesError(
     code,
     details,
   });
+}
+
+function fundingId(suffix: number): string {
+  return `18000000-0000-4000-8000-${String(suffix).padStart(12, "0")}`;
 }

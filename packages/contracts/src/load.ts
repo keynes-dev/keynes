@@ -25,9 +25,17 @@ const EXPECTED_OPERATIONS = [
     output: "DefineResourceTypeResult",
   },
   {
+    method: "defineResources",
+    target: "keynes.define_resources",
+    permissions: ["define_resource_type"],
+    replay: true,
+    input: "DefineResourcesCommand",
+    output: "DefineResourcesResult",
+  },
+  {
     method: "createBudget",
     target: "keynes.create_budget",
-    permissions: ["define_resource_type", "create_root_budget"],
+    permissions: ["create_root_budget"],
     replay: true,
     input: "CreateBudgetCommand",
     output: "CreateBudgetResult",
@@ -59,8 +67,8 @@ const EXPECTED_OPERATIONS = [
 ] as const satisfies readonly ContractOperation[];
 
 const EXPECTED_REMOTE = {
-  semanticGeneration: 1,
-  minimumSdkGeneration: 1,
+  semanticGeneration: 2,
+  minimumSdkGeneration: 2,
   semanticIdentities: [
     "installation",
     "command_contract",
@@ -69,9 +77,17 @@ const EXPECTED_REMOTE = {
   ],
   procedures: [
     {
+      method: "defineResources",
+      target: "keynes.remote_define_resources",
+      revision: 1,
+      mode: "mutation",
+      input: "RemoteDefineResourcesCommand",
+      output: "RemoteDefineResourcesResult",
+    },
+    {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 1,
+      revision: 2,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",
@@ -314,7 +330,7 @@ function validateInputs(
   for (const [index, operation] of source.operations.entries()) {
     const expected = EXPECTED_OPERATIONS[index];
     if (expected === undefined)
-      fail("contract declares more than five operations");
+      fail("contract declares more than allowlisted operations");
     if (operation.method !== expected.method)
       fail(`operation order mismatch at index ${index}`);
     if (operation.target !== expected.target) {
@@ -336,7 +352,7 @@ function validateInputs(
     }
   }
   if (source.operations.length !== EXPECTED_OPERATIONS.length) {
-    fail("contract must declare exactly the five allowlisted operations");
+    fail("contract must declare exactly the allowlisted operations");
   }
   validateRemoteMetadata(source.remote, definitions);
   return definitions;
@@ -361,7 +377,7 @@ function validateRemoteMetadata(
   for (const [index, procedure] of remote.procedures.entries()) {
     const expected = EXPECTED_REMOTE.procedures[index];
     if (expected === undefined) {
-      fail("contract declares more than eight remote procedures");
+      fail("contract declares more than allowlisted remote procedures");
     }
     if (targets.has(procedure.target)) {
       fail(`duplicate remote procedure target ${procedure.target}`);
@@ -389,7 +405,7 @@ function validateRemoteMetadata(
     }
   }
   if (remote.procedures.length !== EXPECTED_REMOTE.procedures.length) {
-    fail("contract must declare exactly the eight remote procedures");
+    fail("contract must declare exactly the allowlisted remote procedures");
   }
 }
 

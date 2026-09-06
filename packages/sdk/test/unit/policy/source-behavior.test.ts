@@ -5,16 +5,12 @@ import {
   type PolicyTestCase,
 } from "@keynes/contracts/contract-tests";
 
-import {
-  definePolicySql,
-  defineResources,
-  policyValue,
-} from "../../../src/index.js";
+import { definePolicySql, policyValue } from "../../../src/index.js";
 import { evaluatePolicyProgram } from "../../../src/policy/evaluate.js";
 
-const resources = defineResources({
+const resources = {
   modelTokens: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 const modelTokenInput = ["modelTokens"] satisfies readonly ["modelTokens"];
 
 const sourceCases = POLICY_TEST_CASES.filter(

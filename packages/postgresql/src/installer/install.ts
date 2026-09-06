@@ -17,6 +17,7 @@ const BOOTSTRAP_PERMISSIONS = [
   "settle_budget",
 ] as const;
 const REMOTE_TARGETS = [
+  "keynes.remote_define_resources",
   "keynes.remote_create_budget",
   "keynes.remote_request",
   "keynes.remote_settle",
@@ -35,6 +36,10 @@ const REMOTE_ADMIN_TARGETS = [
   "keynes_internal.audit_remote_role_v0006(name,integer)",
 ] as const;
 const REMOTE_EXECUTION_TARGETS = [
+  "keynes_internal.remote_create_budget_v0007(jsonb)",
+  "keynes_internal.remote_define_resources_v0007(jsonb)",
+  "keynes_internal.remote_get_compatibility_v0007(jsonb)",
+  "keynes_internal.remote_validate_input_v0006(text,jsonb)",
   "keynes_internal.apply_command(text,jsonb)",
   "keynes_internal.get_budget(jsonb)",
   "keynes_internal.remote_apply_command_v0006(text,jsonb)",
@@ -237,6 +242,7 @@ async function checkExactTarget(
   assets: readonly InstallationAssets[],
 ): Promise<void> {
   await checkObjects(client);
+  await checkDefinitionReceipt(client);
   await checkIdentity(client, config);
   await checkInitialRemoteMapping(client, config);
   await checkMigrations(client);
@@ -245,6 +251,29 @@ async function checkExactTarget(
   await checkPermissions(client, config);
   await checkAccess(client, config);
   await checkMappedRoles(client, config);
+}
+
+async function checkDefinitionReceipt(client: QueryClient): Promise<void> {
+  const result = await client.query<{ readonly valid: boolean }>(
+    `select exists (
+       select 1 from pg_attribute a
+       where a.attrelid = 'keynes_internal.commands'::regclass
+         and a.attname = 'binding_reference' and not a.attisdropped
+         and a.atttypid = 'text'::regtype and not a.attnotnull
+         and exists (
+           select 1 from pg_index i
+           where i.indrelid = a.attrelid and i.indisunique and i.indisvalid
+             and i.indnatts = 1 and i.indkey[0] = a.attnum
+             and i.indpred is null and i.indexprs is null
+         )
+     ) as valid`,
+  );
+  if (result.rows[0]?.valid !== true) {
+    throw new InstallationError(
+      "incompatible_target",
+      "commands:binding_reference",
+    );
+  }
 }
 
 async function checkIdentity(

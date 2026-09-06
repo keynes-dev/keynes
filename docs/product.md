@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Accepted target contract as of September 3, 2026. Current delivery
+> **Status:** Accepted target contract, with fixed funding reconciled on September 5, 2026. Current delivery
 > and evidence reconciliation are tracked in [Linear](https://linear.app/keynes),
 > beginning with [KEY-7](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation).
 > Target behavior is not delivered unless its owning feature retains evidence for
@@ -97,16 +97,10 @@ A Budget is the only public stateful governance object. It has immutable
 Resource membership, immutable behavior controls, optional local Policies, one
 structural parent, and one lifecycle.
 
-Every Budget exposes `addResources`, `request`, `settle`, and
-`inspect`. The immutable `allows` value controls whether the first
-two operations may succeed:
-
-- `addResources` permits new quantity to enter an active Budget.
-- `createChildren` permits an active Budget to request a child.
-
-Omitting `allows` enables both behaviors. A caller may choose either, both,
-or neither. A child chooses its own value. It does not inherit or receive a
-subset of its parent's behavior controls.
+Every Budget exposes `request`, `settle`, and `inspect`. The immutable
+`allows.createChildren` value controls whether an active Budget may request a
+child. Omitting `allows` enables child creation. A child chooses its own value;
+it does not inherit or receive a subset of its parent's behavior controls.
 
 Disabled operations reject asynchronously with
 `budget_operation_not_allowed` and change no state. These controls describe
@@ -146,12 +140,24 @@ creates the Budget. A conflict rolls back the complete command.
 The Resource input establishes the root's complete membership. A missing
 initial amount means zero. Omitting `initial` creates an all-zero Budget.
 Zero is valid and can establish membership without creating a quantity
-movement. Initial allocation is part of creation and does not require
-`allows.addResources`.
+movement. An all-zero root cannot later acquire funding.
 
-`addResources` may introduce quantity into any active Budget whose
-`allows` value permits it. It changes quantity only for existing members.
-It cannot expand membership. Policies do not evaluate incoming quantity.
+Root creation introduces the tree's complete funding through either creation
+path. A child's complete grant comes from its parent at creation. Existing
+Budgets cannot receive top-ups, replenishment, or additional grants. The database
+enforces this for every supported caller. Settlement returns can restore parent
+availability without increasing the tree's initial funding.
+
+Applications create new roots for new allowances and may reuse the same Resource
+definitions. Each root has independent funding, lineage, and accounting. There is
+no automatic rollover, balance migration, or reopening of settled roots. Creating
+a new root does not require unrelated roots to be settled first. Authorization
+to create roots remains the boundary for introducing new allowances; fixed
+funding does not impose a shared ceiling across independently created roots.
+
+Insufficient availability causes a request denial, not automatic settlement.
+Quantity may still be held by children and return later. Missing usage and
+outstanding descendants remain unresolved until the normal settlement rules apply.
 
 ## Child Budgets
 
@@ -162,13 +168,10 @@ child. A parent Resource omitted from the request does not.
 The authority evaluates the parent's Policies, checks available quantity, and
 either records a denial or transfers the requested quantity to a new child.
 Approval removes quantity from the parent and gives it to the child in the same
-transaction. That initial child grant does not require the child to allow later
-additions. The authority never creates a visible reservation or partially
-created child.
-
-A child owns one fungible balance for each member Resource. Quantity transferred
-from its parent and quantity added later have the same meaning. Keynes does not
-track funding lots or ask the caller which source a use consumed.
+transaction. The authority never creates a visible reservation or partially
+created child. That creation grant is the child's complete funding; it may
+subdivide owned quantity among its own children and receive their remainders
+through settlement. These returns do not increase the original grant.
 
 ## Settlement
 
@@ -183,8 +186,8 @@ deficit evidence.
 
 A Budget with incomplete direct usage or a non-settled child is
 `settling`. Subsequent `settle` calls may report an omitted Resource;
-an explicit zero reports that it had no use. The Budget cannot add Resources or
-create children, but existing active descendants continue under their own
+an explicit zero reports that it had no use. The Budget cannot create children,
+but existing active descendants continue under their own
 behavior controls. A Budget becomes `settled` only after its direct usage
 is complete and every child is `settled`. A settled Budget can never have
 an active or settling descendant.
@@ -203,13 +206,16 @@ Final settlement removes all live quantity from the Budget:
 consumed. It does not mean that Keynes refunded money, restored provider quota,
 or performed another external action.
 
+For each root tree and Resource:
+
 ```text
-introduced = live + consumed + released
+initial root funding = live quantity + consumed quantity + released quantity
 ```
 
 For a completely settled tree, `live = 0`. Transfers inside the tree cancel
 from the equation. Reusable use and deficit are evidence, not quantity
-movements.
+movements. Fixed funding bounds authorized quantity, not actual external usage;
+applications can report overage, which remains deficit evidence.
 
 ## Loading, types, and history
 
@@ -304,11 +310,11 @@ released quantity.
 
 - Resource and Policy definitions are independent, immutable authority state.
 - Live quantity belongs to exactly one non-settled Budget.
-- Any active Budget may receive quantity when `allows.addResources` permits
-  it.
+- Root funding and child grants are fixed at creation. Settlement returns restore
+  availability without introducing quantity or increasing original funding.
 - Resource membership and `allows` never change after Budget creation.
 - A child receives exactly the Resource keys in its approved request.
-- Policies constrain child requests, not incoming quantity.
+- Policies constrain child requests.
 - A Budget never becomes settled while any descendant remains non-settled.
 - Settlement leaves every settled Budget with zero live quantity.
 - PostgreSQL owns all durable Budget, replay, and history state.

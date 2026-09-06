@@ -2,7 +2,6 @@ import {
   createKeynes,
   createOperationKey,
   definePolicySql,
-  defineResources,
   policySet,
   policyValue,
 } from "@keynes/sdk";
@@ -82,12 +81,12 @@ async function runAuthorizedDatabase(): Promise<void> {
   }
   const authorizedDatabaseUrl = databaseUrl;
   requireQualificationTarget(authorizedDatabaseUrl);
-  const resources = defineResources({
+  const resources = {
     packageQualificationUnits: {
       unit: "unit",
       accountingBehavior: "consumable",
     },
-  });
+  };
   const rootReference = await createAndClose();
   await using reconnected = await createKeynes({
     databaseUrl: authorizedDatabaseUrl,
@@ -162,13 +161,22 @@ function requireQualificationTarget(databaseUrl: string): void {
 }
 
 async function runBudgetLoop(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     usdCents: { unit: "cent", accountingBehavior: "consumable" },
     searchQueries: { unit: "query", accountingBehavior: "consumable" },
-  });
+  };
   const keynes = await createKeynes();
   try {
-    const root = await keynes.createBudget(resources, {
+    const binding = await keynes.defineResources(resources);
+    assertEqual(Object.isFrozen(binding), true);
+    assertEqual(Reflect.ownKeys(binding), []);
+    assertEqual(JSON.stringify(binding), "{}");
+    const raw = await keynes.createBudget(resources, { usdCents: 7 });
+    assertEqual(
+      (await raw.inspect()).budget.resources.map(({ resource }) => resource),
+      ["usdCents"],
+    );
+    const root = await keynes.createBudget(binding, {
       usdCents: 100,
       searchQueries: 10,
     });
@@ -218,9 +226,9 @@ async function runBudgetLoop(): Promise<void> {
 }
 
 async function runPolicyRuntime(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     modelTokens: { unit: "token", accountingBehavior: "consumable" },
-  });
+  };
   const limit = definePolicySql(resources, {
     name: "package_limit",
     revision: 1,
@@ -262,9 +270,9 @@ async function runPolicyRuntime(): Promise<void> {
 }
 
 async function runIsolation(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
+  };
   const left = await createKeynes();
   const right = await createKeynes();
   try {
@@ -282,9 +290,9 @@ async function runIsolation(): Promise<void> {
 }
 
 async function runClosure(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
+  };
   const keynes = await createKeynes();
   const root = await keynes.createBudget(resources, { workUnits: 1 });
   const firstClose = keynes.close();
@@ -300,9 +308,9 @@ async function runClosure(): Promise<void> {
 }
 
 async function writeThenExit(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     processMemory: { unit: "item", accountingBehavior: "consumable" },
-  });
+  };
   const keynes = await createKeynes();
   const root = await keynes.createBudget(resources, { processMemory: 1 });
   const [resource] = (await root.inspect()).budget.resources;
@@ -312,9 +320,9 @@ async function writeThenExit(): Promise<void> {
 }
 
 async function readAfterRestart(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     processMemory: { unit: "byte", accountingBehavior: "consumable" },
-  });
+  };
   const keynes = await createKeynes();
   try {
     const root = await keynes.createBudget(resources, { processMemory: 2 });

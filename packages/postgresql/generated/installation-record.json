@@ -18,10 +18,10 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
+  "contractDigest": "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
-  "remoteProceduresDigest": "77c9b438a027f181c5dc5b6997c91be8c4b8e2927e1f9ed9578d3cab0c3d3d43",
-  "migrationSetDigest": "2bb8ba560ba260c4fcaed121cd255e133d5b3a952d9458b2b62ee213b9704b72",
+  "remoteProceduresDigest": "36571ea4085453a0a0775fed58dbaabecd39e53ca4a4ec9b57250cee79b63253",
+  "migrationSetDigest": "d52bd64eaf22d10c3bf78e505a4aabe4e7da8d982c7cd713295a3a090dabddcb",
   "migrations": [
     {
       "id": "0001-storage",
@@ -55,16 +55,24 @@
       "path": "0006-remote-access.sql",
       "sha256": "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
       "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+    },
+    {
+      "id": "0007-resource-definitions",
+      "path": "0007-resource-definitions.sql",
+      "sha256": "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+      "contractDigest": "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f"
     }
   ],
   "expectedTargets": [
     "keynes.define_resource_type",
+    "keynes.define_resources",
     "keynes.create_budget",
     "keynes.request",
     "keynes.settle",
     "keynes.get_budget"
   ],
   "remoteTargets": [
+    "keynes.remote_define_resources",
     "keynes.remote_create_budget",
     "keynes.remote_request",
     "keynes.remote_settle",
@@ -210,7 +218,19 @@
     "function:keynes_internal.validate_power(node jsonb)",
     "function:keynes_internal.render_power(node jsonb)",
     "function:keynes_internal.validate_aggregate(node jsonb)",
-    "function:keynes_internal.render_aggregate(node jsonb)"
+    "function:keynes_internal.render_aggregate(node jsonb)",
+    "function:keynes_internal.canonical_definitions_v0007(operation_name text,value jsonb)",
+    "function:keynes_internal.resolve_resource_v0007(selected_tenant uuid,selected_principal uuid,selected_command uuid,selected_resource uuid,canonical_definition jsonb)",
+    "function:keynes_internal.apply_define_resources_v0007(input jsonb)",
+    "function:keynes_internal.apply_define_resource_v0007(input jsonb)",
+    "function:keynes_internal.apply_create_budget_v0007(input jsonb)",
+    "function:keynes_internal.canonical_creation_v0007(resource_source jsonb,allocation_value jsonb)",
+    "function:keynes_internal.remote_create_budget_v0007(input jsonb)",
+    "function:keynes_internal.remote_apply_command_v0007(operation_name text,input jsonb)",
+    "function:keynes_internal.remote_define_resources_v0007(input jsonb)",
+    "function:keynes_internal.remote_get_compatibility_v0007(input jsonb)",
+    "function:keynes.define_resources(input jsonb)",
+    "function:keynes.remote_define_resources(input jsonb)"
   ],
   "functions": [
     {
@@ -224,8 +244,18 @@
       "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
     },
     {
+      "operation": "defineResources",
+      "permissions": ["define_resource_type"],
+      "target": "keynes.define_resources",
+      "argumentType": "jsonb",
+      "returnType": "jsonb",
+      "language": "sql",
+      "securityDefiner": true,
+      "searchPath": ["pg_catalog", "keynes_internal", "pg_temp"]
+    },
+    {
       "operation": "createBudget",
-      "permissions": ["define_resource_type", "create_root_budget"],
+      "permissions": ["create_root_budget"],
       "target": "keynes.create_budget",
       "argumentType": "jsonb",
       "returnType": "jsonb",

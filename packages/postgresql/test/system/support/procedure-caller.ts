@@ -8,6 +8,7 @@ import { CommittedResponseLostError } from "./test-controls.js";
 type OperationName = Parameters<ContractExecutor["execute"]>[0];
 
 const INSTALLED_TARGETS = {
+  defineResources: "keynes.define_resources",
   defineResource: "keynes.define_resource_type",
   createBudget: "keynes.create_budget",
   requestBudget: "keynes.request",

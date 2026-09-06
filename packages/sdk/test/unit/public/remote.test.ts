@@ -8,7 +8,7 @@ import {
 } from "../../../src/generated/client.js";
 import {
   createKeynes,
-  defineResources,
+  createOperationKey,
   type RemoteKeynes,
 } from "../../../src/index.js";
 
@@ -29,9 +29,9 @@ const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
 const rootReference = `kbr_v1_${"r".repeat(43)}`;
 const childReference = `kbr_v1_${"c".repeat(43)}`;
-const resources = defineResources({
+const resources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 beforeEach(() => {
   remoteMocks.normalizeDatabaseUrl.mockReset();
@@ -43,6 +43,381 @@ afterEach(() => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("attributes empty raw definitions to the invoked operation", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const keynes = await createKeynes({ databaseUrl });
+    try {
+      for (const operation of ["createBudget", "defineResources"] as const) {
+        const pending: unknown = Reflect.apply(keynes[operation], keynes, [
+          {},
+          {},
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+          details: { operation },
+        });
+      }
+      expect(executor.methods).toEqual([]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots raw remote creation before caller mutation", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      extra: { unit: "slot", accountingBehavior: "reusable" },
+    };
+    const allocation = { workUnits: 10 };
+    const operationKey = createOperationKey();
+    const options = { operationKey };
+    try {
+      const pending = remote.createBudget(definitions, allocation, options);
+      definitions.workUnits.unit = "changed";
+      allocation.workUnits = 99;
+      options.operationKey = createOperationKey();
+      await pending;
+      expect(executor.inputs[0]).toMatchObject({
+        operationKey,
+        resources: {
+          kind: "definitions",
+          definitions: {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+            extra: { unit: "slot", accountingBehavior: "reusable" },
+          },
+        },
+        allocation: { workUnits: 10 },
+      });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it.each<Readonly<Record<string, unknown>>>([
+    { constructor: undefined },
+    { toString: undefined },
+    { extra: undefined },
+    {
+      extra: {
+        unit: "unit",
+        accountingBehavior: "consumable",
+        unknown: undefined,
+      },
+    },
+    {
+      extra: Object.assign(Object.create({ unit: "unit" }), {
+        accountingBehavior: "consumable",
+      }),
+    },
+  ])(
+    "rejects raw remote creation before serialization, case %#",
+    async (extra) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl });
+      try {
+        const pending: unknown = Reflect.apply(remote.createBudget, remote, [
+          {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+            ...extra,
+          },
+          { workUnits: 10 },
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+        });
+        expect(executor.methods).toEqual([]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it("keeps independent definition references out of the public binding", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    try {
+      const binding = await remote.defineResources({
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      });
+      expect(Object.isFrozen(binding)).toBe(true);
+      expect(Object.keys(binding)).toEqual([]);
+      expect(JSON.stringify(binding)).toBe("{}");
+      for (const key of Reflect.ownKeys(binding)) {
+        expect(Object.getOwnPropertyDescriptor(binding, key)).toMatchObject({
+          value: undefined,
+          writable: false,
+          configurable: false,
+        });
+      }
+      expect(Reflect.set(binding, "bindingReference", "forged")).toBe(false);
+      expect(executor.methods).toEqual(["defineResources"]);
+      for (const copy of [
+        { ...binding },
+        JSON.parse(JSON.stringify(binding)),
+      ]) {
+        await expect(
+          Reflect.apply(remote.defineResources, remote, [copy]),
+        ).rejects.toMatchObject({
+          code: "invalid_command",
+        });
+      }
+      expect(executor.methods).toEqual(["defineResources"]);
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("snapshots independent definition and operation options before await", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    const operationKey = createOperationKey();
+    const options = { operationKey };
+    try {
+      const defining = remote.defineResources(definitions, options);
+      definitions.workUnits.unit = "changed";
+      definitions.workUnits.accountingBehavior = "reusable";
+      options.operationKey = createOperationKey();
+      await defining;
+      expect(executor.inputs).toEqual([
+        {
+          operationKey,
+          definitions: {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+          },
+        },
+      ]);
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it.each([
+    ["empty batch", {}],
+    ["undefined entry", { workUnits: undefined }],
+    [
+      "undefined constructor entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        constructor: undefined,
+      },
+    ],
+    [
+      "undefined toString entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        toString: undefined,
+      },
+    ],
+    [
+      "undefined unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          unknown: undefined,
+        },
+      },
+    ],
+    [
+      "undefined constructor field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          constructor: undefined,
+        },
+      },
+    ],
+    [
+      "nonenumerable constructor entry",
+      Object.defineProperty(
+        { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+        "constructor",
+        { value: undefined },
+      ),
+    ],
+    [
+      "nonenumerable unknown field",
+      {
+        workUnits: Object.defineProperty(
+          { unit: "unit", accountingBehavior: "consumable" },
+          "unknown",
+          { value: undefined },
+        ),
+      },
+    ],
+    [
+      "symbol unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          [Symbol("unknown")]: undefined,
+        },
+      },
+    ],
+    [
+      "inherited unit",
+      {
+        workUnits: Object.assign(Object.create({ unit: "unit" }), {
+          accountingBehavior: "consumable",
+        }),
+      },
+    ],
+    [
+      "inherited behavior",
+      {
+        workUnits: Object.assign(
+          Object.create({ accountingBehavior: "consumable" }),
+          { unit: "unit" },
+        ),
+      },
+    ],
+  ])(
+    "rejects malformed independent definitions before remote serialization: %s",
+    async (_name, definitions) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl });
+      try {
+        const result: unknown = Reflect.apply(remote.defineResources, remote, [
+          definitions,
+        ]);
+        expect(result).toBeInstanceOf(Promise);
+        await expect(result).rejects.toMatchObject({ code: "invalid_command" });
+        expect(executor.methods).toEqual([]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it.each(["definition", "entry", "option"])(
+    "rejects independent %s getter failures asynchronously",
+    async (location) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl });
+      const failure = new Error("definition getter failed");
+      const read = (): never => {
+        throw failure;
+      };
+      const definitions =
+        location === "definition"
+          ? Object.defineProperty({}, "workUnits", {
+              enumerable: true,
+              get: read,
+            })
+          : {
+              workUnits:
+                location === "entry"
+                  ? Object.defineProperty(
+                      { accountingBehavior: "consumable" },
+                      "unit",
+                      { enumerable: true, get: read },
+                    )
+                  : { unit: "unit", accountingBehavior: "consumable" },
+            };
+      const options =
+        location === "option"
+          ? Object.defineProperty({}, "operationKey", {
+              enumerable: true,
+              get: read,
+            })
+          : {};
+      try {
+        const result: unknown = Reflect.apply(remote.defineResources, remote, [
+          definitions,
+          options,
+        ]);
+        expect(result).toBeInstanceOf(Promise);
+        await expect(result).rejects.toBe(failure);
+        expect(executor.methods).toEqual([]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it("rejects nonenumerable unknown definition options before transport", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const options = Object.defineProperty({}, "unknown", { value: undefined });
+    try {
+      await expect(
+        Reflect.apply(remote.defineResources, remote, [
+          { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+          options,
+        ]),
+      ).rejects.toMatchObject({ code: "invalid_configuration" });
+      expect(executor.methods).toEqual([]);
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("reads the independent definition operation key once when snapshotting options", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const operationKey = createOperationKey();
+    const read = vi.fn(() => operationKey);
+    const options = Object.defineProperty({}, "operationKey", {
+      enumerable: true,
+      get: read,
+    });
+    try {
+      await remote.defineResources(
+        {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+        options,
+      );
+      expect(read).toHaveBeenCalledOnce();
+      expect(executor.inputs).toEqual([
+        {
+          operationKey,
+          definitions: {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+          },
+        },
+      ]);
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("sends valid constructor and toString independent definitions intact", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const definitions = {
+      constructor: { unit: "unit", accountingBehavior: "consumable" },
+      toString: { unit: "slot", accountingBehavior: "reusable" },
+    };
+    try {
+      await remote.defineResources(definitions);
+      expect(executor.inputs).toEqual([
+        { operationKey: expect.any(String), definitions },
+      ]);
+    } finally {
+      await remote.close();
+    }
+  });
+
   it("uses the one factory for a shared create, inspect, request, and settle path", async () => {
     const poolConfig: PoolConfig = { host: "db.example.test", max: 10 };
     const executor = createFakeExecutor();
@@ -378,14 +753,56 @@ function createFakeExecutor(
         inputs.push(input);
         const override = overrides[procedure.method];
         return override === undefined
-          ? responseFor(procedure.method)
+          ? responseFor(procedure.method, input)
           : await override();
       },
     ),
   };
 }
 
-function responseFor(method: RemoteProcedureDescriptor["method"]): unknown {
+function responseFor(
+  method: RemoteProcedureDescriptor["method"],
+  input: unknown,
+): unknown {
+  if (String(method) === "defineResources") {
+    if (
+      typeof input !== "object" ||
+      input === null ||
+      !("definitions" in input) ||
+      typeof input.definitions !== "object" ||
+      input.definitions === null
+    ) {
+      throw new Error("expected definition command in remote fixture");
+    }
+    return {
+      ok: true,
+      result: {
+        kind: "defined",
+        bindingReference: `krs_v1_${"d".repeat(43)}`,
+        resources: Object.entries(input.definitions).map(
+          ([key, definition], index) => ({
+            key,
+            resourceType: {
+              resourceTypeId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+              canonicalName: key.replace(
+                /[A-Z]/gu,
+                (letter) => `_${letter.toLowerCase()}`,
+              ),
+              ...definition,
+              definitionDigest: `sha256:${"d".repeat(64)}`,
+            },
+            definitionEvidence: {
+              kind: "resource_type_defined",
+              commandId: "00000000-0000-4000-8000-000000000101",
+              principalId: "00000000-0000-4000-8000-000000000201",
+              definitionDigest: `sha256:${"d".repeat(64)}`,
+            },
+          }),
+        ),
+        replayed: false,
+      },
+    };
+  }
   switch (method) {
     case "getCompatibility":
       return {

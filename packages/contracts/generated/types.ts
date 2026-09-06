@@ -64,6 +64,24 @@ export type BudgetHistoryEntry =
   | BudgetSettlementRecordedHistoryEntry;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceSource".
+ */
+export type ResourceSource =
+  | {
+      kind: "definitions";
+      definitions: ResourceDefinitions;
+    }
+  | {
+      kind: "binding";
+      bindingReference: ResourceBindingReference;
+    };
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceBindingReference".
+ */
+export type ResourceBindingReference = string;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "PolicyDigest".
  */
 export type PolicyDigest = string;
@@ -120,6 +138,7 @@ export type HistoryCursor = string;
  * via the `definition` "RemoteMutationName".
  */
 export type RemoteMutationName =
+  | "defineResources"
   | "createBudget"
   | "requestBudget"
   | "settleBudget";
@@ -128,6 +147,7 @@ export type RemoteMutationName =
  * via the `definition` "RemoteProcedureName".
  */
 export type RemoteProcedureName =
+  | "defineResources"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"
@@ -183,6 +203,7 @@ export type RemoteRequestBudgetResult =
  * via the `definition` "RemoteMutationResult".
  */
 export type RemoteMutationResult =
+  | RemoteDefineResourcesResult
   | RemoteCreateBudgetResult
   | RemoteRequestBudgetResult
   | RemoteSettleBudgetResult;
@@ -191,6 +212,7 @@ export type RemoteMutationResult =
  * via the `definition` "RecoveredCommittedOperation".
  */
 export type RecoveredCommittedOperation =
+  | RecoveredCommittedDefineResources
   | RecoveredCommittedCreateBudget
   | RecoveredCommittedRequestBudget
   | RecoveredCommittedSettleBudget;
@@ -230,6 +252,7 @@ export type RemoteErrorEnvelope =
  */
 export type OperationName =
   | "defineResource"
+  | "defineResources"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"
@@ -678,11 +701,22 @@ export interface DefineResourceTypeResult {
  */
 export interface CreateBudgetCommand {
   commandId: Uuid;
-  resources: RootResourceEnvelope;
+  resources: ResourceSource;
   /**
    * @maxItems 16
    */
   policies?: PolicyDefinitionV1[];
+  allocation: ResourceAllocation;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceDefinitions".
+ */
+export interface ResourceDefinitions {
+  [k: string]: {
+    unit: string;
+    accountingBehavior: "consumable" | "reusable";
+  };
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -984,6 +1018,13 @@ export interface AggregateNodeV1 {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceAllocation".
+ */
+export interface ResourceAllocation {
+  [k: string]: Amount;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "CreateBudgetResult".
  */
 export interface CreateBudgetResult {
@@ -1255,11 +1296,12 @@ export interface RemoteBudgetSettlementHistoryEntry {
  */
 export interface RemoteCreateBudgetCommand {
   operationKey: OperationKey;
-  resources: RootResourceEnvelope;
+  resources: ResourceSource;
   /**
    * @maxItems 16
    */
   policies?: PolicyDefinitionV1[];
+  allocation: ResourceAllocation;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1390,6 +1432,43 @@ export interface OpenBudgetResult {
  */
 export interface RecoverOperationQuery {
   operationKey: OperationKey;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteDefineResourcesResult".
+ */
+export interface RemoteDefineResourcesResult {
+  kind: "defined";
+  bindingReference: ResourceBindingReference;
+  /**
+   * @minItems 1
+   */
+  resources: [DefinedResourceMember, ...DefinedResourceMember[]];
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefinedResourceMember".
+ */
+export interface DefinedResourceMember {
+  key: string;
+  resourceType: ResourceTypeProjection;
+  definitionEvidence: {
+    kind: "resource_type_defined";
+    commandId: Uuid;
+    principalId: Uuid;
+    definitionDigest: Digest;
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RecoveredCommittedDefineResources".
+ */
+export interface RecoveredCommittedDefineResources {
+  kind: "committed";
+  operationKey: OperationKey;
+  operation: "defineResources";
+  result: RemoteDefineResourcesResult;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1573,10 +1652,11 @@ export interface GetCompatibilityResult {
   semanticGeneration: number;
   minimumSdkGeneration: number;
   /**
-   * @minItems 8
-   * @maxItems 8
+   * @minItems 9
+   * @maxItems 9
    */
   procedures: [
+    RemoteProcedureCapability,
     RemoteProcedureCapability,
     RemoteProcedureCapability,
     RemoteProcedureCapability,
@@ -1689,4 +1769,33 @@ export interface PolicyEvaluationFailedErrorEnvelope {
       | "invalid_result"
       | "execution_failed";
   };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefineResourcesCommand".
+ */
+export interface DefineResourcesCommand {
+  commandId: Uuid;
+  definitions: ResourceDefinitions;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefineResourcesResult".
+ */
+export interface DefineResourcesResult {
+  kind: "defined";
+  bindingReference: ResourceBindingReference;
+  /**
+   * @minItems 1
+   */
+  resources: [DefinedResourceMember, ...DefinedResourceMember[]];
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteDefineResourcesCommand".
+ */
+export interface RemoteDefineResourcesCommand {
+  operationKey: OperationKey;
+  definitions: ResourceDefinitions;
 }

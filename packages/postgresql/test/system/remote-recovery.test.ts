@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -21,6 +22,179 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     fixture = undefined;
   });
 
+  it("recovers a lost definition response and retains its receipt after ledger expiry", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const producer = await fixture.connect(fixture.primary);
+    const consumer = await fixture.connect(fixture.primary);
+    const key = operationKey("R");
+    const input = {
+      operationKey: key,
+      definitions: {
+        recoveryUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    };
+    const transportErrors: Error[] = [];
+    producer.once("error", (error) => transportErrors.push(error));
+    producer.connection.stream.pause();
+    const pending = queryResponse(
+      producer,
+      "keynes.remote_define_resources",
+      input,
+    );
+    await expect
+      .poll(
+        async () => {
+          const response = record(
+            await queryResponse(consumer, "keynes.remote_recover_operation", {
+              operationKey: key,
+            }),
+          );
+          return record(response.result).kind;
+        },
+        { interval: 20, timeout: 2_000 },
+      )
+      .toBe("committed");
+    const lost = expect(pending).rejects.toBeInstanceOf(Error);
+    producer.connection.stream.destroy();
+    await lost;
+    expect(transportErrors).toHaveLength(1);
+    const before = await authorityCounts(fixture);
+    const recovered = await queryResponse(
+      consumer,
+      "keynes.remote_recover_operation",
+      { operationKey: key },
+    );
+    expect(recovered).toMatchObject({
+      ok: true,
+      result: { kind: "committed", operation: "defineResources" },
+    });
+    const receipt = record(record(record(recovered).result).result);
+    expect(receipt).toMatchObject({
+      kind: "defined",
+      resources: [{ key: "recoveryUnits" }],
+    });
+    expect(
+      await queryResponse(consumer, "keynes.remote_define_resources", input),
+    ).toEqual({ ok: true, result: { ...receipt, replayed: true } });
+    expect(
+      await queryResponse(consumer, "keynes.remote_define_resources", {
+        ...input,
+        definitions: {
+          recoveryUnits: {
+            unit: "different",
+            accountingBehavior: "consumable",
+          },
+        },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "command_conflict" } });
+    expect(await authorityCounts(fixture)).toEqual(before);
+    const bindingReference = receipt.bindingReference;
+    expect(bindingReference).toEqual(
+      expect.stringMatching(/^krs_v1_[A-Za-z0-9_-]{43}$/u),
+    );
+    await fixture.administrator.query(
+      "update keynes_internal.remote_operations set expires_at = clock_timestamp() - interval '1 second' where operation_key = $1",
+      [key],
+    );
+    expect(
+      await queryResponse(consumer, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toEqual({ ok: true, result: { kind: "expired", operationKey: key } });
+    await fixture.administrator.query(
+      "delete from keynes_internal.remote_operations where operation_key = $1",
+      [key],
+    );
+    const created = await queryResponse(
+      consumer,
+      "keynes.remote_create_budget",
+      {
+        operationKey: operationKey("S"),
+        resources: { kind: "binding", bindingReference },
+        allocation: { recoveryUnits: 7 },
+      },
+    );
+    expect(created).toMatchObject({
+      ok: true,
+      result: {
+        kind: "created",
+        budget: {
+          resources: [
+            { resource: { canonicalName: "recovery_units" }, allocated: 7 },
+          ],
+        },
+      },
+    });
+    expect(JSON.stringify(created)).not.toMatch(
+      /resourceTypeId|principalId|definitionDigest|tenantId|bindingReference/,
+    );
+    const durable = await fixture.administrator.query<{ count: number }>(
+      "select count(*)::int as count from keynes_internal.commands where binding_reference = $1",
+      [bindingReference],
+    );
+    expect(durable.rows).toEqual([{ count: 1 }]);
+  });
+
+  it("keeps failed definitions as known failures without a successful receipt", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    const original = await queryResponse(
+      client,
+      "keynes.remote_define_resources",
+      {
+        operationKey: operationKey("T"),
+        definitions: {
+          failureUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      },
+    );
+    expect(original).toMatchObject({ ok: true });
+    const before = await authorityCounts(fixture);
+    const key = operationKey("U");
+    const rejected = await queryResponse(
+      client,
+      "keynes.remote_define_resources",
+      {
+        operationKey: key,
+        definitions: {
+          addedUnits: { unit: "unit", accountingBehavior: "consumable" },
+          failureUnits: { unit: "changed", accountingBehavior: "consumable" },
+        },
+      },
+    );
+    expect(rejected).toMatchObject({ ok: false });
+    const recovered = await queryResponse(
+      client,
+      "keynes.remote_recover_operation",
+      { operationKey: key },
+    );
+    expect(recovered).toEqual({
+      ok: true,
+      result: {
+        kind: "known_failure",
+        operationKey: key,
+        error: record(rejected).error,
+      },
+    });
+    expect(JSON.stringify(recovered)).not.toMatch(
+      /krs_v1_|resourceTypeId|principalId|definitionDigest|tenantId|keynes_internal/,
+    );
+    const after = await authorityCounts(fixture);
+    expect(authorityCount(after, "commands")).toBe(
+      authorityCount(before, "commands"),
+    );
+    const definitions = await fixture.administrator.query<{ name: string }>(
+      "select canonical_name as name from keynes_internal.resource_types order by canonical_name",
+    );
+    expect(definitions.rows).toEqual([{ name: "failure_units" }]);
+    const receipts = await fixture.administrator.query<{ count: number }>(
+      "select count(*)::int as count from keynes_internal.commands where binding_reference is not null",
+    );
+    expect(receipts.rows).toEqual([{ count: 1 }]);
+  });
+
   it("reports semantic compatibility before any mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
@@ -38,8 +212,8 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         policyProfileDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 1,
-        minimumSdkGeneration: 1,
+        semanticGeneration: 2,
+        minimumSdkGeneration: 2,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",
@@ -150,12 +324,12 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       "keynes.remote_create_budget",
       {
         operationKey: rejectedKey,
-        resources: [
+        ...rootResources([
           {
             definition: resource("recover_invalid"),
             amount: 0,
           },
-        ],
+        ]),
       },
     );
     expect(rejected).toMatchObject({ ok: false });
@@ -479,7 +653,11 @@ function indexedOperationKey(index: number): string {
   return `kop_v1_${index.toString(36).padStart(43, "0")}`;
 }
 
-function resource(canonicalName: string): Record<string, string> {
+type ResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
+
+function resource(canonicalName: string): ResourceDefinition {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
 }
 
@@ -489,7 +667,7 @@ function createRoot(
 ): Record<string, unknown> {
   return {
     operationKey: operationKeyValue,
-    resources: [{ definition: resource(canonicalName), amount: 300 }],
+    ...rootResources([{ definition: resource(canonicalName), amount: 300 }]),
   };
 }
 

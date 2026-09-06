@@ -67,6 +67,12 @@ const MIGRATIONS = [
     tableName: "keynes_internal.remote_role_mappings",
     procedureName: "keynes.remote_get_compatibility(jsonb)",
   },
+  {
+    id: "0007-resource-definitions",
+    path: "0007-resource-definitions.sql",
+    tableName: null,
+    procedureName: "keynes.define_resources(jsonb)",
+  },
 ] as const;
 
 type FileContents = string | Buffer;
@@ -177,6 +183,47 @@ describe("PostgreSQL installation", () => {
         { migration_id: "0004-policy" },
         { migration_id: "0005-resource-bound-budget" },
         { migration_id: "0006-remote-access" },
+        { migration_id: "0007-resource-definitions" },
+      ]);
+    });
+  });
+
+  it("installs a nullable unique private definition receipt reference", async () => {
+    const { installDatabase } = await import("./support/migrations.js");
+    await withFreshDatabase(async (database) => {
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      const columns = await database.query<{
+        readonly is_nullable: string;
+      }>(
+        `select is_nullable from information_schema.columns
+          where table_schema = 'keynes_internal' and table_name = 'commands'
+            and column_name = 'binding_reference'`,
+      );
+      expect(columns.rows).toEqual([{ is_nullable: "YES" }]);
+      const indexes = await database.query<{
+        readonly unique_reference: boolean;
+      }>(
+        `select exists (
+          select 1 from pg_index i join pg_attribute a
+            on a.attrelid = i.indrelid and a.attnum = any(i.indkey)
+          where i.indrelid = 'keynes_internal.commands'::regclass
+            and i.indisunique and i.indisvalid and i.indnatts = 1
+            and a.attname = 'binding_reference'
+        ) as unique_reference`,
+      );
+      expect(indexes.rows).toEqual([{ unique_reference: true }]);
+      const procedures = await database.query<{
+        readonly canonical: string | null;
+        readonly remote: string | null;
+      }>(
+        `select to_regprocedure('keynes.define_resources(jsonb)')::text as canonical,
+          to_regprocedure('keynes.remote_define_resources(jsonb)')::text as remote`,
+      );
+      expect(procedures.rows).toEqual([
+        {
+          canonical: "keynes.define_resources(jsonb)",
+          remote: "keynes.remote_define_resources(jsonb)",
+        },
       ]);
     });
   });

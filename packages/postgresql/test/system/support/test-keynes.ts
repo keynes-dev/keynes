@@ -119,13 +119,45 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
 
 function postgresContractHost(owner: PostgresDatabase): ContractTestHost {
   return {
+    async inspectState() {
+      const { rows } = await owner.database.query<
+        Awaited<ReturnType<ContractTestHost["inspectState"]>>
+      >(`
+        SELECT
+          (SELECT count(*)::integer FROM keynes_internal.resource_types) AS resources,
+          (SELECT count(*)::integer FROM keynes_internal.commands WHERE result IS NOT NULL) AS commands,
+          (SELECT count(*)::integer FROM keynes_internal.budgets) AS budgets,
+          (SELECT count(*)::integer FROM keynes_internal.budget_resources) AS holdings,
+          (SELECT count(*)::integer FROM keynes_internal.budget_history_entries) AS history,
+          (SELECT coalesce(sum(allocated_amount), 0)::double precision FROM keynes_internal.budget_resources) AS quantity
+      `);
+      const state = rows[0];
+      if (state === undefined)
+        throw new Error("Missing authority state counts");
+      return state;
+    },
     clientFor(fixture, options) {
-      return createContractClient(
-        createDatabaseProcedureCaller(
-          owner.database,
-          transactionContext(fixture, options),
-        ),
+      const caller = createDatabaseProcedureCaller(
+        owner.database,
+        transactionContext(fixture, options),
       );
+      let arm = options?.forbidResourceWrites ?? false;
+      return createContractClient({
+        async execute(operation, input) {
+          if (arm) {
+            await owner.database
+              .exec(`CREATE FUNCTION keynes_internal.forbid_resource_write_test()
+              RETURNS trigger LANGUAGE plpgsql AS $test$
+              BEGIN RAISE EXCEPTION 'private Resource write prohibition'; END;
+              $test$;
+              CREATE TRIGGER forbid_resource_write_test BEFORE INSERT OR UPDATE OR DELETE
+              ON keynes_internal.resource_types FOR EACH STATEMENT
+              EXECUTE FUNCTION keynes_internal.forbid_resource_write_test();`);
+            arm = false;
+          }
+          return caller.execute(operation, input);
+        },
+      });
     },
     close: () => owner.close(),
   };

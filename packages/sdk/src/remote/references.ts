@@ -10,6 +10,11 @@ import type {
 } from "../generated/types.js";
 import { KeynesSdkError } from "../sdk-errors.js";
 
+import {
+  createResourceDefinitionBinding,
+  type ResourceBinding,
+} from "../resource-definition-binding.js";
+
 declare const operationKeyBrand: unique symbol;
 declare const budgetReferenceBrand: unique symbol;
 
@@ -60,6 +65,12 @@ export type RecoverOperationResult =
   | {
       readonly kind: "committed";
       readonly operationKey: OperationKey;
+      readonly operation: "defineResources";
+      readonly result: ResourceBinding<string>;
+    }
+  | {
+      readonly kind: "committed";
+      readonly operationKey: OperationKey;
       readonly operation: "createBudget";
       readonly result: RemoteCreateBudgetResult;
     }
@@ -103,6 +114,13 @@ export function projectRecoverOperationResult(
   const operationKey = requireOperationKey(result.operationKey);
   if (result.kind !== "committed") return { ...result, operationKey };
   switch (result.operation) {
+    case "defineResources":
+      return {
+        kind: "committed",
+        operationKey,
+        operation: "defineResources",
+        result: createResourceDefinitionBinding(result.result),
+      };
     case "createBudget":
       return {
         ...result,

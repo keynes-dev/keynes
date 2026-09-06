@@ -1,10 +1,20 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
+import { stripTypeScriptTypes } from "node:module";
+import { fileURLToPath } from "node:url";
+
+import { loadContract, loadPolicyProfile } from "@keynes/contracts";
 import { describe, expect, it } from "vitest";
 
+import {
+  renderPolicyProfile,
+  renderValidators,
+} from "../../../scripts/render.js";
 import { createKeynesClient } from "../../../src/generated/client.js";
 import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
+  DefineResourcesCommand,
   OperationName,
   RequestBudgetCommand,
   SettleBudgetCommand,
@@ -12,6 +22,12 @@ import type {
 import { validateCreateBudgetCommandIssues } from "../../../src/generated/validators.js";
 
 const commands = {
+  defineResources: {
+    commandId: "10000000-0000-0000-0000-000000000002",
+    definitions: {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+  } satisfies DefineResourcesCommand,
   defineResource: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
@@ -22,7 +38,7 @@ const commands = {
   } satisfies DefineResourceTypeCommand,
   createBudget: {
     commandId: "20000000-0000-0000-0000-000000000001",
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName: "model_tokens",
@@ -31,7 +47,7 @@ const commands = {
         },
         amount: 100,
       },
-    ],
+    ]),
   } satisfies CreateBudgetCommand,
   requestBudget: {
     commandId: "30000000-0000-0000-0000-000000000001",
@@ -60,11 +76,107 @@ const commands = {
 
 const EXPECTED_OPERATIONS = [
   "defineResource",
+  "defineResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
   "getBudget",
 ] satisfies readonly OperationName[];
+
+describe.each(["issues", "boolean"])(
+  "generated %s own-property validation",
+  (kind) => {
+    const packageRoot = fileURLToPath(
+      new URL("../../../../contracts/", import.meta.url),
+    );
+    const definitions = {
+      NamedDefinitions: {
+        type: "object",
+        propertyNames: { type: "string", pattern: "^[a-z][A-Za-z0-9]*$" },
+        additionalProperties: {
+          type: "object",
+          required: ["unit", "accountingBehavior"],
+          properties: {
+            unit: { type: "string", minLength: 1 },
+            accountingBehavior: { enum: ["consumable", "reusable"] },
+          },
+          additionalProperties: false,
+        },
+      },
+    };
+    const source =
+      kind === "issues"
+        ? renderValidators(definitions, loadContract(packageRoot).source)
+        : renderPolicyProfile(loadPolicyProfile(packageRoot), {
+            $defs: definitions,
+          });
+    const validate: unknown = new Function(
+      `${stripTypeScriptTypes(source).replaceAll("export ", "")}\nreturn validateDefinition;`,
+    )();
+    if (typeof validate !== "function")
+      throw new Error("Missing generated validator");
+    const valid = { unit: "token", accountingBehavior: "consumable" };
+
+    it.each(Object.entries(valid))(
+      "rejects inherited required %s",
+      (field, value) => {
+        const entry = Object.assign(
+          Object.create({ [field]: value }),
+          Object.fromEntries(
+            Object.entries(valid).filter(([name]) => name !== field),
+          ),
+        );
+        expect(validate("NamedDefinitions", { modelTokens: entry })).toEqual(
+          kind === "issues"
+            ? [{ path: `/modelTokens/${field}`, rule: "required" }]
+            : false,
+        );
+      },
+    );
+
+    it("rejects an unknown own constructor field even when undefined", () => {
+      expect(
+        validate("NamedDefinitions", {
+          modelTokens: { ...valid, constructor: undefined },
+        }),
+      ).toEqual(
+        kind === "issues"
+          ? [{ path: "/modelTokens/constructor", rule: "additionalProperties" }]
+          : false,
+      );
+    });
+
+    it.each(["constructor", "toString"])(
+      "validates malformed named %s entries",
+      (name) => {
+        expect(validate("NamedDefinitions", { [name]: undefined })).toEqual(
+          kind === "issues" ? [{ path: `/${name}`, rule: "type" }] : false,
+        );
+      },
+    );
+
+    it.each(["constructor", "toString"])(
+      "rejects invalid behavior for named %s entries",
+      (name) => {
+        expect(
+          validate("NamedDefinitions", {
+            [name]: { ...valid, accountingBehavior: "invalid" },
+          }),
+        ).toEqual(
+          kind === "issues"
+            ? [{ path: `/${name}/accountingBehavior`, rule: "enum" }]
+            : false,
+        );
+      },
+    );
+
+    it("accepts valid prototype-like Resource names", () => {
+      expect(
+        validate("NamedDefinitions", { constructor: valid, toString: valid }),
+      ).toEqual(kind === "issues" ? [] : true);
+    });
+  },
+);
 
 describe("generated client bindings", () => {
   it("binds every concrete method to its deployment-neutral operation", async () => {
@@ -79,6 +191,9 @@ describe("generated client bindings", () => {
     const client = createKeynesClient(executor);
 
     await expect(client.defineResource(commands.defineResource)).rejects.toBe(
+      stop,
+    );
+    await expect(client.defineResources(commands.defineResources)).rejects.toBe(
       stop,
     );
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);
@@ -174,9 +289,10 @@ describe("generated client bindings", () => {
     const first = { zeta: true, ...common, alpha: true };
     const second = { alpha: true, ...common, zeta: true };
     const expected = [
+      { path: "/allocation", rule: "required" },
       { path: "/alpha", rule: "additionalProperties" },
       { path: "/commandId", rule: "pattern" },
-      { path: "/resources", rule: "minItems" },
+      { path: "/resources", rule: "oneOf" },
       { path: "/zeta", rule: "additionalProperties" },
     ];
 
@@ -184,21 +300,19 @@ describe("generated client bindings", () => {
     expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
   });
 
-  it("rejects structurally duplicate resource entries regardless of property order", () => {
-    const definition = {
-      canonicalName: "model_tokens",
-      unit: "token",
-      accountingBehavior: "consumable",
-    };
-
+  it("rejects mixed Resource sources before dispatch", () => {
     expect(
       validateCreateBudgetCommandIssues({
         commandId: "20000000-0000-0000-0000-000000000001",
-        resources: [
-          { definition, amount: 1 },
-          { amount: 1, definition },
-        ],
+        resources: {
+          kind: "definitions",
+          definitions: {
+            modelTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+          bindingReference: `krs_v1_${"a".repeat(43)}`,
+        },
+        allocation: { modelTokens: 1 },
       }),
-    ).toEqual([{ path: "/resources", rule: "uniqueItems" }]);
+    ).toEqual([{ path: "/resources", rule: "oneOf" }]);
   });
 });

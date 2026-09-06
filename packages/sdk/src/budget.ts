@@ -18,7 +18,7 @@ import {
   projectSnapshot,
 } from "./budget-projection.js";
 import { prepareRequestPolicyOptions } from "./budget-request-options.js";
-import type { ResourceBinding } from "./resource-binding.js";
+import type { BudgetResourceBinding } from "./resource-binding.js";
 
 export { attachedPolicyDefinitions } from "./budget-request-options.js";
 
@@ -426,7 +426,7 @@ export function createBudgetHandle<
 >(
   runtime: LocalRuntime,
   budgetId: string,
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
 ): Budget<Names, Context, Reasons, HistoryNames> {
   const request: Budget<Names, Context, Reasons, HistoryNames>["request"] = (
     resources,
@@ -483,7 +483,7 @@ function requestBudget<
 >(
   runtime: LocalRuntime,
   budgetId: string,
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
   options: RequestArguments<
     Context,

@@ -22,6 +22,7 @@ const CONTEXT = {
 
 const OPERATIONS = [
   "defineResource",
+  "defineResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -30,6 +31,7 @@ const OPERATIONS = [
 
 const TARGET_QUERIES = {
   defineResource: "select keynes.define_resource_type($1::jsonb) as response",
+  defineResources: "select keynes.define_resources($1::jsonb) as response",
   createBudget: "select keynes.create_budget($1::jsonb) as response",
   requestBudget: "select keynes.request($1::jsonb) as response",
   settleBudget: "select keynes.settle($1::jsonb) as response",

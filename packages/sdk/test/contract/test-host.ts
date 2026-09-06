@@ -5,13 +5,15 @@ import type {
   RemoteContractTestHost,
   RollbackCheckpoint,
 } from "@keynes/contracts/contract-tests";
+import { createContractClient } from "@keynes/contracts/contract-tests";
 
 import {
   createKeynesClient,
   createRemoteKeynesClient,
   type RemoteCommandExecutor,
 } from "../../src/generated/client.js";
-import { openSqliteCommandExecutor } from "../../src/local/sqlite-command-executor.js";
+import { SqliteCommandExecutor } from "../../src/local/sqlite-command-executor.js";
+import { SqliteStore } from "../../src/local/sqlite-store.js";
 import { CommittedResponseLostError } from "../../src/replay.js";
 
 const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
@@ -73,8 +75,9 @@ const FIXTURE_INSTALLATION = {
 
 export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
   let armedCheckpoint: RollbackCheckpoint | undefined;
-  const executor = openSqliteCommandExecutor(
-    FIXTURE_INSTALLATION,
+  const store = SqliteStore.open(FIXTURE_INSTALLATION);
+  const executor = new SqliteCommandExecutor(
+    store,
     {
       tenantId: FIXTURE_TENANT_ID,
       principalId: FIXTURE_PRINCIPALS["product-fixture"],
@@ -89,29 +92,33 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
 
   return {
     clientFor(fixture, options) {
-      return createKeynesClient(
-        loseCommittedResponseOnce(
-          {
-            async execute(operation, input) {
-              armedCheckpoint = options?.checkpoint;
-              try {
-                return await executor.executeFor(
-                  {
-                    tenantId: FIXTURE_TENANT_ID,
-                    principalId: FIXTURE_PRINCIPALS[fixture],
-                  },
-                  operation,
-                  input,
-                );
-              } finally {
-                armedCheckpoint = undefined;
-              }
-            },
+      if (options?.forbidResourceWrites) store.forbidResourceWrites();
+      const caller = loseCommittedResponseOnce(
+        {
+          async execute(operation, input) {
+            armedCheckpoint = options?.checkpoint;
+            try {
+              return await executor.executeFor(
+                {
+                  tenantId: FIXTURE_TENANT_ID,
+                  principalId: FIXTURE_PRINCIPALS[fixture],
+                },
+                operation,
+                input,
+              );
+            } finally {
+              armedCheckpoint = undefined;
+            }
           },
-          options,
-        ),
+        },
+        options,
       );
+      return {
+        ...createKeynesClient(caller),
+        defineResources: createContractClient(caller).defineResources,
+      };
     },
+    inspectState: async () => store.inspectState(),
     close: async () => executor.close(),
   };
 }

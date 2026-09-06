@@ -22,7 +22,7 @@ export interface BoundResources<
   HistoryNames extends string = Name,
 > {
   readonly envelope: ResourceEnvelope;
-  readonly binding: ResourceBinding<Name, HistoryNames>;
+  readonly binding: BudgetResourceBinding<Name, HistoryNames>;
 }
 
 interface BindingIndexes<Names extends string> {
@@ -30,7 +30,7 @@ interface BindingIndexes<Names extends string> {
   readonly byCanonicalName: ReadonlyMap<string, BoundResource<Names>>;
 }
 
-export class ResourceBinding<
+export class BudgetResourceBinding<
   Names extends string,
   HistoryNames extends string = Names,
 > {
@@ -131,7 +131,10 @@ export class ResourceBinding<
     );
     return Object.freeze({
       envelope: requireEnvelope(amounts, operation, "$.resources"),
-      binding: new ResourceBinding<Name, HistoryNames>(this.#indexes, resolved),
+      binding: new BudgetResourceBinding<Name, HistoryNames>(
+        this.#indexes,
+        resolved,
+      ),
     });
   }
 
@@ -168,7 +171,7 @@ export function createResourceBinding<Name extends string>(
     ...PreparedRootResource<Name>[],
   ],
   budget: BudgetProjection,
-): ResourceBinding<Name> {
+): BudgetResourceBinding<Name> {
   if (
     budget.parentBudgetId !== null ||
     budget.rootBudgetId !== budget.budgetId ||
@@ -194,10 +197,10 @@ export function createResourceBinding<Name extends string>(
       expected === undefined ||
       actual === undefined ||
       actual.resourceType.canonicalName !== expected.canonicalName ||
-      actual.resourceType.unit !== expected.definition.unit ||
-      actual.resourceType.accountingBehavior !==
-        expected.definition.accountingBehavior ||
-      actual.resourceType.definitionDigest !== expected.definitionDigest ||
+      (expected.definition !== undefined &&
+        (actual.resourceType.unit !== expected.definition.unit ||
+          actual.resourceType.accountingBehavior !==
+            expected.definition.accountingBehavior)) ||
       actual.allocated !== expected.amount ||
       actual.available !== expected.amount ||
       actual.committed !== 0 ||
@@ -229,7 +232,7 @@ export function createResourceBinding<Name extends string>(
       visible.map((resource) => [resource.canonicalName, resource]),
     ),
   });
-  return new ResourceBinding(indexes, visible);
+  return new BudgetResourceBinding(indexes, visible);
 }
 
 function bindingMismatch(): Error {
