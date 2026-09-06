@@ -341,6 +341,28 @@ new clean candidate and fresh native attempt. All six commands pass again with
 the same counts (`phase6/provider-free-final/`). The correction's
 `ponytail-review` reports "Lean already. Ship."
 
+### Archive-inventory correction
+
+The second clean native attempt on `ebeda1e347cb3bf6090184e65ba75a6d5ce163b7`
+passes with the corrected nine-wrapper record, the same 81/144/64/258 counts,
+zero failures or skips, unchanged clean source, and successful cleanup. Its
+records remain under
+`.artifacts/key-77/phase6/acceptance-9273ee44-d05e-4fc8-bda8-31b898b80da0/`.
+The exact SDK archive also passes all 12 qualification checks on that candidate.
+
+PostgreSQL archive qualification then fails two stale test expectations: the
+file inventory omits migration 0007, and the manifest expectation still marks
+0006 as current. The actual archive already contains the correct seven files and
+frozen historical digests. The fixture now explicitly requires 0007 and the
+original 0006 digest. Its full package qualification passes all 24 tests against
+the same retained archive (`phase6/postgresql-package-fixture-feedback.log`).
+That feedback record correctly reports a dirty checkout; it is not the final
+clean-source package record. No runtime, installer, SQL, or archive bytes changed.
+
+A final clean candidate follows this test-only correction. Earlier attempts and
+failed qualification logs remain intact. PostgreSQL typecheck and formatting
+pass; the correction's `ponytail-review` reports "Lean already. Ship."
+
 ## Verification status
 
 | Lane                                                      | Status                     |
