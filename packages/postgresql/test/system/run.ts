@@ -779,7 +779,7 @@ async function writeAcceptanceRecord(
         privileges: ["LOGIN", "NOINHERIT"],
         grants: [
           "USAGE ON SCHEMA keynes",
-          "EXECUTE ON eight remote wrapper functions",
+          "EXECUTE ON nine remote wrapper functions",
         ],
       },
       privateAccessDenials: [

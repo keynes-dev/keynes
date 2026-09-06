@@ -730,7 +730,14 @@ describe("PostgreSQL system-test runner", () => {
         contractDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         migrations: expect.any(Array),
       },
-      roles: expect.any(Object),
+      roles: {
+        application: {
+          grants: [
+            "USAGE ON SCHEMA keynes",
+            "EXECUTE ON nine remote wrapper functions",
+          ],
+        },
+      },
       tests: {
         numFailedTests: 0,
         numPendingTests: 0,

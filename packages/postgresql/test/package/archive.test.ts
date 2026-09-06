@@ -146,7 +146,7 @@ describe("@keynes/postgresql packed archive", () => {
     expect(entry("package/dist/cli.js").mode & 0o111).not.toBe(0);
   });
 
-  it("documents the current six-key, four-role installation and eight remote procedures", () => {
+  it("documents the current six-key, four-role installation and nine remote procedures", () => {
     const readme = entry("package/README.md").body.toString("utf8");
 
     for (const key of [
@@ -160,6 +160,7 @@ describe("@keynes/postgresql packed archive", () => {
       expect(readme).toContain(`\`${key}\``);
     }
     for (const procedure of [
+      "remote_define_resources",
       "remote_create_budget",
       "remote_request",
       "remote_settle",

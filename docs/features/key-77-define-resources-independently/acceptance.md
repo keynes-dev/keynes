@@ -317,6 +317,30 @@ paired runner can capture a clean source identity. Final native and exact packag
 qualification results will be added after those runs; they are not implied by
 this checkpoint. The checkpoint `ponytail-review` reports "Lean already. Ship."
 
+### Acceptance-record correction
+
+The first clean attempt on `85bf85647de9918d3c83fbc7a9a1b1c9970b9fed`
+passed Embedded (81 tests), Remote (144 tests, all three modes), and paired
+SQLite/PostgreSQL (64/258 tests), with complete scenario inventory and cleanup.
+Its retained records remain under
+`.artifacts/key-77/phase6/acceptance-c658ea1c-d210-4001-9a8f-348a0d3563e6/`.
+
+Record inspection found one stale descriptive field: the application role's grant
+summary said eight Remote wrappers although the tested inventory contains nine.
+The reporting literal is corrected, and the package README assertion now includes
+`remote_define_resources`. A new assertion fails before the correction
+(`phase6/metadata-red.log`) and passes afterward. Running the complete runner
+unit file from its required repository root passes all 91 tests
+(`metadata-green-root.log`). An earlier package-directory invocation failed three
+relative-path harness checks (`metadata-green.log`); it was corrected without
+changing those tests.
+
+The first attempt is retained as runtime feedback, not the final acceptance
+record. The provider-free gate is repeated for the reporting correction before a
+new clean candidate and fresh native attempt. All six commands pass again with
+the same counts (`phase6/provider-free-final/`). The correction's
+`ponytail-review` reports "Lean already. Ship."
+
 ## Verification status
 
 | Lane                                                      | Status                     |
