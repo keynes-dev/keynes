@@ -113,6 +113,27 @@ queue drain, and isolated Local authorities. Extend existing public, lifecycle,
 remote-recovery, and Policy test files. FR-011 and FR-013 require the native
 contention and caller-owned transaction evidence above, completing SC-006.
 
+Before implementing the validator fix, reproduce the inherited-property gap with
+the existing generated validator and the proposed definition schema. Add focused
+generator and SDK regressions for both `defineResources` and raw `createBudget`:
+
+- A valid definition beside `constructor: undefined` or `toString: undefined`
+  rejects without any definition, receipt, or Budget mutation. Include an invalid
+  unallocated entry in raw creation.
+- An unknown `constructor: undefined` field inside an otherwise valid definition
+  rejects before serialization; inherited `unit` or `accountingBehavior` fields
+  cannot satisfy required fields.
+- Valid definitions named `constructor` and `toString` succeed and can be
+  allocated. Do not fix validation by banning these names.
+- Post-invocation mutation cannot remove an invalid snapshot field or change a
+  valid command. Malformed Local calls after close still reject `runtime_closed`.
+
+Exercise the SDK cases on Local and Remote. Invalid snapshots must reject before
+Remote transport can erase fields. Use JSON-representable malformed entries in
+shared/direct PostgreSQL scenarios to prove independent authority validation;
+`undefined` itself cannot be transmitted as JSON. Fix the authored renderer and
+regenerate outputs, then run generation checks and existing validator regressions.
+
 ## Installed package consumers
 
 Build and qualify exact archives using the existing runners:

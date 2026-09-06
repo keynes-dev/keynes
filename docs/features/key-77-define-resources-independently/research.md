@@ -59,6 +59,20 @@ unallocated definitions, so adapters cannot silently drop unknown fields or inva
 entries. Share the same name mapping and definition rules across those commands.
 The SDK owns snapshots, transport adaptation, types, and error projection.
 
+Before JSON serialization, generated structural validation must use own-property
+checks for schema fields and required input fields. Fix the validator generator in
+`packages/sdk/scripts/render.ts` and regenerate its outputs. Snapshotting must
+preserve malformed own entries, including `undefined`, until validation rejects
+them; it must not use a JSON round trip or select only recognized fields.
+
+A follow-up review reproduced a gap in the existing validator using the proposed
+definition schema. Its `name in properties` check treats `constructor` and
+`toString` as declared schema fields. A malformed entry with either name and an
+`undefined` value passes validation, then disappears during JSON serialization.
+An unknown `constructor: undefined` field inside a definition does the same.
+Sending the full object is therefore insufficient without the structural fix.
+These names remain valid Resource keys when their definitions are valid.
+
 Rationale: `packages/sdk/src/resources.ts` currently validates definitions and
 computes digests for a standalone `ResourceSchema`. Neither belongs in an
 authority-issued public binding. The SQLite authority may use a private digest

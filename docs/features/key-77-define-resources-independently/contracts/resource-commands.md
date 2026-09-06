@@ -54,6 +54,15 @@ name with PostgreSQL `COLLATE "C"` and the equivalent SQLite comparison. Reject
 duplicate canonical names and all unknown fields. Preserve the current definition
 digest recipe; the SDK does not compute equivalence evidence.
 
+SDK structural validation runs on the complete snapshot before JSON serialization.
+Use own-property checks for schema membership and required input fields; inherited
+properties cannot satisfy either. Preserve malformed own entries until rejection,
+including `constructor: undefined`, `toString: undefined`, and unknown fields inside
+a definition. JSON serialization must not turn invalid input into a valid subset.
+Apply this boundary to both definition and raw creation, including unallocated
+definitions. Valid definitions named `constructor` or `toString` remain accepted.
+Each authority still validates every field it receives independently.
+
 Canonical input includes all normalized entries in stable order. Object property
 order is irrelevant. Reserve the existing scoped command identity, then resolve
 every entry through the shared internal resolver. Exact reuse preserves Resource

@@ -10,7 +10,7 @@ description: "Implementation tasks for KEY-77 independent Resource definitions"
 
 **Tests**: Required by the specification and constitution. Observe each behavioral test failing for the expected reason before its corresponding implementation. Record failing and passing commands in `docs/features/key-77-define-resources-independently/acceptance.md`. Missing imports, unavailable fixtures, and compilation failures alone do not establish a behavioral failure. Minimal contract or host wiring may precede the failing assertion; production behavior may not.
 
-**Organization**: Three P1 stories share one feature and one acceptance outcome. All tasks are pending. This document schedules implementation; it supplies no runtime evidence.
+**Organization**: Three P1 stories share one feature and one acceptance outcome. Completed tasks are checked below; exact execution evidence belongs in [acceptance.md](acceptance.md).
 
 ## Format and paths
 
@@ -20,8 +20,8 @@ Tasks use `- [ ] Tnnn [P?] [USn?] Description with file path`. Paths are relativ
 
 **Purpose**: Establish the candidate and use the existing feature and test infrastructure.
 
-- [ ] T001 Confirm the live KEY-77 branch and KEY-75 prerequisite ancestry using `docs/workflow.md`; initialize the new `docs/features/key-77-define-resources-independently/acceptance.md` with candidate SHA, worktree state, tool versions, exact commands, and all unexecuted lanes marked `NOT RUN`.
-- [ ] T002 Run the provider-free baseline from `docs/features/key-77-define-resources-independently/quickstart.md` and capture existing `packages/postgresql/migrations/0006-remote-access.sql` bytes and SHA before generation changes; record failures and the current migration layout in `docs/features/key-77-define-resources-independently/acceptance.md`. If KEY-76 has landed, use its current baseline as the plan directs without performing a baseline conversion here.
+- [x] T001 Confirm the live KEY-77 branch and KEY-75 prerequisite ancestry using `docs/workflow.md`; initialize the new `docs/features/key-77-define-resources-independently/acceptance.md` with candidate SHA, worktree state, tool versions, exact commands, and all unexecuted lanes marked `NOT RUN`.
+- [x] T002 Run the provider-free baseline from `docs/features/key-77-define-resources-independently/quickstart.md` and capture existing `packages/postgresql/migrations/0006-remote-access.sql` bytes and SHA before generation changes; record failures and the current migration layout in `docs/features/key-77-define-resources-independently/acceptance.md`. If KEY-76 has landed, use its current baseline as the plan directs without performing a baseline conversion here.
 
 No behavioral test applies to these environment and evidence tasks.
 

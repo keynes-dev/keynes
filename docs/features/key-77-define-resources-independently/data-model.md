@@ -22,6 +22,11 @@ Public lower-camel keys map to canonical names under the existing conversion rul
 Named-input validation rejects malformed entries and unknown fields before
 resolution. Both authorities sort canonical names in the same order.
 
+The SDK snapshot retains malformed own entries until pre-serialization validation
+rejects them. Own-property checks distinguish input fields and schema fields from
+inherited properties. Invalid entries cannot be dropped to produce a smaller valid
+batch or raw creation command. No new reserved Resource names are introduced.
+
 The only transitions are absent to defined, or defined to exactly reused. A
 different unit or accounting behavior produces `resource_type_conflict`. No
 update, quantity, Budget membership, or spending permission comes from definition.

@@ -187,6 +187,14 @@ Keep the existing Budget projection index private, renaming it
 authoritative definition digest and validation work out of SDK preparation into
 authority internals. Generated structural checks do not replace authority validation.
 
+Fix own-property handling in `packages/sdk/scripts/render.ts` before generating
+the named-input validators. Schema property lookup and required input checks must
+not accept inherited properties. Preserve malformed own entries in snapshots until
+structural validation rejects them, before JSON serialization. Do not clone through
+JSON or discard unknown fields. This applies to definition and raw creation,
+including unallocated definitions; valid `constructor` and `toString` Resource
+names remain supported.
+
 Replace the helper and schema wrapper in raw creation, both Policy authoring
 paths, remote openBudget declarations, README examples, public exports, tests,
 and installed-consumer fixtures. Ordinary separately declared inputs work without

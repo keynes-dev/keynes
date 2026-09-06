@@ -131,6 +131,13 @@ before the first await, admit work synchronously, then validate and execute that
 snapshot. Calls admitted before close drain; later calls reject `runtime_closed`.
 Input getter/copy failures also become Promise rejections and cannot mutate state.
 
+Snapshots preserve malformed own entries and unknown fields until structural
+validation rejects them, before JSON serialization. An `undefined` definition or
+unknown field cannot disappear into an otherwise valid command. Inherited fields
+cannot satisfy required definition fields. These rules also apply to unallocated
+raw definitions. Resource names such as `constructor` and `toString` follow the
+ordinary definition rules; they are not reserved names.
+
 Mutating a caller definition, allocation, or option after invocation cannot alter
 an admitted command. Mutating the binding cannot change its hidden receipt.
 
