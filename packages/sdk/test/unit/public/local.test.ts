@@ -7,6 +7,25 @@ const setupResources = {
 };
 
 describe("local Keynes facade", () => {
+  it("attributes empty raw definitions to the invoked operation", async () => {
+    const keynes = await createKeynes();
+    try {
+      for (const operation of ["createBudget", "defineResources"] as const) {
+        const pending: unknown = Reflect.apply(keynes[operation], keynes, [
+          {},
+          {},
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+          details: { operation },
+        });
+      }
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("snapshots raw creation definitions and allocations before await", async () => {
     const keynes = await createKeynes();
     const definitions = {

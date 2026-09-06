@@ -43,6 +43,28 @@ afterEach(() => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("attributes empty raw definitions to the invoked operation", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const keynes = await createKeynes({ databaseUrl });
+    try {
+      for (const operation of ["createBudget", "defineResources"] as const) {
+        const pending: unknown = Reflect.apply(keynes[operation], keynes, [
+          {},
+          {},
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+          details: { operation },
+        });
+      }
+      expect(executor.methods).toEqual([]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("snapshots raw remote creation before caller mutation", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);

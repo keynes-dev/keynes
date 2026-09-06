@@ -80,16 +80,17 @@ export interface PreparedRootResource<Name extends string> {
 
 export function resourceInstallation(
   definitions: unknown,
+  operation: OperationName = "defineResources",
 ): readonly ResourceInstallationDefinition[] {
-  const snapshot = snapshotResourceDefinitions(definitions);
+  const snapshot = snapshotResourceDefinitions(definitions, operation);
   const issues = validateDefineResourcesCommandIssues({
     commandId: VALIDATION_COMMAND_ID,
     definitions: snapshot,
   });
   if (issues[0])
-    throw invalidCommand("defineResources", issues[0].path, issues[0].rule);
+    throw invalidCommand(operation, issues[0].path, issues[0].rule);
   if (!isRecord(snapshot) || Object.keys(snapshot).length === 0) {
-    throw invalidCommand("defineResources", "$.definitions", "minProperties");
+    throw invalidCommand(operation, "$.definitions", "minProperties");
   }
   return Object.entries(snapshot)
     .map(([key, value]) => {
@@ -99,7 +100,7 @@ export function resourceInstallation(
         (value.accountingBehavior !== "consumable" &&
           value.accountingBehavior !== "reusable")
       ) {
-        throw invalidCommand("defineResources", `$.definitions.${key}`, "type");
+        throw invalidCommand(operation, `$.definitions.${key}`, "type");
       }
       const canonicalName = canonicalResourceName(key);
       return Object.freeze({
@@ -153,7 +154,7 @@ export function prepareRootResources<Name extends string>(
     throw invalidCommand("createBudget", "$.allocation", "type");
   const installation =
     binding === undefined
-      ? resourceInstallation(resources.definitions)
+      ? resourceInstallation(resources.definitions, "createBudget")
       : undefined;
   const byKey = new Map(
     installation?.map((resource) => [resource.key, resource]),
