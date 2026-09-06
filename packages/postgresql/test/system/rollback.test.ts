@@ -14,7 +14,7 @@ import {
   FIXTURE_TENANT_ID,
   openPostgresqlContractTestHost,
   requirePostgresqlSystemAdministratorUrl,
-  requirePostgresqlSystemCommandPath,
+  requirePostgresqlSystemInstallation,
 } from "./support/test-keynes.js";
 
 const ROOT_COMMAND_ID = "26000000-0000-4000-8000-000000000001";
@@ -77,7 +77,7 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
     const owner = await openInstalledPostgresDatabase(
       requirePostgresqlSystemAdministratorUrl(),
       FIXTURE_INSTALLATION,
-      requirePostgresqlSystemCommandPath(),
+      requirePostgresqlSystemInstallation(),
     );
     try {
       await owner.database.exec(

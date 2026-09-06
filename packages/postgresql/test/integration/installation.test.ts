@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { install as installPostgres } from "../../src/installer/install.ts";
+import { installPostgresFixture } from "../system/support/postgres-database.js";
+import {
+  requirePostgresqlSystemAdministratorUrl,
+  requirePostgresqlSystemInstallation,
+} from "../system/support/test-keynes.js";
 
 const POSTGRESQL_SYSTEM_CONTEXT_ENV = "KEYNES_POSTGRESQL_SYSTEM_CONTEXT";
 
@@ -82,6 +87,12 @@ describe("native PostgreSQL installation", () => {
     const before = await installationSnapshot(target);
 
     const result = await install(target);
+    await installPostgresFixture(
+      target.databaseUrl,
+      target.config,
+      requirePostgresqlSystemInstallation(),
+      "already-installed",
+    );
     const after = await installationSnapshot(target);
 
     expect(result).toMatchObject({
@@ -528,7 +539,7 @@ async function install(
 }
 
 async function openTarget(options: { readonly createRoles?: boolean } = {}) {
-  const administratorUrl = requireAdministratorUrl();
+  const administratorUrl = requirePostgresqlSystemAdministratorUrl();
   const administrator = new Client({ connectionString: administratorUrl });
   await administrator.connect();
 
@@ -680,25 +691,6 @@ function mockServerVersion(version: string): void {
     }
     return originalQuery.call(this, statement, ...parameters);
   });
-}
-
-function requireAdministratorUrl(): string {
-  const source = process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV];
-  if (source === undefined) {
-    throw new Error(
-      "native PostgreSQL installation tests require the PostgreSQL system-test runner",
-    );
-  }
-  const context: unknown = JSON.parse(source);
-  if (
-    typeof context !== "object" ||
-    context === null ||
-    !("administratorUrl" in context) ||
-    typeof context.administratorUrl !== "string"
-  ) {
-    throw new Error("invalid PostgreSQL system context");
-  }
-  return context.administratorUrl;
 }
 
 function identifier(value: string): string {

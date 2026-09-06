@@ -48,6 +48,14 @@ describe("PostgreSQL system-test runner", () => {
         schemaVersion: "keynes.deployment-test/v1",
       }),
     ).toThrow();
+    expect(() =>
+      validatePostgresqlSystemReport(
+        sanitizeVitestReport({
+          ...passingVitestReport(),
+          schemaVersion: "keynes.deployment-test/v1",
+        }),
+      ),
+    ).toThrow();
   });
   it.each(["preflight", "final"])(
     "cancels pending %s Git verification before publishing success",
@@ -205,49 +213,21 @@ describe("PostgreSQL system-test runner", () => {
     await expect(readFile(output.path)).rejects.toThrow();
   });
 
-  it("refuses a reused report sidecar before starting work", async () => {
-    const output = await temporaryOutputPath();
-    const fake = fakeRuntime();
-    await writeFile(`${output.path}.vitest.json`, "existing");
-    await expect(
-      runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
-    ).rejects.toThrow("already exists");
-    expect(fake.commands).toEqual([]);
-    expect(await readFile(`${output.path}.vitest.json`, "utf8")).toBe(
-      "existing",
-    );
-  });
-
-  it("records observed runtime versions and images with the existing acceptance schema", async () => {
-    const output = await temporaryOutputPath();
-    await expect(
-      runPostgresqlSystemTests(
-        fakeRuntime().runtime,
-        {},
-        { outputPath: output.path },
-      ),
-    ).resolves.toBe(RUN_ID);
-    const observations = JSON.parse(
-      await readFile(`${output.path}.observations.json`, "utf8"),
-    );
-    expect(observations.environment).toMatchObject({
-      dockerVersion: "29.0.1",
-      postgresVersion: "180006",
-      pgbouncerVersion: "1.25.1",
-      postgresImageId: `sha256:${"a".repeat(64)}`,
-      pgbouncerImageId: `sha256:${"a".repeat(64)}`,
-    });
-    const record = JSON.parse(await readFile(output.path, "utf8"));
-    expect(record.schemaVersion).toBe("keynes.system-test.postgresql/v1");
-    expect(record.tests).toEqual(
-      JSON.parse(await readFile(`${output.path}.vitest.json`, "utf8")),
-    );
-    expect(observations.distribution).toEqual(
-      expect.objectContaining({
-        archiveSha256: record.distribution.archiveSha256,
-      }),
-    );
-  });
+  it.each(["", ".vitest.json", ".observations.json"])(
+    "refuses a reused output%s before starting work",
+    async (suffix) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime();
+      await writeFile(`${output.path}${suffix}`, "existing");
+      await expect(
+        runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
+      ).rejects.toThrow("already exists");
+      expect(fake.commands).toEqual([]);
+      expect(await readFile(`${output.path}${suffix}`, "utf8")).toBe(
+        "existing",
+      );
+    },
+  );
 
   it("fails retention if another writer takes the report path during execution", async () => {
     const output = await temporaryOutputPath();
@@ -713,8 +693,11 @@ describe("PostgreSQL system-test runner", () => {
     expect(fake.commands).toEqual([]);
   });
 
-  it("writes a passing acceptance record for --output", async () => {
-    const output = await temporaryOutputPath();
+  it("writes safe matching acceptance and observations into a new parent directory", async () => {
+    const temporary = await temporaryOutputPath();
+    const output = {
+      path: join(temporary.directory, "missing", "acceptance.json"),
+    };
     const fake = fakeRuntime();
 
     await runPostgresqlSystemTests(
@@ -723,7 +706,9 @@ describe("PostgreSQL system-test runner", () => {
       { outputPath: output.path },
     );
 
-    const record: unknown = JSON.parse(await readFile(output.path, "utf8"));
+    const record: Record<string, unknown> = JSON.parse(
+      await readFile(output.path, "utf8"),
+    );
     expect(record).toMatchObject({
       schemaVersion: "keynes.system-test.postgresql/v1",
       sourceRevision: {
@@ -774,34 +759,30 @@ describe("PostgreSQL system-test runner", () => {
           executable === "pnpm" && commandArguments[0] === "--filter",
       ),
     ).toBe(false);
-  });
-
-  it("creates the acceptance record parent directory", async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), "keynes-postgresql-system-parent-test-"),
+    const observations = JSON.parse(
+      await readFile(`${output.path}.observations.json`, "utf8"),
     );
-    const outputPath = join(directory, "missing", "acceptance.json");
-
-    try {
-      await runPostgresqlSystemTests(fakeRuntime().runtime, {}, { outputPath });
-      expect(JSON.parse(await readFile(outputPath, "utf8"))).toMatchObject({
-        schemaVersion: "keynes.system-test.postgresql/v1",
-        outcome: "passed",
-      });
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
-
-  it("refuses an existing --output path before starting Docker", async () => {
-    const output = await temporaryOutputPath();
-    await writeFile(output.path, "existing\n");
-    const fake = fakeRuntime();
-
-    await expect(
-      runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
-    ).rejects.toThrow("Acceptance record already exists");
-    expect(fake.commands).toEqual([]);
+    expect(observations.environment).toMatchObject({
+      dockerVersion: "29.0.1",
+      postgresVersion: "180006",
+      pgbouncerVersion: "1.25.1",
+      postgresImageId: `sha256:${"a".repeat(64)}`,
+      pgbouncerImageId: `sha256:${"a".repeat(64)}`,
+    });
+    expect(record.tests).toEqual(
+      JSON.parse(await readFile(`${output.path}.vitest.json`, "utf8")),
+    );
+    expect(observations.distribution).toEqual(
+      expect.objectContaining({
+        archiveSha256: createHash("sha256").update("archive").digest("hex"),
+      }),
+    );
+    const serialized = await readFile(output.path, "utf8");
+    expect(serialized).not.toContain(PASSWORD);
+    expect(serialized).not.toContain("postgresql://");
+    expect(serialized).not.toContain("keynes_internal");
+    expect(serialized).not.toContain("tenant-a");
+    expect(serialized).not.toContain('"principalId"');
   });
 
   it("requires a clean revision before starting Docker", async () => {
@@ -861,24 +842,6 @@ describe("PostgreSQL system-test runner", () => {
       runPostgresqlSystemTests(fake.runtime, {}, { outputPath: output.path }),
     ).rejects.toThrow("prohibited content");
     await expect(readFile(output.path)).rejects.toThrow();
-  });
-
-  it("does not retain credentials or private Budget data in the record", async () => {
-    const output = await temporaryOutputPath();
-    const fake = fakeRuntime();
-
-    await runPostgresqlSystemTests(
-      fake.runtime,
-      {},
-      { outputPath: output.path },
-    );
-
-    const record = await readFile(output.path, "utf8");
-    expect(record).not.toContain(PASSWORD);
-    expect(record).not.toContain("postgresql://");
-    expect(record).not.toContain("keynes_internal");
-    expect(record).not.toContain("tenant-a");
-    expect(record).not.toContain('"principalId"');
   });
 
   it("refuses publication when the source changes during qualification", async () => {
@@ -1090,16 +1053,6 @@ describe("checkout package preparation lock", () => {
     }
   });
 
-  it("does not erase selected schema identity during report sanitization", () => {
-    expect(() =>
-      validatePostgresqlSystemReport(
-        sanitizeVitestReport({
-          ...passingVitestReport(),
-          schemaVersion: "keynes.deployment-test/v1",
-        }),
-      ),
-    ).toThrow();
-  });
   it("serializes two preparations and releases before independent work", async () => {
     const repositoryRoot = await mkdtemp(join(tmpdir(), "keynes-lock-"));
     const entered = Promise.withResolvers<void>();
@@ -1261,6 +1214,12 @@ it.each([
     );
     expect(context.selection).toEqual(selection);
     expect(Object.keys(context.poolers).sort()).toEqual(poolers);
+    expect(fake.packagePreparations.count).toBe(
+      selection === undefined ? 1 : 0,
+    );
+    expect(context.installation).toMatchObject({
+      kind: selection === undefined ? "packed" : "source",
+    });
   },
 );
 

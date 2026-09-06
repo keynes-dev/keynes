@@ -1,5 +1,8 @@
-import { randomUUID } from "node:crypto";
-
+import {
+  preparePostgresInstallation,
+  dropPostgresFixture,
+} from "../system/support/postgres-database.js";
+import { requirePostgresqlSystemAdministratorUrl } from "../system/support/test-keynes.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { install, recheckInstallation } from "../../src/installer/install.ts";
@@ -88,22 +91,6 @@ const HISTORICAL_MIGRATIONS = [
       "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
   },
 ] as const;
-const config: InstallationConfig = {
-  ownerRole: `keynes_owner_${randomUUID().replaceAll("-", "")}`,
-  executionRole: `keynes_execution_${randomUUID().replaceAll("-", "")}`,
-  administrationRole: `keynes_admin_${randomUUID().replaceAll("-", "")}`,
-  applicationRole: `keynes_app_${randomUUID().replaceAll("-", "")}`,
-  tenantId,
-  principalId,
-};
-
-interface NativeTarget {
-  readonly administratorUrl: string;
-  readonly databaseName: string;
-  readonly databaseUrl: string;
-  readonly applicationUrl: string;
-}
-
 if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
   throw new Error(
     "Native tests require runner context; use a PostgreSQL deployment runner",
@@ -111,41 +98,28 @@ if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
 }
 
 describe("PostgreSQL exact recheck and application-role permissions", () => {
-  let target: NativeTarget;
+  let target: Awaited<ReturnType<typeof createExactShapeTarget>>;
+  let config: InstallationConfig;
 
   beforeAll(async () => {
     target = await createExactShapeTarget();
+    config = target.config;
   });
 
   afterAll(async () => {
-    const administrator = new Client({
-      connectionString: target.administratorUrl,
-    });
-    await administrator.connect();
     try {
-      await administrator.query(
-        `drop database if exists ${quoteIdentifier(target.databaseName)} with (force)`,
-      );
-      await administrator.query(
-        `drop role if exists ${quoteIdentifier(config.applicationRole)}`,
-      );
-      await administrator.query(
-        `drop role if exists ${quoteIdentifier(config.administrationRole)}`,
-      );
-      await administrator.query(
-        `drop role if exists ${quoteIdentifier(config.executionRole)}`,
-      );
-      await administrator.query(
-        `drop role if exists ${quoteIdentifier(config.ownerRole)}`,
+      await dropPostgresFixture(
+        target.administrator,
+        target.databaseName,
+        target.roles,
       );
     } finally {
-      await administrator.end();
+      await target.administrator.end();
     }
   });
 
   it("rechecks the exact graph read-only", async () => {
-    const client = new Client({ connectionString: target.databaseUrl });
-    await client.connect();
+    const client = await connect(target.databaseUrl);
     try {
       const before = await installationState(client);
       const querySpy = vi.spyOn(client, "query");
@@ -487,56 +461,32 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
   });
 });
 
-async function createExactShapeTarget(): Promise<NativeTarget> {
-  const context = JSON.parse(
-    process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "",
-  ) as {
-    readonly administratorUrl: string;
-  };
-  const databaseName = `keynes_recheck_${randomUUID().replaceAll("-", "")}`;
-  const administrator = new Client({
-    connectionString: context.administratorUrl,
-  });
-  await administrator.connect();
+async function createExactShapeTarget() {
+  const target = await preparePostgresInstallation(
+    requirePostgresqlSystemAdministratorUrl(),
+    { tenantId, principalId },
+  );
   try {
-    await administrator.query(
-      `create role ${quoteIdentifier(config.ownerRole)} nologin`,
-    );
-    await administrator.query(
-      `create role ${quoteIdentifier(config.executionRole)} nologin noinherit`,
-    );
-    await administrator.query(
-      `create role ${quoteIdentifier(config.administrationRole)} login noinherit password ${quoteLiteral("recheck-admin-password")}`,
-    );
-    await administrator.query(
-      `create role ${quoteIdentifier(config.applicationRole)} login noinherit password ${quoteLiteral("recheck-test-password")}`,
-    );
-    await administrator.query(
-      `create database ${quoteIdentifier(databaseName)}`,
-    );
-    await administrator.query(
-      `grant connect on database ${quoteIdentifier(databaseName)} to ${quoteIdentifier(config.administrationRole)}, ${quoteIdentifier(config.applicationRole)}`,
-    );
-    await administrator.query(
-      `grant create on database ${quoteIdentifier(databaseName)} to ${quoteIdentifier(config.ownerRole)}`,
-    );
-  } finally {
-    await administrator.end();
+    await install({
+      connectionString: target.databaseUrl,
+      config: target.config,
+    });
+    const applicationUrl = new URL(target.databaseUrl);
+    applicationUrl.username = target.config.applicationRole;
+    applicationUrl.password = target.applicationPassword;
+    return { ...target, applicationUrl: applicationUrl.toString() };
+  } catch (error: unknown) {
+    try {
+      await dropPostgresFixture(
+        target.administrator,
+        target.databaseName,
+        target.roles,
+      );
+    } finally {
+      await target.administrator.end();
+    }
+    throw error;
   }
-
-  const databaseUrl = new URL(context.administratorUrl);
-  databaseUrl.pathname = `/${databaseName}`;
-  await install({ connectionString: databaseUrl.toString(), config });
-
-  const applicationUrl = new URL(databaseUrl);
-  applicationUrl.username = config.applicationRole;
-  applicationUrl.password = "recheck-test-password";
-  return {
-    administratorUrl: context.administratorUrl,
-    databaseName,
-    databaseUrl: databaseUrl.toString(),
-    applicationUrl: applicationUrl.toString(),
-  };
 }
 
 async function connect(connectionString: string): Promise<Client> {
@@ -578,15 +528,4 @@ async function stateDigest(connectionString: string): Promise<string> {
   } finally {
     await client.end();
   }
-}
-
-function quoteIdentifier(value: string): string {
-  if (!/^[a-z][a-z0-9_]{0,62}$/.test(value)) {
-    throw new Error("unsafe test identifier");
-  }
-  return `"${value}"`;
-}
-
-function quoteLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
 }

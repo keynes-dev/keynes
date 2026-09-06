@@ -11,7 +11,7 @@ import {
 import {
   FIXTURE_INSTALLATION,
   requirePostgresqlSystemAdministratorUrl,
-  requirePostgresqlSystemCommandPath,
+  requirePostgresqlSystemInstallation,
 } from "./support/test-keynes.js";
 
 interface RenderedPolicy {
@@ -50,7 +50,7 @@ describe("PostgreSQL Policy runtime behavior", () => {
     fixture = await openInstalledPostgresDatabase(
       requirePostgresqlSystemAdministratorUrl(),
       FIXTURE_INSTALLATION,
-      requirePostgresqlSystemCommandPath(),
+      requirePostgresqlSystemInstallation(),
     );
     transaction = await fixture.beginTransaction();
     const ownerRole = await requirePolicyOwner(transaction);
@@ -97,7 +97,7 @@ describe("PostgreSQL Policy runtime behavior", () => {
     fixture = await openInstalledPostgresDatabase(
       requirePostgresqlSystemAdministratorUrl(),
       FIXTURE_INSTALLATION,
-      requirePostgresqlSystemCommandPath(),
+      requirePostgresqlSystemInstallation(),
     );
     transaction = await fixture.beginTransaction();
     const ownerRole = await requirePolicyOwner(transaction);

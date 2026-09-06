@@ -108,6 +108,14 @@ Remote defaults to all modes and permits explicit `--mode` selection; Embedded
 starts zero poolers. Results use ordinary test output and state their scope.
 No new selected-manifest or TLS fixture system belongs in these commands.
 
+KEY-60 removes package preparation from Remote and Embedded feedback. These
+commands use the existing source PostgreSQL installer and install each ordinary
+fixture once. Full native acceptance still prepares one archive and installed
+consumer, exercises the existing packed CLI callers, and checks packed no-op
+behavior in the dedicated installation test. Both paths use the existing Docker
+runner with explicit loopback publication. The Testcontainers pilot was rejected
+and removed; no new dependency or Docker daemon configuration is required.
+
 Existing SDK package qualification and the full paired gate remain separate
 acceptance commands with their current evidence requirements. Installed remote
 SDK acceptance beyond existing qualification is deferred. Installed Embedded

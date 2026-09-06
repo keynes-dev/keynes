@@ -25,7 +25,7 @@ import {
   FIXTURE_PRINCIPALS,
   FIXTURE_TENANT_ID,
   requirePostgresqlSystemAdministratorUrl,
-  requirePostgresqlSystemCommandPath,
+  requirePostgresqlSystemInstallation,
 } from "./support/test-keynes.js";
 
 const RESOURCE_ID = "12000000-0000-4000-8000-000000000001";
@@ -870,7 +870,7 @@ async function openFixture(): Promise<SecurityFixture> {
   const owner = await openInstalledPostgresDatabase(
     requirePostgresqlSystemAdministratorUrl(),
     FIXTURE_INSTALLATION,
-    requirePostgresqlSystemCommandPath(),
+    requirePostgresqlSystemInstallation(),
   );
   try {
     return { owner, application: await owner.createApplicationRole() };
