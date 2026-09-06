@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -150,12 +151,12 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       "keynes.remote_create_budget",
       {
         operationKey: rejectedKey,
-        resources: [
+        ...rootResources([
           {
             definition: resource("recover_invalid"),
             amount: 0,
           },
-        ],
+        ]),
       },
     );
     expect(rejected).toMatchObject({ ok: false });
@@ -479,7 +480,11 @@ function indexedOperationKey(index: number): string {
   return `kop_v1_${index.toString(36).padStart(43, "0")}`;
 }
 
-function resource(canonicalName: string): Record<string, string> {
+type ResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
+
+function resource(canonicalName: string): ResourceDefinition {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
 }
 
@@ -489,7 +494,7 @@ function createRoot(
 ): Record<string, unknown> {
   return {
     operationKey: operationKeyValue,
-    resources: [{ definition: resource(canonicalName), amount: 300 }],
+    ...rootResources([{ definition: resource(canonicalName), amount: 300 }]),
   };
 }
 

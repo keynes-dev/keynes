@@ -197,10 +197,10 @@ export function createResourceBinding<Name extends string>(
       expected === undefined ||
       actual === undefined ||
       actual.resourceType.canonicalName !== expected.canonicalName ||
-      actual.resourceType.unit !== expected.definition.unit ||
-      actual.resourceType.accountingBehavior !==
-        expected.definition.accountingBehavior ||
-      actual.resourceType.definitionDigest !== expected.definitionDigest ||
+      (expected.definition !== undefined &&
+        (actual.resourceType.unit !== expected.definition.unit ||
+          actual.resourceType.accountingBehavior !==
+            expected.definition.accountingBehavior)) ||
       actual.allocated !== expected.amount ||
       actual.available !== expected.amount ||
       actual.committed !== 0 ||

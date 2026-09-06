@@ -71,12 +71,10 @@ export type {
   PolicyDatabase,
   PolicyQueryRow,
 } from "./policy/compile.js";
-export { defineResources } from "./resources.js";
 export type {
   AccountingBehavior,
   ResourceDefinition,
   ResourceDefinitions,
-  ResourceSchema,
 } from "./resources.js";
 export type {
   Budget,

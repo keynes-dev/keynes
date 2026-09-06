@@ -5,11 +5,7 @@ import type {
   RemoteCommandExecutor,
   RemoteProcedureDescriptor,
 } from "../../../src/generated/client.js";
-import {
-  createKeynes,
-  createOperationKey,
-  defineResources,
-} from "../../../src/index.js";
+import { createKeynes, createOperationKey } from "../../../src/index.js";
 import type { BudgetReference, OperationKey } from "../../../src/index.js";
 
 const remoteMocks = vi.hoisted(() => ({
@@ -29,9 +25,9 @@ const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
 const rootReference = `kbr_v1_${"r".repeat(43)}` as BudgetReference;
 const operationKey = `kop_v1_${"o".repeat(43)}` as OperationKey;
-const resources = defineResources({
+const resources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 beforeEach(() => {
   remoteMocks.normalizeDatabaseUrl.mockReset();
@@ -116,9 +112,9 @@ describe("remote Budget reopen and operation recovery", () => {
     await expect(
       remote.openBudget({
         reference: rootReference,
-        resourceTypes: defineResources({
+        resourceTypes: {
           workUnits: { unit: "credit", accountingBehavior: "consumable" },
-        }),
+        },
       }),
     ).rejects.toMatchObject({
       name: "KeynesError",

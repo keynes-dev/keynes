@@ -9,7 +9,6 @@ import {
 import {
   createKeynes,
   createOperationKey,
-  defineResources,
   type RemoteKeynes,
 } from "../../../src/index.js";
 
@@ -30,9 +29,9 @@ const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
 const rootReference = `kbr_v1_${"r".repeat(43)}`;
 const childReference = `kbr_v1_${"c".repeat(43)}`;
-const resources = defineResources({
+const resources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 beforeEach(() => {
   remoteMocks.normalizeDatabaseUrl.mockReset();
@@ -44,6 +43,80 @@ afterEach(() => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("snapshots raw remote creation before caller mutation", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl });
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      extra: { unit: "slot", accountingBehavior: "reusable" },
+    };
+    const allocation = { workUnits: 10 };
+    const operationKey = createOperationKey();
+    const options = { operationKey };
+    try {
+      const pending = remote.createBudget(definitions, allocation, options);
+      definitions.workUnits.unit = "changed";
+      allocation.workUnits = 99;
+      options.operationKey = createOperationKey();
+      await pending;
+      expect(executor.inputs[0]).toMatchObject({
+        operationKey,
+        resources: {
+          kind: "definitions",
+          definitions: {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+            extra: { unit: "slot", accountingBehavior: "reusable" },
+          },
+        },
+        allocation: { workUnits: 10 },
+      });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it.each<Readonly<Record<string, unknown>>>([
+    { constructor: undefined },
+    { toString: undefined },
+    { extra: undefined },
+    {
+      extra: {
+        unit: "unit",
+        accountingBehavior: "consumable",
+        unknown: undefined,
+      },
+    },
+    {
+      extra: Object.assign(Object.create({ unit: "unit" }), {
+        accountingBehavior: "consumable",
+      }),
+    },
+  ])(
+    "rejects raw remote creation before serialization, case %#",
+    async (extra) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl });
+      try {
+        const pending: unknown = Reflect.apply(remote.createBudget, remote, [
+          {
+            workUnits: { unit: "unit", accountingBehavior: "consumable" },
+            ...extra,
+          },
+          { workUnits: 10 },
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+        });
+        expect(executor.methods).toEqual([]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
   it("keeps independent definition references out of the public binding", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);

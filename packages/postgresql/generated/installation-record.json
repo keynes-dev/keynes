@@ -21,7 +21,7 @@
   "contractDigest": "6fa8f182883eaaf5d8ce7571c97605013e9e55629bafa306874ee838be0f2201",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "36571ea4085453a0a0775fed58dbaabecd39e53ca4a4ec9b57250cee79b63253",
-  "migrationSetDigest": "f964d05e8c9bed256acf1843cd2c0ee395c25404a475e8c64f9c4300d56d8bfb",
+  "migrationSetDigest": "977b36bc6e4ddc4c5cd4e9ada2775802c8d3ec21e64cab7c2559b9219a0290d8",
   "migrations": [
     {
       "id": "0001-storage",
@@ -59,7 +59,7 @@
     {
       "id": "0007-resource-definitions",
       "path": "0007-resource-definitions.sql",
-      "sha256": "605f45e61624bcb0c5542cdb91f40e51ef0238b04312e2c58d3f1351fbf81386",
+      "sha256": "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
       "contractDigest": "6fa8f182883eaaf5d8ce7571c97605013e9e55629bafa306874ee838be0f2201"
     }
   ],
@@ -224,6 +224,8 @@
     "function:keynes_internal.apply_define_resources_v0007(input jsonb)",
     "function:keynes_internal.apply_define_resource_v0007(input jsonb)",
     "function:keynes_internal.apply_create_budget_v0007(input jsonb)",
+    "function:keynes_internal.canonical_creation_v0007(resource_source jsonb,allocation_value jsonb)",
+    "function:keynes_internal.remote_create_budget_v0007(input jsonb)",
     "function:keynes_internal.remote_apply_command_v0007(operation_name text,input jsonb)",
     "function:keynes_internal.remote_define_resources_v0007(input jsonb)",
     "function:keynes_internal.remote_get_compatibility_v0007(input jsonb)",

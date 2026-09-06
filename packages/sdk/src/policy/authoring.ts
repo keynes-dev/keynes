@@ -9,7 +9,7 @@ import type {
   PolicyDefinition,
   PolicySet,
 } from "../budget.js";
-import type { ResourceDefinitions, ResourceSchema } from "../resources.js";
+import type { ResourceDefinitionsInput } from "../resources.js";
 import { canonicalResourceName, resourceInstallation } from "../resources.js";
 import { KeynesSdkError, PolicyValidationError } from "../sdk-errors.js";
 import {
@@ -39,8 +39,10 @@ export type PolicyContextSchema = Readonly<
   Record<string, PolicyValueDescriptor>
 >;
 
-export type ResourceName<Schema extends ResourceSchema<ResourceDefinitions>> =
-  Extract<keyof Schema["definitions"], string>;
+export type ResourceName<Schema extends ResourceDefinitionsInput> = Extract<
+  keyof Schema,
+  string
+>;
 
 export type InferPolicyContext<Schema extends PolicyContextSchema> = {
   readonly [Key in keyof Schema]: ContextValue<Schema[Key]>;
@@ -73,7 +75,7 @@ export const policyValue = Object.freeze({
 });
 
 export function definePolicy<
-  const Resources extends ResourceSchema<ResourceDefinitions>,
+  const Resources extends ResourceDefinitionsInput,
   const Inputs extends readonly ResourceName<Resources>[],
   const Outputs extends readonly Inputs[number][],
   const Schema extends PolicyContextSchema,
@@ -96,7 +98,7 @@ export function definePolicy<
 }
 
 export function definePolicySql<
-  const Resources extends ResourceSchema<ResourceDefinitions>,
+  const Resources extends ResourceDefinitionsInput,
   const Inputs extends readonly ResourceName<Resources>[],
   const Outputs extends readonly Inputs[number][],
   const Schema extends PolicyContextSchema,
@@ -175,7 +177,7 @@ export function policySet<
 }
 
 function prepareDeclaration<
-  Resources extends ResourceSchema<ResourceDefinitions>,
+  Resources extends ResourceDefinitionsInput,
   Inputs extends readonly ResourceName<Resources>[],
   Outputs extends readonly Inputs[number][],
   Schema extends PolicyContextSchema,

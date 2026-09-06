@@ -92,6 +92,7 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
 
   return {
     clientFor(fixture, options) {
+      if (options?.forbidResourceWrites) store.forbidResourceWrites();
       const caller = loseCommittedResponseOnce(
         {
           async execute(operation, input) {

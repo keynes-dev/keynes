@@ -29,3 +29,5 @@ export {
   type PolicyTestCategory,
   type PolicyRuntimeTestCase,
 } from "./policy/cases.ts";
+
+export { rootResources } from "./scenarios/root-resource.ts";

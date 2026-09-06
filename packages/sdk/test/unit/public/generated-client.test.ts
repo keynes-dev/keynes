@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -37,7 +38,7 @@ const commands = {
   } satisfies DefineResourceTypeCommand,
   createBudget: {
     commandId: "20000000-0000-0000-0000-000000000001",
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName: "model_tokens",
@@ -46,7 +47,7 @@ const commands = {
         },
         amount: 100,
       },
-    ],
+    ]),
   } satisfies CreateBudgetCommand,
   requestBudget: {
     commandId: "30000000-0000-0000-0000-000000000001",
@@ -288,9 +289,10 @@ describe("generated client bindings", () => {
     const first = { zeta: true, ...common, alpha: true };
     const second = { alpha: true, ...common, zeta: true };
     const expected = [
+      { path: "/allocation", rule: "required" },
       { path: "/alpha", rule: "additionalProperties" },
       { path: "/commandId", rule: "pattern" },
-      { path: "/resources", rule: "minItems" },
+      { path: "/resources", rule: "oneOf" },
       { path: "/zeta", rule: "additionalProperties" },
     ];
 
@@ -298,21 +300,19 @@ describe("generated client bindings", () => {
     expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
   });
 
-  it("rejects structurally duplicate resource entries regardless of property order", () => {
-    const definition = {
-      canonicalName: "model_tokens",
-      unit: "token",
-      accountingBehavior: "consumable",
-    };
-
+  it("rejects mixed Resource sources before dispatch", () => {
     expect(
       validateCreateBudgetCommandIssues({
         commandId: "20000000-0000-0000-0000-000000000001",
-        resources: [
-          { definition, amount: 1 },
-          { amount: 1, definition },
-        ],
+        resources: {
+          kind: "definitions",
+          definitions: {
+            modelTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+          bindingReference: `krs_v1_${"a".repeat(43)}`,
+        },
+        allocation: { modelTokens: 1 },
       }),
-    ).toEqual([{ path: "/resources", rule: "uniqueItems" }]);
+    ).toEqual([{ path: "/resources", rule: "oneOf" }]);
   });
 });

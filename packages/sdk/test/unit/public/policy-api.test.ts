@@ -1,40 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { createKeynes, defineResources } from "../../../src/index.js";
+import { createKeynes } from "../../../src/index.js";
 
-describe("schema-first public API", () => {
-  it("copies and deeply freezes the complete Resource schema", () => {
-    const definitions = {
-      usdCents: { unit: "cent", accountingBehavior: "consumable" as const },
-      searchQueries: {
-        unit: "query",
-        accountingBehavior: "reusable" as const,
-      },
-    };
-
-    const resources = defineResources(definitions);
-
-    expect(resources.definitions).not.toBe(definitions);
-    expect(resources.definitions).toEqual(definitions);
-    expect(resources.digest).toMatch(/^[0-9a-f]{64}$/);
-    expect(Object.isFrozen(resources)).toBe(true);
-    expect(Object.isFrozen(resources.definitions)).toBe(true);
-    expect(Object.isFrozen(resources.definitions.usdCents)).toBe(true);
-    expect(Object.isFrozen(resources.definitions.searchQueries)).toBe(true);
-    expect(Reflect.set(resources.definitions.usdCents, "unit", "dollar")).toBe(
-      false,
-    );
-  });
-
+describe("Resource public API", () => {
   it("returns frozen closure-backed handles with one shared close result", async () => {
-    const resources = defineResources({
+    const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
-    });
+    };
     const keynes = await createKeynes();
 
     try {
       expect(Object.isFrozen(keynes)).toBe(true);
-      expect(keynes).not.toHaveProperty("defineResources");
+      expect(keynes.defineResources).toBeTypeOf("function");
 
       const { createBudget } = keynes;
       const root = await createBudget(resources, { usdCents: 100 });

@@ -12,7 +12,7 @@ import type {
   OpenContractTestHost,
   RollbackCheckpoint,
 } from "../host.ts";
-import { rootResource } from "./root-resource.ts";
+import { rootResource, rootResources } from "./root-resource.ts";
 const MUTATION_CHECKPOINTS = [
   ["after_command_binding", "01"],
   ["after_domain_mutation", "02"],
@@ -79,7 +79,7 @@ export function registerRollbackContractTests(
         const commandId = `24000000-0000-0000-0000-0000000000${suffix}`;
         const command = {
           commandId,
-          resources: [rootResource(defined.resourceType, 10)],
+          ...rootResources([rootResource(defined.resourceType, 10)]),
         } satisfies CreateBudgetCommand;
 
         await expect(
@@ -116,7 +116,7 @@ export function registerRollbackContractTests(
       });
       const root = await client.createBudget({
         commandId: "24000000-0000-0000-0000-000000000021",
-        resources: [rootResource(defined.resourceType, 100)],
+        ...rootResources([rootResource(defined.resourceType, 100)]),
       });
 
       for (const [
@@ -178,7 +178,7 @@ export function registerRollbackContractTests(
       });
       const root = await client.createBudget({
         commandId: "24000000-0000-0000-0000-000000000031",
-        resources: [rootResource(defined.resourceType, 100)],
+        ...rootResources([rootResource(defined.resourceType, 100)]),
       });
       const children: string[] = [];
       for (const [, suffix] of MUTATION_CHECKPOINTS) {

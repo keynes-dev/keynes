@@ -35,7 +35,6 @@ import type {
 } from "../budget.js";
 import { BudgetResourceBinding } from "../resource-binding.js";
 import {
-  resourceDefinitionDigest,
   type PreparedRootResource,
   type ResourceInstallationDefinition,
 } from "../resources.js";
@@ -69,16 +68,20 @@ export function createRemoteResourceBinding<Name extends string>(
   budget: RemoteBudgetProjection,
 ): BudgetResourceBinding<Name> {
   assertCreatedRoot(resources, budget);
-  const bound = resources.map((resource) =>
-    Object.freeze({
+  const bound = resources.map((resource) => {
+    const actual = budget.resources.find(
+      (entry) => entry.resource.canonicalName === resource.canonicalName,
+    );
+    if (actual === undefined) throw remoteResultMismatch();
+    return Object.freeze({
       key: resource.key,
       resourceTypeId: resource.canonicalName,
       canonicalName: resource.canonicalName,
-      unit: resource.definition.unit,
-      accountingBehavior: resource.definition.accountingBehavior,
-      definitionDigest: resource.definitionDigest,
-    }),
-  );
+      unit: actual.resource.unit,
+      accountingBehavior: actual.resource.accountingBehavior,
+      definitionDigest: "remote-projected",
+    });
+  });
   return new BudgetResourceBinding(
     {
       byId: new Map(
@@ -104,7 +107,7 @@ export function createOpenedRemoteResourceBinding<Name extends string>(
       canonicalName: resource.canonicalName,
       unit: resource.definition.unit,
       accountingBehavior: resource.definition.accountingBehavior,
-      definitionDigest: resourceDefinitionDigest(resource.definition),
+      definitionDigest: "remote-projected",
     }),
   );
   return new BudgetResourceBinding(
@@ -517,9 +520,10 @@ function assertCreatedRoot<Name extends string>(
       prepared === undefined ||
       actual === undefined ||
       actual.resource.canonicalName !== prepared.canonicalName ||
-      actual.resource.unit !== prepared.definition.unit ||
-      actual.resource.accountingBehavior !==
-        prepared.definition.accountingBehavior ||
+      (prepared.definition !== undefined &&
+        (actual.resource.unit !== prepared.definition.unit ||
+          actual.resource.accountingBehavior !==
+            prepared.definition.accountingBehavior)) ||
       actual.allocated !== prepared.amount ||
       actual.available !== prepared.amount ||
       actual.committed !== 0 ||

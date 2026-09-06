@@ -1,16 +1,19 @@
-import { createHash } from "node:crypto";
-
 import { KeynesError } from "./generated/client.js";
 import type {
   OperationName,
-  RootResourceEnvelope,
+  ResourceSource,
+  ResourceAllocation,
   ResourceDefinition as WireResourceDefinition,
 } from "./generated/types.js";
-import { validateDefineResourceTypeCommandIssues } from "./generated/validators.js";
+import {
+  validateCreateBudgetCommandIssues,
+  validateDefineResourcesCommandIssues,
+} from "./generated/validators.js";
 import { KeynesSdkError } from "./sdk-errors.js";
 
+import { lookupResourceDefinitionBinding } from "./resource-definition-binding.js";
+
 const RESOURCE_NAME = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/;
-const DEFINITION_FIELDS = new Set(["unit", "accountingBehavior"]);
 const VALIDATION_COMMAND_ID = "00000000-0000-4000-8000-000000000000";
 
 export type AccountingBehavior = "consumable" | "reusable";
@@ -26,15 +29,22 @@ export type ResourceDefinitionsInput = Readonly<
   Record<string, { readonly unit: string; readonly accountingBehavior: string }>
 >;
 
-export function snapshotResourceDefinitions(definitions: unknown): unknown {
+export function snapshotResourceDefinitions(
+  definitions: unknown,
+  operation: OperationName = "defineResources",
+): unknown {
   if (!isRecord(definitions)) return definitions;
   return Object.fromEntries(
-    ownDefinitionEntries(definitions, "$.definitions").map(
+    ownDefinitionEntries(definitions, "$.definitions", operation).map(
       ([key, definition]) => [
         key,
         isRecord(definition)
           ? Object.fromEntries(
-              ownDefinitionEntries(definition, `$.definitions.${key}`),
+              ownDefinitionEntries(
+                definition,
+                `$.definitions.${key}`,
+                operation,
+              ),
             )
           : definition,
       ],
@@ -42,20 +52,17 @@ export function snapshotResourceDefinitions(definitions: unknown): unknown {
   );
 }
 
-function ownDefinitionEntries(value: Record<string, unknown>, path: string) {
+function ownDefinitionEntries(
+  value: Record<string, unknown>,
+  path: string,
+  operation: OperationName,
+) {
   if (Object.getOwnPropertySymbols(value).length > 0) {
-    throw invalidCommand("defineResources", path, "additionalProperties");
+    throw invalidCommand(operation, path, "additionalProperties");
   }
   return Object.getOwnPropertyNames(value).map(
     (key) => [key, value[key]] as const,
   );
-}
-
-export interface ResourceSchema<
-  Definitions extends ResourceDefinitions = ResourceDefinitions,
-> {
-  readonly definitions: Definitions;
-  readonly digest: string;
 }
 
 export interface ResourceInstallationDefinition {
@@ -64,121 +71,116 @@ export interface ResourceInstallationDefinition {
   readonly definition: WireResourceDefinition;
 }
 
-export interface PreparedRootResource<
-  Name extends string,
-> extends ResourceInstallationDefinition {
+export interface PreparedRootResource<Name extends string> {
   readonly key: Name;
+  readonly canonicalName: string;
   readonly amount: number;
-  readonly definitionDigest: string;
-}
-
-interface PreparedResourceDefinition extends ResourceInstallationDefinition {
-  readonly publicDefinition: ResourceDefinition;
-}
-
-export function defineResources<const Definitions extends ResourceDefinitions>(
-  definitions: Definitions,
-): ResourceSchema<Definitions>;
-export function defineResources(definitions: unknown): ResourceSchema {
-  const prepared = prepareDefinitions(definitions);
-  const copiedDefinitions = Object.freeze(
-    Object.fromEntries(
-      prepared.map(({ key, publicDefinition }) => [key, publicDefinition]),
-    ),
-  );
-  return Object.freeze({
-    definitions: copiedDefinitions,
-    digest: resourceSchemaDigest(prepared),
-  });
+  readonly definition?: WireResourceDefinition;
 }
 
 export function resourceInstallation(
-  schema: ResourceSchema,
+  definitions: unknown,
 ): readonly ResourceInstallationDefinition[] {
-  if (!isRecord(schema)) throw invalidConfiguration();
-  const unknownField = Object.keys(schema).find(
-    (field) => field !== "definitions" && field !== "digest",
-  );
-  if (unknownField !== undefined || typeof schema.digest !== "string") {
-    throw invalidConfiguration();
+  const snapshot = snapshotResourceDefinitions(definitions);
+  const issues = validateDefineResourcesCommandIssues({
+    commandId: VALIDATION_COMMAND_ID,
+    definitions: snapshot,
+  });
+  if (issues[0])
+    throw invalidCommand("defineResources", issues[0].path, issues[0].rule);
+  if (!isRecord(snapshot) || Object.keys(snapshot).length === 0) {
+    throw invalidCommand("defineResources", "$.definitions", "minProperties");
   }
-
-  const prepared = prepareDefinitions(schema.definitions);
-  if (resourceSchemaDigest(prepared) !== schema.digest) {
-    throw invalidConfiguration();
-  }
-  return Object.freeze(
-    prepared.map(({ key, canonicalName, definition }) =>
-      Object.freeze({ key, canonicalName, definition }),
-    ),
-  );
-}
-
-export function prepareRootResources<
-  const Definitions extends ResourceDefinitions,
-  Name extends Extract<keyof Definitions, string>,
->(
-  schema: ResourceSchema<Definitions>,
-  allocation: Readonly<Partial<Record<Name, number>>>,
-): readonly [PreparedRootResource<Name>, ...PreparedRootResource<Name>[]] {
-  const installation = resourceInstallation(schema);
-  if (!isRecord(allocation)) {
-    throw invalidCommand("createBudget", "$.resources", "type");
-  }
-  const byKey = new Map(
-    installation.map((resource) => [resource.key, resource]),
-  );
-  const prepared: PreparedRootResource<Name>[] = [];
-  for (const key in allocation) {
-    if (!Object.hasOwn(allocation, key)) continue;
-    const resource = byKey.get(key);
-    if (resource === undefined) {
-      const details: {
-        readonly operation: "createBudget";
-        readonly resource: string;
-      } = Object.freeze({
-        operation: "createBudget",
-        resource: key,
-      });
-      throw new KeynesSdkError("resource_not_defined", details);
-    }
-    prepared.push(
-      Object.freeze({
-        ...resource,
+  return Object.entries(snapshot)
+    .map(([key, value]) => {
+      if (
+        !isRecord(value) ||
+        typeof value.unit !== "string" ||
+        (value.accountingBehavior !== "consumable" &&
+          value.accountingBehavior !== "reusable")
+      ) {
+        throw invalidCommand("defineResources", `$.definitions.${key}`, "type");
+      }
+      const canonicalName = canonicalResourceName(key);
+      return Object.freeze({
         key,
-        amount: requireAmount(
-          allocation[key],
-          "createBudget",
-          `$.resources.${key}`,
-        ),
-        definitionDigest: resourceDefinitionDigest(resource.definition),
-      }),
+        canonicalName,
+        definition: Object.freeze({
+          canonicalName,
+          unit: value.unit,
+          accountingBehavior: value.accountingBehavior,
+        }),
+      });
+    })
+    .sort((left, right) =>
+      compareStrings(left.canonicalName, right.canonicalName),
     );
-  }
-  prepared.sort((left, right) =>
-    compareStrings(left.canonicalName, right.canonicalName),
-  );
-  return requireNonEmpty(prepared, "createBudget", "$.resources");
 }
 
-export function rootResourceEnvelope(
-  resources: readonly [
-    PreparedRootResource<string>,
-    ...PreparedRootResource<string>[],
-  ],
-): RootResourceEnvelope {
-  const [first, ...rest] = resources;
-  return [
-    { definition: first.definition, amount: first.amount },
-    ...rest.map(({ definition, amount }) => ({ definition, amount })),
+export function prepareRootResources<Name extends string>(
+  source: unknown,
+  suppliedAllocation: unknown,
+): {
+  readonly resources: ResourceSource;
+  readonly allocation: ResourceAllocation;
+  readonly prepared: readonly [
+    PreparedRootResource<Name>,
+    ...PreparedRootResource<Name>[],
   ];
-}
-
-export function resourceDefinitionDigest(
-  definition: WireResourceDefinition,
-): string {
-  const jsonbText = `{"unit": ${JSON.stringify(definition.unit)}, "canonicalName": ${JSON.stringify(definition.canonicalName)}, "accountingBehavior": ${JSON.stringify(definition.accountingBehavior)}}`;
-  return `resource-definition:${createHash("sha256").update(jsonbText).digest("hex")}`;
+} {
+  const binding = lookupResourceDefinitionBinding(source);
+  const resources =
+    binding === undefined
+      ? {
+          kind: "definitions",
+          definitions: snapshotResourceDefinitions(source, "createBudget"),
+        }
+      : { kind: "binding", bindingReference: binding.bindingReference };
+  const allocation = isRecord(suppliedAllocation)
+    ? Object.fromEntries(
+        ownDefinitionEntries(
+          suppliedAllocation,
+          "$.allocation",
+          "createBudget",
+        ),
+      )
+    : suppliedAllocation;
+  const input = { commandId: VALIDATION_COMMAND_ID, resources, allocation };
+  const issues = validateCreateBudgetCommandIssues(input);
+  if (issues[0])
+    throw invalidCommand("createBudget", issues[0].path, issues[0].rule);
+  if (!isRecord(allocation))
+    throw invalidCommand("createBudget", "$.allocation", "type");
+  const installation =
+    binding === undefined
+      ? resourceInstallation(resources.definitions)
+      : undefined;
+  const byKey = new Map(
+    installation?.map((resource) => [resource.key, resource]),
+  );
+  const keys = binding?.keys ?? [...byKey.keys()];
+  const prepared = Object.entries(allocation)
+    .map(([key, amount]) => {
+      if (!keys.includes(key))
+        throw new KeynesSdkError("resource_not_defined", {
+          resource: key,
+        });
+      const definition = byKey.get(key)?.definition;
+      return {
+        key: key as Name,
+        canonicalName: canonicalResourceName(key),
+        amount: requireAmount(amount, "createBudget", `$.allocation.${key}`),
+        ...(definition === undefined ? {} : { definition }),
+      };
+    })
+    .sort((left, right) =>
+      compareStrings(left.canonicalName, right.canonicalName),
+    );
+  return {
+    resources: resources as ResourceSource,
+    allocation: allocation as ResourceAllocation,
+    prepared: requireNonEmpty(prepared, "createBudget", "$.allocation"),
+  };
 }
 
 export function canonicalResourceName(key: string): string {
@@ -193,101 +195,6 @@ export function canonicalResourceName(key: string): string {
     throw new KeynesSdkError("invalid_resource_name", { resource: key });
   }
   return canonicalName;
-}
-
-function prepareDefinitions(
-  definitions: unknown,
-): readonly PreparedResourceDefinition[] {
-  if (!isRecord(definitions)) {
-    throw invalidCommand("defineResource", "$.definitions", "type");
-  }
-  const entries = Object.entries(definitions);
-  if (entries.length === 0) {
-    throw invalidCommand("defineResource", "$.definitions", "minProperties");
-  }
-
-  const keyByCanonicalName = new Map<string, string>();
-  const prepared = entries.map(([key, value]) => {
-    const canonicalName = canonicalResourceName(key);
-    const existingKey = keyByCanonicalName.get(canonicalName);
-    if (existingKey !== undefined && existingKey !== key) {
-      throw new KeynesSdkError("invalid_resource_name", { resource: key });
-    }
-    keyByCanonicalName.set(canonicalName, key);
-
-    if (!isRecord(value)) {
-      throw invalidCommand("defineResource", `$.definitions.${key}`, "type");
-    }
-    const unknownField = Object.keys(value).find(
-      (field) => !DEFINITION_FIELDS.has(field),
-    );
-    if (unknownField !== undefined) {
-      throw invalidCommand(
-        "defineResource",
-        `$.definitions.${key}.${unknownField}`,
-        "additionalProperties",
-      );
-    }
-
-    const definition = validateDefinition(key, canonicalName, value);
-    const publicDefinition = Object.freeze({
-      unit: definition.unit,
-      accountingBehavior: definition.accountingBehavior,
-    });
-    return Object.freeze({
-      key,
-      canonicalName,
-      definition: Object.freeze(definition),
-      publicDefinition,
-    });
-  });
-  return prepared.sort((left, right) =>
-    compareStrings(left.canonicalName, right.canonicalName),
-  );
-}
-
-function validateDefinition(
-  key: string,
-  canonicalName: string,
-  value: Record<string, unknown>,
-): WireResourceDefinition {
-  const definition = {
-    canonicalName,
-    unit: value.unit,
-    accountingBehavior: value.accountingBehavior,
-  };
-  const issues = validateDefineResourceTypeCommandIssues({
-    commandId: VALIDATION_COMMAND_ID,
-    definition,
-  });
-  const issue = issues[0];
-  if (issue !== undefined) {
-    const suffix = issue.path.replace(/^\/definition/, "").replaceAll("/", ".");
-    throw invalidCommand(
-      "defineResource",
-      `$.definitions.${key}${suffix}`,
-      issue.rule,
-    );
-  }
-  if (
-    typeof definition.unit !== "string" ||
-    (definition.accountingBehavior !== "consumable" &&
-      definition.accountingBehavior !== "reusable")
-  ) {
-    throw new Error("Validated Resource definition has an invalid type");
-  }
-  return {
-    canonicalName,
-    unit: definition.unit,
-    accountingBehavior: definition.accountingBehavior,
-  };
-}
-
-function resourceSchemaDigest(
-  definitions: readonly PreparedResourceDefinition[],
-): string {
-  const canonical = definitions.map(({ definition }) => definition);
-  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 
 function compareStrings(left: string, right: string): number {
@@ -328,12 +235,5 @@ function invalidCommand(
     kind: "error",
     code: "invalid_command",
     details: { operation, issues: [{ path, rule }] },
-  });
-}
-
-function invalidConfiguration(): KeynesSdkError<"invalid_configuration"> {
-  return new KeynesSdkError("invalid_configuration", {
-    field: "resources",
-    reason: "unsupported",
   });
 }

@@ -8,7 +8,6 @@ import {
   createKeynes,
   definePolicy,
   definePolicySql,
-  defineResources,
   policySet,
   policyValue,
   type AccountingBehavior,
@@ -29,7 +28,7 @@ import {
   type ResourceAmounts,
   type ResourceDefinition,
   type ResourceDefinitions,
-  type ResourceSchema,
+  type ResourceBinding,
   type ResourceUsage,
   type Settlement,
 } from "../../../src/index.js";
@@ -60,8 +59,11 @@ import type { CommandExecutor } from "../../../src/index.js";
 // @ts-expect-error Authority-boundary validators remain private helpers.
 import type { validateOperationInputIssues } from "../../../src/index.js";
 import * as sdk from "../../../src/index.js";
+// @ts-expect-error Plain definitions replace the standalone schema type.
+import type { ResourceSchema } from "../../../src/index.js";
 
 type RemovedPublicTypes = readonly [
+  ResourceSchema,
   KeynesLocalError,
   LocalRequestDenialReason,
   LocalRequestResult,
@@ -88,7 +90,6 @@ describe("package-root exports", () => {
       "createOperationKey",
       "definePolicy",
       "definePolicySql",
-      "defineResources",
       "policySet",
       "policyValue",
     ]);
@@ -103,7 +104,7 @@ describe("package-root exports", () => {
     expectTypeOf<ResourceDefinitions>().toEqualTypeOf<
       Readonly<Record<string, ResourceDefinition>>
     >();
-    expectTypeOf<ResourceSchema<ResourceDefinitions>>().toBeObject();
+    expectTypeOf<ResourceBinding<"usdCents">>().toBeObject();
     expectTypeOf<ResourceAmounts<"usdCents">>().toEqualTypeOf<{
       readonly usdCents?: number;
     }>();
@@ -145,7 +146,8 @@ describe("package-root exports", () => {
     expect(createKeynes).toBeTypeOf("function");
     expect(definePolicy).toBeTypeOf("function");
     expect(definePolicySql).toBeTypeOf("function");
-    expect(defineResources).toBeTypeOf("function");
+    expect(sdk).not.toHaveProperty("defineResources");
+    expect(sdk).not.toHaveProperty("ResourceBinding");
     expect(policySet).toBeTypeOf("function");
     expect(policyValue).toBeTypeOf("object");
     expect(sdk).not.toHaveProperty("Budget");
@@ -182,16 +184,43 @@ describe("package-root exports", () => {
         "regional_limit"
       >,
     ) {
-      const resources = defineResources({
+      const resources = {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
         searchQueries: { unit: "query", accountingBehavior: "reusable" },
-      });
+      };
       const keynes = await createKeynes();
       expectTypeOf(keynes).toEqualTypeOf<LocalKeynes>();
       expectTypeOf(keynes).toEqualTypeOf<Keynes>();
 
       const root = await keynes.createBudget(resources, { usdCents: 100 });
       expectTypeOf(root).toEqualTypeOf<Budget<"usdCents">>();
+      const binding = await keynes.defineResources(resources);
+      expectTypeOf(binding).toEqualTypeOf<
+        ResourceBinding<"usdCents" | "searchQueries">
+      >();
+      const allocation = { usdCents: 100 };
+      const boundRoot = await keynes.createBudget(binding, allocation);
+      const rawRoot = await keynes.createBudget(resources, allocation);
+      expectTypeOf(boundRoot).toEqualTypeOf<Budget<"usdCents">>();
+      expectTypeOf(rawRoot).toEqualTypeOf<Budget<"usdCents">>();
+      const unknownAllocation = { usdCents: 1, storageBytes: 1 };
+      // @ts-expect-error Binding names reject unknown keys from predeclared allocations.
+      void keynes.createBudget(binding, unknownAllocation);
+      // @ts-expect-error Raw definition names reject unknown keys from predeclared allocations.
+      void keynes.createBudget(resources, unknownAllocation);
+      // @ts-expect-error Binding references remain private.
+      void binding.bindingReference;
+      // @ts-expect-error Resource identities remain private.
+      void binding.resourceTypeId;
+      // @ts-expect-error Only authority-produced bindings carry the opaque brand.
+      const copied: ResourceBinding<"usdCents"> = {};
+      void copied;
+      const checked = {
+        usdCents: { unit: "cent", accountingBehavior: "consumable" },
+      } satisfies ResourceDefinitions;
+      expectTypeOf(await keynes.defineResources(checked)).toEqualTypeOf<
+        ResourceBinding<"usdCents">
+      >();
       // @ts-expect-error The root binds only allocated Resource names.
       void root.request({ searchQueries: 1 });
       // @ts-expect-error Allocation keys must belong to the supplied schema.

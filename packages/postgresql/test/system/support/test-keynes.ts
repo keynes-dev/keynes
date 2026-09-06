@@ -137,12 +137,27 @@ function postgresContractHost(owner: PostgresDatabase): ContractTestHost {
       return state;
     },
     clientFor(fixture, options) {
-      return createContractClient(
-        createDatabaseProcedureCaller(
-          owner.database,
-          transactionContext(fixture, options),
-        ),
+      const caller = createDatabaseProcedureCaller(
+        owner.database,
+        transactionContext(fixture, options),
       );
+      let arm = options?.forbidResourceWrites ?? false;
+      return createContractClient({
+        async execute(operation, input) {
+          if (arm) {
+            await owner.database
+              .exec(`CREATE FUNCTION keynes_internal.forbid_resource_write_test()
+              RETURNS trigger LANGUAGE plpgsql AS $test$
+              BEGIN RAISE EXCEPTION 'private Resource write prohibition'; END;
+              $test$;
+              CREATE TRIGGER forbid_resource_write_test BEFORE INSERT OR UPDATE OR DELETE
+              ON keynes_internal.resource_types FOR EACH STATEMENT
+              EXECUTE FUNCTION keynes_internal.forbid_resource_write_test();`);
+            arm = false;
+          }
+          return caller.execute(operation, input);
+        },
+      });
     },
     close: () => owner.close(),
   };

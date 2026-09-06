@@ -54,6 +54,7 @@ export type RollbackCheckpoint =
   | "after_result_storage";
 
 export interface ContractClientOptions {
+  readonly forbidResourceWrites?: boolean;
   readonly checkpoint?: RollbackCheckpoint;
   readonly dropResponseAfterCommitOnce?: boolean;
 }

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  definePolicy,
-  definePolicySql,
-  defineResources,
-} from "../../../src/index.js";
+import { definePolicy, definePolicySql } from "../../../src/index.js";
 import { POLICY_LIMITS } from "../../../src/generated/policy-profile.js";
 import type {
   ExpressionNodeV1,
@@ -13,9 +9,9 @@ import type {
 import { parsePolicySql } from "../../../src/policy/parse.js";
 import { validateNormalizedProgram } from "../../../src/policy/validate.js";
 
-const resources = defineResources({
+const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 
 const DECLARATION = {
   name: "capacity_limit",

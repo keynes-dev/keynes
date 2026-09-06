@@ -1,9 +1,9 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it } from "vitest";
 
 import {
   createKeynes,
   definePolicySql,
-  defineResources,
   policySet,
   policyValue,
   type PolicyDefinition,
@@ -24,9 +24,9 @@ import {
 } from "../../../src/policy/evaluate.js";
 import { failAtMutationStage } from "../support/sqlite-faults.js";
 
-const resources = defineResources({
+const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 
 const contextSchema = {
   factor: policyValue.integer(),
@@ -72,7 +72,7 @@ describe("local Policy evaluation failures", () => {
       await expect(
         client.createBudget({
           commandId: "20000000-0000-4000-8000-000000000001",
-          resources: [
+          ...rootResources([
             {
               definition: {
                 canonicalName: "tokens",
@@ -81,7 +81,7 @@ describe("local Policy evaluation failures", () => {
               },
               amount: 10,
             },
-          ],
+          ]),
           policies: [policy],
         }),
       ).rejects.toMatchObject({
@@ -109,7 +109,7 @@ describe("local Policy evaluation failures", () => {
       await expect(
         client.createBudget({
           commandId: "20000000-0000-4000-8000-000000000001",
-          resources: [
+          ...rootResources([
             {
               definition: {
                 canonicalName: "tokens",
@@ -126,7 +126,7 @@ describe("local Policy evaluation failures", () => {
               },
               amount: 10,
             },
-          ],
+          ]),
           policies: [policy],
         }),
       ).rejects.toMatchObject({
@@ -290,7 +290,7 @@ describe("governed SQLite mutation rollback", () => {
       });
       const root = await client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000001",
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "tokens",
@@ -299,7 +299,7 @@ describe("governed SQLite mutation rollback", () => {
             },
             amount: 10,
           },
-        ],
+        ]),
         policies: [policy],
       });
       const [rootResource] = root.budget.resources;
@@ -371,7 +371,7 @@ describe("governed SQLite mutation rollback", () => {
       });
       const root = await client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000001",
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "tokens",
@@ -380,7 +380,7 @@ describe("governed SQLite mutation rollback", () => {
             },
             amount: 10,
           },
-        ],
+        ]),
         policies: [policy],
       });
       const [rootResource] = root.budget.resources;

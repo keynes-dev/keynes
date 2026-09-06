@@ -101,6 +101,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles fails closed when the database is unavailable",
   ],
   "packages/postgresql/test/system/remote-budget.test.ts": [
+    "remote PostgreSQL Budget authority creates from a binding after producer close using another same-tenant creation-only principal",
+    "remote PostgreSQL Budget authority retains the KEY-78 Remote zero-allocation refusal for binding creation",
     "remote PostgreSQL Budget authority requires current definition permission for exact Remote replay and fresh commands",
     "remote PostgreSQL Budget authority defines Resources through authenticated Remote calls with exact reuse and replay",
     "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",
@@ -118,10 +120,12 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL recovery and bounded reads paginates one bounded history snapshot with expiring single-use cursors",
   ],
   "packages/postgresql/test/system/remote-security.test.ts": [
+    "remote PostgreSQL identity and security rejects foreign tenant and unknown bindings with the same private-safe error",
+    "remote PostgreSQL identity and security rejects a binding from another installation despite matching tenant and Resource names",
     "remote PostgreSQL identity and security derives tenant and principal from the authenticated role on every call",
     "remote PostgreSQL identity and security scopes overlapping Resource names and operation keys to each authenticated tenant",
     "remote PostgreSQL identity and security checks enabled mappings again on an already-open session",
-    "remote PostgreSQL identity and security validates the exact input shape of all eight wrappers before mutation",
+    "remote PostgreSQL identity and security validates the exact input shape of all nine wrappers before mutation",
     "remote PostgreSQL identity and security returns authorization-safe errors before validating an unmapped caller",
     "remote PostgreSQL identity and security rejects a recreated login until an operator explicitly registers the stale name and new OID",
     "remote PostgreSQL identity and security rotates mappings atomically and disables the old pooled credential",

@@ -12,6 +12,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it } from "vitest";
 
 import contractSource from "../contract.json" with { type: "json" };
+import expectations from "../fixtures/expectations.json" with { type: "json" };
 import fixtures from "../fixtures/source.json" with { type: "json" };
 import { applyGeneratedOutputs, loadContract } from "../src/index.ts";
 
@@ -27,22 +28,12 @@ afterEach(() => {
 describe("contract source", () => {
   it("loads the six allowlisted operations in caller order", () => {
     const contract = loadContract(packageRoot);
-    expect(contract.source.operations.map(({ method }) => method)).toEqual([
-      "defineResource",
-      "defineResources",
-      "createBudget",
-      "requestBudget",
-      "settleBudget",
-      "getBudget",
-    ]);
-    expect(contract.source.operations.map(({ target }) => target)).toEqual([
-      "keynes.define_resource_type",
-      "keynes.define_resources",
-      "keynes.create_budget",
-      "keynes.request",
-      "keynes.settle",
-      "keynes.get_budget",
-    ]);
+    expect(contract.source.operations.map(({ method }) => method)).toEqual(
+      expectations.operationMethods,
+    );
+    expect(contract.source.operations.map(({ target }) => target)).toEqual(
+      expectations.installedTargets,
+    );
     expect(
       contract.source.operations.map(({ permissions }) => permissions),
     ).toEqual([

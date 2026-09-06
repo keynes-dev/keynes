@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createKeynes, defineResources } from "../../../src/index.js";
+import { createKeynes } from "../../../src/index.js";
 import {
   openSqliteCommandExecutor as openRealSqliteCommandExecutor,
   type SqliteMutationObserver,
 } from "../../../src/local/sqlite-command-executor.js";
 import { failAtMutationStage } from "../support/sqlite-faults.js";
 
-const workUnitResources = defineResources({
+const workUnitResources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 afterEach(() => {
   vi.doUnmock("../../../src/local/runtime.js");
@@ -221,15 +221,15 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    const failedSchema = defineResources({
+    const failedSchema = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
-    const replacementSchema = defineResources({
+    };
+    const replacementSchema = {
       workUnits: {
         unit: "replacement-unit",
         accountingBehavior: "consumable",
       },
-    });
+    };
     let keynes: Record<string, unknown> | undefined;
     try {
       keynes = requireRecord(

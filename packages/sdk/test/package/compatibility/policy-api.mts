@@ -1,4 +1,4 @@
-import { createKeynes, defineResources } from "@keynes/sdk";
+import { createKeynes } from "@keynes/sdk";
 import type {
   Budget,
   BudgetHistoryEntry,
@@ -7,29 +7,19 @@ import type {
   Keynes,
   LocalKeynes,
   PolicySet,
-  ResourceSchema,
+  ResourceBinding,
+  ResourceDefinitions,
 } from "@keynes/sdk";
 import * as sdk from "@keynes/sdk";
+// @ts-expect-error Plain declarations replace the old schema wrapper type.
+import type { ResourceSchema } from "@keynes/sdk";
 
 function expectType<Value>(_value: Value): void {}
 
-const resources = defineResources({
+const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "reusable" },
-});
-
-expectType<
-  ResourceSchema<{
-    readonly usdCents: {
-      readonly unit: "cent";
-      readonly accountingBehavior: "consumable";
-    };
-    readonly searchQueries: {
-      readonly unit: "query";
-      readonly accountingBehavior: "reusable";
-    };
-  }>
->(resources);
+};
 
 await using keynes = await createKeynes();
 expectType<Keynes>(keynes);
@@ -39,6 +29,32 @@ expectType<AsyncDisposable>(keynes);
 const { createBudget, close } = keynes;
 const root = await createBudget(resources, { usdCents: 100 });
 expectType<Budget<"usdCents">>(root);
+const binding = await keynes.defineResources(resources);
+expectType<ResourceBinding<"usdCents" | "searchQueries">>(binding);
+const allocation = { usdCents: 100 };
+const boundRoot = await createBudget(binding, allocation);
+const rawRoot = await createBudget(resources, allocation);
+expectType<Budget<"usdCents">>(boundRoot);
+expectType<Budget<"usdCents">>(rawRoot);
+const invalidAllocation = { usdCents: 100, unknownResource: 1 };
+// @ts-expect-error Unknown keys in predeclared allocations cannot widen binding names.
+await createBudget(binding, invalidAllocation);
+// @ts-expect-error Unknown keys in predeclared allocations cannot widen raw names.
+await createBudget(resources, invalidAllocation);
+const checkedDefinitions = {
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+} satisfies ResourceDefinitions;
+expectType<ResourceBinding<"usdCents">>(
+  await keynes.defineResources(checkedDefinitions),
+);
+// @ts-expect-error The opaque reference is not public.
+binding.bindingReference;
+// @ts-expect-error Bindings expose no Resource IDs.
+binding.resourceTypeId;
+// @ts-expect-error The standalone helper has been removed.
+sdk.defineResources;
+// @ts-expect-error Bindings have no public constructor.
+new sdk.ResourceBinding();
 
 const { request, settle, inspect } = root;
 await request({ usdCents: 10 });

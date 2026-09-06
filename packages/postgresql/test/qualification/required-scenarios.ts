@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { randomUUID } from "node:crypto";
 
 import type { Client } from "pg";
@@ -113,7 +114,9 @@ async function runBudgetLifecycle(target: DatabaseTarget): Promise<void> {
   const created = requireOkResult(
     await callRemote(client, "keynes.remote_create_budget", {
       operationKey: createKey,
-      resources: [{ definition: resourceDefinition(resource), amount: 10 }],
+      ...rootResources([
+        { definition: resourceDefinition(resource), amount: 10 },
+      ]),
     }),
   );
   const root = requireString(created, "budget", "budgetReference");
@@ -168,13 +171,17 @@ async function runTenantIsolation(target: DatabaseTarget): Promise<void> {
     const primaryCreated = requireOkResult(
       await callRemote(primary, "keynes.remote_create_budget", {
         operationKey: sharedKey,
-        resources: [{ definition: resourceDefinition(resource), amount: 7 }],
+        ...rootResources([
+          { definition: resourceDefinition(resource), amount: 7 },
+        ]),
       }),
     );
     const secondaryCreated = requireOkResult(
       await callRemote(secondary, "keynes.remote_create_budget", {
         operationKey: sharedKey,
-        resources: [{ definition: resourceDefinition(resource), amount: 11 }],
+        ...rootResources([
+          { definition: resourceDefinition(resource), amount: 11 },
+        ]),
       }),
     );
     const primaryReference = requireString(
@@ -381,12 +388,12 @@ async function runPrivateAuthorityDenial(
     requireOkResult(
       await callRemote(secondary, "keynes.remote_create_budget", {
         operationKey: identityKey,
-        resources: [
+        ...rootResources([
           {
             definition: resourceDefinition(resourceName()),
             amount: 1,
           },
-        ],
+        ]),
       }),
     );
     await secondary.query("commit");
@@ -524,10 +531,14 @@ function operationKey(): string {
 }
 
 function resourceName(): string {
-  return `qualification_${randomUUID().replaceAll("-", "")}`;
+  return `qualification_resource${randomUUID().replaceAll("-", "")}`;
 }
 
-function resourceDefinition(canonicalName: string): Record<string, string> {
+type ResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
+
+function resourceDefinition(canonicalName: string): ResourceDefinition {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
 }
 

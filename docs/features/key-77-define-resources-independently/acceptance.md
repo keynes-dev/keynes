@@ -179,6 +179,78 @@ SDK test files listed above without a name filter for the initial public red run
 `pnpm format` passed across 509 files and `git diff --check` passed. Phase 3 is
 complete; creation integration remains the next phase.
 
+## Phase 4 creation integration
+
+Phase 4 implements positional creation from plain definitions or the opaque
+Resource binding. Both authorities validate the complete raw declaration before
+mutation, reconcile allocated keys only, and read bound definitions from the
+successful receipt without definition writes. Binding consumption requires root
+creation permission; raw creation also requires definition permission. Local and
+canonical PostgreSQL retain zero roots; Remote retains its positive allocation
+restriction under KEY-78.
+
+SDK creation snapshots definitions, allocation, options, and attached Policy
+definitions before asynchronous work. Local creation checks close state before
+reading caller input. Projection bindings use returned authority metadata; the
+SDK no longer calculates Resource definition digests. Plain definition objects
+also supply pure Policy authoring and Remote openBudget declarations. The public
+standalone helper and ResourceSchema are removed. Active test consumers and
+package examples use the new API; historical feature artifacts remain unchanged.
+
+Test-first evidence under `.artifacts/key-77/phase4/`:
+
+- T014 shared SQLite: 28 failures and one pass against unsupported creation;
+  native T014/T015: 31 failures and 102 passes. Native positive controls returned
+  invalid_command before authority implementation. SQLite's earlier TypeError
+  records the unsupported wire shape; it is not the sole behavioral red evidence.
+- T015 native cases cover same-tenant use after producer close, creation-only
+  permission, foreign tenants/installations, unknown references, malformed
+  references, and the Remote zero restriction, with successful controls.
+- T016 export/type checks reject the old helper and missing new creation inputs;
+  initial package build fails on the unfinished creation wire.
+- T017 creation snapshots and Policy corpus: 32 failures and one pass before
+  implementation (`t017/red.log`), then 33 passes (`t017/green.log`).
+
+The focused shared SQLite run passes 43 cases (`t014/sqlite-green.log`),
+including real INSERT/UPDATE abort triggers proving zero definition writes.
+Public/Policy checks pass 189 cases (`sdk-public-policy.log`); SDK typechecking
+passes (`sdk-typecheck.log`). SDK unit and contract checks pass all 431 cases (`t022-tests.log`).
+Contract generation tests pass 51 cases and repository checks pass nine cases
+(`t022-contracts.log`, `t022-repository.log`). Whole-repository typecheck passes
+all five tasks (`typecheck.log`).
+
+Direct native checks pass 133 cases and PostgreSQL unit tests pass 85 cases.
+The first integrated test:pr run stopped on one unformatted migrated PostgreSQL
+test file; its interrupted package task left a lock whose PID no longer existed.
+The stale lock was archived before retrying. A native regression also caught zero
+Remote allocation refusal escaping the operation ledger; the refusal is again
+recorded as a known failure. The corrected direct run passes the recovery check.
+
+Installed SDK qualification passes all 12 checks, including public types, Local
+raw/binding loops, Policy runtime, privacy, lifecycle, and dependency closure.
+The scoped archive SHA256 is
+`6ffe4bbec731c0d5b4d48f2f20a993ac1f5187ef31b19a88884f526a6cec2d6f`;
+`t016/qualification.json` records a dirty checkout based on `1514cba`.
+Authorized Remote package runtime and Hosted remain NOT RUN. This is scoped
+Phase 4 feedback; final exact archives and paired acceptance remain Phase 6 work.
+
+`pnpm test:system:postgresql` exits zero (`t019/native-full-retry.log`),
+covering Policy, Embedded transactions, contention, and rollback in addition to
+the direct Remote selection. This feedback run emits no retained paired
+acceptance manifest. `pnpm generate:check` and PostgreSQL typechecking pass
+(`t019/generate-check.log`, `t019/typecheck-final.log`). Historical migrations
+0001-0006 remain unchanged (`t019/historical-sha256.txt`). Container cleanup is
+confirmed and the package-preparation lock is absent. `pnpm format` passes.
+
+Phase 4 independent `ponytail-review`: "Lean already. Ship."
+The integrated package-boundary check found a pre-existing Phase 3 test import
+crossing into contracts JSON. The test now uses the existing exported
+`loadContract` helper with the same assertions; no new package API was added.
+`CI=true pnpm test:pr` passes all 11 tasks, including 456 SDK tests and
+package-boundary validation (`test-pr-final.log`). `git diff --check` passes.
+T014-T023 are complete. Phase 4 is ready for its commit; recovery and fault
+expansion remain Phase 5 work.
+
 ## Verification status
 
 | Lane                                                      | Status                     |

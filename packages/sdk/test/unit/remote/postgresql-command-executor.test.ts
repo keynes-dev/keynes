@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -77,7 +78,7 @@ describe("PostgreSQL remote command executor", () => {
   it("executes only the generated procedure target with one JSON parameter", async () => {
     const command = {
       operationKey,
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "workUnits",
@@ -86,7 +87,7 @@ describe("PostgreSQL remote command executor", () => {
           },
           amount: 10,
         },
-      ],
+      ]),
     };
     const response = { ok: true, result: { kind: "created" } };
     const pool = createFakePool(async ({ text }) =>

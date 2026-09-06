@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { OperationName } from "../../../src/generated/types.js";
 import type { Keynes } from "../../../src/keynes.js";
-import type { ResourceSchema } from "../../../src/resources.js";
 import { openSqliteCommandExecutor } from "../../../src/local/sqlite-command-executor.js";
 import { dropCommittedResponses } from "../support/sqlite-faults.js";
 
 type MutationOperation = Exclude<OperationName, "getBudget">;
-type FacadeMutationOperation = Exclude<MutationOperation, "defineResource">;
+type FacadeMutationOperation = Exclude<
+  MutationOperation,
+  "defineResource" | "defineResources"
+>;
 
 afterEach(() => {
   vi.doUnmock("../../../src/local/sqlite-command-executor.js");
@@ -19,9 +21,9 @@ describe("local facade committed-response replay", () => {
     "replays one lost %s response with the exact command object",
     async (operation) => {
       const harness = await loadHarness(operation, 1);
-      const resources = harness.defineResources({
+      const resources = {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
-      });
+      };
       const keynes = await harness.createKeynes();
       try {
         await exerciseMutation(keynes, resources, operation);
@@ -35,9 +37,9 @@ describe("local facade committed-response replay", () => {
 
   it("maps a second lost response to operation_interrupted", async () => {
     const harness = await loadHarness("createBudget", 2);
-    const resources = harness.defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
+    };
     const keynes = await harness.createKeynes();
     try {
       await expect(
@@ -55,9 +57,9 @@ describe("local facade committed-response replay", () => {
 
   it("creates a distinct command identity for each public call", async () => {
     const harness = await loadHarness("createBudget", 0);
-    const resources = harness.defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
+    };
     const keynes = await harness.createKeynes();
     try {
       await keynes.createBudget(resources, { workUnits: 10 });
@@ -74,7 +76,7 @@ describe("local facade committed-response replay", () => {
 
 async function exerciseMutation(
   keynes: Keynes,
-  resources: ResourceSchema,
+  resources: { workUnits: { unit: string; accountingBehavior: string } },
   operation: FacadeMutationOperation,
 ): Promise<void> {
   const root = await keynes.createBudget(resources, { workUnits: 10 });
@@ -153,9 +155,8 @@ async function loadHarness(operation: FacadeMutationOperation, losses: number) {
       },
     }),
   }));
-  const { createKeynes, defineResources } =
-    await import("../../../src/index.js");
-  return { createKeynes, defineResources, captured, close };
+  const { createKeynes } = await import("../../../src/index.js");
+  return { createKeynes, captured, close };
 }
 
 function commandId(value: unknown): unknown {

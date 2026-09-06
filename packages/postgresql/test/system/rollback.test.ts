@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -65,7 +66,11 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
 
     const defined = await keynes.clientFor("definer-fixture").defineResource({
       commandId: RETRY_DEFINITION_ID,
-      definition: command.resources[0].definition,
+      definition: {
+        canonicalName: "checkpoint_tokens",
+        unit: "token",
+        accountingBehavior: "consumable",
+      },
     });
     expect(defined).toMatchObject({
       definitionEvidence: { commandId: RETRY_DEFINITION_ID },
@@ -159,7 +164,7 @@ function resourceBoundRoot(
 ): ResourceBoundRootCommand {
   return {
     commandId,
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName,
@@ -168,6 +173,6 @@ function resourceBoundRoot(
         },
         amount: 10,
       },
-    ],
+    ]),
   };
 }

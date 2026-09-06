@@ -267,7 +267,6 @@ function preparedResources(
         accountingBehavior: "consumable",
       },
       amount: amountFor(resource.key),
-      definitionDigest: "a".repeat(64),
     })),
   );
 }

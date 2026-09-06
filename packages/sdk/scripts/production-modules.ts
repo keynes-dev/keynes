@@ -24,6 +24,7 @@ export const SDK_PRODUCTION_MODULES = [
   "policy/validate",
   "replay",
   "resource-binding",
+  "resource-definition-binding",
   "resources",
   "remote/budget",
   "remote/connection-options",

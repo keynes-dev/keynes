@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createKeynesClient } from "../../../src/generated/client.js";
@@ -11,11 +12,10 @@ import { definePolicySql, policyValue } from "../../../src/policy/authoring.js";
 import { digestCanonicalJson } from "../../../src/policy/canonicalize.js";
 import type { PolicyEvaluationInput } from "../../../src/policy/evaluate.js";
 import type { PolicyProgramV1 } from "../../../src/generated/policy-types.js";
-import { defineResources } from "../../../src/resources.js";
 
-const resources = defineResources({
+const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
-});
+};
 const tokensResource = {
   canonicalName: "tokens",
   unit: "token",
@@ -107,7 +107,7 @@ describe("local governed request replay", () => {
       );
       await harness.client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000002",
-        resources: [{ definition: tokensResource, amount: 10 }],
+        ...rootResources([{ definition: tokensResource, amount: 10 }]),
         policies: [ceilingPolicy("root_limit", 2)],
       });
       const mutationCalls = harness.observe.mock.calls.length;
@@ -255,7 +255,7 @@ async function openHarness() {
   const client = createKeynesClient(executor);
   const root = await client.createBudget({
     commandId: "20000000-0000-4000-8000-000000000001",
-    resources: [{ definition: tokensResource, amount: 10 }],
+    ...rootResources([{ definition: tokensResource, amount: 10 }]),
     policies: [ceilingPolicy("root_limit", 1)],
   } satisfies CreateBudgetCommand);
   const resourceTypeId = root.budget.resources[0]?.resourceType.resourceTypeId;

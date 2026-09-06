@@ -1,4 +1,4 @@
-import { createKeynes, createOperationKey, defineResources } from "@keynes/sdk";
+import { createKeynes, createOperationKey } from "@keynes/sdk";
 import type {
   Budget,
   BudgetReference,
@@ -7,14 +7,17 @@ import type {
   PolicySet,
   RecoverOperationResult,
   RemoteKeynes,
+  RemoteBudget,
+  ResourceBinding,
+  ResourceDefinitions,
 } from "@keynes/sdk";
 
 function expectType<Value>(_value: Value): void {}
 
-const resourceTypes = defineResources({
+const resourceTypes = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
-});
+};
 
 declare const rootPolicies: PolicySet<
   "usdCents",
@@ -50,6 +53,32 @@ const root = await remote.createBudget(
   { operationKey },
 );
 expectType<BudgetReference>(root.reference);
+const binding = await remote.defineResources(resourceTypes, {
+  operationKey: createOperationKey(),
+});
+expectType<ResourceBinding<"usdCents" | "searchQueries">>(binding);
+const allocation = { usdCents: 100 };
+expectType<RemoteBudget<"usdCents">>(
+  await remote.createBudget(binding, allocation),
+);
+expectType<RemoteBudget<"usdCents">>(
+  await remote.createBudget(resourceTypes, allocation),
+);
+const invalidAllocation = { usdCents: 100, unknownResource: 1 };
+// @ts-expect-error Unknown allocation variables cannot widen the bound names.
+await remote.createBudget(binding, invalidAllocation);
+// @ts-expect-error Unknown allocation variables cannot widen raw definition names.
+await remote.createBudget(resourceTypes, invalidAllocation);
+const checkedDefinitions = {
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+} satisfies ResourceDefinitions;
+expectType<ResourceBinding<"usdCents">>(
+  await remote.defineResources(checkedDefinitions),
+);
+// @ts-expect-error Bindings expose no reference.
+binding.bindingReference;
+// @ts-expect-error Bindings expose no producing client.
+binding.client;
 
 const governed = await remote.createBudget(
   resourceTypes,

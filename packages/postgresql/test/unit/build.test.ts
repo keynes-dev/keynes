@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import contract from "../../../contracts/contract.json" with { type: "json" };
+import { loadContract } from "@keynes/contracts";
+import { fileURLToPath } from "node:url";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -29,6 +30,9 @@ afterEach(async () => {
 
 describe("PostgreSQL package build promotion", () => {
   it("publishes independent definition procedures with generation two compatibility", () => {
+    const { source: contract } = loadContract(
+      fileURLToPath(new URL("../../../contracts/", import.meta.url)),
+    );
     expect(contract.remote.semanticGeneration).toBe(2);
     expect(contract.remote.minimumSdkGeneration).toBe(2);
     expect(contract.operations).toContainEqual(

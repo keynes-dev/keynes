@@ -25,12 +25,12 @@ library. The package remains private and has no registry publication command.
 Applications import only `@keynes/sdk`:
 
 ```ts
-import { createKeynes, defineResources } from "@keynes/sdk";
+import { createKeynes } from "@keynes/sdk";
 
-const resources = defineResources({
+const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
-});
+};
 
 await using keynes = await createKeynes();
 const root = await keynes.createBudget(resources, {
@@ -44,9 +44,15 @@ if (request.status === "approved") {
 }
 ```
 
-`defineResources(...)` copies, orders, digests, and freezes the complete
-Resource schema. Root creation binds that schema and its selected allocation
-atomically. Resource keys flow through root creation, requests, settlement,
+Pass plain definitions directly to creation, or call
+`const binding = await keynes.defineResources(resources)` first and pass
+`binding` to `createBudget`. Independent definition creates no Budget or
+quantity. A binding is opaque, immutable, and scoped to its tenant and database
+authority; copying or serializing it does not preserve it.
+
+Root creation validates all plain definitions, reconciles only allocated keys,
+and creates a fixed allocation atomically. Binding creation reads the saved
+definitions without rewriting them. Unallocated keys are outside the Budget. Resource keys flow through root creation, requests, settlement,
 inspection, denial reasons, and Policy authoring as exact TypeScript types.
 
 `Keynes` and `Budget` are exported readonly interface types, not classes.

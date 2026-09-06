@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -451,9 +452,9 @@ function createResourceBoundBudget(
   return Reflect.apply(client.createBudget, client, [
     {
       commandId,
-      resources: [
+      ...rootResources([
         { definition: resourceDefinition(canonicalName), amount: 10 },
-      ],
+      ]),
     },
   ]);
 }
@@ -507,7 +508,7 @@ async function seedRoot(
     });
     const root = await client.createBudget({
       commandId: "20000000-0000-4000-8000-000000000001",
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "model_tokens",
@@ -516,7 +517,7 @@ async function seedRoot(
           },
           amount: 10,
         },
-      ],
+      ]),
     });
     await transaction.commit();
     return {

@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +37,7 @@ const CONTEXT = {
 
 const OPERATIONS = [
   "defineResource",
+  "defineResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -63,16 +65,20 @@ afterEach(() => {
 });
 
 describe("SQLite command executor", () => {
-  it("initializes a schema that supports all five fixed-statement operations", async () => {
+  it("initializes a schema that supports all six fixed-statement operations", async () => {
     const prepare = vi.spyOn(DatabaseSync.prototype, "prepare");
     const executor = await openExecutor();
     const client = createKeynesClient(executor);
     const unit = "unit'); drop table budget; --";
 
     try {
+      await client.defineResources({
+        commandId: "10000000-0000-0000-0000-000000000099",
+        definitions: { workUnits: { unit, accountingBehavior: "consumable" } },
+      });
       const root = await client.createBudget({
         commandId: "20000000-0000-0000-0000-000000000001",
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "work_units",
@@ -81,7 +87,7 @@ describe("SQLite command executor", () => {
             },
             amount: 10,
           },
-        ],
+        ]),
       });
       const resourceTypeId =
         root.budget.resources[0]?.resourceType.resourceTypeId;
@@ -138,7 +144,7 @@ describe("SQLite command executor", () => {
     try {
       const root = await client.createBudget({
         commandId: "20000000-0000-0000-0000-000000000002",
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "safe_units",
@@ -147,7 +153,7 @@ describe("SQLite command executor", () => {
             },
             amount: Number.MAX_SAFE_INTEGER,
           },
-        ],
+        ]),
       });
 
       await expect(
@@ -226,7 +232,7 @@ describe("SQLite command executor", () => {
       const transaction = vi.spyOn(DatabaseSync.prototype, "exec");
       const command = {
         commandId: `20000000-0000-0000-0000-0000000000${suffix}`,
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "rollback_units",
@@ -235,7 +241,7 @@ describe("SQLite command executor", () => {
             },
             amount: 10,
           },
-        ],
+        ]),
       } satisfies CreateBudgetCommand;
 
       try {
@@ -267,7 +273,7 @@ describe("SQLite command executor", () => {
       try {
         const root = await client.createBudget({
           commandId: "20000000-0000-0000-0000-000000000003",
-          resources: [
+          ...rootResources([
             {
               definition: {
                 canonicalName: "guard_units",
@@ -276,7 +282,7 @@ describe("SQLite command executor", () => {
               },
               amount: 7,
             },
-          ],
+          ]),
         });
         const before = await client.getBudget({
           budgetId: root.budget.budgetId,

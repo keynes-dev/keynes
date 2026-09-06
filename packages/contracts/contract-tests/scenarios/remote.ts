@@ -1,3 +1,4 @@
+import { rootResources } from "./root-resource.ts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type {
@@ -39,7 +40,7 @@ export function registerRemoteContractTests(
       const operationKey = key("a");
       const command: RemoteCreateBudgetCommand = {
         operationKey,
-        resources: [{ definition: resource, amount: 300 }],
+        ...rootResources([{ definition: resource, amount: 300 }]),
       };
 
       const created = await client.createBudget(command);
@@ -58,7 +59,7 @@ export function registerRemoteContractTests(
       const operationKey = key("b");
       const created = await client.createBudget({
         operationKey,
-        resources: [{ definition: resource, amount: 100 }],
+        ...rootResources([{ definition: resource, amount: 100 }]),
       });
 
       const recovered = await client.recoverOperation({ operationKey });
@@ -77,7 +78,7 @@ export function registerRemoteContractTests(
       const client = host.clientFor("product-fixture");
       const created = await client.createBudget({
         operationKey: key("s"),
-        resources: [{ definition: resource, amount: 100 }],
+        ...rootResources([{ definition: resource, amount: 100 }]),
       });
 
       await expect(
@@ -101,7 +102,7 @@ export function registerRemoteContractTests(
       const client = host.clientFor("product-fixture");
       const created = await client.createBudget({
         operationKey: key("c"),
-        resources: [{ definition: resource, amount: 100 }],
+        ...rootResources([{ definition: resource, amount: 100 }]),
       });
 
       await expect(
@@ -126,7 +127,7 @@ export function registerRemoteContractTests(
       const client = host.clientFor("product-fixture");
       const created = await client.createBudget({
         operationKey: key("d"),
-        resources: [{ definition: resource, amount: 300 }],
+        ...rootResources([{ definition: resource, amount: 300 }]),
       });
       for (let index = 0; index < 257; index += 1) {
         await client.requestBudget({
@@ -148,7 +149,7 @@ export function registerRemoteContractTests(
       const other = host.clientFor("reader-fixture");
       const created = await owner.createBudget({
         operationKey: key("e"),
-        resources: [{ definition: resource, amount: 100 }],
+        ...rootResources([{ definition: resource, amount: 100 }]),
       });
 
       let failure: unknown;

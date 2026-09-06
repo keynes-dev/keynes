@@ -137,6 +137,16 @@ export class SqliteStore {
     this.#statements = prepareStatements(database);
   }
 
+  forbidResourceWrites(): void {
+    for (const operation of ["INSERT", "UPDATE", "DELETE"]) {
+      this.#database
+        .exec(`CREATE TRIGGER IF NOT EXISTS forbid_resource_${operation}
+        BEFORE ${operation} ON resource_types BEGIN
+          SELECT RAISE(ABORT, 'private Resource write prohibition');
+        END;`);
+    }
+  }
+
   static open(installation: SqliteInstallation): SqliteStore {
     const database = new DatabaseSync(":memory:", { allowExtension: false });
     try {
@@ -198,6 +208,14 @@ export class SqliteStore {
     commandId: string,
   ): SqliteCommandRow | undefined {
     const row = this.#statements.command.get(tenantId, commandId);
+    return row === undefined ? undefined : commandRow(row);
+  }
+
+  findBindingCommand(
+    tenantId: string,
+    reference: string,
+  ): SqliteCommandRow | undefined {
+    const row = this.#statements.bindingCommand.get(tenantId, reference);
     return row === undefined ? undefined : commandRow(row);
   }
 
@@ -406,6 +424,9 @@ function prepareStatements(database: DatabaseSync) {
     ),
     command: prepareRead(
       "SELECT operation, target_kind, target_id, body_json, body_digest, result_json FROM commands WHERE tenant_id = ? AND command_id = ?",
+    ),
+    bindingCommand: prepareRead(
+      "SELECT operation, target_kind, target_id, body_json, body_digest, result_json FROM commands WHERE tenant_id = ? AND binding_reference = ? AND operation = 'defineResources' AND result_json IS NOT NULL",
     ),
     insertCommand: database.prepare(
       "INSERT INTO commands (tenant_id, command_id, operation, target_kind, target_id, body_json, body_digest, principal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

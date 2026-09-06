@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import {
   preparePostgresInstallation,
   dropPostgresFixture,
@@ -28,7 +29,7 @@ const fixtureSource = {
     },
     createRoot: {
       commandId: "20000000-0000-0000-0000-000000000001",
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "model_tokens",
@@ -37,7 +38,7 @@ const fixtureSource = {
           },
           amount: 100,
         },
-      ],
+      ]),
     },
     requestChild: {
       commandId: "30000000-0000-0000-0000-000000000001",

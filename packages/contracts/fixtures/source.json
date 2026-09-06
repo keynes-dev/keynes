@@ -27,24 +27,23 @@
     },
     "createRoot": {
       "commandId": "20000000-0000-0000-0000-000000000001",
-      "resources": [
-        {
-          "definition": {
-            "canonicalName": "worker_slots",
+      "resources": {
+        "kind": "definitions",
+        "definitions": {
+          "workerSlots": {
             "unit": "slot",
             "accountingBehavior": "reusable"
           },
-          "amount": 2
-        },
-        {
-          "definition": {
-            "canonicalName": "model_tokens",
+          "modelTokens": {
             "unit": "token",
             "accountingBehavior": "consumable"
-          },
-          "amount": 100
+          }
         }
-      ]
+      },
+      "allocation": {
+        "workerSlots": 2,
+        "modelTokens": 100
+      }
     },
     "requestChild": {
       "commandId": "30000000-0000-0000-0000-000000000001",

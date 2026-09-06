@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { createHash } from "node:crypto";
 
 import {
@@ -763,7 +764,7 @@ describe("PostgreSQL Policy security", () => {
       "createBudget",
       {
         commandId: "not-a-uuid",
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "model_tokens",
@@ -772,7 +773,7 @@ describe("PostgreSQL Policy security", () => {
             },
             amount: 100,
           },
-        ],
+        ]),
         policies: [basePolicy()],
       },
     ],
@@ -936,10 +937,12 @@ function committedCreateBudget(
 ): Promise<unknown> {
   return committedCall(fixture, "createBudget", {
     ...input,
-    resources: input.resources.map(({ resourceTypeId, amount }) => ({
-      definition: ROOT_RESOURCE_DEFINITIONS[resourceTypeId],
-      amount,
-    })),
+    ...rootResources(
+      input.resources.map(({ resourceTypeId, amount }) => ({
+        definition: ROOT_RESOURCE_DEFINITIONS[resourceTypeId],
+        amount,
+      })),
+    ),
   });
 }
 

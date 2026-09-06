@@ -59,6 +59,7 @@ role and application role are distinct `NOINHERIT` roles. The application role
 receives `USAGE` on `keynes` and `EXECUTE` on exactly the eight supported remote
 functions:
 
+- `keynes.remote_define_resources(jsonb)`
 - `keynes.remote_create_budget(jsonb)`
 - `keynes.remote_request(jsonb)`
 - `keynes.remote_settle(jsonb)`
@@ -103,3 +104,12 @@ Installation failures use stable categories such as `unsupported_postgresql`,
 `database_unavailable`. The optional `check` identifies the failed profile
 fact. An incompatible target includes partial installation and drift. The
 installer does not repair it, resume it, or expose raw database errors.
+
+Independent Resource definition uses `define_resources` or its Remote wrapper.
+It validates the complete batch atomically and returns an opaque binding reference;
+it creates no Budget or quantity. Root creation accepts tagged `definitions` or
+`binding` resources plus a separate allocation. Raw creation requires definition
+permission and reconciles allocated keys only. Binding creation requires root
+creation permission and reads the stored receipt within the same tenant and
+installation without updating definitions. Remote root allocations remain
+strictly positive; Local and canonical PostgreSQL roots allow zero (KEY-78).

@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it } from "vitest";
 
 import type { ContractClient } from "@keynes/contracts/contract-tests";
@@ -228,7 +229,7 @@ describe("native PostgreSQL contention", () => {
 
       const root = await client.createBudget({
         commandId: CANONICAL_ORDER_ROOT_ID,
-        resources: [
+        ...rootResources([
           {
             definition: {
               canonicalName: "zeta_tokens",
@@ -245,7 +246,7 @@ describe("native PostgreSQL contention", () => {
             },
             amount: 10,
           },
-        ],
+        ]),
       });
 
       expect(
@@ -266,7 +267,7 @@ function createResourceBoundBudget(
   return Reflect.apply(client.createBudget, client, [
     {
       commandId,
-      resources: [
+      ...rootResources([
         {
           definition: {
             canonicalName: "contended_tokens",
@@ -275,7 +276,7 @@ function createResourceBoundBudget(
           },
           amount: 10,
         },
-      ],
+      ]),
     },
   ]);
 }
@@ -294,7 +295,7 @@ async function seedRoot(
   });
   await client.createBudget({
     commandId: ROOT_BUDGET_ID,
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName: "native_tokens",
@@ -303,7 +304,7 @@ async function seedRoot(
         },
         amount: 10,
       },
-    ],
+    ]),
   });
   return { resourceTypeId: resource.resourceType.resourceTypeId };
 }
