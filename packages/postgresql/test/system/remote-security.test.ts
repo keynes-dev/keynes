@@ -23,6 +23,136 @@ describe("remote PostgreSQL identity and security", () => {
     fixture = undefined;
   });
 
+  it("validates configured declarations with creation permission and no authority writes", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const client = await fixture.connect(fixture.primary);
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    expect(
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("d"),
+        definitions,
+      }),
+    ).toMatchObject({ ok: true });
+    await fixture.administrator.query(
+      "delete from keynes_internal.principal_permissions where tenant_id = $1 and principal_id = $2 and permission <> 'create_root_budget'",
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    const before = await configuredAuthorityState(fixture);
+    await fixture.administrator.query(`
+      create function keynes_internal.reject_validation_write() returns trigger language plpgsql
+      as $$ begin raise exception 'configured validation attempted a write'; end $$;
+    `);
+    for (const table of [
+      "resource_types",
+      "commands",
+      "remote_operations",
+      "budgets",
+      "budget_resources",
+      "budget_history_entries",
+    ]) {
+      await fixture.administrator.query(
+        `create trigger reject_validation_write before insert or update or delete or truncate on keynes_internal.${table} for each statement execute function keynes_internal.reject_validation_write()`,
+      );
+    }
+    await client.query("begin");
+    try {
+      expect(
+        await queryResponse(client, "keynes.remote_validate_resources", {
+          definitions,
+        }),
+      ).toEqual({ ok: true, result: { valid: true } });
+    } finally {
+      await client.query("rollback");
+    }
+    expect(await configuredAuthorityState(fixture)).toEqual(before);
+  });
+
+  it("validates configured catalogs under mapped identity without foreign disclosure", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.secondary);
+    const primary = await fixture.connect(fixture.primary);
+    const secondary = await fixture.connect(fixture.secondary);
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    expect(
+      await queryResponse(primary, "keynes.remote_define_resources", {
+        operationKey: operationKey("d"),
+        definitions,
+      }),
+    ).toMatchObject({ ok: true });
+    const before = await configuredAuthorityState(fixture);
+    await secondary.query("begin");
+    let foreign: unknown;
+    try {
+      await secondary.query("select set_config('keynes.tenant_id', $1, true)", [
+        fixture.primary.tenantId,
+      ]);
+      await secondary.query(
+        "select set_config('keynes.principal_id', $1, true)",
+        [fixture.primary.principalId],
+      );
+      foreign = await queryResponse(
+        secondary,
+        "keynes.remote_validate_resources",
+        { definitions },
+      );
+      expect(foreign).toMatchObject({
+        ok: false,
+        error: { code: "resource_type_not_found" },
+      });
+    } finally {
+      await secondary.query("rollback");
+    }
+    const absent = await queryResponse(
+      secondary,
+      "keynes.remote_validate_resources",
+      { definitions: { absentUnits: definitions.workUnits } },
+    );
+    expect(absent).toEqual(foreign);
+    expectSafeRemoteResponse(foreign);
+    expect(JSON.stringify(foreign)).not.toContain(fixture.primary.tenantId);
+    expect(await configuredAuthorityState(fixture)).toEqual(before);
+  });
+
+  it("rejects configured catalog validation without creation permission before reading declarations", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const client = await fixture.connect(fixture.primary);
+    await fixture.administrator.query(
+      "delete from keynes_internal.principal_permissions where tenant_id = $1 and principal_id = $2 and permission = 'create_root_budget'",
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    const before = await configuredAuthorityState(fixture);
+    for (const definitions of [
+      { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+      {},
+    ]) {
+      expect(
+        await queryResponse(client, "keynes.remote_validate_resources", {
+          definitions,
+        }),
+      ).toMatchObject({ ok: false, error: { code: "unauthorized" } });
+    }
+    expect(await configuredAuthorityState(fixture)).toEqual(before);
+  });
+
+  it("grants configured validation only through the authenticated runtime wrapper", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const privileges = await fixture.administrator.query<{
+      runtime: boolean;
+      canonical: boolean;
+      administrator: boolean;
+    }>(
+      "select has_function_privilege($1, 'keynes.remote_validate_resources(jsonb)', 'EXECUTE') as runtime, has_function_privilege($1, 'keynes.validate_resources(jsonb)', 'EXECUTE') as canonical, has_function_privilege($2, 'keynes.remote_validate_resources(jsonb)', 'EXECUTE') as administrator",
+      [fixture.primary.role, fixture.administrationRole],
+    );
+    expect(privileges.rows).toEqual([
+      { runtime: true, canonical: false, administrator: false },
+    ]);
+  });
+
   it("rejects foreign tenant and unknown bindings with the same private-safe error", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.secondary);
@@ -563,6 +693,20 @@ async function bindingAuthorityState(
     'budgets', (select count(*) from keynes_internal.budgets),
     'holdings', (select count(*) from keynes_internal.budget_resources),
     'history', (select count(*) from keynes_internal.budget_history_entries)
+  ) as state`);
+  return result.rows[0]?.state;
+}
+
+async function configuredAuthorityState(
+  fixture: RemoteIdentityFixture,
+): Promise<unknown> {
+  const result = await fixture.administrator.query(`select jsonb_build_object(
+    'resources', (select jsonb_agg(to_jsonb(r) order by tenant_id, canonical_name) from keynes_internal.resource_types r),
+    'commandsAndBindings', (select jsonb_agg(to_jsonb(c) order by tenant_id, command_id) from keynes_internal.commands c),
+    'remoteOperations', (select jsonb_agg(to_jsonb(o) order by tenant_id, operation_key) from keynes_internal.remote_operations o),
+    'budgets', (select jsonb_agg(to_jsonb(b) order by tenant_id, budget_id) from keynes_internal.budgets b),
+    'holdings', (select jsonb_agg(to_jsonb(h) order by tenant_id, budget_id, resource_type_id) from keynes_internal.budget_resources h),
+    'history', (select jsonb_agg(to_jsonb(e) order by to_jsonb(e)::text) from keynes_internal.budget_history_entries e)
   ) as state`);
   return result.rows[0]?.state;
 }

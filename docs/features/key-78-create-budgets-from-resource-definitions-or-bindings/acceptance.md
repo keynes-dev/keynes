@@ -144,6 +144,88 @@ Independent `ponytail-review` found redundant test method guards and duplicated
 AJV setup. Both were simplified. The follow-up review reports "Lean already.
 Ship." T004-T008 are complete as a generation checkpoint only.
 
+## Phase 3: configured startup
+
+Executed on September 6, 2026 against `eb4964018651311746326eeea89ebae17d41ff36`
+plus the Phase 3 changes. Subagents authored local startup, remote startup,
+package type, and native security assertions before their implementations.
+
+| Check                                                                                                                                                                                                                 | Result                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| T009 SQLite red, `pnpm --filter @keynes/sdk exec vitest run test/contract/budget.test.ts -t 'catalog validation\|validates exact and subset' --maxWorkers=1`                                                          | 8 failed, 8 passed, 64 filtered. Validation lacked an executor permission/dispatch entry; valid calls and semantic errors could not return their required results  |
+| T010 red, `pnpm --filter @keynes/sdk exec vitest run test/unit/local/local-lifecycle.test.ts -t 'configured local startup' --maxWorkers=1`                                                                            | Initial 5 failures; expanded strict-input run had 15 failures, 3 passes, 11 filtered. Configured startup was absent and no-argument startup remained accepted      |
+| T012 red, `pnpm --filter @keynes/sdk exec vitest run test/unit/remote/postgresql-command-executor.test.ts -t configured --maxWorkers=1`                                                                               | 5 failed, 13 filtered; factory rejected configured resources before initialization                                                                                 |
+| T013 red, `node node_modules/typescript/bin/tsc --ignoreConfig --strict --skipLibCheck --noEmit --module NodeNext --moduleResolution NodeNext --target ESNext packages/sdk/test/package/compatibility/remote-api.mts` | Existing dist declarations reject configured factories with TS2353 and amounts-only calls with TS2555; removed factories produce unused expected-error diagnostics |
+| T011 native red on isolated `dc702c7` checkout                                                                                                                                                                        | 4 failed, 12 filtered. Installation and explicit provisioning passed; calls and privilege inspection failed because the validation procedure was absent            |
+| SQLite definition/validation green, `pnpm --filter @keynes/sdk exec vitest run test/contract/budget.test.ts -t 'Independent Resource definitions' --maxWorkers=1`                                                     | PASS, 30 tests, 50 filtered, including existing definition/reuse/conflict regressions                                                                              |
+| Configured local startup green, same T010 command                                                                                                                                                                     | PASS, 18 tests, 11 filtered                                                                                                                                        |
+| Full remote executor suite, `pnpm --filter @keynes/sdk exec vitest run test/unit/remote/postgresql-command-executor.test.ts --maxWorkers=1`                                                                           | PASS, 18 tests                                                                                                                                                     |
+| Combined local/remote startup with `-t configured`                                                                                                                                                                    | PASS, 23 tests, 24 filtered after final test simplification and type fixes                                                                                         |
+| Native focused startup assertions                                                                                                                                                                                     | PASS, 30 shared definition/validation tests and 4 security tests; 62 other tests filtered. Broader runner inventory gate fails, as explained below                 |
+| Isolated public factory declaration checks                                                                                                                                                                            | PASS for local/remote inferred names, inline/imported schemas, missing resources, binding input, and extra configuration variables                                 |
+| `pnpm generate:check`, contract package tests, PostgreSQL build tests                                                                                                                                                 | PASS; 63 contract tests and 9 build tests                                                                                                                          |
+| Focused formatting and `git diff --check`                                                                                                                                                                             | PASS                                                                                                                                                               |
+| `pnpm typecheck` and subsequent SDK typecheck                                                                                                                                                                         | FAILED; old creation signatures, ResourceSource imports, factory callers, and test adapters remain to be replaced                                                  |
+
+Local startup captures and validates declarations before suspension, provisions
+one private catalog, and closes an acquired host on failure. Remote startup
+handshakes first, validates every declaration, and closes its pool on rejection.
+Invalid database URLs never choose local mode. Both canonical authorities now
+validate tenant definitions using existing lookups, with no catalog, binding,
+command, Budget, quantity, or history writes. PostgreSQL runtime roles receive
+only the new remote wrapper; the canonical wrapper remains profile-controlled.
+Explicit definition behavior remains separate.
+
+The startup tests exposed two contract details missing from Phase 2. Compatibility
+responses now allow exactly ten procedure entries. Missing-name errors carry a
+caller-supplied canonical name instead of fabricating a Resource UUID; existing
+UUID-based errors remain valid. Remote domain errors retain empty safe details.
+The shared client passes malformed inputs to both authorities for independent
+validation. Existing store lookups suffice; no new storage layer was needed.
+
+The factory declaration check emits declarations into
+`/tmp/key-78-phase3-declarations` with `tsc --project tsconfig.build.json --noCheck
+--emitDeclarationOnly`, then checks `.artifacts/key-78-phase3/factory-types.mts`
+with strict NodeNext compilation. This isolates public factory inference while
+creator integration is unfinished. It is not a source build or packed-consumer
+qualification. The complete T013 creator assertions remain for US1/US2 green.
+The imported declaration fixture is included in the package qualification copier.
+
+### Native focused evidence boundary
+
+T011 red used a detached preimplementation checkout at
+`/tmp/keynes-key78-native-red`, frozen dependencies, and the existing native
+runner with its pinned PostgreSQL 18.6 fixture. Attempt
+`6f2cc7e0-b609-4889-90e5-92e0e365eb30` reached all four intended missing-API
+assertions. Docker container and network cleanup passed.
+
+The post-review focused run used `node /tmp/key78-native-validation.mts`, a
+temporary adapter around the existing runner selecting the Resource-definition
+group and configured-security cases on the current source installation. Attempt
+`21f73a76-1660-48da-be66-91e496ad6dd4` passed all 34 selected assertions on real
+PostgreSQL 18.6. No-write triggers and full protected-table snapshots cover
+catalogs, command binding receipts, remote operations, Budgets, holdings, and
+history. Existing identity authorization locks are preserved. Docker container
+and network cleanup passed.
+
+The native runner exits 1 when its broader required inventory rejects this
+deliberately filtered report. That runner gate is not green. The retained
+[focused report](evidence/phase3-native.vitest.json) records 34 passed, zero
+failed, and 62 filtered assertions. It qualifies those startup assertions only;
+the full selected and paired native lanes remain NOT RUN for this candidate.
+Report SHA-256:
+`04b0b25bd6c806f3562a3a2f1793717e417ec79764f5646d813e8a199c01bb76`.
+Generated 0008 SHA-256:
+`c7a5cd15154964d68d78d62ecb5c5118cb211b689b16c62c4dd5f5e3c1446fdd`.
+Contract digest:
+`a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921`.
+
+`ponytail-review` requested typed direct calls in valid startup tests and a SQL
+wrapper for the remote validation delegate. Both changes were applied and checked.
+The follow-up review reports "Lean already. Ship."
+T009-T018 are complete as the startup checkpoint. Creation-side US3 guarantees,
+all creator types, full typechecking, packages, and paired acceptance remain open.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

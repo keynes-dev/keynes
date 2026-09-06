@@ -18,6 +18,7 @@ export const REMOTE_PRINCIPAL_B = "00000000-0000-4000-8000-000000000122";
 
 export const REMOTE_RUNTIME_PROCEDURES = [
   "keynes.remote_define_resources(jsonb)",
+  "keynes.remote_validate_resources(jsonb)",
   "keynes.remote_create_budget(jsonb)",
   "keynes.remote_request(jsonb)",
   "keynes.remote_settle(jsonb)",

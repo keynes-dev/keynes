@@ -301,9 +301,13 @@ export type ErrorEnvelope =
   | {
       kind: "error";
       code: "resource_type_not_found";
-      details: {
-        resourceTypeId: Uuid;
-      };
+      details:
+        | {
+            resourceTypeId: Uuid;
+          }
+        | {
+            canonicalName: string;
+          };
     }
   | {
       kind: "error";
@@ -1641,10 +1645,11 @@ export interface GetCompatibilityResult {
   semanticGeneration: number;
   minimumSdkGeneration: number;
   /**
-   * @minItems 9
-   * @maxItems 9
+   * @minItems 10
+   * @maxItems 10
    */
   procedures: [
+    RemoteProcedureCapability,
     RemoteProcedureCapability,
     RemoteProcedureCapability,
     RemoteProcedureCapability,

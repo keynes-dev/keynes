@@ -18,6 +18,7 @@ const BOOTSTRAP_PERMISSIONS = [
 ] as const;
 const REMOTE_TARGETS = [
   "keynes.remote_define_resources",
+  "keynes.remote_validate_resources",
   "keynes.remote_create_budget",
   "keynes.remote_request",
   "keynes.remote_settle",
@@ -36,6 +37,8 @@ const REMOTE_ADMIN_TARGETS = [
   "keynes_internal.audit_remote_role_v0006(name,integer)",
 ] as const;
 const REMOTE_EXECUTION_TARGETS = [
+  "keynes_internal.remote_validate_resources_v0008(jsonb)",
+  "keynes_internal.remote_get_compatibility_v0008(jsonb)",
   "keynes_internal.remote_create_budget_v0007(jsonb)",
   "keynes_internal.remote_define_resources_v0007(jsonb)",
   "keynes_internal.remote_get_compatibility_v0007(jsonb)",

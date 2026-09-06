@@ -60,6 +60,7 @@ import {
   prepareRootResources,
   resourceInstallation,
   snapshotResourceDefinitions,
+  captureResourceDefinitions,
   type ResourceDefinitionsInput,
 } from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
@@ -96,8 +97,8 @@ interface RootBudgetCreator {
   >;
 }
 
-export interface Keynes extends AsyncDisposable {
-  readonly [keynesBrand]: undefined;
+export interface Keynes<Names extends string = string> extends AsyncDisposable {
+  readonly [keynesBrand]: Names | undefined;
   readonly defineResources: <
     const Definitions extends ResourceDefinitionsInput,
   >(
@@ -108,9 +109,12 @@ export interface Keynes extends AsyncDisposable {
   readonly [Symbol.asyncDispose]: () => Promise<void>;
 }
 
-export type LocalKeynes = Keynes;
+export type LocalKeynes<Names extends string = string> = Keynes<Names>;
 
-export interface RemoteKeynesOptions {
+export interface RemoteKeynesOptions<
+  Definitions extends ResourceDefinitionsInput = ResourceDefinitionsInput,
+> {
+  readonly resources: Definitions;
   readonly databaseUrl: string;
 }
 
@@ -145,8 +149,8 @@ interface RemoteBudgetOpener {
   }): Promise<RemoteBudget<Extract<keyof Definitions, string>>>;
 }
 
-export interface RemoteKeynes extends Omit<
-  Keynes,
+export interface RemoteKeynes<Names extends string = string> extends Omit<
+  Keynes<Names>,
   "createBudget" | "defineResources"
 > {
   readonly defineResources: <
@@ -162,32 +166,58 @@ export interface RemoteKeynes extends Omit<
   ) => Promise<RecoverOperationResult>;
 }
 
-export function createKeynes(): Promise<LocalKeynes>;
-export function createKeynes(
-  options: RemoteKeynesOptions,
-): Promise<RemoteKeynes>;
+export function createKeynes<
+  const Options extends {
+    readonly resources: ResourceDefinitionsInput;
+    readonly databaseUrl?: never;
+  },
+>(
+  options: Options & Record<Exclude<keyof Options, "resources">, never>,
+): Promise<LocalKeynes<Extract<keyof Options["resources"], string>>>;
+export function createKeynes<const Options extends RemoteKeynesOptions>(
+  options: Options &
+    Record<Exclude<keyof Options, "resources" | "databaseUrl">, never>,
+): Promise<RemoteKeynes<Extract<keyof Options["resources"], string>>>;
 export async function createKeynes(
   ...arguments_: readonly unknown[]
 ): Promise<LocalKeynes | RemoteKeynes> {
-  if (arguments_.length === 0) {
-    const runtime = await openConfiguredRuntime();
-    return createKeynesHandle(runtime);
-  }
   const options = arguments_[0];
   if (
     arguments_.length !== 1 ||
     !isRecord(options) ||
-    Object.keys(options).length !== 1 ||
-    typeof options.databaseUrl !== "string"
+    (Object.getPrototypeOf(options) !== Object.prototype &&
+      Object.getPrototypeOf(options) !== null) ||
+    Object.getOwnPropertySymbols(options).length > 0 ||
+    !Object.hasOwn(options, "resources") ||
+    Object.getOwnPropertyNames(options).some(
+      (key) => key !== "resources" && key !== "databaseUrl",
+    )
   ) {
     throw new KeynesSdkError("invalid_configuration", {
       field: "options",
       reason: "unsupported",
     });
   }
+  const definitions = captureResourceDefinitions(options.resources);
+  if (!Object.hasOwn(options, "databaseUrl")) {
+    const runtime = await openConfiguredRuntime(definitions);
+    return createKeynesHandle(runtime);
+  }
+  if (typeof options.databaseUrl !== "string") {
+    throw new KeynesSdkError("invalid_configuration", {
+      field: "databaseUrl",
+      reason: "unsupported",
+    });
+  }
   const poolConfig = normalizeDatabaseUrl(options.databaseUrl);
   const executor = await openPostgresqlCommandExecutor(poolConfig);
   const client = createRemoteKeynesClient(executor);
+  try {
+    await client.validateResources({ definitions });
+  } catch (error: unknown) {
+    await executor.close();
+    throw error;
+  }
   const createBudget: RemoteRootBudgetCreator = (
     schema,
     allocation,

@@ -130,6 +130,10 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL recovery and bounded reads paginates one bounded history snapshot with expiring single-use cursors",
   ],
   "packages/postgresql/test/system/remote-security.test.ts": [
+    "remote PostgreSQL identity and security validates configured declarations with creation permission and no authority writes",
+    "remote PostgreSQL identity and security validates configured catalogs under mapped identity without foreign disclosure",
+    "remote PostgreSQL identity and security rejects configured catalog validation without creation permission before reading declarations",
+    "remote PostgreSQL identity and security grants configured validation only through the authenticated runtime wrapper",
     "remote PostgreSQL identity and security rejects foreign tenant and unknown bindings with the same private-safe error",
     "remote PostgreSQL identity and security rejects a binding from another installation despite matching tenant and Resource names",
     "remote PostgreSQL identity and security derives tenant and principal from the authenticated role on every call",

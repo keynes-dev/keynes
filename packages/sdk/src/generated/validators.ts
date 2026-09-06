@@ -1794,8 +1794,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       procedures: {
         type: "array",
-        minItems: 9,
-        maxItems: 9,
+        minItems: 10,
+        maxItems: 10,
         uniqueItems: true,
         items: {
           $ref: "#/$defs/RemoteProcedureCapability",
@@ -2276,14 +2276,29 @@ const definitions: Readonly<Record<string, Schema>> = {
             const: "resource_type_not_found",
           },
           details: {
-            type: "object",
-            additionalProperties: false,
-            required: ["resourceTypeId"],
-            properties: {
-              resourceTypeId: {
-                $ref: "#/$defs/Uuid",
+            oneOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["resourceTypeId"],
+                properties: {
+                  resourceTypeId: {
+                    $ref: "#/$defs/Uuid",
+                  },
+                },
               },
-            },
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["canonicalName"],
+                properties: {
+                  canonicalName: {
+                    type: "string",
+                    pattern: "^[a-z][a-z0-9_]{0,62}$",
+                  },
+                },
+              },
+            ],
           },
         },
       },

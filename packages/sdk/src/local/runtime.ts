@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { KeynesClient } from "../generated/client.js";
+import type { ResourceDefinitions } from "../resources.js";
 import { createKeynesClient } from "../generated/client.js";
 import { CommittedResponseLostError } from "../replay.js";
 import { KeynesSdkError } from "../sdk-errors.js";
@@ -37,12 +39,21 @@ const PRODUCT_INSTALLATION = {
   ],
 } as const;
 
-export async function openConfiguredRuntime(): Promise<LocalRuntime> {
+export async function openConfiguredRuntime(
+  definitions: ResourceDefinitions,
+): Promise<LocalRuntime> {
   let host: LocalRuntimeHost;
   try {
     host = openLocalRuntimeHost();
   } catch (cause: unknown) {
     throw new KeynesSdkError("initialization_failed", {}, { cause });
+  }
+
+  try {
+    await host.client.defineResources({ commandId: randomUUID(), definitions });
+  } catch (error: unknown) {
+    await host.close();
+    throw error;
   }
 
   const runtime: LocalRuntime = {

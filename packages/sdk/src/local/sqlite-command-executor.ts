@@ -26,6 +26,7 @@ import type {
   ResourceTypeProjection,
   SettleBudgetCommand,
   UsageAmount,
+  ValidateResourcesQuery,
 } from "../generated/types.js";
 import {
   POLICY_LIMITS,
@@ -74,6 +75,7 @@ export type SqliteMutationObserver = (stage: SqliteMutationStage) => void;
 const REQUIRED_PERMISSIONS = {
   defineResource: ["define_resource_type"],
   defineResources: ["define_resource_type"],
+  validateResources: ["create_root_budget"],
   createBudget: ["define_resource_type", "create_root_budget"],
   requestBudget: ["request_budget"],
   settleBudget: ["settle_budget"],
@@ -151,6 +153,24 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
     try {
       this.#requireOpen();
+      if (operation === "validateResources") {
+        this.#requirePermissions(context, operation, input);
+        for (const { definition } of canonicalDefinitions(
+          (input as ValidateResourcesQuery).definitions,
+          operation,
+        )) {
+          const existing = this.#requireResourceByName(
+            context.tenantId,
+            definition.canonicalName,
+          );
+          requireMatchingDefinition(existing, definition);
+        }
+        return Promise.resolve({
+          ok: true,
+          result: { valid: true },
+          replayed: false,
+        });
+      }
       if (operation === "getBudget") {
         this.#requirePermissions(context, operation, input);
         const result = this.#getBudget(context, input as GetBudgetQuery);
@@ -220,7 +240,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
   #applyMutation(
     context: SqliteTransactionContext,
-    operation: Exclude<OperationName, "getBudget">,
+    operation: Exclude<OperationName, "getBudget" | "validateResources">,
     input: unknown,
   ): { readonly result: unknown; readonly replayed: boolean } {
     const canonical = canonicalCommand(operation, input);
@@ -490,21 +510,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       definition.canonicalName,
     );
     if (existing !== undefined) {
-      if (
-        existing.definitionDigest !== definitionDigest ||
-        existing.unit !== definition.unit ||
-        existing.accountingBehavior !== definition.accountingBehavior
-      ) {
-        fail({
-          kind: "error",
-          code: "resource_type_conflict",
-          details: {
-            canonicalName: definition.canonicalName,
-            existingDefinitionDigest: existing.definitionDigest,
-            attemptedDefinitionDigest: definitionDigest,
-          },
-        });
-      }
+      requireMatchingDefinition(existing, definition);
       return existing;
     }
 
@@ -1145,7 +1151,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       fail({
         kind: "error",
         code: "resource_type_not_found",
-        details: { resourceTypeId: canonicalName },
+        details: { canonicalName },
       });
     }
     return resource;
@@ -1226,7 +1232,7 @@ export function openSqliteCommandExecutor(
 }
 
 function canonicalCommand(
-  operation: Exclude<OperationName, "getBudget">,
+  operation: Exclude<OperationName, "getBudget" | "validateResources">,
   input: unknown,
 ): {
   commandId: string;
@@ -1329,9 +1335,34 @@ function resourceDefinitionDigest(
   return `resource-definition:${createHash("sha256").update(jsonbText).digest("hex")}`;
 }
 
+function requireMatchingDefinition(
+  existing: ResourceRow,
+  definition: DefineResourceTypeCommand["definition"],
+): void {
+  const definitionDigest = resourceDefinitionDigest(definition);
+  if (
+    existing.definitionDigest !== definitionDigest ||
+    existing.unit !== definition.unit ||
+    existing.accountingBehavior !== definition.accountingBehavior
+  ) {
+    fail({
+      kind: "error",
+      code: "resource_type_conflict",
+      details: {
+        canonicalName: definition.canonicalName,
+        existingDefinitionDigest: existing.definitionDigest,
+        attemptedDefinitionDigest: definitionDigest,
+      },
+    });
+  }
+}
+
 function canonicalDefinitions(
   definitions: unknown,
-  operation: "defineResources" | "createBudget" = "defineResources",
+  operation:
+    | "defineResources"
+    | "createBudget"
+    | "validateResources" = "defineResources",
   basePath = "$.definitions",
 ): {
   key: string;

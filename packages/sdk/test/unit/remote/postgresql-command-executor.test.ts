@@ -8,6 +8,7 @@ import {
   REMOTE_PROCEDURES_DIGEST,
 } from "../../../src/generated/client.js";
 import { POLICY_PROFILE_DIGEST } from "../../../src/generated/policy-profile.js";
+import { createKeynes } from "../../../src/keynes.js";
 import type { GetCompatibilityResult } from "../../../src/generated/types.js";
 import {
   POSTGRESQL_INSTALLATION_ID,
@@ -24,8 +25,8 @@ vi.mock("pg", () => ({
 }));
 
 const poolConfig = Object.freeze({ host: "db.example.test", max: 10 });
-const createBudgetProcedure = REMOTE_CONTRACT.procedures[1];
-const getBudgetProcedure = REMOTE_CONTRACT.procedures[4];
+const createBudgetProcedure = REMOTE_CONTRACT.procedures[2];
+const getBudgetProcedure = REMOTE_CONTRACT.procedures[5];
 const operationKey = `kop_v1_${"a".repeat(43)}`;
 
 beforeEach(() => {
@@ -37,6 +38,104 @@ afterEach(() => {
 });
 
 describe("PostgreSQL remote command executor", () => {
+  const configuredOptions = {
+    databaseUrl:
+      "postgresql://application:password@db.example.test/keynes?sslmode=verify-full",
+    resources: {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
+    },
+  };
+
+  it("validates every configured declaration after compatibility before returning a client", async () => {
+    const pool = createFakePool(async ({ text }) =>
+      text.includes("remote_get_compatibility")
+        ? compatibilityResponse()
+        : queryResponse({ ok: true, result: { valid: true } }),
+    );
+    pgMock.constructPool.mockReturnValue(pool);
+    const keynes = await createKeynes(configuredOptions);
+    try {
+      expect(pool.client.query.mock.calls.map(([query]) => query.text)).toEqual(
+        [
+          "select keynes.remote_get_compatibility($1::jsonb) as response",
+          "select keynes.remote_validate_resources($1::jsonb) as response",
+        ],
+      );
+      const validation = pool.client.query.mock.calls[1]?.[0];
+      const payload = validation?.values?.[0];
+      if (typeof payload !== "string")
+        throw new Error("Missing validation payload");
+      expect(JSON.parse(payload)).toEqual({
+        definitions: configuredOptions.resources,
+      });
+      expect(pool.client.release).toHaveBeenCalledTimes(2);
+      expect(pool.end).not.toHaveBeenCalled();
+    } finally {
+      await keynes.close();
+    }
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      code: "resource_type_not_found",
+      details: {},
+    },
+    {
+      code: "resource_type_conflict",
+      details: {},
+    },
+  ])(
+    "closes the configured startup pool when catalog validation returns $code",
+    async ({ code, details }) => {
+      const pool = createFakePool(async ({ text }) =>
+        text.includes("remote_get_compatibility")
+          ? compatibilityResponse()
+          : queryResponse({
+              ok: false,
+              error: { kind: "error", code, details },
+            }),
+      );
+      pgMock.constructPool.mockReturnValue(pool);
+      await expect(createKeynes(configuredOptions)).rejects.toMatchObject({
+        name: "KeynesError",
+        code,
+        details,
+      });
+      expect(pgMock.constructPool).toHaveBeenCalledOnce();
+      expect(pool.connect).toHaveBeenCalledTimes(2);
+      expect(pool.client.release).toHaveBeenCalledTimes(2);
+      expect(pool.end).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("refuses generation two before configured catalog validation and closes the pool", async () => {
+    const previousGeneration = compatibilityResult();
+    previousGeneration.semanticGeneration = 2;
+    previousGeneration.minimumSdkGeneration = 2;
+    const pool = createFakePool(async () =>
+      compatibilityResponse(previousGeneration),
+    );
+    pgMock.constructPool.mockReturnValue(pool);
+    await expect(createKeynes(configuredOptions)).rejects.toMatchObject({
+      code: "compatibility_error",
+      details: { category: "command_contract" },
+    });
+    expect(pool.client.query).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an invalid configured database URL without opening any authority", async () => {
+    await expect(
+      createKeynes({ ...configuredOptions, databaseUrl: "invalid-url" }),
+    ).rejects.toMatchObject({
+      code: "invalid_configuration",
+      details: { field: "databaseUrl", reason: "unsupported" },
+    });
+    expect(pgMock.constructPool).not.toHaveBeenCalled();
+  });
+
   it("verifies compatibility before returning a ready executor", async () => {
     const pool = createFakePool(async () => compatibilityResponse());
     pgMock.constructPool.mockReturnValue(pool);
@@ -403,9 +502,14 @@ function compatibilityResult(): GetCompatibilityResult {
         revision: 1,
       },
       {
+        name: "validateResources",
+        target: "keynes.remote_validate_resources",
+        revision: 1,
+      },
+      {
         name: "createBudget",
         target: "keynes.remote_create_budget",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "requestBudget",

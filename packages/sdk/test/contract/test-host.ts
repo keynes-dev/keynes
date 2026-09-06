@@ -116,6 +116,7 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
       return {
         ...createKeynesClient(caller),
         defineResources: createContractClient(caller).defineResources,
+        validateResources: createContractClient(caller).validateResources,
       };
     },
     inspectState: async () => store.inspectState(),

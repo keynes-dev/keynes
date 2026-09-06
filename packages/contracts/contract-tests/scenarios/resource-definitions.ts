@@ -150,6 +150,120 @@ export function registerResourceDefinitionsContractTests(
       ],
       ["null entry", { ...definitions, zInvalid: null }],
     ];
+    it("validates exact and subset catalogs without writes or definition permission", async () => {
+      const host = await openHost();
+      try {
+        await host
+          .clientFor("definer-fixture")
+          .defineResources({ commandId: commandId(20), definitions });
+        const before = await host.inspectState();
+        const client = host.clientFor("allocator-fixture", {
+          forbidResourceWrites: true,
+        });
+        for (const declarations of [
+          definitions,
+          { modelTokens: definitions.modelTokens },
+        ]) {
+          await expect(
+            client.validateResources({ definitions: declarations }),
+          ).resolves.toEqual({ valid: true });
+          expect(await host.inspectState()).toEqual(before);
+        }
+      } finally {
+        await host.close();
+      }
+    });
+
+    it.each([
+      [
+        "missing used name",
+        { apiCalls: { unit: "call", accountingBehavior: "consumable" } },
+        "resource_type_not_found",
+      ],
+      [
+        "missing unused name",
+        {
+          ...definitions,
+          apiCalls: { unit: "call", accountingBehavior: "consumable" },
+        },
+        "resource_type_not_found",
+      ],
+      [
+        "conflicting unit",
+        {
+          ...definitions,
+          reviewerSeats: { ...definitions.reviewerSeats, unit: "different" },
+        },
+        "resource_type_conflict",
+      ],
+      [
+        "conflicting behavior",
+        {
+          ...definitions,
+          reviewerSeats: {
+            ...definitions.reviewerSeats,
+            accountingBehavior: "consumable",
+          },
+        },
+        "resource_type_conflict",
+      ],
+    ])(
+      "rejects catalog validation with %s without writes",
+      async (_label, declarations, code) => {
+        const host = await openHost();
+        try {
+          await host
+            .clientFor("definer-fixture")
+            .defineResources({ commandId: commandId(21), definitions });
+          const before = await host.inspectState();
+          await expect(
+            host
+              .clientFor("allocator-fixture", { forbidResourceWrites: true })
+              .validateResources({ definitions: declarations }),
+          ).rejects.toMatchObject({ code });
+          expect(await host.inspectState()).toEqual(before);
+        } finally {
+          await host.close();
+        }
+      },
+    );
+
+    it("authorizes catalog validation before disclosing missing definitions", async () => {
+      const host = await openHost();
+      try {
+        const before = await host.inspectState();
+        await expect(
+          host
+            .clientFor("unauthorized-fixture")
+            .validateResources({ definitions }),
+        ).rejects.toMatchObject({ code: "unauthorized" });
+        expect(await host.inspectState()).toEqual(before);
+      } finally {
+        await host.close();
+      }
+    });
+
+    it.each(invalidDefinitions)(
+      "rejects catalog validation with %s without partial state",
+      async (_label, invalid) => {
+        const host = await openHost();
+        try {
+          await host
+            .clientFor("definer-fixture")
+            .defineResources({ commandId: commandId(22), definitions });
+          const before = await host.inspectState();
+          await expect(
+            host
+              .clientFor("allocator-fixture")
+              .validateResources({ definitions: invalid }),
+          ).rejects.toMatchObject({ code: "invalid_command" });
+          expect(await host.inspectState()).toEqual(before);
+        } finally {
+          await host.close();
+        }
+      },
+    );
+
     it.each(invalidDefinitions)(
       "rejects %s without any partial state",
       async (_label, invalid) => {

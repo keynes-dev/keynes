@@ -57,6 +57,10 @@ function ownDefinitionEntries(
   path: string,
   operation: OperationName,
 ) {
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw invalidCommand(operation, path, "type");
+  }
   if (Object.getOwnPropertySymbols(value).length > 0) {
     throw invalidCommand(operation, path, "additionalProperties");
   }
@@ -69,6 +73,24 @@ export interface ResourceInstallationDefinition {
   readonly key: string;
   readonly canonicalName: string;
   readonly definition: WireResourceDefinition;
+}
+
+export function captureResourceDefinitions(
+  definitions: unknown,
+): ResourceDefinitions {
+  return Object.freeze(
+    Object.fromEntries(
+      resourceInstallation(definitions, "validateResources").map(
+        ({ key, definition }) => [
+          key,
+          Object.freeze({
+            unit: definition.unit,
+            accountingBehavior: definition.accountingBehavior,
+          }),
+        ],
+      ),
+    ),
+  );
 }
 
 export interface PreparedRootResource<Name extends string> {

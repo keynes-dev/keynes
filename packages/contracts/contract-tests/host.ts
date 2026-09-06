@@ -1,7 +1,6 @@
 import type {
   CreateBudgetCommand,
   CreateBudgetResult,
-  ValidateResourcesQuery,
   ValidateResourcesResult,
   DefineResourceTypeCommand,
   DefineResourceTypeResult,
@@ -62,9 +61,7 @@ export interface ContractClientOptions {
 }
 
 export interface ContractClient {
-  validateResources(
-    input: ValidateResourcesQuery,
-  ): Promise<ValidateResourcesResult>;
+  validateResources(input: unknown): Promise<ValidateResourcesResult>;
   defineResources(input: unknown): Promise<DefineResourcesResult>;
   defineResource(
     input: DefineResourceTypeCommand,

@@ -19,7 +19,10 @@ import { format } from "oxfmt";
 import { expectedPostgresObjects } from "./policy-migration.ts";
 import { renderResourceBoundBudgetMigration } from "./resource-bound-budget-migration.ts";
 import { RESOURCE_DEFINITION_OBJECTS } from "./resource-definitions-migration.ts";
-import { renderConfiguredCreationMigration } from "./configured-creation-migration.ts";
+import {
+  CONFIGURED_CREATION_OBJECTS,
+  renderConfiguredCreationMigration,
+} from "./configured-creation-migration.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
 
 const POSTGRES_PROFILE = {
@@ -152,7 +155,7 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     expectedObjects: [
       ...expectedPostgresObjects(options.policyProfile),
       ...RESOURCE_DEFINITION_OBJECTS,
-      "function:keynes_internal.remote_get_compatibility_v0008(input jsonb)",
+      ...CONFIGURED_CREATION_OBJECTS,
     ],
     functions: installationFunctions(options.contract.source),
   };
