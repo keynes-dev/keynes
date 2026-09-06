@@ -25,9 +25,9 @@ runtime lanes NOT RUN. Do not copy mutable Linear lifecycle into these artifacts
 
 **Purpose**: Confirm the feature and prepare the existing workspace without adding infrastructure.
 
-- [ ] T001 Confirm the current KEY-78 issue, exact branch, KEY-77 merge ancestry, and design inputs; record inspected revision, dirty state, environment, and lane statuses in new `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`, following `docs/workflow.md`.
-- [ ] T002 Use Node.js 24 or 26 and pnpm 11.21.0 to install frozen dependencies from `pnpm-lock.yaml`; run the existing provider-free baseline from `package.json` and record actual results and unrelated failures in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
-- [ ] T003 Inventory current factory/creation callers, generated owners, shared registrations, and required native scenarios using `packages/sdk/src/keynes.ts`, `packages/contracts/contract-tests/scenarios/index.ts`, and `packages/postgresql/test/system/required-scenarios.ts`; record the concrete adaptation list in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
+- [x] T001 Confirm the current KEY-78 issue, exact branch, KEY-77 merge ancestry, and design inputs; record inspected revision, dirty state, environment, and lane statuses in new `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`, following `docs/workflow.md`.
+- [x] T002 Use Node.js 24 or 26 and pnpm 11.21.0 to install frozen dependencies from `pnpm-lock.yaml`; run the existing provider-free baseline from `package.json` and record actual results and unrelated failures in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
+- [x] T003 Inventory current factory/creation callers, generated owners, shared registrations, and required native scenarios using `packages/sdk/src/keynes.ts`, `packages/contracts/contract-tests/scenarios/index.ts`, and `packages/postgresql/test/system/required-scenarios.ts`; record the concrete adaptation list in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
 
 ## Phase 2: Foundational contract and generation support
 
@@ -203,4 +203,4 @@ loading, and journal conversion remain outside scope.
 | FR-013                         | T009, T018, T029, T031, T040, T044, T045, T046, T047                                     |
 | FR-014                         | T004, T005, T006, T007, T008, T024, T028, T013, T030, T041, T042, T043, T044, T045       |
 
-All implementation tasks remain unstarted. No planning hooks are registered.
+Phase 1 setup is complete. Behavioral implementation remains unstarted. No planning hooks are registered.
