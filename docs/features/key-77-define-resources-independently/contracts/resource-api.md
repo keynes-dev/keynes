@@ -1,7 +1,8 @@
 # SDK contract: Independent Resource definitions
 
-This is the proposed KEY-77 API, not implemented behavior. See the
-[authority command contract](resource-commands.md) for validation and transactions.
+This contract describes the KEY-77 API. See the
+[authority command contract](resource-commands.md) for validation and transactions
+and [acceptance evidence](../acceptance.md) for verified lanes and their revisions.
 
 ## Ordinary use
 

@@ -1,8 +1,51 @@
 # Validation guide: Define Resources independently
 
-This guide is for the future implementation revision. The current artifacts are
-design only. Feature runtime, native PostgreSQL, installed consumers, and CI are
-`NOT RUN` until their commands execute against that revision.
+Use independent definitions with the current API, then validate one exact
+candidate with the commands below. [Acceptance evidence](acceptance.md) records
+which revisions and lanes actually ran; these instructions alone establish no
+runtime, package, CI, or Hosted result.
+
+## Use independent definitions
+
+```ts
+import { createKeynes } from "@keynes/sdk";
+
+const definitions = {
+  usdCents: { unit: "cent", accountingBehavior: "consumable" },
+  reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
+};
+
+await using keynes = await createKeynes();
+const binding = await keynes.defineResources(definitions);
+const root = await keynes.createBudget(binding, { usdCents: 1_000 });
+const separateRoot = await keynes.createBudget(definitions, { reviewSeats: 2 });
+```
+
+Definition creates no Budget or quantity. `root` includes only `usdCents`;
+`separateRoot` includes only `reviewSeats`. Each allocation is that root's fixed
+original funding. Raw creation validates the complete declaration and reconciles
+only allocated definitions. Binding creation reads its receipt without writing
+definitions. Local and canonical PostgreSQL allow explicit zero allocations;
+Remote creation requires positive amounts, the existing KEY-78 boundary.
+
+Pass the plain `definitions` object to pure `definePolicy` or `definePolicySql`
+authoring. The standalone definition helper and `ResourceSchema` are removed.
+Ordinary objects infer names without `as const`; `ResourceDefinitions` remains an
+optional `satisfies` check. See the [SDK examples](../../../packages/sdk/README.md).
+
+For Remote response loss, retain a caller-created operation key and either retry
+`remote.defineResources(definitions, { operationKey })` exactly or call
+`remote.recoverOperation(operationKey)`. A committed `defineResources` recovery
+has an opaque `ResourceBinding<string>` in `result`; pass it directly as the first
+argument to `createBudget`. Typed exact retries retain inferred names. Changed
+input under the same key conflicts. `known_failure`, `unresolved`, and `expired`
+supply no binding, and expiry does not establish that the operation failed.
+Already obtained bindings remain usable after the recovery ledger expires.
+
+The current contract uses semantic generation 2 and minimum SDK generation 2.
+Recreate incompatible preview installations in a fresh database with the current
+PostgreSQL archive. The installer accepts fresh installation or exact recheck;
+it provides no upgrade or automatic data transfer.
 
 ## Prerequisites
 
@@ -23,9 +66,7 @@ pnpm --version
 pnpm install --frozen-lockfile
 ```
 
-Implementation tasks must first add and observe failing behavioral assertions for
-the relevant scenario. Generate changed command artifacts with `pnpm generate`.
-The planning command does not implement those assertions or execute runtime lanes.
+Generate changed command artifacts with `pnpm generate` before checking them.
 
 ## Provider-free validation
 
@@ -43,7 +84,7 @@ Local definition/creation and Policy regressions, exact name inference, and no
 unexpected exported helper or binding internals. The PR command includes shared
 SQLite scenarios and runner checks but does not establish native PostgreSQL.
 
-Extend the current SDK package consumer and compatibility fixtures with the
+The SDK package consumer and compatibility fixtures cover the
 [ordinary example](contracts/resource-api.md#ordinary-use), raw creation, exact
 allocation checks, declaration-based Policy authoring, and removed-export checks.
 Separately declared definitions must work without `satisfies`, helper, generic,
@@ -51,11 +92,10 @@ or `as const`; the optional strict form must also compile.
 
 ## Shared authority scenarios
 
-Add the feature scenarios through
+Shared scenarios register through
 `packages/contracts/contract-tests/scenarios/index.ts` and
-`registerBudgetContractTests`. Extend existing host clients and private state
-observation/fault hooks only as needed. Do not create a copied scenario inventory
-for one authority.
+`registerBudgetContractTests`. Both authorities run that registration. Private
+host observations and fault hooks check atomicity and absence of Resource writes.
 
 | Scenario group                                                              | Expected observable result                                                                                                              | Requirements                           |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -92,7 +132,7 @@ must run the complete shared registration against real private SQLite and native
 PostgreSQL, plus the complete native-only inventory. Missing Docker, skipped or
 empty scenarios, failed assertions, stale reports, and failed cleanup cannot pass.
 
-| Native scenario                                                                                                     | Location to extend                                                                              | Evidence required                                                                                                                      |
+| Native scenario                                                                                                     | Test location                                                                                   | Evidence required                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Matching/conflicting overlapping batches in opposite orders; singleton/raw creation races; same-command contenders  | `packages/postgresql/test/system/contention.test.ts`                                            | One identity per name; losers have no partial effects; command wait/replay is correct.                                                 |
 | Fault after definition insertion, reference/result storage, and bound root mutation                                 | `packages/postgresql/test/system/rollback.test.ts`                                              | No partial definitions/receipt/root/history; subsequent retry is correct.                                                              |
@@ -101,21 +141,20 @@ empty scenarios, failed assertions, stale reports, and failed cleanup cannot pas
 | Definition response loss, stable operation key, exact replay/conflict, recovery, simulated recovery expiry          | `packages/postgresql/test/system/remote-recovery.test.ts`                                       | No duplicate effects; recovered opaque binding works; canonical receipt survives recovery expiry.                                      |
 | Fresh installation, exact recheck, stale wire/generation, changed grants and procedure inventory                    | `packages/postgresql/test/system/installation.test.ts` and integration/unit installation suites | Current contract installs/rechecks; stale or drifted state fails before mutation; remote role cannot access private/canonical objects. |
 
-Update `required-scenarios.ts` and the fixed procedure map in
-`test/system/support/procedure-caller.ts` so new operations and tests actually run.
+`required-scenarios.ts` and the fixed procedure map in
+`test/system/support/procedure-caller.ts` register the operations and native tests.
 Use controlled test time/state to exercise expiry, not a 30-day wait. Retain direct
 and supported pooled connection coverage through the existing native runner.
 
 SDK-specific tests also prove FR-006, FR-009, FR-012, and SC-005: binding reflection
 and mutation resistance, copied/reconstructed rejection, separately declared
 inputs, asynchronous malformed-call rejection, snapshots, Local close precedence,
-queue drain, and isolated Local authorities. Extend existing public, lifecycle,
-remote-recovery, and Policy test files. FR-011 and FR-013 require the native
+queue drain, and isolated Local authorities. Public, lifecycle, remote-recovery,
+and Policy tests cover these behaviors. FR-011 and FR-013 require the native
 contention and caller-owned transaction evidence above, completing SC-006.
 
-Before implementing the validator fix, reproduce the inherited-property gap with
-the existing generated validator and the proposed definition schema. Add focused
-generator and SDK regressions for both `defineResources` and raw `createBudget`:
+Generated-validator and SDK regressions cover own-property validation for both
+`defineResources` and raw `createBudget`:
 
 - A valid definition beside `constructor: undefined` or `toString: undefined`
   rejects without any definition, receipt, or Budget mutation. Include an invalid
@@ -131,8 +170,8 @@ generator and SDK regressions for both `defineResources` and raw `createBudget`:
 Exercise the SDK cases on Local and Remote. Invalid snapshots must reject before
 Remote transport can erase fields. Use JSON-representable malformed entries in
 shared/direct PostgreSQL scenarios to prove independent authority validation;
-`undefined` itself cannot be transmitted as JSON. Fix the authored renderer and
-regenerate outputs, then run generation checks and existing validator regressions.
+`undefined` itself cannot be transmitted as JSON. Generation checks ensure the
+authored renderer and emitted validators remain consistent.
 
 ## Installed package consumers
 
@@ -175,18 +214,4 @@ complete scenario sets. Retain reports or durable copies before CI expiry.
 Provider-free, SQLite, native PostgreSQL, Embedded, remote, package, and CI results
 must stay distinct. Record failed, skipped, and `NOT RUN` lanes explicitly. A
 generated migration or green unrelated CI is not runtime acceptance. No readiness,
-performance, production, or live Hosted claim follows from this plan.
-
-## Planning-only checks
-
-For this design-only change, run:
-
-```sh
-pnpm exec oxfmt --check docs/features/key-77-define-resources-independently
-pnpm test:repository
-git diff --check
-```
-
-Also verify internal Markdown links and absence of unresolved template markers.
-No behavioral test is required for planning prose. Runtime implementation and
-acceptance begin only in the implementation phase.
+performance, production, or live Hosted claim follows from these commands.

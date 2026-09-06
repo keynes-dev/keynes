@@ -1,6 +1,7 @@
 # Authority contract: Resource batch and binding consumption
 
-These proposed commands refine [spec.md](../spec.md). The public positional API is
+These commands implement [spec.md](../spec.md); verification is recorded in
+[acceptance evidence](../acceptance.md). The public positional API is
 documented in [resource-api.md](resource-api.md). The tagged source below is an
 internal command shape, not KEY-78's object-form public creation API.
 

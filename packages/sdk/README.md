@@ -1,7 +1,7 @@
 # TypeScript SDK
 
-`@keynes/sdk` is a private, unpublished ESM package. It owns the schema-first
-local and remote API, portable Policy authoring, generated contracts, one
+`@keynes/sdk` is a private, unpublished ESM package. It owns the typed
+Local and Remote API, portable Policy authoring, generated contracts, one
 private in-memory SQLite runtime, and the direct PostgreSQL client.
 
 ## Install the private archive
@@ -52,8 +52,17 @@ authority; copying or serializing it does not preserve it.
 
 Root creation validates all plain definitions, reconciles only allocated keys,
 and creates a fixed allocation atomically. Binding creation reads the saved
-definitions without rewriting them. Unallocated keys are outside the Budget. Resource keys flow through root creation, requests, settlement,
-inspection, denial reasons, and Policy authoring as exact TypeScript types.
+definitions without rewriting them. Unallocated keys are outside the Budget. Each root keeps its original funding;
+reusing a binding creates a separate root. Local creation accepts explicit zero
+amounts, while Remote creation requires positive amounts. KEY-78 owns changes to
+zero amounts and membership.
+
+Resource keys flow through root creation, requests, settlement, inspection,
+denial reasons, and Policy authoring as exact TypeScript types. Separately
+declared plain objects need no helper, generic argument, or `as const`. Use
+`import type { ResourceDefinitions } from "@keynes/sdk"` and
+`satisfies ResourceDefinitions` for an optional declaration-time check.
+The former standalone `defineResources` export and `ResourceSchema` are removed.
 
 `Keynes` and `Budget` are exported readonly interface types, not classes.
 Frozen method-bearing objects implement them. The SDK exposes no Resource,
@@ -62,6 +71,8 @@ because they do not depend on `this`.
 
 ## Add a Policy
 
+Pass the plain definitions object to `definePolicy` or `definePolicySql`.
+Authoring is pure and does not register Resources or contact a database.
 Use Kysely for typed authoring or `definePolicySql(...)` for raw SQL inside the
 same restricted profile:
 
@@ -157,7 +168,57 @@ and read-only operation recovery. Embedded PostgreSQL uses the separate
 `@keynes/postgresql` installer and caller-owned `keynes.*(jsonb)` transactions;
 it is not a `createKeynes(...)` mode.
 
+## Recover a Remote definition
+
+Remote calls generate operation keys by default. Supply a key when you need to
+retry the same definition or recover its result after a lost response:
+
+```ts
+import { createKeynes, createOperationKey } from "@keynes/sdk";
+
+await using remote = await createKeynes({ databaseUrl });
+const operationKey = createOperationKey();
+const binding = await remote.defineResources(resources, { operationKey });
+const root = await remote.createBudget(binding, { usdCents: 100 });
+
+const recovered = await remote.recoverOperation(operationKey);
+if (
+  recovered.kind === "committed" &&
+  recovered.operation === "defineResources"
+) {
+  const anotherRoot = await remote.createBudget(recovered.result, {
+    usdCents: 50,
+  });
+}
+```
+
+Use a PostgreSQL URL with `sslmode=verify-full` for `databaseUrl`. Repeating the
+same definition with the same operation key returns its committed binding.
+Changing the definition under that key rejects with `command_conflict`.
+The SDK bounds automatic retries and preserves `uncertain_outcome` when it
+cannot establish completion.
+
+By-key recovery returns `ResourceBinding<string>` because the key carries no
+TypeScript name information. Retrying the typed `defineResources` call retains
+the definition's inferred names. Both results are opaque bindings with the same
+creation behavior. Recovery can also return `known_failure`, `unresolved`, or
+`expired`; none of those states supplies a binding. An expired recovery record
+does not mean the original definition failed. A binding already obtained remains
+usable after its recovery record expires because creation checks the durable
+canonical receipt.
+
+Bindings can pass between authorized Remote clients using the same installed SDK
+and database authority, even after the producer closes. The consuming client must
+still have permission in the same tenant. There is no binding serializer or public
+reference loader.
+
 ## Compatibility and evidence
+
+This API requires semantic generation 2 and its matching generated procedure
+contract. The PostgreSQL installer rejects an older or partial installation;
+it supports fresh installation and exact recheck, with no in-place upgrade.
+Prepare a fresh database for an incompatible preview installation. See the
+[PostgreSQL package instructions](../postgresql/README.md#preview-support-limits).
 
 The preview supports ESM consumers on Node.js 24 and later, including Node.js
 25, for Linux x64, macOS arm64, and Windows x64. The declared range has no upper

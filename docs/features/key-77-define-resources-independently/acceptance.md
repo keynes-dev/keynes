@@ -292,6 +292,31 @@ Ship." `CI=true pnpm test:pr` passes all 11 tasks, including 465 SDK tests and
 package-boundary validation (`phase5/test-pr.log`). `git diff --check` passes.
 T024-T029 are complete; final acceptance remains Phase 6 work.
 
+## Phase 6 acceptance candidate
+
+Active SDK/PostgreSQL usage and compatibility documentation now matches the
+implementation, including plain Policy declarations, opaque recovery bindings,
+installation recreation, and the KEY-78 boundary. The feature contracts link
+this evidence instead of describing the implemented API as a proposal.
+
+T031 ran on `2837726d77b40210010957ae915407e81e411d79` with only the Phase 6
+documentation changes uncommitted. All commands passed; logs are under
+`.artifacts/key-77/phase6/provider-free/`.
+
+| Command                | Outcome                                                        | Log                  |
+| ---------------------- | -------------------------------------------------------------- | -------------------- |
+| `pnpm generate:check`  | PASS                                                           | `generate-check.log` |
+| `pnpm test:repository` | PASS, 9 tests                                                  | `repository.log`     |
+| `pnpm test:local`      | PASS, 355 tests                                                | `local.log`          |
+| `pnpm typecheck`       | PASS, 5 tasks                                                  | `typecheck.log`      |
+| `CI=true pnpm test:pr` | PASS, 11 tasks, including 465 SDK tests and package boundaries | `test-pr.log`        |
+| `pnpm format`          | PASS, 509 files                                                | `format.log`         |
+
+The documentation and provider-free checkpoint is committed before T032 so the
+paired runner can capture a clean source identity. Final native and exact package
+qualification results will be added after those runs; they are not implied by
+this checkpoint. The checkpoint `ponytail-review` reports "Lean already. Ship."
+
 ## Verification status
 
 | Lane                                                      | Status                     |
