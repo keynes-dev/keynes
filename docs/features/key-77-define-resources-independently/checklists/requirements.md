@@ -45,14 +45,22 @@
   FR-007 through FR-009. User Story 3 covers FR-004, FR-010, and FR-011.
   Edge cases and the evidence assumptions cover direct-caller guarantees,
   lifecycle/input behavior, authority parity, and unchanged effects in FR-003
-  and FR-012 through FR-014. SC-001 through SC-006 supply measurable outcomes.
+  and FR-012 through FR-014. User Story 2 and the funding edge cases cover FR-015
+  and FR-016. SC-001 through SC-007 supply measurable outcomes.
 - The approved scope refinement includes minimal binding consumption through
   existing positional creation. Object-form creation and changed membership
   remain owned by KEY-78. Existing Policy authoring receives declaration-input
   adaptation only; independent Policy registration is excluded.
+- Revalidated after the fixed-funding reconciliation against constitution 9.0.0.
+  Root funding and child grants are fixed at creation. Settlement returns restore
+  availability, exhaustion does not settle a Budget, and successive roots remain
+  independent. Zero-funded roots are retained; no new positive minimum is required.
+  The journal conversion remains with KEY-80 and target creation changes with KEY-78.
 - No clarification markers remain. Private binding representation and procedure
   design belong to implementation planning, not unresolved product requirements.
 - Before and after specification, extension configuration contains no hooks.
 - Ready for specification review and then `speckit-plan`. Runtime implementation,
   SQLite/PostgreSQL acceptance, and package-consumer execution remain NOT RUN.
-- Artifacts are local-only. No commit, push, PR, or Linear update was performed.
+- The initial specification was published at commit
+  `738ad39225248e078eaf27506bb80d151687a320` and linked from KEY-77. This checklist
+  records requirements quality only; Git history identifies later published revisions.

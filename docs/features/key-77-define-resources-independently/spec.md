@@ -12,6 +12,8 @@
 operation, return an immutable, typed, quantity-free binding, and use that binding
 through existing Budget creation. Prioritize simple developer usage and
 database-owned correctness. Keep Resource semantics out of the SDK.
+Root funding and child grants are fixed at creation; settlement returns restore
+availability without increasing those allowances.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -74,6 +76,16 @@ verify allocation and membership through existing inspection.
    including through a separately declared amount variable, **Then** type checking
    rejects statically known invalid input and runtime validation rejects dynamic
    invalid input without changing state.
+6. **Given** a settled root, **When** an application creates another root using
+   the same Resource binding, **Then** definitions retain their identities and
+   the new root has independent funding, lineage, and accounting. The old root
+   stays settled and no balance migrates between roots.
+7. **Given** a parent that granted quantity to a child, **When** the child settles
+   and returns its unused remainder, **Then** parent availability can increase
+   while original funding stays fixed and no new quantity is introduced.
+8. **Given** insufficient available quantity and outstanding child work,
+   **When** a request is denied, **Then** the Budget is not automatically settled,
+   outstanding work remains unresolved, and ordinary settlement remains available.
 
 ### User Story 3 - Recover from conflicts and interrupted setup (Priority: P1)
 
@@ -124,6 +136,16 @@ existing name. Verify rollback, then exercise retry and competing definitions.
 - Failed binding-based creation preserves previously committed definitions and
   creates no partial Budget. A caller-owned transaction rollback rolls back
   definition and creation effects performed inside that transaction.
+- Raw-definition and binding-based creation establish the same fixed funding.
+  Raw creation reconciles definitions atomically with allocation; binding-based
+  creation performs no definition writes. This distinction does not change
+  current allocation-based membership in KEY-77.
+- Zero-valued members and all-zero roots remain permitted under the target
+  creation contract; all-zero roots cannot later acquire funding. KEY-78 owns
+  consistent zero-funded creation and the object-form membership rules.
+- Existing Budgets cannot receive replenishment or additional grants. Settlement
+  returns are not top-ups. Creating a new root does not require unrelated roots
+  to settle first and never reopens or replenishes them.
 
 ## Requirements _(mandatory)_
 
@@ -180,6 +202,16 @@ existing name. Verify rollback, then exercise retry and competing definitions.
 - **FR-014**: Budget accounting, Policy evaluation, and application-owned effects
   MUST retain their existing meaning. Definition and retry MUST NOT execute
   application work or external effects.
+- **FR-015**: Root creation MUST introduce the tree's complete funding. Child
+  creation MUST transfer its complete grant from its structural parent. Existing
+  Budgets MUST NOT receive replenishment, top-ups, or additional grants through
+  SDK or supported direct database callers. Settlement returns MAY restore
+  availability but MUST NOT increase original funding. Both root creation paths
+  MUST obey this invariant.
+- **FR-016**: Insufficient availability MUST produce request denial rather than
+  automatic settlement or inferred usage completion. Resource definitions MUST
+  remain reusable for independently funded roots without reopening old roots,
+  migrating their balances, or requiring unrelated roots to settle first.
 
 ### Key Entities
 
@@ -191,7 +223,8 @@ existing name. Verify rollback, then exercise retry and competing definitions.
 - **Definition operation**: One batch submission with a command identity,
   canonical input, and atomic recorded result used for exact retry.
 - **Budget**: The existing quantity-owning object that consumes a binding during
-  creation. Membership continues to follow allocation in this feature.
+  creation. Its original funding is fixed. Membership continues to follow
+  allocation in this feature.
 
 ## Success Criteria _(mandatory)_
 
@@ -212,6 +245,10 @@ existing name. Verify rollback, then exercise retry and competing definitions.
 - **SC-006**: All shared acceptance scenarios produce equivalent outcomes across
   supported authorities. Concurrent successful outcomes retain one immutable
   definition per tenant-scoped name.
+- **SC-007**: Every fixed-funding acceptance scenario conserves quantity per root
+  tree and Resource: initial root funding equals live plus consumed plus released
+  quantity. Returns introduce zero new quantity; successive roots share zero
+  balances. Reported overage remains deficit evidence outside this equation.
 
 ## Assumptions
 
@@ -225,11 +262,19 @@ existing name. Verify rollback, then exercise retry and competing definitions.
 - The approved scope refinement includes minimal binding consumption through
   existing positional creation so KEY-77 can demonstrate valid use and foreign
   rejection independently. It does not introduce object-form creation.
+- Fixed funding is the governing contract for that integration, not a new journal
+  or lifecycle implementation in KEY-77. Preserve existing accounting and explicit
+  settlement while validating return and denial behavior. KEY-80 owns the movement
+  journal conversion and its full conservation evidence. Fixed funding bounds
+  authorized quantity, not observed external usage or total funding across
+  independently created roots.
 - [KEY-78](https://linear.app/keynes/issue/KEY-78/create-budgets-from-resource-definitions-or-bindings)
   retains object-form creation, complete membership from Resource input, and
   omitted initial-amount behavior. This feature preserves current creation
   semantics while replacing the declaration helper and adding binding input.
-- Funding, Resource pools, public durable binding formats, reference-only Budget
+- Zero-funded roots are retained by explicit product decision; no new positive
+  minimum is introduced by this reconciliation.
+- Later funding, Resource pools, public durable binding formats, reference-only Budget
   loading, independent Policy registration, and Policy redesign are excluded.
   Policy changes here only adapt existing declaration consumers.
 - The implementation plan must choose private binding representation, procedure

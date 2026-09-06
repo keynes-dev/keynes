@@ -1,12 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 8.0.0 -> 8.0.1
-- Rationale: KEY-92 terminology clarification; engineering requirements are unchanged.
-- Modified principle: III, canonical Policy behavior test corpus wording only.
-- Modified section: Delivery and evidence gates, cross-backend Policy behavior tests wording only.
+- Version change: 8.0.1 -> 9.0.0
+- Rationale: KEY-77 fixed-funding reconciliation removes the previously permitted alternative-funding direction.
+- Modified principle: IV, alternative funding now requires a constitutional amendment.
+- Modified section: Product constraints, creation-only funding and explicit lifecycle boundaries.
 - Added sections: none
 - Removed sections: none
-- Migration impact: no runtime or governance behavior changes; existing evidence remains valid for its original revision.
+- Migration impact: remove planned replenishment and addition controls from active product and feature contracts; preserve zero-funded roots. No runtime changes or new runtime qualification. Historical evidence remains valid only for its original revision.
 - Managed templates and commands: unchanged; read the constitution at runtime.
 - Follow-up TODOs: none
 -->
@@ -90,9 +90,10 @@ and memory, PostgreSQL concurrency and transactions, remote authentication and
 tenant isolation, recovery, packaging, and managed operations. A pass in one
 deployment MUST NOT be reported as evidence for another.
 
-Subtree issuance, multi-source funding, or another Resource path MUST use an
-explicit contract and pass its own permission, conservation, recovery, replay,
-and deployment comparison gates before release.
+Replenishment, subtree issuance, multi-source funding, or another path that
+changes creation-only funding MUST require a later constitutional amendment
+before specification or implementation. Any amended model MUST define its own
+permission, conservation, recovery, replay, and deployment comparison evidence.
 
 ### V. Evidence-first, test-first delivery
 
@@ -113,6 +114,20 @@ host, and attempt that produced it.
 
 - `Budget` MUST remain the only public stateful governance object. Defining a
   Resource type creates no quantity or permission to spend.
+- Root creation MUST introduce the tree's complete funding. Child creation MUST
+  transfer its complete grant from its structural parent. Existing Budgets MUST
+  NOT receive replenishment, top-ups, or additional grants. The selected database
+  authority MUST enforce this for SDK and supported direct database callers.
+- Settlement returns MAY restore parent availability but MUST NOT increase the
+  tree's initial funding. Per root tree and Resource, initial root funding MUST
+  equal live quantity plus consumed quantity plus released quantity. Reported
+  overage MUST remain deficit evidence, not additional authorized quantity.
+- Zero-valued membership and all-zero roots MUST remain valid. An all-zero root
+  MUST NOT later acquire funding. Insufficient availability MUST cause request
+  denial rather than automatic settlement or inferred usage completion.
+- Resource definitions MAY be reused across independent roots. New roots MUST
+  NOT replenish, reopen, or receive automatic balance migration from old roots.
+  Creating a root MUST NOT require unrelated roots to be settled first.
 - An ordinary request MUST name one exact Resource envelope and be funded
   entirely by its structural parent. It MUST atomically return a denial or
   reserve Resources and create one child Budget.
@@ -217,4 +232,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 8.0.1 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-04
+**Version**: 9.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-05
