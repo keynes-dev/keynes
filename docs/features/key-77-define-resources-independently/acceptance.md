@@ -1,7 +1,9 @@
 # KEY-77 acceptance evidence
 
-Implementation is in progress. Baseline checks do not qualify the new Resource
-definition behavior. Phase commits remain local until separately published.
+Implementation and required acceptance are complete. The qualified source is
+`fe59b162cda81de83368418e27dad2ca983d4837`; see [final acceptance](#final-acceptance).
+All phase commits remain local. Live feature CI and installed Remote SDK runtime
+qualification are not claimed.
 
 ## Phase 1 intake
 
@@ -363,16 +365,127 @@ A final clean candidate follows this test-only correction. Earlier attempts and
 failed qualification logs remain intact. PostgreSQL typecheck and formatting
 pass; the correction's `ponytail-review` reports "Lean already. Ship."
 
-## Verification status
+## Final acceptance
 
-| Lane                                                      | Status                     |
-| --------------------------------------------------------- | -------------------------- |
-| Provider-free baseline                                    | PASS                       |
-| New validator regressions                                 | PASS                       |
-| Resource definition and creation behavior on SQLite       | NOT RUN                    |
-| Native PostgreSQL, Embedded, Remote, paired acceptance    | NOT RUN                    |
-| Exact package archives and installed consumers            | NOT RUN                    |
-| Feature CI                                                | NOT RUN                    |
-| Hosted, paid providers, performance, production readiness | N/A, outside feature scope |
+Qualified source SHA: `fe59b162cda81de83368418e27dad2ca983d4837` on
+`key-77-define-resources-independently`. Paired native and both exact package
+records independently report this SHA with `cleanBefore: true` and
+`cleanAfter: true`. The final evidence commit changes only this report and task
+completion markers; runtime and package source remain at the qualified revision.
 
-No push, PR publication, or Linear attachment/status update has been performed.
+Final attempt directory:
+`.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/`.
+Paired attempt: `95b3fd32-bd81-4401-b623-6280d254a1c0`.
+Native run: `a59feed7-ca1e-4023-b381-d8632015328c`.
+Earlier attempts are preserved and superseded by these final records.
+
+| Command                                                                                                                                              | Final outcome                                                          | Retained evidence                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:embedded`                                                                                                                                 | PASS, 81/81 tests                                                      | `embedded.log`                                                                                                                                                                                                                                                                                                                                                                                     |
+| `pnpm test:remote`                                                                                                                                   | PASS, 144/144 tests; direct, session-pool, transaction-pool            | `remote.log`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `pnpm test:sqlite-postgres -- --output <attempt>/paired`                                                                                             | PASS, SQLite 64/64; PostgreSQL 258/258; zero failures or pending tests | [Paired manifest](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/paired/manifest.json), [SQLite report](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/paired/sqlite.vitest.json), [PostgreSQL report](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/paired/postgresql.json.vitest.json) |
+| `pnpm pack:sdk` and `node packages/sdk/test/package/qualify.ts --archive <retained-sdk> --output <attempt>/sdk-package.json`                         | PASS, 12 installed-consumer checks                                     | [SDK record](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/sdk-package.json), `sdk-pack.log`, `sdk-qualification.log`                                                                                                                                                                                                                                          |
+| `pnpm pack:postgresql` and `node packages/postgresql/test/package/run.ts --archive <retained-postgresql> --output <attempt>/postgresql-package.json` | PASS, 24 tests across 5 files and 4 qualification checks               | [PostgreSQL package record](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/postgresql-package.json), `postgresql-pack.log`, `postgresql-qualification.log`                                                                                                                                                                                                      |
+
+The native report contains all 194 required native scenarios across 15 files plus
+one registration of the 64 shared scenarios. The retained
+[native acceptance record](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/paired/postgresql.json) and
+[stage observations](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/paired/postgresql.json.observations.json) report
+successful installation, exact recheck, supported pool modes, and cleanup.
+The application grant summary correctly records nine Remote wrappers.
+
+The run used Darwin 25.5.0 arm64, Node 26.5.0, pnpm 11.21.0, SQLite 3.53.3,
+PostgreSQL 18.6, PgBouncer 1.25.2, and Docker 29.6.2. The manifest records the
+PostgreSQL/PgBouncer image identities and runtime versions. Both runtime cleanup
+statuses pass; the final container list is empty and the package lock is absent.
+[Historical migration verification](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/historical-migrations.json) confirms
+0001-0006 match the initial source bytes; only 0007 is added.
+
+### Exact archives and record identity
+
+| Artifact                                                                                                                                     | SHA256                                                             | Size                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------ |
+| [SDK archive](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/packages/keynes-sdk-0.0.0.tgz)               | `c34596bf6d5ede3fa6eb54a3c97dc9e6b0ca7139ce45b37284f5c471f415dfdc` | 1,011,751 compressed bytes; 5,025,851 production bytes |
+| [PostgreSQL archive](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/packages/keynes-postgresql-0.0.0.tgz) | `8848cf455b168a23850b5bf39835144ff955c35892a5ee031fd984230a159526` | 63,269 bytes                                           |
+| Paired manifest                                                                                                                              | `79b3db5d06706fad31d8a3cff1233d1dba527e27a2b822bf0fe3a2c5b6bf4c20` | JSON record                                            |
+
+Both archives are version 0.0.0. Their retained copies match the pack outputs.
+Fresh installation and exact recheck used this same PostgreSQL archive in the
+native run. The SDK qualification executes installed Local raw/binding creation,
+Policy behavior, exact public type fixtures, private-export blocking, lifecycle,
+parser packaging, and dependency closure.
+
+Contract digest:
+`365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f`.
+Installation-record SHA256:
+`85f3429b129a28035a9d18a5ed2e9ce728ba2fbab4a047bc88c05dc5d98002e1`.
+[Cross-record verification](../../../.artifacts/key-77/phase6/acceptance-af503ffe-0025-4b55-9142-7c0eacebbc97/cross-record-verification.json) independently
+checks matching clean source identities, referenced report hashes, archive
+hashes, contract digests, counts, successful cleanup, and the nine-wrapper field.
+
+### Requirement reconciliation
+
+The evidence references below use the final paired reports, final package records,
+and the phase-specific logs above. An independent read-only coverage audit found
+no material gap across FR-001 through FR-016 and SC-001 through SC-007.
+
+| Requirement | Status | Evidence and boundary                                                                                                                                                   |
+| ----------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | PASS   | Shared definition cases and installed SDK budget loop/type fixtures cover non-empty plain input and immutable typed output.                                             |
+| FR-002      | PASS   | Shared exact-reuse, mixed-batch, and reordered-input cases preserve identities and original provenance.                                                                 |
+| FR-003      | PASS   | Both direct authorities validate and resolve independently; native malformed-input, scope, and permission cases pass.                                                   |
+| FR-004      | PASS   | Shared invalid/conflicting batches and injected insertion/result/root faults leave no partial effects; retry passes.                                                    |
+| FR-005      | PASS   | Shared state counts prove zero Budgets/quantity from definition; SDK sends one batch operation.                                                                         |
+| FR-006      | PASS   | SDK reflection, mutation, copied-binding, literal-name, and installed private-export checks pass; no public serialized format exists.                                   |
+| FR-007      | PASS   | Native same-tenant use after producer close, foreign tenant/installation, creation-only permission, and revoked-client cases pass.                                      |
+| FR-008      | PASS   | Both authorities pass allocated-subset and unknown-name checks; real INSERT/UPDATE abort triggers prove binding consumption performs zero definition writes.            |
+| FR-009      | PASS   | Plain definition Policy corpus and installed public type/export fixtures pass; optional ResourceDefinitions checks remain supported.                                    |
+| FR-010      | PASS   | Shared exact retry/new-command reuse/conflict, real lost response, stable-key retry, by-key opaque recovery, and expiry-surviving receipt cases pass.                   |
+| FR-011      | PASS   | Native opposite-order overlaps, singleton/raw creation races, and same-command contenders retain one immutable identity and atomic outcomes.                            |
+| FR-012      | PASS   | SDK asynchronous failures, own-field validation, snapshots, close precedence, and private-data concealment tests pass.                                                  |
+| FR-013      | PASS   | All 64 shared cases pass on both authorities; native caller-owned visibility, commit, rollback, and real serialization-failure cases pass.                              |
+| FR-014      | PASS   | Existing Policy corpus, installed Policy runtime, and application-table transaction tests preserve behavior; no external effects are added.                             |
+| FR-015      | PASS   | Shared fixed-root funding, allocated membership, invalid extra funding, child grants, returns, and explicit-zero cases pass. Remote remains positive-only under KEY-78. |
+| FR-016      | PASS   | Outstanding-work denial and independent-root cases pass without automatic settlement, replenishment, or reopening prior roots.                                          |
+| SC-001      | PASS   | Installed SDK consumer defines once and passes the returned binding directly to positional creation.                                                                    |
+| SC-002      | PASS   | Shared definition state/provenance assertions prove zero quantity effects and stable exact reuse.                                                                       |
+| SC-003      | PASS   | Shared/native rejection, fault, replay, and binding-consumption cases prove rollback and no duplicate effects.                                                          |
+| SC-004      | PASS   | Authorized same-scope controls succeed; all tested foreign-scope and revoked callers fail without mutation or disclosure.                                               |
+| SC-005      | PASS   | Installed public types accept inline/separate plain declarations and bindings, reject unknown allocation keys, and preserve inferred names.                             |
+| SC-006      | PASS   | Paired reports contain all shared scenarios with zero failures/skips; native contention cases establish identity convergence.                                           |
+| SC-007      | PASS   | Fixed-funding settlement, returns, independent roots, and denial cases preserve per-root conservation; overage remains separate deficit evidence.                       |
+
+Conservation counts parent availability and live child quantity once. For the
+consumable return case, root availability 8 plus consumed quantity 2 equals the
+original 10; the settled child's historical remainder 5 is already returned and
+is not added again. Reusable settlement restores availability 100 without
+counting observed usage 25 as consumed funding. Separate roots retain separate
+allocations, and deficit evidence remains outside the funding equation.
+
+### Final review and publication boundary
+
+The complete changed-file inventory is scoped to KEY-77 contracts, SDK,
+PostgreSQL, tests, and feature documentation. Local Markdown links and diff
+whitespace are checked before the final evidence commit. Every phase and clean
+candidate correction received the requested `ponytail-review` before its commit.
+The final `ponytail-review` reports "Lean already. Ship." All 34 task markers
+are complete. All 47 local Markdown links across 12 files pass validation;
+`git diff --check` passes. Final publication readback returns no PR for the
+branch (`feature-prs.json` in the final attempt).
+
+| Lane                                                                                   | Status                                                    |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Provider-free gate and validator regressions                                           | PASS                                                      |
+| Local definition, creation, Policy, lifecycle, and type behavior                       | PASS                                                      |
+| Native PostgreSQL, Embedded, all supported Remote modes, paired gate                   | PASS                                                      |
+| Exact SDK/PostgreSQL archives and required installed consumers                         | PASS                                                      |
+| Installed Remote SDK runtime                                                           | NOT RUN                                                   |
+| Live feature CI                                                                        | NOT RUN; no PR exists for the branch at final readback    |
+| Hosted, paid providers, benchmarks, broader platform/provider/security/readiness lanes | Outside this feature acceptance; no qualification claimed |
+
+The final native/package records retain their explicit exclusions, including
+managed providers, other PostgreSQL versions, operational campaigns, and broader
+readiness. Targeted rollback and response-loss tests passing does not qualify a
+broader fault campaign. No push, PR publication, or Linear attachment/status
+update has been performed. KEY-77 remains subject to review, merge, and its
+workflow's completion rule.
