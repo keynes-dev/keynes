@@ -1561,6 +1561,9 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteMutationResult: {
     oneOf: [
       {
+        $ref: "#/$defs/RemoteDefineResourcesResult",
+      },
+      {
         $ref: "#/$defs/RemoteCreateBudgetResult",
       },
       {
@@ -1570,6 +1573,25 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/RemoteSettleBudgetResult",
       },
     ],
+  },
+  RecoveredCommittedDefineResources: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operationKey", "operation", "result"],
+    properties: {
+      kind: {
+        const: "committed",
+      },
+      operationKey: {
+        $ref: "#/$defs/OperationKey",
+      },
+      operation: {
+        const: "defineResources",
+      },
+      result: {
+        $ref: "#/$defs/RemoteDefineResourcesResult",
+      },
+    },
   },
   RecoveredCommittedCreateBudget: {
     type: "object",
@@ -1630,6 +1652,9 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   RecoveredCommittedOperation: {
     oneOf: [
+      {
+        $ref: "#/$defs/RecoveredCommittedDefineResources",
+      },
       {
         $ref: "#/$defs/RecoveredCommittedCreateBudget",
       },

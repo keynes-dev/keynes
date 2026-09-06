@@ -1076,10 +1076,38 @@
     },
     "RemoteMutationResult": {
       "oneOf": [
-        { "$ref": "#/$defs/RemoteCreateBudgetResult" },
-        { "$ref": "#/$defs/RemoteRequestBudgetResult" },
-        { "$ref": "#/$defs/RemoteSettleBudgetResult" }
+        {
+          "$ref": "#/$defs/RemoteDefineResourcesResult"
+        },
+        {
+          "$ref": "#/$defs/RemoteCreateBudgetResult"
+        },
+        {
+          "$ref": "#/$defs/RemoteRequestBudgetResult"
+        },
+        {
+          "$ref": "#/$defs/RemoteSettleBudgetResult"
+        }
       ]
+    },
+    "RecoveredCommittedDefineResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "operationKey", "operation", "result"],
+      "properties": {
+        "kind": {
+          "const": "committed"
+        },
+        "operationKey": {
+          "$ref": "#/$defs/OperationKey"
+        },
+        "operation": {
+          "const": "defineResources"
+        },
+        "result": {
+          "$ref": "#/$defs/RemoteDefineResourcesResult"
+        }
+      }
     },
     "RecoveredCommittedCreateBudget": {
       "type": "object",
@@ -1116,9 +1144,18 @@
     },
     "RecoveredCommittedOperation": {
       "oneOf": [
-        { "$ref": "#/$defs/RecoveredCommittedCreateBudget" },
-        { "$ref": "#/$defs/RecoveredCommittedRequestBudget" },
-        { "$ref": "#/$defs/RecoveredCommittedSettleBudget" }
+        {
+          "$ref": "#/$defs/RecoveredCommittedDefineResources"
+        },
+        {
+          "$ref": "#/$defs/RecoveredCommittedCreateBudget"
+        },
+        {
+          "$ref": "#/$defs/RecoveredCommittedRequestBudget"
+        },
+        {
+          "$ref": "#/$defs/RecoveredCommittedSettleBudget"
+        }
       ]
     },
     "RecoveredKnownFailure": {

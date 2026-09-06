@@ -200,6 +200,7 @@ export class PostgresDatabase {
     await this.database.exec(`grant usage on schema keynes to "${role}"`);
     for (const functionName of [
       "define_resource_type",
+      "define_resources",
       "create_budget",
       "request",
       "settle",

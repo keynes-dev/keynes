@@ -251,6 +251,47 @@ package-boundary validation (`test-pr-final.log`). `git diff --check` passes.
 T014-T023 are complete. Phase 4 is ready for its commit; recovery and fault
 expansion remain Phase 5 work.
 
+## Phase 5 recovery and transaction evidence
+
+The recovery result schema now includes committed definitions. Public by-key
+recovery wraps the stored result with the same opaque binding constructor as
+normal definition completion and returns `ResourceBinding<string>`. Typed exact
+retry preserves the declaration's literal names. The existing retry loop and
+native ledger already dispatch definition operations; neither needed a second
+retry mechanism or a new ledger.
+
+T026 initially fails because generated recovery validation rejects the definition
+variant (`phase5/t026/sdk-red.log`). The corrected suite passes 13 tests
+(`sdk-green.log`), covering usable recovered bindings, private-field concealment,
+stable keys after response loss, definitive failures, uncertainty, unresolved
+operations, and expiry. The initial red also contains one malformed test error
+fixture; that fixture was corrected before the final run.
+
+T024 passes eight SQLite rollback tests against the Phase 4 implementation
+(`phase5/t024/sqlite-existing-green.log`), including four new cases. Existing
+fault checkpoints cover definition insertion, reference/result storage, and bound
+root mutation. Failure preserves earlier bindings and retry succeeds. No extra
+fault-control API or authority implementation change was needed.
+
+T025 adds native opposite-order overlap, singleton/raw-creation competition,
+same-command waiting and replay, application-session visibility, caller commit
+and rollback, and a real repeatable-read serialization failure. The test role's
+existing canonical grant list now includes `define_resources`. This changes only
+the test harness. T026 also pauses and destroys a real PostgreSQL response stream,
+recovers the committed definition, and consumes its binding after ledger expiry.
+
+The first full native attempt passed behavioral checks but failed the final
+scenario-inventory audit because one new rollback name had the wrong prefix.
+The corrected complete native run exits zero, including required-scenario
+inventory validation (`phase5/t025/native-combined-final.log`). All eight new
+T025 cases pass the existing implementation, so T028 requires evidence only.
+Containers and the package-preparation lock are cleaned up. Generation checks
+and all five repository typecheck tasks pass (`phase5/generate-check.log`,
+`phase5/typecheck.log`). The phase `ponytail-review` reports "Lean already.
+Ship." `CI=true pnpm test:pr` passes all 11 tasks, including 465 SDK tests and
+package-boundary validation (`phase5/test-pr.log`). `git diff --check` passes.
+T024-T029 are complete; final acceptance remains Phase 6 work.
+
 ## Verification status
 
 | Lane                                                      | Status                     |

@@ -69,7 +69,7 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "6fa8f182883eaaf5d8ce7571c97605013e9e55629bafa306874ee838be0f2201";
+  "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f";
 
 export const REMOTE_PROCEDURES_DIGEST =
   "36571ea4085453a0a0775fed58dbaabecd39e53ca4a4ec9b57250cee79b63253";

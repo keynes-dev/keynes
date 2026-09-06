@@ -20,6 +20,152 @@ const CANONICAL_ORDER_ROOT_ID = "27000000-0000-4000-8000-000000000001";
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
 describe("native PostgreSQL contention", () => {
+  it.each([false, true])(
+    "orders opposite-input batch overlap with conflict=%s",
+    async (conflict) => {
+      const keynes = await openNativeTestKeynes();
+      try {
+        const first = await keynes.beginAttempt("product-fixture");
+        const second = await keynes.beginAttempt("product-fixture");
+        const stored = await first.client.defineResources({
+          commandId: RESOURCE_COMMAND_ID,
+          definitions: {
+            alphaTokens: { unit: "token", accountingBehavior: "consumable" },
+            zetaSeats: { unit: "seat", accountingBehavior: "reusable" },
+          },
+        });
+        const competing = second.client.defineResources({
+          commandId: ALPHA_DEFINITION_ID,
+          definitions: {
+            zetaSeats: {
+              unit: conflict ? "conflicting-seat" : "seat",
+              accountingBehavior: "reusable",
+            },
+            ...(conflict
+              ? {
+                  betaNew: {
+                    unit: "call",
+                    accountingBehavior: "consumable" as const,
+                  },
+                }
+              : {}),
+            alphaTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+        });
+        const outcome = conflict
+          ? expect(competing).rejects.toMatchObject({
+              code: "resource_type_conflict",
+            })
+          : expect(competing).resolves.toMatchObject({
+              resources: stored.resources,
+              replayed: false,
+            });
+        await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+        await first.commit();
+        await outcome;
+        await second.commit();
+        expect(await keynes.inspectState()).toEqual({
+          resources: 2,
+          commands: conflict ? 1 : 2,
+          budgets: 0,
+          holdings: 0,
+          history: 0,
+          quantity: 0,
+        });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it.each(["singleton", "raw creation"])(
+    "preserves original Resource evidence when a batch waits behind %s",
+    async (kind) => {
+      const keynes = await openNativeTestKeynes();
+      try {
+        const first = await keynes.beginAttempt("product-fixture");
+        const second = await keynes.beginAttempt("product-fixture");
+        const definition = {
+          canonicalName: "alpha_tokens",
+          unit: "token",
+          accountingBehavior: "consumable" as const,
+        };
+        const priorResource =
+          kind === "singleton"
+            ? (
+                await first.client.defineResource({
+                  commandId: RESOURCE_COMMAND_ID,
+                  definition,
+                })
+              ).resourceType
+            : (
+                await first.client.createBudget({
+                  commandId: RESOURCE_COMMAND_ID,
+                  ...rootResources([{ definition, amount: 7 }]),
+                })
+              ).budget.resources[0].resourceType;
+        const competing = second.client.defineResources({
+          commandId: ALPHA_DEFINITION_ID,
+          definitions: {
+            zetaSeats: { unit: "seat", accountingBehavior: "reusable" },
+            alphaTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+        });
+        await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+        await first.commit();
+        const result = await competing;
+        await second.commit();
+        expect(result.resources[0]).toMatchObject({
+          resourceType: priorResource,
+          definitionEvidence: { commandId: RESOURCE_COMMAND_ID },
+        });
+        expect(await keynes.inspectState()).toEqual({
+          resources: 2,
+          commands: 2,
+          budgets: kind === "singleton" ? 0 : 1,
+          holdings: kind === "singleton" ? 0 : 1,
+          history: kind === "singleton" ? 0 : 1,
+          quantity: kind === "singleton" ? 0 : 7,
+        });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("replays one definition receipt when same-command contenders wait for commit", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const first = await keynes.beginAttempt("product-fixture");
+      const second = await keynes.beginAttempt("product-fixture");
+      const command = {
+        commandId: RESOURCE_COMMAND_ID,
+        definitions: {
+          modelTokens: {
+            unit: "token",
+            accountingBehavior: "consumable" as const,
+          },
+        },
+      };
+      const stored = await first.client.defineResources(command);
+      const competing = second.client.defineResources(command);
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      await expect(competing).resolves.toEqual({ ...stored, replayed: true });
+      await second.commit();
+      expect(await keynes.inspectState()).toEqual({
+        resources: 1,
+        commands: 1,
+        budgets: 0,
+        holdings: 0,
+        history: 0,
+        quantity: 0,
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("funds at most one sibling after proving the second request waits", async () => {
     const keynes = await openNativeTestKeynes();
     try {

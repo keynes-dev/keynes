@@ -8,7 +8,10 @@ import {
 } from "@keynes/contracts/contract-tests";
 
 import { openInstalledPostgresDatabase } from "./support/postgres-database.js";
-import { createTransactionProcedureCaller } from "./support/procedure-caller.js";
+import {
+  createDatabaseProcedureCaller,
+  createTransactionProcedureCaller,
+} from "./support/procedure-caller.js";
 import {
   FIXTURE_INSTALLATION,
   FIXTURE_PRINCIPALS,
@@ -51,6 +54,115 @@ describe("PostgreSQL Resource-bound root authorization and rollback", () => {
         requiredPermission: "create_root_budget",
       },
     });
+  });
+
+  it("removes failed definition receipts and bound-root effects while retaining older bindings", async () => {
+    const owner = await openInstalledPostgresDatabase(
+      requirePostgresqlSystemAdministratorUrl(),
+      FIXTURE_INSTALLATION,
+      requirePostgresqlSystemInstallation(),
+    );
+    try {
+      const context = {
+        tenantId: FIXTURE_TENANT_ID,
+        principalId: FIXTURE_PRINCIPALS["product-fixture"],
+      };
+      const client = createContractClient(
+        createDatabaseProcedureCaller(owner.database, context),
+      );
+      const savedCommand = {
+        commandId: "1b000000-0000-4000-8000-000000000001",
+        definitions: {
+          savedTokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+      };
+      const saved = await client.defineResources(savedCommand);
+      const counts = async () =>
+        (
+          await owner.database.query(`SELECT
+        (SELECT count(*)::integer FROM keynes_internal.commands) AS commands,
+        (SELECT count(*)::integer FROM keynes_internal.commands WHERE binding_reference IS NOT NULL) AS references,
+        (SELECT count(*)::integer FROM keynes_internal.resource_types) AS resources,
+        (SELECT count(*)::integer FROM keynes_internal.budgets) AS budgets,
+        (SELECT count(*)::integer FROM keynes_internal.budget_resources) AS holdings,
+        (SELECT count(*)::integer FROM keynes_internal.budget_history_entries) AS history
+      `)
+        ).rows;
+      const before = await counts();
+      const nextCommand = {
+        commandId: "1b000000-0000-4000-8000-000000000002",
+        definitions: {
+          newSeats: { unit: "seat", accountingBehavior: "reusable" },
+        },
+      };
+      const faultingDefinition = createContractClient(
+        createDatabaseProcedureCaller(owner.database, {
+          ...context,
+          checkpoint: "after_result_storage",
+        }),
+      );
+      await expect(
+        faultingDefinition.defineResources(nextCommand),
+      ).rejects.toThrow("private rollback checkpoint: after_result_storage");
+      expect(await counts()).toEqual(before);
+      expect(await client.defineResources(savedCommand)).toEqual({
+        ...saved,
+        replayed: true,
+      });
+      expect(await client.defineResources(nextCommand)).toMatchObject({
+        kind: "defined",
+        replayed: false,
+      });
+      const afterDefinition = await counts();
+      expect(afterDefinition).toEqual([
+        {
+          commands: 2,
+          references: 2,
+          resources: 2,
+          budgets: 0,
+          holdings: 0,
+          history: 0,
+        },
+      ]);
+      const rootCommand = {
+        commandId: "2b000000-0000-4000-8000-000000000001",
+        resources: {
+          kind: "binding",
+          bindingReference: saved.bindingReference,
+        },
+        allocation: { savedTokens: 10 },
+      } satisfies ResourceBoundRootCommand;
+      const faultingRoot = createContractClient(
+        createDatabaseProcedureCaller(owner.database, {
+          ...context,
+          checkpoint: "after_domain_mutation",
+        }),
+      );
+      await expect(faultingRoot.createBudget(rootCommand)).rejects.toThrow(
+        "private rollback checkpoint: after_domain_mutation",
+      );
+      expect(await counts()).toEqual(afterDefinition);
+      expect(await client.defineResources(savedCommand)).toEqual({
+        ...saved,
+        replayed: true,
+      });
+      expect(await client.createBudget(rootCommand)).toMatchObject({
+        kind: "created",
+        replayed: false,
+      });
+      expect(await counts()).toEqual([
+        {
+          commands: 3,
+          references: 2,
+          resources: 2,
+          budgets: 1,
+          holdings: 1,
+          history: 1,
+        },
+      ]);
+    } finally {
+      await owner.close();
+    }
   });
 
   it("rolls back an inserted Resource at its private checkpoint", async () => {

@@ -50,6 +50,11 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0007-resource-definitions' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
+    "native PostgreSQL contention orders opposite-input batch overlap with conflict=false",
+    "native PostgreSQL contention orders opposite-input batch overlap with conflict=true",
+    "native PostgreSQL contention preserves original Resource evidence when a batch waits behind singleton",
+    "native PostgreSQL contention preserves original Resource evidence when a batch waits behind raw creation",
+    "native PostgreSQL contention replays one definition receipt when same-command contenders wait for commit",
     "native PostgreSQL contention funds at most one sibling after proving the second request waits",
     "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
     "native PostgreSQL contention orders a waiting settlement after the committed request",
@@ -58,6 +63,9 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
   ],
   "packages/postgresql/test/system/embedded-transactions.test.ts": [
+    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller commit",
+    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller rollback",
+    "embedded PostgreSQL caller-owned transactions propagates Resource serialization failure to the caller and rolls back application work",
     "embedded PostgreSQL caller-owned transactions commits an approved request and application outbox row together",
     "embedded PostgreSQL caller-owned transactions leaves neither Budget state nor outbox state after explicit rollback",
     "embedded PostgreSQL caller-owned transactions rolls back Keynes when the application write fails after approval",
@@ -110,6 +118,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
   ],
   "packages/postgresql/test/system/remote-recovery.test.ts": [
+    "remote PostgreSQL recovery and bounded reads recovers a lost definition response and retains its receipt after ledger expiry",
+    "remote PostgreSQL recovery and bounded reads keeps failed definitions as known failures without a successful receipt",
     "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
     "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",
     "remote PostgreSQL recovery and bounded reads recovers a committed mutation after its transport response is lost",
@@ -211,6 +221,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
   ],
   "packages/postgresql/test/system/rollback.test.ts": [
+    "PostgreSQL Resource-bound root authorization and rollback removes failed definition receipts and bound-root effects while retaining older bindings",
     "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
     "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
     "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",

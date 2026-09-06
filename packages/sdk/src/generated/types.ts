@@ -203,6 +203,7 @@ export type RemoteRequestBudgetResult =
  * via the `definition` "RemoteMutationResult".
  */
 export type RemoteMutationResult =
+  | RemoteDefineResourcesResult
   | RemoteCreateBudgetResult
   | RemoteRequestBudgetResult
   | RemoteSettleBudgetResult;
@@ -211,6 +212,7 @@ export type RemoteMutationResult =
  * via the `definition` "RecoveredCommittedOperation".
  */
 export type RecoveredCommittedOperation =
+  | RecoveredCommittedDefineResources
   | RecoveredCommittedCreateBudget
   | RecoveredCommittedRequestBudget
   | RecoveredCommittedSettleBudget;
@@ -1433,6 +1435,43 @@ export interface RecoverOperationQuery {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteDefineResourcesResult".
+ */
+export interface RemoteDefineResourcesResult {
+  kind: "defined";
+  bindingReference: ResourceBindingReference;
+  /**
+   * @minItems 1
+   */
+  resources: [DefinedResourceMember, ...DefinedResourceMember[]];
+  replayed: boolean;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DefinedResourceMember".
+ */
+export interface DefinedResourceMember {
+  key: string;
+  resourceType: ResourceTypeProjection;
+  definitionEvidence: {
+    kind: "resource_type_defined";
+    commandId: Uuid;
+    principalId: Uuid;
+    definitionDigest: Digest;
+  };
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RecoveredCommittedDefineResources".
+ */
+export interface RecoveredCommittedDefineResources {
+  kind: "committed";
+  operationKey: OperationKey;
+  operation: "defineResources";
+  result: RemoteDefineResourcesResult;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RecoveredCommittedCreateBudget".
  */
 export interface RecoveredCommittedCreateBudget {
@@ -1741,20 +1780,6 @@ export interface DefineResourcesCommand {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "DefinedResourceMember".
- */
-export interface DefinedResourceMember {
-  key: string;
-  resourceType: ResourceTypeProjection;
-  definitionEvidence: {
-    kind: "resource_type_defined";
-    commandId: Uuid;
-    principalId: Uuid;
-    definitionDigest: Digest;
-  };
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "DefineResourcesResult".
  */
 export interface DefineResourcesResult {
@@ -1773,17 +1798,4 @@ export interface DefineResourcesResult {
 export interface RemoteDefineResourcesCommand {
   operationKey: OperationKey;
   definitions: ResourceDefinitions;
-}
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "RemoteDefineResourcesResult".
- */
-export interface RemoteDefineResourcesResult {
-  kind: "defined";
-  bindingReference: ResourceBindingReference;
-  /**
-   * @minItems 1
-   */
-  resources: [DefinedResourceMember, ...DefinedResourceMember[]];
-  replayed: boolean;
 }

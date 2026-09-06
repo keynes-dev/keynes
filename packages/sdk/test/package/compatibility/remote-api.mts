@@ -120,7 +120,12 @@ expectType<"committed" | "known_failure" | "unresolved" | "expired">(
   recovery.kind,
 );
 if (recovery.kind === "committed") {
-  if (recovery.operation === "requestBudget") {
+  if (recovery.operation === "defineResources") {
+    expectType<ResourceBinding<string>>(recovery.result);
+    await remote.createBudget(recovery.result, { recoveredName: 1 });
+    // @ts-expect-error Recovery must not expose private receipt references.
+    recovery.result.bindingReference;
+  } else if (recovery.operation === "requestBudget") {
     expectType<BudgetReference>(recovery.result.parentBudgetReference);
     if (recovery.result.kind === "approved") {
       expectType<BudgetReference>(recovery.result.childBudgetReference);

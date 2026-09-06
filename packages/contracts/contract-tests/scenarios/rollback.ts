@@ -34,6 +34,133 @@ export function registerRollbackContractTests(
       await local.close();
     });
 
+    it.each([
+      "after_resource_insertion",
+      "after_result_storage",
+    ] satisfies RollbackCheckpoint[])(
+      "rolls back a definition batch at %s while preserving an older binding",
+      async (checkpoint) => {
+        const client = local.clientFor("product-fixture");
+        const savedCommand = {
+          commandId: definitionId(1),
+          definitions: {
+            savedSeats: { unit: "seat", accountingBehavior: "reusable" },
+          },
+        };
+        const saved = await client.defineResources(savedCommand);
+        const before = await local.inspectState();
+        const command = {
+          commandId: definitionId(2),
+          definitions: {
+            newTokens: { unit: "token", accountingBehavior: "consumable" },
+            newWorkers: { unit: "worker", accountingBehavior: "reusable" },
+            ...savedCommand.definitions,
+          },
+        };
+        await expect(
+          local
+            .clientFor("product-fixture", { checkpoint })
+            .defineResources(command),
+        ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+        expect(await local.inspectState()).toEqual(before);
+        expect(await client.defineResources(savedCommand)).toEqual({
+          ...saved,
+          replayed: true,
+        });
+        const retried = await client.defineResources(command);
+        expect(retried.replayed).toBe(false);
+        expect(retried.resources).toHaveLength(3);
+        expect(
+          retried.resources.find((member) => member.key === "savedSeats"),
+        ).toEqual(saved.resources[0]);
+        expect(await local.inspectState()).toEqual({
+          ...before,
+          resources: 3,
+          commands: 2,
+        });
+        expect(await client.defineResources(command)).toEqual({
+          ...retried,
+          replayed: true,
+        });
+        const root = await client.createBudget({
+          commandId: definitionId(3),
+          resources: {
+            kind: "binding",
+            bindingReference: saved.bindingReference,
+          },
+          allocation: { savedSeats: 2 },
+        });
+        expect(root.budget.resources[0]).toMatchObject({
+          resourceType: saved.resources[0].resourceType,
+          allocated: 2,
+        });
+      },
+    );
+
+    it.each([
+      "after_domain_mutation",
+      "after_result_storage",
+    ] satisfies RollbackCheckpoint[])(
+      "rolls back bound root creation at %s without invalidating its binding",
+      async (checkpoint) => {
+        const client = local.clientFor("product-fixture");
+        const definitionCommand = {
+          commandId: definitionId(4),
+          definitions: {
+            savedTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+        };
+        const binding = await client.defineResources(definitionCommand);
+        const command = {
+          commandId: definitionId(5),
+          resources: {
+            kind: "binding",
+            bindingReference: binding.bindingReference,
+          },
+          allocation: { savedTokens: 10 },
+        } satisfies CreateBudgetCommand;
+        const before = await local.inspectState();
+        await expect(
+          local
+            .clientFor("product-fixture", { checkpoint })
+            .createBudget(command),
+        ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+        expect(await local.inspectState()).toEqual(before);
+        await expect(
+          client.getBudget({ budgetId: command.commandId }),
+        ).rejects.toMatchObject({ code: "budget_not_found" });
+        expect(await client.defineResources(definitionCommand)).toEqual({
+          ...binding,
+          replayed: true,
+        });
+        const retried = await client.createBudget(command);
+        expect(retried).toMatchObject({
+          kind: "created",
+          replayed: false,
+          budget: {
+            resources: [
+              {
+                resourceType: binding.resources[0].resourceType,
+                allocated: 10,
+              },
+            ],
+          },
+        });
+        expect(await local.inspectState()).toEqual({
+          ...before,
+          commands: 2,
+          budgets: 1,
+          holdings: 1,
+          history: 1,
+          quantity: 10,
+        });
+        expect(await client.createBudget(command)).toEqual({
+          ...retried,
+          replayed: true,
+        });
+      },
+    );
+
     it("rolls back Resource definition checkpoints", async () => {
       for (const [checkpoint, suffix] of MUTATION_CHECKPOINTS) {
         if (checkpoint === "after_history_insertion") continue;
@@ -254,4 +381,8 @@ async function expectKeynesError(
     code,
     details,
   });
+}
+
+function definitionId(suffix: number): string {
+  return `1a000000-0000-4000-8000-${String(suffix).padStart(12, "0")}`;
 }
