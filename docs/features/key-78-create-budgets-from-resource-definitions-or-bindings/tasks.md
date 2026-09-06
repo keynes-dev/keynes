@@ -33,11 +33,11 @@ runtime lanes NOT RUN. Do not copy mutable Linear lifecycle into these artifacts
 
 **Purpose**: Establish shared schemas and deterministic generation before story implementation. No production catalog provisioning, client initialization, or creation behavior is implemented in this phase.
 
-- [ ] T004 [P] Add and observe failing contract-generation tests for read-only validateResources, definitions/amounts creation shapes, rejection of old ResourceSource inputs, generation 3, and procedure revisions in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/contract-client.test.ts`.
-- [ ] T005 [P] Add and observe failing generation tests proving immutable 0001-0007 hashes, a new 0008 entry with the sole current contract marker, and deterministic output in `packages/postgresql/test/unit/build.test.ts`.
-- [ ] T006 Implement the planned schemas, operation inventories, read-only descriptors, generation/minimum SDK 3, create revision 3, and validation revision 1 in `packages/contracts/schema.json`, `packages/contracts/contract.json`, and `packages/contracts/src/load.ts`; update affected generator source mappings under `packages/contracts/src/generation/`.
-- [ ] T007 Freeze 0007 at its current bytes/digest and stop interpolating the latest contract into it in `packages/postgresql/scripts/generate.ts`; add the new `packages/postgresql/scripts/configured-creation-migration.ts` renderer and `packages/postgresql/migrations/manifest.json` entry for generated 0008, preserving the existing preview profile and historical hashes.
-- [ ] T008 Run `pnpm generate` from `package.json` to produce current schemas/validators/clients/SQL metadata; pass T004, T005 and `pnpm generate:check`, recording results in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`. Keep new behavior assertions red until their story implementation; do not hand-edit generated files.
+- [x] T004 [P] Add and observe failing contract-generation tests for read-only validateResources, definitions/amounts creation shapes, rejection of old ResourceSource inputs, generation 3, and procedure revisions in `packages/contracts/test/generate-contracts.test.ts` and `packages/contracts/test/contract-client.test.ts`.
+- [x] T005 [P] Add and observe failing generation tests proving immutable 0001-0007 hashes, a new 0008 entry with the sole current contract marker, and deterministic output in `packages/postgresql/test/unit/build.test.ts`.
+- [x] T006 Implement the planned schemas, operation inventories, read-only descriptors, generation/minimum SDK 3, create revision 3, and validation revision 1 in `packages/contracts/schema.json`, `packages/contracts/contract.json`, and `packages/contracts/src/load.ts`; update affected generator source mappings under `packages/contracts/src/generation/`.
+- [x] T007 Freeze 0007 at its current bytes/digest and stop interpolating the latest contract into it in `packages/postgresql/scripts/generate.ts`; add the new `packages/postgresql/scripts/configured-creation-migration.ts` renderer and `packages/postgresql/migrations/manifest.json` entry for generated 0008, preserving the existing preview profile and historical hashes.
+- [x] T008 Run `pnpm generate` from `package.json` to produce current schemas/validators/clients/SQL metadata; pass T004, T005 and `pnpm generate:check`, recording results in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`. Keep new behavior assertions red until their story implementation; do not hand-edit generated files.
 
 **Checkpoint**: Contract/generation tests pass. New runtime operations are not yet qualified. T004 and T005 may run together; T006, T007, T008 are sequential.
 
@@ -203,4 +203,4 @@ loading, and journal conversion remain outside scope.
 | FR-013                         | T009, T018, T029, T031, T040, T044, T045, T046, T047                                     |
 | FR-014                         | T004, T005, T006, T007, T008, T024, T028, T013, T030, T041, T042, T043, T044, T045       |
 
-Phase 1 setup is complete. Behavioral implementation remains unstarted. No planning hooks are registered.
+Phases 1-2 are complete. Startup and creation behavior remain unimplemented. No planning hooks are registered.

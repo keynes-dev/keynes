@@ -353,13 +353,13 @@
     "CreateBudgetCommand": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commandId", "resources", "allocation"],
+      "required": ["commandId", "definitions", "amounts"],
       "properties": {
         "commandId": {
           "$ref": "#/$defs/Uuid"
         },
-        "resources": {
-          "$ref": "#/$defs/ResourceSource"
+        "definitions": {
+          "$ref": "#/$defs/ResourceDefinitions"
         },
         "policies": {
           "type": "array",
@@ -369,7 +369,7 @@
             "$ref": "#/$defs/PolicyDefinitionV1"
           }
         },
-        "allocation": {
+        "amounts": {
           "$ref": "#/$defs/ResourceAllocation"
         }
       }
@@ -528,6 +528,7 @@
     "RemoteProcedureName": {
       "enum": [
         "defineResources",
+        "validateResources",
         "createBudget",
         "requestBudget",
         "settleBudget",
@@ -872,13 +873,13 @@
     "RemoteCreateBudgetCommand": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["operationKey", "resources", "allocation"],
+      "required": ["operationKey", "definitions", "amounts"],
       "properties": {
         "operationKey": {
           "$ref": "#/$defs/OperationKey"
         },
-        "resources": {
-          "$ref": "#/$defs/ResourceSource"
+        "definitions": {
+          "$ref": "#/$defs/ResourceDefinitions"
         },
         "policies": {
           "type": "array",
@@ -888,7 +889,7 @@
             "$ref": "#/$defs/PolicyDefinitionV1"
           }
         },
-        "allocation": {
+        "amounts": {
           "$ref": "#/$defs/ResourceAllocation"
         }
       }
@@ -1499,6 +1500,7 @@
       "enum": [
         "defineResource",
         "defineResources",
+        "validateResources",
         "createBudget",
         "requestBudget",
         "settleBudget",
@@ -1885,36 +1887,6 @@
         }
       }
     },
-    "ResourceSource": {
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "definitions"],
-          "properties": {
-            "kind": {
-              "const": "definitions"
-            },
-            "definitions": {
-              "$ref": "#/$defs/ResourceDefinitions"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["kind", "bindingReference"],
-          "properties": {
-            "kind": {
-              "const": "binding"
-            },
-            "bindingReference": {
-              "$ref": "#/$defs/ResourceBindingReference"
-            }
-          }
-        }
-      ]
-    },
     "ResourceAllocation": {
       "type": "object",
       "propertyNames": {
@@ -1923,6 +1895,26 @@
       },
       "additionalProperties": {
         "$ref": "#/$defs/Amount"
+      }
+    },
+    "ValidateResourcesQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["definitions"],
+      "properties": {
+        "definitions": {
+          "$ref": "#/$defs/ResourceDefinitions"
+        }
+      }
+    },
+    "ValidateResourcesResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid"],
+      "properties": {
+        "valid": {
+          "const": true
+        }
       }
     }
   }

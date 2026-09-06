@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
-import { loadContract } from "@keynes/contracts";
+import { loadContract, loadPolicyProfile } from "@keynes/contracts";
 import { fileURLToPath } from "node:url";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
+import migrationManifest from "../../migrations/manifest.json" with { type: "json" };
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
   mkdir,
+  cp,
   mkdtemp,
   readFile,
   readdir,
@@ -19,6 +21,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildPostgresqlPackage } from "../../scripts/build.ts";
+import { generatePostgresql } from "../../scripts/generate.ts";
 
 const roots: string[] = [];
 
@@ -29,12 +32,27 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL package build promotion", () => {
-  it("publishes independent definition procedures with generation two compatibility", () => {
+  it("publishes configured creation with generation three compatibility", () => {
     const { source: contract } = loadContract(
       fileURLToPath(new URL("../../../contracts/", import.meta.url)),
     );
-    expect(contract.remote.semanticGeneration).toBe(2);
-    expect(contract.remote.minimumSdkGeneration).toBe(2);
+    expect(contract.remote.semanticGeneration).toBe(3);
+    expect(contract.remote.minimumSdkGeneration).toBe(3);
+    expect(contract.operations).toContainEqual(
+      expect.objectContaining({
+        method: "validateResources",
+        target: "keynes.validate_resources",
+        permissions: ["create_root_budget"],
+        replay: false,
+      }),
+    );
+    expect(contract.remote.procedures).toContainEqual(
+      expect.objectContaining({
+        method: "validateResources",
+        target: "keynes.remote_validate_resources",
+        revision: 1,
+      }),
+    );
     expect(contract.operations).toContainEqual(
       expect.objectContaining({
         method: "defineResources",
@@ -53,7 +71,7 @@ describe("PostgreSQL package build promotion", () => {
     expect(contract.remote.procedures).toContainEqual(
       expect.objectContaining({
         method: "createBudget",
-        revision: 2,
+        revision: 3,
       }),
     );
     expect(installationRecord.expectedTargets).toContain(
@@ -64,7 +82,7 @@ describe("PostgreSQL package build promotion", () => {
     );
   });
 
-  it("preserves every historical migration byte while adding Resource definitions", async () => {
+  it("preserves migrations 0001 through 0007 while adding configured creation", async () => {
     const expectedHashes = [
       "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
       "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
@@ -72,9 +90,10 @@ describe("PostgreSQL package build promotion", () => {
       "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
       "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
       "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+      "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
     ];
     for (const [index, migration] of installationRecord.migrations
-      .slice(0, 6)
+      .slice(0, 7)
       .entries()) {
       const bytes = await readFile(
         new URL(`../../migrations/${migration.path}`, import.meta.url),
@@ -92,7 +111,75 @@ describe("PostgreSQL package build promotion", () => {
       "0005-resource-bound-budget",
       "0006-remote-access",
       "0007-resource-definitions",
+      "0008-configured-creation",
     ]);
+  });
+
+  it("marks only configured creation as the current contract migration", () => {
+    expect(
+      migrationManifest.migrations.filter(
+        (migration) => migration.contract === true,
+      ),
+    ).toEqual([
+      {
+        id: "0008-configured-creation",
+        path: "0008-configured-creation.sql",
+        contract: true,
+      },
+    ]);
+    const contract = loadContract(
+      fileURLToPath(new URL("../../../contracts/", import.meta.url)),
+    );
+    expect(
+      installationRecord.migrations
+        .filter(({ contractDigest }) => contractDigest === contract.digest)
+        .map(({ id }) => id),
+    ).toEqual(["0008-configured-creation"]);
+  });
+
+  it("generates the configured creation migration deterministically without rewriting history", async () => {
+    const repositoryRoot = await mkdtemp(
+      join(tmpdir(), "keynes-postgresql-generation-"),
+    );
+    roots.push(repositoryRoot);
+    const packageRoot = join(repositoryRoot, "packages/postgresql");
+    await mkdir(packageRoot, { recursive: true });
+    await cp(
+      new URL("../../migrations/", import.meta.url),
+      join(packageRoot, "migrations"),
+      { recursive: true },
+    );
+    const contractRoot = fileURLToPath(
+      new URL("../../../contracts/", import.meta.url),
+    );
+    const options = {
+      check: false,
+      contract: loadContract(contractRoot),
+      policyProfile: loadPolicyProfile(contractRoot),
+      repositoryRoot,
+    };
+    const first = await generatePostgresql(options);
+    const paths = [
+      "generated/installation-record.json",
+      ...first.migrations.map(({ path }) => `migrations/${path}`),
+    ];
+    const before = await Promise.all(
+      paths.map((path) => readFile(join(packageRoot, path), "utf8")),
+    );
+    expect(await generatePostgresql(options)).toEqual(first);
+    expect(
+      await Promise.all(
+        paths.map((path) => readFile(join(packageRoot, path), "utf8")),
+      ),
+    ).toEqual(before);
+    await generatePostgresql({ ...options, check: true });
+    expect(first.contractMigrationId).toBe("0008-configured-creation");
+    const historical = await readFile(
+      join(packageRoot, "migrations/0007-resource-definitions.sql"),
+    );
+    expect(createHash("sha256").update(historical).digest("hex")).toBe(
+      "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+    );
   });
 
   it("preserves the previous dist when compilation fails", async () => {

@@ -33,6 +33,14 @@ const EXPECTED_OPERATIONS = [
     output: "DefineResourcesResult",
   },
   {
+    method: "validateResources",
+    target: "keynes.validate_resources",
+    permissions: ["create_root_budget"],
+    replay: false,
+    input: "ValidateResourcesQuery",
+    output: "ValidateResourcesResult",
+  },
+  {
     method: "createBudget",
     target: "keynes.create_budget",
     permissions: ["create_root_budget"],
@@ -67,8 +75,8 @@ const EXPECTED_OPERATIONS = [
 ] as const satisfies readonly ContractOperation[];
 
 const EXPECTED_REMOTE = {
-  semanticGeneration: 2,
-  minimumSdkGeneration: 2,
+  semanticGeneration: 3,
+  minimumSdkGeneration: 3,
   semanticIdentities: [
     "installation",
     "command_contract",
@@ -85,9 +93,17 @@ const EXPECTED_REMOTE = {
       output: "RemoteDefineResourcesResult",
     },
     {
+      method: "validateResources",
+      target: "keynes.remote_validate_resources",
+      revision: 1,
+      mode: "read",
+      input: "ValidateResourcesQuery",
+      output: "ValidateResourcesResult",
+    },
+    {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 2,
+      revision: 3,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",

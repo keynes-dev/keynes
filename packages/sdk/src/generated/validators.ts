@@ -3,6 +3,7 @@
 import type {
   DefineResourceTypeResult,
   DefineResourcesResult,
+  ValidateResourcesResult,
   CreateBudgetResult,
   RequestBudgetResult,
   SettleBudgetResult,
@@ -578,13 +579,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   CreateBudgetCommand: {
     type: "object",
     additionalProperties: false,
-    required: ["commandId", "resources", "allocation"],
+    required: ["commandId", "definitions", "amounts"],
     properties: {
       commandId: {
         $ref: "#/$defs/Uuid",
       },
-      resources: {
-        $ref: "#/$defs/ResourceSource",
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitions",
       },
       policies: {
         type: "array",
@@ -594,7 +595,7 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/PolicyDefinitionV1",
         },
       },
-      allocation: {
+      amounts: {
         $ref: "#/$defs/ResourceAllocation",
       },
     },
@@ -810,6 +811,7 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteProcedureName: {
     enum: [
       "defineResources",
+      "validateResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -1271,13 +1273,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteCreateBudgetCommand: {
     type: "object",
     additionalProperties: false,
-    required: ["operationKey", "resources", "allocation"],
+    required: ["operationKey", "definitions", "amounts"],
     properties: {
       operationKey: {
         $ref: "#/$defs/OperationKey",
       },
-      resources: {
-        $ref: "#/$defs/ResourceSource",
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitions",
       },
       policies: {
         type: "array",
@@ -1287,7 +1289,7 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/PolicyDefinitionV1",
         },
       },
-      allocation: {
+      amounts: {
         $ref: "#/$defs/ResourceAllocation",
       },
     },
@@ -2111,6 +2113,7 @@ const definitions: Readonly<Record<string, Schema>> = {
     enum: [
       "defineResource",
       "defineResources",
+      "validateResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -2591,36 +2594,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  ResourceSource: {
-    oneOf: [
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["kind", "definitions"],
-        properties: {
-          kind: {
-            const: "definitions",
-          },
-          definitions: {
-            $ref: "#/$defs/ResourceDefinitions",
-          },
-        },
-      },
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["kind", "bindingReference"],
-        properties: {
-          kind: {
-            const: "binding",
-          },
-          bindingReference: {
-            $ref: "#/$defs/ResourceBindingReference",
-          },
-        },
-      },
-    ],
-  },
   ResourceAllocation: {
     type: "object",
     propertyNames: {
@@ -2629,6 +2602,26 @@ const definitions: Readonly<Record<string, Schema>> = {
     },
     additionalProperties: {
       $ref: "#/$defs/Amount",
+    },
+  },
+  ValidateResourcesQuery: {
+    type: "object",
+    additionalProperties: false,
+    required: ["definitions"],
+    properties: {
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitions",
+      },
+    },
+  },
+  ValidateResourcesResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["valid"],
+    properties: {
+      valid: {
+        const: true,
+      },
     },
   },
   PolicyDigest: {
@@ -3993,6 +3986,12 @@ export function validateDefineResourcesResult(
   return validateDefinition("DefineResourcesResult", value).length === 0;
 }
 
+export function validateValidateResourcesResult(
+  value: unknown,
+): value is ValidateResourcesResult {
+  return validateDefinition("ValidateResourcesResult", value).length === 0;
+}
+
 export function validateCreateBudgetResult(
   value: unknown,
 ): value is CreateBudgetResult {
@@ -4093,6 +4092,12 @@ export function validateDefineResourcesCommandIssues(
   return validateDefinition("DefineResourcesCommand", value);
 }
 
+export function validateValidateResourcesQueryIssues(
+  value: unknown,
+): ValidationIssue[] {
+  return validateDefinition("ValidateResourcesQuery", value);
+}
+
 export function validateCreateBudgetCommandIssues(
   value: unknown,
 ): ValidationIssue[] {
@@ -4180,6 +4185,8 @@ export function validateOperationInputIssues(
       return validateDefineResourceTypeCommandIssues(value);
     case "defineResources":
       return validateDefineResourcesCommandIssues(value);
+    case "validateResources":
+      return validateValidateResourcesQueryIssues(value);
     case "createBudget":
       return validateCreateBudgetCommandIssues(value);
     case "requestBudget":

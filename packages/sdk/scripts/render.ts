@@ -268,10 +268,12 @@ function renderClientSource(contract: Contract, digest: string): string {
     "RemoteProcedureName",
   ];
   const validatorNames = [
-    ...contract.operations.map((operation) => `validate${operation.output}`),
-    ...contract.remote.procedures.flatMap((procedure) => [
-      `validate${procedure.input}Issues`,
-      `validate${procedure.output}`,
+    ...new Set([
+      ...contract.operations.map((operation) => `validate${operation.output}`),
+      ...contract.remote.procedures.flatMap((procedure) => [
+        `validate${procedure.input}Issues`,
+        `validate${procedure.output}`,
+      ]),
     ]),
     "validateOperationInputIssues",
     "validateRemoteErrorEnvelope",

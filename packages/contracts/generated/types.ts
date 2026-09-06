@@ -64,24 +64,6 @@ export type BudgetHistoryEntry =
   | BudgetSettlementRecordedHistoryEntry;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "ResourceSource".
- */
-export type ResourceSource =
-  | {
-      kind: "definitions";
-      definitions: ResourceDefinitions;
-    }
-  | {
-      kind: "binding";
-      bindingReference: ResourceBindingReference;
-    };
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
- * via the `definition` "ResourceBindingReference".
- */
-export type ResourceBindingReference = string;
-/**
- * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "PolicyDigest".
  */
 export type PolicyDigest = string;
@@ -148,6 +130,7 @@ export type RemoteMutationName =
  */
 export type RemoteProcedureName =
   | "defineResources"
+  | "validateResources"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"
@@ -209,6 +192,11 @@ export type RemoteMutationResult =
   | RemoteSettleBudgetResult;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ResourceBindingReference".
+ */
+export type ResourceBindingReference = string;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RecoveredCommittedOperation".
  */
 export type RecoveredCommittedOperation =
@@ -253,6 +241,7 @@ export type RemoteErrorEnvelope =
 export type OperationName =
   | "defineResource"
   | "defineResources"
+  | "validateResources"
   | "createBudget"
   | "requestBudget"
   | "settleBudget"
@@ -701,12 +690,12 @@ export interface DefineResourceTypeResult {
  */
 export interface CreateBudgetCommand {
   commandId: Uuid;
-  resources: ResourceSource;
+  definitions: ResourceDefinitions;
   /**
    * @maxItems 16
    */
   policies?: PolicyDefinitionV1[];
-  allocation: ResourceAllocation;
+  amounts: ResourceAllocation;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1296,12 +1285,12 @@ export interface RemoteBudgetSettlementHistoryEntry {
  */
 export interface RemoteCreateBudgetCommand {
   operationKey: OperationKey;
-  resources: ResourceSource;
+  definitions: ResourceDefinitions;
   /**
    * @maxItems 16
    */
   policies?: PolicyDefinitionV1[];
-  allocation: ResourceAllocation;
+  amounts: ResourceAllocation;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1798,4 +1787,18 @@ export interface DefineResourcesResult {
 export interface RemoteDefineResourcesCommand {
   operationKey: OperationKey;
   definitions: ResourceDefinitions;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ValidateResourcesQuery".
+ */
+export interface ValidateResourcesQuery {
+  definitions: ResourceDefinitions;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ValidateResourcesResult".
+ */
+export interface ValidateResourcesResult {
+  valid: true;
 }

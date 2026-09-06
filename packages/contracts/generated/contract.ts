@@ -1,12 +1,12 @@
 // Generated from packages/contracts. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f";
+  "dbf303b6db6468735e1fcecb0cb3ed746e938b183847501e68b7f58900b7fa04";
 export const REMOTE_PROCEDURES_DIGEST =
-  "36571ea4085453a0a0775fed58dbaabecd39e53ca4a4ec9b57250cee79b63253";
+  "bfcd38aa5ab6571e6a1c24ee623b52b4d242ac81954f2b2c131535db88e5f0f0";
 export const REMOTE_CONTRACT = {
-  semanticGeneration: 2,
-  minimumSdkGeneration: 2,
+  semanticGeneration: 3,
+  minimumSdkGeneration: 3,
   semanticIdentities: [
     "installation",
     "command_contract",
@@ -23,9 +23,17 @@ export const REMOTE_CONTRACT = {
       output: "RemoteDefineResourcesResult",
     },
     {
+      method: "validateResources",
+      target: "keynes.remote_validate_resources",
+      revision: 1,
+      mode: "read",
+      input: "ValidateResourcesQuery",
+      output: "ValidateResourcesResult",
+    },
+    {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 2,
+      revision: 3,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",

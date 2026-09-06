@@ -87,6 +87,63 @@ Result: "Lean already. Ship." No changes requested. Focused formatting and
 `git diff --check` pass. T001-T003 are complete; no behavioral implementation
 belongs to this setup phase.
 
+## Phase 2: contract and generation
+
+Executed against Phase 1 commit `dc702c7` plus the Phase 2 worktree changes on
+September 6, 2026, using the same Node/pnpm host. Separate subagents authored
+T004 and T005 before production changes.
+
+| Check                                                                                                                                   | Result                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T004 red: `pnpm --filter @keynes/contracts exec vitest run test/generate-contracts.test.ts test/contract-client.test.ts --maxWorkers=1` | 14 expected failures, 15 passes. Missing validation descriptor/schema/client, rejected new creation shapes, accepted old shapes, generation 2 and creation revision 2 |
+| T005 red: `pnpm --filter @keynes/postgresql exec vitest run test/unit/build.test.ts --maxWorkers=1`                                     | 4 expected failures, 5 passes. Generation 3 and 0008/current-marker expectations fail; immutable historical hashes pass                                               |
+| T004 green, same command                                                                                                                | PASS, 29 tests                                                                                                                                                        |
+| Final `pnpm --filter @keynes/contracts test`                                                                                            | PASS, 63 tests in 5 files                                                                                                                                             |
+| Final T005 green, same command                                                                                                          | PASS, 9 tests; two generations and check mode agree in an isolated migration tree                                                                                     |
+| `pnpm generate` and `pnpm generate:check`                                                                                               | PASS                                                                                                                                                                  |
+| Focused formatting and `git diff --check`                                                                                               | PASS                                                                                                                                                                  |
+| `pnpm typecheck`                                                                                                                        | FAILED, remaining SDK/shared-scenario integration is incomplete                                                                                                       |
+
+The contract now declares read-only validation, definitions/amounts creation,
+semantic/minimum SDK generation 3, creation revision 3, and validation revision 1.
+Generated outputs come from their existing owners. The shared test client exposes
+validation without mutation replay fields. The generator deduplicates imports
+when canonical and remote procedures share a result type.
+
+0007 is now read from its immutable file instead of rendered from the current
+contract. Its SHA-256 remains
+`dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6`.
+All 0001-0007 hash assertions pass. The sole current contract marker is 0008,
+whose Phase 2 SHA-256 is
+`75c8df12d0270f96978537607e6afcf235dc6b36f4353ccafbf9d1f446e2bfc0`.
+The current contract digest is
+`dbf303b6db6468735e1fcecb0cb3ed746e938b183847501e68b7f58900b7fa04`.
+The preview installation profile is unchanged.
+
+0008 currently carries compatibility metadata. Runtime validation and creation
+procedures are not implemented in this phase; native installation and runtime
+qualification remain NOT RUN. No permissive procedure stubs were added.
+
+The typecheck first exposed a duplicate generated validation import, which was
+fixed in the renderer, and a widened test declaration, fixed with `satisfies`.
+The final run still reports 247 diagnostics from the incompatible creation
+transition, including old `resources`/`allocation` callers, removed ResourceSource
+imports, and missing validation implementations/test doubles. These are feature
+integration failures, not unrelated baseline failures or expected behavioral red
+evidence. Phases 3-7 must resolve them before final acceptance. The final typecheck
+log is local at `/tmp/key-78-phase2-typecheck-final.log`; T004 red output is at
+`/tmp/key-78-t004-red.log`.
+
+Two small T042 fixture adaptations were brought forward because T008 validates
+canonical fixtures: creation now uses definitions/amounts, and the expected
+operation list includes validation. Remaining caller adoption stays in T042.
+The shared client wiring was also required for T004 green. No production startup
+or creation behavior was moved ahead of its tests.
+
+Independent `ponytail-review` found redundant test method guards and duplicated
+AJV setup. Both were simplified. The follow-up review reports "Lean already.
+Ship." T004-T008 are complete as a generation checkpoint only.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

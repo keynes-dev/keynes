@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe("contract source", () => {
-  it("loads the six allowlisted operations in caller order", () => {
+  it("loads the allowlisted operations in caller order", () => {
     const contract = loadContract(packageRoot);
     expect(contract.source.operations.map(({ method }) => method)).toEqual(
       expectations.operationMethods,
@@ -40,6 +40,7 @@ describe("contract source", () => {
       ["define_resource_type"],
       ["define_resource_type"],
       ["create_root_budget"],
+      ["create_root_budget"],
       ["request_budget"],
       ["settle_budget"],
       ["read_budget"],
@@ -48,24 +49,102 @@ describe("contract source", () => {
     expect(contract.remoteDigest).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("describes catalog validation as an authorized read without replay", () => {
+    const contract = loadContract(packageRoot);
+    expect(
+      contract.source.operations.find(
+        ({ method }) => method === "validateResources",
+      ),
+    ).toEqual({
+      method: "validateResources",
+      target: "keynes.validate_resources",
+      permissions: ["create_root_budget"],
+      replay: false,
+      input: "ValidateResourcesQuery",
+      output: "ValidateResourcesResult",
+    });
+  });
+
+  it.each([
+    [
+      "ValidateResourcesQuery",
+      {
+        definitions: {
+          seats: { unit: "seat", accountingBehavior: "reusable" },
+        },
+      },
+      true,
+    ],
+    [
+      "ValidateResourcesQuery",
+      { definitions: {}, commandId: fixtures.commands.createRoot.commandId },
+      false,
+    ],
+    ["ValidateResourcesResult", { valid: true }, true],
+    ["ValidateResourcesResult", { valid: false }, false],
+    ["ValidateResourcesResult", { valid: true, replayed: false }, false],
+  ])("validates %s shape %j", (definition, value, accepted) => {
+    const validate = contractValidator(definition);
+    expect(validate(value), JSON.stringify(validate.errors)).toBe(accepted);
+  });
+
+  it.each(["CreateBudgetCommand", "RemoteCreateBudgetCommand"])(
+    "%s accepts definitions and zero-inclusive amounts",
+    (definition) => {
+      const validate = contractValidator(definition);
+      const identity =
+        definition === "CreateBudgetCommand"
+          ? { commandId: fixtures.commands.createRoot.commandId }
+          : { operationKey: `kop_v1_${"a".repeat(43)}` };
+      const definitions = {
+        tokens: { unit: "token", accountingBehavior: "consumable" },
+        seats: { unit: "seat", accountingBehavior: "reusable" },
+      };
+      for (const amounts of [
+        { tokens: 10, seats: 0 },
+        { tokens: 0, seats: 0 },
+      ]) {
+        expect
+          .soft(
+            validate({ ...identity, definitions, amounts }),
+            JSON.stringify(validate.errors),
+          )
+          .toBe(true);
+      }
+    },
+  );
+
+  it.each(["CreateBudgetCommand", "RemoteCreateBudgetCommand"])(
+    "%s rejects old ResourceSource creation inputs",
+    (definition) => {
+      const validate = contractValidator(definition);
+      const identity =
+        definition === "CreateBudgetCommand"
+          ? { commandId: fixtures.commands.createRoot.commandId }
+          : { operationKey: `kop_v1_${"a".repeat(43)}` };
+      for (const resources of [
+        {
+          kind: "definitions",
+          definitions: {
+            modelTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+        },
+        { kind: "binding", bindingReference: `krs_v1_${"a".repeat(43)}` },
+      ]) {
+        expect
+          .soft(
+            validate({
+              ...identity,
+              resources,
+              allocation: { modelTokens: 1 },
+            }),
+          )
+          .toBe(false);
+      }
+    },
+  );
+
   it("validates the canonical command fixtures", () => {
-    const schema = loadContract(packageRoot).schema;
-    const ajv = new Ajv2020({ strict: true });
-    ajv.addKeyword({
-      keyword: "maxUtf8Bytes",
-      type: "string",
-      schemaType: "number",
-      validate: (limit: number, value: string) =>
-        new TextEncoder().encode(value).byteLength <= limit,
-    });
-    ajv.addKeyword({
-      keyword: "maxCanonicalUtf8Bytes",
-      type: "object",
-      schemaType: "number",
-      validate: (limit: number, value: unknown) =>
-        new TextEncoder().encode(JSON.stringify(value)).byteLength <= limit,
-    });
-    ajv.addSchema(schema, contractSource.schema);
     for (const [definition, fixture] of [
       ["DefineResourceTypeCommand", fixtures.commands.defineConsumable],
       ["DefineResourceTypeCommand", fixtures.commands.defineReusable],
@@ -74,13 +153,8 @@ describe("contract source", () => {
       ["SettleBudgetCommand", fixtures.commands.settleChild],
       ["GetBudgetQuery", fixtures.commands.getChild],
     ] as const) {
-      const validate = ajv.getSchema(
-        `${contractSource.schema}#/$defs/${definition}`,
-      );
-      expect(validate, `missing schema definition ${definition}`).toBeTypeOf(
-        "function",
-      );
-      expect(validate?.(fixture), JSON.stringify(validate?.errors)).toBe(true);
+      const validate = contractValidator(definition);
+      expect(validate(fixture), JSON.stringify(validate.errors)).toBe(true);
     }
   });
 
@@ -88,8 +162,8 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toEqual({
-      semanticGeneration: 2,
-      minimumSdkGeneration: 2,
+      semanticGeneration: 3,
+      minimumSdkGeneration: 3,
       semanticIdentities: [
         "installation",
         "command_contract",
@@ -106,9 +180,17 @@ describe("contract source", () => {
           output: "RemoteDefineResourcesResult",
         },
         {
+          method: "validateResources",
+          target: "keynes.remote_validate_resources",
+          revision: 1,
+          mode: "read",
+          input: "ValidateResourcesQuery",
+          output: "ValidateResourcesResult",
+        },
+        {
           method: "createBudget",
           target: "keynes.remote_create_budget",
-          revision: 2,
+          revision: 3,
           mode: "mutation",
           input: "RemoteCreateBudgetCommand",
           output: "RemoteCreateBudgetResult",
@@ -444,4 +526,32 @@ function makeTemporaryDirectory(): string {
   const root = mkdtempSync(join(tmpdir(), "keynes-contracts-"));
   temporaryDirectories.push(root);
   return root;
+}
+
+function contractValidator(definition: string) {
+  const ajv = new Ajv2020({ strict: true });
+  ajv.addKeyword({
+    keyword: "maxUtf8Bytes",
+    type: "string",
+    schemaType: "number",
+    validate: (limit: number, value: string) =>
+      new TextEncoder().encode(value).byteLength <= limit,
+  });
+  ajv.addKeyword({
+    keyword: "maxCanonicalUtf8Bytes",
+    type: "object",
+    schemaType: "number",
+    validate: (limit: number, value: unknown) =>
+      new TextEncoder().encode(JSON.stringify(value)).byteLength <= limit,
+  });
+  ajv.addSchema(loadContract(packageRoot).schema, contractSource.schema);
+  const validate = ajv.getSchema(
+    `${contractSource.schema}#/$defs/${definition}`,
+  );
+  expect(validate, `missing schema definition ${definition}`).toBeTypeOf(
+    "function",
+  );
+  if (validate === undefined)
+    throw new Error(`missing schema definition ${definition}`);
+  return validate;
 }
