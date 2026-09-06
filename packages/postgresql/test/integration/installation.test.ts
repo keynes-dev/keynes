@@ -119,6 +119,7 @@ describe("native PostgreSQL installation", () => {
       "0004-policy",
       "0005-resource-bound-budget",
       "0006-remote-access",
+      "0007-resource-definitions",
     ]);
     expect(migrations.rows.at(-3)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
     expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);

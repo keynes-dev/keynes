@@ -25,6 +25,11 @@
     {
       "id": "0006-remote-access",
       "path": "0006-remote-access.sql",
+      "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
+    },
+    {
+      "id": "0007-resource-definitions",
+      "path": "0007-resource-definitions.sql",
       "contract": true
     }
   ]

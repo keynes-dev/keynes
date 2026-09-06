@@ -18,6 +18,42 @@ afterEach(() => {
 });
 
 describe("local runtime lifecycle", () => {
+  it("drains independent definitions admitted before close", async () => {
+    const keynes = await createKeynes();
+    const first = keynes.defineResources({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
+    const second = keynes.defineResources({
+      workUnits: { unit: "different", accountingBehavior: "consumable" },
+    });
+    const firstResult = expect(first).resolves.toBeDefined();
+    const secondResult = expect(second).rejects.toMatchObject({
+      code: "resource_type_conflict",
+    });
+    const closing = keynes.close();
+    await Promise.all([firstResult, secondResult]);
+    await expect(closing).resolves.toBeUndefined();
+  });
+
+  it("rejects late independent definitions before reading malformed input", async () => {
+    const keynes = await createKeynes();
+    const read = vi.fn(() => {
+      throw new Error("must not read closed input");
+    });
+    const definitions = Object.defineProperty({}, "workUnits", {
+      enumerable: true,
+      get: read,
+    });
+    const closing = keynes.close();
+    const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
+      definitions,
+    ]);
+    expect(result).toBeInstanceOf(Promise);
+    await expect(result).rejects.toMatchObject({ code: "runtime_closed" });
+    expect(read).not.toHaveBeenCalled();
+    await closing;
+  });
+
   it("serializes overlapping calls and drains admitted work before close", async () => {
     const keynes = await createKeynes();
     const root = await keynes.createBudget(workUnitResources, {

@@ -13,6 +13,8 @@ import {
 } from "./budget.js";
 import type {
   CreateBudgetCommand,
+  DefineResourcesCommand,
+  RemoteDefineResourcesCommand,
   RemoteBudgetProjection,
 } from "./generated/types.js";
 import { createRemoteKeynesClient, KeynesError } from "./generated/client.js";
@@ -24,6 +26,14 @@ import {
   openConfiguredRuntime,
 } from "./local/runtime.js";
 import { createResourceBinding } from "./resource-binding.js";
+import {
+  createResourceDefinitionBinding,
+  type ResourceBinding,
+} from "./resource-definition-binding.js";
+import {
+  validateDefineResourcesCommandIssues,
+  validateRemoteDefineResourcesCommandIssues,
+} from "./generated/validators.js";
 import {
   createOpenedRemoteResourceBinding,
   createRemoteBudgetHandle,
@@ -43,13 +53,16 @@ import {
   type BudgetReference,
   type OperationKey,
   type RecoverOperationResult,
+  type RemoteOperationOptions,
 } from "./remote/references.js";
 import { invokeRemoteMutation } from "./remote/retry.js";
 import {
   prepareRootResources,
   resourceInstallation,
   rootResourceEnvelope,
+  snapshotResourceDefinitions,
   type ResourceDefinitions,
+  type ResourceDefinitionsInput,
   type ResourceSchema,
 } from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
@@ -84,6 +97,11 @@ interface RootBudgetCreator {
 
 export interface Keynes extends AsyncDisposable {
   readonly [keynesBrand]: undefined;
+  readonly defineResources: <
+    const Definitions extends ResourceDefinitionsInput,
+  >(
+    definitions: Definitions,
+  ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
   readonly createBudget: RootBudgetCreator;
   readonly close: () => Promise<void>;
   readonly [Symbol.asyncDispose]: () => Promise<void>;
@@ -123,7 +141,16 @@ interface RemoteBudgetOpener {
   }): Promise<RemoteBudget<Extract<keyof Definitions, string>>>;
 }
 
-export interface RemoteKeynes extends Omit<Keynes, "createBudget"> {
+export interface RemoteKeynes extends Omit<
+  Keynes,
+  "createBudget" | "defineResources"
+> {
+  readonly defineResources: <
+    const Definitions extends ResourceDefinitionsInput,
+  >(
+    definitions: Definitions,
+    options?: RemoteOperationOptions,
+  ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
   readonly createBudget: RemoteRootBudgetCreator;
   readonly openBudget: RemoteBudgetOpener;
   readonly recoverOperation: (
@@ -202,9 +229,43 @@ export async function createKeynes(
     if (result.operationKey !== operationKey) throw remoteResultMismatch();
     return projectRecoverOperationResult(result);
   };
+  const defineResources: RemoteKeynes["defineResources"] = async (
+    definitions,
+    ...options
+  ) => {
+    const snapshot = snapshotResourceDefinitions(definitions);
+    const copiedOptions = options.map((option) => {
+      if (!isRecord(option)) return option;
+      if (Object.getOwnPropertySymbols(option).length > 0) {
+        throw new KeynesSdkError("invalid_configuration", {
+          field: "options",
+          reason: "unsupported",
+        });
+      }
+      return Object.fromEntries(
+        Object.getOwnPropertyNames(option).map((key) => [key, option[key]]),
+      );
+    });
+    const { operationKey } = splitRemoteMutationOptions(
+      copiedOptions,
+      new Set(),
+    );
+    const input = { operationKey, definitions: snapshot };
+    requireDefinitionInput(
+      input,
+      validateRemoteDefineResourcesCommandIssues(input),
+    );
+    const result = await invokeRemoteMutation(
+      "defineResources",
+      operationKey,
+      () => client.defineResources(input as RemoteDefineResourcesCommand),
+    );
+    return createResourceDefinitionBinding(result);
+  };
   const close = (): Promise<void> => executor.close();
   return Object.freeze({
     [keynesBrand]: undefined,
+    defineResources,
     createBudget,
     openBudget,
     recoverOperation,
@@ -214,14 +275,54 @@ export async function createKeynes(
 }
 
 function createKeynesHandle(runtime: LocalRuntime): LocalKeynes {
+  const defineResources: LocalKeynes["defineResources"] = async (
+    definitions,
+  ) => {
+    if (runtime.state !== "open")
+      throw new KeynesSdkError("runtime_closed", {});
+    const input = {
+      commandId: randomUUID(),
+      definitions: snapshotResourceDefinitions(definitions),
+    };
+    return admit(runtime, async () => {
+      requireDefinitionInput(
+        input,
+        validateDefineResourcesCommandIssues(input),
+      );
+      const result = await invokeMutation(() =>
+        runtime.client.defineResources(input as DefineResourcesCommand),
+      );
+      return createResourceDefinitionBinding(result);
+    });
+  };
   const createBudget: RootBudgetCreator = (schema, allocation, ...options) =>
     createRootBudget(runtime, schema, allocation, ...options);
   const close = (): Promise<void> => closeRuntime(runtime);
   return Object.freeze({
     [keynesBrand]: undefined,
+    defineResources,
     createBudget,
     close,
     [Symbol.asyncDispose]: close,
+  });
+}
+
+function requireDefinitionInput(
+  input: { readonly definitions: unknown },
+  issues: { readonly path: string; readonly rule: string }[],
+): void {
+  if (
+    isRecord(input.definitions) &&
+    Object.keys(input.definitions).length === 0
+  ) {
+    issues.push({ path: "/definitions", rule: "minProperties" });
+  }
+  const [first, ...remaining] = issues;
+  if (first === undefined) return;
+  throw new KeynesError({
+    kind: "error",
+    code: "invalid_command",
+    details: { operation: "defineResources", issues: [first, ...remaining] },
   });
 }
 

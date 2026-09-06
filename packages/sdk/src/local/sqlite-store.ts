@@ -65,6 +65,7 @@ CREATE TABLE commands (
   body_digest TEXT NOT NULL,
   principal_id TEXT NOT NULL,
   result_json TEXT,
+  binding_reference TEXT UNIQUE,
   PRIMARY KEY (tenant_id, command_id)
 );
 CREATE TABLE resource_types (
@@ -108,6 +109,28 @@ CREATE TABLE history_entries (
 export class SqliteStore {
   readonly #database: DatabaseSync;
   readonly #statements: ReturnType<typeof prepareStatements>;
+
+  inspectState() {
+    const row = this.#database
+      .prepare(`SELECT
+      (SELECT count(*) FROM resource_types) AS resources,
+      (SELECT count(*) FROM commands WHERE result_json IS NOT NULL) AS commands,
+      (SELECT count(*) FROM budgets) AS budgets,
+      (SELECT count(*) FROM budget_resources) AS holdings,
+      (SELECT count(*) FROM history_entries) AS history,
+      (SELECT coalesce(sum(allocated_amount), 0) FROM budget_resources) AS quantity
+    `)
+      .get();
+    if (row === undefined) throw new Error("Missing SQLite state counts");
+    return {
+      resources: Number(row.resources),
+      commands: Number(row.commands),
+      budgets: Number(row.budgets),
+      holdings: Number(row.holdings),
+      history: Number(row.history),
+      quantity: Number(row.quantity),
+    };
+  }
 
   private constructor(database: DatabaseSync) {
     this.#database = database;
@@ -212,6 +235,21 @@ export class SqliteStore {
     );
     if (stored.changes !== 1 && stored.changes !== 1n) {
       throw new Error("SQLite failed to store command result");
+    }
+  }
+
+  storeBindingReference(
+    tenantId: string,
+    commandId: string,
+    reference: string,
+  ): void {
+    const stored = this.#statements.storeBindingReference.run(
+      reference,
+      tenantId,
+      commandId,
+    );
+    if (stored.changes !== 1 && stored.changes !== 1n) {
+      throw new Error("SQLite failed to store Resource binding reference");
     }
   }
 
@@ -374,6 +412,9 @@ function prepareStatements(database: DatabaseSync) {
     ),
     storeResult: database.prepare(
       "UPDATE commands SET result_json = ? WHERE tenant_id = ? AND command_id = ?",
+    ),
+    storeBindingReference: database.prepare(
+      "UPDATE commands SET binding_reference = ? WHERE tenant_id = ? AND command_id = ? AND operation = 'defineResources' AND binding_reference IS NULL",
     ),
     resourceByName: prepareRead(
       "SELECT resource_type_id, definition_command_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id FROM resource_types WHERE tenant_id = ? AND canonical_name = ?",

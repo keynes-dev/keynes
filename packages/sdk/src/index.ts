@@ -38,6 +38,7 @@ export type {
   VariadicNodeV1,
 } from "./generated/policy-types.js";
 export { createKeynes } from "./keynes.js";
+export type { ResourceBinding } from "./resource-definition-binding.js";
 export type {
   Keynes,
   LocalKeynes,

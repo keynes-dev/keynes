@@ -10,9 +10,17 @@
       "output": "DefineResourceTypeResult"
     },
     {
+      "method": "defineResources",
+      "target": "keynes.define_resources",
+      "permissions": ["define_resource_type"],
+      "replay": true,
+      "input": "DefineResourcesCommand",
+      "output": "DefineResourcesResult"
+    },
+    {
       "method": "createBudget",
       "target": "keynes.create_budget",
-      "permissions": ["define_resource_type", "create_root_budget"],
+      "permissions": ["create_root_budget"],
       "replay": true,
       "input": "CreateBudgetCommand",
       "output": "CreateBudgetResult"
@@ -43,8 +51,8 @@
     }
   ],
   "remote": {
-    "semanticGeneration": 1,
-    "minimumSdkGeneration": 1,
+    "semanticGeneration": 2,
+    "minimumSdkGeneration": 2,
     "semanticIdentities": [
       "installation",
       "command_contract",
@@ -53,9 +61,17 @@
     ],
     "procedures": [
       {
+        "method": "defineResources",
+        "target": "keynes.remote_define_resources",
+        "revision": 1,
+        "mode": "mutation",
+        "input": "RemoteDefineResourcesCommand",
+        "output": "RemoteDefineResourcesResult"
+      },
+      {
         "method": "createBudget",
         "target": "keynes.remote_create_budget",
-        "revision": 1,
+        "revision": 2,
         "mode": "mutation",
         "input": "RemoteCreateBudgetCommand",
         "output": "RemoteCreateBudgetResult"

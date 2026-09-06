@@ -11,6 +11,195 @@ const setupResources = defineResources({
 });
 
 describe("local Keynes facade", () => {
+  it("defines an opaque frozen binding without reflective or JSON state", async () => {
+    const keynes = await createKeynes();
+    try {
+      const binding = await keynes.defineResources({
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      });
+      expect(Object.isFrozen(binding)).toBe(true);
+      expect(Object.keys(binding)).toEqual([]);
+      expect(JSON.stringify(binding)).toBe("{}");
+      for (const key of Reflect.ownKeys(binding)) {
+        expect(Object.getOwnPropertyDescriptor(binding, key)).toMatchObject({
+          value: undefined,
+          writable: false,
+          configurable: false,
+        });
+      }
+      expect(Reflect.set(binding, "bindingReference", "forged")).toBe(false);
+      for (const copy of [
+        { ...binding },
+        JSON.parse(JSON.stringify(binding)),
+      ]) {
+        await expect(
+          Reflect.apply(keynes.defineResources, keynes, [copy]),
+        ).rejects.toMatchObject({ code: "invalid_command" });
+      }
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots independent definitions before yielding to caller mutation", async () => {
+    const keynes = await createKeynes();
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    try {
+      const defining = keynes.defineResources(definitions);
+      definitions.workUnits.unit = "changed";
+      definitions.workUnits.accountingBehavior = "reusable";
+      await defining;
+      await expect(
+        keynes.defineResources({
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        }),
+      ).resolves.toBeDefined();
+      await expect(keynes.defineResources(definitions)).rejects.toMatchObject({
+        code: "resource_type_conflict",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([
+    ["empty batch", {}],
+    ["undefined entry", { workUnits: undefined }],
+    [
+      "undefined constructor entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        constructor: undefined,
+      },
+    ],
+    [
+      "undefined toString entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        toString: undefined,
+      },
+    ],
+    [
+      "undefined unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          unknown: undefined,
+        },
+      },
+    ],
+    [
+      "undefined constructor field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          constructor: undefined,
+        },
+      },
+    ],
+    [
+      "nonenumerable constructor entry",
+      Object.defineProperty(
+        { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+        "constructor",
+        { value: undefined },
+      ),
+    ],
+    [
+      "nonenumerable unknown field",
+      {
+        workUnits: Object.defineProperty(
+          { unit: "unit", accountingBehavior: "consumable" },
+          "unknown",
+          { value: undefined },
+        ),
+      },
+    ],
+    [
+      "symbol unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          [Symbol("unknown")]: undefined,
+        },
+      },
+    ],
+    [
+      "inherited unit",
+      {
+        workUnits: Object.assign(Object.create({ unit: "unit" }), {
+          accountingBehavior: "consumable",
+        }),
+      },
+    ],
+    [
+      "inherited behavior",
+      {
+        workUnits: Object.assign(
+          Object.create({ accountingBehavior: "consumable" }),
+          { unit: "unit" },
+        ),
+      },
+    ],
+  ])(
+    "rejects malformed independent definitions asynchronously: %s",
+    async (_name, definitions) => {
+      const keynes = await createKeynes();
+      try {
+        const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
+          definitions,
+        ]);
+        expect(result).toBeInstanceOf(Promise);
+        await expect(result).rejects.toMatchObject({ code: "invalid_command" });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects independent-definition getter failures through its Promise", async () => {
+    const keynes = await createKeynes();
+    const failure = new Error("definition getter failed");
+    const definitions = {
+      get workUnits(): never {
+        throw failure;
+      },
+    };
+    try {
+      const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
+        definitions,
+      ]);
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).rejects.toBe(failure);
+      await expect(
+        keynes.defineResources({
+          workUnits: { unit: "replacement", accountingBehavior: "reusable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("accepts constructor and toString as independent Resource names", async () => {
+    const keynes = await createKeynes();
+    try {
+      await expect(
+        keynes.defineResources({
+          constructor: { unit: "unit", accountingBehavior: "consumable" },
+          toString: { unit: "slot", accountingBehavior: "reusable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("opens without setup Resources and binds only allocated schema entries", async () => {
     const resources = defineResources({
       usdCents: { unit: "cent", accountingBehavior: "consumable" },

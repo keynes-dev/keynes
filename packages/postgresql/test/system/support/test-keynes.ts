@@ -119,6 +119,23 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
 
 function postgresContractHost(owner: PostgresDatabase): ContractTestHost {
   return {
+    async inspectState() {
+      const { rows } = await owner.database.query<
+        Awaited<ReturnType<ContractTestHost["inspectState"]>>
+      >(`
+        SELECT
+          (SELECT count(*)::integer FROM keynes_internal.resource_types) AS resources,
+          (SELECT count(*)::integer FROM keynes_internal.commands WHERE result IS NOT NULL) AS commands,
+          (SELECT count(*)::integer FROM keynes_internal.budgets) AS budgets,
+          (SELECT count(*)::integer FROM keynes_internal.budget_resources) AS holdings,
+          (SELECT count(*)::integer FROM keynes_internal.budget_history_entries) AS history,
+          (SELECT coalesce(sum(allocated_amount), 0)::double precision FROM keynes_internal.budget_resources) AS quantity
+      `);
+      const state = rows[0];
+      if (state === undefined)
+        throw new Error("Missing authority state counts");
+      return state;
+    },
     clientFor(fixture, options) {
       return createContractClient(
         createDatabaseProcedureCaller(

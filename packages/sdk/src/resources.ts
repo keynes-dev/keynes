@@ -22,6 +22,35 @@ export interface ResourceDefinition {
 
 export type ResourceDefinitions = Readonly<Record<string, ResourceDefinition>>;
 
+export type ResourceDefinitionsInput = Readonly<
+  Record<string, { readonly unit: string; readonly accountingBehavior: string }>
+>;
+
+export function snapshotResourceDefinitions(definitions: unknown): unknown {
+  if (!isRecord(definitions)) return definitions;
+  return Object.fromEntries(
+    ownDefinitionEntries(definitions, "$.definitions").map(
+      ([key, definition]) => [
+        key,
+        isRecord(definition)
+          ? Object.fromEntries(
+              ownDefinitionEntries(definition, `$.definitions.${key}`),
+            )
+          : definition,
+      ],
+    ),
+  );
+}
+
+function ownDefinitionEntries(value: Record<string, unknown>, path: string) {
+  if (Object.getOwnPropertySymbols(value).length > 0) {
+    throw invalidCommand("defineResources", path, "additionalProperties");
+  }
+  return Object.getOwnPropertyNames(value).map(
+    (key) => [key, value[key]] as const,
+  );
+}
+
 export interface ResourceSchema<
   Definitions extends ResourceDefinitions = ResourceDefinitions,
 > {

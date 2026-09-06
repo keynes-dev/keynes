@@ -2,10 +2,12 @@
 
 import type {
   DefineResourceTypeResult,
+  DefineResourcesResult,
   CreateBudgetResult,
   RequestBudgetResult,
   SettleBudgetResult,
   GetBudgetResult,
+  RemoteDefineResourcesResult,
   RemoteCreateBudgetResult,
   RemoteRequestBudgetResult,
   RemoteSettleBudgetResult,
@@ -576,13 +578,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   CreateBudgetCommand: {
     type: "object",
     additionalProperties: false,
-    required: ["commandId", "resources"],
+    required: ["commandId", "resources", "allocation"],
     properties: {
       commandId: {
         $ref: "#/$defs/Uuid",
       },
       resources: {
-        $ref: "#/$defs/RootResourceEnvelope",
+        $ref: "#/$defs/ResourceSource",
       },
       policies: {
         type: "array",
@@ -591,6 +593,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/PolicyDefinitionV1",
         },
+      },
+      allocation: {
+        $ref: "#/$defs/ResourceAllocation",
       },
     },
   },
@@ -800,10 +805,11 @@ const definitions: Readonly<Record<string, Schema>> = {
     pattern: "^khc_v1_[A-Za-z0-9_-]{43}$",
   },
   RemoteMutationName: {
-    enum: ["createBudget", "requestBudget", "settleBudget"],
+    enum: ["defineResources", "createBudget", "requestBudget", "settleBudget"],
   },
   RemoteProcedureName: {
     enum: [
+      "defineResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -1265,13 +1271,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteCreateBudgetCommand: {
     type: "object",
     additionalProperties: false,
-    required: ["operationKey", "resources"],
+    required: ["operationKey", "resources", "allocation"],
     properties: {
       operationKey: {
         $ref: "#/$defs/OperationKey",
       },
       resources: {
-        $ref: "#/$defs/RootResourceEnvelope",
+        $ref: "#/$defs/ResourceSource",
       },
       policies: {
         type: "array",
@@ -1280,6 +1286,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/PolicyDefinitionV1",
         },
+      },
+      allocation: {
+        $ref: "#/$defs/ResourceAllocation",
       },
     },
   },
@@ -1758,8 +1767,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       procedures: {
         type: "array",
-        minItems: 8,
-        maxItems: 8,
+        minItems: 9,
+        maxItems: 9,
         uniqueItems: true,
         items: {
           $ref: "#/$defs/RemoteProcedureCapability",
@@ -2076,6 +2085,7 @@ const definitions: Readonly<Record<string, Schema>> = {
   OperationName: {
     enum: [
       "defineResource",
+      "defineResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -2422,6 +2432,179 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
       },
     ],
+  },
+  ResourceDefinitions: {
+    type: "object",
+    propertyNames: {
+      type: "string",
+      pattern: "^[a-z][A-Za-z0-9]*$",
+    },
+    additionalProperties: {
+      type: "object",
+      additionalProperties: false,
+      required: ["unit", "accountingBehavior"],
+      properties: {
+        unit: {
+          type: "string",
+          minLength: 1,
+          maxLength: 64,
+          pattern: "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001f\\u007f]+$",
+        },
+        accountingBehavior: {
+          type: "string",
+          enum: ["consumable", "reusable"],
+        },
+      },
+    },
+  },
+  ResourceBindingReference: {
+    type: "string",
+    pattern: "^krs_v1_[A-Za-z0-9_-]{43}$",
+  },
+  DefineResourcesCommand: {
+    type: "object",
+    additionalProperties: false,
+    required: ["commandId", "definitions"],
+    properties: {
+      commandId: {
+        $ref: "#/$defs/Uuid",
+      },
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitions",
+      },
+    },
+  },
+  DefinedResourceMember: {
+    type: "object",
+    additionalProperties: false,
+    required: ["key", "resourceType", "definitionEvidence"],
+    properties: {
+      key: {
+        type: "string",
+        pattern: "^[a-z][A-Za-z0-9]*$",
+      },
+      resourceType: {
+        $ref: "#/$defs/ResourceTypeProjection",
+      },
+      definitionEvidence: {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "commandId", "principalId", "definitionDigest"],
+        properties: {
+          kind: {
+            const: "resource_type_defined",
+          },
+          commandId: {
+            $ref: "#/$defs/Uuid",
+          },
+          principalId: {
+            $ref: "#/$defs/Uuid",
+          },
+          definitionDigest: {
+            $ref: "#/$defs/Digest",
+          },
+        },
+      },
+    },
+  },
+  DefineResourcesResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "bindingReference", "resources", "replayed"],
+    properties: {
+      kind: {
+        const: "defined",
+      },
+      bindingReference: {
+        $ref: "#/$defs/ResourceBindingReference",
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        items: {
+          $ref: "#/$defs/DefinedResourceMember",
+        },
+      },
+      replayed: {
+        type: "boolean",
+      },
+    },
+  },
+  RemoteDefineResourcesCommand: {
+    type: "object",
+    additionalProperties: false,
+    required: ["operationKey", "definitions"],
+    properties: {
+      operationKey: {
+        $ref: "#/$defs/OperationKey",
+      },
+      definitions: {
+        $ref: "#/$defs/ResourceDefinitions",
+      },
+    },
+  },
+  RemoteDefineResourcesResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "bindingReference", "resources", "replayed"],
+    properties: {
+      kind: {
+        const: "defined",
+      },
+      bindingReference: {
+        $ref: "#/$defs/ResourceBindingReference",
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        items: {
+          $ref: "#/$defs/DefinedResourceMember",
+        },
+      },
+      replayed: {
+        type: "boolean",
+      },
+    },
+  },
+  ResourceSource: {
+    oneOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "definitions"],
+        properties: {
+          kind: {
+            const: "definitions",
+          },
+          definitions: {
+            $ref: "#/$defs/ResourceDefinitions",
+          },
+        },
+      },
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "bindingReference"],
+        properties: {
+          kind: {
+            const: "binding",
+          },
+          bindingReference: {
+            $ref: "#/$defs/ResourceBindingReference",
+          },
+        },
+      },
+    ],
+  },
+  ResourceAllocation: {
+    type: "object",
+    propertyNames: {
+      type: "string",
+      pattern: "^[a-z][A-Za-z0-9]*$",
+    },
+    additionalProperties: {
+      $ref: "#/$defs/Amount",
+    },
   },
   PolicyDigest: {
     type: "string",
@@ -3779,6 +3962,12 @@ export function validateDefineResourceTypeResult(
   return validateDefinition("DefineResourceTypeResult", value).length === 0;
 }
 
+export function validateDefineResourcesResult(
+  value: unknown,
+): value is DefineResourcesResult {
+  return validateDefinition("DefineResourcesResult", value).length === 0;
+}
+
 export function validateCreateBudgetResult(
   value: unknown,
 ): value is CreateBudgetResult {
@@ -3801,6 +3990,12 @@ export function validateGetBudgetResult(
   value: unknown,
 ): value is GetBudgetResult {
   return validateDefinition("GetBudgetResult", value).length === 0;
+}
+
+export function validateRemoteDefineResourcesResult(
+  value: unknown,
+): value is RemoteDefineResourcesResult {
+  return validateDefinition("RemoteDefineResourcesResult", value).length === 0;
 }
 
 export function validateRemoteCreateBudgetResult(
@@ -3867,6 +4062,12 @@ export function validateDefineResourceTypeCommandIssues(
   return validateDefinition("DefineResourceTypeCommand", value);
 }
 
+export function validateDefineResourcesCommandIssues(
+  value: unknown,
+): ValidationIssue[] {
+  return validateDefinition("DefineResourcesCommand", value);
+}
+
 export function validateCreateBudgetCommandIssues(
   value: unknown,
 ): ValidationIssue[] {
@@ -3889,6 +4090,12 @@ export function validateGetBudgetQueryIssues(
   value: unknown,
 ): ValidationIssue[] {
   return validateDefinition("GetBudgetQuery", value);
+}
+
+export function validateRemoteDefineResourcesCommandIssues(
+  value: unknown,
+): ValidationIssue[] {
+  return validateDefinition("RemoteDefineResourcesCommand", value);
 }
 
 export function validateRemoteCreateBudgetCommandIssues(
@@ -3946,6 +4153,8 @@ export function validateOperationInputIssues(
   switch (operation) {
     case "defineResource":
       return validateDefineResourceTypeCommandIssues(value);
+    case "defineResources":
+      return validateDefineResourcesCommandIssues(value);
     case "createBudget":
       return validateCreateBudgetCommandIssues(value);
     case "requestBudget":

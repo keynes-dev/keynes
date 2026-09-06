@@ -85,6 +85,100 @@ still matches the Phase 1 SHA-256. New Resource operations remain `NOT RUN`.
 
 Phase 2 independent `ponytail-review`: "Lean already. Ship."
 
+## Phase 3 definition implementation
+
+Starting revision: `ddb4ea6`, with the implementation diff in the worktree.
+Three test subagents owned shared scenarios, SDK definition behavior, and
+installation checks. Callable rejection stubs allowed behavioral failures before
+production implementation; the stubs were removed afterward.
+
+| Test-first command                                                           | Observed outcome                                                                                                                            |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared SQLite definition selection, retained in `phase3/t005/sqlite-red.log` | Four expected behavior failures; ten malformed-input cases passed the rejection stub and did not yet prove validation                       |
+| Native direct selection, retained in `phase3/t005/native-red.log`            | Same four shared failures against a callable SQL stub; six separate installation failures; ten shared malformed-input cases passed the stub |
+| Public Local/Remote/lifecycle selection, retained in `phase3/t006/red.log`   | 12 behavior failures, 62 passes                                                                                                             |
+| PostgreSQL build tests, retained in `phase3/t007/unit-failing.log`           | Two failures for generation 1 and missing migration 0007; five passes                                                                       |
+| Native recheck, retained in `phase3/t007/native-failing.log`                 | Failed assertions for missing definition grant, receipt column, and unique index                                                            |
+| Own-field SDK selection, retained in `phase3/t006/own-fields-red.log`        | Six failures because nonenumerable and symbol fields disappeared from snapshots                                                             |
+
+Logs are local under `.artifacts/key-77/`. Failed native fixture setup or unrelated
+creation failures do not count as definition behavior evidence.
+
+Implementation adds generated batch input/results and tagged creation input,
+remote semantic/minimum SDK generation 2, creation revision 2, and definition
+revision 1. Permission metadata delegates the definition-source requirement to
+creation's authority implementation. Historical migrations remain immutable;
+0007 is the new terminal migration.
+
+SQLite and PostgreSQL resolve complete batches in canonical-name order inside
+their existing transactions. The successful command stores a private unique
+binding reference. Exact reuse retains original Resource evidence; replay returns
+the original result. SDK bindings are frozen empty objects with a type-only brand
+and private WeakMap reference/name state. The projection index is now named
+`BudgetResourceBinding`.
+
+Local definition methods check close state before reading input and admit copied
+input synchronously. Both SDK methods preserve own string fields, including
+nonenumerable fields, and reject symbols before serialization. Getter errors
+reject asynchronously. Remote definition uses the existing operation-key retry
+path; recovery wrapping is Phase 5 work.
+
+| Check                               | Outcome                                                                                                                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared SQLite definition selection  | PASS, 14 tests; `phase3/t005/sqlite-green.log`                                                                                                                 |
+| Final direct native feedback        | PASS, 120 tests including shared definitions, exact recheck, authenticated Remote definition and revoked-permission replay; `phase3/t007/permission-green.log` |
+| SDK definition/lifecycle selection  | PASS, 36 tests; `phase3/t006/options-green.log`                                                                                                                |
+| Binding privacy/identity smoke      | PASS                                                                                                                                                           |
+| Full creation suites and typecheck  | FAIL during planned tagged-wire transition; old creation callers remain Phase 4 work                                                                           |
+| Full paired acceptance and packages | NOT RUN for this phase candidate                                                                                                                               |
+
+The passing focused SDK command is:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/local.test.ts test/unit/public/remote.test.ts test/unit/local/local-lifecycle.test.ts --maxWorkers=1 -t 'independent (definition|entry|option|Resource)|independent-definition|opaque frozen|nonenumerable unknown definition options|operation key once'
+```
+
+Its 46 skipped cases are outside that selection, chiefly existing creation
+behavior. This is definition feedback, not full feature acceptance.
+
+Additional review regressions proved that an operation-key getter was read twice
+and nonenumerable unknown options were ignored. Both failed before the option
+snapshot fix and now pass. Logs: `phase3/t006/options-red.log` and
+`phase3/t006/options-green.log`.
+
+A native regression also proved that Remote exact replay returned success after
+revoking definition permission. The definition wrapper now checks current
+permission before replay. `phase3/t007/permission-red.log` retains the failure;
+`permission-green.log` retains all 120 passing cases after the fix.
+
+`pnpm test:system:postgresql` passed as full native feedback, including migration
+0007 rollback, before the final receipt/revocation changes. Its log is
+`phase3/t007/native-full-feedback.log`. The later direct run verifies those final
+changes. Native fixtures cleaned up. Historical hashes for all six existing
+migrations are retained in `phase3/t007/historical-sha256.txt` and match.
+
+`pnpm generate:check` passed, and `pnpm --filter @keynes/postgresql exec vitest run
+test/unit/build.test.ts test/unit/procedure-caller.test.ts --maxWorkers=1` passed
+15 tests. Full acceptance output correctly refused this dirty candidate; no
+retained paired qualification is claimed from feedback runs.
+
+Phase 3 `ponytail-review` identified four removable lines in SQLite's duplicate
+canonical-name set. Unique object keys and the validated reversible name mapping
+already prevent collisions. The set was removed. The following post-review check
+passed 14 definition tests; 37 existing creation/accounting cases were outside
+the selection:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/contract/budget.test.ts --maxWorkers=1 -t 'Independent Resource definitions'
+```
+
+Test-first commands used the same SQLite selection, `pnpm test:remote -- --mode
+direct` for native checks, `pnpm --filter @keynes/postgresql exec vitest run
+test/unit/build.test.ts --maxWorkers=1` for installation metadata, and the three
+SDK test files listed above without a name filter for the initial public red run.
+`pnpm format` passed across 509 files and `git diff --check` passed. Phase 3 is
+complete; creation integration remains the next phase.
+
 ## Verification status
 
 | Lane                                                      | Status                     |

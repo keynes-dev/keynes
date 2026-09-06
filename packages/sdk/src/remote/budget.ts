@@ -33,7 +33,7 @@ import type {
   ReasonsOfPolicySet,
   ResourceAmounts,
 } from "../budget.js";
-import { ResourceBinding } from "../resource-binding.js";
+import { BudgetResourceBinding } from "../resource-binding.js";
 import {
   resourceDefinitionDigest,
   type PreparedRootResource,
@@ -67,7 +67,7 @@ export function createRemoteResourceBinding<Name extends string>(
     ...PreparedRootResource<Name>[],
   ],
   budget: RemoteBudgetProjection,
-): ResourceBinding<Name> {
+): BudgetResourceBinding<Name> {
   assertCreatedRoot(resources, budget);
   const bound = resources.map((resource) =>
     Object.freeze({
@@ -79,7 +79,7 @@ export function createRemoteResourceBinding<Name extends string>(
       definitionDigest: resource.definitionDigest,
     }),
   );
-  return new ResourceBinding(
+  return new BudgetResourceBinding(
     {
       byId: new Map(
         bound.map((resource) => [resource.resourceTypeId, resource]),
@@ -95,7 +95,7 @@ export function createRemoteResourceBinding<Name extends string>(
 export function createOpenedRemoteResourceBinding<Name extends string>(
   resources: readonly ResourceInstallationDefinition[],
   budget: RemoteBudgetProjection,
-): ResourceBinding<Name> {
+): BudgetResourceBinding<Name> {
   assertOpenedBudget(resources, budget);
   const bound = resources.map((resource) =>
     Object.freeze({
@@ -107,7 +107,7 @@ export function createOpenedRemoteResourceBinding<Name extends string>(
       definitionDigest: resourceDefinitionDigest(resource.definition),
     }),
   );
-  return new ResourceBinding(
+  return new BudgetResourceBinding(
     {
       byId: new Map(
         bound.map((resource) => [resource.resourceTypeId, resource]),
@@ -128,7 +128,7 @@ export function createRemoteBudgetHandle<
 >(
   client: RemoteKeynesClient,
   identity: RemoteBudgetIdentity,
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
 ): RemoteBudget<Names, Context, Reasons, HistoryNames> {
   const { budgetReference } = identity;
   const request = <const Resources extends ResourceAmounts<Names>>(
@@ -233,7 +233,7 @@ function requestRemoteBudget<
 >(
   client: RemoteKeynesClient,
   identity: RemoteBudgetIdentity,
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
   options: readonly unknown[],
 ): Promise<
@@ -558,7 +558,7 @@ function assertOpenedBudget(
 }
 
 function assertRemoteBudget<Names extends string, HistoryNames extends string>(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   identity: RemoteBudgetIdentity,
   budget: RemoteBudgetProjection,
 ): void {

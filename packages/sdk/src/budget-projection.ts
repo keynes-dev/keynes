@@ -8,7 +8,7 @@ import type {
   SettleBudgetResult,
 } from "./generated/types.js";
 import { KeynesError } from "./generated/client.js";
-import type { ResourceBinding } from "./resource-binding.js";
+import type { BudgetResourceBinding } from "./resource-binding.js";
 import type {
   BudgetHistoryEntry,
   BudgetRequestDenialReason,
@@ -24,7 +24,7 @@ export function projectSettlement<
   Names extends string,
   HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   result: SettleBudgetResult,
 ): Settlement<Names> {
   return Object.freeze({
@@ -49,7 +49,7 @@ export function projectSnapshot<
   Context,
   HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   result: GetBudgetResult,
 ): BudgetSnapshot<Names, Reasons, Context, HistoryNames> {
   return Object.freeze({
@@ -68,7 +68,7 @@ export function projectSnapshot<
 }
 
 function projectBudget<Names extends string, HistoryNames extends string>(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   budget: WireBudgetProjection,
 ): BudgetState<Names> {
   return Object.freeze({
@@ -104,7 +104,7 @@ function projectHistoryEntry<
   Reasons extends string,
   Context,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   entry: WireBudgetHistoryEntry,
 ): BudgetHistoryEntry<HistoryNames, Reasons, Context> {
   switch (entry.kind) {
@@ -201,7 +201,7 @@ export async function invokeBudgetOperation<
   HistoryNames extends string,
   Result,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   operation: () => Promise<Result>,
 ): Promise<Result> {
   try {
@@ -214,7 +214,7 @@ export async function invokeBudgetOperation<
 }
 
 function projectErrorValue<Names extends string, HistoryNames extends string>(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   value: unknown,
 ): unknown {
   if (Array.isArray(value)) {
@@ -237,7 +237,7 @@ function projectErrorValue<Names extends string, HistoryNames extends string>(
 }
 
 function knownResourceName<Names extends string, HistoryNames extends string>(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   value: unknown,
 ): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -285,7 +285,7 @@ export function projectDenialReason<
   Reasons extends string,
   HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   reason: RequestDenialReason,
 ): BudgetRequestDenialReason<Names, Reasons> {
   return projectDenialReasonWith(
@@ -299,7 +299,7 @@ function projectHistoryDenialReason<
   HistoryNames extends string,
   Reasons extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   reason: RequestDenialReason,
 ): BudgetRequestDenialReason<HistoryNames, Reasons> {
   return projectDenialReasonWith(
@@ -336,7 +336,7 @@ export function projectPolicyEvidence<
   Reasons extends string,
   HistoryNames extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   evidence: WirePolicyEvidenceV1,
 ): PolicyEvidence<Names, Context, Reasons> {
   return projectPolicyEvidenceWith(
@@ -353,7 +353,7 @@ function projectHistoryPolicyEvidence<
   Context,
   Reasons extends string,
 >(
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   evidence: WirePolicyEvidenceV1,
 ): PolicyEvidence<HistoryNames, Context, Reasons> {
   return projectPolicyEvidenceWith(

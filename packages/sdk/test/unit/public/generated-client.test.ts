@@ -13,6 +13,7 @@ import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
+  DefineResourcesCommand,
   OperationName,
   RequestBudgetCommand,
   SettleBudgetCommand,
@@ -20,6 +21,12 @@ import type {
 import { validateCreateBudgetCommandIssues } from "../../../src/generated/validators.js";
 
 const commands = {
+  defineResources: {
+    commandId: "10000000-0000-0000-0000-000000000002",
+    definitions: {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+  } satisfies DefineResourcesCommand,
   defineResource: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
@@ -68,6 +75,7 @@ const commands = {
 
 const EXPECTED_OPERATIONS = [
   "defineResource",
+  "defineResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -182,6 +190,9 @@ describe("generated client bindings", () => {
     const client = createKeynesClient(executor);
 
     await expect(client.defineResource(commands.defineResource)).rejects.toBe(
+      stop,
+    );
+    await expect(client.defineResources(commands.defineResources)).rejects.toBe(
       stop,
     );
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);

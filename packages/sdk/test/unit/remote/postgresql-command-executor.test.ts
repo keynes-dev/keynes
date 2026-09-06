@@ -23,8 +23,8 @@ vi.mock("pg", () => ({
 }));
 
 const poolConfig = Object.freeze({ host: "db.example.test", max: 10 });
-const createBudgetProcedure = REMOTE_CONTRACT.procedures[0];
-const getBudgetProcedure = REMOTE_CONTRACT.procedures[3];
+const createBudgetProcedure = REMOTE_CONTRACT.procedures[1];
+const getBudgetProcedure = REMOTE_CONTRACT.procedures[4];
 const operationKey = `kop_v1_${"a".repeat(43)}`;
 
 beforeEach(() => {
@@ -397,9 +397,14 @@ function compatibilityResult(): GetCompatibilityResult {
     minimumSdkGeneration: REMOTE_CONTRACT.minimumSdkGeneration,
     procedures: [
       {
+        name: "defineResources",
+        target: "keynes.remote_define_resources",
+        revision: 1,
+      },
+      {
         name: "createBudget",
         target: "keynes.remote_create_budget",
-        revision: 1,
+        revision: 2,
       },
       {
         name: "requestBudget",

@@ -12,7 +12,6 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it } from "vitest";
 
 import contractSource from "../contract.json" with { type: "json" };
-import expectations from "../fixtures/expectations.json" with { type: "json" };
 import fixtures from "../fixtures/source.json" with { type: "json" };
 import { applyGeneratedOutputs, loadContract } from "../src/index.ts";
 
@@ -26,19 +25,30 @@ afterEach(() => {
 });
 
 describe("contract source", () => {
-  it("loads the five allowlisted operations in caller order", () => {
+  it("loads the six allowlisted operations in caller order", () => {
     const contract = loadContract(packageRoot);
-    expect(contract.source.operations.map(({ method }) => method)).toEqual(
-      expectations.operationMethods,
-    );
-    expect(contract.source.operations.map(({ target }) => target)).toEqual(
-      expectations.installedTargets,
-    );
+    expect(contract.source.operations.map(({ method }) => method)).toEqual([
+      "defineResource",
+      "defineResources",
+      "createBudget",
+      "requestBudget",
+      "settleBudget",
+      "getBudget",
+    ]);
+    expect(contract.source.operations.map(({ target }) => target)).toEqual([
+      "keynes.define_resource_type",
+      "keynes.define_resources",
+      "keynes.create_budget",
+      "keynes.request",
+      "keynes.settle",
+      "keynes.get_budget",
+    ]);
     expect(
       contract.source.operations.map(({ permissions }) => permissions),
     ).toEqual([
       ["define_resource_type"],
-      ["define_resource_type", "create_root_budget"],
+      ["define_resource_type"],
+      ["create_root_budget"],
       ["request_budget"],
       ["settle_budget"],
       ["read_budget"],
@@ -87,8 +97,8 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toEqual({
-      semanticGeneration: 1,
-      minimumSdkGeneration: 1,
+      semanticGeneration: 2,
+      minimumSdkGeneration: 2,
       semanticIdentities: [
         "installation",
         "command_contract",
@@ -97,9 +107,17 @@ describe("contract source", () => {
       ],
       procedures: [
         {
+          method: "defineResources",
+          target: "keynes.remote_define_resources",
+          revision: 1,
+          mode: "mutation",
+          input: "RemoteDefineResourcesCommand",
+          output: "RemoteDefineResourcesResult",
+        },
+        {
           method: "createBudget",
           target: "keynes.remote_create_budget",
-          revision: 1,
+          revision: 2,
           mode: "mutation",
           input: "RemoteCreateBudgetCommand",
           output: "RemoteCreateBudgetResult",

@@ -38,8 +38,8 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         policyProfileDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 1,
-        minimumSdkGeneration: 1,
+        semanticGeneration: 2,
+        minimumSdkGeneration: 2,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",

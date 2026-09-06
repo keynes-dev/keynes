@@ -24,15 +24,19 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/integration/recheck.test.ts": [
     "PostgreSQL exact recheck and application-role permissions rechecks the exact graph read-only",
+    "PostgreSQL exact recheck and application-role permissions grants the definition wrapper only to the runtime role",
+    "PostgreSQL exact recheck and application-role permissions rejects a missing definition receipt reference during exact recheck",
+    "PostgreSQL exact recheck and application-role permissions rejects a missing unique definition receipt index during exact recheck",
     "PostgreSQL exact recheck and application-role permissions checks the server, checksums, contract, and complete object inventory",
     "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks the final migration",
     "PostgreSQL exact recheck and application-role permissions checks owners, bodies, languages, security, and fixed search paths",
     "PostgreSQL exact recheck and application-role permissions checks bootstrap permissions and schema and function ACLs",
-    "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the eight remote functions",
+    "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the nine remote functions",
     "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgresql/test/system/installation.test.ts": [
     "PostgreSQL installation installs explicit principal permission records",
+    "PostgreSQL installation installs a nullable unique private definition receipt reference",
     "PostgreSQL installation installs the current graph and rechecks it without changes",
     "PostgreSQL installation rejects a contract digest mismatch before installation",
     "PostgreSQL installation rejects migration byte drift before applying it",
@@ -43,6 +47,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0004-policy' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0005-resource-bound-budget' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0006-remote-access' atomically when its final statement fails",
+    "PostgreSQL installation rolls back '0007-resource-definitions' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
     "native PostgreSQL contention funds at most one sibling after proving the second request waits",
@@ -96,6 +101,9 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles fails closed when the database is unavailable",
   ],
   "packages/postgresql/test/system/remote-budget.test.ts": [
+    "remote PostgreSQL Budget authority requires current definition permission for exact Remote replay and fresh commands",
+    "remote PostgreSQL Budget authority defines Resources through authenticated Remote calls with exact reuse and replay",
+    "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",
     "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
     "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
   ],

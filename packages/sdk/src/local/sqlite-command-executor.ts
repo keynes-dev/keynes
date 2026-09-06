@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { CommandExecutor } from "../command-executor.js";
 import type {
@@ -8,6 +8,9 @@ import type {
   CreateBudgetCommand,
   CreateBudgetResult,
   DefineResourceTypeCommand,
+  DefineResourcesCommand,
+  DefineResourcesResult,
+  DefinedResourceMember,
   ErrorEnvelope,
   GetBudgetQuery,
   GetBudgetResult,
@@ -43,7 +46,6 @@ import {
 } from "../policy/evaluate.js";
 import { validatePolicyProgramScope } from "../policy/validate.js";
 import { canonicalPolicyDefinitionsForReplay } from "../replay.js";
-import { resourceDefinitionDigest } from "../resources.js";
 import { PolicyValidationError } from "../sdk-errors.js";
 import {
   SqliteStore,
@@ -71,6 +73,7 @@ export type SqliteMutationObserver = (stage: SqliteMutationStage) => void;
 
 const REQUIRED_PERMISSIONS = {
   defineResource: ["define_resource_type"],
+  defineResources: ["define_resource_type"],
   createBudget: ["define_resource_type", "create_root_budget"],
   requestBudget: ["request_budget"],
   settleBudget: ["settle_budget"],
@@ -237,11 +240,13 @@ export class SqliteCommandExecutor implements CommandExecutor {
     const result =
       operation === "defineResource"
         ? this.#defineResource(context, input as DefineResourceTypeCommand)
-        : operation === "createBudget"
-          ? this.#createBudget(context, input as CreateBudgetCommand)
-          : operation === "requestBudget"
-            ? this.#requestBudget(context, input as RequestBudgetCommand)
-            : this.#settleBudget(context, input as SettleBudgetCommand);
+        : operation === "defineResources"
+          ? this.#defineResources(context, input as DefineResourcesCommand)
+          : operation === "createBudget"
+            ? this.#createBudget(context, input as CreateBudgetCommand)
+            : operation === "requestBudget"
+              ? this.#requestBudget(context, input as RequestBudgetCommand)
+              : this.#settleBudget(context, input as SettleBudgetCommand);
     this.#store.storeCommandResult(
       context.tenantId,
       commandId,
@@ -273,6 +278,41 @@ export class SqliteCommandExecutor implements CommandExecutor {
         definitionDigest: resource.definitionDigest,
       },
     };
+  }
+
+  #defineResources(
+    context: SqliteTransactionContext,
+    command: DefineResourcesCommand,
+  ): Omit<DefineResourcesResult, "replayed"> {
+    const resources = asNonEmpty(
+      canonicalDefinitions(command.definitions).map(({ key, definition }) => {
+        const resource = this.#resolveResource(
+          context,
+          definition,
+          randomUUID(),
+          command.commandId,
+        );
+        this.#observeMutation?.("after_resource_insertion");
+        return {
+          key,
+          resourceType: resourceProjection(resource),
+          definitionEvidence: {
+            kind: "resource_type_defined",
+            commandId: resource.definitionCommandId,
+            principalId: resource.definerPrincipalId,
+            definitionDigest: resource.definitionDigest,
+          },
+        } satisfies DefinedResourceMember;
+      }),
+    );
+    const bindingReference = `krs_v1_${randomBytes(32).toString("base64url")}`;
+    this.#store.storeBindingReference(
+      context.tenantId,
+      command.commandId,
+      bindingReference,
+    );
+    this.#observeMutation?.("after_domain_mutation");
+    return { kind: "defined", bindingReference, resources };
   }
 
   #createBudget(
@@ -1107,6 +1147,12 @@ function canonicalCommand(
         accountingBehavior: command.definition.accountingBehavior,
       },
     };
+  } else if (operation === "defineResources") {
+    const command = input as DefineResourcesCommand;
+    commandId = command.commandId;
+    targetKind = "resource_type";
+    targetId = command.commandId;
+    body = { definitions: canonicalDefinitions(command.definitions) };
   } else if (operation === "createBudget") {
     const command = input as CreateBudgetCommand;
     commandId = command.commandId;
@@ -1156,6 +1202,76 @@ function canonicalCommand(
     bodyJson,
     bodyDigest: digest("command-body", JSON.parse(bodyJson)),
   };
+}
+
+function resourceDefinitionDigest(
+  definition: DefineResourceTypeCommand["definition"],
+): string {
+  const jsonbText = `{"unit": ${JSON.stringify(definition.unit)}, "canonicalName": ${JSON.stringify(definition.canonicalName)}, "accountingBehavior": ${JSON.stringify(definition.accountingBehavior)}}`;
+  return `resource-definition:${createHash("sha256").update(jsonbText).digest("hex")}`;
+}
+
+function canonicalDefinitions(definitions: unknown): {
+  key: string;
+  definition: DefineResourceTypeCommand["definition"];
+}[] {
+  const invalid = (path: string, rule: string): never =>
+    fail({
+      kind: "error",
+      code: "invalid_command",
+      details: { operation: "defineResources", issues: [{ path, rule }] },
+    });
+  if (!isRecord(definitions)) return invalid("$.definitions", "type");
+  const entries = Object.entries(definitions);
+  if (entries.length === 0) return invalid("$.definitions", "minProperties");
+  return entries
+    .map(([key, value]) => {
+      const path = `$.definitions.${key}`;
+      if (!/^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/.test(key))
+        return invalid(path, "pattern");
+      const canonicalName = key.replaceAll(
+        /[A-Z]/g,
+        (letter) => `_${letter.toLowerCase()}`,
+      );
+      if (canonicalName.length > 63) return invalid(path, "maxLength");
+      if (!isRecord(value)) return invalid(path, "type");
+      for (const field of Object.keys(value)) {
+        if (field !== "unit" && field !== "accountingBehavior")
+          return invalid(`${path}.${field}`, "additionalProperties");
+      }
+      if (
+        !Object.hasOwn(value, "unit") ||
+        !Object.hasOwn(value, "accountingBehavior")
+      )
+        return invalid(path, "required");
+      const { unit, accountingBehavior } = value;
+      if (
+        typeof unit !== "string" ||
+        unit.length < 1 ||
+        [...unit].length > 64 ||
+        !/^(?!\s)(?!.*\s$)[^\u0000-\u001f\u007f]+$/.test(unit)
+      )
+        return invalid(`${path}.unit`, "pattern");
+      if (
+        accountingBehavior !== "consumable" &&
+        accountingBehavior !== "reusable"
+      )
+        return invalid(`${path}.accountingBehavior`, "enum");
+      return {
+        key,
+        definition: {
+          canonicalName,
+          unit,
+          accountingBehavior,
+        } satisfies DefineResourceTypeCommand["definition"],
+      };
+    })
+    .sort((left, right) =>
+      compareText(
+        left.definition.canonicalName,
+        right.definition.canonicalName,
+      ),
+    );
 }
 
 function canonicalAmounts<Value extends ResourceAmount | UsageAmount>(
@@ -1494,6 +1610,7 @@ function resourceProjection(resource: ResourceRow): ResourceTypeProjection {
 function operationName(value: unknown): OperationName {
   if (
     value === "defineResource" ||
+    value === "defineResources" ||
     value === "createBudget" ||
     value === "requestBudget" ||
     value === "settleBudget" ||
