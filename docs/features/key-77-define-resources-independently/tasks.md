@@ -29,8 +29,8 @@ No behavioral test applies to these environment and evidence tasks.
 
 **Purpose**: Make generated structural validation safe before introducing named Resource inputs.
 
-- [ ] T003 Add and observe failing own-property validator regressions in `packages/sdk/test/unit/public/generated-client.test.ts` using the proposed named-definition schema: inherited required fields, unknown `constructor: undefined` fields, and malformed named entries must reject; valid `constructor` and `toString` entries must remain accepted.
-- [ ] T004 Fix schema membership and required-field ownership checks in `packages/sdk/scripts/render.ts`, regenerate `packages/sdk/src/generated/` with `pnpm generate`, and pass T003 plus existing validator tests and `pnpm generate:check`.
+- [x] T003 Add and observe failing own-property validator regressions in `packages/sdk/test/unit/public/generated-client.test.ts` using the proposed named-definition schema: inherited required fields, unknown `constructor: undefined` fields, and malformed named entries must reject; valid `constructor` and `toString` entries must remain accepted.
+- [x] T004 Fix schema membership and required-field ownership checks in `packages/sdk/scripts/render.ts`, regenerate `packages/sdk/src/generated/` with `pnpm generate`, and pass T003 plus existing validator tests and `pnpm generate:check`.
 
 **Checkpoint**: Generated structural checks no longer accept inherited fields. SDK snapshot behavior and independent authority validation remain story work.
 

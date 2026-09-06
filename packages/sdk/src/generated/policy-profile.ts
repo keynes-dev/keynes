@@ -2436,23 +2436,25 @@ function validate(schema: Schema, value: unknown): boolean {
       Object.keys(value).some((name) => !validate(schema.propertyNames!, name))
     )
       return false;
-    if ((schema.required ?? []).some((name) => !(name in value))) return false;
+    if ((schema.required ?? []).some((name) => !Object.hasOwn(value, name)))
+      return false;
     if (
       schema.additionalProperties === false &&
-      Object.keys(value).some((name) => !(name in properties))
+      Object.keys(value).some((name) => !Object.hasOwn(properties, name))
     )
       return false;
     if (
       isRecord(schema.additionalProperties) &&
       Object.entries(value).some(
         ([name, child]) =>
-          !(name in properties) &&
+          !Object.hasOwn(properties, name) &&
           !validate(schema.additionalProperties as Schema, child),
       )
     )
       return false;
     return Object.entries(properties).every(
-      ([name, child]) => !(name in value) || validate(child, value[name]),
+      ([name, child]) =>
+        !Object.hasOwn(value, name) || validate(child, value[name]),
     );
   }
   if (schema.type === "array") {

@@ -59,12 +59,38 @@ Source and saved copy still match. The migration layout is `0001-storage`,
 Phase 1 independent `ponytail-review`: "Lean already. Ship."
 `git diff --check` and focused Markdown formatting passed after evidence updates.
 
+## Phase 2 validator ownership
+
+Starting revision: `00c3a52`. Changes replace inherited membership tests with
+`Object.hasOwn` in the authored command and Policy validator renderer. Generated
+files come from `pnpm generate`. No operation schema changed in this phase.
+
+The regression fixture renders the proposed named-definition schema through both
+validator forms. Before the fix, 14 rejection assertions failed because validators
+returned success for inherited required fields or malformed prototype-like names.
+Valid `constructor` and `toString` definitions remain accepted.
+
+| Command                                                                                                         | Outcome                                    |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `pnpm --filter @keynes/sdk exec vitest run test/unit/public/generated-client.test.ts --maxWorkers=1` before fix | Expected FAIL, 14 failed and 13 passed     |
+| Same focused command after fix                                                                                  | PASS, 27 tests                             |
+| `pnpm generate`                                                                                                 | PASS                                       |
+| `pnpm --filter @keynes/sdk test:unit`                                                                           | PASS, 318 tests in 23 files                |
+| `pnpm generate:check`                                                                                           | PASS                                       |
+| `pnpm typecheck`                                                                                                | PASS, five package tasks and test compiler |
+
+Local logs are `.artifacts/key-77/phase2/{failing,generate,focused,unit,generate-check,typecheck,lint,format}.log`.
+Focused lint and formatting passed. `git diff --check` passed. Migration `0006`
+still matches the Phase 1 SHA-256. New Resource operations remain `NOT RUN`.
+
+Phase 2 independent `ponytail-review`: "Lean already. Ship."
+
 ## Verification status
 
 | Lane                                                      | Status                     |
 | --------------------------------------------------------- | -------------------------- |
 | Provider-free baseline                                    | PASS                       |
-| New validator regressions                                 | NOT RUN                    |
+| New validator regressions                                 | PASS                       |
 | Resource definition and creation behavior on SQLite       | NOT RUN                    |
 | Native PostgreSQL, Embedded, Remote, paired acceptance    | NOT RUN                    |
 | Exact package archives and installed consumers            | NOT RUN                    |

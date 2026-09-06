@@ -3675,7 +3675,7 @@ function validate(
     )
       issues.push(...issue(path, "maxCanonicalUtf8Bytes"));
     for (const name of schema.required ?? []) {
-      if (!(name in value))
+      if (!Object.hasOwn(value, name))
         issues.push(...issue(`${path}/${name}`, "required"));
     }
     for (const name of names) {
@@ -3684,7 +3684,7 @@ function validate(
         validate(schema.propertyNames, name, `${path}/${name}`).length > 0
       )
         issues.push(...issue(`${path}/${name}`, "propertyNames"));
-      if (!(name in properties)) {
+      if (!Object.hasOwn(properties, name)) {
         if (schema.additionalProperties === false)
           issues.push(...issue(`${path}/${name}`, "additionalProperties"));
         else if (typeof schema.additionalProperties === "object")
@@ -3698,7 +3698,7 @@ function validate(
       }
     }
     for (const [name, child] of Object.entries(properties)) {
-      if (name in value)
+      if (Object.hasOwn(value, name))
         issues.push(...validate(child, value[name], `${path}/${name}`));
     }
     return issues;
