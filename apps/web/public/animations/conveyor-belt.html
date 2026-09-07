@@ -70,24 +70,14 @@ const CONFIG = {
   refillStagger: 0.26,
   gravity: 24,
   restitution: 0.15,
-  // The shapes carry no hue at all, which leaves the lamp the only colour in the
-  // scene. They separate from each other by value instead, and by being three
-  // different solids; the shading spreads each one over a range, so the ranges
-  // overlap and the form is doing most of the telling apart.
-  shapeColors: [0x757575, 0x9c9c9c, 0xcccccc],
+  // White, like every other surface here, and told apart by their outlines the
+  // way every other solid in the drawing is. Nothing in the scene carries colour
+  // now except the lamp.
+  shapeColors: [0xffffff, 0xffffff, 0xffffff],
   // Keyed by meaning rather than by colour, so the palette can be retuned
   // without the names lying.
   lampColors: { running: 0xf2b705, denied: 0xe3262e, approved: 0x18b85a },
   lineWidth: 1.25, fineWidth: 0.55, markWidth: 0.4,
-  // The shapes are the one thing here that is a solid rather than a diagram of
-  // one, so they are the one thing that takes a light. Three of them, because
-  // one key over a flat ambient gives every face away from it the same value
-  // and the far side of a solid goes flat. The fill is a hemisphere instead, so
-  // a face is toned by which way up it is even where the key does not reach,
-  // and a weak back light lifts the faces the key misses entirely off the floor.
-  shapeSky: 0xffffff, shapeGround: 0x9a9a9a, shapeFill: 0.55,
-  shapeLight: [0.6, 1, 0.25], shapeKey: 0.5,
-  shapeBackLight: [-0.8, 0.2, -0.6], shapeBack: 0.18,
   maxPixelRatio: 2,
   frustum: 2.9,
   skyMargin: 1.15,
@@ -445,15 +435,10 @@ markMat.line = new LineMaterial({ color: 0x111111, linewidth: CONFIG.markWidth }
 const shell = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, ...offset });
 const glass = new THREE.MeshBasicMaterial({ color: 0x9fbfe0, transparent: true, opacity: 0.14, depthWrite: false, ...offset });
 const lampMat = new THREE.MeshBasicMaterial({ color: CONFIG.lampColors.running, ...offset });
-// Everything else in the scene is unlit on purpose: it is line work, and a
-// surface that shades is a surface pretending to be photographed. The shapes
-// are the exception, so they get the one material here that answers to a light.
-// Flat shaded, not smooth: a face at a time is how a solid is toned in a
-// technical drawing, and it survives being twenty pixels across. The sphere is
-// the exception, because it has no faces to tone: shading it flat only bands
-// the mesh it happens to be built from, which shows the moment the contrast is
-// worth having.
-const shapeMats = CONFIG.shapeColors.map((color, shape) => new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, flatShading: shape !== 2, ...offset }));
+// Unlit, like everything else in the scene. Nothing here shades: it is line
+// work, and a surface that takes a light is a surface pretending to have been
+// photographed.
+const shapeMats = CONFIG.shapeColors.map((color) => new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, ...offset }));
 const lineMat = new LineMaterial({ color: 0x111111, linewidth: CONFIG.lineWidth });
 // Hairline weight for mechanism detail. At 512px a bolt head is only a few
 // pixels across, so the structural line weight fills it in solid.
@@ -906,13 +891,6 @@ function skyOffset(point) {
 // ---------------------------------------------------------------- scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
-// The only lights in the scene, and only the shapes answer to them.
-scene.add(new THREE.HemisphereLight(CONFIG.shapeSky, CONFIG.shapeGround, CONFIG.shapeFill));
-for (const [dir, power] of [[CONFIG.shapeLight, CONFIG.shapeKey], [CONFIG.shapeBackLight, CONFIG.shapeBack]]) {
-  const light = new THREE.DirectionalLight(0xffffff, power);
-  light.position.set(...dir);
-  scene.add(light);
-}
 scene.add(new THREE.GridHelper(40, 40, 0xd8d8d8, 0xe8e8e8));
 
 // Belt
