@@ -70,21 +70,32 @@ const CONFIG = {
   refillStagger: 0.26,
   gravity: 24,
   restitution: 0.15,
-  // The lamp keeps the colours a signal lamp is read by. That reserves amber,
-  // red and green, so the shapes take the cool half of the wheel instead: they
-  // used to be gold and green, which were the lamp's own two hexes exactly, and
-  // a lit lamp read as a stray shape. Blue, magenta and lavender sit at roughly
-  // 222, 317 and 266 degrees, all well clear of the lamp, and they separate
-  // from each other by lightness as well as by hue.
-  shapeColors: [0x1e63ff, 0xd41ba0, 0xb07cf5],
+  // The shapes carry no hue at all, which leaves the lamp the only colour in the
+  // scene. They separate from each other by value instead, and by being three
+  // different solids; the shading spreads each one over a range, so the ranges
+  // overlap and the form is doing most of the telling apart.
+  shapeColors: [0x757575, 0x9c9c9c, 0xcccccc],
   // Keyed by meaning rather than by colour, so the palette can be retuned
   // without the names lying.
   lampColors: { running: 0xf2b705, denied: 0xe3262e, approved: 0x18b85a },
   lineWidth: 1.25, fineWidth: 0.55, markWidth: 0.4,
+  // The shapes are the one thing here that is a solid rather than a diagram of
+  // one, so they are the one thing that takes a light. Three of them, because
+  // one key over a flat ambient gives every face away from it the same value
+  // and the far side of a solid goes flat. The fill is a hemisphere instead, so
+  // a face is toned by which way up it is even where the key does not reach,
+  // and a weak back light lifts the faces the key misses entirely off the floor.
+  shapeSky: 0xffffff, shapeGround: 0x9a9a9a, shapeFill: 0.55,
+  shapeLight: [0.6, 1, 0.25], shapeKey: 0.5,
+  shapeBackLight: [-0.8, 0.2, -0.6], shapeBack: 0.18,
   maxPixelRatio: 2,
   frustum: 2.9,
   skyMargin: 1.15,
-  lookAt: [0, 2.17, 0],
+  // Raised until the furthest tube's top rim clears the frame. It is the rim
+  // that decides, not the axis: the tube nearest the top of frame projects its
+  // far lip higher than its centre line, and checking the centre alone lets the
+  // lip clip.
+  lookAt: [0, 2.36, 0],
 };
 window.conveyor = CONFIG;
 
@@ -111,11 +122,16 @@ const EMERGE = CONFIG.ductTransit + CONFIG.manifoldDelay;
 const BELT = {
   width: 1.6, top: 0.75, thickness: 0.25, length: 24, slot: 2.4, slots: 9,
   slat: 0.4, slatDepth: 0.3, slatRise: 0.05,
-  rollerW: 1.66, rollerGap: 0.9, rollerSpan: 7.2, rollerTeeth: 12, rollerRoot: 0.74,
+  rollerW: 1.66, rollerSpan: 7.2, rollerTeeth: 12, rollerRoot: 0.74, rollerHub: 0.34,
 };
 // The belt advances three slots per loop. Sizing the rollers so that distance
 // is a whole number of turns keeps them from jumping at the seam.
 BELT.rollerR = (BELT.slot * 3) / (2 * Math.PI * 9);
+// One roller per slat. The rollers are evenly spaced whatever the pitch, but
+// only this pitch looks it: the slats mask them, so at any other spacing the
+// gaps between slats fall on a different beat from the rollers, which roller
+// shows through changes down the run, and they read as unevenly spread.
+BELT.rollerGap = BELT.slat;
 const WRAP = BELT.slot * BELT.slots;
 const BOX = { size: 0.8, wall: 0.06, clear: 0.01 };
 BOX.center = (BOX.size - BOX.wall) / 2;
@@ -207,7 +223,11 @@ const ARM = {
 };
 const MACHINE = {
   tubeR: 0.23, tubeLen: 1.15, tubeBottomY: 3.95, tubeZ: [-1.15, 0, 1.15],
-  ductR: 0.2, ductRib: 0.1, elbowR: 0.44, elbowY: 3.76, armY: 3.32,
+  // The elbow's bend radius also decides how much straight duct hangs below the
+  // iris before the pipe turns away. At 0.44 the bend ate the whole drop and
+  // there was nowhere to put a throat; at 0.24 there is a short spigot under
+  // each iris for one to sit inside, and the fittings read tighter for it.
+  ductR: 0.2, ductRib: 0.1, elbowR: 0.24, elbowY: 3.76, armY: 3.32,
   flangeR: 0.038, flangeW: 0.1, boltR: 0.03, bolts: 6,
   manifold: new THREE.Vector3(0, 2.9, 0), manifoldW: 0.8, manifoldH: 0.4, manifoldD: 0.78,
   nozzleTop: 2.6, nozzleBottom: 2.22, nozzleR0: 0.3, nozzleR1: 0.22,
@@ -243,6 +263,11 @@ const IRIS = {
   blades: 8, bore: 0.23, pivotR: 0.24, length: 0.42, width: 0.2, thickness: 0.02,
   frameR: 0.45, frameH: 0.15, bladeDrop: 0.07, boreDrop: 0.11, bladeStep: 0.005,
   plateT: 0.02, clearance: 0.015,
+  // The bore is a throat rather than a painted-on disc, so a shape let go of
+  // has somewhere to fall into and is taken by it a piece at a time. Narrow
+  // enough to sit inside the ducting it feeds, which is what hides the rest of
+  // the drop.
+  throatR: 0.185, throatH: 0.28,
   betaShut: (179 * Math.PI) / 180,
   move: 0.06, hold: 0.05, lead: 0.06,
 };
@@ -250,7 +275,7 @@ const IRIS = {
 // the aperture clears; shut lays it across the axis. Blade span and count are
 // the smallest that leave no gap when shut.
 IRIS.betaOpen = Math.PI - Math.asin(IRIS.bore / IRIS.pivotR);
-const ITEM = { cube: 0.2, tetraEdge: 0.3, sphereR: 0.11, pitch: 0.24, lift: 0.005, exit: 1.2, catch: 0.3 };
+const ITEM = { cube: 0.2, tetraEdge: 0.3, sphereR: 0.11, pitch: 0.24, lift: 0.005, exit: 1.2, catch: 0.3, sink: 0.175 };
 const ITEM_HEIGHT = [ITEM.cube, ITEM.tetraEdge * Math.sqrt(2 / 3), ITEM.sphereR * 2];
 // Widest horizontal reach of each shape: the cube's diagonal, the tetrahedron's
 // base circumradius, the sphere's radius. Every iris plate is bored to the
@@ -420,7 +445,15 @@ markMat.line = new LineMaterial({ color: 0x111111, linewidth: CONFIG.markWidth }
 const shell = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, ...offset });
 const glass = new THREE.MeshBasicMaterial({ color: 0x9fbfe0, transparent: true, opacity: 0.14, depthWrite: false, ...offset });
 const lampMat = new THREE.MeshBasicMaterial({ color: CONFIG.lampColors.running, ...offset });
-const shapeMats = CONFIG.shapeColors.map((color) => new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, ...offset }));
+// Everything else in the scene is unlit on purpose: it is line work, and a
+// surface that shades is a surface pretending to be photographed. The shapes
+// are the exception, so they get the one material here that answers to a light.
+// Flat shaded, not smooth: a face at a time is how a solid is toned in a
+// technical drawing, and it survives being twenty pixels across. The sphere is
+// the exception, because it has no faces to tone: shading it flat only bands
+// the mesh it happens to be built from, which shows the moment the contrast is
+// worth having.
+const shapeMats = CONFIG.shapeColors.map((color, shape) => new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, flatShading: shape !== 2, ...offset }));
 const lineMat = new LineMaterial({ color: 0x111111, linewidth: CONFIG.lineWidth });
 // Hairline weight for mechanism detail. At 512px a bolt head is only a few
 // pixels across, so the structural line weight fills it in solid.
@@ -638,6 +671,11 @@ function iris(centre, holeR) {
   bore.rotation.x = -Math.PI / 2;
   bore.position.copy(centre).setY(centre.y - IRIS.boreDrop);
   g.add(bore);
+  // The throat below it. Solid, so a shape dropping down the bore is swallowed
+  // by the near wall as it goes rather than being switched off whole.
+  const throat = new THREE.Mesh(new THREE.CylinderGeometry(IRIS.throatR, IRIS.throatR, IRIS.throatH, 24), black);
+  throat.position.copy(centre).setY(centre.y - IRIS.boreDrop - 0.004 - IRIS.throatH / 2);
+  g.add(throat);
 
   // Cover plate: it masks the pivots and the outer sweep of the leaves, so
   // only the aperture itself shows, the way a lens plate does.
@@ -868,6 +906,13 @@ function skyOffset(point) {
 // ---------------------------------------------------------------- scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
+// The only lights in the scene, and only the shapes answer to them.
+scene.add(new THREE.HemisphereLight(CONFIG.shapeSky, CONFIG.shapeGround, CONFIG.shapeFill));
+for (const [dir, power] of [[CONFIG.shapeLight, CONFIG.shapeKey], [CONFIG.shapeBackLight, CONFIG.shapeBack]]) {
+  const light = new THREE.DirectionalLight(0xffffff, power);
+  light.position.set(...dir);
+  scene.add(light);
+}
 scene.add(new THREE.GridHelper(40, 40, 0xd8d8d8, 0xe8e8e8));
 
 // Belt
@@ -918,13 +963,21 @@ rollerGeo.translate(0, 0, -BELT.rollerW / 2);
 rollerGeo.rotateY(Math.PI / 2);
 const rollers = [];
 {
+  // Counted rather than accumulated, so the run stays symmetric about the middle
+  // however the gap is set: stepping a float from one end drops the last roller.
+  // A small cross on the face that shows: the centre a wheel is turned about,
+  // not spokes. Drawn to the tooth tips it stopped being part of the wheel and
+  // read as a mark on the drawing.
   const faceX = BELT.rollerW / 2 + 0.002;
+  const hub = BELT.rollerR * BELT.rollerHub;
   const spokes = [];
   for (const a of [0, Math.PI / 2]) {
-    const c = Math.cos(a) * BELT.rollerR, s2 = Math.sin(a) * BELT.rollerR;
+    const c = Math.cos(a) * hub, s2 = Math.sin(a) * hub;
     spokes.push(faceX, c, s2, faceX, -c, -s2);
   }
-  for (let z = -BELT.rollerSpan; z <= BELT.rollerSpan; z += BELT.rollerGap) {
+  const count = Math.round((2 * BELT.rollerSpan) / BELT.rollerGap);
+  for (let i = 0; i <= count; i++) {
+    const z = -BELT.rollerSpan + i * BELT.rollerGap;
     const roller = new THREE.Group();
     roller.add(new THREE.Mesh(rollerGeo, white));
     roller.add(thin(edgeLines(rollerGeo, 30)));
@@ -1391,7 +1444,20 @@ function update(t) {
   for (let sh = 0; sh < 3; sh++) {
     for (let m = 0; m < dropN; m++) {
       const it = movingItems[sh][m];
-      const tau = u - (dropStart + m * CONFIG.releaseStagger) - EMERGE;
+      const letGo = dropStart + m * CONFIG.releaseStagger;
+      // Out of the tube first. It drops off the open iris under gravity and the
+      // throat takes it a piece at a time, which is the same shape that later
+      // comes out of the nozzle: the sink and the fall never overlap, so one
+      // object does both.
+      const sink = u - letGo;
+      if (sh === shape && sink >= 0 && sink < ITEM.sink) {
+        it.visible = true;
+        const tube = tubes[sh];
+        const y = tube.bottom.y + ITEM.lift - 0.5 * CONFIG.gravity * sink * sink;
+        placeFalling(it, tube.bottom.x, y + ITEM_CENTRE[sh], tube.bottom.z, sh, TUMBLE[sh][m], sink, 1);
+        continue;
+      }
+      const tau = sink - EMERGE;
       it.visible = sh === shape && tau >= 0 && tau < fallTime[sh];
       if (!it.visible) continue;
       // The tumble winds out on the way down: a shape has to be square on to go
