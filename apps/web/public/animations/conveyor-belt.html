@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conveyor belt</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #ffffff; }
+  body { display: grid; place-items: center; min-height: 100vh; }
+  #scene { width: 512px; height: 512px; max-width: 100vmin; max-height: 100vmin; aspect-ratio: 1 / 1; }
+  #scene canvas { display: block; width: 100% !important; height: 100% !important; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="scene"></div>
+<script type="module">
+/*
+  Conveyor belt shape sorter, isometric hidden-line drafting style.
+
+  Three upright glass tubes (cubes, pyramids, spheres) stand in a row along
+  the belt axis. Each empties into an opaque curved duct that carries the
+  shape out of sight into the machine, which dispenses it from a single
+  nozzle. Every box is the same closed cube with a hole in its lid: square,
+  triangle, or circle. The box under the nozzle receives the shape that fits
+  its hole.
+
+  The whole scene is a pure function of loop time, so it never drifts and the
+  frame at t = LOOP matches the frame at t = 0 exactly.
+
+  One box in the loop arrives with a hole the machine can no longer fill, so
+  the lamp goes red, a pincer arm rolls the box over to present a face it can
+  fill, the lamp goes green, and the run continues. The lamp carries the
+  verdict on the box that has arrived, not on each shape dropped: amber while
+  the belt is running, then red or green, and solid either way. Every tube holds a single charge,
+  and all three refill together once the loop has emptied them.
+
+  Extension point: window.conveyor.sequence is one entry per box in belt
+  order. `dispense` is the shape that ends up in the box, and `reject` marks
+  the box the arm has to turn first.
+*/
+import * as THREE from "three";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
+
+const CONFIG = {
+  sequence: [
+    { dispense: 0 },
+    { dispense: 1, reject: true },
+    { dispense: 2 },
+  ],
+  phase: { travel: 1.2, settle: 0.4, reject: 0.6, drop: 1.0, hold: 0.4 },
+  arm: { descend: 0.4, grip: 0.2, turn: 0.7, release: 0.2, retract: 0.4 },
+  itemsPerDrop: 3,
+  tubeCapacity: 3,
+  releaseStagger: 0.2,
+  ductTransit: 0.18,
+  manifoldDelay: 0.06,
+  refillStart: 0.06,
+  refillStagger: 0.26,
+  gravity: 24,
+  restitution: 0.15,
+  // The lamp keeps the colours a signal lamp is read by. That reserves amber,
+  // red and green, so the shapes take the cool half of the wheel instead: they
+  // used to be gold and green, which were the lamp's own two hexes exactly, and
+  // a lit lamp read as a stray shape. Blue, magenta and lavender sit at roughly
+  // 222, 317 and 266 degrees, all well clear of the lamp, and they separate
+  // from each other by lightness as well as by hue.
+  shapeColors: [0x1e63ff, 0xd41ba0, 0xb07cf5],
+  // Keyed by meaning rather than by colour, so the palette can be retuned
+  // without the names lying.
+  lampColors: { running: 0xf2b705, denied: 0xe3262e, approved: 0x18b85a },
+  lineWidth: 1.25, fineWidth: 0.55, markWidth: 0.4,
+  maxPixelRatio: 2,
+  frustum: 2.9,
+  skyMargin: 1.15,
+  lookAt: [0, 2.17, 0],
+};
+window.conveyor = CONFIG;
+
+// A rejected box costs an extra beat, so cycles are not all the same length
+// and the loop is a schedule rather than a fixed multiple.
+const ARM_TIME = CONFIG.arm.descend + CONFIG.arm.grip + CONFIG.arm.turn + CONFIG.arm.release + CONFIG.arm.retract;
+const CYCLES = CONFIG.sequence.map((entry) => {
+  const lead = CONFIG.phase.travel + CONFIG.phase.settle + (entry.reject ? CONFIG.phase.reject + ARM_TIME : 0);
+  const armStart = CONFIG.phase.travel + CONFIG.phase.settle + CONFIG.phase.reject;
+  // When the box under the nozzle becomes one the machine can fill: as soon as
+  // the belt stops for a box it can already fill, or the moment the arm finishes
+  // rolling one it cannot. This is what the lamp reads.
+  const approved = entry.reject ? armStart + CONFIG.arm.descend + CONFIG.arm.grip + CONFIG.arm.turn : CONFIG.phase.travel;
+  return { entry, armStart, approved, dropStart: lead, length: lead + CONFIG.phase.drop + CONFIG.phase.hold, start: 0 };
+});
+let clock = 0;
+for (const cycle of CYCLES) { cycle.start = clock; clock += cycle.length; }
+const LOOP = clock;
+// Which cycle spends each shape. A tube is full until its cycle, empty after.
+const SPEND_CYCLE = [];
+CONFIG.sequence.forEach((entry, index) => { SPEND_CYCLE[entry.dispense] = index; });
+const EMERGE = CONFIG.ductTransit + CONFIG.manifoldDelay;
+
+const BELT = {
+  width: 1.6, top: 0.75, thickness: 0.25, length: 24, slot: 2.4, slots: 9,
+  slat: 0.4, slatDepth: 0.3, slatRise: 0.05,
+  rollerW: 1.66, rollerGap: 0.9, rollerSpan: 7.2, rollerTeeth: 12, rollerRoot: 0.74,
+};
+// The belt advances three slots per loop. Sizing the rollers so that distance
+// is a whole number of turns keeps them from jumping at the seam.
+BELT.rollerR = (BELT.slot * 3) / (2 * Math.PI * 9);
+const WRAP = BELT.slot * BELT.slots;
+const BOX = { size: 0.8, wall: 0.06, clear: 0.01 };
+BOX.center = (BOX.size - BOX.wall) / 2;
+
+// Hole layout per box in the loop: every face bored, and every face its own
+// shape. From this camera exactly three faces of a box ever show, the ones
+// facing +x, +y and +z, and a box rolled half a turn about x shows a different
+// three: the same +x face, its base where its lid was, and its far z face
+// brought round to the near side. So both triples have to be three different
+// shapes, and giving the two z faces one shape between them is what put two
+// triangles on a flipped box. The -x face never shows in either stance.
+// `base` is the face a turned box ends up presenting, since the arm rolls it
+// right over rather than onto its side, so it carries the shape the machine
+// dispenses to it.
+const BOXES = [
+  { top: 0, base: 2, xPos: 1, xNeg: 0, zPos: 2, zNeg: 0 },
+  { top: 0, base: 1, xPos: 2, xNeg: 0, zPos: 1, zNeg: 0, turns: true },
+  { top: 2, base: 1, xPos: 0, xNeg: 2, zPos: 1, zNeg: 2 },
+];
+// Both stances of every box show three different shapes. Worth asserting: the
+// pairing is easy to break by hand and the fault only shows on the one box that
+// is ever seen the other way up.
+for (const b of BOXES) {
+  for (const face of [[b.top, b.xPos, b.zPos], [b.base, b.xPos, b.zNeg]]) {
+    if (new Set(face).size !== 3) throw new Error(`box shows a repeated shape: ${face}`);
+  }
+}
+// Pincer arm: a jointed two-link arm mounted behind the machine, on the far
+// side of the belt so it never stands between the boxes and the camera. Its
+// wrist sits on the roll axis just outside the box, and the claw reaches in.
+// Placement is constrained by sight lines as much as by reach: the shoulder
+// and both poses are kept out of the screen area the near tube's iris covers,
+// or the joints vanish behind it and the arm reads as loose parts.
+const ARM = {
+  shoulder: { x: -2.4, y: 2.2 },
+  upper: 1.1, fore: 0.95,
+  // The claw's fingers straddle the box along the belt, not across it, so they
+  // pass either side of it and the claw runs straight in and straight back
+  // out. Parked, the whole hand sits clear of the belt at working height.
+  wristX: -0.85, parkX: -2.3, releaseLift: 0.44,
+
+  // Links and joints. Each link is a box beam running from one pivot to the
+  // next, and each joint is one stepped barrel split along its axis into a
+  // slice per link: the near slice narrower, so the step between them is a
+  // machined shoulder rather than a line adrift on a flat face. Because the
+  // slices are coaxial and the two beams they hold sit only a short step apart
+  // in depth, a joint reads as one solid part. Separating consecutive links by
+  // more than the joint's own radius is what opened the gaps before: the far
+  // link then projects clear of the near one and the joint comes apart.
+  mountBeam: { h: 0.20, w: 0.16, z: -0.11 },
+  upperBeam: { h: 0.26, w: 0.16, z: 0.11 },
+  foreBeam: { h: 0.22, w: 0.14, z: -0.08 },
+  shoulderJoint: { rearR: 0.29, frontR: 0.25, rear: [-0.23, 0.01], front: [-0.01, 0.23], ring: 0.13 },
+  elbowJoint: { rearR: 0.24, frontR: 0.20, rear: [-0.19, 0.03], front: [-0.01, 0.23], ring: 0.11 },
+  // The mount drops clear of the tubes before it reaches out, or the whole
+  // attachment to the machine disappears behind the near iris.
+  post: { x: -0.38, y: 2.55, h: 0.6 },
+  mount: { x: -0.38, y: 2.35 },
+  // Wrist: a roll actuator carried in a block on the end of the forearm, its
+  // axis the arm's own reach. Everything outboard of the block is laid out in
+  // sequence along that axis, so the turning shaft is never nested inside the
+  // part it turns in.
+  wristBlock: { l: 0.34, h: 0.34, w: 0.38, x: -0.13 },
+  noseR: 0.13, noseFrom: -0.02, noseTo: 0.09, raceR: 0.085,
+  collarR: 0.095, collarFrom: 0.05, collarTo: 0.13,
+  flangeR: 0.16, flangeFrom: 0.13, flangeTo: 0.2, flangeRing: 0.09,
+  // Pincer head. Both jaws hinge on one axle through the head block and swing
+  // in the plane of the reach, closing on the box the way a pair of tongs
+  // does. They are stacked in height rather than set side by side, because at
+  // full close their shanks would otherwise run through each other. A shank
+  // leaves the hinge almost square to the reach, so the jaw is out past the
+  // box's own face before it turns forward: a shallower shank cuts the corner
+  // of the box on the way in, however wide the jaws are opened.
+  head: { l: 0.22, h: 0.36, w: 0.42, x: 0.31 },
+  bossR: 0.09, bossFrom: 0.18, bossTo: 0.23, bossRing: 0.045,
+  // The jaws are full depth rather than stacked: each shank starts a little
+  // out from the axle instead of on it, so the two clear each other where they
+  // cross, and the whole crossing is buried inside the head block anyway.
+  hinge: 0.31, jawH: 0.28, jawT: 0.16, jawRoot: 0.09,
+  shankAngle: 88, knuckleR: 0.085,
+  // The finger stands off the box on its pad, so it reads as a jaw closed on
+  // the box rather than as a line drawn along the box's own face.
+  jawFinger: { from: 0, to: 1, z: 0.53 },
+  jawPad: { l: 0.36, h: 0.18, w: 0.09, x: 0.7, z: 0.455 },
+  // Shut leaves the pads a hair off the box's faces; the open angle clears
+  // them by enough for the head to run in and out past a box it is not
+  // gripping, jaw roots included.
+  pincerOpen: 0.35,
+};
+const MACHINE = {
+  tubeR: 0.23, tubeLen: 1.15, tubeBottomY: 3.95, tubeZ: [-1.15, 0, 1.15],
+  ductR: 0.2, ductRib: 0.1, elbowR: 0.44, elbowY: 3.76, armY: 3.32,
+  flangeR: 0.038, flangeW: 0.1, boltR: 0.03, bolts: 6,
+  manifold: new THREE.Vector3(0, 2.9, 0), manifoldW: 0.8, manifoldH: 0.4, manifoldD: 0.78,
+  nozzleTop: 2.6, nozzleBottom: 2.22, nozzleR0: 0.3, nozzleR1: 0.22,
+  // The bell: tiers of a flared frustum with a stiffening rib standing proud at
+  // each joint and a lip at the mouth, then flutes down the face of it.
+  nozzleTiers: 3, nozzleFlare: 1.7,
+  nozzleRibR: 0.024, nozzleRibH: 0.03, nozzleLipR: 0.028, nozzleLipH: 0.034,
+  nozzleFlutes: 12,
+  // The machine's front: one lit panel carrying the mark, with a border of lamps
+  // round it, standing proud of the machine the way a marquee is bolted to the
+  // front of the thing it names. Nothing behind it is in its way, but what it
+  // may cover is: it is nearer the camera than the nozzle, and dropped to the
+  // manifold's own height it swallows the bell whole and the shapes then fall
+  // out from under the sign instead of out of a nozzle. So it sits square on
+  // the machine's own centre line and takes the band between the two: its head
+  // just under the iris frames, its foot just above where the bell's mouth
+  // projects. That band is 0.86, and it is what caps the mark.
+  signY: 3.33, signZ: 0, signW: 1.6, signH: 0.86, signT: 0.08, signInset: 0.1,
+  // The lamps stand proud of the panel, so each is drawn a little further out
+  // and a little lower than its seat. The border they appear to make is that
+  // much tighter at the near end and along the top than the one they sit on,
+  // and the mark is nudged the same way so its swash clears the top row and its
+  // first letter clears the near column.
+  signLogoW: 0.7, signLogoZ: -0.05, signLogoY: -0.045, signLampsW: 7, signLampsH: 3, signStay: 0.24,
+  // Lamps round the sign: a socket let into the panel, a neck, and a glass
+  // envelope that carries the colour. Small, because there are twenty of them.
+  lampSocketR: 0.034, lampNeckR: 0.022, lampBulbR: 0.045,
+};
+// Iris diaphragm at the base of each tube. Every blade pivots on the frame
+// ring; its inner edge is a chord whose distance from the axis is the
+// aperture radius, so sweeping the blades shuts the bore like a camera.
+const IRIS = {
+  blades: 8, bore: 0.23, pivotR: 0.24, length: 0.42, width: 0.2, thickness: 0.02,
+  frameR: 0.45, frameH: 0.15, bladeDrop: 0.07, boreDrop: 0.11, bladeStep: 0.005,
+  plateT: 0.02, clearance: 0.015,
+  betaShut: (179 * Math.PI) / 180,
+  move: 0.06, hold: 0.05, lead: 0.06,
+};
+// Open stands the blade's chord off the axis by exactly the bore radius, so
+// the aperture clears; shut lays it across the axis. Blade span and count are
+// the smallest that leave no gap when shut.
+IRIS.betaOpen = Math.PI - Math.asin(IRIS.bore / IRIS.pivotR);
+const ITEM = { cube: 0.2, tetraEdge: 0.3, sphereR: 0.11, pitch: 0.24, lift: 0.005, exit: 1.2, catch: 0.3 };
+const ITEM_HEIGHT = [ITEM.cube, ITEM.tetraEdge * Math.sqrt(2 / 3), ITEM.sphereR * 2];
+// Widest horizontal reach of each shape: the cube's diagonal, the tetrahedron's
+// base circumradius, the sphere's radius. Every iris plate is bored to the
+// largest of them, so all three plates are interchangeable.
+const ITEM_RADIUS = [
+  (ITEM.cube * Math.SQRT2) / 2,
+  ITEM.tetraEdge / Math.sqrt(3),
+  ITEM.sphereR,
+];
+// Each shape's geometry has its origin at its base, because that is what a
+// stack is built from. A falling body turns about its centre of mass, though,
+// so the centre is what follows the trajectory and the base goes wherever the
+// turn leaves it.
+const ITEM_CENTRE = [ITEM.cube / 2, ITEM_HEIGHT[1] / 4, ITEM.sphereR];
+const PLATE_BORE = Math.max(...ITEM_RADIUS);
+const TRI_ANGLES = [Math.PI / 6, (5 * Math.PI) / 6, (3 * Math.PI) / 2];
+
+const ISO_DIR = new THREE.Vector3(1, 1, 1).normalize();
+const VIEW = ISO_DIR.clone().negate();
+const UP = new THREE.Vector3(0, 1, 0);
+
+const mod = (a, n) => ((a % n) + n) % n;
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+const clamp01 = (x) => clamp(x, 0, 1);
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
+// Smoothstep leaves a jump in acceleration at each end. The arm's own moves
+// start and stop from rest, where that jump reads as a flinch, so they use a
+// curve whose first and second derivatives both vanish at both ends.
+const glide = (x) => { x = clamp01(x); return x * x * x * (x * (x * 6 - 15) + 10); };
+// A body dropped from `height` above where it comes to rest: free fall, then a
+// bounce to a fraction of its height each time until it stops. Both phases are
+// closed form, so the whole settle is a pure function of the time since it was
+// let go and can be read off at any point in the loop without integrating up
+// to it, which is what keeps the scene seekable and the loop seamless.
+function settle(height, t) {
+  const g = CONFIG.gravity;
+  if (height <= 0) return 0;
+  if (t <= 0) return height;
+  const first = Math.sqrt((2 * height) / g);
+  if (t < first) return height - 0.5 * g * t * t;
+  let tau = t - first;
+  let v = Math.sqrt(2 * g * height) * CONFIG.restitution;
+  while (v > 0.02) {
+    const span = (2 * v) / g;
+    if (tau < span) { const s = tau - span / 2; return (v * v) / (2 * g) - 0.5 * g * s * s; }
+    tau -= span;
+    v *= CONFIG.restitution;
+  }
+  return 0;
+}
+// How long that takes, so schedules are sized from the drop rather than the
+// drop being cut to fit a schedule.
+function settleTime(height) {
+  const g = CONFIG.gravity;
+  if (height <= 0) return 0;
+  let t = Math.sqrt((2 * height) / g);
+  let v = Math.sqrt(2 * g * height) * CONFIG.restitution;
+  while (v > 0.02) { t += (2 * v) / g; v *= CONFIG.restitution; }
+  return t;
+}
+// Boxes ride a hair above the slat tops. Landing them exactly on the slats
+// makes the two surfaces coplanar, and each slat's top edge then draws
+// straight through the box standing on it.
+const BOX_Y = BELT.top + BOX.center + BOX.clear;
+
+// Where the loop is: which cycle, and how far into it.
+function cycleAt(t) {
+  let index = CYCLES.length - 1;
+  while (index > 0 && t < CYCLES[index].start) index--;
+  return index;
+}
+// How far the arm has rolled the box it is holding: nothing before the turn,
+// a quarter turn after it, whether or not the arm is still attached.
+function rolled(u, cycle) {
+  if (!cycle.entry.reject) return 0;
+  const start = cycle.armStart + CONFIG.arm.descend + CONFIG.arm.grip;
+  return Math.PI * glide(clamp01((u - start) / CONFIG.arm.turn));
+}
+// The arm's own pose: where the wrist is, how far the claw has rolled, and
+// how tightly it is closed. It parks clear of the belt except on a rejected box.
+function armPose(u, cycle) {
+  // Straight in and straight back out, at working height throughout.
+  const reach = (p) => ({ x: ARM.parkX + (ARM.wristX - ARM.parkX) * p, y: BOX_Y });
+  const idle = { ...reach(0), roll: 0, grip: 0, lift: 0 };
+  if (!cycle.entry.reject) return idle;
+  const a = CONFIG.arm;
+  let x = u - cycle.armStart;
+  if (x <= 0) return idle;
+  if (x < a.descend) return { ...reach(glide(x / a.descend)), roll: 0, grip: 0, lift: 0 };
+
+  x -= a.descend;
+  if (x < a.grip) return { ...reach(1), roll: 0, grip: smooth(x / a.grip), lift: 0 };
+  x -= a.grip;
+  const at = reach(1);
+  if (x < a.turn) {
+    // A hover through the turn: the arm picks the box up off the slats, rolls
+    // it, and sets it back down. The lift is a function of the roll angle
+    // rather than of time, so it is zero exactly when the box is square and
+    // peaks exactly when the box is on its edge, and the whole flip is driven
+    // by one curve instead of two that have to be kept in step. It has to be
+    // steep enough at both ends to outrun the corner the box would otherwise
+    // pivot on, which is what sets its size: half the box's own height.
+    const roll = Math.PI * glide(x / a.turn);
+    const lift = ARM.releaseLift * Math.sin(roll);
+    return { x: at.x, y: at.y + lift, roll, grip: 1, lift };
+  }
+  x -= a.turn;
+  // Level again, so it can let go and draw out at working height.
+  if (x < a.release) return { ...at, roll: Math.PI, grip: 1 - smooth(x / a.release), lift: 0 };
+  x -= a.release;
+  // Draw straight out first, still turned and still a touch clear of the deck.
+  // Only once the fingers are past the box can the hand unwind: turning back
+  // any earlier would sweep them through the box it just set down.
+  // Straight out, then unwind only once the fingers are right off the belt:
+  // the spin swings them below the hand, and over the deck that would put one
+  // through it.
+  // It draws out still turned and does not wind back. The head is symmetric
+  // about the roll axis, axle heads included, so a half turn maps it onto
+  // itself: parked half turned is indistinguishable from parked square, and
+  // the pose the next cycle starts from is the pose this one ends in. Winding
+  // back instead meant spinning the head through half a turn in the last
+  // fraction of the retract, which whipped, and the jaws had to be shut to do
+  // it, so the claw came to rest closed and popped open at the cycle boundary.
+  const back = reach(1 - glide(clamp01(x / a.retract)));
+  return { x: back.x, y: back.y, roll: Math.PI, grip: 0, lift: 0 };
+}
+
+// Two-link solve for the shoulder and elbow that put the wrist on target. The
+// positive branch swings the elbow away from the belt, clear of the boxes.
+function armJoints(wx, wy) {
+  const dx = wx - ARM.shoulder.x, dy = wy - ARM.shoulder.y;
+  const d = Math.min(Math.hypot(dx, dy), ARM.upper + ARM.fore - 1e-3);
+  const cos = clamp((d * d - ARM.upper * ARM.upper - ARM.fore * ARM.fore) / (2 * ARM.upper * ARM.fore), -1, 1);
+  const bend = Math.acos(cos);
+  const base = Math.atan2(dy, dx) - Math.atan2(ARM.fore * Math.sin(bend), ARM.upper + ARM.fore * Math.cos(bend));
+  return { base, tip: base + bend };
+}
+
+// The Keynes wordmark, lifted from the site's navbar logo (apps/web/src/assets/
+// logo.svg) and inlined so this file stays standalone. Only the filled glyph
+// outlines are carried over; the source also draws them a second time as a
+// hairline stroke, which at this size would only thicken the mark.
+const LOGO_VIEWBOX = { w: 64.5, h: 36.5 };
+const LOGO_PATHS = [
+  "M4.45923 17.4424C3.40061 17.4897 2.22169 18.2938 1.54802 19.2397C1.90891 18.6958 2.48634 17.9864 2.91942 17.5607C3.47279 17.0641 4.53141 16.4492 5.51785 16.2837L5.99904 16.1891C6.50429 16.2127 6.81707 16.4256 6.81707 16.4256C7.05766 16.5675 7.25014 16.8039 7.37044 17.1114C7.61103 17.7262 7.37044 18.483 7.00954 19.1688C6.96143 19.0032 6.91331 18.8614 6.81707 18.6958C6.40806 17.9391 5.37349 17.4897 4.62765 17.4424C4.55547 17.4424 4.50735 17.4424 4.45923 17.4424ZM41.8238 2.68581C41.8495 2.83139 41.8238 3.06419 41.8238 3.06419C41.6794 3.25337 41.126 3.89188 40.8614 4.17566C39.7546 2.85135 37.9742 2.16555 35.7126 2.16555C32.4886 2.21284 28.4466 3.72634 25.4151 6.04389C22.3596 8.38509 19.4724 11.2465 16.8018 14.0134L16.1762 14.6756C15.7432 15.1012 15.3342 15.5506 14.9011 15.9999C15.7432 15.1249 16.5131 14.179 17.3311 13.304C17.7642 12.8073 18.2213 12.3344 18.6544 11.8614C21.7581 8.55063 26.4497 3.53715 31.1413 1.45609C32.8736 0.69934 34.7502 0.273668 36.5547 0.250021C36.9878 0.250021 37.3968 0.273668 37.8058 0.320964C38.7923 0.41556 39.6103 0.675694 40.3802 1.10137C40.8614 1.38515 41.2463 1.66893 41.5351 2.11825C41.5591 2.16555 41.7806 2.44167 41.8238 2.68581ZM13.5778 16.7803C13.9146 16.6857 14.3718 16.4492 14.7086 16.1654L14.059 16.733L14.4921 17.0641C15.262 17.6316 14.8289 18.6485 14.5643 19.3107C14.5643 19.3107 14.5643 19.3107 14.5643 19.3343L14.5402 19.358C14.444 19.5945 14.3477 19.8546 14.2034 20.1147C13.9628 20.6586 13.6981 21.2025 13.5538 21.8411C13.3853 22.5032 13.4575 23.0235 13.7462 23.4019C13.9387 23.6147 14.2755 23.8985 14.9251 23.8985C15.6951 23.8985 16.6574 23.4964 17.1386 23.2363C17.8845 22.8816 18.6063 22.4323 19.3762 21.8411C19.2799 21.9829 19.1837 22.0775 19.1356 22.1248C18.6784 22.4323 18.2213 22.7633 17.7882 23.0944C16.8499 23.7802 16.0078 24.3951 14.9733 24.8444C14.0349 25.2464 13.1929 25.4593 12.5432 25.4593C12.1583 25.4593 11.8696 25.3883 11.6771 25.2228C10.7869 24.4187 12.423 21.8411 13.0966 20.7296C13.265 20.4694 13.4094 20.2566 13.5056 20.0911C13.6259 19.9019 13.7703 19.6654 13.8425 19.5235L14.2996 18.6485C14.3477 18.5066 14.4199 18.3884 14.468 18.2465C14.5402 18.081 14.5643 17.9391 14.5643 17.8208C14.5643 17.4897 14.3958 16.9458 13.3613 16.9458H13.241C13.1447 16.9695 13.0485 16.9695 12.9763 16.9931C11.4124 19.4526 9.34333 22.1958 7.0336 23.8275C5.97498 24.5606 4.38705 25.4356 2.84724 25.341C2.34198 25.3174 1.88485 25.1991 1.47584 24.9863C0.104443 24.2768 0.0322645 22.5032 0.537516 21.1553C0.802171 20.5167 1.13901 19.8546 1.54802 19.2397C1.40366 19.4762 1.2593 19.7363 1.16307 20.0201C0.681873 21.2971 0.970589 22.5505 1.88485 23.4019C2.6307 24.0877 3.80962 24.1823 3.80962 24.1823C5.85468 24.2768 7.82757 22.6215 8.69372 21.6282C9.29521 20.9188 10.5704 19.0978 11.8215 17.206C11.6049 17.2296 11.3884 17.2533 11.1719 17.2533C10.6907 17.2533 10.6185 17.1587 10.6185 17.1587C10.6185 17.1587 10.6425 16.8512 12.0861 16.7803C13.3372 14.9357 14.4921 13.0911 14.9251 12.3107C15.8875 10.7972 16.8259 9.44927 17.8123 8.21955L18.1491 7.77023L17.5958 7.86482C17.3792 7.88847 17.1386 7.98306 16.898 8.05401C16.6815 8.12496 16.465 8.21955 16.3447 8.21955C16.2725 8.21955 16.2003 8.21955 16.1281 8.21955C15.3342 8.21955 14.5643 7.93577 13.8665 7.67563C13.7222 7.62834 13.5297 7.53374 13.3132 7.4628C12.5433 7.10807 11.3403 6.61145 10.4019 6.61145C9.7764 6.61145 9.31926 6.82429 9.03055 7.24996C8.78995 7.60469 8.74184 8.00671 8.91025 8.38509C9.19897 9.09454 10.0892 9.56751 10.6425 9.66211C10.9313 9.73305 11.1959 9.7567 11.4846 9.7567C12.1342 9.7567 12.7357 9.59116 13.5297 9.33103C12.856 10.3243 11.7252 11.2466 10.3538 11.2466C10.0892 11.2466 9.82452 11.2229 9.58392 11.152C8.78995 10.9391 8.2847 10.5607 8.06817 9.99318C7.80351 9.23643 8.11629 8.1486 8.86213 7.17902C9.75234 6.04389 10.7869 5.47633 12.0861 5.47633C12.8801 5.47633 13.7462 5.68916 14.853 6.11484L14.9973 6.16213C15.8635 6.49321 16.7777 6.84794 17.692 6.84794C18.2694 6.84794 18.7747 6.70605 19.2799 6.44591C19.4724 6.32767 19.6408 6.23308 19.8092 6.11484C20.2664 5.8547 20.6995 5.57092 21.2047 5.47633C21.1806 5.54727 21.1325 5.64187 21.0844 5.71281C20.9641 5.99659 20.7716 6.42227 20.6032 6.51686C20.4829 6.5878 20.3386 6.61145 20.1701 6.6351C19.9536 6.65875 19.7371 6.6824 19.4965 6.80064C17.6439 7.81753 16.6334 10.0405 15.8154 11.8141C15.8154 11.8141 14.7808 14.0844 13.0966 16.7803H13.5778ZM14.9011 15.9999C14.8289 16.0472 14.7808 16.1181 14.7086 16.1654L14.9011 15.9999Z",
+  "M22.5323 23.9694C23.2782 23.9694 24.0481 23.662 24.6977 23.3545C25.6601 22.9052 26.6224 22.314 27.5367 21.6046C24.5293 24.7971 21.8346 25.341 20.5835 25.3883C19.7655 25.341 19.2602 25.1045 18.9956 24.6552C18.4662 23.7093 19.0677 21.8174 19.8858 20.3748C21.4496 17.6316 23.3263 15.8343 25.4435 15.0303C25.8285 14.8884 26.4781 14.7229 27.0315 14.7229C27.8976 14.7229 27.8976 15.0539 27.9217 15.2904C27.9217 15.8107 27.4405 16.5438 27.0796 17.0877L26.9833 17.2059C25.7082 19.1688 22.9654 20.0201 21.0166 20.4931L20.5835 20.6113L20.5113 21.037C20.3429 22.1485 20.5835 22.9998 21.1369 23.4964C21.5218 23.8039 21.9789 23.9694 22.5323 23.9694ZM21.8105 18.1992L20.4872 19.8782L22.5323 19.2161C23.0857 19.0505 23.6872 18.8613 24.2887 18.6012C24.6736 18.4357 25.0105 18.2228 25.3473 18.01C25.5879 17.8681 25.8285 17.7026 26.045 17.608L26.4801 17.2059L26.3578 16.733C26.0691 16.1654 25.5638 16.0708 25.3232 16.0472L25.227 16.0235H25.1548C23.9759 16.1418 22.8932 16.8512 21.8105 18.1992Z",
+  "M51.6043 23.9694C52.3502 23.9694 53.1201 23.662 53.7697 23.3545C54.7321 22.9052 55.6944 22.314 56.6087 21.6046C53.6013 24.7971 50.9066 25.341 49.6555 25.3883C48.8375 25.341 48.3322 25.1045 48.0676 24.6552C47.5382 23.7093 48.1397 21.8174 48.9578 20.3748C50.5216 17.6316 52.3983 15.8343 54.5155 15.0303C54.9005 14.8884 55.5501 14.7229 56.1035 14.7229C56.9696 14.7229 56.9696 15.0539 56.9937 15.2904C56.9937 15.8107 56.5125 16.5438 56.1516 17.0877L56.0553 17.2059C54.7802 19.1688 52.0374 20.0201 50.0886 20.4931L49.6555 20.6113L49.5833 21.037C49.4149 22.1485 49.6555 22.9998 50.2089 23.4964C50.5938 23.8039 51.0509 23.9694 51.6043 23.9694ZM50.8825 18.1992L49.5592 19.8782L51.6043 19.2161C52.1577 19.0505 52.7592 18.8613 53.3607 18.6012C53.7456 18.4357 54.0824 18.2228 54.4193 18.01C54.6599 17.8681 54.9005 17.7026 55.117 17.608L55.603 17.2059L55.4298 16.733C55.1411 16.1654 54.6358 16.0708 54.3952 16.0472L54.299 16.0235H54.2268C53.0479 16.1418 51.9652 16.8512 50.8825 18.1992Z",
+  "M21.7971 27.7768C20.6663 27.8241 19.4152 28.6755 18.6694 29.6924C19.0784 29.1012 19.6799 28.368 20.161 27.9187C20.7385 27.3512 21.8693 26.7127 22.9279 26.5235L23.4572 26.4525C24.0106 26.4762 24.3234 26.689 24.3234 26.689C24.588 26.8545 24.7805 27.091 24.9248 27.4221C25.1895 28.0843 24.9248 28.912 24.5158 29.6451C24.4918 29.4559 24.4196 29.2903 24.3234 29.1248C23.8662 28.3208 22.7835 27.8241 21.9655 27.7768C21.9174 27.7768 21.8452 27.7768 21.7971 27.7768ZM31.8781 24.8681L33.6344 24.3005C35.3186 23.733 36.8825 22.9289 38.2779 21.912C36.1847 23.9931 33.9953 25.2465 31.6134 25.6485L31.3247 25.6958L30.9397 26.287C29.3037 29.1957 27.3308 32.4829 24.564 34.6112C23.4813 35.4626 21.7249 36.3376 20.0648 36.243C19.5355 36.2193 19.0302 36.1011 18.5972 35.8646C17.1295 35.1079 17.0574 33.1923 17.6107 31.7498C17.8754 31.064 18.2363 30.3545 18.6694 29.6924C18.5009 29.9525 18.3806 30.2363 18.2603 30.5437C17.7551 31.9153 18.0438 33.2396 19.0302 34.1619C19.8483 34.895 21.0994 34.9896 21.0994 34.9896C23.2888 35.1079 25.406 33.3342 26.3444 32.27C27.6676 30.7092 28.6781 28.9356 29.6405 27.2093L31.0119 25.1046L30.6751 24.7971C30.5067 24.6079 30.2901 24.3951 29.9052 24.3951C29.7368 24.3951 29.5683 24.4424 29.3278 24.4897C28.9669 24.5843 28.6541 24.7735 28.3894 24.9627C28.221 25.0573 28.0526 25.1755 27.9082 25.2228C27.4992 25.3647 27.0662 25.4593 26.7053 25.4593C26.2481 25.4593 25.9353 25.3174 25.791 25.0809C25.2857 24.2769 26.4165 22.5505 26.9699 21.6992C27.0662 21.5809 27.1383 21.4627 27.2105 21.3681C27.9564 20.162 28.8225 18.9796 29.6646 17.8445C30.1217 17.2296 30.6029 16.5675 31.06 15.9053C31.1563 15.7871 31.2525 15.6452 31.3247 15.5269C31.5653 15.1486 31.6856 14.983 31.8781 14.9357C31.9743 14.8884 32.0946 14.8884 32.2871 14.8884C32.3593 14.8884 32.4314 14.8884 32.5036 14.8884C32.2149 15.4323 32.0705 15.7161 32.0224 15.7871C31.3728 16.6857 30.6991 17.608 30.0255 18.483C29.3518 19.4053 28.63 20.3512 27.9564 21.2972C27.6436 21.7701 27.1383 22.6451 27.5233 23.3546C27.6436 23.5911 27.9564 23.9694 28.7263 23.9694C28.8466 23.9694 28.9669 23.9694 29.1112 23.9458C30.3623 23.7566 31.5172 22.6215 32.3352 21.8174L32.4555 21.6992C33.7307 20.4458 34.7171 19.0506 35.6554 17.6789C36.2329 16.8513 36.8343 15.9763 37.508 15.1722C37.6764 14.9594 37.8448 14.9121 38.2298 14.9121C38.2298 14.9121 38.2539 14.9121 38.2779 14.9121C38.0854 15.2668 37.8689 15.6688 37.8208 15.7634C37.5561 16.1182 37.3155 16.4492 37.0749 16.804L31.8781 24.8681Z",
+  "M45.3898 24.1113C46.28 24.1113 47.483 23.4728 47.8198 23.2364C47.8439 23.2364 47.8439 23.2127 47.8679 23.2127C46.8093 24.2532 45.5582 25.2938 44.0906 25.4357C43.465 25.3647 43.056 25.1519 42.9117 24.8444C42.7192 24.3478 42.7673 22.9999 45.5342 19.4999C45.6063 19.4053 45.7266 19.2871 45.8469 19.1452C46.4484 18.483 47.1702 17.6553 46.9056 16.8513C46.8093 16.5675 46.5206 16.1891 45.7988 16.0709C45.7026 16.0472 45.5823 16.0472 45.462 16.0472C44.2349 16.0472 42.9357 17.206 42.1658 17.9155L42.0696 18.01C40.4817 19.4526 38.3403 21.6756 37.1855 24.064L37.1374 24.1586C36.8246 24.8208 36.6562 25.1046 36.5599 25.2228H35.8381C35.8622 25.1519 35.9103 25.0809 35.9103 25.0573C36.993 23.2836 38.1719 21.4864 39.3268 19.7364C39.9523 18.8141 40.5538 17.8918 41.1553 16.9695C41.2516 16.804 41.3719 16.5911 41.4922 16.3547C41.6846 15.9763 42.1658 15.1013 42.4064 14.9594C42.4305 14.9594 42.5508 14.9121 42.9598 14.9121C43.1523 14.9121 43.3447 14.9121 43.5132 14.9357C43.5372 14.9357 43.5372 14.9357 43.5613 14.9357L43.6816 15.054C43.8741 15.2668 44.1146 15.5033 44.644 15.5033C44.7161 15.5033 44.7883 15.5033 44.8605 15.5033C45.2214 15.4797 45.5582 15.2668 45.871 15.0776C46.0154 15.0067 46.2078 14.8884 46.3041 14.8412C46.5447 14.7939 46.8093 14.7466 47.0499 14.7466C47.6995 14.7466 48.0845 14.983 48.2288 15.4797C48.4694 16.4019 47.507 17.7972 46.8574 18.7431C46.7371 18.885 46.6409 19.0506 46.5447 19.1688C46.28 19.5708 45.9913 19.9965 45.6304 20.4931C45.5582 20.5877 45.3898 20.7533 45.2454 20.9188C44.644 21.5573 44.2109 22.0539 44.1387 22.5742C44.0665 23.0472 44.1387 23.4255 44.4034 23.7093C44.5477 23.8985 44.8605 24.1113 45.3898 24.1113Z",
+  "M61.3869 23.6856C62.4215 23.1417 63.3839 22.5505 64.25 21.912C61.9884 24.2059 59.6306 25.341 57.0321 25.4356C56.0457 25.3883 55.1795 25.0099 54.7465 24.4424C54.4096 24.0404 54.3134 23.5437 54.4337 22.9525C54.6262 22.0066 55.4442 20.564 56.1901 20.1384C56.5269 19.9255 56.7194 19.9019 56.8156 19.9019C56.8878 19.9019 56.9118 19.9019 56.9359 19.9492C57.0803 20.1857 57.0803 20.7059 56.8156 21.2025C56.575 21.6755 56.3104 22.1958 56.0216 22.4559L55.4683 22.9289L56.3103 23.7802C56.6472 24.064 57.0803 24.2768 57.6096 24.3714C57.8742 24.4424 58.1148 24.466 58.3314 24.466C58.4516 24.466 58.572 24.4424 58.6922 24.4424C58.6922 24.4424 60.1118 23.8748 60.1839 22.5032C60.208 21.439 59.8471 20.5167 59.5103 19.6417C58.8607 17.9864 58.596 17.4188 59.9193 15.8107C60.3764 15.2431 61.5072 14.8175 62.5658 14.8175C63.2154 14.8175 63.7448 14.983 63.9854 15.2904C64.1538 15.5033 64.2019 15.8343 64.0816 16.26C63.8891 17.1114 63.3839 17.9864 62.6861 18.4593C62.8305 17.6553 62.3974 15.9762 61.7238 15.5979C61.4591 15.456 61.2185 15.4323 61.0741 15.4087C61.0741 15.4087 61.0741 15.4087 60.9538 15.385L60.8095 15.3614H60.6411C60.1358 15.8816 60.208 17.1587 60.208 17.1587C60.2561 17.4424 60.3042 17.7262 60.4005 17.9864C60.4967 18.2228 60.617 18.4593 60.7133 18.6722C60.8095 18.9086 60.9298 19.1215 61.002 19.3343L61.0741 19.5472L61.0982 19.6417C61.2185 19.9728 61.2666 20.2566 61.2907 20.5404C61.2907 21.1789 61.0501 21.8883 60.5208 22.7633L59.2937 24.7735L61.3869 23.6856Z",
+];
+
+// ---------------------------------------------------------------- materials
+const offset = { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 };
+const white = new THREE.MeshBasicMaterial({ color: 0xffffff, ...offset });
+const black = new THREE.MeshBasicMaterial({ color: 0x111111 });
+// Flipping the parsed shapes out of SVG's y-down space reverses their winding,
+// so the mark is drawn from both sides, and it carries no polygon offset
+// because it has to win against the plate it sits on.
+const markMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide });
+// A hair of stroke round the mark, well under the hairline weight the mechanism
+// detail uses. Enough to keep the script's thinnest strokes from dropping below
+// a pixel; any heavier and it starts closing the counters, which is worse than
+// leaving it plain.
+markMat.line = new LineMaterial({ color: 0x111111, linewidth: CONFIG.markWidth });
+const shell = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, ...offset });
+const glass = new THREE.MeshBasicMaterial({ color: 0x9fbfe0, transparent: true, opacity: 0.14, depthWrite: false, ...offset });
+const lampMat = new THREE.MeshBasicMaterial({ color: CONFIG.lampColors.running, ...offset });
+const shapeMats = CONFIG.shapeColors.map((color) => new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, ...offset }));
+const lineMat = new LineMaterial({ color: 0x111111, linewidth: CONFIG.lineWidth });
+// Hairline weight for mechanism detail. At 512px a bolt head is only a few
+// pixels across, so the structural line weight fills it in solid.
+const fineMat = new LineMaterial({ color: 0x111111, linewidth: CONFIG.fineWidth });
+
+// ---------------------------------------------------------------- helpers
+function segments(positions, material = lineMat) {
+  const geometry = new LineSegmentsGeometry().setPositions(positions);
+  return new LineSegments2(geometry, material);
+}
+// Redraw an object's outlines at hairline weight.
+function thin(object) {
+  object.traverse((o) => { if (o.isLineSegments2) o.material = fineMat; });
+  return object;
+}
+function edgeLines(geometry, threshold = 1) {
+  const edges = new THREE.EdgesGeometry(geometry, threshold);
+  const lines = segments(edges.attributes.position.array);
+  edges.dispose();
+  return lines;
+}
+function solid(geometry, material = white, threshold = 1) {
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(geometry, material));
+  group.add(edgeLines(geometry, threshold));
+  return group;
+}
+// Silhouette lines of a (truncated) cylinder between two points, for the fixed camera.
+function silhouette(p0, r0, p1, r1) {
+  const axis = p1.clone().sub(p0).normalize();
+  const side = new THREE.Vector3().crossVectors(axis, VIEW).normalize();
+  const a0 = p0.clone().addScaledVector(side, r0), a1 = p1.clone().addScaledVector(side, r1);
+  const b0 = p0.clone().addScaledVector(side, -r0), b1 = p1.clone().addScaledVector(side, -r1);
+  return segments([a0.x, a0.y, a0.z, a1.x, a1.y, a1.z, b0.x, b0.y, b0.z, b1.x, b1.y, b1.z]);
+}
+// Outline circle of a sphere as seen by the fixed camera.
+function sphereSilhouette(r, center) {
+  const u = new THREE.Vector3().crossVectors(VIEW, UP).normalize();
+  const v = new THREE.Vector3().crossVectors(VIEW, u).normalize();
+  const n = 36, pts = [];
+  for (let i = 0; i < n; i++) {
+    for (const a of [(i / n) * Math.PI * 2, ((i + 1) / n) * Math.PI * 2]) {
+      const p = center.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, r * Math.sin(a));
+      pts.push(p.x, p.y, p.z);
+    }
+  }
+  return segments(pts);
+}
+function box(sx, sy, sz, x, y, z) {
+  const g = solid(new THREE.BoxGeometry(sx, sy, sz));
+  g.position.set(x, y, z);
+  return g;
+}
+// Glass pipe between two world points: tinted body, end rims, silhouette lines.
+function glassPipe(p0, p1, r, open = false) {
+  const g = new THREE.Group();
+  const dir = p1.clone().sub(p0);
+  const len = dir.length();
+  dir.normalize();
+  const geo = new THREE.CylinderGeometry(r, r, len, 32, 1, open);
+  const mesh = new THREE.Mesh(geo, glass);
+  mesh.renderOrder = 5;
+  const rims = edgeLines(geo, 30);
+  for (const o of [mesh, rims]) {
+    o.position.copy(p0).lerp(p1, 0.5);
+    o.quaternion.setFromUnitVectors(UP, dir);
+    g.add(o);
+  }
+  g.add(silhouette(p0, r, p1, r));
+  return g;
+}
+
+// ---------------------------------------------------------------- ducting
+// Opaque sheet-metal fittings. Swept solids are outlined by their silhouette
+// against the fixed camera, since edge extraction on a swept tube yields
+// unusable clutter. Rings drawn on a duct keep only the camera-facing half,
+// so a rib never shows through the far wall.
+function addRun(pts, run) {
+  for (let i = 0; i < run.length - 1; i++) pts.push(run[i].x, run[i].y, run[i].z, run[i + 1].x, run[i + 1].y, run[i + 1].z);
+}
+function frontRing(pts, centre, axis, r, steps = 32) {
+  const u = new THREE.Vector3().crossVectors(axis, VIEW).normalize();
+  const v = new THREE.Vector3().crossVectors(axis, u).normalize();
+  let run = [];
+  for (let j = 0; j <= steps; j++) {
+    const a = (j / steps) * Math.PI * 2;
+    const n = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a));
+    if (n.dot(VIEW) > 0) { addRun(pts, run); run = []; continue; }
+    run.push(centre.clone().addScaledVector(n, r));
+  }
+  addRun(pts, run);
+}
+function fullRing(pts, centre, axis, r, steps = 12) {
+  const u = new THREE.Vector3().crossVectors(axis, VIEW).normalize();
+  const v = new THREE.Vector3().crossVectors(axis, u).normalize();
+  const run = [];
+  for (let j = 0; j <= steps; j++) {
+    const a = (j / steps) * Math.PI * 2;
+    run.push(centre.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, r * Math.sin(a)));
+  }
+  addRun(pts, run);
+}
+// A straight length of duct between two points.
+function straightDuct(p0, p1, r) {
+  const g = new THREE.Group();
+  const dir = p1.clone().sub(p0).normalize();
+  const len = p0.distanceTo(p1);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 32), white);
+  mesh.position.copy(p0).lerp(p1, 0.5);
+  mesh.quaternion.setFromUnitVectors(UP, dir);
+  g.add(mesh);
+  g.add(silhouette(p0, r, p1, r));
+  return g;
+}
+// A corrugated elbow: smooth collars at both ends, ribbed through the bend.
+function elbow(from, corner, to, r) {
+  const curve = new THREE.QuadraticBezierCurve3(from, corner, to);
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, r, 24, false), white));
+  const samples = 48, left = [], right = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const side = new THREE.Vector3().crossVectors(curve.getTangentAt(t), VIEW).normalize().multiplyScalar(r);
+    left.push(curve.getPointAt(t).add(side));
+    right.push(curve.getPointAt(t).sub(side));
+  }
+  const outline = [];
+  addRun(outline, left);
+  addRun(outline, right);
+  g.add(segments(outline));
+  const span = 0.86 - 0.14;
+  const count = Math.max(2, Math.round((curve.getLength() * span) / MACHINE.ductRib));
+  const ribs = [];
+  for (let k = 0; k <= count; k++) {
+    const t = 0.14 + span * (k / count);
+    frontRing(ribs, curve.getPointAt(t), curve.getTangentAt(t), r);
+  }
+  g.add(segments(ribs, fineMat));
+  return g;
+}
+// A bolted flange: the collar that joins two fittings, ringed with bolt heads.
+function flange(centre, axis, r) {
+  const g = new THREE.Group();
+  const rf = r + MACHINE.flangeR;
+  const body = solid(new THREE.CylinderGeometry(rf, rf, MACHINE.flangeW, 32), white, 30);
+  body.position.copy(centre);
+  body.quaternion.setFromUnitVectors(UP, axis);
+  g.add(body);
+  const u = new THREE.Vector3().crossVectors(axis, VIEW).normalize();
+  const v = new THREE.Vector3().crossVectors(axis, u).normalize();
+  const pts = [];
+  for (let b = 0; b < MACHINE.bolts; b++) {
+    const a = (b / MACHINE.bolts) * Math.PI * 2;
+    const n = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a));
+    if (n.dot(VIEW) > 0) continue;
+    fullRing(pts, centre.clone().addScaledVector(n, rf * 1.01), n, MACHINE.boltR, 18);
+  }
+  g.add(segments(pts, fineMat));
+  return g;
+}
+// The welded saddle where a branch meets the trunk. Equal radii make the seam
+// a pair of arcs meeting in a V, exactly as on a sheet-metal tee.
+function saddleSeam(trunkCentre, r, towards) {
+  const pts = [];
+  for (const sign of [1, -1]) {
+    const run = [];
+    for (let j = 0; j <= 40; j++) {
+      const x = -r + (2 * r * j) / 40;
+      const h = Math.sqrt(Math.max(0, r * r - x * x));
+      const point = trunkCentre.clone().add(new THREE.Vector3(x, sign * h, towards * h));
+      if (new THREE.Vector3(x, 0, towards * h).dot(VIEW) > 0) { addRun(pts, run.splice(0)); continue; }
+      run.push(point);
+    }
+    addRun(pts, run);
+  }
+  return segments(pts);
+}
+
+// ---------------------------------------------------------------- iris
+// The frame ring, its blades, and the black bore they close over. `centre` is
+// the mouth, level with the bottom of the glass tube above it.
+// One tapered leaf, hinged at the origin: its long edge is the chord, and it
+// narrows to a tip so the far corner never swings outside the frame.
+const bladeShape = new THREE.Shape();
+bladeShape.moveTo(0, 0);
+bladeShape.lineTo(IRIS.length, 0);
+bladeShape.lineTo(0, -IRIS.width);
+bladeShape.closePath();
+const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: IRIS.thickness, bevelEnabled: false });
+bladeGeo.rotateX(Math.PI / 2);
+// Only the chord and the taper are drawn. Outlining all three sides of every
+// leaf turns a shut iris into a black smudge at this size.
+function leaf() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(bladeGeo, white));
+  g.add(segments([
+    0, 0, 0, IRIS.length, 0, 0,
+    IRIS.length, 0, 0, 0, 0, -IRIS.width,
+  ]));
+  return g;
+}
+
+function iris(centre, holeR) {
+  const g = new THREE.Group();
+  const frameGeo = new THREE.CylinderGeometry(IRIS.frameR, IRIS.frameR, IRIS.frameH, 40, 1, true);
+  const frame = new THREE.Mesh(frameGeo, shell);
+  frame.position.copy(centre).setY(centre.y - IRIS.frameH / 2);
+  g.add(frame);
+  const rims = edgeLines(frameGeo, 30);
+  rims.position.copy(frame.position);
+  g.add(rims);
+  g.add(silhouette(centre.clone().setY(centre.y - IRIS.frameH), IRIS.frameR, centre.clone(), IRIS.frameR));
+
+  const bore = new THREE.Mesh(new THREE.CircleGeometry(IRIS.pivotR, 40), black);
+  bore.rotation.x = -Math.PI / 2;
+  bore.position.copy(centre).setY(centre.y - IRIS.boreDrop);
+  g.add(bore);
+
+  // Cover plate: it masks the pivots and the outer sweep of the leaves, so
+  // only the aperture itself shows, the way a lens plate does.
+  const plateShape = new THREE.Shape();
+  plateShape.absarc(0, 0, IRIS.frameR, 0, Math.PI * 2, false);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, holeR, 0, Math.PI * 2, true);
+  plateShape.holes.push(hole);
+  const plateGeo = new THREE.ExtrudeGeometry(plateShape, { depth: IRIS.plateT, bevelEnabled: false, curveSegments: 44 });
+  plateGeo.rotateX(Math.PI / 2);
+  const plate = thin(solid(plateGeo, white, 30));
+  plate.position.copy(centre);
+  g.add(plate);
+
+  const blades = [];
+  for (let k = 0; k < IRIS.blades; k++) {
+    const phi = (k / IRIS.blades) * Math.PI * 2;
+    const pivot = new THREE.Group();
+    // Each leaf sits a shade above the last, as overlapping leaves do. Without
+    // that the coplanar blades fight for depth and every hidden edge shows.
+    pivot.position.copy(centre)
+      .setY(centre.y - IRIS.bladeDrop + k * IRIS.bladeStep)
+      .add(new THREE.Vector3(IRIS.pivotR * Math.cos(phi), 0, IRIS.pivotR * Math.sin(phi)));
+    const blade = thin(leaf());
+    blade.position.y = IRIS.thickness / 2;
+    pivot.add(blade);
+    pivot.userData.phi = phi;
+    g.add(pivot);
+    blades.push(pivot);
+  }
+  return { group: g, blades };
+}
+
+// How far the iris of `shape` stands open. It blinks once per release, so
+// exactly one item drops through each time.
+function irisOpening(shape, u, cycle) {
+  if (shape !== cycle.entry.dispense) return 0;
+  let open = 0;
+  for (let m = 0; m < CONFIG.itemsPerDrop; m++) {
+    const tau = u - (cycle.dropStart + m * CONFIG.releaseStagger - IRIS.lead);
+    if (tau < 0 || tau > 2 * IRIS.move + IRIS.hold) continue;
+    if (tau < IRIS.move) open = Math.max(open, smooth(tau / IRIS.move));
+    else if (tau < IRIS.move + IRIS.hold) open = 1;
+    else open = Math.max(open, 1 - smooth((tau - IRIS.move - IRIS.hold) / IRIS.move));
+  }
+  return open;
+}
+
+// ---------------------------------------------------------------- items (origin at the item's bottom)
+function tetraGeometry(edge) {
+  const R = edge / Math.sqrt(3), h = edge * Math.sqrt(2 / 3);
+  const base = TRI_ANGLES.map((a) => [R * Math.cos(a), 0, R * Math.sin(a)]);
+  const apex = [0, h, 0];
+  const pos = [];
+  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
+  tri(base[0], base[2], base[1]);
+  tri(base[0], base[1], apex);
+  tri(base[1], base[2], apex);
+  tri(base[2], base[0], apex);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+const itemGeos = [
+  new THREE.BoxGeometry(ITEM.cube, ITEM.cube, ITEM.cube).translate(0, ITEM.cube / 2, 0),
+  tetraGeometry(ITEM.tetraEdge),
+  new THREE.SphereGeometry(ITEM.sphereR, 24, 16).translate(0, ITEM.sphereR, 0),
+];
+function item(shape) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(itemGeos[shape], shapeMats[shape]));
+  if (shape === 2) g.add(sphereSilhouette(ITEM.sphereR, new THREE.Vector3(0, ITEM.sphereR, 0)));
+  else g.add(edgeLines(itemGeos[shape], 1));
+  g.userData.shape = shape;
+  return g;
+}
+// Place an item with its bottom at `point`, its up axis along `axis` (spheres stay upright).
+// Nothing torques a shape once it is in the air, so it turns about a fixed
+// axis at a constant rate for the whole of its fall. Axis and rate are seeded
+// from which shape it is and where it comes in the batch, so a given shape
+// tumbles the same way on every pass of the loop.
+const TUMBLE = [];
+for (let sh = 0; sh < 3; sh++) {
+  TUMBLE.push([]);
+  for (let m = 0; m < CONFIG.itemsPerDrop; m++) {
+    const n = sh * CONFIG.itemsPerDrop + m;
+    TUMBLE[sh].push({
+      axis: new THREE.Vector3(Math.cos(n * 2.399), 0.45 * Math.cos(n * 1.13), Math.sin(n * 2.399)).normalize(),
+      rate: 4.6 + 1.4 * (n % 4),
+    });
+  }
+}
+const REST_TURN = new THREE.Quaternion();
+const spinTurn = new THREE.Quaternion();
+const lever = new THREE.Vector3();
+// Place a shape in free fall: its centre goes on the trajectory, it turns about
+// that centre, and `caught` winds the turn back to square for a shape the tube
+// has taken hold of, so the stack it lands on stays tidy.
+function placeFalling(it, x, centreY, z, shape, spin, t, caught = 0) {
+  spinTurn.setFromAxisAngle(spin.axis, spin.rate * t);
+  if (caught > 0) spinTurn.slerp(REST_TURN, caught);
+  it.quaternion.copy(spinTurn);
+  lever.set(0, ITEM_CENTRE[shape], 0).applyQuaternion(spinTurn);
+  it.position.set(x - lever.x, centreY - lever.y, z - lever.z);
+}
+function placeItem(it, point, axis, yaw = 0) {
+  it.position.copy(point);
+  if (it.userData.shape === 2) it.quaternion.identity();
+  else {
+    it.quaternion.setFromUnitVectors(UP, axis);
+    if (yaw) it.rotateY(yaw);
+  }
+}
+
+// ---------------------------------------------------------------- boxes with a shaped hole in the lid
+function holeShape(shape) {
+  const path = new THREE.Path();
+  if (shape === 0) {
+    const s = ITEM.cube / 2 + 0.03;
+    path.moveTo(-s, -s); path.lineTo(s, -s); path.lineTo(s, s); path.lineTo(-s, s); path.closePath();
+  } else if (shape === 1) {
+    const R = ITEM.tetraEdge / Math.sqrt(3) + 0.035;
+    TRI_ANGLES.forEach((a, i) => { const x = R * Math.cos(a), y = -R * Math.sin(a); i ? path.lineTo(x, y) : path.moveTo(x, y); });
+    path.closePath();
+  } else {
+    path.absarc(0, 0, ITEM.sphereR + 0.03, 0, Math.PI * 2, false);
+  }
+  return path;
+}
+// A panel of the box: a rectangle with one shape cut through it, extruded to
+// the wall thickness and centred on its own plane.
+function panelGeometry(shape, w, h) {
+  const outer = new THREE.Shape();
+  outer.moveTo(-w / 2, -h / 2);
+  outer.lineTo(w / 2, -h / 2);
+  outer.lineTo(w / 2, h / 2);
+  outer.lineTo(-w / 2, h / 2);
+  outer.closePath();
+  outer.holes.push(holeShape(shape));
+  const g = new THREE.ExtrudeGeometry(outer, { depth: BOX.wall, bevelEnabled: false, curveSegments: 32 });
+  g.translate(0, 0, -BOX.wall / 2);
+  return g;
+}
+// Outline of a panel's cut, drawn on its outer face. Panels carry no border of
+// their own: the box is outlined once, as a box, so its edges stay uncluttered.
+function holeOutline(shape) {
+  const pts = holeShape(shape).getPoints(48);
+  const z = BOX.wall / 2;
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    out.push(a.x, a.y, z, b.x, b.y, z);
+  }
+  return segments(out);
+}
+function panel(shape, w, h) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(panelGeometry(shape, w, h), white));
+  g.add(holeOutline(shape));
+  return g;
+}
+// Every box carries all three holes: one shape on the lid and the other two on
+// its sides, so a passing box never shows the same cut twice.
+// A box is six bored panels round a black core. Every panel's outer face has to
+// land exactly on the outline the box draws for itself and every panel has to
+// span the full height between them, or the shell is not closed: leave the
+// sides short and the box carries an open skirt round its foot, through which
+// the slats and gears behind it are drawn straight across its face. The base
+// sits at the very bottom for the same reason, and because a recessed base
+// would put the box's pivot off its own centre and make a flip lopsided.
+function crate({ top, base: baseShape, xPos, xNeg, zPos, zNeg }) {
+  const s = BOX.size, wt = BOX.wall;
+  const h = s - wt;             // the height the box outlines for itself
+  const face = (s - wt) / 2;    // centre plane of a side panel, so its outer face lands on the outline
+  const inner = s - 2 * wt;     // the pair of panels that sit between the other pair
+  const g = new THREE.Group();
+
+  const base = panel(baseShape, s, s);
+  base.rotation.x = Math.PI / 2;
+  base.position.y = wt / 2;
+  g.add(base);
+
+  const lid = panel(top, s, s);
+  lid.rotation.x = -Math.PI / 2;
+  lid.position.y = h - wt / 2;
+  g.add(lid);
+
+  for (const [shape, width, yaw, x, z] of [
+    [xPos, s, Math.PI / 2, face, 0],
+    [xNeg, s, -Math.PI / 2, -face, 0],
+    [zPos, inner, 0, 0, face],
+    [zNeg, inner, Math.PI, 0, -face],
+  ]) {
+    const side = panel(shape, width, h);
+    side.rotation.y = yaw;
+    side.position.set(x, h / 2, z);
+    g.add(side);
+  }
+
+  // A solid black core, so every hole reads as an opening rather than a wall.
+  const core = new THREE.Mesh(new THREE.BoxGeometry(inner - 0.01, h - 2 * wt - 0.01, inner - 0.01), black);
+  core.position.y = h / 2;
+  g.add(core);
+
+  const outline = edgeLines(new THREE.BoxGeometry(s, h, s));
+  outline.position.y = h / 2;
+  g.add(outline);
+  return g;
+}
+
+// ---------------------------------------------------------------- camera
+const H = CONFIG.frustum;
+const camera = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
+const target = new THREE.Vector3(...CONFIG.lookAt);
+camera.position.copy(target).addScaledVector(ISO_DIR, 40);
+camera.lookAt(target);
+camera.updateMatrixWorld();
+
+// How far above `point` an item must start to sit outside the top of the frame.
+// Each tube's mouth projects to a different screen height, so this is per tube.
+function skyOffset(point) {
+  const here = point.clone().project(camera).y;
+  const perUnit = point.clone().setY(point.y + 1).project(camera).y - here;
+  return Math.max(0.6, (CONFIG.skyMargin - here) / perUnit);
+}
+
+// ---------------------------------------------------------------- scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+scene.add(new THREE.GridHelper(40, 40, 0xd8d8d8, 0xe8e8e8));
+
+// Belt
+// Nothing carries the belt but the gears themselves: the chain wraps them,
+// riding on the tooth tips above and hanging from them below.
+const gearY = BELT.top - BELT.slatRise - BELT.rollerR;
+// Slats: solid boards, merged into one pair of objects so a belt's worth of
+// them costs two draws rather than a hundred. The chain is continuous, so the
+// same run comes back underneath, travelling the other way.
+const slatGeos = [];
+for (let z = -BELT.length / 2; z <= BELT.length / 2; z += BELT.slat) {
+  slatGeos.push(new THREE.BoxGeometry(BELT.width, BELT.slatRise, BELT.slatDepth).translate(0, 0, z));
+}
+const slatGeo = mergeGeometries(slatGeos);
+function slatRun(y) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(slatGeo, white));
+  g.add(edgeLines(slatGeo, 1));
+  g.position.y = y;
+  scene.add(g);
+  return g;
+}
+const slats = slatRun(BELT.top - BELT.slatRise / 2);
+const returnSlats = slatRun(gearY - BELT.rollerR - BELT.slatRise / 2);
+
+// Rollers spanning the frame, their crowns against the underside of the slats
+// so the slats ride on them. Their ends stand proud of the rails to stay visible.
+// Toothed rollers. The tips ride on the slats, so the tip circle is the
+// roller radius and the roots fall inside it.
+function gearProfile(tip, root, teeth) {
+  const step = (Math.PI * 2) / teeth;
+  const pts = [];
+  for (let i = 0; i < teeth; i++) {
+    const a = i * step;
+    for (const [r, f] of [[root, 0], [root, 0.24], [tip, 0.34], [tip, 0.66], [root, 0.76]]) {
+      pts.push([r * Math.cos(a + f * step), r * Math.sin(a + f * step)]);
+    }
+  }
+  return pts;
+}
+const gearPts = gearProfile(BELT.rollerR, BELT.rollerR * BELT.rollerRoot, BELT.rollerTeeth);
+const gearShape = new THREE.Shape();
+gearShape.moveTo(gearPts[0][0], gearPts[0][1]);
+for (let i = 1; i < gearPts.length; i++) gearShape.lineTo(gearPts[i][0], gearPts[i][1]);
+gearShape.closePath();
+const rollerGeo = new THREE.ExtrudeGeometry(gearShape, { depth: BELT.rollerW, bevelEnabled: false });
+rollerGeo.translate(0, 0, -BELT.rollerW / 2);
+rollerGeo.rotateY(Math.PI / 2);
+const rollers = [];
+{
+  const faceX = BELT.rollerW / 2 + 0.002;
+  const spokes = [];
+  for (const a of [0, Math.PI / 2]) {
+    const c = Math.cos(a) * BELT.rollerR, s2 = Math.sin(a) * BELT.rollerR;
+    spokes.push(faceX, c, s2, faceX, -c, -s2);
+  }
+  for (let z = -BELT.rollerSpan; z <= BELT.rollerSpan; z += BELT.rollerGap) {
+    const roller = new THREE.Group();
+    roller.add(new THREE.Mesh(rollerGeo, white));
+    roller.add(thin(edgeLines(rollerGeo, 30)));
+    roller.add(segments(spokes, fineMat));
+    roller.position.set(0, gearY, z);
+    scene.add(roller);
+    rollers.push(roller);
+  }
+}
+
+// Upright storage tubes in a row. The outer two turn through corrugated
+// elbows and run inward to a tee; the middle one drops straight into it. The
+// tee's trunk carries every shape down into the machine.
+const tubes = [];
+const R = MACHINE.ductR;
+const trunkTop = MACHINE.elbowY;
+const trunkBottom = MACHINE.manifold.y + MACHINE.manifoldH / 2;
+const trunkAxis = new THREE.Vector3(0, 0, 1);
+
+for (let s = 0; s < 3; s++) {
+  const bottom = new THREE.Vector3(0, MACHINE.tubeBottomY, MACHINE.tubeZ[s]);
+  const top = bottom.clone().setY(bottom.y + MACHINE.tubeLen);
+  scene.add(glassPipe(bottom, top, MACHINE.tubeR, true));
+  tubes.push({ bottom, top, sky: skyOffset(top) });
+
+  const diaphragm = iris(bottom.clone(), PLATE_BORE + IRIS.clearance);
+  scene.add(diaphragm.group);
+  tubes[s].blades = diaphragm.blades;
+
+  const spigot = new THREE.Vector3(0, MACHINE.elbowY, bottom.z);
+  if (s === 1) {
+    scene.add(straightDuct(spigot, new THREE.Vector3(0, trunkTop, 0), R));
+  } else {
+    const towards = Math.sign(-bottom.z);
+    const armEnd = new THREE.Vector3(0, MACHINE.armY, bottom.z + towards * MACHINE.elbowR);
+    scene.add(elbow(spigot, new THREE.Vector3(0, MACHINE.armY, bottom.z), armEnd, R));
+    scene.add(straightDuct(armEnd, new THREE.Vector3(0, MACHINE.armY, towards * 0.04), R));
+    scene.add(flange(armEnd.clone().setZ(armEnd.z + towards * 0.09), trunkAxis, R));
+    scene.add(saddleSeam(new THREE.Vector3(0, MACHINE.armY, 0), R, -towards));
+  }
+  // Collar joining the iris frame to the ducting below it.
+  scene.add(flange(new THREE.Vector3(0, MACHINE.elbowY + 0.05, bottom.z), UP, R));
+}
+
+// The tee itself, and its bolted connection into the machine.
+scene.add(straightDuct(new THREE.Vector3(0, trunkBottom, 0), new THREE.Vector3(0, trunkTop, 0), R));
+scene.add(flange(new THREE.Vector3(0, trunkBottom + 0.07, 0), UP, R));
+
+// Manifold, nozzle, lamp
+const m = MACHINE.manifold;
+scene.add(box(MACHINE.manifoldW, MACHINE.manifoldH, MACHINE.manifoldD, m.x, m.y, m.z));
+const nozzle = new THREE.Group();
+const nozzleH = MACHINE.nozzleTop - MACHINE.nozzleBottom;
+const collar = solid(new THREE.CylinderGeometry(MACHINE.nozzleR0 + 0.05, MACHINE.nozzleR0 + 0.05, 0.1, 32), white, 30);
+collar.position.y = nozzleH / 2 + 0.05;
+nozzle.add(collar);
+// The bell, built in tiers rather than as one smooth cone. A rib stands proud
+// at each joint and a lip runs round the mouth, so the profile itself steps
+// instead of relying on lines drawn on a plain surface, which is what carries
+// the shape at the size this renders at.
+{
+  // Local y runs from the mouth at the bottom to the throat at the top, and the
+  // radius flares faster than a straight cone would, so the wall reads curved.
+  const bellY = (t) => nozzleH / 2 - t * nozzleH;
+  const bellR = (t) => MACHINE.nozzleR1 + (MACHINE.nozzleR0 - MACHINE.nozzleR1) * Math.pow(t, MACHINE.nozzleFlare);
+  const band = (y0, r0, y1, r1) => {
+    const g = solid(new THREE.CylinderGeometry(r1, r0, y1 - y0, 32).translate(0, (y0 + y1) / 2, 0), white, 30);
+    g.add(silhouette(new THREE.Vector3(0, y0, 0), r0, new THREE.Vector3(0, y1, 0), r1));
+    return g;
+  };
+  for (let k = 0; k < MACHINE.nozzleTiers; k++) {
+    const t0 = k / MACHINE.nozzleTiers, t1 = (k + 1) / MACHINE.nozzleTiers;
+    nozzle.add(band(bellY(t1), bellR(t1), bellY(t0), bellR(t0)));
+    if (k === MACHINE.nozzleTiers - 1) continue;
+    // The ribs and the lip are detail on the bell, not the bell's own outline,
+    // so they are drawn at hairline weight: at structural weight their rim
+    // circles read as heavy as the profile and the whole thing bands up.
+    const r = bellR(t1) + MACHINE.nozzleRibR;
+    nozzle.add(thin(band(bellY(t1) - MACHINE.nozzleRibH / 2, r, bellY(t1) + MACHINE.nozzleRibH / 2, r)));
+  }
+  const lipR = MACHINE.nozzleR0 + MACHINE.nozzleLipR;
+  nozzle.add(thin(band(bellY(1), lipR, bellY(1) + MACHINE.nozzleLipH, lipR)));
+
+  // Flutes down the face of the bell, the way a real nozzle carries its cooling
+  // tubes. Kept to the half that faces the camera: a line on a curved surface
+  // drawn all the way round shows through the far wall.
+  const flutes = [];
+  for (let k = 0; k < MACHINE.nozzleFlutes; k++) {
+    const a = (k / MACHINE.nozzleFlutes) * Math.PI * 2;
+    const n = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    if (n.dot(VIEW) > -0.2) continue;
+    const run = [];
+    for (let j = 0; j <= 8; j++) {
+      const t = j / 8;
+      run.push(new THREE.Vector3(n.x * bellR(t), bellY(t), n.z * bellR(t)));
+    }
+    addRun(flutes, run);
+  }
+  nozzle.add(segments(flutes, fineMat));
+}
+nozzle.position.set(0, (MACHINE.nozzleTop + MACHINE.nozzleBottom) / 2, 0);
+scene.add(nozzle);
+
+// The machine's front. The panel carrying the mark is the face, and a border of
+// lamps runs round it, all of them wired to the same verdict. It sits just into
+// the manifold's own front and overhangs it on every side; everything behind
+// stays inboard of that plane, so nothing has to move to make room. A lamp's
+// glass is a sphere, whose outline is view-dependent and never falls out of
+// edge extraction, so it is drawn explicitly the way the dispensed spheres are.
+function lamp() {
+  const g = new THREE.Group();
+  g.add(shaft(MACHINE.lampSocketR, -0.03, 0.03));
+  g.add(shaft(MACHINE.lampNeckR, 0.03, 0.06));
+  const centre = 0.06 + MACHINE.lampBulbR * 0.75;
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(MACHINE.lampBulbR, 20, 14), lampMat);
+  glass.position.x = centre;
+  g.add(glass);
+  g.add(sphereSilhouette(MACHINE.lampBulbR, new THREE.Vector3(centre, 0, 0)));
+  return g;
+}
+{
+  // Let a little into the manifold's face so the two are not coplanar, which
+  // would leave them fighting over the same pixels.
+  const back = MACHINE.manifoldW / 2 - 0.01;
+  const front = back + MACHINE.signT;
+  const at = MACHINE.signY;
+  scene.add(box(MACHINE.signT, MACHINE.signH, MACHINE.signW, back + MACHINE.signT / 2, at, m.z + MACHINE.signZ));
+  // Two stays back into the machine, one into the manifold and one into the
+  // trunk above it, since the panel is carried down the belt and only its near
+  // end sits against the manifold's face.
+  for (const dy of [-1, 1]) {
+    scene.add(box(MACHINE.signStay, 0.08, 0.08, back - MACHINE.signStay / 2 + 0.02, at + dy * 0.28, m.z));
+  }
+
+  const svg = `<svg viewBox="0 0 ${LOGO_VIEWBOX.w} ${LOGO_VIEWBOX.h}">${LOGO_PATHS.map((d) => `<path d="${d}" fill="#000"/>`).join("")}</svg>`;
+  const shapes = [];
+  for (const path of new SVGLoader().parse(svg).paths) shapes.push(...SVGLoader.createShapes(path));
+  const mark = mergeGeometries(shapes.map((shape) => new THREE.ShapeGeometry(shape, 10)));
+  mark.scale(1, -1, 1);
+  mark.computeBoundingBox();
+  const bb = mark.boundingBox;
+  mark.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+  const k = MACHINE.signLogoW / (bb.max.x - bb.min.x);
+  mark.scale(k, k, 1);
+  const face = new THREE.Mesh(mark, markMat);
+  // Every triangle of the fill is coplanar, so edge extraction keeps only each
+  // glyph's boundary, and drawing that through the line pipeline gives a stroke
+  // measured in screen pixels rather than in world units.
+  const stroke = edgeLines(mark, 1);
+  stroke.material = markMat.line;
+  // Turned to lie on the panel. Its own reading direction then runs up and to
+  // the right, which is what a face on this axis does in this projection.
+  face.position.set(front + 0.002, at + MACHINE.signLogoY, m.z + MACHINE.signZ + MACHINE.signLogoZ);
+  face.rotation.y = stroke.rotation.y = Math.PI / 2;
+  stroke.position.copy(face.position).setX(front + 0.003);
+  scene.add(face, stroke);
+
+  // Walk the border, starting each edge at a corner so the corners are lit once.
+  const halfW = MACHINE.signW / 2 - MACHINE.signInset;
+  const halfH = MACHINE.signH / 2 - MACHINE.signInset;
+  const seats = [];
+  for (let i = 0; i < MACHINE.signLampsW; i++) {
+    const t = -halfW + (2 * halfW * i) / MACHINE.signLampsW;
+    seats.push([t, -halfH], [-t, halfH]);
+  }
+  for (let i = 0; i < MACHINE.signLampsH; i++) {
+    const t = -halfH + (2 * halfH * i) / MACHINE.signLampsH;
+    seats.push([halfW, t], [-halfW, -t]);
+  }
+  for (const [dz, dy] of seats) {
+    const g = lamp();
+    g.position.set(front, at + dy, m.z + MACHINE.signZ + dz);
+    scene.add(g);
+  }
+}
+// Boxes: nine slots, hole shapes repeat every three so a three-box loop is seamless.
+const boxes = [];
+for (let k = 0; k < BELT.slots; k++) {
+  const spec = BOXES[k % 3];
+  const shell = crate(spec);
+  shell.position.y = -BOX.center;
+  const group = new THREE.Group();
+  group.add(shell);
+  scene.add(group);
+  boxes.push({ group, z0: (k + 1) * BELT.slot, turns: Boolean(spec.turns) });
+}
+
+// One slice of a joint barrel: a cylinder across the arm's plane, outlined by
+// its rim circles and its silhouette, with an optional bolt ring on the face
+// that shows. A joint is two of these, coaxial and of different radii, one per
+// link, so the pair reads as a single stepped housing.
+// Each of these returns a wrapper whose own transform is free for the caller to
+// set. The part inside carries its offset from the joint it belongs to, and a
+// caller that positioned the part directly would silently overwrite that: it is
+// what once left the arm's mount beam centred on its post, running a metre the
+// wrong way and straight through the dispensing nozzle.
+function jointSlice(r, span, ringR) {
+  const [from, to] = span;
+  const g = new THREE.Group();
+  const slice = solid(new THREE.CylinderGeometry(r, r, to - from, 32).rotateX(Math.PI / 2), white, 30);
+  slice.position.z = (from + to) / 2;
+  const outline = new THREE.Group();
+  outline.position.z = -(from + to) / 2;
+  outline.add(silhouette(new THREE.Vector3(0, 0, from), r, new THREE.Vector3(0, 0, to), r));
+  if (ringR) {
+    const face = [];
+    fullRing(face, new THREE.Vector3(0, 0, to + 0.002), new THREE.Vector3(0, 0, 1), ringR, 32);
+    outline.add(segments(face, fineMat));
+  }
+  slice.add(outline);
+  g.add(slice);
+  return g;
+}
+// A boss standing on the roll plane: a cylinder about the jaws' hinge axis,
+// outlined with its rim circles and the silhouette edge extraction never gives.
+function boss(r, from, to) {
+  const g = new THREE.Group();
+  const barrel = solid(new THREE.CylinderGeometry(r, r, to - from, 28), white, 30);
+  barrel.position.y = (from + to) / 2;
+  const outline = new THREE.Group();
+  outline.position.y = -(from + to) / 2;
+  outline.add(silhouette(new THREE.Vector3(0, from, 0), r, new THREE.Vector3(0, to, 0), r));
+  barrel.add(outline);
+  g.add(barrel);
+  return g;
+}
+// A straight member of a pincer jaw: a bar of length L laid from (x0, z0) in
+// the jaw's own plane, at `angle` off the reach axis.
+function jawBar(x0, z0, angle, L, h, t) {
+  const g = new THREE.Group();
+  g.position.set(x0, 0, z0);
+  g.rotation.y = -angle;
+  g.add(box(L, h, t, L / 2, 0, 0));
+  return g;
+}
+// A link's body: a box beam lying along +X from the joint it hangs off, sunk
+// into the barrel at each end so neither end face is ever the outline.
+function beam(length, s) {
+  const g = new THREE.Group();
+  g.add(box(length, s.h, s.w, length / 2, 0, s.z));
+  return g;
+}
+
+// A cylinder lying along the roll axis, outlined properly: rim circles from
+// edge extraction, plus the silhouette, which is view-dependent and so is
+// never produced by extraction. Without it the part is a pair of loose arcs.
+function shaft(r, from, to) {
+  const g = solid(new THREE.CylinderGeometry(r, r, to - from, 28).rotateZ(Math.PI / 2), white, 30);
+  g.position.x = (from + to) / 2;
+  const outline = new THREE.Group();
+  outline.position.x = -(from + to) / 2;
+  outline.add(silhouette(new THREE.Vector3(from, 0, 0), r, new THREE.Vector3(to, 0, 0), r));
+  g.add(outline);
+  return g;
+}
+const armUpper = new THREE.Group();
+const armFore = new THREE.Group();
+const armWrist = new THREE.Group();
+const armRotor = new THREE.Group();
+const armJaws = [];
+{
+  // Mount: a post off the machine and a beam out to the shoulder. The beam
+  // starts inside the post and ends inside the shoulder barrel, so the arm is
+  // attached at both ends rather than resting against anything.
+  scene.add(box(0.15, ARM.post.h, 0.5, ARM.post.x, ARM.post.y, 0));
+  const span = Math.hypot(ARM.mount.x - ARM.shoulder.x, ARM.mount.y - ARM.shoulder.y);
+  const mount = beam(span, ARM.mountBeam);
+  mount.position.set(ARM.mount.x, ARM.mount.y, 0);
+  mount.rotation.z = Math.atan2(ARM.shoulder.y - ARM.mount.y, ARM.shoulder.x - ARM.mount.x);
+  scene.add(mount);
+
+  // Shoulder: the mount's slice is the wider one and sits behind, so the upper
+  // arm's own slice is the face that shows, stepped down inside its rim.
+  const shoulderRear = jointSlice(ARM.shoulderJoint.rearR, ARM.shoulderJoint.rear);
+  shoulderRear.position.set(ARM.shoulder.x, ARM.shoulder.y, 0);
+  scene.add(shoulderRear);
+
+  // Upper arm: shoulder slice, beam, elbow slice, all one rigid body.
+  armUpper.add(jointSlice(ARM.shoulderJoint.frontR, ARM.shoulderJoint.front, ARM.shoulderJoint.ring));
+  armUpper.add(beam(ARM.upper, ARM.upperBeam));
+  const elbowFront = jointSlice(ARM.elbowJoint.frontR, ARM.elbowJoint.front, ARM.elbowJoint.ring);
+  elbowFront.position.x = ARM.upper;
+  armUpper.add(elbowFront);
+  scene.add(armUpper);
+
+  // Forearm: the elbow's rear slice and a beam out to the wrist block.
+  armFore.add(jointSlice(ARM.elbowJoint.rearR, ARM.elbowJoint.rear));
+  armFore.add(beam(ARM.fore, ARM.foreBeam));
+  scene.add(armFore);
+
+  // Wrist: the roll actuator, held level whatever the two links are doing. The
+  // forearm's beam ends deep inside its block, and the bearing nose steps out
+  // of the block's face along the roll axis.
+  armWrist.add(box(ARM.wristBlock.l, ARM.wristBlock.h, ARM.wristBlock.w, ARM.wristBlock.x, 0, 0));
+  armWrist.add(shaft(ARM.noseR, ARM.noseFrom, ARM.noseTo));
+  // The bearing race, drawn on the nose's outer face around the shaft. It lies
+  // on a flat face, so the whole circle shows; culling it to the camera-facing
+  // half, as a ring on a curved surface needs, leaves an arc ending in mid-air.
+  {
+    const race = [];
+    fullRing(race, new THREE.Vector3(ARM.noseTo + 0.002, 0, 0), new THREE.Vector3(1, 0, 0), ARM.raceR, 40);
+    armWrist.add(segments(race, fineMat));
+  }
+  scene.add(armWrist);
+
+  // The hand: a collar turning in the nose, a bolted flange, and a pincer head
+  // whose two jaws hinge on one axle and close on the box like tongs. Each jaw
+  // is a shank out of the head's side, a knuckle, and a finger reaching
+  // forward over the box to a pad. The knuckles reach further from the roll
+  // axis than anything else on the hand, and the lift through the flip is
+  // sized to that reach so the whole head stays clear of the deck.
+  armRotor.add(shaft(ARM.collarR, ARM.collarFrom, ARM.collarTo));
+  armRotor.add(shaft(ARM.flangeR, ARM.flangeFrom, ARM.flangeTo));
+  {
+    const ring = [];
+    fullRing(ring, new THREE.Vector3(ARM.flangeTo + 0.002, 0, 0), new THREE.Vector3(1, 0, 0), ARM.flangeRing, 32);
+    armRotor.add(segments(ring, fineMat));
+  }
+  armRotor.add(box(ARM.head.l, ARM.head.h, ARM.head.w, ARM.head.x, 0, 0));
+  {
+    // The axle both jaws turn on, its heads standing proud of the block top and
+    // bottom rather than sunk in it. Both heads, not just the one that shows:
+    // they are what make the head symmetric about the roll axis, which is what
+    // lets the arm park still turned instead of winding back.
+    for (const end of [1, -1]) {
+      const lo = Math.min(end * ARM.bossFrom, end * ARM.bossTo);
+      const pin = boss(ARM.bossR, lo, lo + (ARM.bossTo - ARM.bossFrom));
+      pin.position.x = ARM.hinge;
+      armRotor.add(pin);
+      const cap = [];
+      fullRing(cap, new THREE.Vector3(ARM.hinge, end * (ARM.bossTo + 0.002), 0), new THREE.Vector3(0, 1, 0), ARM.bossRing, 24);
+      armRotor.add(segments(cap, fineMat));
+    }
+  }
+  const shankA = (ARM.shankAngle * Math.PI) / 180;
+  const shankL = (ARM.jawFinger.z - ARM.jawRoot) / Math.sin(shankA);
+  const knuckleX = shankL * Math.cos(shankA);
+  for (const side of [-1, 1]) {
+    const jaw = new THREE.Group();
+    jaw.position.set(ARM.hinge, 0, 0);
+    jaw.add(jawBar(0, side * ARM.jawRoot, side * shankA, shankL, ARM.jawH, ARM.jawT));
+    const knuckle = boss(ARM.knuckleR, -ARM.jawH / 2, ARM.jawH / 2);
+    knuckle.position.set(knuckleX, 0, side * ARM.jawFinger.z);
+    jaw.add(knuckle);
+    const len = ARM.jawFinger.to - ARM.jawFinger.from;
+    jaw.add(box(len, ARM.jawH, ARM.jawT, ARM.jawFinger.from + len / 2, 0, side * ARM.jawFinger.z));
+    jaw.add(box(ARM.jawPad.l, ARM.jawPad.h, ARM.jawPad.w, ARM.jawPad.x, 0, side * ARM.jawPad.z));
+    jaw.userData.side = side;
+    armRotor.add(jaw);
+    armJaws.push(jaw);
+  }
+  scene.add(armRotor);
+}
+// The lid a dropped shape has to go through: the box's own top, not the belt
+// plus a nominal box height, since the box outlines itself a little shorter
+// than it is wide and rides a hair above the slats.
+const boxTop = BOX_Y + BOX.center;
+const fallStart = MACHINE.nozzleBottom - 0.02;
+const fallEnd = ITEM_HEIGHT.map((h) => boxTop - h - 0.15);
+// The nozzle spits: a shape leaves it already moving, so its fall is timed from
+// that exit speed rather than from rest.
+const fallTime = fallEnd.map((end) => (Math.sqrt(ITEM.exit * ITEM.exit + 2 * CONFIG.gravity * (fallStart - end)) - ITEM.exit) / CONFIG.gravity);
+
+// How long each refill takes to arrive, drop by drop: off frame to the top of
+// the stack under gravity, plus its bounce. The first of a batch falls furthest
+// and lands lowest, so they arrive in the order they were let go.
+const REFILL_FALL = tubes.map((tube) => {
+  const list = [];
+  for (let m = 0; m < CONFIG.itemsPerDrop; m++) {
+    const yEnd = tube.bottom.y + ITEM.lift + m * ITEM.pitch;
+    list.push(settleTime(tube.top.y + tube.sky - yEnd));
+  }
+  return list;
+});
+// When the last of them has landed. The tube hands over from the falling shapes
+// to its own stack here rather than at the end of the belt's travel: the drop is
+// as long as gravity and the sky make it, and cutting it to the travel drew the
+// top of the stack and the shape still falling into it at the same time.
+const REFILL_END = Math.max(...REFILL_FALL.map((list) => Math.max(...list.map((f, m) => CONFIG.refillStart + m * CONFIG.refillStagger + f))));
+
+// Item pools: stacked in tubes, travelling from tube to box, refilling from hoppers.
+const pool = (count) => tubes.map((_, s) => {
+  const list = [];
+  for (let j = 0; j < count; j++) { const it = item(s); it.visible = false; scene.add(it); list.push(it); }
+  return list;
+});
+const tubeItems = pool(CONFIG.tubeCapacity);
+const movingItems = pool(CONFIG.itemsPerDrop);
+const refillItems = pool(CONFIG.itemsPerDrop);
+
+// ---------------------------------------------------------------- renderer
+const container = document.getElementById("scene");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setClearColor(0xffffff, 1);
+container.appendChild(renderer.domElement);
+
+// ---------------------------------------------------------------- per-frame state
+const tmp = new THREE.Vector3();
+function update(t) {
+  const i = cycleAt(t);
+  const cycle = CYCLES[i];
+  const u = t - cycle.start;
+  const shape = cycle.entry.dispense;
+  const dropN = CONFIG.itemsPerDrop;
+  const cap = CONFIG.tubeCapacity;
+  const dropStart = cycle.dropStart;
+
+  // Belt travel with ease-in-out per slot.
+  const s = BELT.slot * (i + easeInOut(clamp01(u / CONFIG.phase.travel)));
+  slats.position.z = -mod(s, BELT.slat);
+  returnSlats.position.z = mod(s, BELT.slat);
+  for (const roller of rollers) roller.rotation.x = -s / BELT.rollerR;
+
+  // Boxes. The one being turned rides the arm; one that has already been
+  // turned keeps its new face up until it wraps round to the start again.
+  const turn = rolled(u, cycle);
+  const pose = armPose(u, cycle);
+  // The box is as tall as it is deep about its own pivot, so it lands at the
+  // same height whichever way up it is and needs no stance of its own. What it
+  // does need is to be off the slats while its corner swings under it, and the
+  // arm's lift does that: tracking the lowest corner instead would put a cusp
+  // at ninety degrees, where the lowest corner changes, and read as a jolt.
+  const turnedRise = 0;
+  const eps = 1e-6;
+  for (let k = 0; k < boxes.length; k++) {
+    const b = boxes[k];
+    const z = mod(b.z0 - s + WRAP / 2, WRAP) - WRAP / 2;
+    b.group.position.set(0, BOX_Y, z);
+    b.group.rotation.x = 0;
+    if (!b.turns) continue;
+    if (z < -eps) {
+      b.group.rotation.x = Math.PI;
+      b.group.position.y = BOX_Y + turnedRise;
+    } else if (Math.abs(z) <= eps && k === i) {
+      b.group.rotation.x = turn;
+      b.group.position.y = BOX_Y + pose.lift;
+    }
+  }
+
+  // The arm itself: solve the joints for the wrist, then hang the links off them.
+  const joints = armJoints(pose.x, pose.y);
+  const elbowX = ARM.shoulder.x + ARM.upper * Math.cos(joints.base);
+  const elbowY = ARM.shoulder.y + ARM.upper * Math.sin(joints.base);
+  armUpper.position.set(ARM.shoulder.x, ARM.shoulder.y, 0);
+  armUpper.rotation.z = joints.base;
+  armFore.position.set(elbowX, elbowY, 0);
+  armFore.rotation.z = joints.tip;
+  // The roll housing is pinned in the fork but held level, the way a wrist's
+  // last joint keeps its tool square however the forearm lies.
+  const wristY = pose.y;
+  armWrist.position.set(pose.x, wristY, 0);
+  armRotor.position.set(pose.x, wristY, 0);
+  armRotor.rotation.x = pose.roll;
+  const open = ARM.pincerOpen * (1 - pose.grip);
+  for (const jaw of armJaws) jaw.rotation.y = -jaw.userData.side * open;
+
+  // Items released so far in this cycle, all from the tube for this box.
+  let released = 0;
+  for (let m = 0; m < dropN; m++) if (u >= dropStart + m * CONFIG.releaseStagger) released++;
+
+  // Items on the move. The ducting and the machine body are opaque, so a
+  // released shape is out of sight from the moment it leaves its tube until
+  // it clears the nozzle mouth.
+  for (let sh = 0; sh < 3; sh++) {
+    for (let m = 0; m < dropN; m++) {
+      const it = movingItems[sh][m];
+      const tau = u - (dropStart + m * CONFIG.releaseStagger) - EMERGE;
+      it.visible = sh === shape && tau >= 0 && tau < fallTime[sh];
+      if (!it.visible) continue;
+      // The tumble winds out on the way down: a shape has to be square on to go
+      // through a hole bored to its own size, and tilted it would not fit.
+      const drop = fallStart - ITEM.exit * tau - 0.5 * CONFIG.gravity * tau * tau;
+      const square = smooth((boxTop + ITEM.catch - drop) / ITEM.catch);
+      placeFalling(it, 0, drop + ITEM_CENTRE[sh], 0, sh, TUMBLE[sh][m], tau, square);
+    }
+  }
+
+  // Refill. The loop empties every tube, so all three are charged together on
+  // the first travel of the next loop.
+  const refilling = i === 0;
+  const arrived = [0, 0, 0];
+  for (let sh = 0; sh < 3; sh++) {
+    const tube = tubes[sh];
+    for (let m = 0; m < dropN; m++) {
+      const r = refillItems[sh][m];
+      const tau = u - (CONFIG.refillStart + m * CONFIG.refillStagger);
+      if (refilling && tau >= REFILL_FALL[sh][m]) arrived[sh]++;
+      const visible = refilling && tau >= 0 && tau < REFILL_FALL[sh][m];
+      r.visible = visible;
+      if (!visible) continue;
+      // One fall, off frame to the top of the stack, with the bounce it lands
+      // on. The tube catches the tumble as the shape passes its mouth, which is
+      // what leaves the stack square whatever way up the shape came down.
+      const yEnd = tube.bottom.y + ITEM.lift + m * ITEM.pitch;
+      const y = yEnd + settle(tube.top.y + tube.sky - yEnd, tau);
+      placeFalling(r, tube.top.x, y + ITEM_CENTRE[sh], tube.top.z, sh, TUMBLE[sh][m], tau, smooth((tube.top.y - y) / ITEM.catch));
+    }
+  }
+
+  // Stacks inside the tubes. The active tube settles a pitch after each release.
+  let shift = 0;
+  if (released > 0) {
+    const lastRelease = dropStart + (released - 1) * CONFIG.releaseStagger;
+    // What is left in the tube drops a place, under gravity like anything else.
+    shift = settle(ITEM.pitch, u - lastRelease);
+  }
+  for (let sh = 0; sh < 3; sh++) {
+    const tube = tubes[sh];
+    let count;
+    if (refilling && u < REFILL_END) count = arrived[sh];
+    else if (sh === shape) count = cap - released;
+    else count = SPEND_CYCLE[sh] < i ? 0 : cap;
+    for (let j = 0; j < cap; j++) {
+      const it = tubeItems[sh][j];
+      it.visible = j < count;
+      if (!it.visible) continue;
+      tmp.copy(tube.bottom).setY(tube.bottom.y + ITEM.lift + j * ITEM.pitch + (sh === shape ? shift : 0));
+      placeItem(it, tmp, UP);
+    }
+  }
+
+  // Iris blades: each blade's chord swings from the bore edge to the axis.
+  for (let sh = 0; sh < 3; sh++) {
+    const open = irisOpening(sh, u, cycle);
+    const beta = IRIS.betaShut + open * (IRIS.betaOpen - IRIS.betaShut);
+    for (const blade of tubes[sh].blades) blade.rotation.y = -(blade.userData.phi + beta);
+  }
+
+  // Nozzle pulse as each item emerges.
+  let pulse = 0;
+  for (let m = 0; m < released; m++) {
+    const e = u - (dropStart + m * CONFIG.releaseStagger + EMERGE);
+    if (e >= 0 && e < 0.12) pulse = Math.max(pulse, Math.sin((Math.PI * e) / 0.12));
+  }
+  nozzle.scale.set(1 + 0.12 * pulse, 1, 1 + 0.12 * pulse);
+
+  // Lamp: amber while the belt is running, then the verdict on the box that has
+  // arrived. One state per box, held solid, rather than a flash per shape.
+  let colour = CONFIG.lampColors.running;
+  if (u >= CONFIG.phase.travel) colour = u < cycle.approved ? CONFIG.lampColors.denied : CONFIG.lampColors.approved;
+  lampMat.color.set(colour);
+}
+
+// ---------------------------------------------------------------- loop, resize, visibility
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// The frame to hold when motion is turned off: mid-drop on the first box.
+const STILL = CYCLES[0].start + CYCLES[0].dropStart + 0.7;
+let running = false, last = 0, elapsed = 0;
+
+function render() { renderer.render(scene, camera); }
+function frame(now) {
+  if (!running) return;
+  elapsed += Math.min(now - last, 100) / 1000;
+  last = now;
+  update(elapsed % LOOP);
+  render();
+  requestAnimationFrame(frame);
+}
+function start() {
+  if (running || reducedMotion) return;
+  running = true;
+  last = performance.now();
+  requestAnimationFrame(frame);
+}
+function stop() { running = false; }
+function seek(t) { stop(); elapsed = t; update(mod(t, LOOP)); render(); }
+// Handles for inspection. Nothing here may collide with a config key: an
+// exposed `arm` would overwrite the arm's own timings.
+Object.assign(CONFIG, {
+  loop: LOOP, cycles: CYCLES, seek, start, stop,
+  parts: { scene, boxes, armUpper, armFore, armWrist, armRotor, armJaws },
+});
+
+function resize() {
+  const size = Math.max(1, Math.round(container.clientWidth));
+  const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(size, size, false);
+  for (const [mat, width] of [[lineMat, CONFIG.lineWidth], [fineMat, CONFIG.fineWidth], [markMat.line, CONFIG.markWidth]]) {
+    mat.resolution.set(size * dpr, size * dpr);
+    mat.linewidth = width * dpr;
+  }
+  if (!running) { update(reducedMotion ? STILL : elapsed % LOOP); render(); }
+}
+new ResizeObserver(resize).observe(container);
+resize();
+
+if (reducedMotion) {
+  update(STILL);
+  render();
+} else {
+  new IntersectionObserver((entries) => {
+    entries.some((e) => e.isIntersecting) ? start() : stop();
+  }).observe(container);
+}
+</script>
+</body>
+</html>
