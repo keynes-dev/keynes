@@ -253,9 +253,14 @@ async function openHarness() {
     observe,
   );
   const client = createKeynesClient(executor);
+  const rootInput = rootResources([{ definition: tokensResource, amount: 10 }]);
+  await client.defineResources({
+    commandId: "10000000-0000-4000-8000-000000000001",
+    definitions: rootInput.definitions,
+  });
   const root = await client.createBudget({
     commandId: "20000000-0000-4000-8000-000000000001",
-    ...rootResources([{ definition: tokensResource, amount: 10 }]),
+    ...rootInput,
     policies: [ceilingPolicy("root_limit", 1)],
   } satisfies CreateBudgetCommand);
   const resourceTypeId = root.budget.resources[0]?.resourceType.resourceTypeId;

@@ -6,7 +6,7 @@ import type {
 
 export function rootResources(
   resources: readonly RootResourceInput[],
-): Pick<CreateBudgetCommand, "resources" | "allocation"> {
+): Pick<CreateBudgetCommand, "definitions" | "amounts"> {
   const named = resources.map(({ definition, amount }) => ({
     key: definition.canonicalName.replaceAll(
       /_([a-z0-9])/g,
@@ -19,15 +19,10 @@ export function rootResources(
     amount,
   }));
   return {
-    resources: {
-      kind: "definitions",
-      definitions: Object.fromEntries(
-        named.map(({ key, definition }) => [key, definition]),
-      ),
-    },
-    allocation: Object.fromEntries(
-      named.map(({ key, amount }) => [key, amount]),
+    definitions: Object.fromEntries(
+      named.map(({ key, definition }) => [key, definition]),
     ),
+    amounts: Object.fromEntries(named.map(({ key, amount }) => [key, amount])),
   };
 }
 

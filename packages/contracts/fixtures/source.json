@@ -27,20 +27,17 @@
     },
     "createRoot": {
       "commandId": "20000000-0000-0000-0000-000000000001",
-      "resources": {
-        "kind": "definitions",
-        "definitions": {
-          "workerSlots": {
-            "unit": "slot",
-            "accountingBehavior": "reusable"
-          },
-          "modelTokens": {
-            "unit": "token",
-            "accountingBehavior": "consumable"
-          }
+      "definitions": {
+        "workerSlots": {
+          "unit": "slot",
+          "accountingBehavior": "reusable"
+        },
+        "modelTokens": {
+          "unit": "token",
+          "accountingBehavior": "consumable"
         }
       },
-      "allocation": {
+      "amounts": {
         "workerSlots": 2,
         "modelTokens": 100
       }

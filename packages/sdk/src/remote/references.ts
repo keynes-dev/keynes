@@ -119,7 +119,7 @@ export function projectRecoverOperationResult(
         kind: "committed",
         operationKey,
         operation: "defineResources",
-        result: createResourceDefinitionBinding(result.result),
+        result: createResourceDefinitionBinding(),
       };
     case "createBudget":
       return {

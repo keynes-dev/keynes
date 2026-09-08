@@ -15,17 +15,17 @@ async function runColdFirst() {
   await loadModule();
   const parserInitializationMilliseconds =
     performance.now() - parserInitializationStarted;
-  const { createKeynes, defineResources } = await import("@keynes/sdk");
-  const resources = defineResources({
+  const { createKeynes } = await import("@keynes/sdk");
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
+  };
   const createStarted = performance.now();
-  const keynes = await createKeynes();
+  const keynes = await createKeynes({ resources });
   const coldCreateMilliseconds = performance.now() - createStarted;
   try {
     const readyRssBytes = process.memoryUsage.rss();
     const sqliteVersion = installedSqliteVersion();
-    const root = await keynes.createBudget(resources, { workUnits: 2 });
+    const root = await keynes.createBudget({ workUnits: 2 });
     const requestStarted = performance.now();
     const request = await root.request({ workUnits: 1 });
     const firstRequestMilliseconds = performance.now() - requestStarted;
@@ -66,13 +66,13 @@ function installedSqliteVersion() {
 }
 
 async function runSteady() {
-  const { createKeynes, defineResources } = await import("@keynes/sdk");
-  const resources = defineResources({
+  const { createKeynes } = await import("@keynes/sdk");
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
-  const keynes = await createKeynes();
+  };
+  const keynes = await createKeynes({ resources });
   try {
-    const root = await keynes.createBudget(resources, { workUnits: 110 });
+    const root = await keynes.createBudget({ workUnits: 110 });
     for (let index = 0; index < 10; index += 1) {
       await fundedRequest(root);
     }

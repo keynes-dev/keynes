@@ -1,11 +1,11 @@
 # Keynes runtime architecture
 
-> **Status:** Accepted target architecture, with fixed funding reconciled on September 5, 2026.
-> The historical `main` snapshot at `fb0ca4f50417c76d7f1833f93c46980cc40689ba`
-> does not implement this architecture. The
-> [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation) records the
-> current source and exact-revision evidence. Linear must allocate this target
-> before implementation begins.
+> **Status:** Target architecture. KEY-78 configured creation is implemented in
+> the current source. The historical `main` snapshot at
+> `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not implement this architecture.
+> The [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation)
+> records source and exact-revision evidence. A retained result proves only the
+> source revision and verification lane that it records.
 
 ## Purpose
 
@@ -17,9 +17,9 @@ deployment.
 ```text
 application
   |
-  +-- createKeynes() -----------------> private in-memory SQLite
+  +-- createKeynes({ resources }) ----------------> private in-memory SQLite
   |
-  +-- createKeynes({ databaseUrl }) --> constrained PostgreSQL procedures
+  +-- createKeynes({ resources, databaseUrl }) ---> constrained PostgreSQL procedures
   |
   `-- embedded database code --------> canonical PostgreSQL procedures
 ```
@@ -46,32 +46,42 @@ server state from caller types, or maintain a second replay ledger.
 
 ## Public contract
 
-The ordinary path starts from one client and does not require a registration
-ceremony:
+The ordinary path configures Resource declarations once and creates Budgets from
+amounts:
 
 ```ts
-const keynes = await createKeynes();
-
-const resources = await keynes.defineResources({
+const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
-});
+};
 
-const policies = await keynes.definePolicies({
-  spendingLimit: spendingLimitDefinition,
-});
+const keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget({
-  resources,
-  initial: { usdCents: 1_000 },
-  policies: [policies.spendingLimit],
+  usdCents: 1_000,
+  reviewSeats: 0,
 });
 ```
 
-`createBudget` also accepts the same plain Resource definition object
-directly. That overload reconciles the definitions and creates the root in one
-authority transaction. The binding overload uses already resolved definitions
-and performs no definition write.
+The amounts object has no `initial` field or per-Budget definitions or bindings.
+Configured Resource names drive autocomplete and rejection of unknown amount
+keys, including separately declared variables. Runtime validation also rejects
+unknown keys. Returned Budget types and inspection reflect supplied membership.
+Local creation accepts `{ policies? }` as its second argument. Remote creation
+accepts `{ policies?, operationKey? }`. Neither option belongs in amounts.
+
+Local initialization establishes a private ephemeral catalog from declarations.
+Durable initialization validates all supplied definitions against the persisted
+tenant catalog. Missing or conflicting definitions fail initialization; additional
+persisted Resources remain compatible. Initialization and Budget creation never
+write shared Resource definitions. Explicit provisioning owns those writes.
+Failed initialization releases acquired resources and cannot select another
+authority or fall back to local state.
+
+The authority remains responsible for validation and authorization during
+creation. A declaration is compatibility information, not permission or durable
+identity. [ADR-0011](adr/0011-configured-resource-declarations.md) supersedes the
+earlier connection-only factory and per-Budget Resource input decision.
 
 Every Budget has a stable method surface:
 
@@ -82,6 +92,9 @@ Every Budget has a stable method surface:
 Durable clients also expose `loadBudget(reference)` and operation recovery.
 Loading takes only the opaque reference. Caller-supplied schemas, expected
 memberships, and expected Policies never participate in loading.
+Recovery rechecks the caller's current permission. Before it returns a committed
+creation result, it validates that creation's selected definitions against the
+current tenant catalog.
 
 Every public operation shown here is asynchronous. The SDK copies caller
 input, crosses the runtime admission boundary, and then validates it, so input
@@ -108,11 +121,9 @@ The same name and definition returns the existing identity. The same name with
 a different definition returns `resource_type_conflict` and rolls back
 the batch.
 
-The result is one immutable, quantity-free `ResourceBinding`. A binding can
-cross client instances connected to the same authority and tenant. It cannot
-be serialized as a public identifier or used against another authority or
-tenant. The receiving authority validates its scope within creation; SDK checks
-cannot replace that validation.
+The result is one immutable, quantity-free `ResourceBinding`. It cannot be
+serialized as a public identifier. Budget creation uses the client's
+declarations and does not take a Resource binding per Budget.
 
 The SDK exports the structural definition type for callers that want a
 `satisfies` check. There is no standalone definition helper outside
@@ -157,10 +168,10 @@ Children select their own controls; controls do not inherit or narrow from the
 parent. Methods remain present even when disabled. A disabled mutation rejects
 asynchronously with `budget_operation_not_allowed` and commits no state.
 
-Root membership is every Resource key supplied through the definition object
-or binding. An omitted initial amount is zero. Child membership is exactly the
-Resource keys in the approved request. An explicit zero includes the Resource;
-an omitted key excludes it.
+Root membership is exactly the supplied amount keys, not the whole client schema
+or tenant catalog. Child membership is exactly the Resource keys in the approved
+request. An explicit zero includes the Resource; an omitted key excludes it.
+Non-empty all-zero root amounts are valid; empty root amounts reject.
 
 Membership and original funding never expand. Initial root allocation belongs
 to creation. A child grant belongs to the parent's approved creation request.
@@ -297,19 +308,22 @@ from retaining quantity or having a non-settled descendant.
 One generated semantic contract defines the commands implemented by both
 authorities:
 
-| Command           | Meaning                                              |
-| ----------------- | ---------------------------------------------------- |
-| `defineResources` | Atomically define or exact-reuse a Resource batch    |
-| `definePolicies`  | Atomically define or exact-reuse a Policy batch      |
-| `createBudget`    | Reconcile or resolve definitions and create one root |
-| `requestBudget`   | Evaluate Policies and transfer quantity to one child |
-| `settleBudget`    | Record usage and finalize every newly ready Budget   |
-| `inspectBudget`   | Read one coherent state and lineage-history snapshot |
+| Command           | Meaning                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `defineResources` | Atomically define or exact-reuse a Resource batch                                              |
+| `definePolicies`  | Atomically define or exact-reuse a Policy batch                                                |
+| `createBudget`    | Validate declared Resources and amounts, then create one root without shared definition writes |
+| `requestBudget`   | Evaluate Policies and transfer quantity to one child                                           |
+| `settleBudget`    | Record usage and finalize every newly ready Budget                                             |
+| `inspectBudget`   | Read one coherent state and lineage-history snapshot                                           |
 
 Each mutation has one canonical operation, operation key, normalized input
 digest, stored result, and ordered history effects. Exact retry returns the
 stored result. Reusing an operation key with different normalized input returns
-`command_conflict`.
+`command_conflict`. For creation, explicit zero membership participates in
+canonical meaning. Amount-key order and compatible unused client declarations
+do not change that meaning. An exact retry returns the original Budget even when
+the recovering client declares additional unused Resources.
 
 The SDK generates operation keys for ordinary calls. A caller supplies one
 only for persisted crash recovery or an ambiguous remote response. Remote
@@ -352,7 +366,8 @@ The logical PostgreSQL state owners are:
 
 ## SQLite parity
 
-`createKeynes()` owns one private in-memory SQLite database. The SDK exposes
+`createKeynes({ resources })` owns one private in-memory SQLite database and
+initializes its ephemeral catalog from the declarations. The SDK exposes
 neither the connection nor arbitrary SQL. All methods remain asynchronous.
 
 SQLite executes the same validation, replay, movement, usage, lifecycle,
@@ -399,10 +414,16 @@ bounded-lifetime cursors.
 The development generator reads a supported, read-only tenant catalog
 procedure. It emits:
 
-- Resource names and immutable definition types;
+- typed Resource declarations with immutable runtime definition information;
 - Policy names, context types, reason types, and discriminated unions; and
 - immutable runtime Policy descriptors equivalent to authority-issued
   bindings.
+
+Generated Resource declarations carry the runtime definition information needed
+for configured-client compatibility validation. Initialization compares supplied
+definitions against the persisted tenant catalog without defining missing names
+or changing conflicting entries. Generated output grants no authorization.
+KEY-6 owns Hosted catalog generation; its tooling is outside KEY-78 acceptance.
 
 Created handles infer their exact Resources and attached Policies from inputs.
 A reference-loaded handle begins with generated catalog unions and narrows
@@ -489,7 +510,8 @@ Implementation is complete only when one shared behavior suite passes against
 SQLite and native PostgreSQL for:
 
 - definition reuse and conflicts;
-- raw and binding-based creation, including all-zero Budgets;
+- configured creation, exact amount-key membership, and all-zero Budgets;
+- durable declaration compatibility without shared definition writes;
 - immutable membership and behavior controls;
 - fixed creation funding, settlement returns, and independent successive roots;
 - Policy approval, denial, errors, and namespaced context;

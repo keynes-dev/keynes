@@ -2,10 +2,16 @@ export const POSTGRESQL_BUDGET_AGGREGATE =
   "packages/postgresql/test/system/budget.test.ts";
 
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
+  [POSTGRESQL_BUDGET_AGGREGATE]: [
+    "command replay replays reordered definitions and amounts with the original result",
+    "command replay rejects omitted explicit-zero membership under the same command identity",
+    "command replay creates independent roots for new identities and replays the original result after settlement",
+    "command replay replays semantically equivalent Policy definitions",
+  ],
   "packages/postgresql/test/integration/installation.test.ts": [
     "native PostgreSQL installation installs a fresh target atomically",
     "native PostgreSQL installation returns an exact no-op result without changing installed state",
-    "native PostgreSQL installation installs the additive Resource-bound Budget and remote access migrations",
+    "native PostgreSQL installation installs configured-creation migration 0008 after immutable history",
     "native PostgreSQL installation moves Resource provenance to the defining command",
     "native PostgreSQL installation rejects an unsupported PostgreSQL version before mutation",
     "native PostgreSQL installation rejects an operator without installation privilege before mutation",
@@ -24,20 +30,20 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/integration/recheck.test.ts": [
     "PostgreSQL exact recheck and application-role permissions rechecks the exact graph read-only",
-    "PostgreSQL exact recheck and application-role permissions grants the definition wrapper only to the runtime role",
+    "PostgreSQL exact recheck and application-role permissions grants configured creation wrappers only to the runtime role",
     "PostgreSQL exact recheck and application-role permissions rejects a missing definition receipt reference during exact recheck",
     "PostgreSQL exact recheck and application-role permissions rejects a missing unique definition receipt index during exact recheck",
     "PostgreSQL exact recheck and application-role permissions checks the server, checksums, contract, and complete object inventory",
-    "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks the final migration",
+    "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks configured-creation migration 0008",
     "PostgreSQL exact recheck and application-role permissions checks owners, bodies, languages, security, and fixed search paths",
     "PostgreSQL exact recheck and application-role permissions checks bootstrap permissions and schema and function ACLs",
-    "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the nine remote functions",
+    "PostgreSQL exact recheck and application-role permissions allows the application role to call exactly the ten remote functions",
     "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgresql/test/system/installation.test.ts": [
     "PostgreSQL installation installs explicit principal permission records",
     "PostgreSQL installation installs a nullable unique private definition receipt reference",
-    "PostgreSQL installation installs the current graph and rechecks it without changes",
+    "PostgreSQL installation installs migrations 0001 through 0008 and rechecks them without changes",
     "PostgreSQL installation rejects a contract digest mismatch before installation",
     "PostgreSQL installation rejects migration byte drift before applying it",
     "PostgreSQL installation rejects an installed-object mismatch after fresh migration",
@@ -48,8 +54,12 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0005-resource-bound-budget' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0006-remote-access' atomically when its final statement fails",
     "PostgreSQL installation rolls back '0007-resource-definitions' atomically when its final statement fails",
+    "PostgreSQL installation rolls back '0008-configured-creation' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
+    "native PostgreSQL contention replays an exact configured root with explicit zero membership after waiting for commit",
+    "native PostgreSQL contention rejects a conflicting configured root after waiting for commit without duplicate allowances",
+
     "native PostgreSQL contention orders opposite-input batch overlap with conflict=false",
     "native PostgreSQL contention orders opposite-input batch overlap with conflict=true",
     "native PostgreSQL contention preserves original Resource evidence when a batch waits behind singleton",
@@ -59,12 +69,12 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
     "native PostgreSQL contention orders a waiting settlement after the committed request",
     "native PostgreSQL contention returns the stored result when a matching command waits for commit",
-    "native PostgreSQL contention converges concurrent absent-name roots on one Resource",
+    "native PostgreSQL contention creates concurrent configured roots on one catalog Resource",
     "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
   ],
   "packages/postgresql/test/system/embedded-transactions.test.ts": [
-    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller commit",
-    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller rollback",
+    "embedded PostgreSQL caller-owned transactions keeps catalog provisioning, consumption, and application work inside caller commit",
+    "embedded PostgreSQL caller-owned transactions keeps catalog provisioning, consumption, and application work inside caller rollback",
     "embedded PostgreSQL caller-owned transactions propagates Resource serialization failure to the caller and rolls back application work",
     "embedded PostgreSQL caller-owned transactions commits an approved request and application outbox row together",
     "embedded PostgreSQL caller-owned transactions leaves neither Budget state nor outbox state after explicit rollback",
@@ -72,7 +82,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "embedded PostgreSQL caller-owned transactions commits a denial without creating application work",
     "embedded PostgreSQL caller-owned transactions returns invalid_command for malformed input without opening application work",
     "embedded PostgreSQL caller-owned transactions uses the caller-owned transaction lifecycle",
-    "embedded PostgreSQL caller-owned transactions rolls back a Resource-bound root with caller-owned application work",
+    "embedded PostgreSQL caller-owned transactions rolls back a configured root with caller-owned application work",
     "embedded PostgreSQL caller-owned transactions preserves the original definition provenance for later definition",
     "embedded PostgreSQL caller-owned transactions keeps a pending child and outbox row invisible to another session",
     "embedded PostgreSQL caller-owned transactions makes the child and outbox row visible after the caller commits",
@@ -83,6 +93,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgresql/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
+    "remote PostgreSQL installation and administration reports generation-three compatibility and grants configured validation and recovery only to the runtime role",
     "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
     "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
     "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",
@@ -109,8 +120,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles fails closed when the database is unavailable",
   ],
   "packages/postgresql/test/system/remote-budget.test.ts": [
-    "remote PostgreSQL Budget authority creates from a binding after producer close using another same-tenant creation-only principal",
-    "remote PostgreSQL Budget authority retains the KEY-78 Remote zero-allocation refusal for binding creation",
+    "remote PostgreSQL Budget authority creates from declarations after producer close using another same-tenant creation-only principal",
+    "remote PostgreSQL Budget authority accepts mixed-zero and all-zero Remote roots without changing catalog definitions",
     "remote PostgreSQL Budget authority requires current definition permission for exact Remote replay and fresh commands",
     "remote PostgreSQL Budget authority defines Resources through authenticated Remote calls with exact reuse and replay",
     "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",
@@ -118,6 +129,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
   ],
   "packages/postgresql/test/system/remote-recovery.test.ts": [
+    "remote PostgreSQL recovery and bounded reads recovers a lost configured creation only after current authorization and selected-definition validation",
+
     "remote PostgreSQL recovery and bounded reads recovers a lost definition response and retains its receipt after ledger expiry",
     "remote PostgreSQL recovery and bounded reads keeps failed definitions as known failures without a successful receipt",
     "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
@@ -130,12 +143,16 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL recovery and bounded reads paginates one bounded history snapshot with expiring single-use cursors",
   ],
   "packages/postgresql/test/system/remote-security.test.ts": [
-    "remote PostgreSQL identity and security rejects foreign tenant and unknown bindings with the same private-safe error",
-    "remote PostgreSQL identity and security rejects a binding from another installation despite matching tenant and Resource names",
+    "remote PostgreSQL identity and security validates configured declarations with creation permission and no authority writes",
+    "remote PostgreSQL identity and security validates configured catalogs under mapped identity without foreign disclosure",
+    "remote PostgreSQL identity and security rejects configured catalog validation without creation permission before reading declarations",
+    "remote PostgreSQL identity and security grants configured validation only through the authenticated runtime wrapper",
+    "remote PostgreSQL identity and security rejects foreign tenant and unknown configured catalogs with the same private-safe error",
+    "remote PostgreSQL identity and security creates against the current installation catalog without importing another installation's Resource identity",
     "remote PostgreSQL identity and security derives tenant and principal from the authenticated role on every call",
     "remote PostgreSQL identity and security scopes overlapping Resource names and operation keys to each authenticated tenant",
     "remote PostgreSQL identity and security checks enabled mappings again on an already-open session",
-    "remote PostgreSQL identity and security validates the exact input shape of all nine wrappers before mutation",
+    "remote PostgreSQL identity and security validates the exact input shape of all ten wrappers before mutation",
     "remote PostgreSQL identity and security returns authorization-safe errors before validating an unmapped caller",
     "remote PostgreSQL identity and security rejects a recreated login until an operator explicitly registers the stale name and new OID",
     "remote PostgreSQL identity and security rotates mappings atomically and disables the old pooled credential",
@@ -221,10 +238,11 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
   ],
   "packages/postgresql/test/system/rollback.test.ts": [
-    "PostgreSQL Resource-bound root authorization and rollback removes failed definition receipts and bound-root effects while retaining older bindings",
-    "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
-    "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
-    "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
+    "PostgreSQL configured root authorization and rollback rolls back an injected partial configured creation without changing unrelated state",
+
+    "PostgreSQL configured root authorization and rollback removes failed definition receipts and configured-root effects while retaining catalog definitions",
+    "PostgreSQL configured root authorization and rollback requires a configured catalog and root-allocation permission",
+    "PostgreSQL configured root authorization and rollback rolls back a configured root at its private checkpoint",
   ],
 } as const;
 
@@ -295,7 +313,8 @@ export function remoteScenarioInventory(
           `remote PostgreSQL connection profiles proves the runner routes through the ${mode} mode`,
         );
   return {
-    [POSTGRESQL_BUDGET_AGGREGATE]: [],
+    [POSTGRESQL_BUDGET_AGGREGATE]:
+      REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
     ...Object.fromEntries(
       files.map((file) => [file, REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[file]]),
     ),
@@ -313,7 +332,8 @@ export function selectedScenarioInventory(
   return selection.kind === "remote"
     ? remoteScenarioInventory(selection)
     : {
-        [POSTGRESQL_BUDGET_AGGREGATE]: [],
+        [POSTGRESQL_BUDGET_AGGREGATE]:
+          REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
         "packages/postgresql/test/system/embedded-transactions.test.ts":
           REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
             "packages/postgresql/test/system/embedded-transactions.test.ts"

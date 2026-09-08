@@ -18,10 +18,11 @@ import { format } from "oxfmt";
 
 import { expectedPostgresObjects } from "./policy-migration.ts";
 import { renderResourceBoundBudgetMigration } from "./resource-bound-budget-migration.ts";
+import { RESOURCE_DEFINITION_OBJECTS } from "./resource-definitions-migration.ts";
 import {
-  RESOURCE_DEFINITION_OBJECTS,
-  renderResourceDefinitionsMigration,
-} from "./resource-definitions-migration.ts";
+  CONFIGURED_CREATION_OBJECTS,
+  renderConfiguredCreationMigration,
+} from "./configured-creation-migration.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
 
 const POSTGRES_PROFILE = {
@@ -59,6 +60,8 @@ const IMMUTABLE_MIGRATION_SHA256 = {
     "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
   "0006-remote-access.sql":
     "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
+  "0007-resource-definitions.sql":
+    "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
 } as const;
 
 interface InstallationMigration {
@@ -100,9 +103,15 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     ),
     "utf8",
   );
-  const resourceDefinitionsSql = renderResourceDefinitionsMigration(
-    resourceBoundBudgetSql,
-    remoteAccessSql,
+  const resourceDefinitionsSql = readFileSync(
+    join(
+      repositoryRoot,
+      "packages/postgresql/migrations/0007-resource-definitions.sql",
+    ),
+    "utf8",
+  );
+  const configuredCreationSql = renderConfiguredCreationMigration(
+    resourceDefinitionsSql,
     options.contract.source,
   );
   const migrationSources = new Map<string, string>([
@@ -111,6 +120,7 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     ["0005-resource-bound-budget.sql", resourceBoundBudgetSql],
     ["0006-remote-access.sql", remoteAccessSql],
     ["0007-resource-definitions.sql", resourceDefinitionsSql],
+    ["0008-configured-creation.sql", configuredCreationSql],
   ]);
   const manifest = readMigrationManifest(repositoryRoot);
   const contractMigrations = manifest.filter(
@@ -145,6 +155,7 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     expectedObjects: [
       ...expectedPostgresObjects(options.policyProfile),
       ...RESOURCE_DEFINITION_OBJECTS,
+      ...CONFIGURED_CREATION_OBJECTS,
     ],
     functions: installationFunctions(options.contract.source),
   };
@@ -171,7 +182,8 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
           fileName === "0004-policy.sql" ||
           fileName === "0005-resource-bound-budget.sql" ||
           fileName === "0006-remote-access.sql" ||
-          fileName === "0007-resource-definitions.sql",
+          fileName === "0007-resource-definitions.sql" ||
+          fileName === "0008-configured-creation.sql",
       },
     ],
   });

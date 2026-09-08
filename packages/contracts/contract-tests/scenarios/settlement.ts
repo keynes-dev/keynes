@@ -38,20 +38,19 @@ export function registerSettlementContractTests(
           modelTokens: { unit: "token", accountingBehavior: "consumable" },
         },
       });
-      const resources = {
-        kind: "binding",
-        bindingReference: binding.bindingReference,
-      } satisfies CreateBudgetCommand["resources"];
+      const definitions = {
+        modelTokens: { unit: "token", accountingBehavior: "consumable" },
+      } satisfies CreateBudgetCommand["definitions"];
       const command = {
         commandId: fundingId(2),
-        resources,
-        allocation: { modelTokens: 10 },
+        definitions,
+        amounts: { modelTokens: 10 },
       };
       const first = await client.createBudget(command);
       const second = await client.createBudget({
         commandId: fundingId(3),
-        resources,
-        allocation: { modelTokens: 20 },
+        definitions,
+        amounts: { modelTokens: 20 },
       });
       await client.settleBudget({
         commandId: fundingId(4),
@@ -65,15 +64,15 @@ export function registerSettlementContractTests(
       });
       const third = await client.createBudget({
         commandId: fundingId(5),
-        resources,
-        allocation: { modelTokens: 30 },
+        definitions,
+        amounts: { modelTokens: 30 },
       });
       expect(await client.createBudget(command)).toEqual({
         ...first,
         replayed: true,
       });
       await expect(
-        client.createBudget({ ...command, allocation: { modelTokens: 11 } }),
+        client.createBudget({ ...command, amounts: { modelTokens: 11 } }),
       ).rejects.toMatchObject({ code: "command_conflict" });
       const readFirst = await client.getBudget({
         budgetId: first.budget.budgetId,
@@ -109,18 +108,15 @@ export function registerSettlementContractTests(
       const definitions = {
         modelTokens: { unit: "token", accountingBehavior: "consumable" },
         reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
-      };
+      } satisfies CreateBudgetCommand["definitions"];
       const binding = await client.defineResources({
         commandId: fundingId(6),
         definitions,
       });
       const command = {
         commandId: fundingId(7),
-        resources: {
-          kind: "binding",
-          bindingReference: binding.bindingReference,
-        },
-        allocation: { modelTokens: 0, reviewerSeats: 0 },
+        definitions,
+        amounts: { modelTokens: 0, reviewerSeats: 0 },
       } satisfies CreateBudgetCommand;
       const root = await client.createBudget(command);
       expect(root.budget.resources).toHaveLength(2);
@@ -153,7 +149,7 @@ export function registerSettlementContractTests(
       await expect(
         client.createBudget({
           ...command,
-          allocation: { modelTokens: 1, reviewerSeats: 0 },
+          amounts: { modelTokens: 1, reviewerSeats: 0 },
         }),
       ).rejects.toMatchObject({ code: "command_conflict" });
       expect(

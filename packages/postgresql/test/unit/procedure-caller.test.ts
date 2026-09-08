@@ -21,6 +21,7 @@ const CONTEXT = {
 } as const;
 
 const OPERATIONS = [
+  "validateResources",
   "defineResource",
   "defineResources",
   "createBudget",
@@ -30,6 +31,7 @@ const OPERATIONS = [
 ] as const satisfies readonly OperationName[];
 
 const TARGET_QUERIES = {
+  validateResources: "select keynes.validate_resources($1::jsonb) as response",
   defineResource: "select keynes.define_resource_type($1::jsonb) as response",
   defineResources: "select keynes.define_resources($1::jsonb) as response",
   createBudget: "select keynes.create_budget($1::jsonb) as response",

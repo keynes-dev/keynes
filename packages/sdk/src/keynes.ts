@@ -60,78 +60,67 @@ import {
   prepareRootResources,
   resourceInstallation,
   snapshotResourceDefinitions,
+  captureResourceDefinitions,
   type ResourceDefinitionsInput,
+  type ResourceDefinitions,
 } from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
 
 const keynesBrand: unique symbol = Symbol("Keynes");
 
-type ResourceInput = ResourceDefinitionsInput | ResourceBinding<string>;
-type ResourceNames<Input extends ResourceInput> =
-  Input extends ResourceBinding<infer Names>
-    ? Names
-    : Extract<keyof Input, string>;
-
-interface RootBudgetCreator {
+interface RootBudgetCreator<Names extends string> {
   <
-    const Definitions extends ResourceInput,
-    const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+    const Allocation extends ResourceAmounts<Names>,
     const Policies extends PolicySetInput | undefined = undefined,
   >(
-    schema: Definitions,
-    allocation: ExactResourceAmounts<
-      NoInfer<ResourceNames<Definitions>>,
-      Allocation
-    >,
+    allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
     ...options: AttachPolicyArguments<
-      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Extract<keyof Allocation, Names>,
       Policies
     >
   ): Promise<
     Budget<
-      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Extract<keyof Allocation, Names>,
       ContextOfPolicySet<Policies>,
       ReasonsOfPolicySet<Policies>
     >
   >;
 }
 
-export interface Keynes extends AsyncDisposable {
-  readonly [keynesBrand]: undefined;
+export interface Keynes<Names extends string = string> extends AsyncDisposable {
+  readonly [keynesBrand]: Names | undefined;
   readonly defineResources: <
     const Definitions extends ResourceDefinitionsInput,
   >(
     definitions: Definitions,
   ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
-  readonly createBudget: RootBudgetCreator;
+  readonly createBudget: RootBudgetCreator<Names>;
   readonly close: () => Promise<void>;
   readonly [Symbol.asyncDispose]: () => Promise<void>;
 }
 
-export type LocalKeynes = Keynes;
+export type LocalKeynes<Names extends string = string> = Keynes<Names>;
 
-export interface RemoteKeynesOptions {
+export interface RemoteKeynesOptions<
+  Definitions extends ResourceDefinitionsInput = ResourceDefinitionsInput,
+> {
+  readonly resources: Definitions;
   readonly databaseUrl: string;
 }
 
-interface RemoteRootBudgetCreator {
+interface RemoteRootBudgetCreator<Names extends string> {
   <
-    const Definitions extends ResourceInput,
-    const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+    const Allocation extends ResourceAmounts<Names>,
     const Policies extends PolicySetInput | undefined = undefined,
   >(
-    schema: Definitions,
-    allocation: ExactResourceAmounts<
-      NoInfer<ResourceNames<Definitions>>,
-      Allocation
-    >,
+    allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
     ...options: RemoteAttachPolicyArguments<
-      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Extract<keyof Allocation, Names>,
       Policies
     >
   ): Promise<
     RemoteBudget<
-      Extract<keyof Allocation, ResourceNames<Definitions>>,
+      Extract<keyof Allocation, Names>,
       ContextOfPolicySet<Policies>,
       ReasonsOfPolicySet<Policies>
     >
@@ -145,8 +134,8 @@ interface RemoteBudgetOpener {
   }): Promise<RemoteBudget<Extract<keyof Definitions, string>>>;
 }
 
-export interface RemoteKeynes extends Omit<
-  Keynes,
+export interface RemoteKeynes<Names extends string = string> extends Omit<
+  Keynes<Names>,
   "createBudget" | "defineResources"
 > {
   readonly defineResources: <
@@ -155,44 +144,72 @@ export interface RemoteKeynes extends Omit<
     definitions: Definitions,
     options?: RemoteOperationOptions,
   ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
-  readonly createBudget: RemoteRootBudgetCreator;
+  readonly createBudget: RemoteRootBudgetCreator<Names>;
   readonly openBudget: RemoteBudgetOpener;
   readonly recoverOperation: (
     operationKey: OperationKey,
   ) => Promise<RecoverOperationResult>;
 }
 
-export function createKeynes(): Promise<LocalKeynes>;
-export function createKeynes(
-  options: RemoteKeynesOptions,
-): Promise<RemoteKeynes>;
+export function createKeynes<
+  const Options extends {
+    readonly resources: ResourceDefinitionsInput;
+    readonly databaseUrl?: never;
+  },
+>(
+  options: Options & Record<Exclude<keyof Options, "resources">, never>,
+): Promise<LocalKeynes<Extract<keyof Options["resources"], string>>>;
+export function createKeynes<const Options extends RemoteKeynesOptions>(
+  options: Options &
+    Record<Exclude<keyof Options, "resources" | "databaseUrl">, never>,
+): Promise<RemoteKeynes<Extract<keyof Options["resources"], string>>>;
 export async function createKeynes(
   ...arguments_: readonly unknown[]
 ): Promise<LocalKeynes | RemoteKeynes> {
-  if (arguments_.length === 0) {
-    const runtime = await openConfiguredRuntime();
-    return createKeynesHandle(runtime);
-  }
   const options = arguments_[0];
   if (
     arguments_.length !== 1 ||
     !isRecord(options) ||
-    Object.keys(options).length !== 1 ||
-    typeof options.databaseUrl !== "string"
+    (Object.getPrototypeOf(options) !== Object.prototype &&
+      Object.getPrototypeOf(options) !== null) ||
+    Object.getOwnPropertySymbols(options).length > 0 ||
+    !Object.hasOwn(options, "resources") ||
+    Object.getOwnPropertyNames(options).some(
+      (key) => key !== "resources" && key !== "databaseUrl",
+    )
   ) {
     throw new KeynesSdkError("invalid_configuration", {
       field: "options",
       reason: "unsupported",
     });
   }
-  const poolConfig = normalizeDatabaseUrl(options.databaseUrl);
+  const hasDatabaseUrl = Object.hasOwn(options, "databaseUrl");
+  const databaseUrl = hasDatabaseUrl ? options.databaseUrl : undefined;
+  const definitions = captureResourceDefinitions(options.resources);
+  if (!hasDatabaseUrl) {
+    const runtime = await openConfiguredRuntime(definitions);
+    return createKeynesHandle(runtime, definitions);
+  }
+  if (typeof databaseUrl !== "string") {
+    throw new KeynesSdkError("invalid_configuration", {
+      field: "databaseUrl",
+      reason: "unsupported",
+    });
+  }
+  const poolConfig = normalizeDatabaseUrl(databaseUrl);
   const executor = await openPostgresqlCommandExecutor(poolConfig);
   const client = createRemoteKeynesClient(executor);
-  const createBudget: RemoteRootBudgetCreator = (
-    schema,
+  try {
+    await client.validateResources({ definitions });
+  } catch (error: unknown) {
+    await executor.close();
+    throw error;
+  }
+  const createBudget: RemoteRootBudgetCreator<string> = (
     allocation,
     ...createOptions
-  ) => createRemoteRootBudget(client, schema, allocation, ...createOptions);
+  ) =>
+    createRemoteRootBudget(client, definitions, allocation, ...createOptions);
   const openBudget: RemoteBudgetOpener = async ({
     reference,
     resourceTypes,
@@ -248,12 +265,10 @@ export async function createKeynes(
       input,
       validateRemoteDefineResourcesCommandIssues(input),
     );
-    const result = await invokeRemoteMutation(
-      "defineResources",
-      operationKey,
-      () => client.defineResources(input as RemoteDefineResourcesCommand),
+    await invokeRemoteMutation("defineResources", operationKey, () =>
+      client.defineResources(input as RemoteDefineResourcesCommand),
     );
-    return createResourceDefinitionBinding(result);
+    return createResourceDefinitionBinding();
   };
   const close = (): Promise<void> => executor.close();
   return Object.freeze({
@@ -267,7 +282,10 @@ export async function createKeynes(
   });
 }
 
-function createKeynesHandle(runtime: LocalRuntime): LocalKeynes {
+function createKeynesHandle(
+  runtime: LocalRuntime,
+  definitions: ResourceDefinitions,
+): LocalKeynes {
   const defineResources: LocalKeynes["defineResources"] = async (
     definitions,
   ) => {
@@ -282,14 +300,14 @@ function createKeynesHandle(runtime: LocalRuntime): LocalKeynes {
         input,
         validateDefineResourcesCommandIssues(input),
       );
-      const result = await invokeMutation(() =>
+      await invokeMutation(() =>
         runtime.client.defineResources(input as DefineResourcesCommand),
       );
-      return createResourceDefinitionBinding(result);
+      return createResourceDefinitionBinding();
     });
   };
-  const createBudget: RootBudgetCreator = (schema, allocation, ...options) =>
-    createRootBudget(runtime, schema, allocation, ...options);
+  const createBudget: RootBudgetCreator<string> = (allocation, ...options) =>
+    createRootBudget(runtime, definitions, allocation, ...options);
   const close = (): Promise<void> => closeRuntime(runtime);
   return Object.freeze({
     [keynesBrand]: undefined,
@@ -320,40 +338,34 @@ function requireDefinitionInput(
 }
 
 async function createRootBudget<
-  const Definitions extends ResourceInput,
-  const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+  Names extends string,
+  const Allocation extends ResourceAmounts<Names>,
   const Policies extends PolicySetInput | undefined = undefined,
 >(
   runtime: LocalRuntime,
-  schema: Definitions,
-  allocation: ExactResourceAmounts<
-    NoInfer<ResourceNames<Definitions>>,
-    Allocation
-  >,
-  ...options: AttachPolicyArguments<
-    Extract<keyof Allocation, ResourceNames<Definitions>>,
-    Policies
-  >
+  definitions: ResourceDefinitions,
+  allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
+  ...options: AttachPolicyArguments<Extract<keyof Allocation, Names>, Policies>
 ): Promise<
   Budget<
-    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    Extract<keyof Allocation, Names>,
     ContextOfPolicySet<Policies>,
     ReasonsOfPolicySet<Policies>
   >
 > {
-  type BudgetName = Extract<keyof Allocation, ResourceNames<Definitions>>;
+  type BudgetName = Extract<keyof Allocation, Names>;
   if (runtime.state !== "open") throw new KeynesSdkError("runtime_closed", {});
   const {
-    resources,
-    allocation: copiedAllocation,
+    definitions: selectedDefinitions,
+    amounts,
     prepared,
-  } = prepareRootResources<BudgetName>(schema, allocation);
+  } = prepareRootResources<BudgetName>(definitions, allocation);
   const policies = attachedPolicyDefinitions(snapshotOptions(options));
   return admit(runtime, async () => {
     const command: CreateBudgetCommand = {
       commandId: randomUUID(),
-      resources,
-      allocation: copiedAllocation,
+      definitions: selectedDefinitions,
+      amounts,
       ...(policies === undefined ? {} : { policies }),
     };
     const result = await invokeMutation(() =>
@@ -369,33 +381,30 @@ async function createRootBudget<
 }
 
 async function createRemoteRootBudget<
-  const Definitions extends ResourceInput,
-  const Allocation extends ResourceAmounts<ResourceNames<Definitions>>,
+  Names extends string,
+  const Allocation extends ResourceAmounts<Names>,
   const Policies extends PolicySetInput | undefined = undefined,
 >(
   client: ReturnType<typeof createRemoteKeynesClient>,
-  schema: Definitions,
-  allocation: ExactResourceAmounts<
-    NoInfer<ResourceNames<Definitions>>,
-    Allocation
-  >,
+  definitions: ResourceDefinitions,
+  allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
   ...options: RemoteAttachPolicyArguments<
-    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    Extract<keyof Allocation, Names>,
     Policies
   >
 ): Promise<
   RemoteBudget<
-    Extract<keyof Allocation, ResourceNames<Definitions>>,
+    Extract<keyof Allocation, Names>,
     ContextOfPolicySet<Policies>,
     ReasonsOfPolicySet<Policies>
   >
 > {
-  type BudgetName = Extract<keyof Allocation, ResourceNames<Definitions>>;
+  type BudgetName = Extract<keyof Allocation, Names>;
   const {
-    resources,
-    allocation: copiedAllocation,
+    definitions: selectedDefinitions,
+    amounts,
     prepared,
-  } = prepareRootResources<BudgetName>(schema, allocation);
+  } = prepareRootResources<BudgetName>(definitions, allocation);
   const { operationKey, remainingOptions } = splitRemoteMutationOptions(
     snapshotOptions(options),
     new Set(["policies"]),
@@ -404,8 +413,8 @@ async function createRemoteRootBudget<
   const result = await invokeRemoteMutation("createBudget", operationKey, () =>
     client.createBudget({
       operationKey,
-      resources,
-      allocation: copiedAllocation,
+      definitions: selectedDefinitions,
+      amounts,
       ...(policies === undefined ? {} : { policies }),
     }),
   );

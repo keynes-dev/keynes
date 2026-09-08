@@ -21,26 +21,22 @@ const resources = {
   searchQueries: { unit: "query", accountingBehavior: "reusable" },
 };
 
-await using keynes = await createKeynes();
+await using keynes = await createKeynes({ resources });
 expectType<Keynes>(keynes);
 expectType<LocalKeynes>(keynes);
 expectType<AsyncDisposable>(keynes);
 
 const { createBudget, close } = keynes;
-const root = await createBudget(resources, { usdCents: 100 });
+const root = await createBudget({ usdCents: 100 });
 expectType<Budget<"usdCents">>(root);
 const binding = await keynes.defineResources(resources);
 expectType<ResourceBinding<"usdCents" | "searchQueries">>(binding);
 const allocation = { usdCents: 100 };
-const boundRoot = await createBudget(binding, allocation);
-const rawRoot = await createBudget(resources, allocation);
-expectType<Budget<"usdCents">>(boundRoot);
-expectType<Budget<"usdCents">>(rawRoot);
+const configuredRoot = await createBudget(allocation);
+expectType<Budget<"usdCents">>(configuredRoot);
 const invalidAllocation = { usdCents: 100, unknownResource: 1 };
-// @ts-expect-error Unknown keys in predeclared allocations cannot widen binding names.
-await createBudget(binding, invalidAllocation);
-// @ts-expect-error Unknown keys in predeclared allocations cannot widen raw names.
-await createBudget(resources, invalidAllocation);
+// @ts-expect-error Unknown amount keys cannot widen configured names.
+await createBudget(invalidAllocation);
 const checkedDefinitions = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
 } satisfies ResourceDefinitions;
@@ -62,15 +58,24 @@ await settle({ usdCents: 1 });
 await inspect();
 await close();
 
-// @ts-expect-error Allocation keys must belong to the supplied Resource schema.
-await keynes.createBudget(resources, { storageBytes: 1 });
+// @ts-expect-error Amount keys must belong to the configured Resource catalog.
+await keynes.createBudget({ storageBytes: 1 });
 // @ts-expect-error A Budget only accepts Resources allocated to that handle.
 await root.request({ searchQueries: 1 });
 
-// @ts-expect-error Connection setup accepts no Resource schema.
-await createKeynes({ resources });
+// @ts-expect-error Configured declarations are required.
+await createKeynes();
 // @ts-expect-error Explicit undefined is still a setup argument.
 await createKeynes(undefined);
+const extraConfiguration = { resources, initial: 0 };
+// @ts-expect-error Configuration variables cannot contain unsupported fields.
+await createKeynes(extraConfiguration);
+// @ts-expect-error A binding cannot replace configured declarations.
+await createKeynes({ resources: binding });
+// @ts-expect-error Positional Resource definitions creation was removed.
+await createBudget(resources, allocation);
+// @ts-expect-error Positional ResourceBinding creation was removed.
+await createBudget(binding, allocation);
 
 const extraResource = { usdCents: 1, searchQueries: 1 };
 // @ts-expect-error Exact Resource checks also reject predeclared objects.
@@ -109,7 +114,6 @@ await root.request(
 );
 
 const governed = await keynes.createBudget(
-  resources,
   { usdCents: 100 },
   { policies: governedPolicies },
 );

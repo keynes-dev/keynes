@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
+  DefineResourcesCommand,
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "../../generated/types.ts";
@@ -46,7 +47,7 @@ export function registerRollbackContractTests(
           definitions: {
             savedSeats: { unit: "seat", accountingBehavior: "reusable" },
           },
-        };
+        } satisfies DefineResourcesCommand;
         const saved = await client.defineResources(savedCommand);
         const before = await local.inspectState();
         const command = {
@@ -56,7 +57,7 @@ export function registerRollbackContractTests(
             newWorkers: { unit: "worker", accountingBehavior: "reusable" },
             ...savedCommand.definitions,
           },
-        };
+        } satisfies DefineResourcesCommand;
         await expect(
           local
             .clientFor("product-fixture", { checkpoint })
@@ -84,11 +85,8 @@ export function registerRollbackContractTests(
         });
         const root = await client.createBudget({
           commandId: definitionId(3),
-          resources: {
-            kind: "binding",
-            bindingReference: saved.bindingReference,
-          },
-          allocation: { savedSeats: 2 },
+          definitions: savedCommand.definitions,
+          amounts: { savedSeats: 2 },
         });
         expect(root.budget.resources[0]).toMatchObject({
           resourceType: saved.resources[0].resourceType,
@@ -109,15 +107,12 @@ export function registerRollbackContractTests(
           definitions: {
             savedTokens: { unit: "token", accountingBehavior: "consumable" },
           },
-        };
+        } satisfies DefineResourcesCommand;
         const binding = await client.defineResources(definitionCommand);
         const command = {
           commandId: definitionId(5),
-          resources: {
-            kind: "binding",
-            bindingReference: binding.bindingReference,
-          },
-          allocation: { savedTokens: 10 },
+          definitions: definitionCommand.definitions,
+          amounts: { savedTokens: 10 },
         } satisfies CreateBudgetCommand;
         const before = await local.inspectState();
         await expect(

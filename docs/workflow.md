@@ -47,8 +47,9 @@ This workflow does not authorize automatic merging or publication.
 
 ## Publish feature artifacts
 
-Spec Kit commands produce local artifacts. After an authorized commit and push,
-update the owning Linear issue with links to the published artifacts:
+Spec Kit commands produce local artifacts. Every authorized commit and push of
+planning documents includes linking the published artifacts to their owning
+Linear issue. Complete this step automatically without a separate prompt:
 
 - **Feature specification** links to `spec.md`.
 - **Implementation plan** links to `plan.md`, which links to the applicable
@@ -60,6 +61,12 @@ update the owning Linear issue with links to the published artifacts:
 Update existing attachments rather than creating duplicates. Use branch URLs for
 working documents and commit-pinned URLs for acceptance evidence. Keep document
 contents and detailed task tracking in Git.
+
+Read the issue back after updating its links and verify each title and URL.
+When publishing revisions, confirm that existing links still resolve to the
+intended artifacts. Report a linking failure explicitly; a successful push alone
+does not complete planning-document publication. Never attach a URL for a file
+that has not been pushed.
 
 Each command's completion report must state whether its artifacts are local-only
 or published, and whether Linear links were updated. Generating artifacts alone

@@ -407,6 +407,10 @@ export async function installExternalConsumer(
       resolve(compatibilityRoot, "remote-api.mts"),
       resolve(root, "compatibility/remote-api.mts"),
     );
+    await cp(
+      resolve(compatibilityRoot, "configured-resources.mts"),
+      resolve(root, "compatibility/configured-resources.mts"),
+    );
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
     await writeFile(
       resolve(root, "package.json"),

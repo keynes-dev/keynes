@@ -73,6 +73,12 @@ const MIGRATIONS = [
     tableName: null,
     procedureName: "keynes.define_resources(jsonb)",
   },
+  {
+    id: "0008-configured-creation",
+    path: "0008-configured-creation.sql",
+    tableName: null,
+    procedureName: "keynes.validate_resources(jsonb)",
+  },
 ] as const;
 
 type FileContents = string | Buffer;
@@ -169,7 +175,7 @@ describe("PostgreSQL installation", () => {
     });
   });
 
-  it("installs the current graph and rechecks it without changes", async () => {
+  it("installs migrations 0001 through 0008 and rechecks them without changes", async () => {
     const { installDatabase } = await import("./support/migrations.js");
     await withFreshDatabase(async (database) => {
       await installDatabase(database, EXPLICIT_INSTALLATION);
@@ -184,6 +190,7 @@ describe("PostgreSQL installation", () => {
         { migration_id: "0005-resource-bound-budget" },
         { migration_id: "0006-remote-access" },
         { migration_id: "0007-resource-definitions" },
+        { migration_id: "0008-configured-creation" },
       ]);
     });
   });

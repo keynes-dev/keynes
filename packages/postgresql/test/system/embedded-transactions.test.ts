@@ -24,6 +24,7 @@ const REQUEST_COMMAND_ID = "31000000-0000-4000-8000-000000000001";
 const OUTBOX_ID = "41000000-0000-4000-8000-000000000001";
 const BOUND_ROOT_ID = "22000000-0000-4000-8000-000000000001";
 const REDEFINITION_ID = "12000000-0000-4000-8000-000000000001";
+const BOUND_ROOT_DEFINITION_ID = "12000000-0000-4000-8000-000000000002";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
@@ -47,24 +48,22 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
   });
 
   it.each(["commit", "rollback"])(
-    "keeps definition binding, consumption, and application work inside caller %s",
+    "keeps catalog provisioning, consumption, and application work inside caller %s",
     async (outcome) => {
       database = await openFixture();
       const transaction = await database.beginTransaction();
       const client = createTransactionClient(transaction);
-      const binding = await client.defineResources({
+      const definitions = {
+        modelTokens: { unit: "token", accountingBehavior: "consumable" },
+      } as const;
+      await client.defineResources({
         commandId: REDEFINITION_ID,
-        definitions: {
-          modelTokens: { unit: "token", accountingBehavior: "consumable" },
-        },
+        definitions,
       });
       const created = await client.createBudget({
         commandId: BOUND_ROOT_ID,
-        resources: {
-          kind: "binding",
-          bindingReference: binding.bindingReference,
-        },
-        allocation: { modelTokens: 7 },
+        definitions,
+        amounts: { modelTokens: 7 },
       });
       await transaction.connection.query(
         "insert into application_outbox (outbox_id, command_id, child_budget_id) values ($1, $2, $3)",
@@ -310,7 +309,7 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     expect(statements.join("\n")).not.toMatch(/\b(begin|commit|rollback)\b/i);
   });
 
-  it("rolls back a Resource-bound root with caller-owned application work", async () => {
+  it("rolls back a configured root with caller-owned application work", async () => {
     database = await openFixture();
     const transaction = await database.beginTransaction();
     const created = await createResourceBoundBudget(
@@ -387,7 +386,9 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
           where resource_type_id = $1::uuid`,
       [resource.resourceTypeId],
     );
-    expect(provenance.rows[0]?.definition_command_id).toBe(BOUND_ROOT_ID);
+    expect(provenance.rows[0]?.definition_command_id).toBe(
+      BOUND_ROOT_DEFINITION_ID,
+    );
 
     const redefineTransaction = await database.beginTransaction();
     const redefined = await createTransactionClient(
@@ -399,7 +400,7 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     await redefineTransaction.commit();
     expect(redefined).toMatchObject({
       resourceType: { resourceTypeId: resource.resourceTypeId },
-      definitionEvidence: { commandId: BOUND_ROOT_ID },
+      definitionEvidence: { commandId: BOUND_ROOT_DEFINITION_ID },
       replayed: false,
     });
   });
@@ -572,19 +573,19 @@ function createTransactionClient(transaction: PostgresTransaction) {
   );
 }
 
-function createResourceBoundBudget(
+async function createResourceBoundBudget(
   client: ContractClient,
   commandId: string,
   canonicalName: string,
 ): ReturnType<ContractClient["createBudget"]> {
-  return Reflect.apply(client.createBudget, client, [
-    {
-      commandId,
-      ...rootResources([
-        { definition: resourceDefinition(canonicalName), amount: 10 },
-      ]),
-    },
+  const root = rootResources([
+    { definition: resourceDefinition(canonicalName), amount: 10 },
   ]);
+  await client.defineResources({
+    commandId: BOUND_ROOT_DEFINITION_ID,
+    definitions: root.definitions,
+  });
+  return client.createBudget({ commandId, ...root });
 }
 
 function resourceDefinition(canonicalName: string) {

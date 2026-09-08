@@ -1,10 +1,10 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Accepted target contract, with fixed funding reconciled on September 5, 2026. Current delivery
-> and evidence reconciliation are tracked in [Linear](https://linear.app/keynes),
-> beginning with [KEY-7](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation).
-> Target behavior is not delivered unless its owning feature retains evidence for
-> the exact revision.
+> **Status:** Target contract. KEY-78 configured creation is implemented in the
+> current source. [Linear](https://linear.app/keynes) tracks delivery and
+> evidence. Each retained result proves only the source revision and verification
+> lane that it records. Target behavior remains undelivered until its feature
+> retains evidence for the relevant revision.
 
 ## Thesis
 
@@ -45,9 +45,15 @@ state.
 The SDK may export a `ResourceDefinitions` type for `satisfies` checks. It
 does not expose a standalone definition helper outside a Keynes authority.
 
-A Resource binding may cross client instances connected to the same authority
-and tenant. The authority validates that scope before use. The binding is not a
-public database identifier or a persisted transport format.
+A Resource binding is not a public database identifier or a persisted transport
+format. Configured Budget creation does not take a binding per Budget.
+
+Applications configure a client with Resource declarations. Local initialization
+establishes a private ephemeral catalog from those declarations. Durable
+initialization validates every supplied definition against the persisted tenant
+catalog. Missing or conflicting definitions fail; additional persisted Resources
+remain compatible. Initialization and Budget creation never persist shared
+Resource definitions. Shared definitions require explicit provisioning.
 
 Defining a Resource creates no quantity. Live quantity exists only on Budgets.
 Keynes has no tenant Resource pool, inventory account, or unattached balance.
@@ -113,37 +119,47 @@ failures synchronously.
 
 ## Creation and funding
 
-`createBudget` accepts either raw Resource definitions or a
-`ResourceBinding`:
+Configure Resource declarations once, then supply amounts to `createBudget`:
 
 ```ts
-const resources = await keynes.defineResources({
+const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
-});
+};
 
-const policies = await keynes.definePolicies({
-  spendingLimit: spendingLimitDefinition,
-});
+const keynes = await createKeynes({ resources });
 
 const root = await keynes.createBudget({
-  resources,
-  initial: { usdCents: 1_000 },
-  policies: [policies.spendingLimit],
+  usdCents: 1_000,
+  reviewSeats: 0,
 });
 ```
 
-Binding-based creation creates the Budget from resolved Resource identities.
-Raw-definition creation atomically defines or reuses those Resources and
-creates the Budget. A conflict rolls back the complete command.
+The client infers allowed names from its declarations, including when creation
+amounts come from a separately declared variable. Unknown names reject at both
+development time and runtime. Creation takes an amounts object without an
+`initial` field or per-Budget definitions or bindings.
 
-The Resource input establishes the root's complete membership. A missing
-initial amount means zero. Omitting `initial` creates an all-zero Budget.
-Zero is valid and can establish membership without creating a quantity
-movement. An all-zero root cannot later acquire funding.
+The supplied amount keys establish the root's complete membership. Explicit zero
+includes a Resource without a quantity movement; omission excludes it. Adding
+declarations to a client never expands Budget membership. A non-empty amounts
+object containing only explicit zeros creates a valid all-zero root that cannot
+later acquire funding. Empty amounts reject.
 
-Root creation introduces the tree's complete funding through either creation
-path. A child's complete grant comes from its parent at creation. Existing
+Creation validates and resolves the declared Resources without shared definition
+writes. It creates membership, funding, and the command result atomically or
+leaves no partial Budget. [KEY-78's specification](features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md)
+owns acceptance, and [ADR-0011](adr/0011-configured-resource-declarations.md)
+records the revised creation decision.
+
+To use PostgreSQL, an operator first provisions the durable catalog with
+`defineResources`. `createKeynes({ resources, databaseUrl })` then performs
+read-only compatibility validation. The client can create only from its
+configured names. Declarations do not grant permission or create catalog rows.
+Remote creation takes `{ policies?, operationKey? }` as its second argument.
+
+Root creation introduces the tree's complete funding. A child's complete grant
+comes from its parent at creation. Existing
 Budgets cannot receive top-ups, replenishment, or additional grants. The database
 enforces this for every supported caller. Settlement returns can restore parent
 availability without increasing the tree's initial funding.
@@ -226,14 +242,17 @@ and lineage. Loading never defines, duplicates, or overwrites state.
 
 The development generator reads the supported tenant catalog and emits:
 
-- compile-time Resource names and definitions;
+- typed Resource declarations with runtime definition information;
 - compile-time Policy context and reason types; and
 - immutable runtime Policy descriptors for attachment and narrowing.
 
 It does not emit individual Budget records, balances, behavior controls,
 references, principals, credentials, or replay data. Generated types help local
-development and can become stale after catalog changes. Runtime database
-validation remains authoritative.
+development and can become stale after catalog changes. Client initialization
+uses Resource declarations to validate compatibility with the persisted tenant
+catalog. Declarations grant no authorization and perform no provisioning.
+Runtime database validation remains authoritative. KEY-6 owns Hosted catalog
+generation; this tooling is outside KEY-78 and does not block its acceptance.
 
 A loaded Budget exposes its attached Policies as generated descriptors.
 Applications narrow each descriptor by Policy name. Generated types constrain
@@ -251,8 +270,9 @@ reason type.
 Each mutation has one command identity. Exact retry returns the stored result.
 Reusing the identity with different canonical input returns
 `command_conflict`. The SDK generates operation keys for ordinary remote
-calls. A caller supplies one only when it must recover an operation after a
-crash or ambiguous response.
+calls. A caller supplies one in `createBudget` options for crash recovery or an
+ambiguous remote response. Recovery checks current permission and the selected
+catalog before it returns a committed creation result.
 
 Replay covers Keynes state only. The application owns provider idempotency,
 workflow recovery, and every external effect.
@@ -264,10 +284,10 @@ Keynes exposes one Budget contract through three execution paths:
 ```text
 TypeScript application
 |
-+-- createKeynes()
++-- createKeynes({ resources })
 |   `-- private in-memory SQLite authority
 |
-+-- createKeynes({ databaseUrl })
++-- createKeynes({ resources, databaseUrl })
 |   `-- verified PostgreSQL connection
 |
 `-- application-owned PostgreSQL client

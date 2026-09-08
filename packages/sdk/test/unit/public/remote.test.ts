@@ -42,11 +42,198 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("configured remote creation", () => {
+  it.each([10, 0])(
+    "sends selected definitions and amounts with explicit options, amount %i",
+    async (amount) => {
+      const executor = createFakeExecutor({
+        createBudget: () => ({
+          ok: true,
+          result: {
+            kind: "created",
+            budget: {
+              ...createdBudgetProjection(),
+              resources: createdBudgetProjection().resources.map(
+                (resource) => ({
+                  ...resource,
+                  allocated: amount,
+                  available: amount,
+                }),
+              ),
+            },
+            replayed: false,
+          },
+        }),
+      });
+      openRemoteWith(executor);
+      const declarations = {
+        ...resources,
+        unused: { unit: "seat", accountingBehavior: "reusable" },
+      };
+      const remote = await createKeynes({
+        databaseUrl,
+        resources: declarations,
+      });
+      const operationKey = createOperationKey();
+      try {
+        expect(executor.methods).toEqual(["validateResources"]);
+        const pending: unknown = Reflect.apply(remote.createBudget, remote, [
+          { workUnits: amount },
+          { operationKey },
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).resolves.toMatchObject({
+          inspect: expect.any(Function),
+        });
+        expect(executor.methods).toEqual(["validateResources", "createBudget"]);
+        expect(executor.inputs).toEqual([
+          { definitions: declarations },
+          {
+            operationKey,
+            definitions: resources,
+            amounts: { workUnits: amount },
+          },
+        ]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it("captures configured definitions, amounts and operation options before await", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const declarations = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    const remote = await createKeynes({ databaseUrl, resources: declarations });
+    const amounts = { workUnits: 10 };
+    const operationKey = createOperationKey();
+    const options = { operationKey };
+    try {
+      declarations.workUnits.unit = "changed";
+      const pending: unknown = Reflect.apply(remote.createBudget, remote, [
+        amounts,
+        options,
+      ]);
+      amounts.workUnits = 99;
+      options.operationKey = createOperationKey();
+      await expect(pending).resolves.toBeDefined();
+      expect(executor.inputs[1]).toEqual({
+        operationKey,
+        definitions: resources,
+        amounts: { workUnits: 10 },
+      });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it.each([
+    ["empty amounts", {}, {}, "invalid_command"],
+    [
+      "unknown zero member",
+      { workUnits: 10, unknown: 0 },
+      {},
+      "resource_not_defined",
+    ],
+    ["negative amount", { workUnits: -1 }, {}, "invalid_command"],
+    ["fractional amount", { workUnits: 0.5 }, {}, "invalid_command"],
+    ["non-finite amount", { workUnits: Number.NaN }, {}, "invalid_command"],
+    [
+      "unsafe amount",
+      { workUnits: Number.MAX_SAFE_INTEGER + 1 },
+      {},
+      "invalid_command",
+    ],
+    [
+      "symbol amount",
+      { workUnits: 10, [Symbol("extra")]: 0 },
+      {},
+      "invalid_command",
+    ],
+    [
+      "unknown option",
+      { workUnits: 10 },
+      { extra: undefined },
+      "invalid_configuration",
+    ],
+    [
+      "symbol option",
+      { workUnits: 10 },
+      { [Symbol("extra")]: undefined },
+      "invalid_configuration",
+    ],
+  ])(
+    "rejects %s asynchronously before creation transport",
+    async (_name, amounts, options, code) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl, resources });
+      try {
+        let pending: unknown;
+        expect(() => {
+          pending = Reflect.apply(remote.createBudget, remote, [
+            amounts,
+            options,
+          ]);
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({ code });
+        expect(executor.methods).toEqual(["validateResources"]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it.each(["amount", "option"])(
+    "rejects %s getter failures asynchronously",
+    async (location) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl, resources });
+      const failure = new Error("creation getter failed");
+      const read = () => {
+        throw failure;
+      };
+      const amounts =
+        location === "amount"
+          ? Object.defineProperty({}, "workUnits", {
+              enumerable: true,
+              get: read,
+            })
+          : { workUnits: 10 };
+      const options =
+        location === "option"
+          ? Object.defineProperty({}, "operationKey", {
+              enumerable: true,
+              get: read,
+            })
+          : {};
+      try {
+        let pending: unknown;
+        expect(() => {
+          pending = Reflect.apply(remote.createBudget, remote, [
+            amounts,
+            options,
+          ]);
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toBe(failure);
+        expect(executor.methods).toEqual(["validateResources"]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+});
+
 describe("public remote Keynes facade", () => {
   it("attributes empty raw definitions to the invoked operation", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const keynes = await createKeynes({ databaseUrl });
+    const keynes = await createKeynes({ databaseUrl, resources });
     try {
       for (const operation of ["createBudget", "defineResources"] as const) {
         const pending: unknown = Reflect.apply(keynes[operation], keynes, [
@@ -59,7 +246,7 @@ describe("public remote Keynes facade", () => {
           details: { operation },
         });
       }
-      expect(executor.methods).toEqual([]);
+      expect(executor.methods).toEqual(["validateResources"]);
     } finally {
       await keynes.close();
     }
@@ -68,30 +255,26 @@ describe("public remote Keynes facade", () => {
   it("snapshots raw remote creation before caller mutation", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
     const definitions = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       extra: { unit: "slot", accountingBehavior: "reusable" },
     };
+    const remote = await createKeynes({ databaseUrl, resources: definitions });
     const allocation = { workUnits: 10 };
     const operationKey = createOperationKey();
     const options = { operationKey };
     try {
-      const pending = remote.createBudget(definitions, allocation, options);
+      const pending = remote.createBudget(allocation, options);
       definitions.workUnits.unit = "changed";
       allocation.workUnits = 99;
       options.operationKey = createOperationKey();
       await pending;
-      expect(executor.inputs[0]).toMatchObject({
+      expect(executor.inputs[1]).toEqual({
         operationKey,
-        resources: {
-          kind: "definitions",
-          definitions: {
-            workUnits: { unit: "unit", accountingBehavior: "consumable" },
-            extra: { unit: "slot", accountingBehavior: "reusable" },
-          },
+        definitions: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
         },
-        allocation: { workUnits: 10 },
+        amounts: { workUnits: 10 },
       });
     } finally {
       await remote.close();
@@ -115,34 +298,27 @@ describe("public remote Keynes facade", () => {
       }),
     },
   ])(
-    "rejects raw remote creation before serialization, case %#",
+    "rejects raw configured declarations before serialization, case %#",
     async (extra) => {
       const executor = createFakeExecutor();
       openRemoteWith(executor);
-      const remote = await createKeynes({ databaseUrl });
-      try {
-        const pending: unknown = Reflect.apply(remote.createBudget, remote, [
-          {
-            workUnits: { unit: "unit", accountingBehavior: "consumable" },
-            ...extra,
-          },
-          { workUnits: 10 },
-        ]);
-        expect(pending).toBeInstanceOf(Promise);
-        await expect(pending).rejects.toMatchObject({
-          code: "invalid_command",
-        });
-        expect(executor.methods).toEqual([]);
-      } finally {
-        await remote.close();
-      }
+      const pending = createKeynes({
+        databaseUrl,
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+          ...extra,
+        },
+      });
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({ code: "invalid_command" });
+      expect(executor.methods).toEqual([]);
     },
   );
 
   it("keeps independent definition references out of the public binding", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     try {
       const binding = await remote.defineResources({
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -158,7 +334,10 @@ describe("public remote Keynes facade", () => {
         });
       }
       expect(Reflect.set(binding, "bindingReference", "forged")).toBe(false);
-      expect(executor.methods).toEqual(["defineResources"]);
+      expect(executor.methods).toEqual([
+        "validateResources",
+        "defineResources",
+      ]);
       for (const copy of [
         { ...binding },
         JSON.parse(JSON.stringify(binding)),
@@ -169,7 +348,10 @@ describe("public remote Keynes facade", () => {
           code: "invalid_command",
         });
       }
-      expect(executor.methods).toEqual(["defineResources"]);
+      expect(executor.methods).toEqual([
+        "validateResources",
+        "defineResources",
+      ]);
     } finally {
       await remote.close();
     }
@@ -178,7 +360,7 @@ describe("public remote Keynes facade", () => {
   it("snapshots independent definition and operation options before await", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const definitions = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
@@ -190,7 +372,7 @@ describe("public remote Keynes facade", () => {
       definitions.workUnits.accountingBehavior = "reusable";
       options.operationKey = createOperationKey();
       await defining;
-      expect(executor.inputs).toEqual([
+      expect(executor.inputs.slice(1)).toEqual([
         {
           operationKey,
           definitions: {
@@ -290,14 +472,14 @@ describe("public remote Keynes facade", () => {
     async (_name, definitions) => {
       const executor = createFakeExecutor();
       openRemoteWith(executor);
-      const remote = await createKeynes({ databaseUrl });
+      const remote = await createKeynes({ databaseUrl, resources });
       try {
         const result: unknown = Reflect.apply(remote.defineResources, remote, [
           definitions,
         ]);
         expect(result).toBeInstanceOf(Promise);
         await expect(result).rejects.toMatchObject({ code: "invalid_command" });
-        expect(executor.methods).toEqual([]);
+        expect(executor.methods).toEqual(["validateResources"]);
       } finally {
         await remote.close();
       }
@@ -309,7 +491,7 @@ describe("public remote Keynes facade", () => {
     async (location) => {
       const executor = createFakeExecutor();
       openRemoteWith(executor);
-      const remote = await createKeynes({ databaseUrl });
+      const remote = await createKeynes({ databaseUrl, resources });
       const failure = new Error("definition getter failed");
       const read = (): never => {
         throw failure;
@@ -344,7 +526,7 @@ describe("public remote Keynes facade", () => {
         ]);
         expect(result).toBeInstanceOf(Promise);
         await expect(result).rejects.toBe(failure);
-        expect(executor.methods).toEqual([]);
+        expect(executor.methods).toEqual(["validateResources"]);
       } finally {
         await remote.close();
       }
@@ -354,7 +536,7 @@ describe("public remote Keynes facade", () => {
   it("rejects nonenumerable unknown definition options before transport", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const options = Object.defineProperty({}, "unknown", { value: undefined });
     try {
       await expect(
@@ -363,7 +545,7 @@ describe("public remote Keynes facade", () => {
           options,
         ]),
       ).rejects.toMatchObject({ code: "invalid_configuration" });
-      expect(executor.methods).toEqual([]);
+      expect(executor.methods).toEqual(["validateResources"]);
     } finally {
       await remote.close();
     }
@@ -372,7 +554,7 @@ describe("public remote Keynes facade", () => {
   it("reads the independent definition operation key once when snapshotting options", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const operationKey = createOperationKey();
     const read = vi.fn(() => operationKey);
     const options = Object.defineProperty({}, "operationKey", {
@@ -387,7 +569,7 @@ describe("public remote Keynes facade", () => {
         options,
       );
       expect(read).toHaveBeenCalledOnce();
-      expect(executor.inputs).toEqual([
+      expect(executor.inputs.slice(1)).toEqual([
         {
           operationKey,
           definitions: {
@@ -403,14 +585,14 @@ describe("public remote Keynes facade", () => {
   it("sends valid constructor and toString independent definitions intact", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const definitions = {
       constructor: { unit: "unit", accountingBehavior: "consumable" },
       toString: { unit: "slot", accountingBehavior: "reusable" },
     };
     try {
       await remote.defineResources(definitions);
-      expect(executor.inputs).toEqual([
+      expect(executor.inputs.slice(1)).toEqual([
         { operationKey: expect.any(String), definitions },
       ]);
     } finally {
@@ -424,8 +606,8 @@ describe("public remote Keynes facade", () => {
     remoteMocks.normalizeDatabaseUrl.mockReturnValue(poolConfig);
     remoteMocks.openPostgresqlCommandExecutor.mockResolvedValue(executor);
 
-    const remote: RemoteKeynes = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote: RemoteKeynes = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     const inspection = await root.inspect();
     const requested = await root.request({ workUnits: 3 });
     const settlement = await root.settle({ workUnits: 2 });
@@ -504,6 +686,7 @@ describe("public remote Keynes facade", () => {
       replayed: false,
     });
     expect(executor.methods).toEqual([
+      "validateResources",
       "createBudget",
       "getBudget",
       "getBudgetHistoryPage",
@@ -525,7 +708,7 @@ describe("public remote Keynes facade", () => {
     ["explicit undefined", [undefined]],
     ["empty options", [{}]],
     ["unknown key", [{ databaseUrl, unknown: true }]],
-    ["mixed connection intent", [{ databaseUrl, resources }]],
+    ["connection without declarations", [{ databaseUrl }]],
     ["more than one argument", [{ databaseUrl }, { databaseUrl }]],
   ])(
     "rejects malformed options without opening remote: %s",
@@ -540,6 +723,34 @@ describe("public remote Keynes facade", () => {
       expect(remoteMocks.openPostgresqlCommandExecutor).not.toHaveBeenCalled();
     },
   );
+
+  it("keeps the snapshotted remote authority when a Resource getter deletes its selector", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const options: Record<string, unknown> = { databaseUrl };
+    Object.defineProperty(options, "resources", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        delete options.databaseUrl;
+        return resources;
+      },
+    });
+
+    const remote = await Reflect.apply(createKeynes, undefined, [options]);
+    try {
+      expect(options).not.toHaveProperty("databaseUrl");
+      expect(remoteMocks.normalizeDatabaseUrl).toHaveBeenCalledWith(
+        databaseUrl,
+      );
+      expect(remoteMocks.openPostgresqlCommandExecutor).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(executor.methods).toEqual(["validateResources"]);
+    } finally {
+      await remote.close();
+    }
+  });
 
   it("rejects a created root whose projection does not match the request", async () => {
     const executor = createFakeExecutor({
@@ -562,10 +773,11 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    await expect(
-      remote.createBudget(resources, { workUnits: 10 }),
-    ).rejects.toMatchObject({ name: "KeynesError", code: "unknown" });
+    const remote = await createKeynes({ databaseUrl, resources });
+    await expect(remote.createBudget({ workUnits: 10 })).rejects.toMatchObject({
+      name: "KeynesError",
+      code: "unknown",
+    });
   });
 
   it.each([
@@ -599,8 +811,8 @@ describe("public remote Keynes facade", () => {
       });
       openRemoteWith(executor);
 
-      const remote = await createKeynes({ databaseUrl });
-      const root = await remote.createBudget(resources, { workUnits: 10 });
+      const remote = await createKeynes({ databaseUrl, resources });
+      const root = await remote.createBudget({ workUnits: 10 });
       await expect(root.request({ workUnits: 3 })).rejects.toMatchObject({
         name: "KeynesError",
         code: "unknown",
@@ -621,8 +833,8 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     await expect(root.inspect()).rejects.toMatchObject({
       name: "KeynesError",
       code: "unknown",
@@ -643,8 +855,8 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     await expect(root.inspect()).rejects.toMatchObject({
       name: "KeynesError",
       code: "unknown",
@@ -669,8 +881,8 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     await expect(root.settle({ workUnits: 2 })).rejects.toMatchObject({
       name: "KeynesError",
       code: "unknown",
@@ -684,8 +896,8 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     const inspection = root.inspect();
     const rejection = expect(inspection).rejects.toMatchObject({
       name: "KeynesError",
@@ -710,8 +922,8 @@ describe("public remote Keynes facade", () => {
     });
     openRemoteWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
     await expect(root.inspect()).rejects.toMatchObject({
       name: "KeynesError",
       code: "limit_exceeded",
@@ -804,6 +1016,8 @@ function responseFor(
     };
   }
   switch (method) {
+    case "validateResources":
+      return { ok: true, result: { valid: true } };
     case "getCompatibility":
       return {
         ok: true,
@@ -812,8 +1026,8 @@ function responseFor(
           contractDigest: `contract:${"a".repeat(64)}`,
           policyProfileDigest: `policy:${"b".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 1,
-          minimumSdkGeneration: 1,
+          semanticGeneration: 3,
+          minimumSdkGeneration: 3,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,

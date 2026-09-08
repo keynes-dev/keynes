@@ -32,8 +32,8 @@ const resources = {
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 };
 
-await using keynes = await createKeynes();
-const root = await keynes.createBudget(resources, {
+await using keynes = await createKeynes({ resources });
+const root = await keynes.createBudget({
   usdCents: 100,
   searchQueries: 10,
 });
@@ -44,18 +44,18 @@ if (request.status === "approved") {
 }
 ```
 
-Pass plain definitions directly to creation, or call
-`const binding = await keynes.defineResources(resources)` first and pass
-`binding` to `createBudget`. Independent definition creates no Budget or
-quantity. A binding is opaque, immutable, and scoped to its tenant and database
-authority; copying or serializing it does not preserve it.
+`createKeynes({ resources })` configures the local authority with the complete
+set of Resource declarations. `createBudget(amounts, options?)` takes only
+amounts. Its keys are the Budget's membership. An explicit zero includes a
+Resource without creating a quantity movement. An omitted name is absent. A
+non-empty object of explicit zeros creates an active all-zero Budget.
 
-Root creation validates all plain definitions, reconciles only allocated keys,
-and creates a fixed allocation atomically. Binding creation reads the saved
-definitions without rewriting them. Unallocated keys are outside the Budget. Each root keeps its original funding;
-reusing a binding creates a separate root. Local creation accepts explicit zero
-amounts, while Remote creation requires positive amounts. KEY-78 owns changes to
-zero amounts and membership.
+Each root has fixed original funding. New roots have independent funding and
+lineage. Creating a root does not write shared definitions.
+
+`keynes.defineResources(resources)` remains available for explicit catalog
+provisioning. It returns an opaque `ResourceBinding`, creates no Budget or
+quantity, and cannot be passed to `createBudget`.
 
 Resource keys flow through root creation, requests, settlement, inspection,
 denial reasons, and Policy authoring as exact TypeScript types. Separately
@@ -103,9 +103,10 @@ const limit = definePolicy(resources, {
 });
 
 const governed = await keynes.createBudget(
-  resources,
   { usdCents: 100 },
-  { policies: policySet(limit) },
+  {
+    policies: policySet(limit),
+  },
 );
 const decision = await governed.request(
   { usdCents: 25 },
@@ -168,53 +169,42 @@ and read-only operation recovery. Embedded PostgreSQL uses the separate
 `@keynes/postgresql` installer and caller-owned `keynes.*(jsonb)` transactions;
 it is not a `createKeynes(...)` mode.
 
-## Recover a Remote definition
+## Create and recover a Remote Budget
 
-Remote calls generate operation keys by default. Supply a key when you need to
-retry the same definition or recover its result after a lost response:
+Remote calls generate operation keys by default. Supply one in the second
+argument when you must recover a creation after a lost response:
 
 ```ts
 import { createKeynes, createOperationKey } from "@keynes/sdk";
 
-await using remote = await createKeynes({ databaseUrl });
+await using remote = await createKeynes({ resources, databaseUrl });
 const operationKey = createOperationKey();
-const binding = await remote.defineResources(resources, { operationKey });
-const root = await remote.createBudget(binding, { usdCents: 100 });
+const root = await remote.createBudget({ usdCents: 100 }, { operationKey });
 
 const recovered = await remote.recoverOperation(operationKey);
-if (
-  recovered.kind === "committed" &&
-  recovered.operation === "defineResources"
-) {
-  const anotherRoot = await remote.createBudget(recovered.result, {
-    usdCents: 50,
-  });
+if (recovered.kind === "committed" && recovered.operation === "createBudget") {
+  const recoveredRoot = recovered.result.budget;
 }
 ```
 
-Use a PostgreSQL URL with `sslmode=verify-full` for `databaseUrl`. Repeating the
-same definition with the same operation key returns its committed binding.
-Changing the definition under that key rejects with `command_conflict`.
+Use a PostgreSQL URL with `sslmode=verify-full` for `databaseUrl`. Before it
+returns a handle, Remote initialization validates every configured declaration
+against the selected durable catalog without provisioning missing names.
+Repeating the same creation with the same operation key returns its committed
+result. Changing its amounts, zero-membership, Policies, or another canonical
+input rejects with `command_conflict`.
 The SDK bounds automatic retries and preserves `uncertain_outcome` when it
 cannot establish completion.
 
-By-key recovery returns `ResourceBinding<string>` because the key carries no
-TypeScript name information. Retrying the typed `defineResources` call retains
-the definition's inferred names. Both results are opaque bindings with the same
-creation behavior. Recovery can also return `known_failure`, `unresolved`, or
-`expired`; none of those states supplies a binding. An expired recovery record
-does not mean the original definition failed. A binding already obtained remains
-usable after its recovery record expires because creation checks the durable
-canonical receipt.
-
-Bindings can pass between authorized Remote clients using the same installed SDK
-and database authority, even after the producer closes. The consuming client must
-still have permission in the same tenant. There is no binding serializer or public
-reference loader.
+Recovery checks the caller's current authorization. For a committed creation,
+it also validates the recorded selected definitions against the current tenant
+catalog before returning the stored result. Recovery can return `known_failure`,
+`unresolved`, or `expired`. An expired recovery record does not prove that the
+original creation failed.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 2 and its matching generated procedure
+This API requires semantic generation 3 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

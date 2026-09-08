@@ -1,6 +1,7 @@
 import type {
   CreateBudgetCommand,
   CreateBudgetResult,
+  ValidateResourcesResult,
   DefineResourceTypeCommand,
   DefineResourceTypeResult,
   DefineResourcesResult,
@@ -22,6 +23,8 @@ import type {
   RecoverOperationResult,
   RemoteCreateBudgetCommand,
   RemoteCreateBudgetResult,
+  RemoteDefineResourcesCommand,
+  RemoteDefineResourcesResult,
   RemoteErrorEnvelope,
   RemoteGetBudgetQuery,
   RemoteGetBudgetResult,
@@ -60,6 +63,7 @@ export interface ContractClientOptions {
 }
 
 export interface ContractClient {
+  validateResources(input: unknown): Promise<ValidateResourcesResult>;
   defineResources(input: unknown): Promise<DefineResourcesResult>;
   defineResource(
     input: DefineResourceTypeCommand,
@@ -89,6 +93,9 @@ export interface ContractTestHost {
 export type OpenContractTestHost = () => Promise<ContractTestHost>;
 
 export interface RemoteContractClient {
+  defineResources(
+    input: RemoteDefineResourcesCommand,
+  ): Promise<RemoteDefineResourcesResult>;
   createBudget(
     input: RemoteCreateBudgetCommand,
   ): Promise<RemoteCreateBudgetResult>;
@@ -141,6 +148,8 @@ export function createContractClient(
   executor: ContractExecutor,
 ): ContractClient {
   return {
+    validateResources: (input) =>
+      invoke(executor, "validateResources", input, false),
     defineResources: (input) =>
       invoke(executor, "defineResources", input, true),
     defineResource: (input) => invoke(executor, "defineResource", input, true),

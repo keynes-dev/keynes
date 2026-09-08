@@ -2,6 +2,7 @@
   "operationMethods": [
     "defineResource",
     "defineResources",
+    "validateResources",
     "createBudget",
     "requestBudget",
     "settleBudget",
@@ -10,6 +11,7 @@
   "installedTargets": [
     "keynes.define_resource_type",
     "keynes.define_resources",
+    "keynes.validate_resources",
     "keynes.create_budget",
     "keynes.request",
     "keynes.settle",

@@ -171,7 +171,7 @@ describe("package-root exports", () => {
     expectTypeOf(checkRequestTypes).toBeFunction();
   });
 
-  it("opens without a schema and infers each root from its allocated schema entries", () => {
+  it("configures Resource declarations at startup and narrows each root to its amounts", () => {
     async function checkCreateTypes(
       governedPolicies: PolicySet<
         "usdCents",
@@ -188,26 +188,26 @@ describe("package-root exports", () => {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
         searchQueries: { unit: "query", accountingBehavior: "reusable" },
       };
-      const keynes = await createKeynes();
-      expectTypeOf(keynes).toEqualTypeOf<LocalKeynes>();
-      expectTypeOf(keynes).toEqualTypeOf<Keynes>();
+      const keynes = await createKeynes({ resources });
+      expectTypeOf(keynes).toEqualTypeOf<
+        LocalKeynes<"usdCents" | "searchQueries">
+      >();
+      expectTypeOf(keynes).toEqualTypeOf<
+        Keynes<"usdCents" | "searchQueries">
+      >();
 
-      const root = await keynes.createBudget(resources, { usdCents: 100 });
+      const root = await keynes.createBudget({ usdCents: 100 });
       expectTypeOf(root).toEqualTypeOf<Budget<"usdCents">>();
       const binding = await keynes.defineResources(resources);
       expectTypeOf(binding).toEqualTypeOf<
         ResourceBinding<"usdCents" | "searchQueries">
       >();
       const allocation = { usdCents: 100 };
-      const boundRoot = await keynes.createBudget(binding, allocation);
-      const rawRoot = await keynes.createBudget(resources, allocation);
-      expectTypeOf(boundRoot).toEqualTypeOf<Budget<"usdCents">>();
-      expectTypeOf(rawRoot).toEqualTypeOf<Budget<"usdCents">>();
+      const configuredRoot = await keynes.createBudget(allocation);
+      expectTypeOf(configuredRoot).toEqualTypeOf<Budget<"usdCents">>();
       const unknownAllocation = { usdCents: 1, storageBytes: 1 };
-      // @ts-expect-error Binding names reject unknown keys from predeclared allocations.
-      void keynes.createBudget(binding, unknownAllocation);
-      // @ts-expect-error Raw definition names reject unknown keys from predeclared allocations.
-      void keynes.createBudget(resources, unknownAllocation);
+      // @ts-expect-error Startup declarations reject unknown root amounts.
+      void keynes.createBudget(unknownAllocation);
       // @ts-expect-error Binding references remain private.
       void binding.bindingReference;
       // @ts-expect-error Resource identities remain private.
@@ -223,11 +223,10 @@ describe("package-root exports", () => {
       >();
       // @ts-expect-error The root binds only allocated Resource names.
       void root.request({ searchQueries: 1 });
-      // @ts-expect-error Allocation keys must belong to the supplied schema.
-      void keynes.createBudget(resources, { storageBytes: 1 });
+      // @ts-expect-error Allocation keys must belong to the configured schema.
+      void keynes.createBudget({ storageBytes: 1 });
 
       const governed = await keynes.createBudget(
-        resources,
         { usdCents: 100 },
         { policies: governedPolicies },
       );
@@ -241,13 +240,14 @@ describe("package-root exports", () => {
       const usdAllocation = { usdCents: 100 };
       const incompatibleOptions = { policies: searchPolicies };
       // @ts-expect-error Root Policies may refer only to allocated Resources.
-      void keynes.createBudget(resources, usdAllocation, incompatibleOptions);
+      void keynes.createBudget(usdAllocation, incompatibleOptions);
 
-      // @ts-expect-error Connection setup accepts no Resource schema.
-      void createKeynes({ resources });
       // @ts-expect-error Explicit undefined is still an argument.
       void createKeynes(undefined);
-      void createKeynes({ databaseUrl: "postgresql://example.invalid/keynes" });
+      void createKeynes({
+        resources,
+        databaseUrl: "postgresql://example.invalid/keynes",
+      });
     }
 
     expectTypeOf(checkCreateTypes).toBeFunction();

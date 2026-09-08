@@ -60,6 +60,20 @@ describe("local Policy evaluation failures", () => {
     const executor = openSqliteCommandExecutor(INSTALLATION, EXECUTION_CONTEXT);
     const client = createKeynesClient(executor);
     try {
+      const rootInput = rootResources([
+        {
+          definition: {
+            canonicalName: "tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000001",
+        definitions: rootInput.definitions,
+      });
       const policy = resealPolicy(
         ceilingPolicy({
           name: "mismatched_source",
@@ -72,16 +86,7 @@ describe("local Policy evaluation failures", () => {
       await expect(
         client.createBudget({
           commandId: "20000000-0000-4000-8000-000000000001",
-          ...rootResources([
-            {
-              definition: {
-                canonicalName: "tokens",
-                unit: "token",
-                accountingBehavior: "consumable",
-              },
-              amount: 10,
-            },
-          ]),
+          ...rootInput,
           policies: [policy],
         }),
       ).rejects.toMatchObject({
@@ -97,6 +102,28 @@ describe("local Policy evaluation failures", () => {
     const executor = openSqliteCommandExecutor(INSTALLATION, EXECUTION_CONTEXT);
     const client = createKeynesClient(executor);
     try {
+      const rootInput = rootResources([
+        {
+          definition: {
+            canonicalName: "tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+        {
+          definition: {
+            canonicalName: "search_queries",
+            unit: "query",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000002",
+        definitions: rootInput.definitions,
+      });
       const policy = resealOutputResources(
         ceilingPolicy({
           name: "invalid_outputs",
@@ -109,24 +136,7 @@ describe("local Policy evaluation failures", () => {
       await expect(
         client.createBudget({
           commandId: "20000000-0000-4000-8000-000000000001",
-          ...rootResources([
-            {
-              definition: {
-                canonicalName: "tokens",
-                unit: "token",
-                accountingBehavior: "consumable",
-              },
-              amount: 10,
-            },
-            {
-              definition: {
-                canonicalName: "search_queries",
-                unit: "query",
-                accountingBehavior: "consumable",
-              },
-              amount: 10,
-            },
-          ]),
+          ...rootInput,
           policies: [policy],
         }),
       ).rejects.toMatchObject({
@@ -254,10 +264,9 @@ describe("local Policy evaluation failures", () => {
       reason: "failed_limit",
       ceiling: "requested.amount / (context.factor - context.factor)",
     });
-    const keynes = await createKeynes();
+    const keynes = await createKeynes({ resources });
     try {
       const root = await keynes.createBudget(
-        resources,
         { tokens: 10 },
         { policies: policySet(safe, failing) },
       );
@@ -283,6 +292,20 @@ describe("governed SQLite mutation rollback", () => {
     const executor = openSqliteCommandExecutor(INSTALLATION, EXECUTION_CONTEXT);
     const client = createKeynesClient(executor);
     try {
+      const rootInput = rootResources([
+        {
+          definition: {
+            canonicalName: "tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000003",
+        definitions: rootInput.definitions,
+      });
       const policy = ceilingPolicy({
         name: "retry_policy",
         reason: "limit",
@@ -290,16 +313,7 @@ describe("governed SQLite mutation rollback", () => {
       });
       const root = await client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000001",
-        ...rootResources([
-          {
-            definition: {
-              canonicalName: "tokens",
-              unit: "token",
-              accountingBehavior: "consumable",
-            },
-            amount: 10,
-          },
-        ]),
+        ...rootInput,
         policies: [policy],
       });
       const [rootResource] = root.budget.resources;
@@ -364,6 +378,20 @@ describe("governed SQLite mutation rollback", () => {
     );
     const client = createKeynesClient(executor);
     try {
+      const rootInput = rootResources([
+        {
+          definition: {
+            canonicalName: "tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000004",
+        definitions: rootInput.definitions,
+      });
       const policy = ceilingPolicy({
         name: "checkpoint_policy",
         reason: "limit",
@@ -371,16 +399,7 @@ describe("governed SQLite mutation rollback", () => {
       });
       const root = await client.createBudget({
         commandId: "20000000-0000-4000-8000-000000000001",
-        ...rootResources([
-          {
-            definition: {
-              canonicalName: "tokens",
-              unit: "token",
-              accountingBehavior: "consumable",
-            },
-            amount: 10,
-          },
-        ]),
+        ...rootInput,
         policies: [policy],
       });
       const [rootResource] = root.budget.resources;
@@ -483,10 +502,9 @@ function resealPolicy(
 async function openGoverned(
   policy: PolicyDefinition<"tokens", TestContext, string>,
 ) {
-  const keynes = await createKeynes();
+  const keynes = await createKeynes({ resources });
   try {
     const root = await keynes.createBudget(
-      resources,
       { tokens: 10 },
       { policies: policySet(policy) },
     );

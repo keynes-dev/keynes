@@ -16,10 +16,106 @@ const COMPETING_ROOT_ID = "25000000-0000-4000-8000-000000000002";
 const ZETA_DEFINITION_ID = "11000000-0000-4000-8000-000000000001";
 const ALPHA_DEFINITION_ID = "91000000-0000-4000-8000-000000000001";
 const CANONICAL_ORDER_ROOT_ID = "27000000-0000-4000-8000-000000000001";
+const EXACT_ROOT_ID = "28000000-0000-4000-8000-000000000001";
+const CONFLICTING_ROOT_ID = "28000000-0000-4000-8000-000000000002";
+const CONFIGURED_ROOT_DEFINITION_ID = "18000000-0000-4000-8000-000000000001";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
 describe("native PostgreSQL contention", () => {
+  it("replays an exact configured root with explicit zero membership after waiting for commit", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const definitions = configuredRootDefinitions();
+      await keynes.clientFor("product-fixture").defineResources({
+        commandId: CONFIGURED_ROOT_DEFINITION_ID,
+        definitions,
+      });
+      const first = await keynes.beginAttempt("product-fixture");
+      const second = await keynes.beginAttempt("product-fixture");
+      const stored = await first.client.createBudget({
+        commandId: EXACT_ROOT_ID,
+        definitions,
+        amounts: { modelTokens: 10, reviewerSeats: 0 },
+      });
+      const replay = second.client.createBudget({
+        commandId: EXACT_ROOT_ID,
+        definitions: {
+          reviewerSeats: definitions.reviewerSeats,
+          modelTokens: definitions.modelTokens,
+        },
+        amounts: { reviewerSeats: 0, modelTokens: 10 },
+      });
+
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      await expect(replay).resolves.toEqual({ ...stored, replayed: true });
+      await second.commit();
+      expect(stored.budget.resources).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ allocated: 10, available: 10 }),
+          expect.objectContaining({ allocated: 0, available: 0 }),
+        ]),
+      );
+      expect(await keynes.inspectState()).toEqual({
+        resources: 2,
+        commands: 2,
+        budgets: 1,
+        holdings: 2,
+        history: 1,
+        quantity: 10,
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("rejects a conflicting configured root after waiting for commit without duplicate allowances", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const definitions = configuredRootDefinitions();
+      await keynes.clientFor("product-fixture").defineResources({
+        commandId: CONFIGURED_ROOT_DEFINITION_ID,
+        definitions,
+      });
+      const first = await keynes.beginAttempt("product-fixture");
+      const second = await keynes.beginAttempt("product-fixture");
+      const stored = await first.client.createBudget({
+        commandId: CONFLICTING_ROOT_ID,
+        definitions,
+        amounts: { modelTokens: 10, reviewerSeats: 0 },
+      });
+      const conflicting = second.client.createBudget({
+        commandId: CONFLICTING_ROOT_ID,
+        definitions,
+        amounts: { modelTokens: 10, reviewerSeats: 1 },
+      });
+
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      await expect(conflicting).rejects.toMatchObject({
+        code: "command_conflict",
+      });
+      await second.commit();
+      expect(stored.budget.resources).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ allocated: 10, available: 10 }),
+          expect.objectContaining({ allocated: 0, available: 0 }),
+        ]),
+      );
+      expect(await keynes.inspectState()).toEqual({
+        resources: 2,
+        commands: 2,
+        budgets: 1,
+        holdings: 2,
+        history: 1,
+        quantity: 10,
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it.each([false, true])(
     "orders opposite-input batch overlap with conflict=%s",
     async (conflict) => {
@@ -98,12 +194,19 @@ describe("native PostgreSQL contention", () => {
                   definition,
                 })
               ).resourceType
-            : (
-                await first.client.createBudget({
-                  commandId: RESOURCE_COMMAND_ID,
-                  ...rootResources([{ definition, amount: 7 }]),
-                })
-              ).budget.resources[0].resourceType;
+            : (await first.client.defineResources({
+                commandId: RESOURCE_COMMAND_ID,
+                definitions: {
+                  alphaTokens: {
+                    unit: "token",
+                    accountingBehavior: "consumable",
+                  },
+                },
+              }),
+              await first.client.createBudget({
+                commandId: ROOT_BUDGET_ID,
+                ...rootResources([{ definition, amount: 7 }]),
+              })).budget.resources[0].resourceType;
         const competing = second.client.defineResources({
           commandId: ALPHA_DEFINITION_ID,
           definitions: {
@@ -121,7 +224,7 @@ describe("native PostgreSQL contention", () => {
         });
         expect(await keynes.inspectState()).toEqual({
           resources: 2,
-          commands: 2,
+          commands: kind === "singleton" ? 2 : 3,
           budgets: kind === "singleton" ? 0 : 1,
           holdings: kind === "singleton" ? 0 : 1,
           history: kind === "singleton" ? 0 : 1,
@@ -316,35 +419,51 @@ describe("native PostgreSQL contention", () => {
     }
   });
 
-  it("converges concurrent absent-name roots on one Resource", async () => {
+  it("creates concurrent configured roots on one catalog Resource", async () => {
     const keynes = await openNativeTestKeynes();
     try {
+      const root = rootResources([
+        {
+          definition: {
+            canonicalName: "contended_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await keynes.clientFor("product-fixture").defineResources({
+        commandId: RESOURCE_COMMAND_ID,
+        definitions: root.definitions,
+      });
       const first = await keynes.beginAttempt("product-fixture");
       const second = await keynes.beginAttempt("product-fixture");
-
-      const firstRoot = await createResourceBoundBudget(
-        first.client,
-        ROOT_BUDGET_ID,
-      );
-      const competing = createResourceBoundBudget(
-        second.client,
-        COMPETING_ROOT_ID,
-      );
-
-      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
-      await first.commit();
-      const secondRoot = await competing;
-      await second.commit();
+      const [firstRoot, secondRoot] = await Promise.all([
+        first.client.createBudget({ commandId: ROOT_BUDGET_ID, ...root }),
+        second.client.createBudget({ commandId: COMPETING_ROOT_ID, ...root }),
+      ]);
+      await Promise.all([first.commit(), second.commit()]);
 
       const firstResource = firstRoot.budget.resources[0]?.resourceType;
       const secondResource = secondRoot.budget.resources[0]?.resourceType;
-      expect(firstResource).toBeDefined();
-      expect(secondResource).toBeDefined();
       expect(secondResource?.resourceTypeId).toBe(
         firstResource?.resourceTypeId,
       );
-      expect(firstResource?.resourceTypeId).not.toBe(ROOT_BUDGET_ID);
-      expect(firstResource?.resourceTypeId).not.toBe(COMPETING_ROOT_ID);
+      expect(firstRoot.budget.budgetId).not.toBe(secondRoot.budget.budgetId);
+      expect(firstRoot.budget.resources).toEqual([
+        expect.objectContaining({ allocated: 10, available: 10 }),
+      ]);
+      expect(secondRoot.budget.resources).toEqual([
+        expect.objectContaining({ allocated: 10, available: 10 }),
+      ]);
+      expect(await keynes.inspectState()).toEqual({
+        resources: 1,
+        commands: 3,
+        budgets: 2,
+        holdings: 2,
+        history: 2,
+        quantity: 20,
+      });
     } finally {
       await keynes.close();
     }
@@ -406,25 +525,11 @@ describe("native PostgreSQL contention", () => {
   });
 });
 
-function createResourceBoundBudget(
-  client: ContractClient,
-  commandId: string,
-): ReturnType<ContractClient["createBudget"]> {
-  return Reflect.apply(client.createBudget, client, [
-    {
-      commandId,
-      ...rootResources([
-        {
-          definition: {
-            canonicalName: "contended_tokens",
-            unit: "token",
-            accountingBehavior: "consumable",
-          },
-          amount: 10,
-        },
-      ]),
-    },
-  ]);
+function configuredRootDefinitions() {
+  return {
+    modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
+  } as const;
 }
 
 async function seedRoot(

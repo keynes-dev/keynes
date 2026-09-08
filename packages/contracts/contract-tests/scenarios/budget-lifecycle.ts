@@ -153,7 +153,7 @@ export function registerBudgetLifecycleContractTests(
           ...rootResources([rootResource(resource.resourceType, 100)]),
         } satisfies CreateBudgetCommand;
         expect(JSON.stringify(createCommand)).toBe(
-          '{"commandId":"20000000-0000-0000-0000-000000000101","resources":{"kind":"definitions","definitions":{"modelTokens":{"unit":"token","accountingBehavior":"consumable"}}},"allocation":{"modelTokens":100}}',
+          '{"commandId":"20000000-0000-0000-0000-000000000101","definitions":{"modelTokens":{"unit":"token","accountingBehavior":"consumable"}},"amounts":{"modelTokens":100}}',
         );
         const root = await client.createBudget(createCommand);
         const requestCommand = {

@@ -446,7 +446,7 @@ describe("PostgreSQL system-test runner", () => {
   );
 
   it.each(Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS))(
-    "requires every native-only assertion in %s",
+    "requires every registered native assertion in %s",
     (file, names) => {
       for (const name of names) {
         for (const change of ["missing", "renamed"]) {
@@ -734,7 +734,7 @@ describe("PostgreSQL system-test runner", () => {
         application: {
           grants: [
             "USAGE ON SCHEMA keynes",
-            "EXECUTE ON nine remote wrapper functions",
+            "EXECUTE ON ten remote wrapper functions",
           ],
         },
       },
@@ -1528,20 +1528,12 @@ function passingVitestReport(environment?: NodeJS.ProcessEnv) {
   );
   const testResults = Object.entries(
     context.selection === undefined
-      ? {
-          ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
-          "packages/postgresql/test/system/budget.test.ts": [
-            "shared Budget scenario fixture",
-          ],
-        }
+      ? REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS
       : selectedScenarioInventory(validateNativeSelection(context.selection)),
   ).map(([file, names]) => ({
     name: `/repository/packages/${file}`,
     status: "passed" as const,
-    assertionResults: (file === "packages/postgresql/test/system/budget.test.ts"
-      ? ["shared Budget scenario fixture"]
-      : names
-    ).map((fullName) => ({
+    assertionResults: names.map((fullName) => ({
       fullName,
       ancestorTitles: [],
       status: "passed" as const,

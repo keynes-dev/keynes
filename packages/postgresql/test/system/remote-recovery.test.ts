@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
+
 import { rootResources } from "@keynes/contracts/contract-tests";
+import type { Client } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -111,8 +114,8 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       "keynes.remote_create_budget",
       {
         operationKey: operationKey("S"),
-        resources: { kind: "binding", bindingReference },
-        allocation: { recoveryUnits: 7 },
+        definitions: input.definitions,
+        amounts: { recoveryUnits: 7 },
       },
     );
     expect(created).toMatchObject({
@@ -212,8 +215,8 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         policyProfileDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 2,
-        minimumSdkGeneration: 2,
+        semanticGeneration: 3,
+        minimumSdkGeneration: 3,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",
@@ -230,6 +233,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
     const key = operationKey("a");
+    await provisionRoot(client, "recover_committed");
     const created = await queryResponse(
       client,
       "keynes.remote_create_budget",
@@ -261,6 +265,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     const mutationClient = await fixture.connect(fixture.primary);
     const recoveryClient = await fixture.connect(fixture.primary);
     const key = operationKey("l");
+    await provisionRoot(recoveryClient, "lost_response_tokens");
     const transportErrors: Error[] = [];
     mutationClient.once("error", (error) => transportErrors.push(error));
 
@@ -314,22 +319,177 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     expect(await authorityCounts(fixture)).toEqual(before);
   });
 
+  it("recovers a lost configured creation only after current authorization and selected-definition validation", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const producer = await fixture.connect(fixture.primary);
+    const recoveryClient = await fixture.connect(fixture.primary);
+    const key = operationKey("configured-lost-response");
+    const selectedDefinitions = {
+      recoveryUnits: { unit: "unit", accountingBehavior: "consumable" },
+      zeroSeats: { unit: "seat", accountingBehavior: "reusable" },
+    };
+    const clientDeclarations = {
+      unusedSeats: { unit: "seat", accountingBehavior: "reusable" },
+      ...selectedDefinitions,
+    };
+    const command = {
+      operationKey: key,
+      definitions: selectedDefinitions,
+      amounts: { recoveryUnits: 7, zeroSeats: 0 },
+    };
+    expect(
+      await queryResponse(producer, "keynes.remote_define_resources", {
+        operationKey: operationKey("configured-catalog"),
+        definitions: clientDeclarations,
+      }),
+    ).toMatchObject({ ok: true, result: { kind: "defined" } });
+    expect(
+      await queryResponse(recoveryClient, "keynes.remote_validate_resources", {
+        definitions: clientDeclarations,
+      }),
+    ).toEqual({ ok: true, result: { valid: true } });
+
+    const transportErrors: Error[] = [];
+    producer.once("error", (error) => transportErrors.push(error));
+    producer.connection.stream.pause();
+    const pending = queryResponse(
+      producer,
+      "keynes.remote_create_budget",
+      command,
+    );
+    await expect
+      .poll(
+        async () => {
+          const response = record(
+            await queryResponse(
+              recoveryClient,
+              "keynes.remote_recover_operation",
+              {
+                operationKey: key,
+              },
+            ),
+          );
+          return record(response.result).kind;
+        },
+        { interval: 20, timeout: 2_000 },
+      )
+      .toBe("committed");
+    producer.connection.stream.destroy();
+    await expect(pending).rejects.toBeInstanceOf(Error);
+    expect(transportErrors).toHaveLength(1);
+
+    const committed = await queryResponse(
+      recoveryClient,
+      "keynes.remote_recover_operation",
+      { operationKey: key },
+    );
+    const committedResult = record(record(committed).result);
+    expect(committedResult).toMatchObject({
+      kind: "committed",
+      operation: "createBudget",
+      result: {
+        kind: "created",
+        budget: {
+          resources: [
+            { resource: { canonicalName: "recovery_units" }, allocated: 7 },
+            { resource: { canonicalName: "zero_seats" }, allocated: 0 },
+          ],
+        },
+      },
+    });
+    const beforeDeniedReplay = await authorityCounts(fixture);
+    await fixture.administrator.query(
+      `delete from keynes_internal.principal_permissions
+        where tenant_id = $1 and principal_id = $2
+          and permission = 'create_root_budget'`,
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    expect(
+      await queryResponse(recoveryClient, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "unauthorized" } });
+    expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
+    await fixture.administrator.query(
+      `insert into keynes_internal.principal_permissions
+         (tenant_id, principal_id, permission)
+       values ($1, $2, 'create_root_budget')`,
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    await fixture.administrator.query(
+      `update keynes_internal.resource_types
+          set definition = jsonb_set(definition, '{unit}', '"changed"'::jsonb)
+        where tenant_id = $1 and canonical_name = 'recovery_units'`,
+      [fixture.primary.tenantId],
+    );
+    expect(
+      await queryResponse(recoveryClient, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "resource_type_conflict" } });
+    expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
+    await fixture.administrator.query(
+      `update keynes_internal.resource_types
+          set definition = jsonb_set(definition, '{unit}', '"unit"'::jsonb)
+        where tenant_id = $1 and canonical_name = 'recovery_units'`,
+      [fixture.primary.tenantId],
+    );
+    expect(
+      await queryResponse(recoveryClient, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toEqual(committed);
+    expect(
+      await queryResponse(recoveryClient, "keynes.remote_create_budget", {
+        ...command,
+        definitions: {
+          recoveryUnits: { unit: "changed", accountingBehavior: "consumable" },
+          zeroSeats: selectedDefinitions.zeroSeats,
+        },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "resource_type_conflict" } });
+    expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
+
+    const replay = await queryResponse(
+      recoveryClient,
+      "keynes.remote_create_budget",
+      {
+        ...command,
+      },
+    );
+    expect(replay).toEqual({
+      ok: true,
+      result: { ...record(committedResult.result), replayed: true },
+    });
+    expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
+  });
+
   it("returns known-failure and expired recovery states without mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
     const rejectedKey = operationKey("b");
+    expect(
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("failed-definition-catalog"),
+        definitions: {
+          recoverInvalid: { unit: "token", accountingBehavior: "consumable" },
+        },
+      }),
+    ).toMatchObject({ ok: true, result: { kind: "defined" } });
     const rejected = await queryResponse(
       client,
-      "keynes.remote_create_budget",
+      "keynes.remote_define_resources",
       {
         operationKey: rejectedKey,
-        ...rootResources([
-          {
-            definition: resource("recover_invalid"),
-            amount: 0,
+        definitions: {
+          addedTokens: { unit: "token", accountingBehavior: "consumable" },
+          recoverInvalid: {
+            unit: "changed",
+            accountingBehavior: "consumable",
           },
-        ]),
+        },
       },
     );
     expect(rejected).toMatchObject({ ok: false });
@@ -358,6 +518,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     let mutation: Promise<unknown> | undefined;
 
     await installOperationPauseTrigger(fixture, gate);
+    await provisionRoot(recoveryClient, "inflight_tokens");
     await blocker.query("begin");
     await blocker.query(`select pg_advisory_xact_lock(${gate})`);
     await mutationClient.query(
@@ -409,6 +570,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     let gateReleased = false;
 
     await installOperationPauseTrigger(fixture, gate);
+    await provisionRoot(retryClient, "concurrent_retry_tokens");
     await blocker.query("begin");
     await blocker.query(`select pg_advisory_xact_lock(${gate})`);
     await firstClient.query(
@@ -481,6 +643,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     await fixture.register(fixture.secondary);
     const primary = await fixture.connect(fixture.primary);
     const secondary = await fixture.connect(fixture.secondary);
+    await provisionRoot(primary, "reopen_tokens");
     const created = await queryResponse(
       primary,
       "keynes.remote_create_budget",
@@ -524,6 +687,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
+    await provisionRoot(client, "history_tokens");
     const created = await queryResponse(
       client,
       "keynes.remote_create_budget",
@@ -646,7 +810,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
 });
 
 function operationKey(suffix: string): string {
-  return `kop_v1_${suffix.repeat(43)}`;
+  return `kop_v1_${createHash("sha256").update(suffix).digest("base64url")}`;
 }
 
 function indexedOperationKey(index: number): string {
@@ -665,10 +829,35 @@ function createRoot(
   operationKeyValue: string,
   canonicalName: string,
 ): Record<string, unknown> {
+  const key = resourceKey(canonicalName);
   return {
     operationKey: operationKeyValue,
-    ...rootResources([{ definition: resource(canonicalName), amount: 300 }]),
+    definitions: {
+      [key]: { unit: "token", accountingBehavior: "consumable" },
+    },
+    amounts: { [key]: 300 },
   };
+}
+
+async function provisionRoot(
+  client: Client,
+  canonicalName: string,
+): Promise<void> {
+  const key = resourceKey(canonicalName);
+  expect(
+    await queryResponse(client, "keynes.remote_define_resources", {
+      operationKey: operationKey(`catalog-${canonicalName}`),
+      definitions: {
+        [key]: { unit: "token", accountingBehavior: "consumable" },
+      },
+    }),
+  ).toMatchObject({ ok: true, result: { kind: "defined" } });
+}
+
+function resourceKey(canonicalName: string): string {
+  return canonicalName.replace(/_([a-z])/gu, (_match, letter: string) =>
+    letter.toUpperCase(),
+  );
 }
 
 function requireBudgetReference(value: unknown): string {

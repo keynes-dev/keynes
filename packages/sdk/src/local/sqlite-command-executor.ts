@@ -26,6 +26,7 @@ import type {
   ResourceTypeProjection,
   SettleBudgetCommand,
   UsageAmount,
+  ValidateResourcesQuery,
 } from "../generated/types.js";
 import {
   POLICY_LIMITS,
@@ -33,7 +34,6 @@ import {
 } from "../generated/policy-profile.js";
 import {
   validateCreateBudgetResult,
-  validateDefineResourcesResult,
   validateOperationInputIssues,
 } from "../generated/validators.js";
 import {
@@ -74,7 +74,8 @@ export type SqliteMutationObserver = (stage: SqliteMutationStage) => void;
 const REQUIRED_PERMISSIONS = {
   defineResource: ["define_resource_type"],
   defineResources: ["define_resource_type"],
-  createBudget: ["define_resource_type", "create_root_budget"],
+  validateResources: ["create_root_budget"],
+  createBudget: ["create_root_budget"],
   requestBudget: ["request_budget"],
   settleBudget: ["settle_budget"],
   getBudget: ["read_budget"],
@@ -122,13 +123,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
       ...semanticInputIssues(operation, input),
     ];
     if (issues.length > 0) {
-      const invalidBindingReference =
-        operation === "createBudget" &&
-        isRecord(input) &&
-        isRecord(input.resources) &&
-        input.resources.kind === "binding" &&
-        (typeof input.resources.bindingReference !== "string" ||
-          !/^krs_v1_[A-Za-z0-9_-]{43}$/.test(input.resources.bindingReference));
       return Promise.resolve({
         ok: false,
         error: {
@@ -136,14 +130,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
           code: "invalid_command",
           details: {
             operation,
-            issues: invalidBindingReference
-              ? [
-                  {
-                    path: "$.resources.bindingReference",
-                    rule: "resourceBinding",
-                  },
-                ]
-              : issues,
+            issues,
           },
         },
       });
@@ -151,8 +138,26 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
     try {
       this.#requireOpen();
+      if (operation === "validateResources") {
+        this.#requirePermissions(context, operation);
+        for (const { definition } of canonicalDefinitions(
+          (input as ValidateResourcesQuery).definitions,
+          operation,
+        )) {
+          const existing = this.#requireResourceByName(
+            context.tenantId,
+            definition.canonicalName,
+          );
+          requireMatchingDefinition(existing, definition);
+        }
+        return Promise.resolve({
+          ok: true,
+          result: { valid: true },
+          replayed: false,
+        });
+      }
       if (operation === "getBudget") {
-        this.#requirePermissions(context, operation, input);
+        this.#requirePermissions(context, operation);
         const result = this.#getBudget(context, input as GetBudgetQuery);
         return Promise.resolve({ ok: true, result, replayed: false });
       }
@@ -160,7 +165,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       this.#store.beginImmediate();
       let applied: { readonly result: unknown; readonly replayed: boolean };
       try {
-        this.#requirePermissions(context, operation, input);
+        this.#requirePermissions(context, operation);
         applied = this.#applyMutation(context, operation, input);
         this.#store.commit();
       } catch (error) {
@@ -193,16 +198,8 @@ export class SqliteCommandExecutor implements CommandExecutor {
   #requirePermissions(
     context: SqliteTransactionContext,
     operation: OperationName,
-    input: unknown,
   ): void {
-    const permissions: readonly PermissionName[] =
-      operation === "createBudget" &&
-      isRecord(input) &&
-      isRecord(input.resources) &&
-      input.resources.kind === "binding"
-        ? ["create_root_budget"]
-        : REQUIRED_PERMISSIONS[operation];
-    for (const requiredPermission of permissions) {
+    for (const requiredPermission of REQUIRED_PERMISSIONS[operation]) {
       const allowed = this.#store.hasPermission(
         context.tenantId,
         context.principalId,
@@ -220,13 +217,16 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
   #applyMutation(
     context: SqliteTransactionContext,
-    operation: Exclude<OperationName, "getBudget">,
+    operation: Exclude<OperationName, "getBudget" | "validateResources">,
     input: unknown,
   ): { readonly result: unknown; readonly replayed: boolean } {
     const canonical = canonicalCommand(operation, input);
     const commandId = canonical.commandId;
     const prior = this.#store.findCommand(context.tenantId, commandId);
     if (prior !== undefined) {
+      if (operation === "createBudget") {
+        this.#resolveRootResources(context, input as CreateBudgetCommand);
+      }
       if (
         prior.operation !== operation ||
         prior.targetKind !== canonical.targetKind ||
@@ -392,89 +392,24 @@ export class SqliteCommandExecutor implements CommandExecutor {
     context: SqliteTransactionContext,
     command: CreateBudgetCommand,
   ): { resource: ResourceRow; amount: number }[] {
-    const allocation = canonicalAllocation(command.allocation);
-    if (command.resources.kind === "definitions") {
-      const definitions = new Map(
-        canonicalDefinitions(
-          command.resources.definitions,
-          "createBudget",
-          "$.resources.definitions",
-        ).map((entry) => [entry.key, entry.definition]),
-      );
-      for (const { key } of allocation) {
-        if (!definitions.has(key))
-          invalidCreation(`$.allocation.${key}`, "resourceDefined");
-      }
-      const resolved = allocation.map(({ key, amount }) => {
-        const definition = definitions.get(key);
-        if (definition === undefined)
-          return invalidCreation(`$.allocation.${key}`, "resourceDefined");
-        return {
-          resource: this.#resolveResource(
-            context,
-            definition,
-            randomUUID(),
-            command.commandId,
-          ),
-          amount,
-        };
-      });
-      this.#observeMutation?.("after_resource_insertion");
-      return resolved;
-    }
-    const reference = command.resources.bindingReference;
-    const receipt = this.#store.findBindingCommand(context.tenantId, reference);
-    if (receipt?.resultJson === null || receipt === undefined)
-      return invalidCreation("$.resources.bindingReference", "resourceBinding");
-    let recorded: unknown;
-    try {
-      recorded = JSON.parse(receipt.resultJson);
-    } catch (error) {
-      if (error instanceof SyntaxError)
-        return invalidCreation(
-          "$.resources.bindingReference",
-          "resourceBinding",
-        );
-      throw error;
-    }
-    const result = isRecord(recorded)
-      ? { ...recorded, replayed: false }
-      : undefined;
+    const amounts = canonicalAllocation(command.amounts);
+    const definitions = canonicalDefinitions(
+      command.definitions,
+      "createBudget",
+    );
     if (
-      !validateDefineResourcesResult(result) ||
-      result.bindingReference !== reference
-    )
-      return invalidCreation("$.resources.bindingReference", "resourceBinding");
-    const members = new Map<string, ResourceRow>();
-    for (const member of result.resources) {
-      const row = this.#store.findResource(
-        context.tenantId,
-        member.resourceType.resourceTypeId,
-      );
-      if (
-        row === undefined ||
-        members.has(member.key) ||
-        member.key.replaceAll(
-          /[A-Z]/g,
-          (letter) => `_${letter.toLowerCase()}`,
-        ) !== row.canonicalName ||
-        canonicalJson(resourceProjection(row)) !==
-          canonicalJson(member.resourceType) ||
-        row.definitionCommandId !== member.definitionEvidence.commandId ||
-        row.definerPrincipalId !== member.definitionEvidence.principalId ||
-        row.definitionDigest !== member.definitionEvidence.definitionDigest
-      )
-        return invalidCreation(
-          "$.resources.bindingReference",
-          "resourceBinding",
-        );
-      members.set(member.key, row);
+      definitions.length !== amounts.length ||
+      definitions.some(({ key }, index) => key !== amounts[index].key)
+    ) {
+      invalidCreation("$.amounts", "matchingKeys");
     }
-    return allocation.map(({ key, amount }) => {
-      const resource = members.get(key);
-      if (resource === undefined)
-        return invalidCreation(`$.allocation.${key}`, "resourceDefined");
-      return { resource, amount };
+    return definitions.map(({ definition }, index) => {
+      const resource = this.#requireResourceByName(
+        context.tenantId,
+        definition.canonicalName,
+      );
+      requireMatchingDefinition(resource, definition);
+      return { resource, amount: amounts[index].amount };
     });
   }
 
@@ -490,21 +425,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       definition.canonicalName,
     );
     if (existing !== undefined) {
-      if (
-        existing.definitionDigest !== definitionDigest ||
-        existing.unit !== definition.unit ||
-        existing.accountingBehavior !== definition.accountingBehavior
-      ) {
-        fail({
-          kind: "error",
-          code: "resource_type_conflict",
-          details: {
-            canonicalName: definition.canonicalName,
-            existingDefinitionDigest: existing.definitionDigest,
-            attemptedDefinitionDigest: definitionDigest,
-          },
-        });
-      }
+      requireMatchingDefinition(existing, definition);
       return existing;
     }
 
@@ -1145,7 +1066,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       fail({
         kind: "error",
         code: "resource_type_not_found",
-        details: { resourceTypeId: canonicalName },
+        details: { canonicalName },
       });
     }
     return resource;
@@ -1226,7 +1147,7 @@ export function openSqliteCommandExecutor(
 }
 
 function canonicalCommand(
-  operation: Exclude<OperationName, "getBudget">,
+  operation: Exclude<OperationName, "getBudget" | "validateResources">,
   input: unknown,
 ): {
   commandId: string;
@@ -1263,21 +1184,8 @@ function canonicalCommand(
     targetKind = "budget";
     targetId = command.commandId;
     body = {
-      resources:
-        command.resources.kind === "definitions"
-          ? {
-              kind: "definitions",
-              definitions: canonicalDefinitions(
-                command.resources.definitions,
-                "createBudget",
-                "$.resources.definitions",
-              ),
-            }
-          : {
-              kind: "binding",
-              bindingReference: command.resources.bindingReference,
-            },
-      allocation: canonicalAllocation(command.allocation),
+      definitions: canonicalDefinitions(command.definitions, "createBudget"),
+      amounts: canonicalAllocation(command.amounts),
       ...(command.policies === undefined || command.policies.length === 0
         ? {}
         : {
@@ -1329,9 +1237,34 @@ function resourceDefinitionDigest(
   return `resource-definition:${createHash("sha256").update(jsonbText).digest("hex")}`;
 }
 
+function requireMatchingDefinition(
+  existing: ResourceRow,
+  definition: DefineResourceTypeCommand["definition"],
+): void {
+  const definitionDigest = resourceDefinitionDigest(definition);
+  if (
+    existing.definitionDigest !== definitionDigest ||
+    existing.unit !== definition.unit ||
+    existing.accountingBehavior !== definition.accountingBehavior
+  ) {
+    fail({
+      kind: "error",
+      code: "resource_type_conflict",
+      details: {
+        canonicalName: definition.canonicalName,
+        existingDefinitionDigest: existing.definitionDigest,
+        attemptedDefinitionDigest: definitionDigest,
+      },
+    });
+  }
+}
+
 function canonicalDefinitions(
   definitions: unknown,
-  operation: "defineResources" | "createBudget" = "defineResources",
+  operation:
+    | "defineResources"
+    | "createBudget"
+    | "validateResources" = "defineResources",
   basePath = "$.definitions",
 ): {
   key: string;
@@ -1407,10 +1340,16 @@ function canonicalAmounts<Value extends ResourceAmount | UsageAmount>(
 }
 
 function canonicalAllocation(
-  allocation: CreateBudgetCommand["allocation"],
+  allocation: CreateBudgetCommand["amounts"],
 ): { key: string; amount: number }[] {
+  if (Object.keys(allocation).length === 0)
+    invalidCreation("$.amounts", "minProperties");
   return Object.entries(allocation)
-    .map(([key, amount]) => ({ key, amount }))
+    .map(([key, amount]) => {
+      if (!Number.isSafeInteger(amount) || amount < 0)
+        invalidCreation(`$.amounts.${key}`, "amount");
+      return { key, amount };
+    })
     .sort((left, right) =>
       compareText(
         left.key.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
@@ -1447,7 +1386,7 @@ function semanticInputIssues(
 ): { path: string; rule: string }[] {
   if (!isRecord(input)) return [];
   const field =
-    operation === "createBudget" || operation === "requestBudget"
+    operation === "requestBudget"
       ? "resources"
       : operation === "settleBudget"
         ? "usage"
@@ -1455,15 +1394,7 @@ function semanticInputIssues(
   if (field === undefined || !Array.isArray(input[field])) return [];
   const resourceKeys = input[field].flatMap((item) => {
     if (!isRecord(item)) return [];
-    if (operation !== "createBudget") {
-      return typeof item.resourceTypeId === "string"
-        ? [item.resourceTypeId]
-        : [];
-    }
-    return isRecord(item.definition) &&
-      typeof item.definition.canonicalName === "string"
-      ? [item.definition.canonicalName]
-      : [];
+    return typeof item.resourceTypeId === "string" ? [item.resourceTypeId] : [];
   });
   return new Set(resourceKeys).size === resourceKeys.length
     ? []
