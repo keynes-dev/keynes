@@ -1,8 +1,5 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "boundaries": {
-    "implicitDependencies": ["three"]
-  },
   "tasks": {
     "//#quality": {
       "dependsOn": ["//#lint", "//#format"]

@@ -16,11 +16,8 @@ import {
   ITEM,
   SHAPES,
   WRAP,
-} from "../../public/animations/conveyor/config.js";
-import {
-  createTimeline,
-  TUBES,
-} from "../../public/animations/conveyor/timeline.js";
+} from "../../src/lib/conveyor/config.js";
+import { createTimeline, TUBES } from "../../src/lib/conveyor/timeline.js";
 
 // The camera answers this in the browser; any plausible height will do here.
 const SKY = [3, 3, 3];

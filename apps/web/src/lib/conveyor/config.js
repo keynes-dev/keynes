@@ -29,9 +29,16 @@ export const CONFIG = {
   refillStagger: 0.26,
   gravity: 24,
   restitution: 0.15,
-  // White, like every other surface here, and told apart by their outlines the
-  // way every other solid in the drawing is. Nothing in the scene carries colour
-  // now except the lamp.
+  // The two colours the drawing is made of, used until the page says otherwise.
+  // Every solid takes the ground and every line the ink, so the scene inverts
+  // with the site's theme rather than sitting as a lit panel in a dark page.
+  ground: 0xffffff,
+  ink: 0x111111,
+  // The ground grid, which is neither: a rule faint enough to sit under the
+  // drawing without competing with it.
+  rule: 0xe0e0e0,
+  // The dispensed shapes are solids like any other, told apart by their
+  // outlines. Nothing in the scene carries colour except the lamp.
   shapeColors: [0xffffff, 0xffffff, 0xffffff],
   // Keyed by meaning, not colour, so the palette can be retuned without the
   // names lying. `denied` is a box the machine cannot fill, `depleted` the
@@ -46,6 +53,10 @@ export const CONFIG = {
   fineWidth: 0.55,
   maxPixelRatio: 2,
   frustum: 2.9,
+  // Where the machine stands in its frame: off to one side, leaving the ground
+  // it is standing on to run out behind whatever is set beside it. Whether
+  // there is room for that at all is the caller's to decide, not the drawing's.
+  offset: 0.46,
   skyMargin: 1.15,
   // Raised until the furthest tube's top rim clears the frame. The rim decides,
   // not the axis: checking the centre line alone lets the far lip clip.

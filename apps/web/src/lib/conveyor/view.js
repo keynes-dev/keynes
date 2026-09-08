@@ -18,6 +18,29 @@ camera.position.copy(target).addScaledVector(ISO_DIR, 40);
 camera.lookAt(target);
 camera.updateMatrixWorld();
 
+/*
+  Fit the frame to the shape of the element it is drawn in, and stand the
+  machine off centre in it.
+
+  The vertical half-extent stays at `frustum` whatever the shape, so the machine
+  is the same size in a wide banner as in a square, and the extra room a wide
+  frame brings is extra ground rather than a bigger drawing — which is what lets
+  the grid run the width of a section with the machine sitting at one end.
+
+  `offset` is where the machine lands, in fractions of a half-frame from the
+  centre: 0 is centred, 1 would be hard against the right edge. Sliding the
+  window left by that much moves what is drawn in it right by the same, so the
+  camera itself never moves and every silhouette drawn against it still holds.
+*/
+export function frameCamera(aspect, offset = 0) {
+  const width = H * Math.max(aspect, 0.001);
+  camera.left = -width - offset * width;
+  camera.right = width - offset * width;
+  camera.top = H;
+  camera.bottom = -H;
+  camera.updateProjectionMatrix();
+}
+
 // How far above `point` an item must start to sit outside the top of the frame.
 // Each tube's mouth projects to a different screen height, so this is per tube.
 export function skyOffset(point) {
