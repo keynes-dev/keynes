@@ -38,6 +38,7 @@ const CONTEXT = {
 const OPERATIONS = [
   "defineResource",
   "defineResources",
+  "validateResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -46,7 +47,6 @@ const OPERATIONS = [
 
 const ROLLBACK_CHECKPOINTS = [
   ["after_command_binding", "01"],
-  ["after_resource_insertion", "02"],
   ["after_domain_mutation", "03"],
   ["after_history_insertion", "04"],
   ["after_result_storage", "05"],
@@ -142,6 +142,12 @@ describe("SQLite command executor", () => {
     const client = createKeynesClient(executor);
 
     try {
+      await client.defineResources({
+        commandId: "10000000-0000-0000-0000-000000000002",
+        definitions: {
+          safeUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
       const root = await client.createBudget({
         commandId: "20000000-0000-0000-0000-000000000002",
         ...rootResources([
@@ -245,6 +251,13 @@ describe("SQLite command executor", () => {
       } satisfies CreateBudgetCommand;
 
       try {
+        await client.defineResources({
+          commandId: `10000000-0000-0000-0000-0000000000${suffix}`,
+          definitions: {
+            rollbackUnits: { unit: "unit", accountingBehavior: "consumable" },
+          },
+        });
+        transaction.mockClear();
         fault.arm();
         await expect(
           executor.executeFor(CONTEXT, "createBudget", command),
@@ -271,6 +284,12 @@ describe("SQLite command executor", () => {
       const client = createKeynesClient(executor);
 
       try {
+        await client.defineResources({
+          commandId: "10000000-0000-0000-0000-000000000003",
+          definitions: {
+            guardUnits: { unit: "unit", accountingBehavior: "consumable" },
+          },
+        });
         const root = await client.createBudget({
           commandId: "20000000-0000-0000-0000-000000000003",
           ...rootResources([

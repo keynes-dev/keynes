@@ -60,29 +60,20 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const recovered = await remote.recoverOperation(operationKey);
     expect(recovered).toMatchObject({
       kind: "committed",
       operation: "defineResources",
       operationKey,
     });
-    const binding = record(recovered).result;
-    expect(binding).toEqual({});
-    expect(Object.isFrozen(binding)).toBe(true);
-    expect(Reflect.ownKeys(record(binding))).toEqual([]);
+    expect(record(recovered).result).toEqual({});
     expect(JSON.stringify(recovered)).not.toMatch(
       /krs_v1_|resourceTypeId|principalId|definitionDigest|00000000/,
     );
-    const root = await Reflect.apply(remote.createBudget, remote, [
-      binding,
-      { workUnits: 10 },
-    ]);
+    const root = await remote.createBudget({ workUnits: 10 });
     expect(root.reference).toBe(rootReference);
-    expect(record(executor.inputs[1]).resources).toEqual({
-      kind: "binding",
-      bindingReference: definedResponse().result.bindingReference,
-    });
+    expect(record(executor.inputs[1]).definitions).toEqual(resources);
   });
 
   it("retries a lost definition response with the same key and returns an opaque binding", async () => {
@@ -104,7 +95,7 @@ describe("remote Budget reopen and operation recovery", () => {
       return definedResponse();
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const binding = await remote.defineResources(resources, { operationKey });
     expect(executor.inputs.map(inputOperationKey)).toEqual([
       operationKey,
@@ -113,7 +104,7 @@ describe("remote Budget reopen and operation recovery", () => {
     expect(executor.inputs[0]).toEqual(executor.inputs[1]);
     expect(Reflect.ownKeys(binding)).toEqual([]);
     expect(Object.isFrozen(binding)).toBe(true);
-    await remote.createBudget(binding, { workUnits: 10 });
+    await remote.createBudget({ workUnits: 10 });
   });
 
   it("keeps definition uncertainty distinct from expired and unresolved recovery", async () => {
@@ -150,7 +141,7 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     await expect(
       remote.defineResources(resources, { operationKey }),
     ).rejects.toMatchObject({
@@ -197,7 +188,7 @@ describe("remote Budget reopen and operation recovery", () => {
             },
       );
       openWith(executor);
-      const remote = await createKeynes({ databaseUrl });
+      const remote = await createKeynes({ databaseUrl, resources });
       await expect(
         remote.defineResources(resources, { operationKey }),
       ).rejects.toMatchObject({ code });
@@ -220,9 +211,8 @@ describe("remote Budget reopen and operation recovery", () => {
     openWith(executor);
     const key = createOperationKey();
 
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const root = await remote.createBudget(
-      resources,
       { workUnits: 10 },
       { operationKey: key },
     );
@@ -268,7 +258,7 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const reopened = await remote.openBudget({
       reference: rootReference,
       resourceTypes: resources,
@@ -313,7 +303,7 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
     const recovered = [];
     for (let call = 0; call < results.length; call += 1) {
       recovered.push(await remote.recoverOperation(operationKey));
@@ -349,10 +339,10 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({ name: "KeynesError", code: "unavailable" });
 
     expect(executor.inputs).toHaveLength(3);
@@ -377,10 +367,10 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({ name: "KeynesError", code: "unavailable" });
     expect(executor.inputs).toHaveLength(1);
   });
@@ -407,10 +397,10 @@ describe("remote Budget reopen and operation recovery", () => {
           };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({
       name: "KeynesError",
       code: "uncertain_outcome",
@@ -447,13 +437,9 @@ describe("remote Budget reopen and operation recovery", () => {
       });
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({ databaseUrl, resources });
 
-    const pending = remote.createBudget(
-      resources,
-      { workUnits: 10 },
-      { operationKey },
-    );
+    const pending = remote.createBudget({ workUnits: 10 }, { operationKey });
     const expected = expect(pending).rejects.toMatchObject({
       name: "KeynesError",
       code: "uncertain_outcome",
@@ -494,8 +480,8 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
 
     const snapshot = await root.inspect();
 
@@ -539,6 +525,9 @@ function fakeExecutor(
     inputs,
     close: vi.fn(async () => undefined),
     execute: vi.fn(async (procedure, input) => {
+      if (procedure.method === "validateResources") {
+        return { ok: true, result: { valid: true } };
+      }
       methods.push(procedure.method);
       inputs.push(input);
       return respond(procedure.method, input);

@@ -184,6 +184,9 @@ function createClient(
   ];
 
   return {
+    async validateResources() {
+      return { valid: true } as const;
+    },
     async defineResources() {
       throw new Error("unexpected defineResources call");
     },

@@ -58,6 +58,9 @@ function runRemoteExports(): void {
 async function runConfigurationRejection(): Promise<void> {
   await assertRejectsCode(
     createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
       databaseUrl:
         "postgresql://application:secret@db.example.test/keynes?sslmode=disable",
     }),
@@ -89,6 +92,7 @@ async function runAuthorizedDatabase(): Promise<void> {
   };
   const rootReference = await createAndClose();
   await using reconnected = await createKeynes({
+    resources,
     databaseUrl: authorizedDatabaseUrl,
   });
   const reopened = await reconnected.openBudget({
@@ -113,10 +117,10 @@ async function runAuthorizedDatabase(): Promise<void> {
 
   async function createAndClose(): Promise<BudgetReference> {
     await using keynes = await createKeynes({
+      resources,
       databaseUrl: authorizedDatabaseUrl,
     });
     const root = await keynes.createBudget(
-      resources,
       { packageQualificationUnits: 5 },
       { operationKey: createOperationKey() },
     );
@@ -176,6 +180,17 @@ async function runBudgetLoop(): Promise<void> {
       (await raw.inspect()).budget.resources.map(({ resource }) => resource),
       ["usdCents"],
     );
+    const zero = await keynes.createBudget({ searchQueries: 0 });
+    assertEqual(
+      (await zero.inspect()).budget.resources.map(
+        ({ resource, allocated }) => ({
+          resource,
+          allocated,
+        }),
+      ),
+      [{ resource: "searchQueries", allocated: 0 }],
+    );
+    assertEqual((await zero.settle({ searchQueries: 0 })).kind, "settled");
     const root = await keynes.createBudget({
       usdCents: 100,
       searchQueries: 10,

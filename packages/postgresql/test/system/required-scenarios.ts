@@ -63,8 +63,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
   ],
   "packages/postgresql/test/system/embedded-transactions.test.ts": [
-    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller commit",
-    "embedded PostgreSQL caller-owned transactions keeps definition binding, consumption, and application work inside caller rollback",
+    "embedded PostgreSQL caller-owned transactions keeps catalog provisioning, consumption, and application work inside caller commit",
+    "embedded PostgreSQL caller-owned transactions keeps catalog provisioning, consumption, and application work inside caller rollback",
     "embedded PostgreSQL caller-owned transactions propagates Resource serialization failure to the caller and rolls back application work",
     "embedded PostgreSQL caller-owned transactions commits an approved request and application outbox row together",
     "embedded PostgreSQL caller-owned transactions leaves neither Budget state nor outbox state after explicit rollback",
@@ -72,7 +72,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "embedded PostgreSQL caller-owned transactions commits a denial without creating application work",
     "embedded PostgreSQL caller-owned transactions returns invalid_command for malformed input without opening application work",
     "embedded PostgreSQL caller-owned transactions uses the caller-owned transaction lifecycle",
-    "embedded PostgreSQL caller-owned transactions rolls back a Resource-bound root with caller-owned application work",
+    "embedded PostgreSQL caller-owned transactions rolls back a configured root with caller-owned application work",
     "embedded PostgreSQL caller-owned transactions preserves the original definition provenance for later definition",
     "embedded PostgreSQL caller-owned transactions keeps a pending child and outbox row invisible to another session",
     "embedded PostgreSQL caller-owned transactions makes the child and outbox row visible after the caller commits",
@@ -225,10 +225,10 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
   ],
   "packages/postgresql/test/system/rollback.test.ts": [
-    "PostgreSQL Resource-bound root authorization and rollback removes failed definition receipts and bound-root effects while retaining older bindings",
-    "PostgreSQL Resource-bound root authorization and rollback requires definition then root-allocation permission",
-    "PostgreSQL Resource-bound root authorization and rollback rolls back an inserted Resource at its private checkpoint",
-    "PostgreSQL Resource-bound root authorization and rollback rejects a malformed root projection without committing authority state",
+    "PostgreSQL configured root authorization and rollback removes failed definition receipts and configured-root effects while retaining catalog definitions",
+    "PostgreSQL configured root authorization and rollback requires a configured catalog and root-allocation permission",
+    "PostgreSQL configured root authorization and rollback rolls back a configured root at its private checkpoint",
+    "PostgreSQL configured root authorization and rollback rejects a malformed root projection without committing authority state",
   ],
 } as const;
 

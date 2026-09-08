@@ -102,8 +102,8 @@ US2 factory, creator, invalid-input, and capture tests run before the shared
 implementations in US3 and US1. This phase verifies consumer integration; it does
 not reimplement those boundaries.
 
-- [ ] T030 [US2] Adapt public type exports and current packed consumer calls in `packages/sdk/src/index.ts`, `packages/sdk/test/package/consumer.mts`, and `packages/sdk/test/package/compatibility/remote-api.mts`; keep explicit ResourceDefinitions and defineResources behavior, without a competing creation API.
-- [ ] T031 [US2] Run `pnpm typecheck` and the adapted packed-consumer compilation after T030; reuse the already recorded creation-boundary results unless these adaptations change behavior; retain exact diagnostics and passing results in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
+- [x] T030 [US2] Adapt public type exports and current packed consumer calls in `packages/sdk/src/index.ts`, `packages/sdk/test/package/consumer.mts`, and `packages/sdk/test/package/compatibility/remote-api.mts`; keep explicit ResourceDefinitions and defineResources behavior, without a competing creation API.
+- [x] T031 [US2] Run `pnpm typecheck` and the adapted packed-consumer compilation after T030; reuse the already recorded creation-boundary results unless these adaptations change behavior; retain exact diagnostics and passing results in `docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/acceptance.md`.
 
 **Checkpoint**: Valid consumer inference and runtime rejection pass independently of recovery fault testing. Broad annotations cannot recover erased names; finite known keys remain exact.
 

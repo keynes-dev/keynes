@@ -323,6 +323,52 @@ T019-T029 are complete. Full repository typechecking still has feature-related
 caller adaptations; packed consumers, recovery qualification, and paired
 acceptance remain open for later phases.
 
+## Phase 5: Consumer integration
+
+The packed runtime and Policy consumers use configured startup and amounts-only
+creation. Positive and negative type assertions retain exact configured names,
+selected membership, Policy context/reasons, opaque definition results, and
+rejection of removed binding/positional creation. The packed runtime also checks
+an explicit zero member and ordinary zero settlement. Existing public type
+exports required no change.
+
+`pnpm typecheck` passes repository-wide. To reach that checkpoint, the remaining
+current SDK local/recovery fixtures and PostgreSQL embedded/rollback fixtures
+were mechanically adapted from the T003/T042 inventory. This pulls their API
+adaptation forward; it does not replace Phase 6's new recovery assertions.
+The focused SDK suites pass 51 tests, and PostgreSQL procedure-caller tests pass
+nine. No production code changed in this phase.
+
+The packed-consumer check uses the required archive argument:
+
+```sh
+pnpm pack:sdk
+pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/key-78-phase5.json
+```
+
+All 22 package unit assertions pass. The isolated archive consumer then passes
+public type compilation, Budget and Policy runtime loops, zero membership,
+isolation, closure, process loss, parser WASM, environment isolation, and blocked
+deep imports. An earlier attempt stopped at the source-revision guard while
+parallel callers were changing; the stable-input retry passes.
+
+Retained [package report](evidence/phase5-sdk-package.json) identifies archive
+SHA-256 `d7a46ad9ff924bbeb8974a0de2eea91ac8df35c6855417fdffec4570d9f5883e`
+and source HEAD `973d40d08b7990f3983075fe59c2b419d6db1ef4` with uncommitted
+consumer/test adaptations. This is the Phase 5 archive, not final candidate
+qualification. The authorized remote database, hosted matrix, registry,
+security qualification, and production readiness remain NOT RUN.
+
+The Phase 5 `ponytail-review` reports "Lean already. Ship."
+The final native source/direct check passes all 21 rollback and embedded
+transaction assertions on PostgreSQL 18.6. The malformed-projection fixture now
+provisions a separate definition first and verifies that failed creation retains
+that definition while leaving zero Budget, holding, command, and history effects.
+Docker cleanup was verified. The runner's full-inventory guard remains unpassed
+for this deliberately focused run. Retained [native report](evidence/phase5-native.vitest.json),
+SHA-256 `b59653221fbe4ec42d6191cd766435f06e7e27ffecc609f73dd019d48632bc7b`. T030-T031 are complete;
+recovery qualification and final paired acceptance remain open.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

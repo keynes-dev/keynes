@@ -24,9 +24,9 @@ describe("local facade committed-response replay", () => {
       const resources = {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
       };
-      const keynes = await harness.createKeynes();
+      const keynes = await harness.createKeynes({ resources });
       try {
-        await exerciseMutation(keynes, resources, operation);
+        await exerciseMutation(keynes, operation);
         expect(harness.captured).toHaveLength(2);
         expect(harness.captured[1]).toBe(harness.captured[0]);
       } finally {
@@ -40,10 +40,10 @@ describe("local facade committed-response replay", () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
-    const keynes = await harness.createKeynes();
+    const keynes = await harness.createKeynes({ resources });
     try {
       await expect(
-        keynes.createBudget(resources, { workUnits: 10 }),
+        keynes.createBudget({ workUnits: 10 }),
       ).rejects.toMatchObject({
         name: "KeynesSdkError",
         code: "operation_interrupted",
@@ -60,10 +60,10 @@ describe("local facade committed-response replay", () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
-    const keynes = await harness.createKeynes();
+    const keynes = await harness.createKeynes({ resources });
     try {
-      await keynes.createBudget(resources, { workUnits: 10 });
-      await keynes.createBudget(resources, { workUnits: 10 });
+      await keynes.createBudget({ workUnits: 10 });
+      await keynes.createBudget({ workUnits: 10 });
       expect(harness.captured).toHaveLength(2);
       expect(commandId(harness.captured[0])).not.toBe(
         commandId(harness.captured[1]),
@@ -76,10 +76,9 @@ describe("local facade committed-response replay", () => {
 
 async function exerciseMutation(
   keynes: Keynes,
-  resources: { workUnits: { unit: string; accountingBehavior: string } },
   operation: FacadeMutationOperation,
 ): Promise<void> {
-  const root = await keynes.createBudget(resources, { workUnits: 10 });
+  const root = await keynes.createBudget({ workUnits: 10 });
   if (operation === "createBudget") {
     const inspection = await root.inspect();
     expect(
