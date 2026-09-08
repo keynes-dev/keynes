@@ -27,11 +27,16 @@ const SKY = [3, 3, 3];
 const { describe: frameAt, cycles: CYCLES, loop: LOOP } = createTimeline(SKY);
 const POUR = CYCLES[0];
 const STALL = CYCLES[CYCLES.length - 1];
+// `snapshot` deep-copies, so a frame can be held and compared against a later
+// one. Use it for the handful of instants a test names; never per sample in a
+// sweep, since `describe` returns one object it rewrites every call and copying
+// all of it thousands of times costs seconds — enough to time the suite out on
+// a slower machine than the one it was written on. `each` hands over the live
+// frame instead, and a caller that needs to compare across frames copies out
+// only the few numbers it actually compares.
 const snapshot = (t) => JSON.parse(JSON.stringify(frameAt(t)));
-const sweep = (step = 1 / 240) => {
-  const out = [];
-  for (let t = 0; t < LOOP; t += step) out.push(snapshot(t));
-  return out;
+const each = (step, visit) => {
+  for (let t = 0; t < LOOP; t += step) visit(frameAt(t), t);
 };
 
 suite("box faces", () => {
@@ -87,30 +92,47 @@ suite("the loop", () => {
   // where a box that has been round comes back as one that has not.
   it("never steps a box's roll anywhere it could be seen", () => {
     const seam = WRAP / 2 - BELT.slot;
+    const steps = [];
     let last = null;
-    for (const frame of sweep(1 / 480)) {
+    each(1 / 480, (frame, t) => {
+      const now = frame.boxes.map((box) => [box.z, box.roll]);
       if (last) {
-        frame.boxes.forEach((box, k) => {
-          if (Math.abs(box.z) > seam) return;
-          const step = Math.abs(box.roll - last[k].roll);
-          expect(
-            step,
-            `box ${k} stepped ${step.toFixed(3)} at z=${box.z.toFixed(3)}`,
-          ).toBeLessThan(0.05);
+        now.forEach(([z, roll], k) => {
+          if (Math.abs(z) > seam) return;
+          const step = Math.abs(roll - last[k][1]);
+          if (step >= 0.05) {
+            steps.push(
+              `box ${k} stepped ${step.toFixed(3)} at t=${t.toFixed(3)}, z=${z.toFixed(3)}`,
+            );
+          }
         });
       }
-      last = frame.boxes;
-    }
+      last = now;
+    });
+    expect(steps.slice(0, 4)).toEqual([]);
   });
 
+  // Every number a part reads has to be a real one. `cycle` is skipped: it is
+  // the schedule the frame came from rather than anything drawn, and it marks
+  // the beats that dispense nothing with Infinity on purpose.
   it("leaves nothing undefined anywhere in a frame", () => {
-    for (const frame of sweep()) {
-      for (const value of JSON.stringify(frame).match(
-        /-?\d+(\.\d+)?(e-?\d+)?/g,
-      ) ?? []) {
-        expect(Number.isFinite(Number(value))).toBe(true);
+    const bad = [];
+    const scan = (value, path) => {
+      if (typeof value === "number") {
+        if (!Number.isFinite(value)) bad.push(`${path} is ${value}`);
+      } else if (value && typeof value === "object") {
+        for (const [key, inner] of Object.entries(value)) {
+          scan(inner, `${path}.${key}`);
+        }
       }
-    }
+    };
+    // One sample per frame a viewer could actually see.
+    each(1 / 60, (frame, t) => {
+      for (const [key, value] of Object.entries(frame)) {
+        if (key !== "cycle") scan(value, `t=${t.toFixed(3)} ${key}`);
+      }
+    });
+    expect(bad.slice(0, 4)).toEqual([]);
   });
 });
 
@@ -126,20 +148,25 @@ suite("the tubes", () => {
   });
 
   it("never holds more than it can, or less than nothing", () => {
-    for (const frame of sweep()) {
+    const bad = [];
+    each(1 / 240, (frame, t) => {
+      const at = `t=${t.toFixed(3)}`;
       for (const stack of frame.stacks) {
-        expect(stack.count).toBeGreaterThanOrEqual(0);
-        expect(stack.count).toBeLessThanOrEqual(CONFIG.tubeCapacity);
+        if (stack.count < 0 || stack.count > CONFIG.tubeCapacity) {
+          bad.push(`${at} holds ${stack.count}`);
+        }
       }
       // Whatever is in the air belongs to the shape this beat dispenses, and a
       // beat that dispenses nothing has nothing in the air.
-      expect(frame.shape).toBe(
-        frame.cycle.entry ? frame.cycle.entry.dispense : -1,
-      );
-      if (frame.shape < 0) {
-        expect(frame.falling.filter((f) => f.visible).length).toBe(0);
+      const dispensing = frame.cycle.entry ? frame.cycle.entry.dispense : -1;
+      if (frame.shape !== dispensing) {
+        bad.push(`${at} dispenses ${frame.shape}, not ${dispensing}`);
       }
-    }
+      if (frame.shape < 0 && frame.falling.some((f) => f.visible)) {
+        bad.push(`${at} has a shape in the air with nothing dispensing`);
+      }
+    });
+    expect(bad.slice(0, 4)).toEqual([]);
   });
 });
 
