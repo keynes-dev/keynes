@@ -948,10 +948,7 @@ export function sanitizeVitestReport(
 }
 
 export function validatePostgresqlSystemReport(value: unknown): void {
-  validateNativeCoverage(value, {
-    [POSTGRESQL_BUDGET_AGGREGATE]: [],
-    ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
-  });
+  validateNativeCoverage(value, REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS);
 }
 
 async function verifyAcceptanceRevision(
@@ -1283,8 +1280,9 @@ function validateNativeCoverage(
     if (
       path === undefined ||
       names === undefined ||
-      (path !== POSTGRESQL_BUDGET_AGGREGATE &&
-        !isDeepStrictEqual(file.assertions, [...names].sort()))
+      (path === POSTGRESQL_BUDGET_AGGREGATE
+        ? names.some((name) => !file.assertions.includes(name))
+        : !isDeepStrictEqual(file.assertions, [...names].sort()))
     )
       throw new Error("Incomplete native coverage");
     remaining.delete(path);

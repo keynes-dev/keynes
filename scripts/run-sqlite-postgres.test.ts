@@ -26,14 +26,13 @@ afterEach(() => vi.unstubAllEnvs());
 
 function report(native = false) {
   const files = native
-    ? [
+    ? Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS)
+    : [
         [
-          POSTGRESQL_BUDGET_AGGREGATE,
-          ["shared first", "shared second"],
+          SQLITE_AGGREGATE,
+          REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
         ] as const,
-        ...Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS),
-      ]
-    : [[SQLITE_AGGREGATE, ["shared first", "shared second"]] as const];
+      ];
   const testResults = files.map(([name, names]) => ({
     name: `/checkout/${name}`,
     status: "passed",
@@ -172,7 +171,7 @@ describe("SQLite and PostgreSQL result verification", () => {
         })),
       })),
     };
-    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(2);
+    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(4);
     expect(() =>
       validateTestReport(
         { ...nested, numTotalTestSuites: 4, numPassedTestSuites: 4 },

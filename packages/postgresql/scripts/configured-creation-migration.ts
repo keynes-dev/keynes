@@ -5,6 +5,7 @@ export const CONFIGURED_CREATION_OBJECTS = [
   "function:keynes_internal.canonical_creation_v0008(definitions_value jsonb,amounts_value jsonb)",
   "function:keynes_internal.apply_create_budget_v0008(input jsonb)",
   "function:keynes_internal.remote_create_budget_v0008(input jsonb)",
+  "function:keynes_internal.remote_recover_operation_v0008(input jsonb)",
   "function:keynes_internal.remote_apply_command_v0008(operation_name text,input jsonb)",
   "function:keynes_internal.validate_resources_v0008(input jsonb)",
   "function:keynes_internal.remote_validate_resources_v0008(input jsonb)",
@@ -177,6 +178,45 @@ END;
 $function$;
 
 ${renderBudgetCreation(resourceDefinitionsSql)}
+
+CREATE FUNCTION keynes_internal.remote_recover_operation_v0008(input jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $function$
+DECLARE
+  response jsonb;
+  definitions jsonb;
+  validation_response jsonb;
+BEGIN
+  response := keynes_internal.remote_dispatch_v0006('recoverOperation', input);
+  IF response #>> '{result,kind}' = 'committed'
+    AND response #>> '{result,operation}' = 'createBudget' THEN
+    SELECT canonical_input->'definitions' INTO definitions
+    FROM keynes_internal.remote_operations
+    WHERE tenant_id = current_setting('keynes.tenant_id')::uuid
+      AND operation_key = input->>'operationKey';
+    validation_response := keynes_internal.validate_resources_v0008(
+      jsonb_build_object('definitions', definitions)
+    );
+    IF validation_response->>'ok' = 'false' THEN
+      RETURN jsonb_build_object('ok', false, 'error',
+        keynes_internal.remote_safe_error_v0006('recoverOperation', validation_response->'error'));
+    END IF;
+  END IF;
+  RETURN response;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION keynes.remote_recover_operation(input jsonb)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $function$
+  SELECT keynes_internal.remote_recover_operation_v0008(input);
+$function$;
 
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA keynes_internal FROM PUBLIC;
 `;

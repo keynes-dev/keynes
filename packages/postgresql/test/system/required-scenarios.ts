@@ -2,6 +2,12 @@ export const POSTGRESQL_BUDGET_AGGREGATE =
   "packages/postgresql/test/system/budget.test.ts";
 
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
+  [POSTGRESQL_BUDGET_AGGREGATE]: [
+    "command replay replays reordered definitions and amounts with the original result",
+    "command replay rejects omitted explicit-zero membership under the same command identity",
+    "command replay creates independent roots for new identities and replays the original result after settlement",
+    "command replay replays semantically equivalent Policy definitions",
+  ],
   "packages/postgresql/test/integration/installation.test.ts": [
     "native PostgreSQL installation installs a fresh target atomically",
     "native PostgreSQL installation returns an exact no-op result without changing installed state",
@@ -50,6 +56,9 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL installation rolls back '0007-resource-definitions' atomically when its final statement fails",
   ],
   "packages/postgresql/test/system/contention.test.ts": [
+    "native PostgreSQL contention replays an exact configured root with explicit zero membership after waiting for commit",
+    "native PostgreSQL contention rejects a conflicting configured root after waiting for commit without duplicate allowances",
+
     "native PostgreSQL contention orders opposite-input batch overlap with conflict=false",
     "native PostgreSQL contention orders opposite-input batch overlap with conflict=true",
     "native PostgreSQL contention preserves original Resource evidence when a batch waits behind singleton",
@@ -59,7 +68,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
     "native PostgreSQL contention orders a waiting settlement after the committed request",
     "native PostgreSQL contention returns the stored result when a matching command waits for commit",
-    "native PostgreSQL contention converges concurrent absent-name roots on one Resource",
+    "native PostgreSQL contention creates concurrent configured roots on one catalog Resource",
     "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
   ],
   "packages/postgresql/test/system/embedded-transactions.test.ts": [
@@ -118,6 +127,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority enforces a generated Policy through canonical remote Resources",
   ],
   "packages/postgresql/test/system/remote-recovery.test.ts": [
+    "remote PostgreSQL recovery and bounded reads recovers a lost configured creation only after current authorization and selected-definition validation",
+
     "remote PostgreSQL recovery and bounded reads recovers a lost definition response and retains its receipt after ledger expiry",
     "remote PostgreSQL recovery and bounded reads keeps failed definitions as known failures without a successful receipt",
     "remote PostgreSQL recovery and bounded reads reports semantic compatibility before any mutation",
@@ -225,10 +236,11 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL Policy security rolls back the complete governed command at after_result_storage",
   ],
   "packages/postgresql/test/system/rollback.test.ts": [
+    "PostgreSQL configured root authorization and rollback rolls back an injected partial configured creation without changing unrelated state",
+
     "PostgreSQL configured root authorization and rollback removes failed definition receipts and configured-root effects while retaining catalog definitions",
     "PostgreSQL configured root authorization and rollback requires a configured catalog and root-allocation permission",
     "PostgreSQL configured root authorization and rollback rolls back a configured root at its private checkpoint",
-    "PostgreSQL configured root authorization and rollback rejects a malformed root projection without committing authority state",
   ],
 } as const;
 
@@ -299,7 +311,8 @@ export function remoteScenarioInventory(
           `remote PostgreSQL connection profiles proves the runner routes through the ${mode} mode`,
         );
   return {
-    [POSTGRESQL_BUDGET_AGGREGATE]: [],
+    [POSTGRESQL_BUDGET_AGGREGATE]:
+      REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
     ...Object.fromEntries(
       files.map((file) => [file, REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[file]]),
     ),
@@ -317,7 +330,8 @@ export function selectedScenarioInventory(
   return selection.kind === "remote"
     ? remoteScenarioInventory(selection)
     : {
-        [POSTGRESQL_BUDGET_AGGREGATE]: [],
+        [POSTGRESQL_BUDGET_AGGREGATE]:
+          REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
         "packages/postgresql/test/system/embedded-transactions.test.ts":
           REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[
             "packages/postgresql/test/system/embedded-transactions.test.ts"

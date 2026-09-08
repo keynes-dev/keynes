@@ -183,13 +183,25 @@ describe("PostgreSQL configured root authorization and rollback", () => {
     expect(await keynes.inspectState()).toMatchObject({ budgets: 0 });
   });
 
-  it("rejects a malformed root projection without committing authority state", async () => {
+  it("rolls back an injected partial configured creation without changing unrelated state", async () => {
     const owner = await openInstalledPostgresDatabase(
       requirePostgresqlSystemAdministratorUrl(),
       FIXTURE_INSTALLATION,
       requirePostgresqlSystemInstallation(),
     );
     try {
+      const client = createContractClient(
+        createDatabaseProcedureCaller(owner.database, {
+          tenantId: FIXTURE_TENANT_ID,
+          principalId: FIXTURE_PRINCIPALS["product-fixture"],
+        }),
+      );
+      const unrelated = resourceBoundRoot(ROOT_COMMAND_ID, "unrelated_tokens");
+      await client.defineResources({
+        commandId: RETRY_DEFINITION_ID,
+        definitions: unrelated.definitions,
+      });
+      await client.createBudget(unrelated);
       await owner.database.exec(
         `create or replace function keynes_internal.budget_projection(
            selected_tenant uuid,
@@ -204,12 +216,7 @@ describe("PostgreSQL configured root authorization and rollback", () => {
         MALFORMED_PROJECTION_ROOT_ID,
         "malformed_projection_tokens",
       );
-      await createContractClient(
-        createDatabaseProcedureCaller(owner.database, {
-          tenantId: FIXTURE_TENANT_ID,
-          principalId: FIXTURE_PRINCIPALS["product-fixture"],
-        }),
-      ).defineResources({
+      await client.defineResources({
         commandId: MALFORMED_PROJECTION_DEFINITION_ID,
         definitions: command.definitions,
       });
@@ -239,6 +246,10 @@ describe("PostgreSQL configured root authorization and rollback", () => {
         readonly holdings: string;
         readonly streams: string;
         readonly history: string;
+        readonly unrelated_budgets: string;
+        readonly unrelated_holdings: string;
+        readonly unrelated_allocated: string;
+        readonly unrelated_history: string;
       }>(
         `select
            (select count(*)::text from keynes_internal.commands
@@ -252,8 +263,17 @@ describe("PostgreSQL configured root authorization and rollback", () => {
            (select count(*)::text from keynes_internal.budget_history_streams
              where stream_id = $1::uuid) as streams,
            (select count(*)::text from keynes_internal.budget_history_entries
-             where command_id = $1::uuid) as history`,
-        [MALFORMED_PROJECTION_ROOT_ID],
+             where command_id = $1::uuid) as history,
+           (select count(*)::text from keynes_internal.budgets
+             where budget_id = $2::uuid) as unrelated_budgets,
+           (select count(*)::text from keynes_internal.budget_resources
+             where budget_id = $2::uuid) as unrelated_holdings,
+           (select coalesce(sum(allocated_amount), 0)::text
+             from keynes_internal.budget_resources
+             where budget_id = $2::uuid) as unrelated_allocated,
+           (select count(*)::text from keynes_internal.budget_history_entries
+             where command_id = $2::uuid) as unrelated_history`,
+        [MALFORMED_PROJECTION_ROOT_ID, ROOT_COMMAND_ID],
       );
       expect(state.rows[0]).toEqual({
         commands: "0",
@@ -262,6 +282,10 @@ describe("PostgreSQL configured root authorization and rollback", () => {
         holdings: "0",
         streams: "0",
         history: "0",
+        unrelated_budgets: "1",
+        unrelated_holdings: "1",
+        unrelated_allocated: "10",
+        unrelated_history: "1",
       });
     } finally {
       await owner.close();

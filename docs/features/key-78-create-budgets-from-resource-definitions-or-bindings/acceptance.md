@@ -369,6 +369,74 @@ for this deliberately focused run. Retained [native report](evidence/phase5-nati
 SHA-256 `b59653221fbe4ec42d6191cd766435f06e7e27ffecc609f73dd019d48632bc7b`. T030-T031 are complete;
 recovery qualification and final paired acceptance remain open.
 
+## Phase 6: Recovery and atomicity
+
+The new local lost-response and queued-failure assertions pass against the existing
+creation implementation: mixed-zero membership is retained, one successful command
+and funding effect exist after retry, and a failed queued creation changes neither
+an unrelated root nor the later successful root. Shared replay covers key order,
+zero-member omission conflicts, absent versus empty Policy sets, new identities,
+and the original creation result after settlement. These cases were initially
+green; no artificial failing implementation was introduced. The first three shared
+SQLite cases ran before explicit native inventory registration; all four required
+replay titles were registered before their native run.
+
+T033 found a real failing boundary: native recovery returned a committed creation
+result after `create_root_budget` was revoked. The new 0008 recovery wrapper keeps
+the existing identity, lock, expiry, known-failure, and projection behavior, then
+validates the stored selected definitions before disclosing a committed creation.
+This rechecks current creation permission and catalog compatibility without writing
+state. The native test also changes and restores a catalog unit, proving refusal
+on mismatch and exact recovery after restoration. Other operation recovery paths
+retain their existing behavior. The original native test had two fixture errors
+(invalid operation-key lengths and unused definitions sent directly on the wire);
+those were corrected before the genuine 10-pass/one-fail authorization result.
+
+Existing canonicalization and transaction ownership satisfy T036-T038. No new
+local recovery API, retry loop, ledger, storage abstraction, or caller transaction
+commit was introduced. Native exact and conflicting contenders prove a real lock
+wait, then one creation result and unchanged allowance totals. Distinct identities
+create separate roots without an obsolete catalog-insertion wait. The injected
+partial-creation rollback keeps the unrelated root's allowance and creation
+history intact. Existing embedded application-transaction rollback is retained.
+
+### Focused verification
+
+- SDK local replay, remote recovery, and shared contracts: 120 passed across three
+  files (`pnpm --filter @keynes/sdk exec vitest run test/unit/local/local-replay.test.ts test/unit/remote/recovery.test.ts test/contract/budget.test.ts --maxWorkers=1`).
+- `pnpm typecheck`: passes repository-wide. PostgreSQL build and procedure-caller
+  suites pass 18 assertions.
+- Native shared replay: 13 passed; [report](evidence/phase6-shared-native.vitest.json),
+  SHA-256 `afa7d4034f3faf45420e3fe0d07556b45e7f0f0c01e258c34d30033827f7746a`.
+- Direct, session-pool, and transaction-pool connection profiles: nine passed;
+  [report](evidence/phase6-connections-native.vitest.json), SHA-256
+  `e1a4a3ecf07a9309f9cd6bb2acf0cf790ed6428fd1306d04f10cb6e66dedf2bd`.
+- [phase6-contention-native.vitest.json](evidence/phase6-contention-native.vitest.json): 34 passed; SHA-256 `d49d1273f6f152dea74389753975487c450a91bfa3aa82a7e5a0005d50204055`.
+- [phase6-rollback-native.vitest.json](evidence/phase6-rollback-native.vitest.json): 4 passed; SHA-256 `2f655c42c2c3f2ba66476dd7282b4dcc2133bef7fddced87dc0e410b1d464a6c`.
+- [phase6-recovery-native.vitest.json](evidence/phase6-recovery-native.vitest.json): 11 passed; SHA-256 `a4b38aba078c30a68a28083c49366de3e4618c2daf766531cd487895397e73af`.
+
+These native reports use PostgreSQL 18.6 through the existing runner and temporary
+focused adapters. Docker container/network cleanup was observed. Each adapter
+exits 1 after successful assertions because the complete native inventory was
+not selected. The 34-case concurrency/embedded report predates the strengthened
+four-case rollback assertion and the narrow recovery wrapper; the separate
+rollback and final recovery reports verify those changes. Final paired acceptance
+must still qualify the complete candidate.
+
+The final recovery report was captured by `node /tmp/key78-phase6-recovery-final.mts`
+with JSON reporting enabled, after an earlier test-only adapter omitted the JSON
+artifact. The final generated 0008 SHA-256 is `3e5127fd6502a170cdcc4e7d5dceb46f793e552eb9a9832fbeb8eed740a4bb46`.
+
+The runner now enforces the required shared replay names as a subset of the full
+shared aggregate while retaining exact native-only inventories. Updating its
+fixtures exposed six initial runner test failures; after completing enforcement
+and the fixtures, all 167 runner assertions pass. The guard was strengthened,
+not bypassed to accept the focused reports.
+
+The Phase 6 `ponytail-review` found no complexity cuts in the recovery wrapper or
+required tests. The final inventory review also reports "Lean already. Ship."
+T032-T040 are complete; final candidate qualification remains open.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

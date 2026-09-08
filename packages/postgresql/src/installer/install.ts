@@ -38,6 +38,7 @@ const REMOTE_ADMIN_TARGETS = [
 ] as const;
 const REMOTE_EXECUTION_TARGETS = [
   "keynes_internal.remote_create_budget_v0008(jsonb)",
+  "keynes_internal.remote_recover_operation_v0008(jsonb)",
   "keynes_internal.remote_validate_resources_v0008(jsonb)",
   "keynes_internal.remote_get_compatibility_v0008(jsonb)",
   "keynes_internal.remote_create_budget_v0007(jsonb)",

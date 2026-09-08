@@ -21,7 +21,7 @@
   "contractDigest": "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "bfcd38aa5ab6571e6a1c24ee623b52b4d242ac81954f2b2c131535db88e5f0f0",
-  "migrationSetDigest": "dd97cb3cbbeed58e685b9f019a17aea9a54aa6508d36cbafdd649a3c9e64d497",
+  "migrationSetDigest": "9371ae5632d33c9732bdb5873368210eddf8e9dc911808b2d30a01b970fe1de9",
   "migrations": [
     {
       "id": "0001-storage",
@@ -65,7 +65,7 @@
     {
       "id": "0008-configured-creation",
       "path": "0008-configured-creation.sql",
-      "sha256": "e3a6e2efe70c3c8c5a30353962ce3c50a584065f0347f9c245a059f26813aa5d",
+      "sha256": "3e5127fd6502a170cdcc4e7d5dceb46f793e552eb9a9832fbeb8eed740a4bb46",
       "contractDigest": "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921"
     }
   ],
@@ -243,6 +243,7 @@
     "function:keynes_internal.canonical_creation_v0008(definitions_value jsonb,amounts_value jsonb)",
     "function:keynes_internal.apply_create_budget_v0008(input jsonb)",
     "function:keynes_internal.remote_create_budget_v0008(input jsonb)",
+    "function:keynes_internal.remote_recover_operation_v0008(input jsonb)",
     "function:keynes_internal.remote_apply_command_v0008(operation_name text,input jsonb)",
     "function:keynes_internal.validate_resources_v0008(input jsonb)",
     "function:keynes_internal.remote_validate_resources_v0008(input jsonb)",

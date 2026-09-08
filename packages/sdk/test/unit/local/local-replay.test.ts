@@ -2,10 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { OperationName } from "../../../src/generated/types.js";
 import type { Keynes } from "../../../src/keynes.js";
-import { openSqliteCommandExecutor } from "../../../src/local/sqlite-command-executor.js";
-import { dropCommittedResponses } from "../support/sqlite-faults.js";
+import {
+  SqliteCommandExecutor,
+  type SqliteMutationObserver,
+} from "../../../src/local/sqlite-command-executor.js";
+import { SqliteStore } from "../../../src/local/sqlite-store.js";
+import {
+  dropCommittedResponses,
+  failAtMutationStage,
+} from "../support/sqlite-faults.js";
 
-type MutationOperation = Exclude<OperationName, "getBudget">;
+type MutationOperation = Exclude<
+  OperationName,
+  "getBudget" | "validateResources"
+>;
 type FacadeMutationOperation = Exclude<
   MutationOperation,
   "defineResource" | "defineResources"
@@ -72,6 +82,90 @@ describe("local facade committed-response replay", () => {
       await keynes.close();
     }
   });
+  it("recovers mixed-zero creation without duplicate funding or unused members", async () => {
+    const harness = await loadHarness("createBudget", 1);
+    const resources = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      idleSeats: { unit: "seat", accountingBehavior: "reusable" },
+      unusedUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    const keynes = await harness.createKeynes({ resources });
+    try {
+      const before = harness.store.inspectState();
+      const amounts = { workUnits: 10, idleSeats: 0 };
+      const pending = keynes.createBudget(amounts);
+      amounts.workUnits = 99;
+      const root = await pending;
+      const snapshot = await root.inspect();
+      expect(
+        snapshot.budget.resources.map(({ resource, allocated }) => ({
+          resource,
+          allocated,
+        })),
+      ).toEqual([
+        { resource: "idleSeats", allocated: 0 },
+        { resource: "workUnits", allocated: 10 },
+      ]);
+      expect(snapshot.history.entries).toHaveLength(1);
+      expect(harness.captured).toHaveLength(2);
+      expect(harness.captured[1]).toBe(harness.captured[0]);
+      expect(harness.captured[0]).toMatchObject({
+        definitions: {
+          workUnits: resources.workUnits,
+          idleSeats: resources.idleSeats,
+        },
+        amounts: { workUnits: 10, idleSeats: 0 },
+      });
+      expect(harness.store.inspectState()).toEqual({
+        ...before,
+        commands: before.commands + 1,
+        budgets: before.budgets + 1,
+        holdings: before.holdings + 2,
+        history: before.history + 1,
+        quantity: before.quantity + 10,
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("rolls back failed queued creation while preserving unrelated and later roots", async () => {
+    const fault = failAtMutationStage("after_domain_mutation");
+    const harness = await loadHarness("createBudget", 0, fault.observe);
+    const resources = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      idleSeats: { unit: "seat", accountingBehavior: "reusable" },
+    };
+    const keynes = await harness.createKeynes({ resources });
+    try {
+      const unrelated = await keynes.createBudget({ workUnits: 7 });
+      const untouched = await unrelated.inspect();
+      const before = harness.store.inspectState();
+      fault.arm();
+      const failed = keynes.createBudget({ workUnits: 10, idleSeats: 0 });
+      const succeeding = keynes.createBudget({ workUnits: 6, idleSeats: 0 });
+      await expect(failed).rejects.toThrow(
+        "test rollback checkpoint: after_domain_mutation",
+      );
+      const root = await succeeding;
+      expect(
+        (await root.inspect()).budget.resources.map(
+          ({ allocated }) => allocated,
+        ),
+      ).toEqual([0, 6]);
+      expect(await unrelated.inspect()).toEqual(untouched);
+      expect(harness.store.inspectState()).toEqual({
+        ...before,
+        commands: before.commands + 1,
+        budgets: before.budgets + 1,
+        holdings: before.holdings + 2,
+        history: before.history + 1,
+        quantity: before.quantity + 6,
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
 });
 
 async function exerciseMutation(
@@ -112,30 +206,36 @@ async function exerciseMutation(
   ).toHaveLength(1);
 }
 
-async function loadHarness(operation: FacadeMutationOperation, losses: number) {
+async function loadHarness(
+  operation: FacadeMutationOperation,
+  losses: number,
+  observeMutation?: SqliteMutationObserver,
+) {
   vi.resetModules();
   const captured: unknown[] = [];
   const close = vi.fn();
-  const executor = openSqliteCommandExecutor(
-    {
-      tenantId: "00000000-0000-4000-8000-000000000002",
-      principals: [
-        {
-          principalId: "00000000-0000-4000-8000-000000000201",
-          permissions: [
-            "define_resource_type",
-            "create_root_budget",
-            "request_budget",
-            "settle_budget",
-            "read_budget",
-          ],
-        },
-      ],
-    },
+  const store = SqliteStore.open({
+    tenantId: "00000000-0000-4000-8000-000000000002",
+    principals: [
+      {
+        principalId: "00000000-0000-4000-8000-000000000201",
+        permissions: [
+          "define_resource_type",
+          "create_root_budget",
+          "request_budget",
+          "settle_budget",
+          "read_budget",
+        ],
+      },
+    ],
+  });
+  const executor = new SqliteCommandExecutor(
+    store,
     {
       tenantId: "00000000-0000-4000-8000-000000000002",
       principalId: "00000000-0000-4000-8000-000000000201",
     },
+    observeMutation,
   );
   const faultingExecutor = dropCommittedResponses(
     executor,
@@ -155,7 +255,7 @@ async function loadHarness(operation: FacadeMutationOperation, losses: number) {
     }),
   }));
   const { createKeynes } = await import("../../../src/index.js");
-  return { createKeynes, captured, close };
+  return { createKeynes, captured, close, store };
 }
 
 function commandId(value: unknown): unknown {

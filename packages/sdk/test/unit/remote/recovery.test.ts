@@ -107,6 +107,79 @@ describe("remote Budget reopen and operation recovery", () => {
     await remote.createBudget({ workUnits: 10 });
   });
 
+  it("replays configured creation from expanded compatible declarations with zero membership", async () => {
+    const selectedResources = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      zeroSeats: { unit: "seat", accountingBehavior: "reusable" },
+    };
+    const result = configuredCreatedResponse(false);
+    let creates = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") {
+        creates += 1;
+        return configuredCreatedResponse(creates === 2);
+      }
+      if (method === "recoverOperation") {
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "createBudget",
+            result: result.result,
+          },
+        };
+      }
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const first = await createKeynes({
+      databaseUrl,
+      resources: selectedResources,
+    });
+    const replaying = await createKeynes({
+      databaseUrl,
+      resources: {
+        unusedCredits: { unit: "credit", accountingBehavior: "consumable" },
+        ...selectedResources,
+      },
+    });
+
+    const original = await first.createBudget(
+      { workUnits: 10, zeroSeats: 0 },
+      { operationKey },
+    );
+    const replay = await replaying.createBudget(
+      { workUnits: 10, zeroSeats: 0 },
+      { operationKey },
+    );
+    const recovered = await replaying.recoverOperation(operationKey);
+
+    expect(replay.reference).toBe(original.reference);
+    expect(recovered).toEqual({
+      kind: "committed",
+      operationKey,
+      operation: "createBudget",
+      result: result.result,
+    });
+    expect(
+      executor.inputs.filter(
+        (_input, index) => executor.methods[index] === "createBudget",
+      ),
+    ).toEqual([
+      {
+        operationKey,
+        definitions: selectedResources,
+        amounts: { workUnits: 10, zeroSeats: 0 },
+      },
+      {
+        operationKey,
+        definitions: selectedResources,
+        amounts: { workUnits: 10, zeroSeats: 0 },
+      },
+    ]);
+  });
+
   it("keeps definition uncertainty distinct from expired and unresolved recovery", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     let attempts = 0;
@@ -542,6 +615,53 @@ function createdResponse() {
       kind: "created" as const,
       budget: rootBudget("active", null, true),
       replayed: false,
+    },
+  };
+}
+
+function configuredCreatedResponse(replayed: boolean) {
+  return {
+    ok: true as const,
+    result: {
+      kind: "created" as const,
+      budget: {
+        budgetReference: rootReference,
+        parentBudgetReference: null,
+        rootBudgetReference: rootReference,
+        depth: 0,
+        lifecycle: "active" as const,
+        resources: [
+          {
+            resource: {
+              canonicalName: "work_units",
+              unit: "unit",
+              accountingBehavior: "consumable" as const,
+            },
+            allocated: 10,
+            available: 10,
+            committed: 0,
+            directUsage: null,
+            subtreeObservedUsage: 0,
+            unresolved: true,
+            deficit: 0,
+          },
+          {
+            resource: {
+              canonicalName: "zero_seats",
+              unit: "seat",
+              accountingBehavior: "reusable" as const,
+            },
+            allocated: 0,
+            available: 0,
+            committed: 0,
+            directUsage: null,
+            subtreeObservedUsage: 0,
+            unresolved: true,
+            deficit: 0,
+          },
+        ],
+      },
+      replayed,
     },
   };
 }

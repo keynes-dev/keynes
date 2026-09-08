@@ -479,6 +479,115 @@ export function registerReplayContractTests(
         resources: [{ directUsage: null }],
       });
     });
+
+    it("replays reordered definitions and amounts with the original result", async () => {
+      const client = local.clientFor("product-fixture");
+      const definitions = {
+        modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
+      } satisfies CreateBudgetCommand["definitions"];
+      await client.defineResources({
+        commandId: "13000000-0000-0000-0000-000000000091",
+        definitions,
+      });
+      const command = {
+        commandId: "23000000-0000-0000-0000-000000000091",
+        definitions,
+        amounts: { modelTokens: 10, reviewerSeats: 0 },
+      } satisfies CreateBudgetCommand;
+      const created = await client.createBudget(command);
+      const replay = await local.clientFor("root-fixture").createBudget({
+        commandId: command.commandId,
+        definitions: {
+          reviewerSeats: definitions.reviewerSeats,
+          modelTokens: definitions.modelTokens,
+        },
+        amounts: { reviewerSeats: 0, modelTokens: 10 },
+      });
+      expect(replay).toEqual({ ...created, replayed: true });
+    });
+
+    it("rejects omitted explicit-zero membership under the same command identity", async () => {
+      const client = local.clientFor("product-fixture");
+      const definitions = {
+        modelTokens: { unit: "token", accountingBehavior: "consumable" },
+        reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
+      } satisfies CreateBudgetCommand["definitions"];
+      await client.defineResources({
+        commandId: "13000000-0000-0000-0000-000000000092",
+        definitions,
+      });
+      const command = {
+        commandId: "23000000-0000-0000-0000-000000000092",
+        definitions,
+        amounts: { modelTokens: 10, reviewerSeats: 0 },
+      } satisfies CreateBudgetCommand;
+      await client.createBudget(command);
+      await expectCommandConflict(
+        client.createBudget({
+          commandId: command.commandId,
+          definitions: { modelTokens: definitions.modelTokens },
+          amounts: { modelTokens: 10 },
+        }),
+        command.commandId,
+        "createBudget",
+        "createBudget",
+      );
+    });
+
+    it("creates independent roots for new identities and replays the original result after settlement", async () => {
+      const client = local.clientFor("product-fixture");
+      const defined = await client.defineResource({
+        commandId: "13000000-0000-0000-0000-000000000093",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const command = {
+        commandId: "23000000-0000-0000-0000-000000000093",
+        ...rootResources([rootResource(defined.resourceType, 10)]),
+      } satisfies CreateBudgetCommand;
+      const first = await client.createBudget(command);
+      const second = await client.createBudget({
+        ...command,
+        commandId: "23000000-0000-0000-0000-000000000094",
+      });
+      expect(second.budget.budgetId).not.toBe(first.budget.budgetId);
+      await client.settleBudget({
+        commandId: "43000000-0000-0000-0000-000000000093",
+        budgetId: first.budget.budgetId,
+        usage: [{ resourceTypeId: defined.resourceType.resourceTypeId, amount: 4 }],
+      });
+      expect(await local.clientFor("root-fixture").createBudget(command)).toEqual({
+        ...first,
+        replayed: true,
+      });
+    });
+
+    it("replays semantically equivalent Policy definitions", async () => {
+      const client = local.clientFor("product-fixture");
+      const defined = await client.defineResource({
+        commandId: "13000000-0000-0000-0000-000000000095",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const command = {
+        commandId: "23000000-0000-0000-0000-000000000095",
+        ...rootResources([rootResource(defined.resourceType, 10)]),
+      } satisfies CreateBudgetCommand;
+      const created = await client.createBudget(command);
+      const replay = await local.clientFor("root-fixture").createBudget({
+        ...command,
+        policies: [],
+      });
+      expect(replay).toEqual({ ...created, replayed: true });
+      expect((await client.getBudget({ budgetId: created.budget.budgetId })).history.entries).toHaveLength(1);
+    });
   });
 }
 
