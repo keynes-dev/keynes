@@ -32,8 +32,9 @@ import { camera, skyOffset } from "./view.js";
 
 /*
   `aside` stands the machine to one side of its frame, for a caller setting
-  something else beside it; without it the machine is centred. Which of those a
-  layout wants is the layout's to know, not the drawing's.
+  something else beside it; without it the machine drops to the bottom, for a
+  caller setting something above it. Which of those a layout wants is the
+  layout's to know, not the drawing's.
 */
 export function createConveyor(container, { aside = false } = {}) {
   const scene = new THREE.Scene();
@@ -73,7 +74,7 @@ export function createConveyor(container, { aside = false } = {}) {
     update,
     loop,
     still,
-    offset: aside ? CONFIG.offset : 0,
+    place: aside ? CONFIG.aside : CONFIG.below,
   });
 
   // Handles for inspection, each on its own key: the config is not also the

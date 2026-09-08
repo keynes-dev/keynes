@@ -36,10 +36,7 @@ function resolve(colour, fallback) {
   `update(t)` draws the frame at loop time t; `loop` is how long a pass takes;
   `still` is the frame to hold when motion is turned off.
 */
-export function host(
-  container,
-  { scene, camera, update, loop, still, offset },
-) {
+export function host(container, { scene, camera, update, loop, still, place }) {
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -108,7 +105,7 @@ export function host(
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
     setResolution(width * dpr, height * dpr, dpr);
-    frameCamera(width / height, offset);
+    frameCamera(width / height, place);
     if (!running) {
       update(reducedMotion ? still : elapsed % loop);
       render();

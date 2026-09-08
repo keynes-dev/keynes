@@ -20,24 +20,26 @@ camera.updateMatrixWorld();
 
 /*
   Fit the frame to the shape of the element it is drawn in, and stand the
-  machine off centre in it.
+  machine where the caller wants it inside that frame.
 
-  The vertical half-extent stays at `frustum` whatever the shape, so the machine
-  is the same size in a wide banner as in a square, and the extra room a wide
-  frame brings is extra ground rather than a bigger drawing — which is what lets
-  the grid run the width of a section with the machine sitting at one end.
+  The vertical half-extent is `frustum` times `zoom` whatever the shape, so the
+  extra room a wide frame brings is extra ground rather than a bigger drawing —
+  which is what lets the grid run the width of a section with the machine at one
+  end — and `zoom` is what keeps a tall frame from meaning a tall machine.
 
-  `offset` is where the machine lands, in fractions of a half-frame from the
-  centre: 0 is centred, 1 would be hard against the right edge. Sliding the
-  window left by that much moves what is drawn in it right by the same, so the
-  camera itself never moves and every silhouette drawn against it still holds.
+  `x` and `y` are where the machine lands, in fractions of a half-frame from the
+  centre: 0 is centred, 1 would be hard against the edge, positive is right and
+  up. Sliding the window the other way moves what is drawn in it by the same
+  amount, so the camera itself never moves and every silhouette drawn against it
+  still holds.
 */
-export function frameCamera(aspect, offset = 0) {
-  const width = H * Math.max(aspect, 0.001);
-  camera.left = -width - offset * width;
-  camera.right = width - offset * width;
-  camera.top = H;
-  camera.bottom = -H;
+export function frameCamera(aspect, { x = 0, y = 0, zoom = 1 } = {}) {
+  const height = H * zoom;
+  const width = height * Math.max(aspect, 0.001);
+  camera.left = -width - x * width;
+  camera.right = width - x * width;
+  camera.top = height - y * height;
+  camera.bottom = -height - y * height;
   camera.updateProjectionMatrix();
 }
 

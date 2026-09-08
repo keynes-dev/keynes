@@ -5,15 +5,14 @@ import { ConveyorBelt } from "./ConveyorBelt";
 import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 
-// Wide enough to set the text beside the machine. Below this the two would have
-// to share the same space and the text would be the one to suffer, so the
-// drawing goes under it instead of behind it.
+// Wide enough to set the text beside the machine. Below this there is no room
+// for that, so the machine drops to the bottom of the section and the text
+// takes the top of it instead.
 const ROOM_BESIDE = "(min-width: 64rem)";
 
 export function Hero() {
-  // Which of the two the drawing is depends on the viewport, so it is read
-  // rather than expressed in classes: the same element cannot be a background
-  // at one width and a block in the flow at another.
+  // Where the machine stands is the camera's business rather than CSS's, so the
+  // breakpoint has to be read here and handed down.
   const [beside, setBeside] = useState(false);
   useEffect(() => {
     const query = window.matchMedia(ROOM_BESIDE);
@@ -24,11 +23,12 @@ export function Hero() {
   }, []);
 
   return (
-    <Section
-      background={beside ? <ConveyorBelt aside /> : undefined}
-      className="flex flex-col justify-center py-24 lg:min-h-[32rem]"
-    >
-      <div className="flex flex-col gap-4 lg:max-w-[52%]">
+    // The drawing is clipped to the container rather than run across the whole
+    // section, so its grid stops at the same rules everything else on the page
+    // lines up with.
+    <Section className="relative flex min-h-[40rem] flex-col justify-start overflow-hidden py-24 lg:min-h-[32rem] lg:justify-center">
+      <ConveyorBelt aside={beside} />
+      <div className="relative flex flex-col gap-4 lg:max-w-[52%]">
         <h1 className="font-heading text-4xl tracking-tight text-balance">
           Runtime economics for agents
         </h1>
@@ -48,7 +48,6 @@ export function Hero() {
           </Button>
         </div>
       </div>
-      {!beside && <ConveyorBelt />}
     </Section>
   );
 }

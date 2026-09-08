@@ -53,10 +53,13 @@ export const CONFIG = {
   fineWidth: 0.55,
   maxPixelRatio: 2,
   frustum: 2.9,
-  // Where the machine stands in its frame: off to one side, leaving the ground
-  // it is standing on to run out behind whatever is set beside it. Whether
-  // there is room for that at all is the caller's to decide, not the drawing's.
-  offset: 0.46,
+  // Where the machine stands in its frame, and how much of the frame it fills.
+  // Either way the ground it stands on runs out behind whatever else the caller
+  // has put there; what changes is where there is room for that — beside the
+  // machine when the frame is wide, under it when the frame is tall. Which of
+  // the two applies is the caller's to decide, not the drawing's.
+  aside: { x: 0.46, y: 0, zoom: 1 },
+  below: { x: 0, y: -0.62, zoom: 1.8 },
   skyMargin: 1.15,
   // Raised until the furthest tube's top rim clears the frame. The rim decides,
   // not the axis: checking the centre line alone lets the far lip clip.
