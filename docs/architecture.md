@@ -17,15 +17,22 @@ deployment.
 ```text
 application
   |
-  +-- createKeynes({ resources }) ----------------> private in-memory SQLite
+  +-- Local: createKeynes({ resources }) ----------> private in-memory SQLite
   |
-  +-- createKeynes({ resources, databaseUrl }) ---> constrained PostgreSQL procedures
+  +-- Hosted: createKeynes({ resources, databaseUrl })
+  |                                               --> constrained PostgreSQL procedures
   |
-  `-- embedded database code --------> canonical PostgreSQL procedures
+  `-- Embedded: application database code ---------> canonical PostgreSQL procedures
 ```
 
 The TypeScript SDK adapts calls and types. It does not own durable state, infer
 server state from caller types, or maintain a second replay ledger.
+
+Local, Hosted, and Embedded are product deployment modes. They share the
+command contract and differ only where their deployment boundaries require it:
+Local owns process lifetime, Hosted owns remote access and operations, and
+Embedded composes canonical procedures with caller-owned transactions. `remote`
+is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 
 ## Architectural invariants
 
@@ -446,7 +453,7 @@ Installation selects exactly one profile:
 
 - `embedded` grants the canonical procedure surface to an application role
   for use inside caller-owned transactions.
-- `remote` grants only the versioned constrained wrappers to login roles and
+- `remote` grants only the versioned constrained Hosted wrappers to login roles and
   derives tenant and principal identity from protected `session_user`
   mappings.
 
@@ -457,19 +464,23 @@ closed.
 
 ## Deployment ownership
 
-Embedded applications own their PostgreSQL connection, surrounding
-transaction, application-table reads and writes, backup, recovery, and
-operations. Keynes procedures neither begin nor commit the caller's
-transaction.
+Local owns a private authority for one process. It offers no persistence,
+multi-process coordination, or recovery after the process exits.
 
-The remote SDK owns a bounded PostgreSQL pool and strict
-`sslmode=verify-full` normalization. It invokes only supported wrappers and
-never falls back to local state or another database.
+Hosted uses PostgreSQL as a separate durable authority. The current SDK owns a
+bounded PostgreSQL pool and strict `sslmode=verify-full` normalization. It
+invokes only supported wrappers and never falls back to Local state or another
+database. A customer-operated Hosted deployment and Keynes Cloud use the same
+command contract; they differ in who owns credentials, upgrades, backups,
+recovery, monitoring, capacity, incidents, and support.
 
-Self-hosted Keynes and Keynes Cloud use the same PostgreSQL command contract.
-They differ in who owns credentials, upgrades, backups, recovery, monitoring,
-capacity, incidents, and support. Neither is a product-readiness claim until
-its own exact-revision evidence exists.
+Embedded applications own their PostgreSQL connection, surrounding transaction,
+application-table reads and writes, backup, recovery, and operations. Keynes
+procedures neither begin nor commit the caller's transaction.
+
+These deployment-specific responsibilities do not change a Budget command's
+semantics. Hosted delivery, including managed Cloud, is not a product-readiness
+claim until its own exact-revision evidence exists.
 
 ## Security boundary
 

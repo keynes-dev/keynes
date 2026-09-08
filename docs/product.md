@@ -279,7 +279,22 @@ workflow recovery, and every external effect.
 
 ## Deployment choices
 
-Keynes exposes one Budget contract through three execution paths:
+Keynes is one resource-governance product with three deployment modes. Each
+mode implements the same Budget contract: Resource and Policy definitions,
+requests, settlement, replay, inspection, accounting, and history have the
+same public meaning.
+
+| Mode     | Where a Budget lives                                        | What it is for                                            | Mode-specific capability                                                          |
+| -------- | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Local    | A private in-memory SQLite authority in one Node.js process | Fast, isolated development and disposable work            | Requires no service or database setup; state ends with the process                |
+| Hosted   | A PostgreSQL authority separate from the application        | Durable shared governance across applications and workers | The operator manages durable access, credentials, capacity, recovery, and support |
+| Embedded | The application's PostgreSQL installation                   | Governance that must commit with application data         | The application calls canonical procedures inside its own transaction             |
+
+Hosted may be customer-operated or managed by Keynes. Those choices change who
+operates the service; they do not change Budget behavior. No mode automatically
+moves a live Budget to another authority.
+
+Keynes exposes this contract through three current execution paths:
 
 ```text
 TypeScript application
@@ -295,8 +310,8 @@ TypeScript application
 ```
 
 Local mode is ephemeral and process-owned. PostgreSQL is the only durable
-database implementation. The remote SDK connects directly to PostgreSQL. It
-does not use an HTTP Budget service or fall back to local state.
+database implementation. The Hosted SDK currently connects directly to
+PostgreSQL. It does not use an HTTP Budget service or fall back to local state.
 
 Keynes TypeScript packages support Node.js 24 and later. The package engine
 range does not exclude an intermediate or end-of-life major. Production
@@ -307,12 +322,26 @@ Every PostgreSQL installation selects one access profile:
 
 - `embedded` grants an application role the canonical procedures used
   inside caller-owned transactions.
-- `remote` grants login roles only the constrained remote procedures and
+- `remote` grants login roles only the constrained Hosted procedures and
   derives Keynes identity from the authenticated PostgreSQL role.
 
-This installation choice is not a public IAM product. Self-hosted Keynes and
-Keynes Cloud remain deployment directions that need their own packaging,
-security, recovery, and operational evidence.
+`remote` is an access-profile name, not a fourth product mode. This installation
+choice is not a public IAM product. Hosted delivery, whether customer-operated
+or managed by Keynes, needs its own packaging, security, recovery, and
+operational evidence.
+
+### Shared behavior and mode-specific capabilities
+
+A change to Budget semantics belongs in the shared contract. That includes
+Resource accounting, Policy evaluation, quantity transfers, settlement, replay,
+and history. It must retain the same meaning in Local, Hosted, and Embedded.
+
+A capability may be mode-specific when it changes how an application reaches
+or operates Keynes without changing a Budget command's meaning. Local can favor
+private, disposable execution. Hosted can add operation and administration
+capabilities such as managed credentials, monitoring, backups, and recovery.
+Embedded can compose a Keynes command with application writes in one PostgreSQL
+transaction. These capabilities must not create a separate accounting model.
 
 ## Product ownership
 
