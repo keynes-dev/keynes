@@ -35,11 +35,7 @@ export function registerRequestDenialContractTests(
       });
       const root = await client.createBudget({
         commandId: outstandingId(2),
-        resources: {
-          kind: "binding",
-          bindingReference: binding.bindingReference,
-        },
-        allocation: { modelTokens: 10 },
+        ...rootResources([rootResource(binding.resources[0].resourceType, 10)]),
       });
       const resourceTypeId = binding.resources[0].resourceType.resourceTypeId;
       const child = await client.requestBudget({

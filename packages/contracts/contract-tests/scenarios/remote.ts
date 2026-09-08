@@ -29,6 +29,11 @@ export function registerRemoteContractTests(
 
     beforeAll(async () => {
       host = await openHost();
+      await host.clientFor("product-fixture").defineResources({
+        operationKey: key("z"),
+        definitions: rootResources([{ definition: resource, amount: 0 }])
+          .definitions,
+      });
     });
 
     afterAll(async () => {

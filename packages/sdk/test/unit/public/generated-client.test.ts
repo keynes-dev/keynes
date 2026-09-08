@@ -18,6 +18,7 @@ import type {
   OperationName,
   RequestBudgetCommand,
   SettleBudgetCommand,
+  ValidateResourcesQuery,
 } from "../../../src/generated/types.js";
 import { validateCreateBudgetCommandIssues } from "../../../src/generated/validators.js";
 
@@ -28,6 +29,11 @@ const commands = {
       modelTokens: { unit: "token", accountingBehavior: "consumable" },
     },
   } satisfies DefineResourcesCommand,
+  validateResources: {
+    definitions: {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+  } satisfies ValidateResourcesQuery,
   defineResource: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
@@ -77,6 +83,7 @@ const commands = {
 const EXPECTED_OPERATIONS = [
   "defineResource",
   "defineResources",
+  "validateResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -196,6 +203,9 @@ describe("generated client bindings", () => {
     await expect(client.defineResources(commands.defineResources)).rejects.toBe(
       stop,
     );
+    await expect(
+      client.validateResources(commands.validateResources),
+    ).rejects.toBe(stop);
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);
     await expect(client.requestBudget(commands.requestBudget)).rejects.toBe(
       stop,
@@ -289,10 +299,11 @@ describe("generated client bindings", () => {
     const first = { zeta: true, ...common, alpha: true };
     const second = { alpha: true, ...common, zeta: true };
     const expected = [
-      { path: "/allocation", rule: "required" },
       { path: "/alpha", rule: "additionalProperties" },
+      { path: "/amounts", rule: "required" },
       { path: "/commandId", rule: "pattern" },
-      { path: "/resources", rule: "oneOf" },
+      { path: "/definitions", rule: "required" },
+      { path: "/resources", rule: "additionalProperties" },
       { path: "/zeta", rule: "additionalProperties" },
     ];
 
@@ -300,19 +311,20 @@ describe("generated client bindings", () => {
     expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
   });
 
-  it("rejects mixed Resource sources before dispatch", () => {
+  it("rejects retired Resource-source fields", () => {
     expect(
       validateCreateBudgetCommandIssues({
         commandId: "20000000-0000-0000-0000-000000000001",
-        resources: {
-          kind: "definitions",
-          definitions: {
-            modelTokens: { unit: "token", accountingBehavior: "consumable" },
-          },
-          bindingReference: `krs_v1_${"a".repeat(43)}`,
+        definitions: {
+          modelTokens: { unit: "token", accountingBehavior: "consumable" },
         },
+        amounts: { modelTokens: 1 },
+        resources: [],
         allocation: { modelTokens: 1 },
       }),
-    ).toEqual([{ path: "/resources", rule: "oneOf" }]);
+    ).toEqual([
+      { path: "/allocation", rule: "additionalProperties" },
+      { path: "/resources", rule: "additionalProperties" },
+    ]);
   });
 });

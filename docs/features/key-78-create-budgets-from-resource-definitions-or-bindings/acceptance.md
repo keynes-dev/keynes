@@ -226,6 +226,103 @@ The follow-up review reports "Lean already. Ship."
 T009-T018 are complete as the startup checkpoint. Creation-side US3 guarantees,
 all creator types, full typechecking, packages, and paired acceptance remain open.
 
+## Phase 4: Configured creation
+
+The local and remote public creators accept amounts and separate options. Each
+call selects definitions from the captured client catalog using the exact amount
+keys, including zero. Creation resolves existing catalog entries and requires
+creation permission; it does not define Resources or create binding receipts.
+Existing Budget projections and bindings preserve zero members without edits.
+
+### Tests before implementation
+
+- T019/T022 shared SQLite creation: 17 failed, 9 passed, 69 filtered. Startup and
+  explicit provisioning succeeded before the old creation permission and
+  ResourceSource paths failed. The SQLite adapter was then changed to call the
+  authority directly so malformed commands do not stop at generated validation.
+- T020/T023 remote creation: 6 failed, 8 passed, 40 filtered. Configured validation
+  succeeded before the old positional creator rejected the amounts-only calls.
+  Log: `/tmp/key-78-t020-t023-red.log`.
+- T021 Policy consumers: 4 failed at the old creator after startup succeeded.
+  Log: `/tmp/key-78-t021-red.log`.
+- T023 local lifecycle: 6 failed, 7 passed, 18 filtered. The tests cover captured
+  amounts, draining creation, asynchronous errors, and close precedence.
+  Log: `/tmp/key-78-t023-local-red.log`.
+- The complete early creator declaration fixture produced 20 TypeScript
+  diagnostics against declarations emitted before the creator signature change.
+  The same fixture passes against the updated declarations, including expected
+  errors for extra finite keys and removed positional/binding APIs. This uses
+  `--noCheck --emitDeclarationOnly` followed by strict NodeNext compilation; it
+  does not qualify a source build or packed package. Logs:
+  `/tmp/key-78-t023-types-red.log`, `/tmp/key-78-t024-types.log`.
+
+### Current focused results
+
+`pnpm --filter @keynes/sdk exec vitest run test/unit/public/remote.test.ts
+test/unit/public/policy-api.test.ts test/unit/local/local-lifecycle.test.ts
+test/contract/budget.test.ts test/contract/remote.test.ts --maxWorkers=1`
+passes 186 tests across five files. The shared SQLite suite contributes 95 tests,
+including all 26 configured creation cases. Catalog-write prohibition, create-only
+permission, exact membership, invalid command atomicity, zero settlement, and
+independent roots are covered. Log: `/tmp/key-78-phase4-focused.log`.
+
+`pnpm --filter @keynes/sdk exec vitest run test/unit/policy
+test/unit/local/policy-replay.test.ts test/unit/local/policy-request.test.ts
+test/unit/local/policy-fail-closed.test.ts --maxWorkers=1` passes 136 tests across
+eight files after explicit provisioning and public-call adaptations.
+
+The local rollback checkpoint now injects after command binding, replacing the
+obsolete expectation that creation inserts a Resource. The shared rollback case
+uses the same existing checkpoint and still proves unchanged state after failure.
+
+The combined SDK command adds `test/unit/public/local.test.ts`,
+`test/unit/public/public-exports.test.ts`, and
+`test/unit/public/generated-client.test.ts` to the two lists above and passes
+398 tests across 16 files. Log: `/tmp/key-78-phase4-combined-sdk.log`.
+`pnpm --filter @keynes/contracts test` passes 63 tests; the PostgreSQL
+`test/unit/build.test.ts` suite passes nine. `pnpm build:sdk` passes, and strict
+NodeNext compilation of `test/package/compatibility/remote-api.mts` against that
+built SDK passes. This supersedes the isolated declaration-only green for creator
+inference; packed-consumer qualification remains separate.
+
+The complexity review removed the unused ResourceBinding lookup and WeakMap,
+which no caller can use after binding-based creation was removed. Definition and
+recovery results still return frozen opaque bindings. The follow-up Terra
+`ponytail-review` reports "Lean already. Ship."
+
+### Native creation checkpoint
+
+`node /tmp/key78-native-creation.mts` uses the existing PostgreSQL system runner
+with its pinned PostgreSQL 18.6 source/direct fixture. The temporary adapter
+selects the current checkout explicitly and excludes `.claude/**`; an earlier
+invocation had discovered stale worktrees. The final combined report passes
+130 assertions: 56 shared definition/creation cases, seven remote Budget cases,
+15 Policy request cases, five Policy replay cases, and 47 Policy security cases.
+There are zero failures and 39 filtered cases. The Policy security fixture drops
+its obsolete fixture-only `resources` field before sending definitions/amounts;
+all existing assertions remain. Docker container cleanup was verified.
+
+The existing runner exits 1 after these successful assertions because its full
+remote inventory is intentionally absent from the filtered report. This is
+focused native feedback, not a passing full runner or paired acceptance gate.
+The required inventory reflects the updated remote creation titles; the earlier
+red runs did not establish a passing full inventory gate.
+
+Retained [native report](evidence/phase4-native.vitest.json), SHA-256
+`76fb9e26dd5fb8d39e8a7dbadf964f8ba586eca8cf34f989cb34da25f853c685`. Generated 0008 SHA-256:
+`e3a6e2efe70c3c8c5a30353962ce3c50a584065f0347f9c245a059f26813aa5d`.
+Immutable 0007 remains
+`dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6`.
+`pnpm generate:check` passed for these generated bytes.
+
+Final shared-test type corrections preserve literal definition types and
+non-empty resource envelopes. `pnpm --filter @keynes/contracts typecheck` passes;
+`pnpm --filter @keynes/sdk test:contract` passes all 97 assertions. The final
+review found no further complexity cuts after the dead binding-state removal.
+T019-T029 are complete. Full repository typechecking still has feature-related
+caller adaptations; packed consumers, recovery qualification, and paired
+acceptance remain open for later phases.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

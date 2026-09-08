@@ -288,7 +288,7 @@ function installStartupHosts(startupFailure?: Error) {
 
 describe("local runtime lifecycle", () => {
   it("drains independent definitions admitted before close", async () => {
-    const keynes = await createKeynes();
+    const keynes = await createKeynes({ resources: workUnitResources });
     const first = keynes.defineResources({
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     });
@@ -305,7 +305,7 @@ describe("local runtime lifecycle", () => {
   });
 
   it("rejects late independent definitions before reading malformed input", async () => {
-    const keynes = await createKeynes();
+    const keynes = await createKeynes({ resources: workUnitResources });
     const read = vi.fn(() => {
       throw new Error("must not read closed input");
     });
@@ -324,8 +324,8 @@ describe("local runtime lifecycle", () => {
   });
 
   it("serializes overlapping calls and drains admitted work before close", async () => {
-    const keynes = await createKeynes();
-    const root = await keynes.createBudget(workUnitResources, {
+    const keynes = await createKeynes({ resources: workUnitResources });
+    const root = await keynes.createBudget({
       workUnits: 10,
     });
 
@@ -346,16 +346,16 @@ describe("local runtime lifecycle", () => {
   });
 
   it("shares one close promise and rejects new Keynes and Budget work immediately", async () => {
-    const keynes = await createKeynes();
-    const root = await keynes.createBudget(workUnitResources, {
+    const keynes = await createKeynes({ resources: workUnitResources });
+    const root = await keynes.createBudget({
       workUnits: 10,
     });
 
     const firstClose = keynes.close();
     expect(keynes.close()).toBe(firstClose);
-    await expect(
-      keynes.createBudget(workUnitResources, { workUnits: 1 }),
-    ).rejects.toMatchObject({ code: "runtime_closed" });
+    await expect(keynes.createBudget({ workUnits: 1 })).rejects.toMatchObject({
+      code: "runtime_closed",
+    });
     await expect(root.request({ workUnits: 1 })).rejects.toMatchObject({
       code: "runtime_closed",
     });
@@ -363,8 +363,8 @@ describe("local runtime lifecycle", () => {
   });
 
   it("drains an admitted domain error and inspection before closing", async () => {
-    const keynes = await createKeynes();
-    const root = await keynes.createBudget(workUnitResources, {
+    const keynes = await createKeynes({ resources: workUnitResources });
+    const root = await keynes.createBudget({
       workUnits: 10,
     });
     await root.settle({ workUnits: 1 });
@@ -404,26 +404,24 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    const keynes = await createFreshKeynes();
+    const keynes = await createFreshKeynes({ resources: workUnitResources });
     const firstClose = keynes.close();
 
     expect(keynes.close()).toBe(firstClose);
     await expect(firstClose).rejects.toBe(closeFailure);
-    await expect(
-      keynes.createBudget(workUnitResources, { workUnits: 1 }),
-    ).rejects.toMatchObject({
+    await expect(keynes.createBudget({ workUnits: 1 })).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "runtime_closed",
     });
   });
 
   it("keeps two local runtimes isolated", async () => {
-    const left = await createKeynes();
-    const right = await createKeynes();
+    const left = await createKeynes({ resources: workUnitResources });
+    const right = await createKeynes({ resources: workUnitResources });
     try {
       const [leftRoot, rightRoot] = await Promise.all([
-        left.createBudget(workUnitResources, { workUnits: 3 }),
-        right.createBudget(workUnitResources, { workUnits: 9 }),
+        left.createBudget({ workUnits: 3 }),
+        right.createBudget({ workUnits: 9 }),
       ]);
       expect((await leftRoot.inspect()).budget.resources[0].allocated).toBe(3);
       expect((await rightRoot.inspect()).budget.resources[0].allocated).toBe(9);
@@ -452,7 +450,9 @@ describe("local runtime lifecycle", () => {
 
     const { closeRuntime, openConfiguredRuntime } =
       await import("../../../src/local/runtime.js");
-    const runtime = await openConfiguredRuntime();
+    const runtime = await openConfiguredRuntime({
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    });
 
     expect(openSqliteCommandExecutor).toHaveBeenCalledOnce();
     expect(openSqliteCommandExecutor).toHaveBeenCalledWith(
@@ -481,63 +481,57 @@ describe("local runtime lifecycle", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it("rolls back a Resource definition when root creation fails", async () => {
-    const fault = failAtMutationStage("after_resource_insertion");
+  it("captures amounts before admission and drains creation before close", async () => {
+    const keynes = await createKeynes({ resources: workUnitResources });
+    const amounts = { workUnits: 0 };
+    const creating = keynes.createBudget(amounts);
+    amounts.workUnits = 99;
+    const root = await creating;
+    expect((await root.inspect()).budget.resources[0].allocated).toBe(0);
+    const admitted = keynes.createBudget({ workUnits: 1 });
+    const closing = keynes.close();
+    await expect(admitted).resolves.toBeDefined();
+    await closing;
+  });
+
+  it("rejects late creation before reading amounts or options", async () => {
+    const keynes = await createKeynes({ resources: workUnitResources });
+    const read = vi.fn(() => {
+      throw new Error("must not read closed input");
+    });
+    const amounts = Object.defineProperty({}, "workUnits", { get: read });
+    const options = Object.defineProperty({}, "policies", { get: read });
+    const closing = keynes.close();
+    await expect(
+      invokeAsync(keynes.createBudget, keynes, [amounts, options]),
+    ).rejects.toMatchObject({ code: "runtime_closed" });
+    expect(read).not.toHaveBeenCalled();
+    await closing;
+  });
+
+  it("retains configured definitions when root creation rolls back", async () => {
+    const fault = failAtMutationStage("after_command_binding");
     const executor = openTestExecutor(fault.observe);
     vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
       openSqliteCommandExecutor: vi.fn(() => executor),
     }));
-
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    const failedSchema = {
-      workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    };
-    const replacementSchema = {
-      workUnits: {
-        unit: "replacement-unit",
-        accountingBehavior: "consumable",
-      },
-    };
-    let keynes: Record<string, unknown> | undefined;
+    const keynes = await createFreshKeynes({ resources: workUnitResources });
     try {
-      keynes = requireRecord(
-        await invokeAsync(createFreshKeynes, undefined, []),
-        "Keynes handle",
-      );
       fault.arm();
-      await expect(
-        invokeAsync(keynes.createBudget, keynes, [
-          failedSchema,
-          { workUnits: 10 },
-        ]),
-      ).rejects.toThrow("test rollback checkpoint: after_resource_insertion");
-
-      const root = requireRecord(
-        await invokeAsync(keynes.createBudget, keynes, [
-          replacementSchema,
-          { workUnits: 4 },
-        ]),
-        "Budget handle",
+      await expect(keynes.createBudget({ workUnits: 10 })).rejects.toThrow(
+        "test rollback checkpoint: after_command_binding",
       );
-      await expect(invokeAsync(root.inspect, root, [])).resolves.toMatchObject({
+      const root = await keynes.createBudget({ workUnits: 4 });
+      await expect(root.inspect()).resolves.toMatchObject({
         budget: {
-          resources: [
-            {
-              resource: "workUnits",
-              unit: "replacement-unit",
-              allocated: 4,
-            },
-          ],
+          resources: [{ resource: "workUnits", unit: "unit", allocated: 4 }],
         },
         history: { entries: [{ kind: "budget_created" }] },
       });
     } finally {
-      if (keynes === undefined) {
-        executor.close();
-      } else {
-        await invokeAsync(keynes.close, keynes, []);
-      }
+      await keynes.close();
     }
   });
 
@@ -551,7 +545,9 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    await expect(createFreshKeynes()).rejects.toMatchObject({
+    await expect(
+      createFreshKeynes({ resources: workUnitResources }),
+    ).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: startupFailure,
@@ -573,7 +569,9 @@ describe("local runtime lifecycle", () => {
 
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    await expect(createFreshKeynes()).rejects.toMatchObject({
+    await expect(
+      createFreshKeynes({ resources: workUnitResources }),
+    ).rejects.toMatchObject({
       name: "KeynesSdkError",
       code: "initialization_failed",
       cause: {

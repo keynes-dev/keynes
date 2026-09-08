@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 import type {
   CreateBudgetCommand,
   PolicyDefinitionV1,
+  RequestBudgetCommand,
   ResourceDefinition,
-  RootResourceInput,
+  SettleBudgetCommand,
 } from "../../generated/types.ts";
 import type { PolicyProgramV1 } from "../../generated/policy-types.ts";
 import {
@@ -17,8 +18,7 @@ import {
   POLICY_VALIDATOR_VERSION,
 } from "../../generated/policy-profile.ts";
 import { canonicalJson } from "../../src/generation.ts";
-import type { ContractClient, OpenContractTestHost } from "../host.ts";
-import { rootResources } from "./root-resource.ts";
+import type { OpenContractTestHost } from "../host.ts";
 
 export function registerResourceBoundRootContractTests(
   openTestKeynes: OpenContractTestHost,
@@ -29,64 +29,196 @@ export function registerResourceBoundRootContractTests(
       reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
     } satisfies Record<string, Omit<ResourceDefinition, "canonicalName">>;
 
-    it("creates raw and bound subsets while preserving the complete binding", async () => {
+    it.each([
+      ["fully funded", { modelTokens: 10, reviewerSeats: 4 }],
+      ["explicit zero member", { modelTokens: 10, reviewerSeats: 0 }],
+      ["omitted member", { modelTokens: 10 }],
+      ["all-zero root", { modelTokens: 0, reviewerSeats: 0 }],
+    ] satisfies [string, Record<string, number>][])(
+      "creates exact immutable membership for %s",
+      async (_label, amounts) => {
+        const host = await openTestKeynes();
+        try {
+          const client = host.clientFor("product-fixture");
+          const provisioned = await client.defineResources({
+            commandId: id(1),
+            definitions,
+          });
+          const selected = Object.fromEntries(
+            Object.entries(definitions).filter(([key]) => key in amounts),
+          );
+          const selectedAmounts: Record<string, number> = amounts;
+          const before = await host.inspectState();
+          const created = await host
+            .clientFor("allocator-fixture", { forbidResourceWrites: true })
+            .createBudget({ commandId: id(2), definitions: selected, amounts });
+          expect(created.budget.lifecycle).toBe("active");
+          expect(created.budget.resources).toEqual(
+            provisioned.resources
+              .filter(({ key }) => key in amounts)
+              .map(({ key, resourceType }) =>
+                expect.objectContaining({
+                  resourceType,
+                  allocated: selectedAmounts[key],
+                  available: selectedAmounts[key],
+                }),
+              ),
+          );
+          const read = await client.getBudget({
+            budgetId: created.budget.budgetId,
+          });
+          expect(read.budget).toEqual(created.budget);
+          expect(read.history.entries.map(({ kind }) => kind)).toEqual([
+            "budget_created",
+          ]);
+          expect(await host.inspectState()).toEqual({
+            ...before,
+            commands: before.commands + 1,
+            budgets: 1,
+            holdings: Object.keys(amounts).length,
+            history: 1,
+            quantity: Object.values(amounts).reduce(
+              (sum, amount) => sum + amount,
+              0,
+            ),
+          });
+          expect(
+            (await client.defineResources({ commandId: id(1), definitions }))
+              .resources,
+          ).toEqual(provisioned.resources);
+        } finally {
+          await host.close();
+        }
+      },
+    );
+
+    it("creates independent roots around settlement without moving or increasing fixed funding", async () => {
       const host = await openTestKeynes();
       try {
         const client = host.clientFor("product-fixture");
-        const binding = await client.defineResources({
-          commandId: id(1),
-          definitions,
-        });
-        const before = await host.inspectState();
-        const bound = await host.clientFor("allocator-fixture").createBudget({
+        await client.defineResources({ commandId: id(1), definitions });
+        const selected = { modelTokens: definitions.modelTokens };
+        const first = await client.createBudget({
           commandId: id(2),
-          resources: {
-            kind: "binding",
-            bindingReference: binding.bindingReference,
-          },
-          allocation: { modelTokens: 10 },
+          definitions: selected,
+          amounts: { modelTokens: 10 },
         });
-        expect(bound.budget.resources).toEqual([
-          expect.objectContaining({
-            resourceType: binding.resources[0].resourceType,
-            allocated: 10,
-          }),
-        ]);
-        expect(await host.inspectState()).toEqual({
-          ...before,
-          commands: before.commands + 1,
-          budgets: 1,
-          holdings: 1,
-          history: 1,
-          quantity: 10,
-        });
-        const raw = await client.createBudget({
+        const second = await client.createBudget({
           commandId: id(3),
-          resources: { kind: "definitions", definitions },
-          allocation: { reviewerSeats: 4 },
+          definitions: selected,
+          amounts: { modelTokens: 20 },
         });
-        expect(raw.budget.resources).toEqual([
-          expect.objectContaining({
-            resourceType: binding.resources[1].resourceType,
-            allocated: 4,
-          }),
-        ]);
-        const reused = await client.defineResources({
+        const resourceTypeId =
+          first.budget.resources[0]?.resourceType.resourceTypeId;
+        if (resourceTypeId === undefined)
+          throw new Error("root Resource missing");
+        await client.settleBudget({
           commandId: id(4),
-          definitions,
+          budgetId: first.budget.budgetId,
+          usage: [{ resourceTypeId, amount: 4 }],
         });
-        expect(reused.resources).toEqual(binding.resources);
+        const settled = await client.getBudget({
+          budgetId: first.budget.budgetId,
+        });
+        await client.defineResources({
+          commandId: id(5),
+          definitions: {
+            apiCalls: { unit: "call", accountingBehavior: "consumable" },
+          },
+        });
+        const third = await client.createBudget({
+          commandId: id(6),
+          definitions: selected,
+          amounts: { modelTokens: 30 },
+        });
+        expect(
+          new Set([first, second, third].map(({ budget }) => budget.budgetId))
+            .size,
+        ).toBe(3);
+        expect(
+          await client.getBudget({ budgetId: first.budget.budgetId }),
+        ).toEqual(settled);
+        expect(
+          (await client.getBudget({ budgetId: second.budget.budgetId })).budget,
+        ).toEqual(second.budget);
+        expect(third.budget.resources).toEqual([
+          expect.objectContaining({ allocated: 30, available: 30 }),
+        ]);
+        expect(settled.budget.resources).toEqual([
+          expect.objectContaining({ allocated: 10 }),
+        ]);
       } finally {
         await host.close();
       }
     });
 
-    it("consumes a binding without any Resource definition writes", async () => {
+    it("keeps an all-zero root active until ordinary settlement and denies unfunded work", async () => {
       const host = await openTestKeynes();
       try {
         const client = host.clientFor("product-fixture");
-        const binding = await client.defineResources({
-          commandId: id(16),
+        await client.defineResources({ commandId: id(1), definitions });
+        const command = {
+          commandId: id(2),
+          definitions,
+          amounts: { modelTokens: 0, reviewerSeats: 0 },
+        };
+        const created = await client.createBudget(command);
+        const [firstResource, ...remainingResources] = created.budget.resources;
+        if (firstResource === undefined) throw new Error("root Resource missing");
+        const resources = [
+          { resourceTypeId: firstResource.resourceType.resourceTypeId, amount: 1 },
+          ...remainingResources.map(({ resourceType }) => ({
+            resourceTypeId: resourceType.resourceTypeId,
+            amount: 1,
+          })),
+        ] satisfies RequestBudgetCommand["resources"];
+        expect(
+          await client.requestBudget({
+            commandId: id(3),
+            parentBudgetId: created.budget.budgetId,
+            resources,
+          }),
+        ).toMatchObject({ kind: "denied" });
+        const active = await client.getBudget({
+          budgetId: created.budget.budgetId,
+        });
+        expect(active.budget.lifecycle).toBe("active");
+        expect(
+          active.budget.resources.every(
+            ({ allocated, available }) => allocated === 0 && available === 0,
+          ),
+        ).toBe(true);
+        await expect(
+          client.createBudget({
+            ...command,
+            amounts: { modelTokens: 1, reviewerSeats: 0 },
+          }),
+        ).rejects.toMatchObject({ code: "command_conflict" });
+        expect(
+          await client.settleBudget({
+            commandId: id(4),
+            budgetId: created.budget.budgetId,
+            usage: [
+              { resourceTypeId: firstResource.resourceType.resourceTypeId, amount: 0 },
+              ...remainingResources.map(({ resourceType }) => ({
+                resourceTypeId: resourceType.resourceTypeId,
+                amount: 0,
+              })),
+            ] satisfies SettleBudgetCommand["usage"],
+          }),
+        ).toMatchObject({ kind: "settled" });
+        expect((await host.inspectState()).quantity).toBe(0);
+      } finally {
+        await host.close();
+      }
+    });
+
+    it("creates without Resource writes while retaining separate definition provenance", async () => {
+      const host = await openTestKeynes();
+      try {
+        const client = host.clientFor("product-fixture");
+        const receipt = await client.defineResources({
+          commandId: id(1),
           definitions,
         });
         const guarded = host.clientFor("product-fixture", {
@@ -94,63 +226,173 @@ export function registerResourceBoundRootContractTests(
         });
         await expect(
           guarded.defineResources({
-            commandId: id(17),
+            commandId: id(9),
             definitions: {
               apiCalls: { unit: "call", accountingBehavior: "consumable" },
             },
           }),
         ).rejects.toThrow("private Resource write prohibition");
-        const before = await host.inspectState();
         const created = await guarded.createBudget({
-          commandId: id(18),
-          resources: {
-            kind: "binding",
-            bindingReference: binding.bindingReference,
-          },
-          allocation: { modelTokens: 10 },
+          commandId: id(2),
+          definitions,
+          amounts: { modelTokens: 10, reviewerSeats: 0 },
         });
-        expect(created.budget.resources).toEqual([
-          expect.objectContaining({
-            resourceType: binding.resources[0].resourceType,
-            allocated: 10,
-          }),
-        ]);
-        expect((await host.inspectState()).resources).toBe(before.resources);
+        expect(
+          created.budget.resources.map(({ resourceType }) => resourceType),
+        ).toEqual(receipt.resources.map(({ resourceType }) => resourceType));
+        expect(
+          receipt.resources.every(
+            ({ definitionEvidence }) => definitionEvidence.commandId === id(1),
+          ),
+        ).toBe(true);
+        expect((await host.inspectState()).resources).toBe(2);
       } finally {
         await host.close();
       }
     });
 
-    it("reconciles only allocated raw definitions and preserves unallocated meaning in replay", async () => {
+    it.each([
+      ["empty amounts", { definitions: {}, amounts: {} }],
+      ["extra declaration", { definitions, amounts: { modelTokens: 1 } }],
+      [
+        "unknown zero key",
+        {
+          definitions: { modelTokens: definitions.modelTokens },
+          amounts: { modelTokens: 1, unknownResource: 0 },
+        },
+      ],
+      [
+        "catalog-only amount key",
+        {
+          definitions: { modelTokens: definitions.modelTokens },
+          amounts: { reviewerSeats: 0 },
+        },
+      ],
+      [
+        "negative",
+        { definitions, amounts: { modelTokens: -1, reviewerSeats: 0 } },
+      ],
+      [
+        "fraction",
+        { definitions, amounts: { modelTokens: 0.5, reviewerSeats: 0 } },
+      ],
+      [
+        "unsafe integer",
+        {
+          definitions,
+          amounts: {
+            modelTokens: Number.MAX_SAFE_INTEGER + 1,
+            reviewerSeats: 0,
+          },
+        },
+      ],
+      ["null amounts", { definitions, amounts: null }],
+      ["array amounts", { definitions, amounts: [0, 0] }],
+      [
+        "null definition",
+        { definitions: { modelTokens: null }, amounts: { modelTokens: 1 } },
+      ],
+      [
+        "unsupported definition field",
+        {
+          definitions: {
+            modelTokens: { ...definitions.modelTokens, unexpected: true },
+          },
+          amounts: { modelTokens: 1 },
+        },
+      ],
+      [
+        "unknown command field",
+        {
+          definitions,
+          amounts: { modelTokens: 1, reviewerSeats: 0 },
+          topUp: true,
+        },
+      ],
+      [
+        "old ResourceSource",
+        {
+          resources: { kind: "definitions", definitions },
+          allocation: { modelTokens: 1 },
+        },
+      ],
+    ])("rejects %s without partial creation effects", async (_label, input) => {
       const host = await openTestKeynes();
       try {
         const client = host.clientFor("product-fixture");
+        await client.defineResources({ commandId: id(1), definitions });
+        const before = await host.inspectState();
+        await expect(
+          Reflect.apply(client.createBudget, client, [
+            { commandId: id(2), ...input },
+          ]),
+        ).rejects.toMatchObject({ code: "invalid_command" });
+        expect(await host.inspectState()).toEqual(before);
+      } finally {
+        await host.close();
+      }
+    });
+
+    it.each([
+      [
+        "missing catalog definition",
+        { apiCalls: { unit: "call", accountingBehavior: "consumable" } },
+        { apiCalls: 1 },
+        "resource_type_not_found",
+      ],
+      [
+        "conflicting catalog definition",
+        { modelTokens: { ...definitions.modelTokens, unit: "different" } },
+        { modelTokens: 1 },
+        "resource_type_conflict",
+      ],
+    ] satisfies [
+      string,
+      CreateBudgetCommand["definitions"],
+      CreateBudgetCommand["amounts"],
+      string,
+    ][])(
+      "rejects %s without catalog or Budget writes",
+      async (_label, declarations, amounts, code) => {
+        const host = await openTestKeynes();
+        try {
+          const client = host.clientFor("product-fixture");
+          await client.defineResources({ commandId: id(1), definitions });
+          const before = await host.inspectState();
+          await expect(
+            client.createBudget({
+              commandId: id(2),
+              definitions: declarations,
+              amounts,
+            }),
+          ).rejects.toMatchObject({ code });
+          expect(await host.inspectState()).toEqual(before);
+        } finally {
+          await host.close();
+        }
+      },
+    );
+
+    it("replays exact creation and rejects conflicting amounts without duplicate history", async () => {
+      const host = await openTestKeynes();
+      try {
+        const client = host.clientFor("product-fixture");
+        await client.defineResources({ commandId: id(1), definitions });
         const command = {
-          commandId: id(5),
-          resources: { kind: "definitions", definitions },
-          allocation: { modelTokens: 10 },
-        } satisfies CreateBudgetCommand;
-        const first = await client.createBudget(command);
-        expect((await host.inspectState()).resources).toBe(1);
-        expect(first.budget.resources).toHaveLength(1);
+          commandId: id(2),
+          definitions,
+          amounts: { modelTokens: 10, reviewerSeats: 0 },
+        };
+        const created = await client.createBudget(command);
+        const before = await host.inspectState();
         expect(await client.createBudget(command)).toEqual({
-          ...first,
+          ...created,
           replayed: true,
         });
-        const before = await host.inspectState();
         await expect(
           client.createBudget({
             ...command,
-            resources: {
-              kind: "definitions",
-              definitions: {
-                ...definitions,
-                reviewerSeats: {
-                  unit: "different",
-                  accountingBehavior: "reusable",
-                },
-              },
-            },
+            amounts: { modelTokens: 9, reviewerSeats: 0 },
           }),
         ).rejects.toMatchObject({ code: "command_conflict" });
         expect(await host.inspectState()).toEqual(before);
@@ -159,256 +401,69 @@ export function registerResourceBoundRootContractTests(
       }
     });
 
-    it("rejects unknown raw and bound allocation names without partial state", async () => {
-      const host = await openTestKeynes();
-      try {
-        const client = host.clientFor("product-fixture");
-        const binding = await client.defineResources({
-          commandId: id(6),
-          definitions,
-        });
-        const before = await host.inspectState();
-        for (const [index, resources] of [
-          { kind: "definitions", definitions },
-          { kind: "binding", bindingReference: binding.bindingReference },
-        ].entries()) {
+    it.each(["after_command_binding", "after_domain_mutation"] as const)(
+      "rolls back creation at %s and preserves committed definitions",
+      async (checkpoint) => {
+        const host = await openTestKeynes();
+        try {
+          const client = host.clientFor("product-fixture");
+          const receipt = await client.defineResources({
+            commandId: id(1),
+            definitions,
+          });
+          const before = await host.inspectState();
+          const command = {
+            commandId: id(2),
+            definitions,
+            amounts: { modelTokens: 10, reviewerSeats: 0 },
+          };
           await expect(
-            Reflect.apply(client.createBudget, client, [
-              {
-                commandId: id(7 + index),
-                resources,
-                allocation: { unknownResource: 1 },
-              },
-            ]),
-          ).rejects.toMatchObject({ code: "invalid_command" });
+            host
+              .clientFor("product-fixture", { checkpoint })
+              .createBudget(command),
+          ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
           expect(await host.inspectState()).toEqual(before);
+          expect(await client.createBudget(command)).toMatchObject({
+            kind: "created",
+            replayed: false,
+          });
+          expect(
+            await client.defineResources({ commandId: id(1), definitions }),
+          ).toEqual({ ...receipt, replayed: true });
+        } finally {
+          await host.close();
         }
-      } finally {
-        await host.close();
-      }
-    });
+      },
+    );
 
-    it("validates malformed unallocated raw definitions before creating a root", async () => {
+    it("commits an attached Policy with selected root membership", async () => {
       const host = await openTestKeynes();
       try {
         const client = host.clientFor("product-fixture");
-        const before = await host.inspectState();
-        const malformed = [
-          null,
-          { unit: "seat", accountingBehavior: "reusable", unknown: null },
-          { unit: "", accountingBehavior: "reusable" },
-          { unit: "seat", accountingBehavior: "refillable" },
-        ];
-        for (const [index, reviewerSeats] of malformed.entries()) {
-          await expect(
-            Reflect.apply(client.createBudget, client, [
-              {
-                commandId: id(10 + index),
-                resources: {
-                  kind: "definitions",
-                  definitions: { ...definitions, reviewerSeats },
-                },
-                allocation: { modelTokens: 10 },
-              },
-            ]),
-          ).rejects.toMatchObject({ code: "invalid_command" });
-          expect(await host.inspectState()).toEqual(before);
-        }
-      } finally {
-        await host.close();
-      }
-    });
-
-    it("rolls back failed bound creation while preserving its committed receipt", async () => {
-      const host = await openTestKeynes();
-      try {
-        const client = host.clientFor("product-fixture");
-        const binding = await client.defineResources({
-          commandId: id(14),
-          definitions,
+        await client.defineResources({ commandId: id(1), definitions });
+        const created = await client.createBudget({
+          commandId: id(2),
+          definitions: { modelTokens: definitions.modelTokens },
+          amounts: { modelTokens: 100 },
+          policies: [rootPolicy()],
         });
-        const before = await host.inspectState();
-        const command = {
-          commandId: id(15),
-          resources: {
-            kind: "binding",
-            bindingReference: binding.bindingReference,
-          },
-          allocation: { modelTokens: 10 },
-        } satisfies CreateBudgetCommand;
-        await expect(
-          host
-            .clientFor("product-fixture", {
-              checkpoint: "after_domain_mutation",
-            })
-            .createBudget(command),
-        ).rejects.toThrow("private rollback checkpoint: after_domain_mutation");
-        expect(await host.inspectState()).toEqual(before);
-        expect(await client.createBudget(command)).toMatchObject({
-          kind: "created",
-          replayed: false,
-        });
+        const resourceTypeId =
+          created.budget.resources[0]?.resourceType.resourceTypeId;
+        if (resourceTypeId === undefined)
+          throw new Error("root Resource missing");
         expect(
-          (await client.defineResources({ commandId: id(14), definitions }))
-            .bindingReference,
-        ).toBe(binding.bindingReference);
-      } finally {
-        await host.close();
-      }
-    });
-
-    it("binds Resource definitions, allocations, and creation history in one root command", async () => {
-      const local = await openTestKeynes();
-
-      try {
-        const client = local.clientFor("product-fixture");
-        const command = rootCommand("15000000-0000-0000-0000-000000000001", [
-          rootResource("model_tokens", "token", "consumable", 100),
-          rootResource("reviewer_seats", "seat", "reusable", 4),
-        ]);
-
-        const created = await createResourceBoundRoot(client, command);
-
-        expect(created).toMatchObject({
-          kind: "created",
-          budget: {
-            budgetId: command.commandId,
-            resources: [
-              {
-                resourceType: {
-                  canonicalName: "model_tokens",
-                  unit: "token",
-                  accountingBehavior: "consumable",
-                },
-                allocated: 100,
-              },
-              {
-                resourceType: {
-                  canonicalName: "reviewer_seats",
-                  unit: "seat",
-                  accountingBehavior: "reusable",
-                },
-                allocated: 4,
-              },
-            ],
-          },
-          replayed: false,
-        });
-        const [modelTokens] = created.budget.resources;
-        if (modelTokens === undefined) {
-          throw new Error("created root must project its bound Resources");
-        }
-        expect(modelTokens.resourceType.resourceTypeId).not.toBe(
-          command.commandId,
-        );
-        const definition = await client.defineResource({
-          commandId: "15000000-0000-0000-0000-000000000002",
-          definition: {
-            canonicalName: "model_tokens",
-            unit: "token",
-            accountingBehavior: "consumable",
-          },
-        });
-        expect(definition.definitionEvidence.commandId).toBe(command.commandId);
-        const read = await client.getBudget({
-          budgetId: created.budget.budgetId,
-        });
-        expect(read.history.entries.map((entry) => entry.kind)).toEqual([
-          "budget_created",
-        ]);
-      } finally {
-        await local.close();
-      }
-    });
-
-    it("replays an identical combined root command without duplicating history", async () => {
-      const local = await openTestKeynes();
-
-      try {
-        const client = local.clientFor("product-fixture");
-        const command = rootCommand("15000000-0000-0000-0000-000000000011", [
-          rootResource("model_tokens", "token", "consumable", 100),
-        ]);
-
-        const created = await createResourceBoundRoot(client, command);
-        const replay = await createResourceBoundRoot(client, command);
-
-        expect(replay).toEqual({ ...created, replayed: true });
-        const read = await client.getBudget({
-          budgetId: created.budget.budgetId,
-        });
-        expect(read.history.entries).toHaveLength(1);
-      } finally {
-        await local.close();
-      }
-    });
-
-    it("rejects a changed definition-bearing root body under the same command identity", async () => {
-      const local = await openTestKeynes();
-
-      try {
-        const client = local.clientFor("product-fixture");
-        const commandId = "15000000-0000-0000-0000-000000000021";
-        const first = rootCommand(commandId, [
-          rootResource("model_tokens", "token", "consumable", 100),
-        ]);
-
-        await createResourceBoundRoot(client, first);
-
-        await expect(
-          createResourceBoundRoot(
-            client,
-            rootCommand(commandId, [
-              rootResource("model_tokens", "token", "consumable", 99),
-            ]),
-          ),
-        ).rejects.toMatchObject({
-          name: "KeynesError",
-          code: "command_conflict",
-          details: {
-            commandId,
-            existingOperation: "createBudget",
-            attemptedOperation: "createBudget",
-          },
-        });
-      } finally {
-        await local.close();
-      }
-    });
-
-    it("commits an attached Policy with the Resource-bound root", async () => {
-      const local = await openTestKeynes();
-
-      try {
-        const client = local.clientFor("product-fixture");
-        const created = await createResourceBoundRoot(
-          client,
-          rootCommand(
-            "15000000-0000-0000-0000-000000000031",
-            [rootResource("model_tokens", "token", "consumable", 100)],
-            [rootPolicy()],
-          ),
-        );
-        const resource = created.budget.resources.at(0);
-        if (resource === undefined) {
-          throw new Error("created root must project its bound Resource");
-        }
-
-        const result = await client.requestBudget({
-          commandId: "35000000-0000-0000-0000-000000000031",
-          parentBudgetId: created.budget.budgetId,
-          resources: [
-            { resourceTypeId: resource.resourceType.resourceTypeId, amount: 6 },
-          ],
-          context: {},
-        });
-
-        expect(result).toMatchObject({
+          await client.requestBudget({
+            commandId: id(3),
+            parentBudgetId: created.budget.budgetId,
+            resources: [{ resourceTypeId, amount: 6 }],
+            context: {},
+          }),
+        ).toMatchObject({
           kind: "denied",
           reasons: [
             {
               code: "policy_ceiling",
-              resourceTypeId: resource.resourceType.resourceTypeId,
+              resourceTypeId,
               ceiling: 5,
               policyName: "root_limit",
               reason: "root_limit",
@@ -416,82 +471,10 @@ export function registerResourceBoundRootContractTests(
           ],
         });
       } finally {
-        await local.close();
-      }
-    });
-
-    it("rolls back definitions, root state, and history after Resource insertion", async () => {
-      const local = await openTestKeynes();
-
-      try {
-        const command = rootCommand("15000000-0000-0000-0000-000000000041", [
-          rootResource("rollback_tokens", "token", "consumable", 100),
-        ]);
-
-        await expect(
-          createResourceBoundRoot(
-            local.clientFor("product-fixture", {
-              checkpoint: "after_resource_insertion",
-            }),
-            command,
-          ),
-        ).rejects.toThrow(
-          "private rollback checkpoint: after_resource_insertion",
-        );
-
-        const client = local.clientFor("product-fixture");
-        await expect(
-          client.getBudget({ budgetId: command.commandId }),
-        ).rejects.toMatchObject({
-          name: "KeynesError",
-          code: "budget_not_found",
-          details: { budgetId: command.commandId },
-        });
-
-        const retry = await createResourceBoundRoot(client, command);
-        expect(retry).toMatchObject({
-          kind: "created",
-          budget: { budgetId: command.commandId },
-          replayed: false,
-        });
-        const read = await client.getBudget({ budgetId: command.commandId });
-        expect(read.history.entries).toHaveLength(1);
-      } finally {
-        await local.close();
+        await host.close();
       }
     });
   });
-}
-
-function createResourceBoundRoot(
-  client: ContractClient,
-  command: CreateBudgetCommand,
-) {
-  return client.createBudget(command);
-}
-
-function rootCommand(
-  commandId: string,
-  resources: [RootResourceInput, ...RootResourceInput[]],
-  policies?: [PolicyDefinitionV1, ...PolicyDefinitionV1[]],
-): CreateBudgetCommand {
-  return {
-    commandId,
-    ...rootResources(resources),
-    ...(policies === undefined ? {} : { policies }),
-  };
-}
-
-function rootResource(
-  canonicalName: string,
-  unit: string,
-  accountingBehavior: ResourceDefinition["accountingBehavior"],
-  amount: number,
-): RootResourceInput {
-  return {
-    definition: { canonicalName, unit, accountingBehavior },
-    amount,
-  };
 }
 
 function rootPolicy(): PolicyDefinitionV1 {

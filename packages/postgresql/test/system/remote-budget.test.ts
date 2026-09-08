@@ -188,7 +188,7 @@ describe("remote PostgreSQL Budget authority", () => {
     }
   });
 
-  it("creates from a binding after producer close using another same-tenant creation-only principal", async () => {
+  it("creates from declarations after producer close using another same-tenant creation-only principal", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const consumer = {
@@ -208,10 +208,7 @@ describe("remote PostgreSQL Budget authority", () => {
         },
       },
     );
-    const bindingReference = requireResultReference(
-      defined,
-      "bindingReference",
-    );
+    expect(defined).toMatchObject({ ok: true });
     const beforeDefinitions = await fixture.administrator.query(
       "select to_jsonb(r) as resource, xmin::text as version from keynes_internal.resource_types r order by canonical_name",
     );
@@ -221,11 +218,13 @@ describe("remote PostgreSQL Budget authority", () => {
       [consumer.tenantId, consumer.principalId],
     );
     const client = await fixture.connect(consumer);
-    const resources = { kind: "binding", bindingReference };
+    const definitions = {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    };
     const created = await queryResponse(client, "keynes.remote_create_budget", {
       operationKey: operationKey("consume-binding"),
-      resources,
-      allocation: { modelTokens: 7 },
+      definitions,
+      amounts: { modelTokens: 7 },
     });
     expect(created).toMatchObject({
       ok: true,
@@ -260,60 +259,89 @@ describe("remote PostgreSQL Budget authority", () => {
     expect(
       await queryResponse(client, "keynes.remote_create_budget", {
         operationKey: operationKey("raw-needs-definition-permission"),
-        resources: {
-          kind: "definitions",
-          definitions: {
-            modelTokens: { unit: "token", accountingBehavior: "consumable" },
-          },
+        definitions: {
+          missingTokens: { unit: "token", accountingBehavior: "consumable" },
         },
-        allocation: { modelTokens: 1 },
+        amounts: { missingTokens: 1 },
       }),
-    ).toMatchObject({ ok: false, error: { code: "unauthorized" } });
+    ).toMatchObject({ ok: false, error: { code: "resource_type_not_found" } });
     expect(await definitionState(fixture)).toEqual(beforeDenied);
     await fixture.setEnabled(consumer.role, false);
     expect(
       await queryResponse(client, "keynes.remote_create_budget", {
         operationKey: operationKey("revoked-binding-consumer"),
-        resources,
-        allocation: { modelTokens: 1 },
+        definitions,
+        amounts: { modelTokens: 1 },
       }),
     ).toMatchObject({ ok: false, error: { code: "unauthorized" } });
     expect(await definitionState(fixture)).toEqual(beforeDenied);
   });
 
-  it("retains the KEY-78 Remote zero-allocation refusal for binding creation", async () => {
+  it("accepts mixed-zero and all-zero Remote roots without changing catalog definitions", async () => {
     fixture = await openRemoteIdentityFixture();
     const client = await fixture.connect(fixture.primary);
-    const defined = await queryResponse(
-      client,
-      "keynes.remote_define_resources",
-      {
-        operationKey: operationKey("zero-bound-definition"),
-        definitions: {
-          modelTokens: { unit: "token", accountingBehavior: "consumable" },
-        },
-      },
-    );
-    const resources = {
-      kind: "binding",
-      bindingReference: requireResultReference(defined, "bindingReference"),
+    const definitions = {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+      reviewerSeats: { unit: "seat", accountingBehavior: "reusable" },
     };
     expect(
-      await queryResponse(client, "keynes.remote_create_budget", {
-        operationKey: operationKey("positive-bound-control"),
-        resources,
-        allocation: { modelTokens: 1 },
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("zero-definition"),
+        definitions,
       }),
     ).toMatchObject({ ok: true });
-    const before = await definitionState(fixture);
+    const catalog = await fixture.administrator.query(
+      "select to_jsonb(r) as resource, xmin::text as version from keynes_internal.resource_types r order by canonical_name",
+    );
+    for (const [index, amount] of [1, 0].entries()) {
+      const created = await queryResponse(
+        client,
+        "keynes.remote_create_budget",
+        {
+          operationKey: operationKey(`zero-root-${index}`),
+          definitions,
+          amounts: { modelTokens: amount, reviewerSeats: 0 },
+        },
+      );
+      expect(created).toMatchObject({
+        ok: true,
+        result: {
+          kind: "created",
+          budget: {
+            lifecycle: "active",
+            resources: [
+              {
+                resource: { canonicalName: "model_tokens" },
+                allocated: amount,
+                available: amount,
+              },
+              {
+                resource: { canonicalName: "reviewer_seats" },
+                allocated: 0,
+                available: 0,
+              },
+            ],
+          },
+        },
+      });
+    }
     expect(
-      await queryResponse(client, "keynes.remote_create_budget", {
-        operationKey: operationKey("zero-bound-root"),
-        resources,
-        allocation: { modelTokens: 0 },
-      }),
-    ).toMatchObject({ ok: false, error: { code: "invalid_command" } });
-    expect(await definitionState(fixture)).toEqual(before);
+      (
+        await fixture.administrator.query(
+          "select to_jsonb(r) as resource, xmin::text as version from keynes_internal.resource_types r order by canonical_name",
+        )
+      ).rows,
+    ).toEqual(catalog.rows);
+    expect(await definitionState(fixture)).toEqual([
+      {
+        resources: 2,
+        commands: 3,
+        references: 1,
+        budgets: 2,
+        holdings: 4,
+        history: 2,
+      },
+    ]);
   });
 
   it("completes one remote create, request, inspect, and settlement loop", async () => {
@@ -321,11 +349,18 @@ describe("remote PostgreSQL Budget authority", () => {
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
     const resource = "remote_lifecycle_tokens";
+    const creation = rootResources([
+      { definition: resourceDefinition(resource), amount: 10 },
+    ]);
+    expect(
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("lifecycle-definitions"),
+        definitions: creation.definitions,
+      }),
+    ).toMatchObject({ ok: true });
     const created = await queryResponse(client, "keynes.remote_create_budget", {
       operationKey: operationKey("create"),
-      ...rootResources([
-        { definition: resourceDefinition(resource), amount: 10 },
-      ]),
+      ...creation,
     });
     const rootReference = requireBudgetReference(created);
 
@@ -389,12 +424,19 @@ describe("remote PostgreSQL Budget authority", () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
+    const creation = rootResources([
+      { definition: resourceDefinition("remote_zebra"), amount: 10 },
+      { definition: resourceDefinition("remote_alpha"), amount: 20 },
+    ]);
+    expect(
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("policy-definitions"),
+        definitions: creation.definitions,
+      }),
+    ).toMatchObject({ ok: true });
     const created = await queryResponse(client, "keynes.remote_create_budget", {
       operationKey: operationKey("canonical"),
-      ...rootResources([
-        { definition: resourceDefinition("remote_zebra"), amount: 10 },
-        { definition: resourceDefinition("remote_alpha"), amount: 20 },
-      ]),
+      ...creation,
       policies: [requestCeilingPolicy("remote_alpha")],
     });
     const budgetReference = requireBudgetReference(created);

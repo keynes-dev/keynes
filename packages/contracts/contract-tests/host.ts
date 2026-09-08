@@ -23,6 +23,8 @@ import type {
   RecoverOperationResult,
   RemoteCreateBudgetCommand,
   RemoteCreateBudgetResult,
+  RemoteDefineResourcesCommand,
+  RemoteDefineResourcesResult,
   RemoteErrorEnvelope,
   RemoteGetBudgetQuery,
   RemoteGetBudgetResult,
@@ -91,6 +93,9 @@ export interface ContractTestHost {
 export type OpenContractTestHost = () => Promise<ContractTestHost>;
 
 export interface RemoteContractClient {
+  defineResources(
+    input: RemoteDefineResourcesCommand,
+  ): Promise<RemoteDefineResourcesResult>;
   createBudget(
     input: RemoteCreateBudgetCommand,
   ): Promise<RemoteCreateBudgetResult>;

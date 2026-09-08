@@ -109,8 +109,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL connection profiles fails closed when the database is unavailable",
   ],
   "packages/postgresql/test/system/remote-budget.test.ts": [
-    "remote PostgreSQL Budget authority creates from a binding after producer close using another same-tenant creation-only principal",
-    "remote PostgreSQL Budget authority retains the KEY-78 Remote zero-allocation refusal for binding creation",
+    "remote PostgreSQL Budget authority creates from declarations after producer close using another same-tenant creation-only principal",
+    "remote PostgreSQL Budget authority accepts mixed-zero and all-zero Remote roots without changing catalog definitions",
     "remote PostgreSQL Budget authority requires current definition permission for exact Remote replay and fresh commands",
     "remote PostgreSQL Budget authority defines Resources through authenticated Remote calls with exact reuse and replay",
     "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",

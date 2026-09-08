@@ -935,10 +935,11 @@ function committedCreateBudget(
   fixture: SecurityFixture,
   input: RootFixtureCommand,
 ): Promise<unknown> {
+  const { resources, ...command } = input;
   return committedCall(fixture, "createBudget", {
-    ...input,
+    ...command,
     ...rootResources(
-      input.resources.map(({ resourceTypeId, amount }) => ({
+      resources.map(({ resourceTypeId, amount }) => ({
         definition: ROOT_RESOURCE_DEFINITIONS[resourceTypeId],
         amount,
       })),
