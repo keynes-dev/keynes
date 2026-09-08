@@ -56,10 +56,11 @@ environment, not the configuration JSON.
 The operator must already be able to connect and assume the pre-existing
 `NOLOGIN` owner role. The execution role is also `NOLOGIN`; the administration
 role and application role are distinct `NOINHERIT` roles. The application role
-receives `USAGE` on `keynes` and `EXECUTE` on exactly the nine supported remote
+receives `USAGE` on `keynes` and `EXECUTE` on exactly the ten supported remote
 functions:
 
 - `keynes.remote_define_resources(jsonb)`
+- `keynes.remote_validate_resources(jsonb)`
 - `keynes.remote_create_budget(jsonb)`
 - `keynes.remote_request(jsonb)`
 - `keynes.remote_settle(jsonb)`
@@ -91,8 +92,8 @@ logs, fixtures, and retained acceptance records must follow the same rule.
 The supported profile is PostgreSQL 18.6 (`server_version_num = 180006`) with
 one prepared owner role, one application role, and one bootstrap principal.
 The installer supports only fresh installation and exact recheck. It rejects
-incompatible or partial state without repair. Resource definition and tagged
-creation use semantic generation 2 and minimum SDK generation 2. Older preview
+incompatible or partial state without repair. Resource definition and configured
+creation use semantic generation 3 and minimum SDK generation 3. Older preview
 installations do not match this schema and procedure contract. Prepare a fresh
 database and install the current archive; there is no in-place migration or
 automatic data transfer from an incompatible installation.

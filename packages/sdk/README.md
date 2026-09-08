@@ -204,7 +204,7 @@ original creation failed.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 2 and its matching generated procedure
+This API requires semantic generation 3 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

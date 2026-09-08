@@ -734,7 +734,7 @@ describe("PostgreSQL system-test runner", () => {
         application: {
           grants: [
             "USAGE ON SCHEMA keynes",
-            "EXECUTE ON nine remote wrapper functions",
+            "EXECUTE ON ten remote wrapper functions",
           ],
         },
       },

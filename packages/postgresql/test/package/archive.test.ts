@@ -28,6 +28,7 @@ const expectedFiles = [
   "package/migrations/0005-resource-bound-budget.sql",
   "package/migrations/0006-remote-access.sql",
   "package/migrations/0007-resource-definitions.sql",
+  "package/migrations/0008-configured-creation.sql",
   "package/migrations/manifest.json",
   "package/package.json",
 ] as const;
@@ -71,7 +72,7 @@ describe("@keynes/postgresql packed archive", () => {
     }
   });
 
-  it("publishes seven ordered migrations with historical and current contracts", () => {
+  it("publishes eight ordered migrations with immutable history and one current contract", () => {
     const manifest: unknown = JSON.parse(
       entry("package/migrations/manifest.json").body.toString("utf8"),
     );
@@ -101,6 +102,12 @@ describe("@keynes/postgresql packed archive", () => {
         {
           id: "0007-resource-definitions",
           path: "0007-resource-definitions.sql",
+          contractDigest:
+            "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
+        },
+        {
+          id: "0008-configured-creation",
+          path: "0008-configured-creation.sql",
           contract: true,
         },
       ],
@@ -112,9 +119,17 @@ describe("@keynes/postgresql packed archive", () => {
       readonly migrations: readonly {
         readonly id: string;
         readonly path: string;
+        readonly sha256: string;
         readonly contractDigest?: string;
       }[];
     };
+    expect(record.migrations.at(-2)).toEqual({
+      id: "0007-resource-definitions",
+      path: "0007-resource-definitions.sql",
+      sha256: "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+      contractDigest:
+        "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
+    });
     expect(
       record.migrations.map(({ id, path, contractDigest }) => [
         id,
@@ -143,6 +158,11 @@ describe("@keynes/postgresql packed archive", () => {
       [
         "0007-resource-definitions",
         "0007-resource-definitions.sql",
+        "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
+      ],
+      [
+        "0008-configured-creation",
+        "0008-configured-creation.sql",
         expect.stringMatching(/^[a-f0-9]{64}$/u),
       ],
     ]);
@@ -158,7 +178,7 @@ describe("@keynes/postgresql packed archive", () => {
     expect(entry("package/dist/cli.js").mode & 0o111).not.toBe(0);
   });
 
-  it("documents the current six-key, four-role installation and nine remote procedures", () => {
+  it("documents the current six-key, four-role installation and ten remote procedures", () => {
     const readme = entry("package/README.md").body.toString("utf8");
 
     for (const key of [
@@ -173,6 +193,7 @@ describe("@keynes/postgresql packed archive", () => {
     }
     for (const procedure of [
       "remote_define_resources",
+      "remote_validate_resources",
       "remote_create_budget",
       "remote_request",
       "remote_settle",
