@@ -60,6 +60,7 @@ export async function runPostgresqlPackageTests(
         "exec",
         "vitest",
         "run",
+        "--exclude=**/.claude/worktrees/**",
         "packages/postgresql/test/package/archive.test.ts",
         "packages/postgresql/test/unit/build.test.ts",
         "packages/postgresql/test/package/cli.test.ts",

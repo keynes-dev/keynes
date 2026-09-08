@@ -102,7 +102,7 @@ describe("native PostgreSQL installation", () => {
     expect(after).toEqual(before);
   });
 
-  it("installs the additive Resource-bound Budget and remote access migrations", async () => {
+  it("installs configured-creation migration 0008 after immutable history", async () => {
     const target = await openTarget();
     await install(target);
 
@@ -120,7 +120,9 @@ describe("native PostgreSQL installation", () => {
       "0005-resource-bound-budget",
       "0006-remote-access",
       "0007-resource-definitions",
+      "0008-configured-creation",
     ]);
+    expect(migrations.rows).toHaveLength(8);
     expect(migrations.rows.at(-3)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
     expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
     expect(migrations.rows.at(-1)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);

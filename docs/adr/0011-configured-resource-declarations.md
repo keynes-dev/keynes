@@ -1,6 +1,6 @@
 # ADR-0011: Configure Resource declarations before Budget creation
 
-- **Status:** Target decision recorded by the revised KEY-78 brief; implementation unverified
+- **Status:** Implemented in KEY-78 source; verification remains revision and lane specific
 - **Date:** 2026-09-05
 - **Feature:** [KEY-78](https://linear.app/keynes/issue/KEY-78/create-budgets-from-resource-definitions-or-bindings)
 - **Supersedes in part:** [ADR-0007](0007-direct-postgresql-remote-access.md), only its connection-only factory and per-Budget Resource binding direction
@@ -14,25 +14,30 @@ catalog provisioning from application initialization.
 
 ## Decision
 
-The target client forms are `createKeynes({ resources })` for private local
+The client forms are `createKeynes({ resources })` for private local
 SQLite and `createKeynes({ resources, databaseUrl })` for one durable PostgreSQL
 authority. `keynes.createBudget({ usdCents: 1_000, reviewSeats: 0 })` creates a
 Budget with exactly those two Resource members. An omitted key excludes a
 Resource; explicit zero includes it without funding. Non-empty all-zero amounts
-are valid. Funding stays fixed at creation.
+are valid. Funding stays fixed at creation. Local creation takes an optional
+`{ policies }` second argument. Remote creation takes optional `{ policies,
+operationKey }` options. No non-Resource field belongs in amounts.
 
 Local initialization establishes an ephemeral catalog from declarations. Durable
 initialization validates every supplied definition against the persisted tenant
 catalog. Missing or conflicting definitions fail; additional persisted names
 remain compatible. Initialization and creation never persist shared definitions.
 Explicit provisioning retains that responsibility, including the existing
-independent Resource definition operation where authorized.
+independent Resource definition operation where authorized. `defineResources`
+returns an opaque binding, creates no Budget, and is not a `createBudget` input.
 
 Declarations provide inferred names and runtime compatibility information.
 They do not grant permission or create a second catalog authority. Unknown amount
 keys reject statically and dynamically, including separately declared variables.
 Creation resolves and validates declared Resources under authority-owned
-authorization, atomicity, and replay rules.
+authorization, atomicity, and replay rules. Recovery checks current permission
+and validates the recorded selected catalog definitions before it returns a
+committed creation result.
 
 Read-only catalog generation can produce declarations. KEY-6 owns Hosted
 generation; discovery commands, generated-file layout, and new provisioning
@@ -64,7 +69,7 @@ provisioning product is implied.
 ## Evidence boundary
 
 [The specification](../features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md)
-owns detailed acceptance. This record reconciles target documents only. Runtime
-implementation, type acceptance, and real SQLite/native PostgreSQL verification
-are NOT RUN for this decision. Historical ADRs, KEY-77 artifacts, and retained
-evidence keep their original revision-specific meaning.
+owns detailed acceptance. The decision is implemented in the current KEY-78
+source. Historical ADRs, KEY-77 artifacts, and retained evidence keep their
+original revision-specific meaning. The implementation does not add a live
+upgrade path, paid Hosted service claim, or Hosted provisioning product.

@@ -30,8 +30,72 @@ describe("remote PostgreSQL installation and administration", () => {
     await fixture.recheck();
 
     expect(await installationState(fixture)).toEqual(before);
-    expect(before.migrations).toContain("0006-remote-access");
+    expect(before.migrations).toEqual([
+      "0001-storage",
+      "0002-budget",
+      "0003-public",
+      "0004-policy",
+      "0005-resource-bound-budget",
+      "0006-remote-access",
+      "0007-resource-definitions",
+      "0008-configured-creation",
+    ]);
     expect(before.missingProcedures).toEqual([]);
+  });
+
+  it("reports generation-three compatibility and grants configured validation and recovery only to the runtime role", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const runtime = await fixture.connect(fixture.primary);
+    const compatibility = await runtime.query<{ readonly response: unknown }>(
+      "select keynes.remote_get_compatibility('{}'::jsonb) as response",
+    );
+    const privileges = await fixture.administrator.query<{
+      readonly runtime: boolean;
+      readonly public: boolean;
+      readonly administration: boolean;
+    }>(
+      `select
+         bool_and(coalesce(has_function_privilege($1, to_regprocedure(procedure), 'EXECUTE'), false)) as runtime,
+         bool_or(coalesce(has_function_privilege('public', to_regprocedure(procedure), 'EXECUTE'), false)) as public,
+         bool_or(coalesce(has_function_privilege($2, to_regprocedure(procedure), 'EXECUTE'), false)) as administration
+       from unnest($3::text[]) procedure`,
+      [
+        fixture.primary.role,
+        fixture.administrationRole,
+        [
+          "keynes.remote_validate_resources(jsonb)",
+          "keynes.remote_recover_operation(jsonb)",
+        ],
+      ],
+    );
+
+    expect(compatibility.rows).toEqual([
+      {
+        response: expect.objectContaining({
+          ok: true,
+          result: expect.objectContaining({
+            semanticGeneration: 3,
+            minimumSdkGeneration: 3,
+            procedures: expect.arrayContaining([
+              expect.objectContaining({
+                name: "validateResources",
+                target: "keynes.remote_validate_resources",
+                revision: 1,
+              }),
+              expect.objectContaining({
+                name: "recoverOperation",
+                target: "keynes.remote_recover_operation",
+                revision: 1,
+              }),
+            ]),
+          }),
+        }),
+      },
+    ]);
+    expect(privileges.rows).toEqual([
+      { runtime: true, public: false, administration: false },
+    ]);
   });
 
   it("gives the runtime role only remote procedures and no private authority", async () => {

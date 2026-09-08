@@ -110,6 +110,7 @@ export async function runSqlite(
       "run",
       SQLITE_AGGREGATE,
       "--root=.",
+      "--exclude=**/.claude/worktrees/**",
       "--allowOnly=false",
       "--passWithNoTests=false",
       "--reporter=json",

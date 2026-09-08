@@ -64,8 +64,10 @@ must be new.
 ```sh
 pnpm test:pr
 pnpm format
-pnpm test:package:sdk
-pnpm test:package:postgresql
+pnpm pack:sdk
+pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz
+pnpm pack:postgresql
+pnpm test:package:postgresql -- --archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz
 pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$(node -p 'crypto.randomUUID()')"
 ```
 

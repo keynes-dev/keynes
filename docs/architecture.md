@@ -1,11 +1,11 @@
 # Keynes runtime architecture
 
-> **Status:** Target architecture, with fixed funding and KEY-78 configured creation reconciled on September 5, 2026.
-> The historical `main` snapshot at `fb0ca4f50417c76d7f1833f93c46980cc40689ba`
-> does not implement this architecture. The
-> [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation) records the
-> current source and exact-revision evidence. Linear must allocate this target
-> before implementation begins.
+> **Status:** Target architecture. KEY-78 configured creation is implemented in
+> the current source. The historical `main` snapshot at
+> `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not implement this architecture.
+> The [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation)
+> records source and exact-revision evidence. A retained result proves only the
+> source revision and verification lane that it records.
 
 ## Purpose
 
@@ -67,6 +67,8 @@ The amounts object has no `initial` field or per-Budget definitions or bindings.
 Configured Resource names drive autocomplete and rejection of unknown amount
 keys, including separately declared variables. Runtime validation also rejects
 unknown keys. Returned Budget types and inspection reflect supplied membership.
+Local creation accepts `{ policies? }` as its second argument. Remote creation
+accepts `{ policies?, operationKey? }`. Neither option belongs in amounts.
 
 Local initialization establishes a private ephemeral catalog from declarations.
 Durable initialization validates all supplied definitions against the persisted
@@ -90,6 +92,9 @@ Every Budget has a stable method surface:
 Durable clients also expose `loadBudget(reference)` and operation recovery.
 Loading takes only the opaque reference. Caller-supplied schemas, expected
 memberships, and expected Policies never participate in loading.
+Recovery rechecks the caller's current permission. Before it returns a committed
+creation result, it validates that creation's selected definitions against the
+current tenant catalog.
 
 Every public operation shown here is asynchronous. The SDK copies caller
 input, crosses the runtime admission boundary, and then validates it, so input
@@ -116,12 +121,9 @@ The same name and definition returns the existing identity. The same name with
 a different definition returns `resource_type_conflict` and rolls back
 the batch.
 
-The result is one immutable, quantity-free `ResourceBinding`. A binding can
-cross client instances connected to the same authority and tenant. It cannot
-be serialized as a public identifier or used against another authority or
-tenant. The receiving authority validates its scope wherever a binding is
-consumed; SDK checks cannot replace that validation. Budget creation uses the
-client's declarations and does not take a Resource binding per Budget.
+The result is one immutable, quantity-free `ResourceBinding`. It cannot be
+serialized as a public identifier. Budget creation uses the client's
+declarations and does not take a Resource binding per Budget.
 
 The SDK exports the structural definition type for callers that want a
 `satisfies` check. There is no standalone definition helper outside

@@ -97,6 +97,12 @@ const HISTORICAL_MIGRATIONS = [
     contractDigest:
       "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
   },
+  {
+    id: "0007-resource-definitions",
+    sha256: "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+    contractDigest:
+      "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
+  },
 ] as const;
 if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
   throw new Error(
@@ -206,7 +212,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("rejects an otherwise exact target that lacks the final migration", async () => {
+  it("rejects an otherwise exact target that lacks configured-creation migration 0008", async () => {
     const client = await connect(target.databaseUrl);
     try {
       const removed = await client.query<{
@@ -215,7 +221,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
         readonly contract_digest: string | null;
       }>(
         `delete from keynes_internal.schema_migrations
-            where migration_id = '0007-resource-definitions'
+            where migration_id = '0008-configured-creation'
             returning migration_id, byte_checksum, contract_digest`,
       );
       const migration = removed.rows[0];
@@ -228,7 +234,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           recheckInstallation({ client, config }),
         ).rejects.toMatchObject({
           code: "incompatible_target",
-          check: "migration:0007-resource-definitions",
+          check: "migration:0008-configured-creation",
         });
       } finally {
         await client.query(
@@ -247,22 +253,32 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("grants the definition wrapper only to the runtime role", async () => {
+  it("grants configured creation wrappers only to the runtime role", async () => {
     const client = await connect(target.databaseUrl);
     try {
       const privileges = await client.query(
-        `select coalesce(has_function_privilege($1, to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as runtime_remote,
-          coalesce(has_function_privilege($1, to_regprocedure('keynes.define_resources(jsonb)'), 'EXECUTE'), false) as runtime_canonical,
-          coalesce(has_function_privilege('public', to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as public_remote,
-          coalesce(has_function_privilege($2, to_regprocedure('keynes.remote_define_resources(jsonb)'), 'EXECUTE'), false) as administration_remote`,
-        [config.applicationRole, config.administrationRole],
+        `select
+           bool_and(coalesce(has_function_privilege($1, to_regprocedure(procedure), 'EXECUTE'), false)) as runtime_remote,
+           bool_or(coalesce(has_function_privilege('public', to_regprocedure(procedure), 'EXECUTE'), false)) as public_remote,
+           bool_or(coalesce(has_function_privilege($2, to_regprocedure(procedure), 'EXECUTE'), false)) as administration_remote,
+           coalesce(has_function_privilege($1, to_regprocedure('keynes.validate_resources(jsonb)'), 'EXECUTE'), false) as runtime_canonical
+         from unnest($3::text[]) procedure`,
+        [
+          config.applicationRole,
+          config.administrationRole,
+          [
+            "keynes.remote_define_resources(jsonb)",
+            "keynes.remote_validate_resources(jsonb)",
+            "keynes.remote_recover_operation(jsonb)",
+          ],
+        ],
       );
       expect(privileges.rows).toEqual([
         {
           runtime_remote: true,
-          runtime_canonical: false,
           public_remote: false,
           administration_remote: false,
+          runtime_canonical: false,
         },
       ]);
     } finally {
@@ -396,9 +412,13 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           security_definer: expected.securityDefiner,
           search_path: expected.searchPath,
         });
-        expect(actual?.body).toContain(
-          `keynes_internal.${expected.operation === "getBudget" ? "get_budget" : "apply_command"}`,
-        );
+        const delegatedTarget =
+          expected.operation === "validateResources"
+            ? "validate_resources_v0008"
+            : expected.operation === "getBudget"
+              ? "get_budget"
+              : "apply_command";
+        expect(actual?.body).toContain(`keynes_internal.${delegatedTarget}`);
       }
     } finally {
       await client.end();
@@ -484,7 +504,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("allows the application role to call exactly the nine remote functions", async () => {
+  it("allows the application role to call exactly the ten remote functions", async () => {
     const client = await connect(target.databaseUrl);
     try {
       const privileges = await client.query<{

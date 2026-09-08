@@ -1,4 +1,5 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { createHash } from "node:crypto";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -153,7 +154,7 @@ describe("remote PostgreSQL identity and security", () => {
     ]);
   });
 
-  it("rejects foreign tenant and unknown bindings with the same private-safe error", async () => {
+  it("rejects foreign tenant and unknown configured catalogs with the same private-safe error", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.secondary);
     const primary = await fixture.connect(fixture.primary);
@@ -161,98 +162,97 @@ describe("remote PostgreSQL identity and security", () => {
     const definitions = {
       modelTokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const defined = await queryResponse(
-      primary,
-      "keynes.remote_define_resources",
-      { operationKey: operationKey("d"), definitions },
-    );
-    const bindingReference = requireResultReference(
-      defined,
-      "bindingReference",
-    );
     expect(
-      await queryResponse(primary, "keynes.remote_create_budget", {
-        operationKey: operationKey("c"),
-        resources: { kind: "binding", bindingReference },
-        allocation: { modelTokens: 2 },
-      }),
-    ).toMatchObject({ ok: true });
-    expect(
-      await queryResponse(secondary, "keynes.remote_define_resources", {
+      await queryResponse(primary, "keynes.remote_define_resources", {
         operationKey: operationKey("d"),
         definitions,
       }),
+    ).toMatchObject({ ok: true, result: { kind: "defined" } });
+    expect(
+      await queryResponse(primary, "keynes.remote_create_budget", {
+        operationKey: operationKey("c"),
+        definitions,
+        amounts: { modelTokens: 2 },
+      }),
     ).toMatchObject({ ok: true });
     const before = await bindingAuthorityState(fixture);
-    for (const [index, reference] of [
-      bindingReference,
-      `krs_v1_${"x".repeat(43)}`,
-      "malformed-reference",
+    for (const [index, candidate] of [
+      definitions,
+      { unknownTokens: definitions.modelTokens },
     ].entries()) {
       const response = await queryResponse(
         secondary,
         "keynes.remote_create_budget",
         {
           operationKey: operationKey(String(index)),
-          resources: { kind: "binding", bindingReference: reference },
-          allocation: { modelTokens: 2 },
+          definitions: candidate,
+          amounts: Object.fromEntries(
+            Object.keys(candidate).map((key) => [key, 2]),
+          ),
         },
       );
-      expectBindingRefusal(response);
+      expectConfiguredCatalogRefusal(response);
       expect(await bindingAuthorityState(fixture)).toEqual(before);
     }
   });
 
-  it("rejects a binding from another installation despite matching tenant and Resource names", async () => {
+  it("creates against the current installation catalog without importing another installation's Resource identity", async () => {
     fixture = await openRemoteIdentityFixture();
     const producer = await fixture.connect(fixture.primary);
     const definitions = {
       modelTokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const defined = await queryResponse(
-      producer,
-      "keynes.remote_define_resources",
-      { operationKey: operationKey("d"), definitions },
-    );
-    const bindingReference = requireResultReference(
-      defined,
-      "bindingReference",
-    );
+    expect(
+      await queryResponse(producer, "keynes.remote_define_resources", {
+        operationKey: operationKey("d"),
+        definitions,
+      }),
+    ).toMatchObject({ ok: true, result: { kind: "defined" } });
+    const sourceResourceTypeId = await resourceTypeId(fixture, "model_tokens");
     const other = await openRemoteIdentityFixture();
     try {
       const consumer = await other.connect(other.primary);
-      const own = await queryResponse(
-        consumer,
-        "keynes.remote_define_resources",
-        { operationKey: operationKey("d"), definitions },
-      );
-      expect(
-        await queryResponse(consumer, "keynes.remote_create_budget", {
-          operationKey: operationKey("c"),
-          resources: {
-            kind: "binding",
-            bindingReference: requireResultReference(own, "bindingReference"),
-          },
-          allocation: { modelTokens: 2 },
-        }),
-      ).toMatchObject({ ok: true });
       const before = await bindingAuthorityState(other);
-      expectBindingRefusal(
+      expectConfiguredCatalogRefusal(
         await queryResponse(consumer, "keynes.remote_create_budget", {
           operationKey: operationKey("f"),
-          resources: { kind: "binding", bindingReference },
-          allocation: { modelTokens: 2 },
+          definitions,
+          amounts: { modelTokens: 2 },
         }),
       );
       expect(await bindingAuthorityState(other)).toEqual(before);
+      expect(
+        await queryResponse(consumer, "keynes.remote_define_resources", {
+          operationKey: operationKey("g"),
+          definitions,
+        }),
+      ).toMatchObject({ ok: true, result: { kind: "defined" } });
+      const created = await queryResponse(
+        consumer,
+        "keynes.remote_create_budget",
+        {
+          operationKey: operationKey("c"),
+          definitions,
+          amounts: { modelTokens: 2 },
+        },
+      );
+      expect(created).toMatchObject({ ok: true });
+      const targetResourceTypeId = await resourceTypeId(other, "model_tokens");
+      expect(targetResourceTypeId).not.toBe(sourceResourceTypeId);
+      expect(
+        await resourceTypeIdForBudget(other, requireCreatedReference(created)),
+      ).toBe(targetResourceTypeId);
     } finally {
       await other.close();
     }
   });
 
-  it("validates the exact input shape of all nine wrappers before mutation", async () => {
+  it("validates the exact input shape of all ten wrappers before mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     const client = await fixture.connect(fixture.primary);
+    await provisionDefinitions(client, {
+      shapeTokens: { unit: "token", accountingBehavior: "consumable" },
+    });
     const before = await protectedState(fixture);
 
     for (const candidate of invalidRemoteInputs()) {
@@ -298,6 +298,7 @@ describe("remote PostgreSQL identity and security", () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
+    await provisionRoot(client, "a");
     await client.query("begin");
     await client.query("select set_config('keynes.tenant_id', $1, true)", [
       fixture.secondary.tenantId,
@@ -449,12 +450,12 @@ describe("remote PostgreSQL identity and security", () => {
       {
         tenant_id: fixture.primary.tenantId,
         budget_count: "2",
-        operation_count: "3",
+        operation_count: "4",
       },
       {
         tenant_id: fixture.secondary.tenantId,
         budget_count: "2",
-        operation_count: "5",
+        operation_count: "6",
       },
     ]);
   });
@@ -627,23 +628,18 @@ describe("remote PostgreSQL identity and security", () => {
 });
 
 function createRoot(suffix: string): Record<string, unknown> {
+  const key = resourceKey(`remote_tokens_${suffix}`);
   return {
     operationKey: operationKey(suffix),
-    ...rootResources([
-      {
-        definition: {
-          canonicalName: `remote_tokens_${suffix}`,
-          unit: "token",
-          accountingBehavior: "consumable",
-        },
-        amount: 100,
-      },
-    ]),
+    definitions: {
+      [key]: { unit: "token", accountingBehavior: "consumable" },
+    },
+    amounts: { [key]: 100 },
   };
 }
 
 function operationKey(suffix: string): string {
-  return `kop_v1_${suffix.repeat(43)}`;
+  return `kop_v1_${createHash("sha256").update(suffix).digest("base64url")}`;
 }
 
 function compatibility(
@@ -668,18 +664,13 @@ async function protectedState(
   return result.rows[0]?.state;
 }
 
-function expectBindingRefusal(response: unknown): void {
+function expectConfiguredCatalogRefusal(response: unknown): void {
   expect(response).toEqual({
     ok: false,
     error: {
       kind: "error",
-      code: "invalid_command",
-      details: {
-        operation: "createBudget",
-        issues: [
-          { path: "$.resources.bindingReference", rule: "resourceBinding" },
-        ],
-      },
+      code: "resource_type_not_found",
+      details: {},
     },
   });
 }
@@ -695,6 +686,45 @@ async function bindingAuthorityState(
     'history', (select count(*) from keynes_internal.budget_history_entries)
   ) as state`);
   return result.rows[0]?.state;
+}
+
+async function resourceTypeId(
+  fixture: RemoteIdentityFixture,
+  canonicalName: string,
+): Promise<string> {
+  const result = await fixture.administrator.query<{
+    readonly resource_type_id: string;
+  }>(
+    `select resource_type_id::text
+       from keynes_internal.resource_types
+      where tenant_id = $1 and canonical_name = $2`,
+    [fixture.primary.tenantId, canonicalName],
+  );
+  const resourceTypeId = result.rows[0]?.resource_type_id;
+  if (resourceTypeId === undefined) throw new Error("missing catalog Resource");
+  return resourceTypeId;
+}
+
+async function resourceTypeIdForBudget(
+  fixture: RemoteIdentityFixture,
+  budgetReference: string,
+): Promise<string> {
+  const result = await fixture.administrator.query<{
+    readonly resource_type_id: string;
+  }>(
+    `select holdings.resource_type_id::text
+       from keynes_internal.budget_resources holdings
+       join keynes_internal.budgets budgets
+         on budgets.budget_id = holdings.budget_id
+       join keynes_internal.remote_budget_references refs
+         on refs.tenant_id = budgets.tenant_id
+        and refs.budget_id = budgets.budget_id
+      where budgets.tenant_id = $1 and refs.budget_reference = $2`,
+    [fixture.primary.tenantId, budgetReference],
+  );
+  const resourceTypeId = result.rows[0]?.resource_type_id;
+  if (resourceTypeId === undefined) throw new Error("missing Budget Resource");
+  return resourceTypeId;
 }
 
 async function configuredAuthorityState(
@@ -718,11 +748,30 @@ function invalidRemoteInputs(): readonly {
 }[] {
   const key = operationKey("s");
   const reference = budgetReference("shape");
-  const root = {
-    definition: resource("shape_tokens"),
-    amount: 1,
-  };
   return [
+    {
+      procedure: "keynes.remote_validate_resources",
+      operation: "validateResources",
+      inputs: [
+        null,
+        {},
+        {
+          definitions: {
+            shapeTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+          unexpected: true,
+        },
+        {
+          definitions: {
+            shapeTokens: {
+              unit: "token",
+              accountingBehavior: "consumable",
+              unexpected: true,
+            },
+          },
+        },
+      ],
+    },
     {
       procedure: "keynes.remote_define_resources",
       operation: "defineResources",
@@ -749,19 +798,30 @@ function invalidRemoteInputs(): readonly {
         null,
         1,
         {},
-        { operationKey: key, resources: [root], unexpected: true },
         {
           operationKey: key,
-          ...rootResources([
-            {
-              definition: { ...resource("shape_tokens"), unit: "x".repeat(65) },
-              amount: 1,
-            },
-          ]),
+          definitions: {
+            shapeTokens: { unit: "token", accountingBehavior: "consumable" },
+          },
+          amounts: { shapeTokens: 1 },
+          unexpected: true,
         },
         {
           operationKey: key,
-          ...rootResources([{ ...root, definition: resource("Invalid") }]),
+          definitions: {
+            shapeTokens: {
+              unit: "token",
+              accountingBehavior: "consumable",
+            },
+          },
+          amounts: { shapeTokens: "one" },
+        },
+        {
+          operationKey: key,
+          definitions: {
+            Invalid: { unit: "token", accountingBehavior: "consumable" },
+          },
+          amounts: { Invalid: 1 },
         },
       ],
     },
@@ -900,9 +960,11 @@ function budgetReference(suffix: string): string {
   return `kbr_v1_${suffix.padEnd(43, "a")}`;
 }
 
-type ResourceDefinition = Parameters<
-  typeof rootResources
->[0][number]["definition"];
+interface ResourceDefinition {
+  readonly canonicalName: string;
+  readonly unit: string;
+  readonly accountingBehavior: "consumable";
+}
 
 function resource(canonicalName: string): ResourceDefinition {
   return { canonicalName, unit: "token", accountingBehavior: "consumable" };
@@ -936,11 +998,15 @@ async function completeTenantLifecycle(
   readonly childReference: string;
 }> {
   const canonicalName = "shared_tenant_tokens";
+  await provisionDefinitions(client, {
+    sharedTenantTokens: { unit: "token", accountingBehavior: "consumable" },
+  });
   const createInput = {
     operationKey: operationKey("t"),
-    ...rootResources([
-      { definition: resource(canonicalName), amount: allocation },
-    ]),
+    definitions: {
+      sharedTenantTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+    amounts: { sharedTenantTokens: allocation },
   };
   const created = await queryResponse(
     client,
@@ -969,6 +1035,39 @@ async function completeTenantLifecycle(
     }),
   ).toMatchObject({ ok: true, result: { kind: "settled" } });
   return { createInput, rootReference, childReference };
+}
+
+async function provisionRoot(
+  client: Parameters<typeof queryResponse>[0],
+  suffix: string,
+): Promise<void> {
+  const key = resourceKey(`remote_tokens_${suffix}`);
+  await provisionDefinitions(client, {
+    [key]: { unit: "token", accountingBehavior: "consumable" },
+  });
+}
+
+async function provisionDefinitions(
+  client: Parameters<typeof queryResponse>[0],
+  definitions: Record<
+    string,
+    { readonly unit: string; readonly accountingBehavior: "consumable" }
+  >,
+): Promise<void> {
+  expect(
+    await queryResponse(client, "keynes.remote_define_resources", {
+      operationKey: operationKey(
+        `catalog-${Object.keys(definitions).join("-")}`,
+      ),
+      definitions,
+    }),
+  ).toMatchObject({ ok: true, result: { kind: "defined" } });
+}
+
+function resourceKey(canonicalName: string): string {
+  return canonicalName.replace(/_([a-z])/gu, (_match, letter: string) =>
+    letter.toUpperCase(),
+  );
 }
 
 function requireResultReference(response: unknown, field: string): string {

@@ -437,6 +437,47 @@ The Phase 6 `ponytail-review` found no complexity cuts in the recovery wrapper o
 required tests. The final inventory review also reports "Lean already. Ship."
 T032-T040 are complete; final candidate qualification remains open.
 
+## Phase 7: final candidate preparation
+
+Terra agents completed current documentation, native installation assertions, and
+remote security callers. The T003 caller inventory is reconciled: shared fixtures
+and adapters, SDK public/lifecycle/Policy consumers, package type consumers,
+native callers, installation expectations, and the performance worker now use
+configured creation. Historical feature documents and migrations retain their
+original contracts. The performance worker passed `cold-first` and `steady`
+smoke invocations; performance qualification remains NOT RUN.
+
+The provider-free `pnpm test:pr` gate passed with 9 repository tests, 167 runner
+tests, 24 web tests, 63 contract tests, 88 PostgreSQL tests, and 545 SDK tests.
+All 11 Turbo tasks, repository type checking, and dependency boundaries passed.
+The gate includes generation checking. `pnpm format` also passed. Earlier attempts
+found ignored worktree test discovery and formatting in three Phase 6 test files;
+root runners now exclude `.claude/worktrees`, and those files are formatted.
+No ignored worktrees were removed. These preparation results precede the fixed
+candidate qualification below.
+
+The remote-security focused native child passed all 16 assertions on PostgreSQL
+18.6 with `node /tmp/key78-phase7-remote-security.mts`. The adapter retained no
+JSON report and exited when the stock runner requested its missing full report.
+This is focused assertion feedback only. Its container and network inspection
+was empty after cleanup. The final paired run must supply retained native proof.
+
+Installation preparation passed all 57 native assertions (14 system installation,
+18 integration installation, 10 exact recheck, and 15 remote identity). The initial
+run passed 56/57: a legacy assertion expected `apply_command` for the new
+`validate_resources_v0008` delegate. Updating that assertion produced green.
+No installer production defect was found. The bounded runner still rejected
+incomplete global coverage after the green child. Its retained
+[report](evidence/phase7-installation-native.vitest.json) has SHA-256
+`55e2448efffe84ee6ae2a6dc4d165c51b4729214a5c65e6654a7cec59801e4e2`.
+Docker cleanup found no containers or matching networks. The existing SDK
+assertion refuses generation two before validation and closes its pool; it
+passed in the provider-free gate. Migrations 0001-0007 remain immutable.
+
+The Phase 7 `ponytail-review` reports "Lean already. Ship." No complexity cuts
+were identified. A candidate checkpoint precedes package and paired execution
+so their source revision guards observe a clean, fixed checkout.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

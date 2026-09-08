@@ -1,10 +1,10 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Target contract, with fixed funding and KEY-78 configured creation reconciled on September 5, 2026. Current delivery
-> and evidence reconciliation are tracked in [Linear](https://linear.app/keynes),
-> beginning with [KEY-7](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation).
-> Target behavior is not delivered unless its owning feature retains evidence for
-> the exact revision.
+> **Status:** Target contract. KEY-78 configured creation is implemented in the
+> current source. [Linear](https://linear.app/keynes) tracks delivery and
+> evidence. Each retained result proves only the source revision and verification
+> lane that it records. Target behavior remains undelivered until its feature
+> retains evidence for the relevant revision.
 
 ## Thesis
 
@@ -45,9 +45,7 @@ state.
 The SDK may export a `ResourceDefinitions` type for `satisfies` checks. It
 does not expose a standalone definition helper outside a Keynes authority.
 
-A Resource binding may cross client instances connected to the same authority
-and tenant where a binding is consumed. The authority validates that scope before
-use. The binding is not a public database identifier or a persisted transport
+A Resource binding is not a public database identifier or a persisted transport
 format. Configured Budget creation does not take a binding per Budget.
 
 Applications configure a client with Resource declarations. Local initialization
@@ -153,6 +151,12 @@ writes. It creates membership, funding, and the command result atomically or
 leaves no partial Budget. [KEY-78's specification](features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md)
 owns acceptance, and [ADR-0011](adr/0011-configured-resource-declarations.md)
 records the revised creation decision.
+
+To use PostgreSQL, an operator first provisions the durable catalog with
+`defineResources`. `createKeynes({ resources, databaseUrl })` then performs
+read-only compatibility validation. The client can create only from its
+configured names. Declarations do not grant permission or create catalog rows.
+Remote creation takes `{ policies?, operationKey? }` as its second argument.
 
 Root creation introduces the tree's complete funding. A child's complete grant
 comes from its parent at creation. Existing
@@ -266,8 +270,9 @@ reason type.
 Each mutation has one command identity. Exact retry returns the stored result.
 Reusing the identity with different canonical input returns
 `command_conflict`. The SDK generates operation keys for ordinary remote
-calls. A caller supplies one only when it must recover an operation after a
-crash or ambiguous response.
+calls. A caller supplies one in `createBudget` options for crash recovery or an
+ambiguous remote response. Recovery checks current permission and the selected
+catalog before it returns a committed creation result.
 
 Replay covers Keynes state only. The application owns provider idempotency,
 workflow recovery, and every external effect.

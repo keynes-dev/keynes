@@ -109,34 +109,35 @@ Installation failures use stable categories such as `unsupported_postgresql`,
 fact. An incompatible target includes partial installation and drift. The
 installer does not repair it, resume it, or expose raw database errors.
 
-## Define Resources and create roots
+## Provision Resources and create configured roots
 
 Independent Resource definition uses `keynes.define_resources(jsonb)` or
 `keynes.remote_define_resources(jsonb)`.
-It validates the complete batch atomically and returns an opaque binding reference;
-it creates no Budget or quantity. Root creation accepts tagged `definitions` or
-`binding` resources plus a separate allocation. Raw creation requires definition
-permission and reconciles allocated keys only. Binding creation requires root
-creation permission and reads the stored receipt within the same tenant and
-installation without updating definitions. Remote root allocations remain
-strictly positive; Local and canonical PostgreSQL roots allow explicit zero.
-KEY-78 owns changes to zero amounts and membership. Every root has its own fixed
-original funding; definitions have no balance and cannot top up a Budget.
+It validates the complete batch atomically and returns an opaque binding reference.
+It creates no Budget or quantity. Provision the durable catalog before a remote
+SDK client calls `createKeynes({ resources, databaseUrl })`.
+
+Configured SDK creation and canonical direct callers supply selected definitions
+and a non-empty amounts object. The selected definition keys must equal the
+amount keys. An explicit zero includes a Resource without a quantity movement.
+An omitted configured name is absent. An all-zero amounts object creates an
+active root. Every root has fixed original funding. Definitions have no balance
+and cannot top up a Budget.
+
+Configured initialization and creation validate catalog entries without writing
+them. `defineResources` stays the explicit provisioning operation. Its opaque
+binding records no creation right and cannot be used as a `createBudget` input.
 
 Canonical callers supply a command ID and keep ownership of their transaction.
-Definition, binding creation, and application writes can commit or roll back
-together. Remote callers supply an operation key, and wrappers check current
-identity and permission before replaying recorded results. Raw creation requires
-both `define_resource_type` and `create_root_budget`; bound creation requires
-`create_root_budget`.
+Definition and application writes can commit or roll back together. Direct
+configured creation requires `create_root_budget`. Remote callers supply an
+operation key in their SDK creation options. Remote recovery checks current
+identity and permission, then validates a committed creation's selected catalog
+entries before returning its stored result.
 
-`keynes.remote_recover_operation(jsonb)` includes `defineResources` among its
-committed operations. Exact retries preserve the original receipt, and changed
-input under an existing operation key returns `command_conflict`. Recovery keeps
-the existing `known_failure`, `unresolved`, and `expired` states. Its retention
-window does not expire the canonical definition receipt. An already obtained
-binding can still create a root after the remote recovery record expires.
-
-The SDK wraps definition and recovered results as opaque bindings. It exposes no
+`keynes.remote_recover_operation(jsonb)` can return committed definition and
+creation operations. Exact retries preserve the original result. Changed input
+under an existing operation key returns `command_conflict`. Recovery keeps the
+existing `known_failure`, `unresolved`, and `expired` states. The SDK exposes no
 Resource IDs or persisted binding format. See the
-[SDK usage and recovery examples](../sdk/README.md#recover-a-remote-definition).
+[SDK creation and recovery example](../sdk/README.md#create-and-recover-a-remote-budget).

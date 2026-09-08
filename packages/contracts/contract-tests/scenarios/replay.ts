@@ -558,9 +558,13 @@ export function registerReplayContractTests(
       await client.settleBudget({
         commandId: "43000000-0000-0000-0000-000000000093",
         budgetId: first.budget.budgetId,
-        usage: [{ resourceTypeId: defined.resourceType.resourceTypeId, amount: 4 }],
+        usage: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 4 },
+        ],
       });
-      expect(await local.clientFor("root-fixture").createBudget(command)).toEqual({
+      expect(
+        await local.clientFor("root-fixture").createBudget(command),
+      ).toEqual({
         ...first,
         replayed: true,
       });
@@ -586,7 +590,10 @@ export function registerReplayContractTests(
         policies: [],
       });
       expect(replay).toEqual({ ...created, replayed: true });
-      expect((await client.getBudget({ budgetId: created.budget.budgetId })).history.entries).toHaveLength(1);
+      expect(
+        (await client.getBudget({ budgetId: created.budget.budgetId })).history
+          .entries,
+      ).toHaveLength(1);
     });
   });
 }

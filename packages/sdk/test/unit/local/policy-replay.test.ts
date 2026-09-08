@@ -253,9 +253,7 @@ async function openHarness() {
     observe,
   );
   const client = createKeynesClient(executor);
-  const rootInput = rootResources([
-    { definition: tokensResource, amount: 10 },
-  ]);
+  const rootInput = rootResources([{ definition: tokensResource, amount: 10 }]);
   await client.defineResources({
     commandId: "10000000-0000-4000-8000-000000000001",
     definitions: rootInput.definitions,

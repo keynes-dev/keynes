@@ -164,9 +164,13 @@ export function registerResourceBoundRootContractTests(
         };
         const created = await client.createBudget(command);
         const [firstResource, ...remainingResources] = created.budget.resources;
-        if (firstResource === undefined) throw new Error("root Resource missing");
+        if (firstResource === undefined)
+          throw new Error("root Resource missing");
         const resources = [
-          { resourceTypeId: firstResource.resourceType.resourceTypeId, amount: 1 },
+          {
+            resourceTypeId: firstResource.resourceType.resourceTypeId,
+            amount: 1,
+          },
           ...remainingResources.map(({ resourceType }) => ({
             resourceTypeId: resourceType.resourceTypeId,
             amount: 1,
@@ -199,7 +203,10 @@ export function registerResourceBoundRootContractTests(
             commandId: id(4),
             budgetId: created.budget.budgetId,
             usage: [
-              { resourceTypeId: firstResource.resourceType.resourceTypeId, amount: 0 },
+              {
+                resourceTypeId: firstResource.resourceType.resourceTypeId,
+                amount: 0,
+              },
               ...remainingResources.map(({ resourceType }) => ({
                 resourceTypeId: resourceType.resourceTypeId,
                 amount: 0,
