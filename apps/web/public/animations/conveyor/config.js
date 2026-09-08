@@ -33,11 +33,9 @@ export const CONFIG = {
   // way every other solid in the drawing is. Nothing in the scene carries colour
   // now except the lamp.
   shapeColors: [0xffffff, 0xffffff, 0xffffff],
-  // Keyed by meaning rather than by colour, so the palette can be retuned
-  // without the names lying. `denied` is a box the machine cannot fill;
-  // `depleted` is the machine with nothing left to fill one with. Both are
-  // stopped, so both are red, but they are not the same fault and a palette
-  // that wanted to tell them apart could.
+  // Keyed by meaning, not colour, so the palette can be retuned without the
+  // names lying. `denied` is a box the machine cannot fill, `depleted` the
+  // machine with nothing left to fill one with: both red, but not one fault.
   lampColors: {
     running: 0xf2b705,
     denied: 0xe3262e,
@@ -49,10 +47,8 @@ export const CONFIG = {
   maxPixelRatio: 2,
   frustum: 2.9,
   skyMargin: 1.15,
-  // Raised until the furthest tube's top rim clears the frame. It is the rim
-  // that decides, not the axis: the tube nearest the top of frame projects its
-  // far lip higher than its centre line, and checking the centre alone lets the
-  // lip clip.
+  // Raised until the furthest tube's top rim clears the frame. The rim decides,
+  // not the axis: checking the centre line alone lets the far lip clip.
   lookAt: [0, 2.36, 0],
 };
 
@@ -77,10 +73,9 @@ export const BELT = Object.freeze({
   // The belt advances three slots per loop. Sizing the rollers so that distance
   // is a whole number of turns keeps them from jumping at the seam.
   rollerR: (belt.slot * 3) / (2 * Math.PI * 9),
-  // One roller per slat. The rollers are evenly spaced whatever the pitch, but
-  // only this pitch looks it: the slats mask them, so at any other spacing the
-  // gaps between slats fall on a different beat from the rollers, which roller
-  // shows through changes down the run, and they read as unevenly spread.
+  // One roller per slat. They are evenly spaced at any pitch but only look it
+  // at this one: the slats mask them, so at any other spacing which roller
+  // shows through changes down the run and they read as unevenly spread.
   rollerGap: belt.slat,
 });
 // How far the belt runs before a slot comes round again.
@@ -97,32 +92,23 @@ export const BOX_Y = BELT.top + BOX.center + BOX.clear;
 // than it is wide and rides a hair above the slats.
 export const BOX_TOP = BOX_Y + BOX.center;
 
-// Hole layout per box in the loop: every face bored, and every face its own
-// shape. From this camera exactly three faces of a box ever show, the ones
-// facing +x, +y and +z, and a box rolled half a turn about x shows a different
-// three: the same +x face, its base where its lid was, and its far z face
-// brought round to the near side. So both triples have to be three different
-// shapes, and giving the two z faces one shape between them is what put two
-// triangles on a flipped box. The -x face never shows in either stance.
-// `base` is the face a turned box ends up presenting, since the arm rolls it
-// right over rather than onto its side, so it carries the shape the machine
-// dispenses to it.
-//
-// That both stances of every box show three different shapes is easy to break
-// by hand, and the fault only shows on the one box that is ever seen the other
-// way up, so it is asserted in the tests rather than left to the eye.
+// Hole layout per box: every face bored, every face its own shape. This camera
+// shows exactly three faces — +x, +y, +z — and a box rolled half a turn shows a
+// different three: the same +x face, its base where its lid was, and its far z
+// face brought round. Both triples must be three different shapes; sharing one
+// between the two z faces is what put two triangles on a flipped box. `base` is
+// what a turned box presents, so it carries the shape dispensed to it. Easy to
+// break by hand and visible only on the one box ever turned, so it is tested.
 export const BOXES = Object.freeze([
   { top: 0, base: 2, xPos: 1, xNeg: 0, zPos: 2, zNeg: 0 },
   { top: 0, base: 1, xPos: 2, xNeg: 0, zPos: 1, zNeg: 0, turns: true },
   { top: 2, base: 1, xPos: 0, xNeg: 2, zPos: 1, zNeg: 2 },
 ]);
 
-// Pincer arm: a jointed two-link arm mounted behind the machine, on the far
-// side of the belt so it never stands between the boxes and the camera. Its
-// wrist sits on the roll axis just outside the box, and the claw reaches in.
-// Placement is constrained by sight lines as much as by reach: the shoulder
-// and both poses are kept out of the screen area the near tube's iris covers,
-// or the joints vanish behind it and the arm reads as loose parts.
+// Pincer arm: two links, mounted behind the machine on the far side of the belt
+// so it never stands between the boxes and the camera. Sight lines constrain it
+// as much as reach — the shoulder and both poses stay clear of the screen area
+// the near iris covers, or the joints vanish and the arm reads as loose parts.
 export const ARM = Object.freeze({
   shoulder: { x: -2.4, y: 2.2 },
   upper: 1.1,
@@ -134,14 +120,10 @@ export const ARM = Object.freeze({
   parkX: -2.3,
   releaseLift: 0.44,
 
-  // Links and joints. Each link is a box beam running from one pivot to the
-  // next, and each joint is one stepped barrel split along its axis into a
-  // slice per link: the near slice narrower, so the step between them is a
-  // machined shoulder rather than a line adrift on a flat face. Because the
-  // slices are coaxial and the two beams they hold sit only a short step apart
-  // in depth, a joint reads as one solid part. Separating consecutive links by
-  // more than the joint's own radius is what opened the gaps before: the far
-  // link then projects clear of the near one and the joint comes apart.
+  // Each link is a box beam pivot to pivot; each joint one stepped barrel split
+  // into a coaxial slice per link, the near slice narrower so the step reads as
+  // a machined shoulder. Keep consecutive links closer in depth than the
+  // joint's own radius, or the far link projects clear and the joint opens.
   mountBeam: { h: 0.2, w: 0.16, z: -0.11 },
   upperBeam: { h: 0.26, w: 0.16, z: 0.11 },
   foreBeam: { h: 0.22, w: 0.14, z: -0.08 },
@@ -179,13 +161,10 @@ export const ARM = Object.freeze({
   flangeFrom: 0.13,
   flangeTo: 0.2,
   flangeRing: 0.09,
-  // Pincer head. Both jaws hinge on one axle through the head block and swing
-  // in the plane of the reach, closing on the box the way a pair of tongs
-  // does. They are stacked in height rather than set side by side, because at
-  // full close their shanks would otherwise run through each other. A shank
+  // Pincer head: both jaws hinge on one axle and close like tongs. A shank
   // leaves the hinge almost square to the reach, so the jaw is out past the
-  // box's own face before it turns forward: a shallower shank cuts the corner
-  // of the box on the way in, however wide the jaws are opened.
+  // box's face before it turns forward — a shallower one cuts the box's corner
+  // on the way in however wide the jaws open.
   head: { l: 0.22, h: 0.36, w: 0.42, x: 0.31 },
   bossR: 0.09,
   bossFrom: 0.18,
@@ -245,26 +224,19 @@ export const MACHINE = Object.freeze({
   nozzleLipR: 0.028,
   nozzleLipH: 0.034,
   nozzleFlutes: 12,
-  // A single verdict lamp on the manifold's own front face, in place of the
-  // sign the machine used to carry: a bulb screwed into a keyless socket, a
-  // plate and the cup that takes it. Centred on the face rather than floating
-  // above it, since nothing this size needs the height the panel's own
-  // footprint did. The ball is the size of the balls the machine itself drops,
-  // `ITEM.sphereR` — it cannot be written in terms of that here, since ITEM is
-  // declared further down, but it is the same 0.11 and meant to be. A lamp is
-  // a fitting on the machine rather than a part of what it handles, and at any
-  // more than this it stops reading as one.
-  // The plate has to stand a good way clear of the cup to read as a plate at
-  // all: at anything near the cup's own radius the two rims are a pixel or two
-  // apart and read as one thick ring.
+  // A bulb in a keyless socket on the manifold's front face. The ball is the
+  // size of the balls the machine drops — the same 0.11 as `ITEM.sphereR`, and
+  // meant to be, though ITEM is declared below and cannot be named here. Any
+  // bigger and it stops reading as a fitting on the machine.
+  // The plate must stand well clear of the cup: at anything near the cup's own
+  // radius the two rims sit a pixel apart and read as one thick ring.
   lampPlateR: 0.085,
   lampPlateT: 0.014,
   lampCupR: 0.046,
   lampCupLen: 0.037,
-  // The glass: its radius where it leaves the cup, its radius where it meets
-  // the ball, how far the ball's centre stands off the cup, and the ball. The
-  // shoulder has to stay under the ball's own radius, or the flare ends proud
-  // of the envelope instead of inside it and draws a rim across the glass.
+  // The glass: at the cup, at the ball, the ball's stand-off, and the ball. The
+  // shoulder must stay under the ball's radius or the flare ends proud of the
+  // envelope and draws a rim across it.
   lampGlassR: 0.034,
   lampShoulder: 0.087,
   lampRise: 0.138,
@@ -325,22 +297,17 @@ export const ITEM = Object.freeze({
 });
 export const TRI_ANGLES = [Math.PI / 6, (5 * Math.PI) / 6, (3 * Math.PI) / 2];
 
-// One entry per dispensable shape, replacing the parallel arrays that used to
-// be indexed by the same loose `sh`. Only the measurements live here; the
-// geometry and material that go with each are attached in shapes.js, which is
-// the half of the table that needs a renderer.
+// One entry per dispensable shape. Only the measurements live here; shapes.js
+// attaches the geometry and material, being the half that needs a renderer.
 //
-//   height  how tall it stands, which is what a stack is pitched by
-//   radius  its widest horizontal reach: the cube's diagonal, the
-//           tetrahedron's base circumradius, the sphere's radius. Every iris
-//           plate is bored to the largest of them, so all three are
-//           interchangeable.
-//   pitch   how far apart they sit in a tube: its own height plus a clearance
-//   centre  height of its centre of mass above its base. A shape's geometry has
-//           its origin at its base, because that is what a stack is built from;
-//           a falling body turns about its centre of mass, though, so the
-//           centre is what follows the trajectory and the base goes wherever
-//           the turn leaves it.
+//   height  what a stack is pitched by
+//   radius  its widest horizontal reach. Every iris plate is bored to the
+//           largest of the three, so all three are interchangeable.
+//   pitch   height plus a clearance
+//   centre  its centre of mass above its base. Geometry origins sit at the
+//           base, since that is what a stack is built from, but a falling body
+//           turns about its centre — so the centre follows the trajectory and
+//           the base goes where the turn leaves it.
 export const SHAPES = Object.freeze(
   [
     {

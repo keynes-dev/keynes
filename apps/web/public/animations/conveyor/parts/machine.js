@@ -18,35 +18,25 @@ import { fineMat, lampMat, white } from "../materials.js";
 import { VIEW } from "../view.js";
 
 /*
-  The verdict lamp: a bulb screwed into a keyless socket, a plate against the
-  machine's face and the cup that takes the bulb, in place of the sign the
-  machine used to carry.
+  The verdict lamp: a bulb screwed into a keyless socket. No screw base is
+  drawn, because a bulb that is screwed in has none showing — it is up inside
+  the cup — and a thread at this size collapses into a dark smudge however it
+  is drawn.
 
-  No screw base is drawn, because a bulb that is screwed in has none showing:
-  it is up inside the cup, which is what the cup is for. A thread was tried
-  twice, as ridge rings standing proud of a base, and at this size it collapses
-  into a dark smudge whichever way it is drawn. The socket puts the thread
-  where the real one is, which is the only way it stops having to be drawn.
-
-  The glass flares out of the cup rather than pinching in behind a ball: that
-  shoulder is what makes a bulb read as a bulb rather than as a knob on a stem.
-  Both of the flare's rims are buried, the inner one inside the cup and the
-  outer one inside the ball, so neither is drawn as a ring across the glass and
-  what shows is one profile running from the socket into the envelope. The ball
-  is a true sphere rather than another lathed tier, the way every other round
-  part in the drawing is (the dispensed spheres, and the small lamps this
-  replaced): a lathed profile is straight-line tiers and never yields the true
-  silhouette circle the envelope cannot do without.
+  The glass flares out of the cup rather than pinching in behind a ball, which
+  is what makes a bulb read as a bulb rather than as a knob on a stem. Both of
+  the flare's rims are buried, the inner inside the cup and the outer inside
+  the ball, so neither draws a ring across the glass. The ball is a true sphere
+  rather than a lathed tier, like every other round part here: a lathed profile
+  is straight-line tiers and never yields a true silhouette circle.
 */
 function verdictLamp() {
   const g = new THREE.Group();
   const plateEnd = MACHINE.lampPlateT;
   const cupEnd = plateEnd + MACHINE.lampCupLen;
-  // The socket is drawn at hairline weight, the way the bolts and the duct ribs
-  // and the nozzle's flutes are. Line weight is in screen pixels and does not
-  // shrink with the part: at the ball's own size the plate's rim, the cup's rim
-  // and the cup's silhouette all land within a few pixels of each other, and at
-  // structural weight they close up into one dark knot behind the glass.
+  // Hairline weight, like the bolts and duct ribs: line weight is in screen
+  // pixels and does not shrink with the part, so at this size the plate's rim,
+  // the cup's rim and its silhouette close into one dark knot at full weight.
   g.add(
     thin(
       barrel("x", 0, plateEnd, MACHINE.lampPlateR, MACHINE.lampPlateR, {
@@ -159,25 +149,6 @@ function bell() {
   nozzle.position.set(0, (MACHINE.nozzleTop + MACHINE.nozzleBottom) / 2, 0);
   return nozzle;
 }
-/*
-  The lamp's mount: the socket seats directly against the manifold's own front
-  face, in place of the sign the machine used to carry. A bolted flange was
-  tried first, the same joint every duct fitting uses, but its ring of bolt
-  heads is sized for a duct's own radius; shrunk to the lamp's, the six of
-  them crowd into a single dark smudge rather than reading as bolts. Centred
-  on the face rather than floating above it, since nothing this size needs the
-  height the panel's own footprint did.
-*/
-function verdict(scene) {
-  const m = MACHINE.manifold;
-  // Let a little into the manifold's face so the socket and the box are not
-  // coplanar, which would leave them fighting over the same pixels.
-  const back = MACHINE.manifoldW / 2 - 0.01;
-  const lamp = verdictLamp();
-  lamp.position.set(back, m.y, m.z);
-  scene.add(lamp);
-}
-
 export function createMachine(scene) {
   const m = MACHINE.manifold;
   scene.add(
@@ -185,7 +156,13 @@ export function createMachine(scene) {
   );
   const nozzle = bell();
   scene.add(nozzle);
-  verdict(scene);
+  // The lamp seats on the manifold's front face, let a little into it so the
+  // two are not coplanar and fighting over the same pixels. A bolted flange,
+  // the joint every duct fitting uses, crowds its bolt heads into a smudge at
+  // this radius.
+  const lamp = verdictLamp();
+  lamp.position.set(MACHINE.manifoldW / 2 - 0.01, m.y, m.z);
+  scene.add(lamp);
 
   return {
     apply({ pulse, lamp: colour }) {

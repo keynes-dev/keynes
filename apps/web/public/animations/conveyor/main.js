@@ -1,32 +1,20 @@
 /*
   Conveyor belt shape sorter, isometric hidden-line drafting style.
 
-  Three upright glass tubes (cubes, pyramids, spheres) stand in a row along
-  the belt axis. Each empties into an opaque curved duct that carries the
-  shape out of sight into the machine, which dispenses it from a single
-  nozzle. Every box is the same closed cube with a hole in its lid: square,
-  triangle, or circle. The box under the nozzle receives the shape that fits
-  its hole.
+  Three glass tubes of shapes drain through ducts into a machine that
+  dispenses into the box below its nozzle, each box taking the shape that fits
+  the hole in its lid. One box arrives with a hole the machine cannot fill, so
+  a pincer arm rolls it over to present a face it can. The loop opens on empty
+  tubes, runs a box at a time until they are spent, and stands stopped under a
+  red lamp until it comes round: every pass is the same pass.
 
-  One box in the loop arrives with a hole the machine can no longer fill, so
-  the lamp goes red, a pincer arm rolls the box over to present a face it can
-  fill, the lamp goes green, and the run continues. The lamp carries the
-  verdict on the box that has arrived, not on each shape dropped: amber while
-  the belt is running, then red or green, and solid either way.
-
-  The loop opens on empty tubes: the charge falls in from off frame, the belt
-  runs a box at a time until every tube is spent, and the machine then stands
-  stopped under a red lamp with nothing left to dispense until the loop comes
-  round and the hoppers open again. Every pass is the same pass.
-
-  How it fits together: config.js holds every dimension and duration, timeline.js
-  turns a loop time into a description of the frame, and each part under parts/
-  builds its own objects and moves them to match that description. Time lives in
-  the timeline; placement lives in the parts; nothing reaches across.
+  config.js holds every dimension and duration, timeline.js turns a loop time
+  into a description of the frame, and each part under parts/ moves its own
+  objects to match. Time lives in the timeline, placement in the parts.
 
   Extension point: window.conveyor.config.sequence is one entry per box in belt
-  order. `dispense` is the shape that ends up in the box, and `reject` marks
-  the box the arm has to turn first.
+  order — `dispense` is the shape it receives, `reject` marks the one the arm
+  has to turn first.
 */
 import * as THREE from "three";
 
@@ -81,14 +69,6 @@ const view = host(document.getElementById("scene"), {
 
 // Handles for inspection, each on its own key: the config is not also the
 // control panel, so an exposed `arm` can no longer overwrite the arm's timings.
-// `?debug` draws a live overlay: which build is on screen, whether anything is
-// being drawn twice, and whether any stack is standing inside itself.
-if (new URLSearchParams(location.search).has("debug")) {
-  import("./debug.js").then((m) =>
-    m.hud(scene, { loop, cycles, frame: timeline.describe(0) }, view),
-  );
-}
-
 window.conveyor = {
   config: CONFIG,
   timeline: { loop, cycles, describe: timeline.describe },

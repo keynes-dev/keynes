@@ -1,14 +1,13 @@
 /*
-  The drafting toolkit: how anything in this scene is drawn, with nothing in it
-  that knows what a conveyor belt is. Solids are white and unshaded, and every
-  solid carries its own outline, because the drawing is line work.
+  The drafting toolkit, with nothing in it that knows what a conveyor belt is.
+  Solids are white and unshaded and carry their own outlines, because the
+  drawing is line work.
 
-  Two kinds of outline. Edge extraction gives the creases and rim circles that
-  are properties of the geometry. It cannot give a silhouette, which is a
-  property of the geometry and the viewpoint together, and a swept or turned
-  part is nothing but silhouette. Those are drawn here against the fixed camera,
-  which is also why lines on a curved surface are culled to its near half: drawn
-  all the way round they show through the far wall.
+  Edge extraction gives creases and rim circles. It cannot give a silhouette,
+  which depends on the viewpoint too, and a turned part is nothing but
+  silhouette — so those are drawn against the fixed camera, which is also why
+  lines on a curved surface are culled to its near half: drawn all the way
+  round they show through the far wall.
 */
 import * as THREE from "three";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
@@ -142,20 +141,12 @@ const AXIS = {
   z: new THREE.Vector3(0, 0, 1),
 };
 /*
-  A turned part: a cylinder or frustum lying along one axis from `from` to `to`,
-  radius `r0` at one end and `r1` at the other, outlined by its rim circles and
-  by the silhouette extraction never yields. Without that silhouette the part is
-  a pair of loose arcs.
+  A turned part: a cylinder or frustum along one axis, outlined by its rim
+  circles and by the silhouette extraction never yields — without which it is a
+  pair of loose arcs. `ring` adds the bolt circle a joint face carries.
 
-  Every barrel in the machine is one of these — joint slices, bosses, wrist
-  shafts, the tiers and ribs of the nozzle bell — and `ring` adds the bolt
-  circle a joint face carries.
-
-  It returns a wrapper whose own transform is the caller's to set: the part
-  inside carries its offset along the axis, and a caller that positioned the
-  part directly would silently overwrite that. It is what once left the arm's
-  mount beam centred on its post, running a metre the wrong way and straight
-  through the dispensing nozzle.
+  The wrapper's transform is the caller's to set: the part inside carries its
+  own offset along the axis, and positioning the part directly overwrites it.
 */
 export function barrel(
   axis,

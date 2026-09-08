@@ -68,13 +68,11 @@ function panel(shape, w, h) {
 }
 
 /*
-  A box is six bored panels round a black core. Every panel's outer face has to
-  land exactly on the outline the box draws for itself and every panel has to
-  span the full height between them, or the shell is not closed: leave the
-  sides short and the box carries an open skirt round its foot, through which
-  the slats and gears behind it are drawn straight across its face. The base
-  sits at the very bottom for the same reason, and because a recessed base
-  would put the box's pivot off its own centre and make a flip lopsided.
+  Six bored panels round a black core. Every panel's outer face lands exactly on
+  the box's own outline and spans the full height between them, or the shell is
+  not closed: short sides leave an open skirt at the foot, through which the
+  slats behind are drawn across the box's face. The base sits at the very bottom
+  for that reason, and because recessing it would throw the pivot off centre.
 */
 function crate({ top, base: baseShape, xPos, xNeg, zPos, zNeg }) {
   const s = BOX.size,

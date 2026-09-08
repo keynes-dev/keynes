@@ -42,16 +42,11 @@ const ARM_TIME =
   CONFIG.arm.release +
   CONFIG.arm.retract;
 
-// The loop opens on empty tubes: the first thing seen is the charge falling in,
-// then one cycle per box until the tubes are spent, then the machine stands
-// stopped and red with nothing left, and the loop comes round to the pour
-// again. Every pass is the same pass, the first one included.
-//
-// Each beat carries `advance`, how many slots the belt has already moved when
-// it starts, and `box`, which box it serves (null for the pour and the stall,
-// which serve none). `pourLength` depends on how long a charge takes to fall,
-// which depends on how far off frame it starts, which only the camera knows;
-// that is why the schedule is built per timeline rather than once at load.
+// Pour, then one beat per box, then the stall: every pass is the same pass.
+// Each beat carries `advance`, the slots the belt has already moved when it
+// starts, and `box`, the box it serves (null for the pour and stall). The
+// schedule is built per timeline rather than once at load because `pourLength`
+// depends on how far off frame a charge starts, which only the camera knows.
 function buildCycles(pourLength) {
   // Beats that serve no box never reach any of a box cycle's marks: they are
   // set out of reach rather than left undefined, since nothing reaches Infinity.
@@ -167,19 +162,13 @@ export function armPose(u, cycle) {
   if (x < a.release)
     return { ...at, roll: Math.PI, grip: 1 - smooth(x / a.release), lift: 0 };
   x -= a.release;
-  // Draw straight out first, still turned and still a touch clear of the deck.
-  // Only once the fingers are past the box can the hand unwind: turning back
-  // any earlier would sweep them through the box it just set down.
-  // Straight out, then unwind only once the fingers are right off the belt:
-  // the spin swings them below the hand, and over the deck that would put one
-  // through it.
-  // It draws out still turned and does not wind back. The head is symmetric
-  // about the roll axis, axle heads included, so a half turn maps it onto
-  // itself: parked half turned is indistinguishable from parked square, and
-  // the pose the next cycle starts from is the pose this one ends in. Winding
-  // back instead meant spinning the head through half a turn in the last
-  // fraction of the retract, which whipped, and the jaws had to be shut to do
-  // it, so the claw came to rest closed and popped open at the cycle boundary.
+  // It draws out still turned and never winds back. The head is symmetric about
+  // the roll axis, axle heads included, so a half turn maps it onto itself:
+  // parked half turned is indistinguishable from parked square, and the pose
+  // the next cycle starts from is the one this ends in. Winding back meant
+  // spinning the head through half a turn during the retract, which whipped,
+  // and needed the jaws shut to keep a finger off the deck — so the claw came
+  // to rest closed and popped open at the cycle boundary.
   const back = reach(1 - glide(clamp01(x / a.retract)));
   return { x: back.x, y: back.y, roll: Math.PI, grip: 0, lift: 0 };
 }
@@ -363,19 +352,16 @@ export function createTimeline(sky) {
     // turned keeps its new face up until it wraps round to the start again.
     const turn = rolled(u, cycle);
     const pose = armPose(u, cycle);
-    // The box is as tall as it is deep about its own pivot, so it lands at the
-    // same height whichever way up it is and needs no stance of its own. What it
-    // does need is to be off the slats while its corner swings under it, and the
-    // arm's lift does that: tracking the lowest corner instead would put a cusp
-    // at ninety degrees, where the lowest corner changes, and read as a jolt.
+    // The box is as tall as it is deep about its pivot, so it lands level either
+    // way up and needs no stance of its own — only to be off the slats while its
+    // corner swings under it, which the arm's lift does. Tracking the lowest
+    // corner instead cusps at ninety degrees and reads as a jolt.
     //
-    // A turning box is rolled from the moment it reaches the nozzle, not from
-    // the moment it is strictly past it. It stands at exactly z = 0 through the
-    // whole of its own beat and is still standing there when the next beat
-    // opens, one frame before the belt has moved it on; asking for `z < 0` to
-    // call it turned, and for the beat to still be its own to call it turning,
-    // left that frame answering to neither and the box flicked back to the face
-    // it arrived on.
+    // A box counts as turned from the moment it reaches the nozzle, not once it
+    // is strictly past: it stands at z = 0 through its whole beat and is still
+    // there when the next one opens, and asking for `z < 0` left that frame
+    // answering to neither test, flicking the box back to the face it arrived
+    // on.
     const eps = 1e-6;
     for (let k = 0; k < frame.boxes.length; k++) {
       const b = frame.boxes[k];
