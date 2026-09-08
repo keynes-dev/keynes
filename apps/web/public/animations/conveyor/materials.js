@@ -24,15 +24,6 @@ export const black = new THREE.MeshBasicMaterial({ color: 0x111111 });
 export const shell = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, ...offset });
 export const glass = new THREE.MeshBasicMaterial({ color: 0x9fbfe0, transparent: true, opacity: 0.14, depthWrite: false, ...offset });
 export const lampMat = new THREE.MeshBasicMaterial({ color: CONFIG.lampColors.running, ...offset });
-// Flipping the parsed shapes out of SVG's y-down space reverses their winding,
-// so the mark is drawn from both sides, and it carries no polygon offset
-// because it has to win against the plate it sits on.
-export const markMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide });
-// A hair of stroke round the mark, well under the hairline weight the mechanism
-// detail uses. Enough to keep the script's thinnest strokes from dropping below
-// a pixel; any heavier and it starts closing the counters, which is worse than
-// leaving it plain.
-markMat.line = lineMaterial(CONFIG.markWidth);
 // Unlit, like everything else in the scene. Nothing here shades: it is line
 // work, and a surface that takes a light is a surface pretending to have been
 // photographed.

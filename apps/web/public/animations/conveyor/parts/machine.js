@@ -1,30 +1,58 @@
 /*
   The machine itself: the manifold every duct drains into, the nozzle it
-  dispenses from, and the lit sign bolted to its front.
+  dispenses from, and the verdict lamp bolted to its front.
 */
 import * as THREE from "three";
-import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 import { MACHINE } from "../config.js";
-import { addRun, barrel, box, edgeLines, segments, solid, sphereSilhouette, thin } from "../draft.js";
-import { LOGO_PATHS, LOGO_VIEWBOX } from "../logo.js";
-import { fineMat, lampMat, markMat, white } from "../materials.js";
+import { addRun, barrel, box, segments, solid, sphereSilhouette, thin } from "../draft.js";
+import { fineMat, lampMat, white } from "../materials.js";
 import { VIEW } from "../view.js";
 
-// A lamp round the sign: a socket let into the panel, a neck, and a glass
-// envelope that carries the colour. A sphere's outline is view-dependent and
-// never falls out of edge extraction, so it is drawn explicitly the way the
-// dispensed spheres are.
-function lamp() {
+/*
+  The verdict lamp: a bulb screwed into a keyless socket, a plate against the
+  machine's face and the cup that takes the bulb, in place of the sign the
+  machine used to carry.
+
+  No screw base is drawn, because a bulb that is screwed in has none showing:
+  it is up inside the cup, which is what the cup is for. A thread was tried
+  twice, as ridge rings standing proud of a base, and at this size it collapses
+  into a dark smudge whichever way it is drawn. The socket puts the thread
+  where the real one is, which is the only way it stops having to be drawn.
+
+  The glass flares out of the cup rather than pinching in behind a ball: that
+  shoulder is what makes a bulb read as a bulb rather than as a knob on a stem.
+  Both of the flare's rims are buried, the inner one inside the cup and the
+  outer one inside the ball, so neither is drawn as a ring across the glass and
+  what shows is one profile running from the socket into the envelope. The ball
+  is a true sphere rather than another lathed tier, the way every other round
+  part in the drawing is (the dispensed spheres, and the small lamps this
+  replaced): a lathed profile is straight-line tiers and never yields the true
+  silhouette circle the envelope cannot do without.
+*/
+function verdictLamp() {
   const g = new THREE.Group();
-  g.add(barrel("x", -0.03, 0.03, MACHINE.lampSocketR, MACHINE.lampSocketR, { radial: 28 }));
-  g.add(barrel("x", 0.03, 0.06, MACHINE.lampNeckR, MACHINE.lampNeckR, { radial: 28 }));
-  const centre = 0.06 + MACHINE.lampBulbR * 0.75;
-  const glass = new THREE.Mesh(new THREE.SphereGeometry(MACHINE.lampBulbR, 20, 14), lampMat);
+  const plateEnd = MACHINE.lampPlateT;
+  const cupEnd = plateEnd + MACHINE.lampCupLen;
+  // The socket is drawn at hairline weight, the way the bolts and the duct ribs
+  // and the nozzle's flutes are. Line weight is in screen pixels and does not
+  // shrink with the part: at the ball's own size the plate's rim, the cup's rim
+  // and the cup's silhouette all land within a few pixels of each other, and at
+  // structural weight they close up into one dark knot behind the glass.
+  g.add(thin(barrel("x", 0, plateEnd, MACHINE.lampPlateR, MACHINE.lampPlateR, { radial: 32 })));
+  g.add(thin(barrel("x", plateEnd, cupEnd, MACHINE.lampCupR, MACHINE.lampCupR, { radial: 32 })));
+
+  const centre = cupEnd + MACHINE.lampRise;
+  // The flare stops half a radius short of the ball's centre, where the ball
+  // stands wider than the shoulder does, so it finishes inside the glass; it
+  // starts back in the middle of the cup, so it finishes inside that too.
+  const shoulderEnd = centre - MACHINE.lampGlobeR / 2;
+  g.add(barrel("x", cupEnd - MACHINE.lampCupLen / 2, shoulderEnd, MACHINE.lampGlassR, MACHINE.lampShoulder, { radial: 32, material: lampMat }));
+
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(MACHINE.lampGlobeR, 24, 16), lampMat);
   glass.position.x = centre;
   g.add(glass);
-  g.add(sphereSilhouette(MACHINE.lampBulbR, new THREE.Vector3(centre, 0, 0)));
+  g.add(sphereSilhouette(MACHINE.lampGlobeR, new THREE.Vector3(centre, 0, 0)));
   return g;
 }
 
@@ -79,66 +107,22 @@ function bell() {
   return nozzle;
 }
 /*
-  The machine's front. The panel carrying the mark is the face, and a border of
-  lamps runs round it, all of them wired to the same verdict. It sits just into
-  the manifold's own front and overhangs it on every side; everything behind
-  stays inboard of that plane, so nothing has to move to make room.
+  The lamp's mount: the socket seats directly against the manifold's own front
+  face, in place of the sign the machine used to carry. A bolted flange was
+  tried first, the same joint every duct fitting uses, but its ring of bolt
+  heads is sized for a duct's own radius; shrunk to the lamp's, the six of
+  them crowd into a single dark smudge rather than reading as bolts. Centred
+  on the face rather than floating above it, since nothing this size needs the
+  height the panel's own footprint did.
 */
-function sign(scene) {
+function verdict(scene) {
   const m = MACHINE.manifold;
-  // Let a little into the manifold's face so the two are not coplanar, which
-  // would leave them fighting over the same pixels.
+  // Let a little into the manifold's face so the socket and the box are not
+  // coplanar, which would leave them fighting over the same pixels.
   const back = MACHINE.manifoldW / 2 - 0.01;
-  const front = back + MACHINE.signT;
-  const at = MACHINE.signY;
-  scene.add(box(MACHINE.signT, MACHINE.signH, MACHINE.signW, back + MACHINE.signT / 2, at, m.z + MACHINE.signZ));
-  // Two stays back into the machine, one into the manifold and one into the
-  // trunk above it, since the panel is carried down the belt and only its near
-  // end sits against the manifold's face.
-  for (const dy of [-1, 1]) {
-    scene.add(box(MACHINE.signStay, 0.08, 0.08, back - MACHINE.signStay / 2 + 0.02, at + dy * 0.28, m.z));
-  }
-
-  const svg = `<svg viewBox="0 0 ${LOGO_VIEWBOX.w} ${LOGO_VIEWBOX.h}">${LOGO_PATHS.map((d) => `<path d="${d}" fill="#000"/>`).join("")}</svg>`;
-  const shapes = [];
-  for (const path of new SVGLoader().parse(svg).paths) shapes.push(...SVGLoader.createShapes(path));
-  const mark = mergeGeometries(shapes.map((shape) => new THREE.ShapeGeometry(shape, 10)));
-  mark.scale(1, -1, 1);
-  mark.computeBoundingBox();
-  const bb = mark.boundingBox;
-  mark.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
-  const k = MACHINE.signLogoW / (bb.max.x - bb.min.x);
-  mark.scale(k, k, 1);
-  const face = new THREE.Mesh(mark, markMat);
-  // Every triangle of the fill is coplanar, so edge extraction keeps only each
-  // glyph's boundary, and drawing that through the line pipeline gives a stroke
-  // measured in screen pixels rather than in world units.
-  const stroke = edgeLines(mark, 1);
-  stroke.material = markMat.line;
-  // Turned to lie on the panel. Its own reading direction then runs up and to
-  // the right, which is what a face on this axis does in this projection.
-  face.position.set(front + 0.002, at + MACHINE.signLogoY, m.z + MACHINE.signZ + MACHINE.signLogoZ);
-  face.rotation.y = stroke.rotation.y = Math.PI / 2;
-  stroke.position.copy(face.position).setX(front + 0.003);
-  scene.add(face, stroke);
-
-  // Walk the border, starting each edge at a corner so the corners are lit once.
-  const halfW = MACHINE.signW / 2 - MACHINE.signInset;
-  const halfH = MACHINE.signH / 2 - MACHINE.signInset;
-  const seats = [];
-  for (let i = 0; i < MACHINE.signLampsW; i++) {
-    const t = -halfW + (2 * halfW * i) / MACHINE.signLampsW;
-    seats.push([t, -halfH], [-t, halfH]);
-  }
-  for (let i = 0; i < MACHINE.signLampsH; i++) {
-    const t = -halfH + (2 * halfH * i) / MACHINE.signLampsH;
-    seats.push([halfW, t], [-halfW, -t]);
-  }
-  for (const [dz, dy] of seats) {
-    const g = lamp();
-    g.position.set(front, at + dy, m.z + MACHINE.signZ + dz);
-    scene.add(g);
-  }
+  const lamp = verdictLamp();
+  lamp.position.set(back, m.y, m.z);
+  scene.add(lamp);
 }
 
 export function createMachine(scene) {
@@ -146,7 +130,7 @@ export function createMachine(scene) {
   scene.add(box(MACHINE.manifoldW, MACHINE.manifoldH, MACHINE.manifoldD, m.x, m.y, m.z));
   const nozzle = bell();
   scene.add(nozzle);
-  sign(scene);
+  verdict(scene);
 
   return {
     apply({ pulse, lamp: colour }) {

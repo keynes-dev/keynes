@@ -35,7 +35,7 @@ export const CONFIG = {
   // stopped, so both are red, but they are not the same fault and a palette
   // that wanted to tell them apart could.
   lampColors: { running: 0xf2b705, denied: 0xe3262e, depleted: 0xe3262e, approved: 0x18b85a },
-  lineWidth: 1.25, fineWidth: 0.55, markWidth: 0.4,
+  lineWidth: 1.25, fineWidth: 0.55,
   maxPixelRatio: 2,
   frustum: 2.9,
   skyMargin: 1.15,
@@ -174,25 +174,25 @@ export const MACHINE = Object.freeze({
   nozzleTiers: 3, nozzleFlare: 1.7,
   nozzleRibR: 0.024, nozzleRibH: 0.03, nozzleLipR: 0.028, nozzleLipH: 0.034,
   nozzleFlutes: 12,
-  // The machine's front: one lit panel carrying the mark, with a border of lamps
-  // round it, standing proud of the machine the way a marquee is bolted to the
-  // front of the thing it names. Nothing behind it is in its way, but what it
-  // may cover is: it is nearer the camera than the nozzle, and dropped to the
-  // manifold's own height it swallows the bell whole and the shapes then fall
-  // out from under the sign instead of out of a nozzle. So it sits square on
-  // the machine's own centre line and takes the band between the two: its head
-  // just under the iris frames, its foot just above where the bell's mouth
-  // projects. That band is 0.86, and it is what caps the mark.
-  signY: 3.33, signZ: 0, signW: 1.6, signH: 0.86, signT: 0.08, signInset: 0.1,
-  // The lamps stand proud of the panel, so each is drawn a little further out
-  // and a little lower than its seat. The border they appear to make is that
-  // much tighter at the near end and along the top than the one they sit on,
-  // and the mark is nudged the same way so its swash clears the top row and its
-  // first letter clears the near column.
-  signLogoW: 0.7, signLogoZ: -0.05, signLogoY: -0.045, signLampsW: 7, signLampsH: 3, signStay: 0.24,
-  // Lamps round the sign: a socket let into the panel, a neck, and a glass
-  // envelope that carries the colour. Small, because there are twenty of them.
-  lampSocketR: 0.034, lampNeckR: 0.022, lampBulbR: 0.045,
+  // A single verdict lamp on the manifold's own front face, in place of the
+  // sign the machine used to carry: a bulb screwed into a keyless socket, a
+  // plate and the cup that takes it. Centred on the face rather than floating
+  // above it, since nothing this size needs the height the panel's own
+  // footprint did. The ball is the size of the balls the machine itself drops,
+  // `ITEM.sphereR` — it cannot be written in terms of that here, since ITEM is
+  // declared further down, but it is the same 0.11 and meant to be. A lamp is
+  // a fitting on the machine rather than a part of what it handles, and at any
+  // more than this it stops reading as one.
+  // The plate has to stand a good way clear of the cup to read as a plate at
+  // all: at anything near the cup's own radius the two rims are a pixel or two
+  // apart and read as one thick ring.
+  lampPlateR: 0.085, lampPlateT: 0.014,
+  lampCupR: 0.046, lampCupLen: 0.037,
+  // The glass: its radius where it leaves the cup, its radius where it meets
+  // the ball, how far the ball's centre stands off the cup, and the ball. The
+  // shoulder has to stay under the ball's own radius, or the flare ends proud
+  // of the envelope instead of inside it and draws a rim across the glass.
+  lampGlassR: 0.034, lampShoulder: 0.087, lampRise: 0.138, lampGlobeR: 0.11,
 });
 
 // Iris diaphragm at the base of each tube. Every blade pivots on the frame

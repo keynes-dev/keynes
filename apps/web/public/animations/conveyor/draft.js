@@ -116,14 +116,14 @@ const AXIS = {
   mount beam centred on its post, running a metre the wrong way and straight
   through the dispensing nozzle.
 */
-export function barrel(axis, from, to, r0, r1 = r0, { radial = 32, ring = 0, threshold = 30 } = {}) {
+export function barrel(axis, from, to, r0, r1 = r0, { radial = 32, ring = 0, threshold = 30, material = white } = {}) {
   const dir = AXIS[axis];
   const geometry = new THREE.CylinderGeometry(r1, r0, to - from, radial);
   if (axis === "x") geometry.rotateZ(-Math.PI / 2);
   else if (axis === "z") geometry.rotateX(Math.PI / 2);
 
   const g = new THREE.Group();
-  const part = solid(geometry, white, threshold);
+  const part = solid(geometry, material, threshold);
   part.position.copy(dir).multiplyScalar((from + to) / 2);
   g.add(part);
   g.add(silhouette(dir.clone().multiplyScalar(from), r0, dir.clone().multiplyScalar(to), r1));
