@@ -84,9 +84,15 @@ export function setTheme(ground, ink, rule) {
   gridMat.color.setHex(rule);
 }
 
-export function setResolution(width, height, pixelRatio) {
+/*
+  `weight` is how large the drawing is being rendered against the size its line
+  weights were chosen at. A line is otherwise a fixed number of screen pixels
+  however far out the frame is zoomed, so a machine drawn half the size keeps
+  full-weight strokes and its detail closes up into a blot.
+*/
+export function setResolution(width, height, pixelRatio, weight = 1) {
   for (const [material, base] of widths) {
     material.resolution.set(width, height);
-    material.linewidth = base * pixelRatio;
+    material.linewidth = base * pixelRatio * weight;
   }
 }

@@ -104,7 +104,11 @@ export function host(container, { scene, camera, update, loop, still, place }) {
     const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
-    setResolution(width * dpr, height * dpr, dpr);
+    // How large the drawing is rendered, against the size its line weights were
+    // chosen at: the frame's own height in pixels over the world height it
+    // covers, which `zoom` is what changes.
+    const weight = height / (CONFIG.weighedAt * (place?.zoom ?? 1));
+    setResolution(width * dpr, height * dpr, dpr, weight);
     frameCamera(width / height, place);
     if (!running) {
       update(reducedMotion ? still : elapsed % loop);

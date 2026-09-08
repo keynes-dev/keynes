@@ -51,6 +51,11 @@ export const CONFIG = {
   },
   lineWidth: 1.25,
   fineWidth: 0.55,
+  // The frame height those two weights were chosen against, at zoom 1. A frame
+  // rendered larger than this carries proportionally heavier lines and one
+  // rendered smaller lighter ones, so the drawing keeps its proportions rather
+  // than thickening up as it shrinks.
+  weighedAt: 512,
   maxPixelRatio: 2,
   frustum: 2.9,
   // Where the machine stands in its frame, and how much of the frame it fills.
