@@ -59,7 +59,7 @@ export const CONFIG = {
   // machine when the frame is wide, under it when the frame is tall. Which of
   // the two applies is the caller's to decide, not the drawing's.
   aside: { x: 0.46, y: 0, zoom: 1 },
-  below: { x: 0.22, y: -0.62, zoom: 1.8 },
+  below: { x: 0.107, y: -0.429, zoom: 2.5 },
   skyMargin: 1.15,
   // Raised until the furthest tube's top rim clears the frame. The rim decides,
   // not the axis: checking the centre line alone lets the far lip clip.
