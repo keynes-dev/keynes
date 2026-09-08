@@ -126,7 +126,8 @@ describe("@keynes/postgresql packed archive", () => {
     expect(record.migrations.at(-2)).toEqual({
       id: "0007-resource-definitions",
       path: "0007-resource-definitions.sql",
-      sha256: "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+      sha256:
+        "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
       contractDigest:
         "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
     });
