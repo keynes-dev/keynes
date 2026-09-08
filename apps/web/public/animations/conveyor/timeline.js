@@ -226,7 +226,14 @@ export function createTimeline(sky) {
     // does need is to be off the slats while its corner swings under it, and the
     // arm's lift does that: tracking the lowest corner instead would put a cusp
     // at ninety degrees, where the lowest corner changes, and read as a jolt.
-    const turnedRise = 0;
+    //
+    // A turning box is rolled from the moment it reaches the nozzle, not from
+    // the moment it is strictly past it. It stands at exactly z = 0 through the
+    // whole of its own beat and is still standing there when the next beat
+    // opens, one frame before the belt has moved it on; asking for `z < 0` to
+    // call it turned, and for the beat to still be its own to call it turning,
+    // left that frame answering to neither and the box flicked back to the face
+    // it arrived on.
     const eps = 1e-6;
     for (let k = 0; k < frame.boxes.length; k++) {
       const b = frame.boxes[k];
@@ -234,12 +241,11 @@ export function createTimeline(sky) {
       b.y = BOX_Y;
       b.roll = 0;
       if (!BOXES[k % BOXES.length].turns) continue;
-      if (b.z < -eps) {
-        b.roll = Math.PI;
-        b.y = BOX_Y + turnedRise;
-      } else if (Math.abs(b.z) <= eps && k === cycle.box) {
+      if (Math.abs(b.z) <= eps && k === cycle.box) {
         b.roll = turn;
         b.y = BOX_Y + pose.lift;
+      } else if (b.z <= eps) {
+        b.roll = Math.PI;
       }
     }
 

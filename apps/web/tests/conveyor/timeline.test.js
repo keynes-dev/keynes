@@ -8,7 +8,7 @@
 */
 import { describe as suite, expect, it } from "vitest";
 
-import { BOXES, CONFIG, ITEM, MACHINE, SHAPES } from "../../public/animations/conveyor/config.js";
+import { BELT, BOXES, CONFIG, ITEM, MACHINE, SHAPES, WRAP } from "../../public/animations/conveyor/config.js";
 import { settle, settleTime } from "../../public/animations/conveyor/math.js";
 import { createTimeline, irisOpening, TUBES } from "../../public/animations/conveyor/timeline.js";
 
@@ -68,6 +68,26 @@ suite("the loop", () => {
       const parked = snapshot(cycle.start + cycle.length - 1e-9).arm;
       expect(parked.x).toBeCloseTo(snapshot(0).arm.x, 9);
       expect(parked.grip).toBe(0);
+    }
+  });
+
+  // A box only ever turns under the arm, so its roll may not step anywhere it
+  // can be seen doing it. The one place it is allowed to is the wrap, half a
+  // belt away, where a box that has been round already comes back as one that
+  // has not; that is off frame by a wide margin and is the whole reason a
+  // turned box can keep its new face up without the loop drifting.
+  it("never steps a box's roll anywhere it could be seen", () => {
+    const seam = WRAP / 2 - BELT.slot;
+    let last = null;
+    for (const frame of sweep(1 / 480)) {
+      if (last) {
+        frame.boxes.forEach((box, k) => {
+          if (Math.abs(box.z) > seam) return;
+          const step = Math.abs(box.roll - last[k].roll);
+          expect(step, `box ${k} stepped ${step.toFixed(3)} at z=${box.z.toFixed(3)}`).toBeLessThan(0.05);
+        });
+      }
+      last = frame.boxes;
     }
   });
 });
