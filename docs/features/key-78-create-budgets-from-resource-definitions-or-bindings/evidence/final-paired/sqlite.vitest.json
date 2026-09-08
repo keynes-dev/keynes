@@ -1,0 +1,915 @@
+{
+  "success": true,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "numPassedTests": 99,
+  "numTotalTests": 99,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numPassedTestSuites": 8,
+  "numTotalTestSuites": 8,
+  "startTime": 1788830693488,
+  "testResults": [
+    {
+      "name": "./packages/sdk/test/contract/budget.test.ts",
+      "status": "passed",
+      "message": "",
+      "startTime": 1788830693766,
+      "endTime": 1788830693897.0022,
+      "assertionResults": [
+        {
+          "fullName": "Budget lifecycle defines a Resource type without creating Budget quantity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 2.6891669999999976,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 0.6912499999999682,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle returns canonical Resource definition errors",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 0.8680830000000128,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 5.79320899999999,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers all four canonical results across principals without duplicate history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 1.4177080000000046,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay replays a structurally equal command across principals despite object key order",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.5299580000000219,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers Resource definition after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.9277910000000134,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers root allocation after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.8580420000000117,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers an approved request after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.9459589999999594,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers settlement after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 1.0262920000000122,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects changed bodies for each mutation, including across principals",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 10.258833999999979,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects reuse by a different operation",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.7401659999999879,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects reuse against a different target",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.865208999999993,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay replays reordered definitions and amounts with the original result",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 2.258291999999983,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects omitted explicit-zero membership under the same command identity",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 1.1181249999999636,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay creates independent roots for new identities and replays the original result after settlement",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.7142080000000419,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay replays semantically equivalent Policy definitions",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.4798749999999927,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial leaves outstanding work active after denial and returns only its unused grant",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 1.298833000000002,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial denies one unavailable Resource without changing the parent",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.8394579999999792,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.7747909999999933,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 45.10316599999999,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.7110829999999737,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.43845800000002555,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects a request after its parent becomes inactive",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.4551249999999527,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial keeps request, settlement, and read permissions independent",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.49912499999999227,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates exact immutable membership for fully funded",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 1.182707999999991,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates exact immutable membership for explicit zero member",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.7562500000000227,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates exact immutable membership for omitted member",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.5994999999999777,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates exact immutable membership for all-zero root",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.6346660000000384,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates independent roots around settlement without moving or increasing fixed funding",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 1.0137919999999667,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation keeps an all-zero root active until ordinary settlement and denies unfunded work",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.7636660000000006,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation creates without Resource writes while retaining separate definition provenance",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.5938330000000178,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects empty amounts without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.4342910000000302,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects extra declaration without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.3614170000000172,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects unknown zero key without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.31574999999998,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects catalog-only amount key without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.309708999999998,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects negative without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.34049999999996317,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects fraction without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.3942090000000462,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects unsafe integer without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.33958300000000463,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects null amounts without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.2875829999999837,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects array amounts without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.2647079999999846,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects null definition without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.2653750000000059,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects unsupported definition field without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.25475000000000136,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects unknown command field without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.25304199999999355,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects old ResourceSource without partial creation effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 5.08970800000003,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects missing catalog definition without catalog or Budget writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.3517909999999915,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects conflicting catalog definition without catalog or Budget writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.31033400000001166,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation replays exact creation and rejects conflicting amounts without duplicate history",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.4863339999999994,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rolls back creation at after_command_binding and preserves committed definitions",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.5040420000000267,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rolls back creation at after_domain_mutation and preserves committed definitions",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.465582999999981,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation commits an attached Policy with selected root membership",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 2.851249999999993,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions defines a complete canonical batch with zero Budget and quantity effects",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.5730419999999867,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions reuses reordered and mixed definitions with original identities and evidence",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.4746250000000032,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions validates exact and subset catalogs without writes or definition permission",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.8707919999999945,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with missing used name without writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3944169999999758,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with missing unused name without writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3337500000000091,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with conflicting unit without writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.4577080000000251,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with conflicting behavior without writes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.43454200000002174,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions authorizes catalog validation before disclosing missing definitions",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2754590000000121,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with empty batch without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.36437499999999545,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with null batch without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2786660000000438,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with array batch without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2591249999999832,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with invalid name without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.36079200000000355,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with long canonical name without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3139580000000137,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with empty unit without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3398339999999962,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with invalid behavior without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3089170000000081,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with missing unit without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.30416600000000926,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with unknown field without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.34250000000002956,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects catalog validation with null entry without partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.31570799999997234,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects empty batch without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.31533300000000963,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects null batch without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3006669999999758,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects array batch without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2707500000000209,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects invalid name without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2815830000000119,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects long canonical name without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.28754199999997354,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects empty unit without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.2542500000000132,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects invalid behavior without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.28266700000000355,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects missing unit without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.311916999999994,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects unknown field without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3027500000000032,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rejects null entry without any partial state",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3276250000000118,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions rolls back an earlier new name when a later definition conflicts",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.468166999999994,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Independent Resource definitions replays reordered canonical input and rejects changed input under the same identity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Independent Resource definitions"
+          ],
+          "duration": 0.3732919999999922,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back a definition batch at after_resource_insertion while preserving an older binding",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.7449579999999969,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back a definition batch at after_result_storage while preserving an older binding",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.6545830000000024,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back bound root creation at after_domain_mutation without invalidating its binding",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.5917919999999981,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back bound root creation at after_result_storage without invalidating its binding",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.5979169999999954,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back Resource definition checkpoints",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.5945419999999899,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back root allocation facts, result, and history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 1.2604579999999714,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back child reservation, result, and history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 2.1924999999999955,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back usage, result, and settlement history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 2.8931670000000054,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement keeps independent roots fixed before and after another root settles",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.9876659999999902,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement keeps explicit zero-funded bound Resources present without permitting later funding",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.8024580000000014,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement keeps a sealed parent settling until its open descendant settles",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 1.105792000000008,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.8556669999999826,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement returns a reusable child allocation in full after settlement",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.6849169999999845,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement isolates child overage without charging its parent or sibling",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.8728750000000218,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement bounds settled nested charges before returning them to an ancestor",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.9298330000000306,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement settles a subset while keeping an omitted Resource unresolved",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.7308749999999691,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement sorts multiple isolated deficits by Resource identity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.6789999999999736,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement rejects derived arithmetic overflow without committing settlement",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 1.002125000000035,
+          "failureMessages": []
+        }
+      ]
+    }
+  ]
+}

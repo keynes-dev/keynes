@@ -478,6 +478,116 @@ The Phase 7 `ponytail-review` reports "Lean already. Ship." No complexity cuts
 were identified. A candidate checkpoint precedes package and paired execution
 so their source revision guards observe a clean, fixed checkout.
 
+## Final qualification
+
+The qualified source is `04a9142f5de3d6315328c68068b3af1f73bf3ca2`.
+Both package records and the paired manifest report that exact commit with a
+clean checkout before and after execution. The subsequent acceptance commit
+adds evidence and completes this audit; it changes no implementation or tests.
+
+The first PostgreSQL archive check passed 24/26 assertions: it still expected
+seven migrations. Terra updated its inventory for 0008, pinned historical 0007
+bytes and digest, and required all ten documented remote wrappers. The repaired
+suite passed 26/26. The final documentation also states generation 3 and minimum
+SDK generation 3. A runner evidence label now correctly names ten wrappers.
+The repair's `ponytail-review` reports "Lean already. Ship." Formatting of the
+archive assertion required one follow-up commit before final qualification.
+
+### Commands and outcomes
+
+| Command                                                                                                                                                                        | Final outcome                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                                                                                                                                                 | PASS on qualified source: 9 repository, 167 runner, 24 web, 63 contracts, 88 PostgreSQL, 545 SDK tests; 11 Turbo tasks; typecheck, generation check and dependency boundaries pass. [Log](evidence/final-test-pr.log). |
+| `pnpm format`                                                                                                                                                                  | PASS. [Log](evidence/final-format.log).                                                                                                                                                                                |
+| `pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/key-78-qualified.json`                             | PASS: 22 package tests; compiled positive/negative public type consumers and all 12 isolated runtime/package checks. [Record](evidence/final-sdk-package.json), [log](evidence/final-sdk-package.log).                 |
+| `pnpm test:package:postgresql -- --archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz --output .artifacts/package-tests/postgresql/key-78-qualified.json` | PASS: 26 package tests, exact archive, failed-build preservation, CLI errors and blocked imports. [Record](evidence/final-postgresql-package.json), [log](evidence/final-postgresql-package.log).                      |
+| `pnpm test:sqlite-postgres -- --output .artifacts/sqlite-postgres/key-78-final-04a9142`                                                                                        | PASS: SQLite 99/99; native PostgreSQL 302/302, including the identical 99 shared scenarios. Exact native inventories and all cleanup guards pass. [Manifest](evidence/final-paired/manifest.json).                     |
+
+Archives were built with `pnpm pack:sdk` and `pnpm pack:postgresql` before their
+qualification. SDK archive SHA-256:
+`cd7a5283b6dc76f1deaaa108b3bb1e8f7eb662f51ca2e9e989d957c4a678fa73`.
+PostgreSQL package archive SHA-256:
+`953d2d792d55a9fa3a2b62d6eddb7c8dd4d9773dd92f2f27881643c50e76cf00`.
+The paired runner independently packs and installs its PostgreSQL distribution;
+that archive SHA-256 is
+`650a73c73de2ed9d636bfab8d20c728f3aed70a56a880c10068bdc306a0bda2d`.
+Its installation record digest is
+`39de8dfeb3b87c26571cdc2b0bb648182de5f9c1f05e7061e5402d8c72c619d2`.
+These are separate retained archive identities, not interchangeable artifacts.
+
+Environment: Darwin 25.5.0 arm64; Node 26.5.0; pnpm 11.21.0; Vitest 4.1.11;
+SQLite 3.53.3; PostgreSQL 18.6; Docker 29.6.2; PgBouncer 1.25.2. The paired
+attempt `08100576-4fdb-4c07-989c-9af1ad80bf88` completed on September 8, 2026
+01:25:45 UTC (September 7 locally). Native run ID:
+`3cd2dd00-443b-483c-8c89-458d00ef753c`.
+
+Retained authority evidence:
+
+- [SQLite assertions](evidence/final-paired/sqlite.vitest.json).
+- [Native assertions](evidence/final-paired/postgresql.json.vitest.json).
+- [Native acceptance and migration hashes](evidence/final-paired/postgresql.json).
+- [Native stages and cleanup observations](evidence/final-paired/postgresql.json.observations.json).
+- [SHA-256 inventory](evidence/final-sha256.txt) for every final report and log.
+
+Raw logs preserve command output bytes, including trailing whitespace emitted
+by Turbo. Authored files pass formatting and the diff whitespace check excluding
+those raw logs. The final acceptance review reconciled counts, hashes, source
+revision, all 47 tasks and evidence limits; its documentation `ponytail-review`
+reports "Lean already. Ship."
+
+The native run covers 57 installation/recheck/identity assertions, 99 shared
+Budget scenarios, 13 contention, 17 Embedded transaction, 69 Policy, 7 remote
+Budget, 9 connection profile, 11 remote recovery, 16 remote security, and 4
+rollback assertions. Both report sets contain zero failures, skipped tests or
+todos. Direct, session-pool and transaction-pool connections all ran. Both
+runtime cleanup records pass. A final Docker inspection found no containers and
+no network matching the native run ID; unrelated pre-existing networks remain.
+
+### Requirement audit
+
+All rows refer to the qualified source and its final records above. Earlier
+phase reports explain development red/green results; they are not substituted
+for final qualification.
+
+| Requirement | Verified behavior and evidence                                                                                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | Configured local/remote factories and amounts/options-only creation pass SDK public tests and compiled package consumers. Shared/native creation passes.                                                             |
+| FR-002      | Exact supplied membership, omitted names, mixed-zero and all-zero roots pass all 99 shared scenarios on both authorities and remote Budget tests.                                                                    |
+| FR-003      | Package positive/negative consumers enforce inline and separately declared exact keys without explicit generics; SDK/shared runtime cases reject unknown keys, including zero.                                       |
+| FR-004      | SDK startup/lifecycle tests establish one private catalog with no Budget or quantity, capture declarations, and preserve independent runtime isolation.                                                              |
+| FR-005      | Native catalog/security and SDK remote executor cases cover complete validation, extra compatible names, missing/conflicting entries, creation-only permission and zero catalog writes.                              |
+| FR-006      | Explicit definition scenarios remain green. Portable metadata resolves against the current installation's own catalog; bindings grant no creation rights and are rejected as creation inputs.                        |
+| FR-007      | Both shared authorities plus native authorization, rollback and Embedded suites prove atomic membership, funding, history and replay with no partial effects.                                                        |
+| FR-008      | Shared replay and remote recovery cover exact identity, reordered keys, explicit-zero conflicts and unused declarations; repeated results do not duplicate funding and recovery rechecks current permission/catalog. |
+| FR-009      | Native contention proves exact/conflicting concurrent creation; Embedded and rollback tests preserve caller-owned atomic rollback and unrelated state.                                                               |
+| FR-010      | Shared funding, settlement and independent-root scenarios preserve fixed original funding, exact membership and isolated balances. No top-up or membership extension API was added.                                  |
+| FR-011      | SDK lifecycle/input tests and native security/recovery cover capture, asynchronous errors, close precedence, cleanup and private-safe errors.                                                                        |
+| FR-012      | Compiled consumers retain member and Policy inference; both shared authorities plus 69 native Policy assertions preserve request, settlement and inspection behavior.                                                |
+| FR-013      | Full paired manifest proves identical 99-scenario shared inventories with real SQLite and native PostgreSQL; native-only inventory and all cleanup guards pass.                                                      |
+| FR-014      | Current docs/callers use configured creation, package inventory includes 0008, old creation forms have negative type/runtime tests, generation-two refusal passes, and immutable 0001-0007 hashes are retained.      |
+| SC-001      | Public/shared configured clients create funded, partly funded and all-zero roots without repeated declarations/bindings.                                                                                             |
+| SC-002      | Shared membership scenarios show exact selected keys/amounts; unused declarations change no membership or balance.                                                                                                   |
+| SC-003      | Final compiled type consumers reject known extra keys and runtime cases reject dynamic invalid keys without mutation.                                                                                                |
+| SC-004      | Remote startup/native catalog assertions accept compatible supersets, reject missing/mismatched declarations and prove no catalog writes during startup/creation.                                                    |
+| SC-005      | Shared replay, local fault recovery, native remote recovery/contention/rollback and Embedded tests prove one result per identity and no partial or duplicate effects.                                                |
+| SC-006      | The paired gate enforces the same 99 observable shared scenarios, including all-zero fixed funding and independent roots.                                                                                            |
+
+T001-T047 are complete. The feature is one locally accepted implementation on
+its exact Linear branch after the merged KEY-77 prerequisite. No phase issues or
+PR stack were created. Linear is not marked Done: merge and its workflow gates
+remain separate publication steps.
+
+### Evidence limits
+
+This is local candidate acceptance. Remote native tests use the runner's local
+PostgreSQL authority; package qualification does not prove an installed SDK
+connected to an authorized external database or verified external TLS. Live
+Hosted, managed/paid provider matrices, registry publication, production
+readiness, performance qualification and installed database upgrades remain
+NOT RUN or unsupported. Focused security assertions passed; neither package
+record claims broad security qualification. No GitHub CI run, protected-merge
+observation, deployment or public release is claimed by these local records.
+
 ## Publication
 
 Implementation evidence is local-only. No push, PR creation, or Linear attachment

@@ -1,0 +1,437 @@
+$ pnpm generate:check && pnpm test:repository && pnpm exec vitest run scripts/run-sqlite-postgres.test.ts packages/postgresql/test/system/run.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**' && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps
+$ node scripts/generate.ts --check
+$ vitest run scripts/repository-organization.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'
+
+ RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes
+
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  18:25:03
+   Duration  138ms (transform 18ms, setup 0ms, import 27ms, tests 14ms, environment 0ms)
+
+
+ RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes
+
+
+ Test Files  2 passed (2)
+      Tests  167 passed (167)
+   Start at  18:25:04
+   Duration  6.83s (transform 89ms, setup 0ms, import 151ms, tests 6.47s, environment 0ms)
+
+• turbo 2.10.11
+
+   • Packages in scope: //, @keynes/contracts, @keynes/postgresql, @keynes/sdk, @keynes/testkit, @keynes/web
+   • Running quality, typecheck, test in 6 packages
+   • Remote caching disabled
+
+@keynes/contracts:test: cache bypass, force executing 4d7c887845bec0cb
+@keynes/testkit:typecheck: cache bypass, force executing 1374fab301197404
+@keynes/web:typecheck: cache bypass, force executing 47f55907684c21e8
+//:lint: cache miss, executing f0427109a1333205
+//:format: cache miss, executing 3b9e20eaf2cb3938
+@keynes/web:test: cache bypass, force executing af735b2d04f2b373
+@keynes/postgresql:test: cache bypass, force executing 86983eaa8e7ff9f4
+@keynes/postgresql:typecheck: cache bypass, force executing 433c3d428239c793
+@keynes/sdk:typecheck: cache bypass, force executing f3bd197c8787fa85
+@keynes/contracts:typecheck: cache bypass, force executing cbb3f4f7362f86d6
+@keynes/web:test: $ vitest run
+@keynes/web:typecheck: $ astro check
+//:format: $ oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml apps packages scripts docs
+@keynes/postgresql:test: $ vitest run test/unit test/qualification test/system/support/postgres-database.test.ts --maxWorkers=1
+@keynes/testkit:typecheck: $ tsc --project tsconfig.json --noEmit
+@keynes/postgresql:typecheck: $ tsc --project tsconfig.json --noEmit
+@keynes/contracts:typecheck: $ tsc --project tsconfig.json --noEmit
+//:lint: $ oxlint .
+@keynes/contracts:test: $ vitest run test --maxWorkers=1
+//:format: Checking formatting...
+//:format: 
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:     ,-[packages/sdk/test/package/compatibility/remote-api.mts:76:1]
+//:lint:  75 | // @ts-expect-error Bindings expose no reference.
+//:lint:  76 | binding.bindingReference;
+//:lint:     : ^^^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:  77 | // @ts-expect-error Bindings expose no producing client.
+//:lint:     `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:     ,-[packages/sdk/test/package/compatibility/remote-api.mts:78:1]
+//:lint:  77 | // @ts-expect-error Bindings expose no producing client.
+//:lint:  78 | binding.client;
+//:lint:     : ^^^^^^^^^^^^^^^
+//:lint:  79 | 
+//:lint:     `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/remote-api.mts:124:5]
+//:lint:  123 |     // @ts-expect-error Recovery must not expose private receipt references.
+//:lint:  124 |     recovery.result.bindingReference;
+//:lint:      :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:  125 |   } else if (recovery.operation === "requestBudget") {
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/remote-api.mts:147:1]
+//:lint:  146 | // @ts-expect-error Local Budget handles have no durable reference.
+//:lint:  147 | localRoot.reference;
+//:lint:      : ^^^^^^^^^^^^^^^^^^^^
+//:lint:  148 | // @ts-expect-error Local Keynes handles cannot reopen durable Budgets.
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:       ,-[packages/postgresql/test/system/policy-security.test.ts:1305:7]
+//:lint:  1304 |       when: position === "first_when" ? aggregateCondition : truth,
+//:lint:  1305 |       then: position === "first_then" ? aggregate : decimalLiteral("1"),
+//:lint:       :       ^^^^
+//:lint:  1306 |     },
+//:lint:       `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:       ,-[packages/postgresql/test/system/policy-security.test.ts:1309:7]
+//:lint:  1308 |       when: position === "later_when" ? aggregateCondition : truth,
+//:lint:  1309 |       then: position === "later_then" ? aggregate : decimalLiteral("2"),
+//:lint:       :       ^^^^
+//:lint:  1310 |     },
+//:lint:       `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! eslint(no-unused-vars): Function 'requireRecord' is declared but never used.
+//:lint:      ,-[packages/sdk/test/unit/local/local-lifecycle.test.ts:623:10]
+//:lint:  622 | 
+//:lint:  623 | function requireRecord(
+//:lint:      :          ^^^^^^|^^^^^^
+//:lint:      :                `-- 'requireRecord' is declared here
+//:lint:  624 |   value: unknown,
+//:lint:      `----
+//:lint:   help: Consider removing this declaration.
+//:lint: 
+//:lint:   ! eslint(no-unused-vars): Type 'ResourceSchema' is imported but never used.
+//:lint:     ,-[packages/sdk/test/package/compatibility/policy-api.mts:15:15]
+//:lint:  14 | // @ts-expect-error Plain declarations replace the old schema wrapper type.
+//:lint:  15 | import type { ResourceSchema } from "@keynes/sdk";
+//:lint:     :               ^^^^^^^|^^^^^^
+//:lint:     :                      `-- 'ResourceSchema' is imported here
+//:lint:  16 | 
+//:lint:     `----
+//:lint:   help: Consider removing this import.
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:     ,-[packages/sdk/test/package/compatibility/policy-api.mts:47:1]
+//:lint:  46 | // @ts-expect-error The opaque reference is not public.
+//:lint:  47 | binding.bindingReference;
+//:lint:     : ^^^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:  48 | // @ts-expect-error Bindings expose no Resource IDs.
+//:lint:     `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:     ,-[packages/sdk/test/package/compatibility/policy-api.mts:49:1]
+//:lint:  48 | // @ts-expect-error Bindings expose no Resource IDs.
+//:lint:  49 | binding.resourceTypeId;
+//:lint:     : ^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:  50 | // @ts-expect-error The standalone helper has been removed.
+//:lint:     `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:     ,-[packages/sdk/test/package/compatibility/policy-api.mts:51:1]
+//:lint:  50 | // @ts-expect-error The standalone helper has been removed.
+//:lint:  51 | sdk.defineResources;
+//:lint:     : ^^^^^^^^^^^^^^^^^^^^
+//:lint:  52 | // @ts-expect-error Bindings have no public constructor.
+//:lint:     `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:242:1]
+//:lint:  241 | // @ts-expect-error Resource installation identifiers stay private.
+//:lint:  242 | resources.resourceTypeId;
+//:lint:      : ^^^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:  243 | // @ts-expect-error Runtime identifiers stay private.
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:244:1]
+//:lint:  243 | // @ts-expect-error Runtime identifiers stay private.
+//:lint:  244 | keynes.runtimeId;
+//:lint:      : ^^^^^^^^^^^^^^^^^
+//:lint:  245 | // @ts-expect-error Budget identifiers stay private.
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:246:1]
+//:lint:  245 | // @ts-expect-error Budget identifiers stay private.
+//:lint:  246 | root.budgetId;
+//:lint:      : ^^^^^^^^^^^^^^
+//:lint:  247 | const requestResult = await root.request({ usdCents: 1 });
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! eslint(no-unused-expressions): Expected expression to be used
+//:lint:      ,-[packages/sdk/test/package/compatibility/policy-api.mts:249:1]
+//:lint:  248 | // @ts-expect-error Command identifiers stay private.
+//:lint:  249 | requestResult.commandId;
+//:lint:      : ^^^^^^^^^^^^^^^^^^^^^^^^
+//:lint:      `----
+//:lint:   help: Consider using this expression or removing it
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:427:20]
+//:lint:  426 |     );
+//:lint:  427 |     return { when, then };
+//:lint:      :                    ^^^^
+//:lint:  428 |   });
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:454:34]
+//:lint:  453 |       branches: [
+//:lint:  454 |         { when: first.when.node, then: first.then.node },
+//:lint:      :                                  ^^^^
+//:lint:  455 |         ...branches.slice(1).map((branch) => ({
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/sdk/src/policy/normalize-expression.ts:457:11]
+//:lint:  456 |           when: branch.when.node,
+//:lint:  457 |           then: branch.then.node,
+//:lint:      :           ^^^^
+//:lint:  458 |         })),
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! eslint(no-unused-vars): Identifier 'POSTGRESQL_SYSTEM_TEST_FILES' is imported but never used.
+//:lint:     ,-[packages/postgresql/test/system/run.test.ts:33:3]
+//:lint:  32 |   POSTGRES_IMAGE,
+//:lint:  33 |   POSTGRESQL_SYSTEM_TEST_FILES,
+//:lint:     :   ^^^^^^^^^^^^^^|^^^^^^^^^^^^^
+//:lint:     :                 `-- 'POSTGRESQL_SYSTEM_TEST_FILES' is imported here
+//:lint:  34 |   runPostgresqlSystemTests,
+//:lint:     `----
+//:lint:   help: Consider removing this import.
+//:lint: 
+//:lint:   ! eslint(no-unsafe-finally): Unsafe `finally` block.
+//:lint:       ,-[packages/postgresql/test/system/run.test.ts:1055:13]
+//:lint:  1054 |           )
+//:lint:  1055 |             throw error;
+//:lint:       :             ^^^^^^^^^^^^
+//:lint:  1056 |         }
+//:lint:       `----
+//:lint:   help: Control flow inside `try` or `catch` blocks will be overwritten by this statement.
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:       ,-[packages/sdk/src/generated/validators.ts:3090:13]
+//:lint:  3089 |             },
+//:lint:  3090 |             then: {
+//:lint:       :             ^^^^
+//:lint:  3091 |               $ref: "#/$defs/ExpressionNodeV1",
+//:lint:       `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! eslint(no-control-regex): Unexpected control characters
+//:lint:       ,-[packages/sdk/src/local/sqlite-command-executor.ts:1307:29]
+//:lint:  1306 |         [...unit].length > 64 ||
+//:lint:  1307 |         !/^(?!\s)(?!.*\s$)[^\u0000-\u001f\u007f]+$/.test(unit)
+//:lint:       :                             ^^^|^^ ^^^|^^
+//:lint:       :                                |      `-- 'U+001F' is a control character.
+//:lint:       :                                `-- 'U+0000' is a control character.
+//:lint:  1308 |       )
+//:lint:       `----
+//:lint:   help: Avoid matching control characters in regular expressions. If intentional, consider using a Unicode escape instead.
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/sdk/src/generated/policy-profile.ts:772:13]
+//:lint:  771 |             },
+//:lint:  772 |             then: {
+//:lint:      :             ^^^^
+//:lint:  773 |               kind: "decimal_literal",
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:       ,-[packages/sdk/src/generated/policy-profile.ts:1630:13]
+//:lint:  1629 |             },
+//:lint:  1630 |             then: {
+//:lint:       :             ^^^^
+//:lint:  1631 |               $ref: "#/$defs/ExpressionNodeV1",
+//:lint:       `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/contracts/generated/policy-profile.ts:775:13]
+//:lint:  774 |             },
+//:lint:  775 |             then: {
+//:lint:      :             ^^^^
+//:lint:  776 |               kind: "decimal_literal",
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/sdk/test/unit/policy/rejection.test.ts:403:24]
+//:lint:  402 |     kind: "case",
+//:lint:  403 |     branches: [{ when, then }],
+//:lint:      :                        ^^^^
+//:lint:  404 |     else: otherwise,
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
+//:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:399:45]
+//:lint:  398 |               and p.proargtypes = '3802'::oidvector
+//:lint:  399 |               and p.proname not like 'remote\_%' escape '\\'
+//:lint:      :                                             ^^
+//:lint:  400 |             order by target`,
+//:lint:      `----
+//:lint:   help: Replace `\_` with `_`.
+//:lint: 
+//:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
+//:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:468:78]
+//:lint:  467 |                   bool_or(has_function_privilege($1, p.oid, 'EXECUTE')) filter (
+//:lint:  468 |                     where n.nspname = 'keynes' and p.proname not like 'remote\_%' escape '\\'
+//:lint:      :                                                                              ^^
+//:lint:  469 |                   ) as application_canonical_execute,
+//:lint:      `----
+//:lint:   help: Replace `\_` with `_`.
+//:lint: 
+//:lint:   ! eslint(no-useless-escape): Unnecessary escape character '_'
+//:lint:      ,-[packages/postgresql/test/integration/recheck.test.ts:476:74]
+//:lint:  475 |                   bool_and(p.proowner = (select oid from pg_roles where rolname = $3)) filter (
+//:lint:  476 |                     where n.nspname = 'keynes' and p.proname like 'remote\_%' escape '\\'
+//:lint:      :                                                                          ^^
+//:lint:  477 |                   ) as execution_owns_remote
+//:lint:      `----
+//:lint:   help: Replace `\_` with `_`.
+//:lint: 
+//:lint:   ! unicorn(no-thenable): Do not add `then` to an object.
+//:lint:      ,-[packages/contracts/contract-tests/policy/runtime-cases.ts:342:13]
+//:lint:  341 |             },
+//:lint:  342 |             then: requested,
+//:lint:      :             ^^^^
+//:lint:  343 |           },
+//:lint:      `----
+//:lint:   help: If an object is defined as 'thenable', once it's accidentally used in an await expression, it may cause problems
+//:lint: 
+//:lint: Found 30 warnings and 0 errors.
+//:lint: Finished in 49ms on 236 files with 96 rules using 10 threads.
+@keynes/sdk:test: cache bypass, force executing 1901272644e90c54
+@keynes/sdk:typecheck: $ tsc --project tsconfig.json --noEmit
+@keynes/contracts:test: 
+@keynes/contracts:test:  RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes/packages/contracts
+@keynes/contracts:test: 
+@keynes/postgresql:test: 
+@keynes/postgresql:test:  RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes/packages/postgresql
+@keynes/postgresql:test: 
+@keynes/web:test: 
+@keynes/web:test:  RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes/apps/web
+@keynes/web:test: 
+@keynes/sdk:test: $ vitest run test/unit test/contract test/system test/package/qualify.test.ts --maxWorkers=1
+@keynes/postgresql:test:  ✓ test/unit/build.test.ts (9 tests) 322ms
+@keynes/sdk:test: 
+@keynes/sdk:test:  RUN  v4.1.11 /Users/shubhankarsharan/Desktop/keynes/packages/sdk
+@keynes/sdk:test: 
+//:format: All matched files use the correct format.
+//:format: Finished in 3069ms on 521 files using 10 threads.
+@keynes/web:typecheck: 18:25:15 [types] Generated 146ms
+@keynes/web:typecheck: 18:25:15 [check] Getting diagnostics for Astro files in /Users/shubhankarsharan/Desktop/keynes/apps/web...
+@keynes/web:test:  ✓ src/lib/charts.test.ts (16 tests) 9ms
+@keynes/contracts:test:  ✓ test/generate-contracts.test.ts (25 tests) 909ms
+@keynes/web:test:  ✓ src/components/pages/home/PoliciesFigure.test.tsx (1 test) 135ms
+@keynes/postgresql:test:  ✓ test/qualification/run-external.test.ts (7 tests) 22ms
+@keynes/postgresql:test:  ✓ test/qualification/external-record.test.ts (10 tests) 32ms
+@keynes/web:test:  ✓ src/components/pages/home/Charts.test.tsx (4 tests) 283ms
+@keynes/postgresql:test:  ✓ test/unit/run-installation.test.ts (2 tests) 11ms
+@keynes/contracts:test:  ✓ test/policy-generation.test.ts (16 tests) 254ms
+@keynes/web:test:  ✓ src/components/pages/home/HowItWorks.test.tsx (3 tests) 357ms
+@keynes/web:test: 
+@keynes/web:test:  Test Files  4 passed (4)
+@keynes/web:test:       Tests  24 passed (24)
+@keynes/web:test:    Start at  18:25:13
+@keynes/web:test:    Duration  3.34s (transform 501ms, setup 0ms, import 1.75s, tests 784ms, environment 6.99s)
+@keynes/web:test: 
+@keynes/postgresql:test:  ✓ test/system/support/postgres-database.test.ts (3 tests) 13ms
+@keynes/contracts:test:  ✓ test/contract-client.test.ts (4 tests) 95ms
+@keynes/postgresql:test:  ✓ test/unit/policy-backend.test.ts (11 tests) 10ms
+@keynes/postgresql:test:  ✓ test/unit/postgres-database-cleanup.test.ts (3 tests) 7ms
+@keynes/contracts:test:  ✓ test/policy-contract.test.ts (16 tests) 57ms
+@keynes/contracts:test:  ✓ test/policy-cases.test.ts (2 tests) 2ms
+@keynes/contracts:test: 
+@keynes/contracts:test:  Test Files  5 passed (5)
+@keynes/contracts:test:       Tests  63 passed (63)
+@keynes/contracts:test:    Start at  18:25:13
+@keynes/contracts:test:    Duration  4.34s (transform 780ms, setup 0ms, import 2.02s, tests 1.32s, environment 0ms)
+@keynes/contracts:test: 
+@keynes/postgresql:test:  ✓ test/qualification/external-target.test.ts (21 tests) 6ms
+@keynes/postgresql:test:  ✓ test/unit/procedure-caller.test.ts (9 tests) 4ms
+@keynes/postgresql:test:  ✓ test/qualification/external-profile.test.ts (5 tests) 4ms
+@keynes/postgresql:test:  ✓ test/qualification/required-scenarios.test.ts (3 tests) 7ms
+@keynes/postgresql:test:  ✓ test/unit/config.test.ts (4 tests) 3ms
+@keynes/postgresql:test:  ✓ test/qualification/provider-free-environment.test.ts (1 test) 3ms
+@keynes/postgresql:test: 
+@keynes/postgresql:test:  Test Files  13 passed (13)
+@keynes/postgresql:test:       Tests  88 passed (88)
+@keynes/postgresql:test:    Start at  18:25:13
+@keynes/postgresql:test:    Duration  5.22s (transform 810ms, setup 0ms, import 2.80s, tests 445ms, environment 1ms)
+@keynes/postgresql:test: 
+@keynes/web:typecheck: Result (42 files): 
+@keynes/web:typecheck: - 0 errors
+@keynes/web:typecheck: - 0 warnings
+@keynes/web:typecheck: - 0 hints
+@keynes/web:typecheck: 
+@keynes/sdk:test:  ✓ test/package/qualify.test.ts (18 tests) 12711ms
+@keynes/sdk:test:      ✓ builds the production tree deterministically  727ms
+@keynes/sdk:test:      ✓ writes an immutable secret-safe evidence record  2562ms
+@keynes/sdk:test:      ✓ propagates an installed consumer failure and preserves the supplied archive  1949ms
+@keynes/sdk:test:      ✓ retains the exact archive identity, installs externally, and cleans up  2588ms
+@keynes/sdk:test:  ✓ test/unit/local/local-replay.test.ts (7 tests) 187ms
+@keynes/sdk:test:  ✓ test/system/run-hosted.test.ts (2 tests) 168ms
+@keynes/sdk:test:  ✓ test/contract/budget.test.ts (99 tests) 206ms
+@keynes/sdk:test:  ✓ test/unit/local/policy-fail-closed.test.ts (15 tests) 112ms
+@keynes/sdk:test:  ✓ test/unit/remote/recovery.test.ts (14 tests) 91ms
+@keynes/sdk:test:  ✓ test/unit/remote/postgresql-command-executor.test.ts (18 tests) 71ms
+@keynes/sdk:test:  ✓ test/unit/local/policy-replay.test.ts (5 tests) 106ms
+@keynes/sdk:test:  ✓ test/unit/local/policy-request.test.ts (13 tests) 66ms
+@keynes/sdk:test:  ✓ test/unit/local/local-lifecycle.test.ts (31 tests) 72ms
+@keynes/sdk:test:  ✓ test/unit/local/sqlite-command-executor.test.ts (15 tests) 50ms
+@keynes/sdk:test:  ✓ test/unit/public/policy-api.test.ts (4 tests) 29ms
+@keynes/sdk:test:  ✓ test/unit/policy/rejection.test.ts (62 tests) 39ms
+@keynes/sdk:test:  ✓ test/unit/policy/source-behavior.test.ts (2 tests) 34ms
+@keynes/sdk:test:  ✓ test/unit/public/local.test.ts (46 tests) 35ms
+@keynes/sdk:test:  ✓ test/unit/policy/authoring.test.ts (19 tests) 25ms
+@keynes/sdk:test:  ✓ test/unit/policy/evaluate.test.ts (8 tests) 24ms
+@keynes/sdk:test:  ✓ test/unit/public/remote.test.ts (54 tests) 18ms
+@keynes/sdk:test:  ✓ test/unit/public/generated-client.test.ts (27 tests) 11ms
+@keynes/sdk:test:  ✓ test/unit/policy/parser.test.ts (12 tests) 12ms
+@keynes/sdk:test:  ✓ test/unit/remote/connection-options.test.ts (43 tests) 11ms
+@keynes/sdk:test:  ✓ test/unit/local/sqlite-store.test.ts (3 tests) 11ms
+@keynes/sdk:test:  ✓ test/contract/remote.test.ts (2 tests) 10ms
+@keynes/sdk:test:  ✓ test/unit/public/budget-projection.test.ts (1 test) 8ms
+@keynes/sdk:test:  ✓ test/unit/public/remote-validators.test.ts (3 tests) 7ms
+@keynes/sdk:test: Run Local source feedback without services or packaging. No options required.
+@keynes/sdk:test:  ✓ test/system/run-local.test.ts (5 tests) 3ms
+@keynes/sdk:test:  ✓ test/unit/remote/errors.test.ts (14 tests) 3ms
+@keynes/sdk:test:  ✓ test/unit/public/public-exports.test.ts (3 tests) 3ms
+@keynes/sdk:test: 
+@keynes/sdk:test:  Test Files  28 passed (28)
+@keynes/sdk:test:       Tests  545 passed (545)
+@keynes/sdk:test:    Start at  18:25:15
+@keynes/sdk:test:    Duration  18.81s (transform 568ms, setup 0ms, import 2.64s, tests 14.12s, environment 1ms)
+@keynes/sdk:test: 
+
+ Tasks:    11 successful, 11 total
+Cached:    0 cached, 11 total
+  Time:    22.568s 
+
+$ turbo boundaries --ui=stream
+• turbo 2.10.11
+Checking packages...
+Checked 318 files in 5 packages, no issues found
