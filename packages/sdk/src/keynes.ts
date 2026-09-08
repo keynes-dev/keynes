@@ -183,18 +183,20 @@ export async function createKeynes(
       reason: "unsupported",
     });
   }
+  const hasDatabaseUrl = Object.hasOwn(options, "databaseUrl");
+  const databaseUrl = hasDatabaseUrl ? options.databaseUrl : undefined;
   const definitions = captureResourceDefinitions(options.resources);
-  if (!Object.hasOwn(options, "databaseUrl")) {
+  if (!hasDatabaseUrl) {
     const runtime = await openConfiguredRuntime(definitions);
     return createKeynesHandle(runtime, definitions);
   }
-  if (typeof options.databaseUrl !== "string") {
+  if (typeof databaseUrl !== "string") {
     throw new KeynesSdkError("invalid_configuration", {
       field: "databaseUrl",
       reason: "unsupported",
     });
   }
-  const poolConfig = normalizeDatabaseUrl(options.databaseUrl);
+  const poolConfig = normalizeDatabaseUrl(databaseUrl);
   const executor = await openPostgresqlCommandExecutor(poolConfig);
   const client = createRemoteKeynesClient(executor);
   try {

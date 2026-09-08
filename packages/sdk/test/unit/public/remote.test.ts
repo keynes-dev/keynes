@@ -724,6 +724,34 @@ describe("public remote Keynes facade", () => {
     },
   );
 
+  it("keeps the snapshotted remote authority when a Resource getter deletes its selector", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const options: Record<string, unknown> = { databaseUrl };
+    Object.defineProperty(options, "resources", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        delete options.databaseUrl;
+        return resources;
+      },
+    });
+
+    const remote = await Reflect.apply(createKeynes, undefined, [options]);
+    try {
+      expect(options).not.toHaveProperty("databaseUrl");
+      expect(remoteMocks.normalizeDatabaseUrl).toHaveBeenCalledWith(
+        databaseUrl,
+      );
+      expect(remoteMocks.openPostgresqlCommandExecutor).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(executor.methods).toEqual(["validateResources"]);
+    } finally {
+      await remote.close();
+    }
+  });
+
   it("rejects a created root whose projection does not match the request", async () => {
     const executor = createFakeExecutor({
       createBudget: () => ({
