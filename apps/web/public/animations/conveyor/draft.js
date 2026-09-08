@@ -23,7 +23,9 @@ export function segments(positions, material = lineMat) {
 }
 // Redraw an object's outlines at hairline weight.
 export function thin(object) {
-  object.traverse((o) => { if (o.isLineSegments2) o.material = fineMat; });
+  object.traverse((o) => {
+    if (o.isLineSegments2) o.material = fineMat;
+  });
   return object;
 }
 export function edgeLines(geometry, threshold = 1) {
@@ -42,18 +44,37 @@ export function solid(geometry, material = white, threshold = 1) {
 export function silhouette(p0, r0, p1, r1) {
   const axis = p1.clone().sub(p0).normalize();
   const side = new THREE.Vector3().crossVectors(axis, VIEW).normalize();
-  const a0 = p0.clone().addScaledVector(side, r0), a1 = p1.clone().addScaledVector(side, r1);
-  const b0 = p0.clone().addScaledVector(side, -r0), b1 = p1.clone().addScaledVector(side, -r1);
-  return segments([a0.x, a0.y, a0.z, a1.x, a1.y, a1.z, b0.x, b0.y, b0.z, b1.x, b1.y, b1.z]);
+  const a0 = p0.clone().addScaledVector(side, r0),
+    a1 = p1.clone().addScaledVector(side, r1);
+  const b0 = p0.clone().addScaledVector(side, -r0),
+    b1 = p1.clone().addScaledVector(side, -r1);
+  return segments([
+    a0.x,
+    a0.y,
+    a0.z,
+    a1.x,
+    a1.y,
+    a1.z,
+    b0.x,
+    b0.y,
+    b0.z,
+    b1.x,
+    b1.y,
+    b1.z,
+  ]);
 }
 // Outline circle of a sphere as seen by the fixed camera.
 export function sphereSilhouette(r, center) {
   const u = new THREE.Vector3().crossVectors(VIEW, UP).normalize();
   const v = new THREE.Vector3().crossVectors(VIEW, u).normalize();
-  const n = 36, pts = [];
+  const n = 36,
+    pts = [];
   for (let i = 0; i < n; i++) {
     for (const a of [(i / n) * Math.PI * 2, ((i + 1) / n) * Math.PI * 2]) {
-      const p = center.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, r * Math.sin(a));
+      const p = center
+        .clone()
+        .addScaledVector(u, r * Math.cos(a))
+        .addScaledVector(v, r * Math.sin(a));
       pts.push(p.x, p.y, p.z);
     }
   }
@@ -66,7 +87,15 @@ export function box(sx, sy, sz, x, y, z) {
 }
 
 export function addRun(pts, run) {
-  for (let i = 0; i < run.length - 1; i++) pts.push(run[i].x, run[i].y, run[i].z, run[i + 1].x, run[i + 1].y, run[i + 1].z);
+  for (let i = 0; i < run.length - 1; i++)
+    pts.push(
+      run[i].x,
+      run[i].y,
+      run[i].z,
+      run[i + 1].x,
+      run[i + 1].y,
+      run[i + 1].z,
+    );
 }
 // A ring drawn on a curved surface, kept to the half of it that faces the
 // camera, so a rib never shows through the far wall.
@@ -76,8 +105,15 @@ export function frontRing(pts, centre, axis, r, steps = 32) {
   let run = [];
   for (let j = 0; j <= steps; j++) {
     const a = (j / steps) * Math.PI * 2;
-    const n = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a));
-    if (n.dot(VIEW) > 0) { addRun(pts, run); run = []; continue; }
+    const n = u
+      .clone()
+      .multiplyScalar(Math.cos(a))
+      .addScaledVector(v, Math.sin(a));
+    if (n.dot(VIEW) > 0) {
+      addRun(pts, run);
+      run = [];
+      continue;
+    }
     run.push(centre.clone().addScaledVector(n, r));
   }
   addRun(pts, run);
@@ -90,7 +126,12 @@ export function fullRing(pts, centre, axis, r, steps = 12) {
   const run = [];
   for (let j = 0; j <= steps; j++) {
     const a = (j / steps) * Math.PI * 2;
-    run.push(centre.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, r * Math.sin(a)));
+    run.push(
+      centre
+        .clone()
+        .addScaledVector(u, r * Math.cos(a))
+        .addScaledVector(v, r * Math.sin(a)),
+    );
   }
   addRun(pts, run);
 }
@@ -116,7 +157,14 @@ const AXIS = {
   mount beam centred on its post, running a metre the wrong way and straight
   through the dispensing nozzle.
 */
-export function barrel(axis, from, to, r0, r1 = r0, { radial = 32, ring = 0, threshold = 30, material = white } = {}) {
+export function barrel(
+  axis,
+  from,
+  to,
+  r0,
+  r1 = r0,
+  { radial = 32, ring = 0, threshold = 30, material = white } = {},
+) {
   const dir = AXIS[axis];
   const geometry = new THREE.CylinderGeometry(r1, r0, to - from, radial);
   if (axis === "x") geometry.rotateZ(-Math.PI / 2);
@@ -126,7 +174,14 @@ export function barrel(axis, from, to, r0, r1 = r0, { radial = 32, ring = 0, thr
   const part = solid(geometry, material, threshold);
   part.position.copy(dir).multiplyScalar((from + to) / 2);
   g.add(part);
-  g.add(silhouette(dir.clone().multiplyScalar(from), r0, dir.clone().multiplyScalar(to), r1));
+  g.add(
+    silhouette(
+      dir.clone().multiplyScalar(from),
+      r0,
+      dir.clone().multiplyScalar(to),
+      r1,
+    ),
+  );
   if (ring) {
     const face = [];
     fullRing(face, dir.clone().multiplyScalar(to + 0.002), dir, ring, 32);

@@ -57,7 +57,9 @@ const parts = [
 // How far above each tube's mouth a refill has to start to be off frame. Only
 // the camera can answer that, so the timeline is handed the answer rather than
 // reaching for a camera itself.
-const sky = TUBES.map((tube) => skyOffset(new THREE.Vector3(0, tube.topY, tube.z)));
+const sky = TUBES.map((tube) =>
+  skyOffset(new THREE.Vector3(0, tube.topY, tube.z)),
+);
 const timeline = createTimeline(sky);
 const { cycles, loop } = timeline;
 
@@ -69,14 +71,22 @@ function update(t) {
 // The frame to hold when motion is turned off: mid-drop on the first box.
 const firstBox = cycles.find((cycle) => cycle.entry);
 const still = firstBox.start + firstBox.dropStart + 0.7;
-const view = host(document.getElementById("scene"), { scene, camera, update, loop, still });
+const view = host(document.getElementById("scene"), {
+  scene,
+  camera,
+  update,
+  loop,
+  still,
+});
 
 // Handles for inspection, each on its own key: the config is not also the
 // control panel, so an exposed `arm` can no longer overwrite the arm's timings.
 // `?debug` draws a live overlay: which build is on screen, whether anything is
 // being drawn twice, and whether any stack is standing inside itself.
 if (new URLSearchParams(location.search).has("debug")) {
-  import("./debug.js").then((m) => m.hud(scene, { loop, cycles, frame: timeline.describe(0) }, view));
+  import("./debug.js").then((m) =>
+    m.hud(scene, { loop, cycles, frame: timeline.describe(0) }, view),
+  );
 }
 
 window.conveyor = {

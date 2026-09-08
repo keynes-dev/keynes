@@ -5,7 +5,15 @@
 import * as THREE from "three";
 
 import { MACHINE } from "../config.js";
-import { addRun, barrel, box, segments, solid, sphereSilhouette, thin } from "../draft.js";
+import {
+  addRun,
+  barrel,
+  box,
+  segments,
+  solid,
+  sphereSilhouette,
+  thin,
+} from "../draft.js";
 import { fineMat, lampMat, white } from "../materials.js";
 import { VIEW } from "../view.js";
 
@@ -39,17 +47,41 @@ function verdictLamp() {
   // shrink with the part: at the ball's own size the plate's rim, the cup's rim
   // and the cup's silhouette all land within a few pixels of each other, and at
   // structural weight they close up into one dark knot behind the glass.
-  g.add(thin(barrel("x", 0, plateEnd, MACHINE.lampPlateR, MACHINE.lampPlateR, { radial: 32 })));
-  g.add(thin(barrel("x", plateEnd, cupEnd, MACHINE.lampCupR, MACHINE.lampCupR, { radial: 32 })));
+  g.add(
+    thin(
+      barrel("x", 0, plateEnd, MACHINE.lampPlateR, MACHINE.lampPlateR, {
+        radial: 32,
+      }),
+    ),
+  );
+  g.add(
+    thin(
+      barrel("x", plateEnd, cupEnd, MACHINE.lampCupR, MACHINE.lampCupR, {
+        radial: 32,
+      }),
+    ),
+  );
 
   const centre = cupEnd + MACHINE.lampRise;
   // The flare stops half a radius short of the ball's centre, where the ball
   // stands wider than the shoulder does, so it finishes inside the glass; it
   // starts back in the middle of the cup, so it finishes inside that too.
   const shoulderEnd = centre - MACHINE.lampGlobeR / 2;
-  g.add(barrel("x", cupEnd - MACHINE.lampCupLen / 2, shoulderEnd, MACHINE.lampGlassR, MACHINE.lampShoulder, { radial: 32, material: lampMat }));
+  g.add(
+    barrel(
+      "x",
+      cupEnd - MACHINE.lampCupLen / 2,
+      shoulderEnd,
+      MACHINE.lampGlassR,
+      MACHINE.lampShoulder,
+      { radial: 32, material: lampMat },
+    ),
+  );
 
-  const glass = new THREE.Mesh(new THREE.SphereGeometry(MACHINE.lampGlobeR, 24, 16), lampMat);
+  const glass = new THREE.Mesh(
+    new THREE.SphereGeometry(MACHINE.lampGlobeR, 24, 16),
+    lampMat,
+  );
   glass.position.x = centre;
   g.add(glass);
   g.add(sphereSilhouette(MACHINE.lampGlobeR, new THREE.Vector3(centre, 0, 0)));
@@ -65,24 +97,45 @@ function bell() {
   const height = MACHINE.nozzleTop - MACHINE.nozzleBottom;
   // The collar is drawn without a silhouette: it is buried under the manifold's
   // own outline, and adding one only doubles that edge.
-  const collar = solid(new THREE.CylinderGeometry(MACHINE.nozzleR0 + 0.05, MACHINE.nozzleR0 + 0.05, 0.1, 32), white, 30);
+  const collar = solid(
+    new THREE.CylinderGeometry(
+      MACHINE.nozzleR0 + 0.05,
+      MACHINE.nozzleR0 + 0.05,
+      0.1,
+      32,
+    ),
+    white,
+    30,
+  );
   collar.position.y = height / 2 + 0.05;
   nozzle.add(collar);
 
   // Local y runs from the mouth at the bottom to the throat at the top, and the
   // radius flares faster than a straight cone would, so the wall reads curved.
   const bellY = (t) => height / 2 - t * height;
-  const bellR = (t) => MACHINE.nozzleR1 + (MACHINE.nozzleR0 - MACHINE.nozzleR1) * Math.pow(t, MACHINE.nozzleFlare);
+  const bellR = (t) =>
+    MACHINE.nozzleR1 +
+    (MACHINE.nozzleR0 - MACHINE.nozzleR1) * Math.pow(t, MACHINE.nozzleFlare);
   const tier = (y0, r0, y1, r1) => barrel("y", y0, y1, r0, r1);
   for (let k = 0; k < MACHINE.nozzleTiers; k++) {
-    const t0 = k / MACHINE.nozzleTiers, t1 = (k + 1) / MACHINE.nozzleTiers;
+    const t0 = k / MACHINE.nozzleTiers,
+      t1 = (k + 1) / MACHINE.nozzleTiers;
     nozzle.add(tier(bellY(t1), bellR(t1), bellY(t0), bellR(t0)));
     if (k === MACHINE.nozzleTiers - 1) continue;
     // The ribs and the lip are detail on the bell, not the bell's own outline,
     // so they are drawn at hairline weight: at structural weight their rim
     // circles read as heavy as the profile and the whole thing bands up.
     const r = bellR(t1) + MACHINE.nozzleRibR;
-    nozzle.add(thin(tier(bellY(t1) - MACHINE.nozzleRibH / 2, r, bellY(t1) + MACHINE.nozzleRibH / 2, r)));
+    nozzle.add(
+      thin(
+        tier(
+          bellY(t1) - MACHINE.nozzleRibH / 2,
+          r,
+          bellY(t1) + MACHINE.nozzleRibH / 2,
+          r,
+        ),
+      ),
+    );
   }
   const lipR = MACHINE.nozzleR0 + MACHINE.nozzleLipR;
   nozzle.add(thin(tier(bellY(1), lipR, bellY(1) + MACHINE.nozzleLipH, lipR)));
@@ -127,7 +180,9 @@ function verdict(scene) {
 
 export function createMachine(scene) {
   const m = MACHINE.manifold;
-  scene.add(box(MACHINE.manifoldW, MACHINE.manifoldH, MACHINE.manifoldD, m.x, m.y, m.z));
+  scene.add(
+    box(MACHINE.manifoldW, MACHINE.manifoldH, MACHINE.manifoldD, m.x, m.y, m.z),
+  );
   const nozzle = bell();
   scene.add(nozzle);
   verdict(scene);

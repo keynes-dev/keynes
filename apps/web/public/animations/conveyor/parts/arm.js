@@ -15,7 +15,8 @@ import { fineMat } from "../materials.js";
 // One slice of a joint barrel: a cylinder across the arm's plane. A joint is
 // two of these, coaxial and of different radii, one per link, so the near slice
 // is the face that shows, stepped down inside its rim.
-const jointSlice = (r, [from, to], ring = 0) => barrel("z", from, to, r, r, { ring });
+const jointSlice = (r, [from, to], ring = 0) =>
+  barrel("z", from, to, r, r, { ring });
 // A boss standing on the roll plane, about the jaws' hinge axis.
 const boss = (r, from, to) => barrel("y", from, to, r, r, { radial: 28 });
 // A cylinder lying along the roll axis.
@@ -61,22 +62,41 @@ export function createArm(scene) {
   // starts inside the post and ends inside the shoulder barrel, so the arm is
   // attached at both ends rather than resting against anything.
   scene.add(box(0.15, ARM.post.h, 0.5, ARM.post.x, ARM.post.y, 0));
-  const span = Math.hypot(ARM.mount.x - ARM.shoulder.x, ARM.mount.y - ARM.shoulder.y);
+  const span = Math.hypot(
+    ARM.mount.x - ARM.shoulder.x,
+    ARM.mount.y - ARM.shoulder.y,
+  );
   const mount = beam(span, ARM.mountBeam);
   mount.position.set(ARM.mount.x, ARM.mount.y, 0);
-  mount.rotation.z = Math.atan2(ARM.shoulder.y - ARM.mount.y, ARM.shoulder.x - ARM.mount.x);
+  mount.rotation.z = Math.atan2(
+    ARM.shoulder.y - ARM.mount.y,
+    ARM.shoulder.x - ARM.mount.x,
+  );
   scene.add(mount);
 
   // Shoulder: the mount's slice is the wider one and sits behind, so the upper
   // arm's own slice is the face that shows, stepped down inside its rim.
-  const shoulderRear = jointSlice(ARM.shoulderJoint.rearR, ARM.shoulderJoint.rear);
+  const shoulderRear = jointSlice(
+    ARM.shoulderJoint.rearR,
+    ARM.shoulderJoint.rear,
+  );
   shoulderRear.position.set(ARM.shoulder.x, ARM.shoulder.y, 0);
   scene.add(shoulderRear);
 
   // Upper arm: shoulder slice, beam, elbow slice, all one rigid body.
-  upper.add(jointSlice(ARM.shoulderJoint.frontR, ARM.shoulderJoint.front, ARM.shoulderJoint.ring));
+  upper.add(
+    jointSlice(
+      ARM.shoulderJoint.frontR,
+      ARM.shoulderJoint.front,
+      ARM.shoulderJoint.ring,
+    ),
+  );
   upper.add(beam(ARM.upper, ARM.upperBeam));
-  const elbowFront = jointSlice(ARM.elbowJoint.frontR, ARM.elbowJoint.front, ARM.elbowJoint.ring);
+  const elbowFront = jointSlice(
+    ARM.elbowJoint.frontR,
+    ARM.elbowJoint.front,
+    ARM.elbowJoint.ring,
+  );
   elbowFront.position.x = ARM.upper;
   upper.add(elbowFront);
   scene.add(upper);
@@ -89,7 +109,16 @@ export function createArm(scene) {
   // Wrist: the roll actuator, held level whatever the two links are doing. The
   // forearm's beam ends deep inside its block, and the bearing nose steps out
   // of the block's face along the roll axis.
-  wrist.add(box(ARM.wristBlock.l, ARM.wristBlock.h, ARM.wristBlock.w, ARM.wristBlock.x, 0, 0));
+  wrist.add(
+    box(
+      ARM.wristBlock.l,
+      ARM.wristBlock.h,
+      ARM.wristBlock.w,
+      ARM.wristBlock.x,
+      0,
+      0,
+    ),
+  );
   wrist.add(shaft(ARM.noseR, ARM.noseFrom, ARM.noseTo));
   wrist.add(faceRing("x", ARM.noseTo + 0.002, ARM.raceR, 40));
   scene.add(wrist);
@@ -125,13 +154,33 @@ export function createArm(scene) {
   for (const side of [-1, 1]) {
     const jaw = new THREE.Group();
     jaw.position.set(ARM.hinge, 0, 0);
-    jaw.add(jawBar(0, side * ARM.jawRoot, side * shankA, shankL, ARM.jawH, ARM.jawT));
+    jaw.add(
+      jawBar(0, side * ARM.jawRoot, side * shankA, shankL, ARM.jawH, ARM.jawT),
+    );
     const knuckle = boss(ARM.knuckleR, -ARM.jawH / 2, ARM.jawH / 2);
     knuckle.position.set(knuckleX, 0, side * ARM.jawFinger.z);
     jaw.add(knuckle);
     const len = ARM.jawFinger.to - ARM.jawFinger.from;
-    jaw.add(box(len, ARM.jawH, ARM.jawT, ARM.jawFinger.from + len / 2, 0, side * ARM.jawFinger.z));
-    jaw.add(box(ARM.jawPad.l, ARM.jawPad.h, ARM.jawPad.w, ARM.jawPad.x, 0, side * ARM.jawPad.z));
+    jaw.add(
+      box(
+        len,
+        ARM.jawH,
+        ARM.jawT,
+        ARM.jawFinger.from + len / 2,
+        0,
+        side * ARM.jawFinger.z,
+      ),
+    );
+    jaw.add(
+      box(
+        ARM.jawPad.l,
+        ARM.jawPad.h,
+        ARM.jawPad.w,
+        ARM.jawPad.x,
+        0,
+        side * ARM.jawPad.z,
+      ),
+    );
     jaw.userData.side = side;
     rotor.add(jaw);
     jaws.push(jaw);

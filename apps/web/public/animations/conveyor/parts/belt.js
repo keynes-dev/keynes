@@ -20,7 +20,13 @@ function gearProfile(tip, root, teeth) {
   const pts = [];
   for (let i = 0; i < teeth; i++) {
     const a = i * step;
-    for (const [r, f] of [[root, 0], [root, 0.24], [tip, 0.34], [tip, 0.66], [root, 0.76]]) {
+    for (const [r, f] of [
+      [root, 0],
+      [root, 0.24],
+      [tip, 0.34],
+      [tip, 0.66],
+      [root, 0.76],
+    ]) {
       pts.push([r * Math.cos(a + f * step), r * Math.sin(a + f * step)]);
     }
   }
@@ -33,7 +39,13 @@ export function createBelt(scene) {
   // same run comes back underneath, travelling the other way.
   const slatGeos = [];
   for (let z = -BELT.length / 2; z <= BELT.length / 2; z += BELT.slat) {
-    slatGeos.push(new THREE.BoxGeometry(BELT.width, BELT.slatRise, BELT.slatDepth).translate(0, 0, z));
+    slatGeos.push(
+      new THREE.BoxGeometry(
+        BELT.width,
+        BELT.slatRise,
+        BELT.slatDepth,
+      ).translate(0, 0, z),
+    );
   }
   const slatGeo = mergeGeometries(slatGeos);
   const slatRun = (y) => {
@@ -47,12 +59,20 @@ export function createBelt(scene) {
   const slats = slatRun(BELT.top - BELT.slatRise / 2);
   const returnSlats = slatRun(gearY - BELT.rollerR - BELT.slatRise / 2);
 
-  const gearPts = gearProfile(BELT.rollerR, BELT.rollerR * BELT.rollerRoot, BELT.rollerTeeth);
+  const gearPts = gearProfile(
+    BELT.rollerR,
+    BELT.rollerR * BELT.rollerRoot,
+    BELT.rollerTeeth,
+  );
   const gearShape = new THREE.Shape();
   gearShape.moveTo(gearPts[0][0], gearPts[0][1]);
-  for (let i = 1; i < gearPts.length; i++) gearShape.lineTo(gearPts[i][0], gearPts[i][1]);
+  for (let i = 1; i < gearPts.length; i++)
+    gearShape.lineTo(gearPts[i][0], gearPts[i][1]);
   gearShape.closePath();
-  const rollerGeo = new THREE.ExtrudeGeometry(gearShape, { depth: BELT.rollerW, bevelEnabled: false });
+  const rollerGeo = new THREE.ExtrudeGeometry(gearShape, {
+    depth: BELT.rollerW,
+    bevelEnabled: false,
+  });
   rollerGeo.translate(0, 0, -BELT.rollerW / 2);
   rollerGeo.rotateY(Math.PI / 2);
 
@@ -63,7 +83,8 @@ export function createBelt(scene) {
   const hub = BELT.rollerR * BELT.rollerHub;
   const spokes = [];
   for (const a of [0, Math.PI / 2]) {
-    const c = Math.cos(a) * hub, s = Math.sin(a) * hub;
+    const c = Math.cos(a) * hub,
+      s = Math.sin(a) * hub;
     spokes.push(faceX, c, s, faceX, -c, -s);
   }
   // Counted rather than accumulated, so the run stays symmetric about the middle
@@ -84,7 +105,8 @@ export function createBelt(scene) {
     apply({ beltShift }) {
       slats.position.z = -mod(beltShift, BELT.slat);
       returnSlats.position.z = mod(beltShift, BELT.slat);
-      for (const roller of rollers) roller.rotation.x = -beltShift / BELT.rollerR;
+      for (const roller of rollers)
+        roller.rotation.x = -beltShift / BELT.rollerR;
     },
   };
 }

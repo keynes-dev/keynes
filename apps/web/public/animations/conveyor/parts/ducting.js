@@ -10,7 +10,15 @@
 import * as THREE from "three";
 
 import { IRIS, MACHINE, PLATE_BORE } from "../config.js";
-import { addRun, frontRing, fullRing, glassPipe, segments, silhouette, solid } from "../draft.js";
+import {
+  addRun,
+  frontRing,
+  fullRing,
+  glassPipe,
+  segments,
+  silhouette,
+  solid,
+} from "../draft.js";
 import { fineMat, white } from "../materials.js";
 import { TUBES } from "../timeline.js";
 import { UP, VIEW } from "../view.js";
@@ -33,10 +41,15 @@ export function elbow(from, corner, to, r) {
   const curve = new THREE.QuadraticBezierCurve3(from, corner, to);
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, r, 24, false), white));
-  const samples = 48, left = [], right = [];
+  const samples = 48,
+    left = [],
+    right = [];
   for (let i = 0; i <= samples; i++) {
     const t = i / samples;
-    const side = new THREE.Vector3().crossVectors(curve.getTangentAt(t), VIEW).normalize().multiplyScalar(r);
+    const side = new THREE.Vector3()
+      .crossVectors(curve.getTangentAt(t), VIEW)
+      .normalize()
+      .multiplyScalar(r);
     left.push(curve.getPointAt(t).add(side));
     right.push(curve.getPointAt(t).sub(side));
   }
@@ -45,7 +58,10 @@ export function elbow(from, corner, to, r) {
   addRun(outline, right);
   g.add(segments(outline));
   const span = 0.86 - 0.14;
-  const count = Math.max(2, Math.round((curve.getLength() * span) / MACHINE.ductRib));
+  const count = Math.max(
+    2,
+    Math.round((curve.getLength() * span) / MACHINE.ductRib),
+  );
   const ribs = [];
   for (let k = 0; k <= count; k++) {
     const t = 0.14 + span * (k / count);
@@ -58,7 +74,11 @@ export function elbow(from, corner, to, r) {
 export function flange(centre, axis, r) {
   const g = new THREE.Group();
   const rf = r + MACHINE.flangeR;
-  const body = solid(new THREE.CylinderGeometry(rf, rf, MACHINE.flangeW, 32), white, 30);
+  const body = solid(
+    new THREE.CylinderGeometry(rf, rf, MACHINE.flangeW, 32),
+    white,
+    30,
+  );
   body.position.copy(centre);
   body.quaternion.setFromUnitVectors(UP, axis);
   g.add(body);
@@ -67,9 +87,18 @@ export function flange(centre, axis, r) {
   const pts = [];
   for (let b = 0; b < MACHINE.bolts; b++) {
     const a = (b / MACHINE.bolts) * Math.PI * 2;
-    const n = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(v, Math.sin(a));
+    const n = u
+      .clone()
+      .multiplyScalar(Math.cos(a))
+      .addScaledVector(v, Math.sin(a));
     if (n.dot(VIEW) > 0) continue;
-    fullRing(pts, centre.clone().addScaledVector(n, rf * 1.01), n, MACHINE.boltR, 18);
+    fullRing(
+      pts,
+      centre.clone().addScaledVector(n, rf * 1.01),
+      n,
+      MACHINE.boltR,
+      18,
+    );
   }
   g.add(segments(pts, fineMat));
   return g;
@@ -83,8 +112,13 @@ export function saddleSeam(trunkCentre, r, towards) {
     for (let j = 0; j <= 40; j++) {
       const x = -r + (2 * r * j) / 40;
       const h = Math.sqrt(Math.max(0, r * r - x * x));
-      const point = trunkCentre.clone().add(new THREE.Vector3(x, sign * h, towards * h));
-      if (new THREE.Vector3(x, 0, towards * h).dot(VIEW) > 0) { addRun(pts, run.splice(0)); continue; }
+      const point = trunkCentre
+        .clone()
+        .add(new THREE.Vector3(x, sign * h, towards * h));
+      if (new THREE.Vector3(x, 0, towards * h).dot(VIEW) > 0) {
+        addRun(pts, run.splice(0));
+        continue;
+      }
       run.push(point);
     }
     addRun(pts, run);
@@ -113,18 +147,40 @@ export function createDucting(scene) {
       scene.add(straightDuct(spigot, new THREE.Vector3(0, trunkTop, 0), R));
     } else {
       const towards = Math.sign(-tube.z);
-      const armEnd = new THREE.Vector3(0, MACHINE.armY, tube.z + towards * MACHINE.elbowR);
-      scene.add(elbow(spigot, new THREE.Vector3(0, MACHINE.armY, tube.z), armEnd, R));
-      scene.add(straightDuct(armEnd, new THREE.Vector3(0, MACHINE.armY, towards * 0.04), R));
-      scene.add(flange(armEnd.clone().setZ(armEnd.z + towards * 0.09), trunkAxis, R));
+      const armEnd = new THREE.Vector3(
+        0,
+        MACHINE.armY,
+        tube.z + towards * MACHINE.elbowR,
+      );
+      scene.add(
+        elbow(spigot, new THREE.Vector3(0, MACHINE.armY, tube.z), armEnd, R),
+      );
+      scene.add(
+        straightDuct(
+          armEnd,
+          new THREE.Vector3(0, MACHINE.armY, towards * 0.04),
+          R,
+        ),
+      );
+      scene.add(
+        flange(armEnd.clone().setZ(armEnd.z + towards * 0.09), trunkAxis, R),
+      );
       scene.add(saddleSeam(new THREE.Vector3(0, MACHINE.armY, 0), R, -towards));
     }
     // Collar joining the iris frame to the ducting below it.
-    scene.add(flange(new THREE.Vector3(0, MACHINE.elbowY + 0.05, tube.z), UP, R));
+    scene.add(
+      flange(new THREE.Vector3(0, MACHINE.elbowY + 0.05, tube.z), UP, R),
+    );
   });
 
   // The tee itself, and its bolted connection into the machine.
-  scene.add(straightDuct(new THREE.Vector3(0, trunkBottom, 0), new THREE.Vector3(0, trunkTop, 0), R));
+  scene.add(
+    straightDuct(
+      new THREE.Vector3(0, trunkBottom, 0),
+      new THREE.Vector3(0, trunkTop, 0),
+      R,
+    ),
+  );
   scene.add(flange(new THREE.Vector3(0, trunkBottom + 0.07, 0), UP, R));
 
   return {

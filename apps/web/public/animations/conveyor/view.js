@@ -22,6 +22,10 @@ camera.updateMatrixWorld();
 // Each tube's mouth projects to a different screen height, so this is per tube.
 export function skyOffset(point) {
   const here = point.clone().project(camera).y;
-  const perUnit = point.clone().setY(point.y + 1).project(camera).y - here;
+  const perUnit =
+    point
+      .clone()
+      .setY(point.y + 1)
+      .project(camera).y - here;
   return Math.max(0.6, (CONFIG.skyMargin - here) / perUnit);
 }

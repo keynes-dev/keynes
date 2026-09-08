@@ -17,12 +17,16 @@ import { setResolution } from "./materials.js";
   `still` is the frame to hold when motion is turned off.
 */
 export function host(container, { scene, camera, update, loop, still }) {
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setClearColor(0xffffff, 1);
   container.appendChild(renderer.domElement);
 
-  let running = false, last = 0, elapsed = 0;
+  let running = false,
+    last = 0,
+    elapsed = 0;
   const render = () => renderer.render(scene, camera);
 
   function frame(now) {
@@ -39,8 +43,15 @@ export function host(container, { scene, camera, update, loop, still }) {
     last = performance.now();
     requestAnimationFrame(frame);
   }
-  function stop() { running = false; }
-  function seek(t) { stop(); elapsed = t; update(mod(t, loop)); render(); }
+  function stop() {
+    running = false;
+  }
+  function seek(t) {
+    stop();
+    elapsed = t;
+    update(mod(t, loop));
+    render();
+  }
 
   function resize() {
     const size = Math.max(1, Math.round(container.clientWidth));
@@ -48,7 +59,10 @@ export function host(container, { scene, camera, update, loop, still }) {
     renderer.setPixelRatio(dpr);
     renderer.setSize(size, size, false);
     setResolution(size * dpr, size * dpr, dpr);
-    if (!running) { update(reducedMotion ? still : elapsed % loop); render(); }
+    if (!running) {
+      update(reducedMotion ? still : elapsed % loop);
+      render();
+    }
   }
   new ResizeObserver(resize).observe(container);
   resize();

@@ -56,7 +56,11 @@ export function createItems(scene) {
           const object = stacked[shape.index][j];
           object.visible = j < count;
           if (!object.visible) continue;
-          stackAt.set(0, tube.bottomY + ITEM.lift + j * shape.pitch + shift, tube.z);
+          stackAt.set(
+            0,
+            tube.bottomY + ITEM.lift + j * shape.pitch + shift,
+            tube.z,
+          );
           placeItem(object, stackAt);
         }
       }

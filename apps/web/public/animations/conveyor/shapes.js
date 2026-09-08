@@ -16,7 +16,8 @@ import { shapeMats } from "./materials.js";
 import { UP } from "./view.js";
 
 function tetraGeometry(edge) {
-  const R = edge / Math.sqrt(3), h = edge * Math.sqrt(2 / 3);
+  const R = edge / Math.sqrt(3),
+    h = edge * Math.sqrt(2 / 3);
   const base = TRI_ANGLES.map((a) => [R * Math.cos(a), 0, R * Math.sin(a)]);
   const apex = [0, h, 0];
   const pos = [];
@@ -32,7 +33,11 @@ function tetraGeometry(edge) {
 }
 
 const GEOMETRIES = [
-  new THREE.BoxGeometry(ITEM.cube, ITEM.cube, ITEM.cube).translate(0, ITEM.cube / 2, 0),
+  new THREE.BoxGeometry(ITEM.cube, ITEM.cube, ITEM.cube).translate(
+    0,
+    ITEM.cube / 2,
+    0,
+  ),
   tetraGeometry(ITEM.tetraEdge),
   new THREE.SphereGeometry(ITEM.sphereR, 24, 16).translate(0, ITEM.sphereR, 0),
 ];
@@ -46,7 +51,11 @@ function tumbles(index) {
   for (let m = 0; m < CONFIG.itemsPerDrop; m++) {
     const n = index * CONFIG.itemsPerDrop + m;
     list.push({
-      axis: new THREE.Vector3(Math.cos(n * 2.399), 0.45 * Math.cos(n * 1.13), Math.sin(n * 2.399)).normalize(),
+      axis: new THREE.Vector3(
+        Math.cos(n * 2.399),
+        0.45 * Math.cos(n * 1.13),
+        Math.sin(n * 2.399),
+      ).normalize(),
       rate: 4.6 + 1.4 * (n % 4),
     });
   }
@@ -68,9 +77,11 @@ export function item(index) {
   const shape = SHAPES[index];
   const g = new THREE.Group();
   g.add(new THREE.Mesh(shape.geometry, shape.material));
-  g.add(shape.round
-    ? sphereSilhouette(ITEM.sphereR, new THREE.Vector3(0, ITEM.sphereR, 0))
-    : edgeLines(shape.geometry, 1));
+  g.add(
+    shape.round
+      ? sphereSilhouette(ITEM.sphereR, new THREE.Vector3(0, ITEM.sphereR, 0))
+      : edgeLines(shape.geometry, 1),
+  );
   g.userData.shape = index;
   return g;
 }

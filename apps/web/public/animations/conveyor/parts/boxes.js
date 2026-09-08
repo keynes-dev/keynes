@@ -15,10 +15,18 @@ function holeShape(shape) {
   const path = new THREE.Path();
   if (shape === 0) {
     const s = ITEM.cube / 2 + 0.03;
-    path.moveTo(-s, -s); path.lineTo(s, -s); path.lineTo(s, s); path.lineTo(-s, s); path.closePath();
+    path.moveTo(-s, -s);
+    path.lineTo(s, -s);
+    path.lineTo(s, s);
+    path.lineTo(-s, s);
+    path.closePath();
   } else if (shape === 1) {
     const R = ITEM.tetraEdge / Math.sqrt(3) + 0.035;
-    TRI_ANGLES.forEach((a, i) => { const x = R * Math.cos(a), y = -R * Math.sin(a); i ? path.lineTo(x, y) : path.moveTo(x, y); });
+    TRI_ANGLES.forEach((a, i) => {
+      const x = R * Math.cos(a),
+        y = -R * Math.sin(a);
+      i ? path.lineTo(x, y) : path.moveTo(x, y);
+    });
     path.closePath();
   } else {
     path.absarc(0, 0, ITEM.sphereR + 0.03, 0, Math.PI * 2, false);
@@ -37,14 +45,19 @@ function panel(shape, w, h) {
   outer.lineTo(-w / 2, h / 2);
   outer.closePath();
   outer.holes.push(holeShape(shape));
-  const geometry = new THREE.ExtrudeGeometry(outer, { depth: BOX.wall, bevelEnabled: false, curveSegments: 32 });
+  const geometry = new THREE.ExtrudeGeometry(outer, {
+    depth: BOX.wall,
+    bevelEnabled: false,
+    curveSegments: 32,
+  });
   geometry.translate(0, 0, -BOX.wall / 2);
 
   const pts = holeShape(shape).getPoints(48);
   const z = BOX.wall / 2;
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
-    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const a = pts[i],
+      b = pts[(i + 1) % pts.length];
     cut.push(a.x, a.y, z, b.x, b.y, z);
   }
 
@@ -64,10 +77,11 @@ function panel(shape, w, h) {
   would put the box's pivot off its own centre and make a flip lopsided.
 */
 function crate({ top, base: baseShape, xPos, xNeg, zPos, zNeg }) {
-  const s = BOX.size, wt = BOX.wall;
-  const h = s - wt;             // the height the box outlines for itself
-  const face = (s - wt) / 2;    // centre plane of a side panel, so its outer face lands on the outline
-  const inner = s - 2 * wt;     // the pair of panels that sit between the other pair
+  const s = BOX.size,
+    wt = BOX.wall;
+  const h = s - wt; // the height the box outlines for itself
+  const face = (s - wt) / 2; // centre plane of a side panel, so its outer face lands on the outline
+  const inner = s - 2 * wt; // the pair of panels that sit between the other pair
   const g = new THREE.Group();
 
   const base = panel(baseShape, s, s);
@@ -93,7 +107,10 @@ function crate({ top, base: baseShape, xPos, xNeg, zPos, zNeg }) {
   }
 
   // A solid black core, so every hole reads as an opening rather than a wall.
-  const core = new THREE.Mesh(new THREE.BoxGeometry(inner - 0.01, h - 2 * wt - 0.01, inner - 0.01), black);
+  const core = new THREE.Mesh(
+    new THREE.BoxGeometry(inner - 0.01, h - 2 * wt - 0.01, inner - 0.01),
+    black,
+  );
   core.position.y = h / 2;
   g.add(core);
 

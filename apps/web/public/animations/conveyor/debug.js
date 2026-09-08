@@ -12,7 +12,8 @@ import { CONFIG, SHAPES } from "./config.js";
 
 export function hud(scene, timeline, controls) {
   const el = document.createElement("div");
-  el.style.cssText = "position:fixed;left:8px;top:8px;z-index:99;font:11px/1.45 ui-monospace,monospace;" +
+  el.style.cssText =
+    "position:fixed;left:8px;top:8px;z-index:99;font:11px/1.45 ui-monospace,monospace;" +
     "background:#fff;border:1px solid #111;padding:6px 8px;white-space:pre;color:#111;max-width:60vw";
   document.body.appendChild(el);
 
@@ -32,7 +33,8 @@ export function hud(scene, timeline, controls) {
     if (built === null) built = objects;
 
     const faults = [];
-    if (objects !== built) faults.push(`objects ${built} -> ${objects}: module loaded twice`);
+    if (objects !== built)
+      faults.push(`objects ${built} -> ${objects}: module loaded twice`);
     const canvases = document.querySelectorAll("#scene canvas").length;
     if (canvases !== 1) faults.push(`${canvases} canvases: page mounted twice`);
 
@@ -43,18 +45,31 @@ export function hud(scene, timeline, controls) {
     SHAPES.forEach((shape, index) => {
       const ys = seen[index].sort((a, b) => a - b);
       let worst = Infinity;
-      for (let i = 1; i < ys.length; i++) worst = Math.min(worst, ys[i] - ys[i - 1]);
+      for (let i = 1; i < ys.length; i++)
+        worst = Math.min(worst, ys[i] - ys[i - 1]);
       const gap = ys.length < 2 ? "  —  " : worst.toFixed(3);
-      lines.push(`${shape.name.padEnd(12)} ${ys.length} shown  gap ${gap}  y ${ys.map((y) => y.toFixed(2)).join(" ")}`);
-      if (ys.length > CONFIG.tubeCapacity + CONFIG.itemsPerDrop) faults.push(`${shape.name}: ${ys.length} visible at once`);
-      if (ys.length > 1 && worst < shape.height - 1e-9) faults.push(`${shape.name}: shapes ${worst.toFixed(3)} apart, ${shape.height.toFixed(3)} tall — INSIDE EACH OTHER`);
+      lines.push(
+        `${shape.name.padEnd(12)} ${ys.length} shown  gap ${gap}  y ${ys.map((y) => y.toFixed(2)).join(" ")}`,
+      );
+      if (ys.length > CONFIG.tubeCapacity + CONFIG.itemsPerDrop)
+        faults.push(`${shape.name}: ${ys.length} visible at once`);
+      if (ys.length > 1 && worst < shape.height - 1e-9)
+        faults.push(
+          `${shape.name}: shapes ${worst.toFixed(3)} apart, ${shape.height.toFixed(3)} tall — INSIDE EACH OTHER`,
+        );
     });
 
     if (faults.length) {
       controls.stop();
       el.style.borderColor = "#e3262e";
       el.style.borderWidth = "2px";
-      lines.push("", "FROZEN — fault caught:", ...faults.map((f) => "  " + f), "", "screenshot this box");
+      lines.push(
+        "",
+        "FROZEN — fault caught:",
+        ...faults.map((f) => "  " + f),
+        "",
+        "screenshot this box",
+      );
       el.textContent = lines.join("\n");
       return;
     }

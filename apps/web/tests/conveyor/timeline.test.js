@@ -8,9 +8,21 @@
 */
 import { describe as suite, expect, it } from "vitest";
 
-import { BELT, BOXES, CONFIG, ITEM, MACHINE, SHAPES, WRAP } from "../../public/animations/conveyor/config.js";
+import {
+  BELT,
+  BOXES,
+  CONFIG,
+  ITEM,
+  MACHINE,
+  SHAPES,
+  WRAP,
+} from "../../public/animations/conveyor/config.js";
 import { settle, settleTime } from "../../public/animations/conveyor/math.js";
-import { createTimeline, irisOpening, TUBES } from "../../public/animations/conveyor/timeline.js";
+import {
+  createTimeline,
+  irisOpening,
+  TUBES,
+} from "../../public/animations/conveyor/timeline.js";
 
 // The camera answers this in the browser; any plausible height will do here.
 const SKY = [3, 3, 3];
@@ -31,7 +43,10 @@ suite("box faces", () => {
   // where its lid was, and its far z face brought round to the near side.
   it("shows three different shapes in both stances of every box", () => {
     for (const box of BOXES) {
-      for (const stance of [[box.top, box.xPos, box.zPos], [box.base, box.xPos, box.zNeg]]) {
+      for (const stance of [
+        [box.top, box.xPos, box.zPos],
+        [box.base, box.xPos, box.zNeg],
+      ]) {
         expect(new Set(stance).size, `repeated shape in ${stance}`).toBe(3);
       }
     }
@@ -54,13 +69,18 @@ suite("the loop", () => {
   });
 
   it("comes back to the frame it started on", () => {
-    const key = (frame) => frame.boxes
-      .map((box, k) => [k % BOXES.length, box.z.toFixed(6), box.roll.toFixed(6)].join(":"))
-      .sort();
+    const key = (frame) =>
+      frame.boxes
+        .map((box, k) =>
+          [k % BOXES.length, box.z.toFixed(6), box.roll.toFixed(6)].join(":"),
+        )
+        .sort();
     const start = snapshot(0);
     const end = snapshot(LOOP - 1e-9);
     expect(key(end)).toEqual(key(start));
-    expect(end.stacks.map((s) => s.count)).toEqual(start.stacks.map((s) => s.count));
+    expect(end.stacks.map((s) => s.count)).toEqual(
+      start.stacks.map((s) => s.count),
+    );
   });
 
   it("never leaves the arm anywhere but parked between cycles", () => {
@@ -84,7 +104,10 @@ suite("the loop", () => {
         frame.boxes.forEach((box, k) => {
           if (Math.abs(box.z) > seam) return;
           const step = Math.abs(box.roll - last[k].roll);
-          expect(step, `box ${k} stepped ${step.toFixed(3)} at z=${box.z.toFixed(3)}`).toBeLessThan(0.05);
+          expect(
+            step,
+            `box ${k} stepped ${step.toFixed(3)} at z=${box.z.toFixed(3)}`,
+          ).toBeLessThan(0.05);
         });
       }
       last = frame.boxes;
@@ -106,9 +129,15 @@ suite("the tubes", () => {
 
   it("opens empty, is charged by the end of the pour, and is spent by the stall", () => {
     expect(snapshot(0).stacks.map((s) => s.count)).toEqual(SHAPES.map(() => 0));
-    expect(snapshot(POUR.length - 1e-9).stacks.map((s) => s.count)).toEqual(SHAPES.map(() => CONFIG.tubeCapacity));
-    expect(snapshot(STALL.start).stacks.map((s) => s.count)).toEqual(SHAPES.map(() => 0));
-    expect(snapshot(LOOP - 1e-9).stacks.map((s) => s.count)).toEqual(SHAPES.map(() => 0));
+    expect(snapshot(POUR.length - 1e-9).stacks.map((s) => s.count)).toEqual(
+      SHAPES.map(() => CONFIG.tubeCapacity),
+    );
+    expect(snapshot(STALL.start).stacks.map((s) => s.count)).toEqual(
+      SHAPES.map(() => 0),
+    );
+    expect(snapshot(LOOP - 1e-9).stacks.map((s) => s.count)).toEqual(
+      SHAPES.map(() => 0),
+    );
   });
 
   it("has one shape in the air at a time, and only from the tube being spent", () => {
@@ -117,7 +146,9 @@ suite("the tubes", () => {
       expect(flying.length).toBeLessThanOrEqual(CONFIG.itemsPerDrop);
       // Whatever is in the air belongs to the shape this cycle dispenses, and
       // the beat that dispenses nothing has nothing in the air.
-      expect(frame.shape).toBe(frame.cycle.entry ? frame.cycle.entry.dispense : -1);
+      expect(frame.shape).toBe(
+        frame.cycle.entry ? frame.cycle.entry.dispense : -1,
+      );
       if (frame.shape < 0) expect(flying.length).toBe(0);
     }
   });
@@ -125,7 +156,8 @@ suite("the tubes", () => {
   it("blinks each iris once per shape released", () => {
     for (const cycle of BOX_CYCLES) {
       const shape = cycle.entry.dispense;
-      let blinks = 0, wasShut = true;
+      let blinks = 0,
+        wasShut = true;
       for (let u = 0; u < cycle.length; u += 1 / 400) {
         const open = irisOpening(shape, u, cycle) > 0;
         if (open && wasShut) blinks++;
@@ -137,7 +169,9 @@ suite("the tubes", () => {
 
   it("leaves nothing undefined anywhere in a frame", () => {
     for (const frame of frames) {
-      for (const value of JSON.stringify(frame).match(/-?\d+(\.\d+)?(e-?\d+)?/g) ?? []) {
+      for (const value of JSON.stringify(frame).match(
+        /-?\d+(\.\d+)?(e-?\d+)?/g,
+      ) ?? []) {
         expect(Number.isFinite(Number(value))).toBe(true);
       }
     }
@@ -164,14 +198,22 @@ suite("the pour and the stall", () => {
   it("pours from the first instant, under an amber lamp", () => {
     expect(snapshot(0).lamp).toBe(CONFIG.lampColors.running);
     const pouring = [];
-    for (let t = 0; t < POUR.length; t += 1 / 240) if (snapshot(t).refill.flat().some((r) => r.visible)) pouring.push(t);
+    for (let t = 0; t < POUR.length; t += 1 / 240)
+      if (
+        snapshot(t)
+          .refill.flat()
+          .some((r) => r.visible)
+      )
+        pouring.push(t);
     expect(pouring.length).toBeGreaterThan(0);
     expect(pouring[0]).toBeLessThan(CONFIG.refillStart + 0.01);
   });
 
   it("has everything landed and waiting before the belt moves", () => {
     const ready = snapshot(POUR.length - CONFIG.phase.resume / 2);
-    expect(ready.stacks.map((s) => s.count)).toEqual(SHAPES.map(() => CONFIG.tubeCapacity));
+    expect(ready.stacks.map((s) => s.count)).toEqual(
+      SHAPES.map(() => CONFIG.tubeCapacity),
+    );
     expect(ready.refill.flat().some((r) => r.visible)).toBe(false);
   });
 
@@ -204,15 +246,24 @@ suite("stacking", () => {
   // through the base of the one above it.
   it("leaves a shape clear of the one above it", () => {
     for (const shape of SHAPES) {
-      expect(shape.pitch, `${shape.name} sits inside its neighbour`).toBeGreaterThan(shape.height);
+      expect(
+        shape.pitch,
+        `${shape.name} sits inside its neighbour`,
+      ).toBeGreaterThan(shape.height);
       expect(shape.pitch - shape.height).toBeCloseTo(ITEM.gap, 12);
     }
   });
 
   it("fits a full charge inside the tube that holds it", () => {
     SHAPES.forEach((shape, s) => {
-      const top = TUBES[s].bottomY + ITEM.lift + (CONFIG.tubeCapacity - 1) * shape.pitch + shape.height;
-      expect(top, `${shape.name} stack stands out of its tube`).toBeLessThan(TUBES[s].topY);
+      const top =
+        TUBES[s].bottomY +
+        ITEM.lift +
+        (CONFIG.tubeCapacity - 1) * shape.pitch +
+        shape.height;
+      expect(top, `${shape.name} stack stands out of its tube`).toBeLessThan(
+        TUBES[s].topY,
+      );
     });
   });
 
