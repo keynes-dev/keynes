@@ -1,13 +1,11 @@
-import logo from "@/assets/logo.svg";
+import logoSvg from "@/assets/logo.svg?raw";
 
 export function Logo() {
   return (
-    <img
-      alt=""
-      className="block h-9 w-auto"
-      height={36}
-      src={logo.src}
-      width={65}
+    <span
+      aria-hidden
+      className="block h-9 w-auto text-foreground [&_svg]:block [&_svg]:h-9 [&_svg]:w-auto"
+      dangerouslySetInnerHTML={{ __html: logoSvg }}
     />
   );
 }

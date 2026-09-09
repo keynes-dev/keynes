@@ -7,7 +7,7 @@
   A declaration here says only what the tag accepts, never that anything has
   defined it.
 */
-import type { HTMLAttributes } from "react";
+import "react";
 
 declare module "react" {
   namespace JSX {
