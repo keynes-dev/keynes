@@ -148,10 +148,32 @@ that future development avoids duplicated behavior or setup.
 
 ### SQLite and PostgreSQL behavior tests
 
-The PR job `SQLite and PostgreSQL behavior tests` runs independently of
-`Repository and tests`. It runs the same Budget registration on real private SQLite
-and the complete native PostgreSQL suite. Every assertion must pass, the shared
-names must match, and native-only coverage must be complete. Missing Docker,
+The required PR job `SQLite and PostgreSQL behavior tests` runs independently of
+`Repository and tests` on every revision. It classifies the complete pull request
+change set before installing dependencies or starting a database. The job reports
+`not-applicable` only when every changed path is approved documentation, marketing-
+site source or tests, a Spec Kit record, or exact non-executable repository metadata.
+See the [KEY-93 applicability contract](features/key-93-run-postgresql-tests-only-for-relevant-changes/contracts/ci-relevance.md)
+for the reviewed path rules and failure states.
+
+All package manifests, `pnpm-lock.yaml`, workspace and website toolchain inputs,
+workflows, scripts, runtime packages, shared contracts, database tests, Spec Kit
+machinery, mixed changes, and unknown paths require full execution. Deletions and
+both paths of a move are classified. Missing, malformed, empty, stale, or failed
+classification fails the required job; it never becomes a successful skip. There is
+no label override, manual bypass, or scheduled substitute.
+
+For `not-applicable`, inspect the required job summary for the checked-out merge
+candidate, event base and head, merge base, disposition, and every path's approved
+category. The summary states that SQLite and PostgreSQL are `NOT RUN` and that no
+database evidence was produced. A green required result in this state is
+classification evidence, not proof that either database passed. The job must not
+install dependencies, execute the paired runner, upload database files, or confirm
+an artifact receipt.
+
+For a relevant revision, the job runs the same Budget registration on real private
+SQLite and the complete native PostgreSQL suite. Every assertion must pass, the
+shared names must match, and native-only coverage must be complete. Missing Docker,
 skipped tests, stale or incomplete evidence, and failed cleanup fail the command.
 
 Reproduce the paired check from a clean checkout with frozen dependencies,
