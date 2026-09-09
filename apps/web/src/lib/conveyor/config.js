@@ -62,7 +62,7 @@ export const CONFIG = {
   // Either way the ground it stands on runs out behind whatever else the caller
   // has put there; what changes is where there is room for that — beside the
   // machine when the frame is wide, under it when the frame is tall. Which of
-  // the two applies is the caller's to decide, not the drawing's.
+  // the two applies is `choosePlace` below.
   aside: { x: 0.46, y: 0, zoom: 1 },
   below: { x: 0.107, y: -0.429, zoom: 2.5 },
   skyMargin: 1.15,
@@ -351,3 +351,22 @@ export const SHAPES = Object.freeze(
 );
 
 export const PLATE_BORE = Math.max(...SHAPES.map((s) => s.radius));
+
+/*
+  Whether there is room to set something beside the machine, which decides which
+  of `CONFIG.aside` and `CONFIG.below` the frame is drawn to.
+
+  This is the same query Tailwind's `lg:` is, and it has to be: the caller lays
+  its text out on that breakpoint (`Hero.tsx` uses `lg:max-w-[52%]`,
+  `lg:min-h-[32rem]`, `lg:justify-center`), and a camera that switched on
+  anything else — a pixel width of the container, say — would agree with the
+  text only by coincidence and drift the day the padding or the root font size
+  changed. Asked rather than subscribed to: crossing this width necessarily
+  resizes the container, so the host's resize observer already fires on every
+  transition and a second subscription could only disagree with the first.
+*/
+export function choosePlace() {
+  return window.matchMedia("(min-width: 64rem)").matches
+    ? CONFIG.aside
+    : CONFIG.below;
+}

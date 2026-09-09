@@ -1,38 +1,46 @@
 import { ArrowRight } from "lucide-react";
-import { useEffect, useState } from "react";
 
-import { ConveyorBelt } from "./ConveyorBelt";
 import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 
-// Wide enough to set the text beside the machine. Below this there is no room
-// for that, so the machine drops to the bottom of the section and the text
-// takes the top of it instead.
-const ROOM_BESIDE = "(min-width: 64rem)";
-
 export function Hero() {
-  // Where the machine stands is the camera's business rather than CSS's, so the
-  // breakpoint has to be read here and handed down.
-  const [beside, setBeside] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia(ROOM_BESIDE);
-    const read = () => setBeside(query.matches);
-    read();
-    query.addEventListener("change", read);
-    return () => query.removeEventListener("change", read);
-  }, []);
-
   return (
     // The drawing is clipped to the container rather than run across the whole
     // section, so its grid stops at the same rules everything else on the page
     // lines up with.
     <Section className="relative flex min-h-[40rem] flex-col justify-start overflow-hidden pt-12 pb-24 lg:min-h-[32rem] lg:justify-center lg:py-24">
-      <ConveyorBelt aside={beside} />
-      <div className="relative flex flex-col gap-4 lg:max-w-[52%]">
+      {/*
+        The conveyor animation, drawn behind the text: the ground grid fills the
+        whole of the section and the machine stands in one corner of it. Where
+        in the frame it stands is settled inside the drawing from the width of
+        this element, so there is nothing to pass it and no state here to fall
+        out of step with the `lg:` rules below.
+
+        A tag rather than a component so that this section needs no hydrating:
+        it is otherwise all text and links. `pages/index.astro` is what defines
+        the tag; importing the module here would not work, since nothing in this
+        file is ever run in the browser.
+
+        The label is on the element itself, so it stands whether or not the
+        script that fills the element in ever arrives.
+      */}
+      <conveyor-belt
+        // The drawing is drawn in this element's own colours, so they are set
+        // here rather than in the drawing: `text-*` is the ink, `bg-*` the
+        // ground, `border-*` the grid's rule, and a `dark:` variant on any of
+        // them is followed. Only the ink is worth stating — the other two
+        // already fall back to the card's own, and giving this element a
+        // background would only paint one behind a canvas that covers it.
+        // Never in the way of selecting the text it sits under.
+        className="pointer-events-none absolute inset-0 bg-background text-primary border-border"
+        role="img"
+        aria-label="A machine sorting shapes into boxes on a conveyor belt: each box receives the shape that fits the hole in its lid, and one that arrives the wrong way up is turned over by a mechanical arm."
+      />
+      <div className="relative flex flex-col gap-4 lg:max-w-[50%]">
         <h1 className="font-heading text-4xl tracking-tight text-balance">
           Runtime economics for agents
         </h1>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg">
           Give your agents observability into your business with programmable
           resource controls for tokens, tools, time, and more.
         </p>

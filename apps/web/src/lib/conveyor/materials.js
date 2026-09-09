@@ -11,6 +11,10 @@
   since what shows through it has to read against the face it is cut in. The
   lamp keeps its own colours: those carry the verdict and mean the same thing
   whichever way round the page is.
+
+  These are one set for the module rather than one per conveyor, and `setTheme`
+  and `setResolution` retune that set in place, so two conveyors on a page would
+  each repaint the other's. `createConveyor` refuses a second one.
 */
 import * as THREE from "three";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
@@ -23,11 +27,19 @@ const offset = {
   polygonOffsetUnits: 1,
 };
 
-// Widths are in CSS pixels; the registry scales them by the device ratio.
+// Widths are in CSS pixels. LineSegments2 writes the CSS viewport into
+// `resolution` before each draw, so a linewidth of 1 is a 1px stroke — the
+// same as a CSS border. Multiplying that by the device ratio would double
+// it on a retina display.
+//
+// `weigh` is whether a stroke follows the drawing's scale: machine ink does,
+// so a zoomed-out frame keeps its proportions. The ground grid does not — it
+// is the same 1px rule as the page's own borders, which do not thicken when
+// the machine shrinks.
 const widths = new Map();
-function lineMaterial(width) {
+function lineMaterial(width, weigh = true) {
   const material = new LineMaterial({ color: CONFIG.ink, linewidth: width });
-  widths.set(material, width);
+  widths.set(material, { width, weigh });
   return material;
 }
 
@@ -63,10 +75,9 @@ export const shapeMats = CONFIG.shapeColors.map(
       ...offset,
     }),
 );
-// The ground grid. GridHelper bakes its two colours into vertex attributes;
-// giving it a plain material instead makes it one faint rule that can be
-// themed with everything else.
-export const gridMat = new THREE.LineBasicMaterial({ color: CONFIG.rule });
+// The ground grid. A 1px CSS stroke, same as the page's own rules.
+export const gridMat = lineMaterial(1, false);
+gridMat.color.setHex(CONFIG.rule);
 export const lineMat = lineMaterial(CONFIG.lineWidth);
 // Hairline weight for mechanism detail. At 512px a bolt head is only a few
 // pixels across, so the structural line weight fills it in solid.
@@ -91,8 +102,10 @@ export function setTheme(ground, ink, rule) {
   full-weight strokes and its detail closes up into a blot.
 */
 export function setResolution(width, height, pixelRatio, weight = 1) {
-  for (const [material, base] of widths) {
+  for (const [material, spec] of widths) {
     material.resolution.set(width, height);
-    material.linewidth = base * pixelRatio * weight;
+    material.linewidth = spec.weigh
+      ? spec.width * pixelRatio * weight
+      : spec.width;
   }
 }

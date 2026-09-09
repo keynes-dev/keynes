@@ -17,7 +17,7 @@ import { Thesis } from "../components/pages/home/Thesis";
 >
   <Nav />
   <main>
-    <Hero client:load />
+    <Hero />
     <HeroDiagram client:load />
     <Thesis />
     <HowItWorks client:load />
@@ -27,3 +27,14 @@ import { Thesis } from "../components/pages/home/Thesis";
   </main>
   <Footer />
 </BaseLayout>
+
+<!--
+  Defines the `<conveyor-belt>` tag `Hero` uses. It is registered here rather
+  than by the section itself because that section is rendered to HTML and never
+  hydrated, so an import inside it would run at build time and never reach the
+  browser. A page that wants the drawing has to say so; move this to
+  `BaseLayout` if the tag is ever wanted on more than one.
+-->
+<script>
+  import "@/lib/conveyor/element.js";
+</script>

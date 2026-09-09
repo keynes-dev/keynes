@@ -42,3 +42,13 @@ behavior, and evidence retained from older revisions. Do not leave a generated
 `Summary` and `Testing` stub when the repository contains enough context for a
 complete description. Scale the length to the change, but keep the motivation,
 implementation, verification, evidence boundaries, and review path.
+
+## Learned User Preferences
+
+- Write product and vision prose like a person: lead with a clear, bold, product-focused thesis. Avoid marketing copy, long noun-and-clause lists, overwritten list-style sentences, and artificial 80-character line wraps.
+- Do not enable format-on-save for markdown.
+
+## Learned Workspace Facts
+
+- `docs/product.md` is the product vision document, not marketing copy.
+- The public web app lives in `apps/web` (Astro).
