@@ -15,26 +15,47 @@ import { setResolution, setTheme } from "./materials.js";
 import { frameCamera } from "./view.js";
 
 /*
-  A CSS colour as an sRGB number. The page states its colours in `oklch`, which
-  three's parser does not read, so the browser is asked to do it: painting the
-  colour onto a canvas and reading the pixel back works for any colour CSS can
-  express, however it was written.
+  A CSS colour as an sRGB number, or null if it is not a colour or is wholly
+  transparent — which is what an element with no background of its own computes
+  to, and so how the caller tells "nothing said" from "said black".
 
-  Made on first use rather than at import, so that nothing in this module runs a
-  `document` call merely because it was named in an import: the drawing is only
-  ever reached through a dynamic import from the browser today, but a static one
-  from a server-rendered module is an easy thing to write by accident and should
-  fail on the missing canvas, not on the import.
+  The page states its colours in `oklch`, which three's parser does not read, so
+  the browser is asked to do it: painting the colour onto a canvas and reading
+  the pixel back works for any colour CSS can express, however it was written.
+
+  A colour given with alpha is laid over `over` — the theme's `--border` in the
+  dark is white at a tenth, and means the tenth of white the card behind shows
+  through as, not white. Alpha needs a backdrop to mean anything, and the swatch
+  is one pixel reused, so without one such a colour composites over whatever was
+  last resolved on it and comes out near enough that.
+
+  The swatch is made on first use rather than at import, so that nothing here
+  runs a `document` call merely because this module was named in an import: the
+  drawing is only ever reached through a dynamic import from the browser today,
+  but a static one from a server-rendered module is an easy thing to write by
+  accident and should fail on the missing canvas, not on the import.
 */
 let swatch;
-function resolve(colour, fallback) {
-  if (!colour) return fallback;
+function paint(colour, over) {
+  if (!colour) return null;
   swatch ??= document
     .createElement("canvas")
     .getContext("2d", { willReadFrequently: true });
-  swatch.fillStyle = "#000";
+  swatch.clearRect(0, 0, 1, 1);
+  // Setting an unreadable colour leaves the previous one standing, so the
+  // fully transparent one before it is what an unusable value falls back to.
+  swatch.fillStyle = "rgba(0, 0, 0, 0)";
   swatch.fillStyle = colour.trim();
   swatch.fillRect(0, 0, 1, 1);
+  const alpha = swatch.getImageData(0, 0, 1, 1).data[3];
+  if (!alpha) return null;
+  if (alpha < 255) {
+    // Behind what is already there, which is what sitting on the ground means.
+    swatch.globalCompositeOperation = "destination-over";
+    swatch.fillStyle = `#${(over ?? CONFIG.ground).toString(16).padStart(6, "0")}`;
+    swatch.fillRect(0, 0, 1, 1);
+    swatch.globalCompositeOperation = "source-over";
+  }
   const [r, g, b] = swatch.getImageData(0, 0, 1, 1).data;
   return (r << 16) | (g << 8) | b;
 }
@@ -67,18 +88,30 @@ export function host(container, { scene, camera, update, loop, still, place }) {
   });
   container.appendChild(renderer.domElement);
 
-  // The drawing takes the colours of whatever it has been dropped into, read
-  // off the container itself so it follows the card it sits in rather than the
-  // page behind it.
+  /*
+    The drawing is drawn in the element's own colours, so it takes them the way
+    anything else on the page does and can be told them the same way — a utility
+    class, a style, a variant — rather than through a vocabulary of its own:
+
+      ground  the element's `background-color`, falling back to `--card`
+      ink     its `color`, which it inherits like any text
+      rule    its `border-color`, which this app's base layer sets to `--border`
+
+    Ink inheriting is the useful part and the reason it is `color` rather than a
+    property of our own: the drawing comes out in the ink of whatever it was put
+    in without being told, exactly as an icon drawn in `currentColor` does, and
+    saying otherwise is one class. Nothing is read from the page itself, so a
+    conveyor in a card follows the card.
+  */
   let ground = CONFIG.ground;
   function repaint() {
     const style = getComputedStyle(container);
-    ground = resolve(style.getPropertyValue("--card"), CONFIG.ground);
-    const ink = resolve(
-      style.getPropertyValue("--card-foreground"),
-      CONFIG.ink,
-    );
-    const rule = resolve(style.getPropertyValue("--border"), CONFIG.rule);
+    ground =
+      paint(style.backgroundColor) ??
+      paint(style.getPropertyValue("--card")) ??
+      CONFIG.ground;
+    const ink = paint(style.color, ground) ?? CONFIG.ink;
+    const rule = paint(style.borderTopColor, ground) ?? CONFIG.rule;
     setTheme(ground, ink, rule);
     renderer.setClearColor(ground, 1);
     scene.background = new THREE.Color(ground);

@@ -25,8 +25,14 @@ export function Hero() {
         script that fills the element in ever arrives.
       */}
       <conveyor-belt
+        // The drawing is drawn in this element's own colours, so they are set
+        // here rather than in the drawing: `text-*` is the ink, `bg-*` the
+        // ground, `border-*` the grid's rule, and a `dark:` variant on any of
+        // them is followed. Only the ink is worth stating — the other two
+        // already fall back to the card's own, and giving this element a
+        // background would only paint one behind a canvas that covers it.
         // Never in the way of selecting the text it sits under.
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 text-card-foreground"
         role="img"
         aria-label="A machine sorting shapes into boxes on a conveyor belt: each box receives the shape that fits the hole in its lid, and one that arrives the wrong way up is turned over by a mechanical arm."
       />
