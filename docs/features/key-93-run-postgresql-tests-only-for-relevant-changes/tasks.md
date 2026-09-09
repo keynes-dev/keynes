@@ -10,8 +10,8 @@
 
 **Purpose**: Bind the work to the current gate and establish the red tests before changing behavior.
 
-- [ ] T001 Record the source revision, current workflow shape, protected-main required contexts, current PR state, and inherited KEY-75/KEY-60 evidence boundary in `docs/features/key-93-run-postgresql-tests-only-for-relevant-changes/acceptance.md`; mark classifier, hosted routing, timing, database execution, and enforcement demonstrations `NOT RUN`.
-- [ ] T002 Add the complete expected-failing classifier and workflow-contract suite in `scripts/classify-sqlite-postgres-changes.test.ts`: NUL status parsing; relative-path validation; every safe and relevant rule; mixed, lockfile, unknown, deletion, type-change, move, base-advance, malformed, empty, Git-failure, revision, summary-escaping, exact-check-name, step-order, condition, and no-bypass cases. Run it before adding the source or workflow behavior and retain the expected failure in `acceptance.md`.
+- [x] T001 Record the source revision, current workflow shape, protected-main required contexts, current PR state, and inherited KEY-75/KEY-60 evidence boundary in `docs/features/key-93-run-postgresql-tests-only-for-relevant-changes/acceptance.md`; mark classifier, hosted routing, timing, database execution, and enforcement demonstrations `NOT RUN`.
+- [x] T002 Add the complete expected-failing classifier and workflow-contract suite in `scripts/classify-sqlite-postgres-changes.test.ts`: NUL status parsing; relative-path validation; every safe and relevant rule; mixed, lockfile, unknown, deletion, type-change, move, base-advance, malformed, empty, Git-failure, revision, summary-escaping, exact-check-name, step-order, condition, and no-bypass cases. Run it before adding the source or workflow behavior and retain the expected failure in `acceptance.md`.
 
 **Checkpoint**: The intended missing-classifier/workflow behavior has one attributable failing automated test run.
 
@@ -23,11 +23,11 @@
 
 **Independent Test**: Feed documentation-only, website-source/test-only, Spec Kit-record-only, metadata-only, and cross-category-safe diffs through the classifier and confirm `not-applicable`, complete attribution, and no database-step eligibility.
 
-- [ ] T003 [US1] Implement the dependency-free types, strict NUL-delimited status parser, relative-path validation, narrow approved allowlist, and default-relevant decision in `scripts/classify-sqlite-postgres-changes.ts`; keep all manifests, lockfiles, toolchain inputs, workflows, scripts, `.specify` machinery, and unknown paths relevant.
-- [ ] T004 [US1] Implement the injected Git/event boundary in `scripts/classify-sqlite-postgres-changes.ts`: validate event base/head and checked-out merge SHAs, compute the merge base, run `git diff --name-status -z --no-renames`, reject empty or malformed comparisons, and emit only a closed Boolean/disposition pair.
-- [ ] T005 [US1] Update `.github/workflows/ci.yml` to retain the unconditional `sqlite-postgres` job and exact display name, fetch complete history, run Node 24 and classification before pnpm, validate the closed output pair, and condition pnpm setup, frozen install, and paired execution on `run_databases == 'true'`.
-- [ ] T006 [US1] Add `scripts/classify-sqlite-postgres-changes.test.ts` to the existing `test:repository` command in `package.json` so the provider-free PR lane enforces the policy and workflow contract.
-- [ ] T007 [US1] Run the focused classifier and repository tests, resolve only feature-caused defects, and record the green commands and revision in `acceptance.md`.
+- [x] T003 [US1] Implement the dependency-free types, strict NUL-delimited status parser, relative-path validation, narrow approved allowlist, and default-relevant decision in `scripts/classify-sqlite-postgres-changes.ts`; keep all manifests, lockfiles, toolchain inputs, workflows, scripts, `.specify` machinery, and unknown paths relevant.
+- [x] T004 [US1] Implement the injected Git/event boundary in `scripts/classify-sqlite-postgres-changes.ts`: validate event base/head and checked-out merge SHAs, compute the merge base, run `git diff --name-status -z --no-renames`, reject empty or malformed comparisons, and emit only a closed Boolean/disposition pair.
+- [x] T005 [US1] Update `.github/workflows/ci.yml` to retain the unconditional `sqlite-postgres` job and exact display name, fetch complete history, run Node 24 and classification before pnpm, validate the closed output pair, and condition pnpm setup, frozen install, and paired execution on `run_databases == 'true'`.
+- [x] T006 [US1] Add `scripts/classify-sqlite-postgres-changes.test.ts` to the existing `test:repository` command in `package.json` so the provider-free PR lane enforces the policy and workflow contract.
+- [x] T007 [US1] Run the focused classifier and repository tests, resolve only feature-caused defects, and record the green commands and revision in `acceptance.md`.
 
 **Checkpoint**: Approved non-runtime inputs produce a validated skip decision locally, while the required job remains structurally present.
 
@@ -39,8 +39,8 @@
 
 **Independent Test**: Exercise all relevant categories, including `pnpm-lock.yaml` beside website files and both sides of a cross-category move, then run the unchanged paired gate into a fresh directory.
 
-- [ ] T008 [US2] Complete the relevant-lane conditions in `.github/workflows/ci.yml`: gate upload and receipt steps on the validated relevant output while preserving `always()`, the five-file allowlist, missing-file failure, no overwrite, retention, artifact ID/digest checks, and the existing paired command.
-- [ ] T009 [US2] Run the policy, Git-boundary, and workflow-contract matrix in `scripts/classify-sqlite-postgres-changes.test.ts`; prove classifier errors exit nonzero without successful not-applicable outputs and record the results in `acceptance.md`.
+- [x] T008 [US2] Complete the relevant-lane conditions in `.github/workflows/ci.yml`: gate upload and receipt steps on the validated relevant output while preserving `always()`, the five-file allowlist, missing-file failure, no overwrite, retention, artifact ID/digest checks, and the existing paired command.
+- [x] T009 [US2] Run the policy, Git-boundary, and workflow-contract matrix in `scripts/classify-sqlite-postgres-changes.test.ts`; prove classifier errors exit nonzero without successful not-applicable outputs and record the results in `acceptance.md`.
 - [ ] T010 [US2] Commit the completed implementation and T001-T009 task state, verify a clean exact candidate, then run `pnpm test:sqlite-postgres` with a fresh output directory; verify both authority results, shared coverage, cleanup, five retained files, and hashes, and record the local paired evidence in `acceptance.md` without editing historical KEY-75 or KEY-60 artifacts.
 
 **Checkpoint**: Relevant changes retain complete local paired execution and evidence behavior; skip inputs cannot enter any database-evidence step.
@@ -53,9 +53,9 @@
 
 **Independent Test**: Render one relevant and one not-applicable decision containing unusual valid path characters; confirm safe Markdown, exact revision identities, complete path attribution, and explicit evidence boundaries.
 
-- [ ] T011 [US3] Implement summary rendering in `scripts/classify-sqlite-postgres-changes.ts` with checked-out merge, event base/head, merge base, disposition, JSON-escaped paths, and category/relevance reasons; for skips include exact SQLite/PostgreSQL `NOT RUN` statements and no-database-evidence statement, and for relevant decisions make no success claim.
-- [ ] T012 [US3] Update `docs/workflow.md` with the KEY-93 applicability contract, exact safe categories and exceptions, reviewer instructions, required-result versus database-success distinction, and unchanged relevant-run cleanup/artifact/receipt rules.
-- [ ] T013 [US3] Run focused summary and CLI-boundary tests and inspect representative outputs; record what they prove and keep hosted job-summary evidence `NOT RUN` until observed on GitHub.
+- [x] T011 [US3] Implement summary rendering in `scripts/classify-sqlite-postgres-changes.ts` with checked-out merge, event base/head, merge base, disposition, JSON-escaped paths, and category/relevance reasons; for skips include exact SQLite/PostgreSQL `NOT RUN` statements and no-database-evidence statement, and for relevant decisions make no success claim.
+- [x] T012 [US3] Update `docs/workflow.md` with the KEY-93 applicability contract, exact safe categories and exceptions, reviewer instructions, required-result versus database-success distinction, and unchanged relevant-run cleanup/artifact/receipt rules.
+- [x] T013 [US3] Run focused summary and CLI-boundary tests and inspect representative outputs; record what they prove and keep hosted job-summary evidence `NOT RUN` until observed on GitHub.
 
 **Checkpoint**: Both dispositions are locally attributable and cannot be confused with one another or with historical evidence.
 
