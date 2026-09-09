@@ -41,7 +41,7 @@
 
 - [x] T008 [US2] Complete the relevant-lane conditions in `.github/workflows/ci.yml`: gate upload and receipt steps on the validated relevant output while preserving `always()`, the five-file allowlist, missing-file failure, no overwrite, retention, artifact ID/digest checks, and the existing paired command.
 - [x] T009 [US2] Run the policy, Git-boundary, and workflow-contract matrix in `scripts/classify-sqlite-postgres-changes.test.ts`; prove classifier errors exit nonzero without successful not-applicable outputs and record the results in `acceptance.md`.
-- [ ] T010 [US2] Commit the completed implementation and T001-T009 task state, verify a clean exact candidate, then run `pnpm test:sqlite-postgres` with a fresh output directory; verify both authority results, shared coverage, cleanup, five retained files, and hashes, and record the local paired evidence in `acceptance.md` without editing historical KEY-75 or KEY-60 artifacts.
+- [x] T010 [US2] Commit the completed implementation and T001-T009 task state, verify a clean exact candidate, then run `pnpm test:sqlite-postgres` with a fresh output directory; verify both authority results, shared coverage, cleanup, five retained files, and hashes, and record the local paired evidence in `acceptance.md` without editing historical KEY-75 or KEY-60 artifacts.
 
 **Checkpoint**: Relevant changes retain complete local paired execution and evidence behavior; skip inputs cannot enter any database-evidence step.
 
@@ -65,8 +65,8 @@
 
 **Purpose**: Qualify the complete candidate, publish it through the existing PR, and retain only evidence actually observed.
 
-- [ ] T014 Run `pnpm test:pr`, `pnpm format`, Spec Kit prerequisite resolution, `git diff --check`, and a requirements/tasks audit; resolve feature-caused failures and record exact commands, versions, candidate, and outcomes in `acceptance.md`.
-- [ ] T015 Commit and push the implementation and task updates on the exact Linear branch; update PR #53 from the repository template with motivation, behavior, design choices, evidence, limits, review order, and every `NOT RUN` lane, preserving its current ready-for-review state.
+- [x] T014 Run `pnpm test:pr`, `pnpm format`, Spec Kit prerequisite resolution, `git diff --check`, and a requirements/tasks audit; resolve feature-caused failures and record exact commands, versions, candidate, and outcomes in `acceptance.md`.
+- [x] T015 Commit and push the implementation and task updates on the exact Linear branch; update PR #53 from the repository template with motivation, behavior, design choices, evidence, limits, review order, and every `NOT RUN` lane, preserving its current ready-for-review state.
 - [ ] T016 Inspect the pushed feature revision's required checks and database artifact receipt; confirm the feature's own workflow/classifier changes classify as relevant and run the full gate, then record check URLs, durations, revision, artifact ID/digest, and result in `acceptance.md`.
 - [ ] T017 After the classifier is available on the target branch, demonstrate documentation-only, website-source/test-only, Spec Kit-record-only, and metadata-only pull request revisions on GitHub; confirm the same required job finishes within 30 seconds of job start, all expensive/database/evidence steps skip, the summary is complete, and no database artifact exists. Until such revisions can run without a second feature PR, keep this task and SC-001/SC-002/SC-005/SC-007 hosted skip evidence `NOT RUN`.
 - [ ] T018 Demonstrate hosted relevant, mixed, lockfile, unknown, deletion, cross-category move, classifier-failure, and failing-database cases after the classifier is available on the target branch; confirm fail-closed routing and evidence retention, or retain each unavailable case as `NOT RUN` without inference.

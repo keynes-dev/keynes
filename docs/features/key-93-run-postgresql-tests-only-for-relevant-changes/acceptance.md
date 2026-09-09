@@ -61,10 +61,34 @@ resolution returned this feature directory and `git diff --check` passed. These 
 working-tree results; final exact-candidate qualification will repeat applicable
 checks after acceptance updates.
 
+Final pre-publication qualification repeated `pnpm test:pr` after the complete test
+matrix and acceptance updates. It passed 62 repository tests, 167 runner tests, and
+the same complete package lanes listed above. `pnpm format`, Spec Kit prerequisite
+resolution with required tasks, and `git diff --check` also passed. The requirement
+and task audit found no contradictory applicability, evidence, or lifecycle state;
+hosted tasks remain explicitly separate below.
+
 ## Local paired execution
 
-`NOT RUN`. No KEY-93 candidate has executed the paired SQLite/native PostgreSQL gate
-locally.
+Passed on clean exact candidate `89890dcfaf537db13043f2ba963387657cc4e412`:
+
+```sh
+pnpm test:sqlite-postgres -- --output /var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/tmp.F1Mdsud0mM/sqlite-postgres
+```
+
+- Attempt: `2d1f01ba-6454-4893-ba0e-bb864adc493b`
+- SQLite 3.53.3: 8/8 suites and 99/99 tests passed; no failed, pending, or skipped tests; cleanup passed
+- PostgreSQL 18.6 through Docker 29.6.2 and PgBouncer 1.25.2: 38/38 suites and 302/302 tests passed; no failed, pending, or skipped tests; cleanup passed
+- Candidate was clean before and after; manifest failures were empty
+- `manifest.json`: `bee30d0707f54dda82314e233014220e824cb2478d825e8121dc2fb60bf4e5ee`
+- `sqlite.vitest.json`: `270e95c324cd477728a4ac14c40ad97c2e5540291a08e0accce2bfb83d45283f`
+- `postgresql.json`: `1c0be9191989b7e2a63bd5053e6bf645f49920a4b67854c2b05484efdeb91b6e`
+- `postgresql.json.vitest.json`: `1e80b71edb0a58c7755d2a04fc6ca06be1a4ac235cae805f2b3f3ac60184d7aa`
+- `postgresql.json.observations.json`: `afe72f7cdb9c78fcb09e105d1fb6f7eebf5e1ab486092bbda031ad04fc86b8c8`
+
+The temporary files remain available for this local session but are not committed
+or published evidence. Hosted artifact retention and receipt remain `NOT RUN` until
+the pushed candidate completes GitHub Actions.
 
 ## Hosted feature revision
 
