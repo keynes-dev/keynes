@@ -9,14 +9,7 @@
 */
 import { describe as suite, expect, it } from "vitest";
 
-import {
-  BELT,
-  BOXES,
-  CONFIG,
-  ITEM,
-  SHAPES,
-  WRAP,
-} from "./config.js";
+import { BELT, BOXES, CONFIG, ITEM, SHAPES, WRAP } from "./config.js";
 import { createTimeline, TUBES } from "./timeline.js";
 
 // The camera answers this in the browser; any plausible height will do here.
