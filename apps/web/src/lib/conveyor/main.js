@@ -30,6 +30,9 @@ import { createItems } from "./parts/items.js";
 import { createTimeline, TUBES } from "./timeline.js";
 import { camera, skyOffset } from "./view.js";
 
+// The conveyor currently drawn, if any. See the guard in `createConveyor`.
+let live = null;
+
 /*
   Where the machine stands in its frame follows the shape of the element it is
   drawn in, decided on every resize by `choosePlace`: to one side when there is
@@ -39,6 +42,20 @@ import { camera, skyOffset } from "./view.js";
   choice is not a prop anyone has to thread down and keep in step.
 */
 export function createConveyor(container, { place = choosePlace } = {}) {
+  // One drawing at a time. The camera in view.js and every material in
+  // materials.js are one set shared by the module, and the parts draw their
+  // outlines against that one camera; a second conveyor would silently retune
+  // the first one's framing, line weight and colours rather than fail. Cheap to
+  // say so here, and worth saying now that the drawing is a tag anyone can put
+  // on a page twice without an import to give them pause.
+  if (live) {
+    throw new Error(
+      "createConveyor: a conveyor is already running. The scene keeps one " +
+        "camera and one set of materials, so only one can be drawn at a time; " +
+        "destroy the first before making another.",
+    );
+  }
+
   const scene = new THREE.Scene();
   const grid = new THREE.GridHelper(40, 40);
   grid.material = gridMat;
@@ -91,9 +108,11 @@ export function createConveyor(container, { place = choosePlace } = {}) {
     parts,
     destroy() {
       view.destroy();
+      if (live === handle) live = null;
       if (window.conveyor === handle) delete window.conveyor;
     },
   };
+  live = handle;
   window.conveyor = handle;
   return handle;
 }

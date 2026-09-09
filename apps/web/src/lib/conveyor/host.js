@@ -19,12 +19,19 @@ import { frameCamera } from "./view.js";
   three's parser does not read, so the browser is asked to do it: painting the
   colour onto a canvas and reading the pixel back works for any colour CSS can
   express, however it was written.
+
+  Made on first use rather than at import, so that nothing in this module runs a
+  `document` call merely because it was named in an import: the drawing is only
+  ever reached through a dynamic import from the browser today, but a static one
+  from a server-rendered module is an easy thing to write by accident and should
+  fail on the missing canvas, not on the import.
 */
-const swatch = document.createElement("canvas").getContext("2d", {
-  willReadFrequently: true,
-});
+let swatch;
 function resolve(colour, fallback) {
   if (!colour) return fallback;
+  swatch ??= document
+    .createElement("canvas")
+    .getContext("2d", { willReadFrequently: true });
   swatch.fillStyle = "#000";
   swatch.fillStyle = colour.trim();
   swatch.fillRect(0, 0, 1, 1);
@@ -152,9 +159,14 @@ export function host(container, { scene, camera, update, loop, still, place }) {
     watching.observe(container);
   }
 
-  // The page can take the drawing away again — an island unmounts, a route
+  // The page can take the drawing away again — an element is removed, a route
   // changes — and a WebGL context that nothing drops is one the browser keeps
   // until it runs out and starts discarding them.
+  //
+  // Dropping the context releases what the scene holds on the GPU, and the
+  // geometries go with the scene once the caller lets go of it. Nothing here
+  // walks the scene disposing them, and nothing should dispose the materials at
+  // all: those are the module's, shared with whatever is drawn next.
   function destroy() {
     stop();
     sizing.disconnect();

@@ -11,6 +11,10 @@
   since what shows through it has to read against the face it is cut in. The
   lamp keeps its own colours: those carry the verdict and mean the same thing
   whichever way round the page is.
+
+  These are one set for the module rather than one per conveyor, and `setTheme`
+  and `setResolution` retune that set in place, so two conveyors on a page would
+  each repaint the other's. `createConveyor` refuses a second one.
 */
 import * as THREE from "three";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";

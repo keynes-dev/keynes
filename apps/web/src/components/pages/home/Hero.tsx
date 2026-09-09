@@ -1,6 +1,5 @@
 import { ArrowRight } from "lucide-react";
 
-import { ConveyorBelt } from "./ConveyorBelt";
 import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +9,27 @@ export function Hero() {
     // section, so its grid stops at the same rules everything else on the page
     // lines up with.
     <Section className="relative flex min-h-[40rem] flex-col justify-start overflow-hidden pt-12 pb-24 lg:min-h-[32rem] lg:justify-center lg:py-24">
-      <ConveyorBelt />
+      {/*
+        The conveyor animation, drawn behind the text: the ground grid fills the
+        whole of the section and the machine stands in one corner of it. Where
+        in the frame it stands is settled inside the drawing from the width of
+        this element, so there is nothing to pass it and no state here to fall
+        out of step with the `lg:` rules below.
+
+        A tag rather than a component so that this section needs no hydrating:
+        it is otherwise all text and links. `pages/index.astro` is what defines
+        the tag; importing the module here would not work, since nothing in this
+        file is ever run in the browser.
+
+        The label is on the element itself, so it stands whether or not the
+        script that fills the element in ever arrives.
+      */}
+      <conveyor-belt
+        // Never in the way of selecting the text it sits under.
+        className="pointer-events-none absolute inset-0"
+        role="img"
+        aria-label="A machine sorting shapes into boxes on a conveyor belt: each box receives the shape that fits the hole in its lid, and one that arrives the wrong way up is turned over by a mechanical arm."
+      />
       <div className="relative flex flex-col gap-4 lg:max-w-[52%]">
         <h1 className="font-heading text-4xl tracking-tight text-balance">
           Runtime economics for agents

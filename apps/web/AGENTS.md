@@ -12,7 +12,16 @@ rendering.
 
 Keep the `@/*` TypeScript and Vite aliases aligned. Hydrate interactive islands
 with `client:load`; `client:visible` does not run when its wrapper has zero
-layout size. Preserve the TypeScript source reload plugin in `astro.config.mjs`.
+layout size. Sections with no interactivity take no client directive at all.
+Preserve the TypeScript source reload plugin in `astro.config.mjs`.
+
+The conveyor drawing is the `<conveyor-belt>` custom element, defined by
+`src/lib/conveyor/element.js` and registered by a `<script>` in the page that
+uses it, so the section holding the tag needs no hydrating. Register it from
+`BaseLayout` instead if a second page ever wants it. Declare custom elements in
+`src/custom-elements.d.ts` for the TSX that uses them. Only one conveyor can be
+drawn at a time — it keeps one camera and one set of materials — and
+`createConveyor` throws on a second.
 
 Run the web typecheck, tests, production build, and desktop and mobile browser
 checks for website changes. Use a repository-supported Node.js version.

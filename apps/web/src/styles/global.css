@@ -209,3 +209,10 @@
     animation: none;
   }
 }
+
+/* Custom elements lay out inline until told otherwise; this one is a drawing
+   that fills whatever it is put in. `absolute` already blockifies it where the
+   hero uses it, so this is for wherever it is used next. */
+conveyor-belt {
+  display: block;
+}
