@@ -92,8 +92,20 @@ the pushed candidate completes GitHub Actions.
 
 ## Hosted feature revision
 
-`NOT RUN`. The pushed planning revision does not implement classification. Its
-ordinary database job is not implementation evidence.
+[Run 34304144602](https://github.com/keynes-dev/keynes/actions/runs/34304144602)
+on merge candidate `b3454ca5f1aa54fda5435ebc02faa03c64c3771a` failed closed
+before classification, pnpm setup, or database execution. The pinned Node setup
+action saw the repository's pnpm package-manager declaration, enabled its automatic
+package-manager cache, and failed because pnpm was intentionally not installed yet.
+The required job failed in about three seconds and created no successful
+not-applicable result or database evidence.
+
+A regression assertion was then added and observed failing on branch head
+`bcb5d430e9ca477039a8451c5fd289cf30ca941a` because the Node step lacked
+`package-manager-cache: false`. Disabling that automatic cache preserves direct
+Node 24 setup without requiring pnpm in the safe lane. The focused repository suite
+then passed 62 tests and TypeScript completed without diagnostics. Hosted validation
+of the corrected candidate remains `NOT RUN` until its pushed run completes.
 
 ## Hosted not-applicable matrix
 

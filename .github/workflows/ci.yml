@@ -52,6 +52,7 @@ jobs:
         with:
           node-version: 24
           check-latest: false
+          package-manager-cache: false
 
       - name: Classify SQLite and PostgreSQL relevance
         id: relevance

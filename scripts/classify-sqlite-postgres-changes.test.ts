@@ -54,6 +54,9 @@ describe("SQLite and PostgreSQL workflow contract", () => {
     expect(job.indexOf("id: relevance")).toBeLessThan(
       job.indexOf("name: Set up pnpm"),
     );
+    expect(step(job, "Set up Node.js")).toContain(
+      "package-manager-cache: false",
+    );
 
     for (const name of [
       "Set up pnpm",
