@@ -35,6 +35,13 @@ function resolve(colour, fallback) {
 /*
   `update(t)` draws the frame at loop time t; `loop` is how long a pass takes;
   `still` is the frame to hold when motion is turned off.
+
+  `place` is where the machine stands in the frame, either fixed or a function
+  asked again on every resize. It is asked inside `resize` rather than read once
+  here because the placement can change with the shape of the element — see
+  `config.js`'s `choosePlace` — and because its `zoom` sets the line weight as
+  well as the framing, so a placement resolved for only one of the two draws the
+  right camera in the wrong strokes.
 */
 export function host(container, { scene, camera, update, loop, still, place }) {
   const reducedMotion = window.matchMedia(
@@ -104,12 +111,15 @@ export function host(container, { scene, camera, update, loop, still, place }) {
     const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
+    // Both of the next two depend on this, so it is resolved once here rather
+    // than asked for twice: they would otherwise be free to disagree.
+    const standing = typeof place === "function" ? place() : place;
     // How large the drawing is rendered, against the size its line weights were
     // chosen at: the frame's own height in pixels over the world height it
     // covers, which `zoom` is what changes.
-    const weight = height / (CONFIG.weighedAt * (place?.zoom ?? 1));
+    const weight = height / (CONFIG.weighedAt * (standing?.zoom ?? 1));
     setResolution(width * dpr, height * dpr, dpr, weight);
-    frameCamera(width / height, place);
+    frameCamera(width / height, standing);
     if (!running) {
       update(reducedMotion ? still : elapsed % loop);
       render();

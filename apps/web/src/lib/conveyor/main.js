@@ -18,7 +18,7 @@
 */
 import * as THREE from "three";
 
-import { CONFIG } from "./config.js";
+import { choosePlace, CONFIG } from "./config.js";
 import { host } from "./host.js";
 import { gridMat } from "./materials.js";
 import { createArm } from "./parts/arm.js";
@@ -31,12 +31,14 @@ import { createTimeline, TUBES } from "./timeline.js";
 import { camera, skyOffset } from "./view.js";
 
 /*
-  `aside` stands the machine to one side of its frame, for a caller setting
-  something else beside it; without it the machine drops to the bottom, for a
-  caller setting something above it. Which of those a layout wants is the
-  layout's to know, not the drawing's.
+  Where the machine stands in its frame follows the shape of the element it is
+  drawn in, decided on every resize by `choosePlace`: to one side when there is
+  room to set something beside it, at the bottom when there is not. A caller
+  with its own idea can pass `place`, either a fixed `{ x, y, zoom }` or its own
+  function; nothing on this site does, and the point of the default is that the
+  choice is not a prop anyone has to thread down and keep in step.
 */
-export function createConveyor(container, { aside = false } = {}) {
+export function createConveyor(container, { place = choosePlace } = {}) {
   const scene = new THREE.Scene();
   const grid = new THREE.GridHelper(40, 40);
   grid.material = gridMat;
@@ -74,7 +76,7 @@ export function createConveyor(container, { aside = false } = {}) {
     update,
     loop,
     still,
-    place: aside ? CONFIG.aside : CONFIG.below,
+    place,
   });
 
   // Handles for inspection, each on its own key: the config is not also the

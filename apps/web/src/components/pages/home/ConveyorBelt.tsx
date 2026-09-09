@@ -4,16 +4,21 @@ import { useEffect, useRef } from "react";
   The conveyor animation, drawn behind whatever it is put in: the ground grid
   fills the whole of it and the machine stands in one corner of that.
 
-  `aside` puts the machine to the right, for content set beside it; without it
-  the machine drops to the bottom, for content set above it. Either way this is
-  a background, so the element it is given has to be the one doing the clipping.
+  Where in the frame the machine stands follows the shape of this element and is
+  settled inside the drawing, so nothing about it is a prop: there is no state
+  here to get out of step with the CSS the text beside it is laid out by.
 
   three and the scene are pulled in on mount rather than imported at the top, so
-  neither is in the bundle the page first parses. The effect can be torn down
-  before the import settles, hence the cancelled flag: without it a fast scroll
-  past leaves a WebGL context nothing owns.
+  neither is in the bundle the page first parses. Keep it that way for a second
+  reason: the import being asynchronous is what makes a teardown before it
+  settles free, since there is nothing built yet to throw away. A static import
+  would build the whole scene inside the effect and hand every remount a real
+  WebGL context to discard.
+
+  The effect can be torn down before the import settles, hence the cancelled
+  flag: without it a fast scroll past leaves a WebGL context nothing owns.
 */
-export function ConveyorBelt({ aside = false }: { aside?: boolean }) {
+export function ConveyorBelt() {
   const holder = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,14 +29,14 @@ export function ConveyorBelt({ aside = false }: { aside?: boolean }) {
     let conveyor: { destroy(): void } | undefined;
     void import("@/lib/conveyor/main.js").then(({ createConveyor }) => {
       if (cancelled) return;
-      conveyor = createConveyor(container, { aside });
+      conveyor = createConveyor(container);
     });
 
     return () => {
       cancelled = true;
       conveyor?.destroy();
     };
-  }, [aside]);
+  }, []);
 
   return (
     <div
