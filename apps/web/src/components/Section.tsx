@@ -9,13 +9,8 @@ interface SectionProps extends React.ComponentProps<"section"> {
 
 export function Section({ children, className, ...props }: SectionProps) {
   return (
-    <section className="border-b border-primary" {...props}>
-      <div
-        className={cn(
-          "container mx-auto border-x border-primary p-8",
-          className,
-        )}
-      >
+    <section className="border-b" {...props}>
+      <div className={cn("container mx-auto border-x p-8", className)}>
         {children}
       </div>
     </section>
