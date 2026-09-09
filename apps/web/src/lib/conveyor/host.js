@@ -18,13 +18,21 @@ import { frameCamera } from "./view.js";
   A CSS colour as an sRGB number. The page states its colours in `oklch`, which
   three's parser does not read, so the browser is asked to do it: painting the
   colour onto a canvas and reading the pixel back works for any colour CSS can
-  express, however it was written.
+  express, however it was written. A translucent colour is painted over
+  `against` so its alpha stays in the result rather than being dropped; the
+  grid's `--border` is ten percent white in the dark theme, and without a
+  ground to sit on it would read as a solid rule.
 */
 const swatch = document.createElement("canvas").getContext("2d", {
   willReadFrequently: true,
 });
-function resolve(colour, fallback) {
+function hex(n) {
+  return `#${n.toString(16).padStart(6, "0")}`;
+}
+function resolve(colour, fallback, against) {
   if (!colour) return fallback;
+  swatch.fillStyle = hex(against ?? 0);
+  swatch.fillRect(0, 0, 1, 1);
   swatch.fillStyle = "#000";
   swatch.fillStyle = colour.trim();
   swatch.fillRect(0, 0, 1, 1);
@@ -62,7 +70,11 @@ export function host(container, { scene, camera, update, loop, still, place }) {
       style.getPropertyValue("--card-foreground"),
       CONFIG.ink,
     );
-    const rule = resolve(style.getPropertyValue("--border"), CONFIG.rule);
+    const rule = resolve(
+      style.getPropertyValue("--border"),
+      CONFIG.rule,
+      ground,
+    );
     setTheme(ground, ink, rule);
     renderer.setClearColor(ground, 1);
     scene.background = new THREE.Color(ground);

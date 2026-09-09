@@ -28,7 +28,7 @@ import { createDucting } from "./parts/ducting.js";
 import { createMachine } from "./parts/machine.js";
 import { createItems } from "./parts/items.js";
 import { createTimeline, TUBES } from "./timeline.js";
-import { camera, skyOffset } from "./view.js";
+import { camera, frameCamera, skyOffset } from "./view.js";
 
 /*
   `aside` stands the machine to one side of its frame, for a caller setting
@@ -38,7 +38,7 @@ import { camera, skyOffset } from "./view.js";
 */
 export function createConveyor(container, { aside = false } = {}) {
   const scene = new THREE.Scene();
-  const grid = new THREE.GridHelper(40, 40);
+  const grid = new THREE.GridHelper(40, 80);
   grid.material = gridMat;
   scene.add(grid);
 
@@ -52,8 +52,12 @@ export function createConveyor(container, { aside = false } = {}) {
   ];
 
   // How far above each tube's mouth a refill has to start to be off frame. Only
-  // the camera can answer that, so the timeline is handed the answer rather than
-  // reaching for a camera itself.
+  // the camera can answer that, and only once it has been stood where this
+  // layout will see it — a tall frame zooms out, and measuring against the
+  // default window puts the charge on screen. Aspect does not change that
+  // height; host will reframe with the element's own.
+  const place = aside ? CONFIG.aside : CONFIG.below;
+  frameCamera(1, place);
   const sky = TUBES.map((tube) =>
     skyOffset(new THREE.Vector3(0, tube.topY, tube.z)),
   );
@@ -74,7 +78,7 @@ export function createConveyor(container, { aside = false } = {}) {
     update,
     loop,
     still,
-    place: aside ? CONFIG.aside : CONFIG.below,
+    place,
   });
 
   // Handles for inspection, each on its own key: the config is not also the
