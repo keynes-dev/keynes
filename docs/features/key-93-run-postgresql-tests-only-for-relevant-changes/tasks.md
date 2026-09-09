@@ -67,11 +67,11 @@
 
 - [x] T014 Run `pnpm test:pr`, `pnpm format`, Spec Kit prerequisite resolution, `git diff --check`, and a requirements/tasks audit; resolve feature-caused failures and record exact commands, versions, candidate, and outcomes in `acceptance.md`.
 - [x] T015 Commit and push the implementation and task updates on the exact Linear branch; update PR #53 from the repository template with motivation, behavior, design choices, evidence, limits, review order, and every `NOT RUN` lane, preserving its current ready-for-review state.
-- [ ] T016 Inspect the pushed feature revision's required checks and database artifact receipt; confirm the feature's own workflow/classifier changes classify as relevant and run the full gate, then record check URLs, durations, revision, artifact ID/digest, and result in `acceptance.md`.
+- [x] T016 Inspect the pushed feature revision's required checks and database artifact receipt; confirm the feature's own workflow/classifier changes classify as relevant and run the full gate, then record check URLs, durations, revision, artifact ID/digest, and result in `acceptance.md`.
 - [ ] T017 After the classifier is available on the target branch, demonstrate documentation-only, website-source/test-only, Spec Kit-record-only, and metadata-only pull request revisions on GitHub; confirm the same required job finishes within 30 seconds of job start, all expensive/database/evidence steps skip, the summary is complete, and no database artifact exists. Until such revisions can run without a second feature PR, keep this task and SC-001/SC-002/SC-005/SC-007 hosted skip evidence `NOT RUN`.
 - [ ] T018 Demonstrate hosted relevant, mixed, lockfile, unknown, deletion, cross-category move, classifier-failure, and failing-database cases after the classifier is available on the target branch; confirm fail-closed routing and evidence retention, or retain each unavailable case as `NOT RUN` without inference.
 - [ ] T019 Read back protected `main` enforcement and observed check contexts; verify strict up-to-date policy still requires exactly `Repository and tests` and `SQLite and PostgreSQL behavior tests`, and that a failing relevant attempt cannot satisfy the database context. Do not mutate protection or merge as the demonstration.
-- [ ] T020 Review FR-001 through FR-014 and SC-001 through SC-007 against the exact candidate in `acceptance.md`; reconcile every task as complete or explicitly `NOT RUN`, attach the published task and acceptance artifacts to KEY-93, and leave Linear short of Done until merge and required acceptance pass.
+- [x] T020 Review FR-001 through FR-014 and SC-001 through SC-007 against the exact candidate in `acceptance.md`; reconcile every task as complete or explicitly `NOT RUN`, attach the published task and acceptance artifacts to KEY-93, and leave Linear short of Done until merge and required acceptance pass.
 
 ## Dependencies and execution order
 
@@ -116,3 +116,14 @@ boundary. Any unexpected behavior change starts with a new observed failing test
 This task list creates no runtime behavior or external acceptance evidence. Every
 implementation, hosted, enforcement, and database result remains `NOT RUN` until its
 task records an observed outcome. No taskstoissues conversion or phase PR is needed.
+
+## Current task state
+
+T017 is `NOT RUN` until the classifier is present on the target branch and a safe-
+only pull request revision can exercise it without a dependent feature PR. T018 has
+one hosted feature-relevant success and one fail-closed pre-classification failure;
+the named mixed, lockfile, unknown, deletion, move, forced-classifier-failure, and
+failing-database demonstrations remain `NOT RUN`. T019 has current strict protection
+and exact-context readback, while the failing-database blocked-merge demonstration
+remains `NOT RUN`. These three acceptance tasks remain open. All other planned tasks
+are complete, and Linear remains short of Done.

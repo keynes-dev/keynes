@@ -104,8 +104,23 @@ A regression assertion was then added and observed failing on branch head
 `bcb5d430e9ca477039a8451c5fd289cf30ca941a` because the Node step lacked
 `package-manager-cache: false`. Disabling that automatic cache preserves direct
 Node 24 setup without requiring pnpm in the safe lane. The focused repository suite
-then passed 62 tests and TypeScript completed without diagnostics. Hosted validation
-of the corrected candidate remains `NOT RUN` until its pushed run completes.
+then passed 62 tests and TypeScript completed without diagnostics.
+
+[Run 34304255139](https://github.com/keynes-dev/keynes/actions/runs/34304255139)
+passed on corrected branch head `b854bb288a3354c8b1982af7febe01655275d66f`
+and merge candidate `e39b45f6e90a20ee10f1e8338b3d963cd408be26`:
+
+- `Repository and tests` passed in 1m45s.
+- The unchanged `SQLite and PostgreSQL behavior tests` identity passed in 3m21s.
+- Node 24.20.0 setup, classification, and explicit decision validation passed before pnpm setup.
+- The feature's classifier and workflow paths produced the relevant disposition; pnpm, frozen installation, the paired runner, upload, and receipt steps all executed.
+- SQLite passed 8/8 suites and 99/99 tests. PostgreSQL passed 38/38 suites and 302/302 tests. Both cleanup states passed; the manifest contained no failures.
+- Artifact [10086127658](https://github.com/keynes-dev/keynes/actions/runs/34304255139/artifacts/10086127658) contains exactly the five required files, is retained through 2026-09-23, and has archive SHA-256 `1e16eab67519c8a37e5ed564a4bfe48645a2212603eb017a511bb53b56b007c1`.
+- Paired attempt: `c055821f-10c7-47bc-b0d9-f30692e0af39`; native run: `67701eab-a0b5-4f25-b92f-a85353c45dd7`.
+
+The downloaded manifest and every referenced file hash were verified. This proves
+the corrected hosted relevant lane and artifact receipt. It does not prove any
+safe-only or forced-failure case.
 
 ## Hosted not-applicable matrix
 
@@ -122,12 +137,32 @@ and failing-database demonstrations have not run against the implementation.
 
 ## Branch enforcement
 
-Current configuration is read back above. Preservation on the final candidate and
-an observed blocked failing relevant attempt remain `NOT RUN`. Workflow YAML alone
-will not be treated as enforcement evidence.
+After run 34304255139, protected `main` still required exactly `Repository and tests`
+and `SQLite and PostgreSQL behavior tests` from GitHub Actions app `15368`, with
+strict up-to-date and administrator enforcement enabled. PR #53 reported both
+contexts successful and merge state `CLEAN` on head `b854bb2`. No protection setting
+was mutated. An observed blocked failing database execution remains `NOT RUN`; the
+earlier classifier-setup failure shows the required context failed closed but is not
+presented as a failed database attempt.
 
 ## Requirement audit
 
-`NOT RUN`. FR-001 through FR-014 and SC-001 through SC-007 will be reconciled after
-implementation and available acceptance runs. Unavailable hosted lanes remain
-explicitly `NOT RUN`; they are not inferred from local tests or historical artifacts.
+FR-001 through FR-014 are implemented and covered by the local policy/workflow suite,
+contributor guidance, or the unchanged paired gate. The pushed relevant revision
+directly proves the same required identity, complete relevant execution, cleanup,
+five-file artifact, receipt, and protected-branch context. It does not complete the
+feature's acceptance matrix:
+
+| Criterion                                                   | State                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| SC-001 safe-category hosted matrix                          | `NOT RUN`                                                                                                  |
+| SC-002 safe required result under 30 seconds                | `NOT RUN`                                                                                                  |
+| SC-003 relevant/mixed/unknown/delete/move routing matrix    | Passed locally; hosted feature-relevant case passed; remaining hosted cases `NOT RUN`                      |
+| SC-004 classification failure cannot pass as not applicable | Passed locally; hosted Node-setup failure failed the required context; forced classifier failure `NOT RUN` |
+| SC-005 relevant evidence and safe absence                   | Relevant local and hosted evidence passed; safe hosted artifact absence `NOT RUN`                          |
+| SC-006 unchanged enforcement and failing relevant block     | Same strict contexts verified; failing database block `NOT RUN`                                            |
+| SC-007 reviewer can distinguish every hosted disposition    | Relevant summary path observed; safe hosted result `NOT RUN`                                               |
+
+Unavailable hosted lanes are not inferred from local tests, workflow YAML, or
+historical artifacts. KEY-93 remains short of Done until merge and the required
+post-landing safe-revision acceptance are complete.
