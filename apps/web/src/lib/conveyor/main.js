@@ -18,8 +18,9 @@
 */
 import * as THREE from "three";
 
-import { CONFIG } from "./config.js";
+import { choosePlace, CONFIG } from "./config.js";
 import { host } from "./host.js";
+import { grid } from "./draft.js";
 import { gridMat } from "./materials.js";
 import { createArm } from "./parts/arm.js";
 import { createBelt } from "./parts/belt.js";
@@ -28,19 +29,36 @@ import { createDucting } from "./parts/ducting.js";
 import { createMachine } from "./parts/machine.js";
 import { createItems } from "./parts/items.js";
 import { createTimeline, TUBES } from "./timeline.js";
-import { camera, skyOffset } from "./view.js";
+import { camera, frameCamera, skyOffset } from "./view.js";
+
+// The conveyor currently drawn, if any. See the guard in `createConveyor`.
+let live = null;
 
 /*
-  `aside` stands the machine to one side of its frame, for a caller setting
-  something else beside it; without it the machine drops to the bottom, for a
-  caller setting something above it. Which of those a layout wants is the
-  layout's to know, not the drawing's.
+  Where the machine stands in its frame follows the shape of the element it is
+  drawn in, decided on every resize by `choosePlace`: to one side when there is
+  room to set something beside it, at the bottom when there is not. A caller
+  with its own idea can pass `place`, either a fixed `{ x, y, zoom }` or its own
+  function; nothing on this site does, and the point of the default is that the
+  choice is not a prop anyone has to thread down and keep in step.
 */
-export function createConveyor(container, { aside = false } = {}) {
+export function createConveyor(container, { place = choosePlace } = {}) {
+  // One drawing at a time. The camera in view.js and every material in
+  // materials.js are one set shared by the module, and the parts draw their
+  // outlines against that one camera; a second conveyor would silently retune
+  // the first one's framing, line weight and colours rather than fail. Cheap to
+  // say so here, and worth saying now that the drawing is a tag anyone can put
+  // on a page twice without an import to give them pause.
+  if (live) {
+    throw new Error(
+      "createConveyor: a conveyor is already running. The scene keeps one " +
+        "camera and one set of materials, so only one can be drawn at a time; " +
+        "destroy the first before making another.",
+    );
+  }
+
   const scene = new THREE.Scene();
-  const grid = new THREE.GridHelper(40, 40);
-  grid.material = gridMat;
-  scene.add(grid);
+  scene.add(grid(40, 80, gridMat));
 
   const parts = [
     createBelt(scene),
@@ -51,12 +69,29 @@ export function createConveyor(container, { aside = false } = {}) {
     createItems(scene),
   ];
 
-  // How far above each tube's mouth a refill has to start to be off frame. Only
-  // the camera can answer that, so the timeline is handed the answer rather than
-  // reaching for a camera itself.
-  const sky = TUBES.map((tube) =>
-    skyOffset(new THREE.Vector3(0, tube.topY, tube.z)),
-  );
+  /*
+    How far above each tube's mouth a refill has to start to be off frame. Only
+    the camera can answer that, and only once it has been stood where the frame
+    will be seen from: a tall frame zooms the camera out, and measuring against
+    the default window starts the charge on screen. Aspect does not change that
+    height, so any is fine here; the host reframes with the element's own.
+
+    Measured against every framing the drawing can be seen in rather than the
+    one it opens in, and the furthest taken. The placement is settled again on
+    each resize, so a frame that began beside the text can become one below it
+    without the scene being rebuilt, and a charge measured for the closer of the
+    two would fall into view partway. Starting one further out than it needs
+    costs only a longer pour, which the timeline sizes to the fall.
+  */
+  const standing = typeof place === "function" ? place() : place;
+  const sky = TUBES.map(() => 0);
+  for (const framing of [CONFIG.aside, CONFIG.below, standing]) {
+    frameCamera(1, framing);
+    TUBES.forEach((tube, s) => {
+      const point = new THREE.Vector3(0, tube.topY, tube.z);
+      sky[s] = Math.max(sky[s], skyOffset(point));
+    });
+  }
   const timeline = createTimeline(sky);
   const { cycles, loop } = timeline;
 
@@ -74,7 +109,7 @@ export function createConveyor(container, { aside = false } = {}) {
     update,
     loop,
     still,
-    place: aside ? CONFIG.aside : CONFIG.below,
+    place,
   });
 
   // Handles for inspection, each on its own key: the config is not also the
@@ -89,9 +124,11 @@ export function createConveyor(container, { aside = false } = {}) {
     parts,
     destroy() {
       view.destroy();
+      if (live === handle) live = null;
       if (window.conveyor === handle) delete window.conveyor;
     },
   };
+  live = handle;
   window.conveyor = handle;
   return handle;
 }

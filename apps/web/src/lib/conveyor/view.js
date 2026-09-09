@@ -11,6 +11,10 @@ export const ISO_DIR = new THREE.Vector3(1, 1, 1).normalize();
 export const VIEW = ISO_DIR.clone().negate();
 export const UP = new THREE.Vector3(0, 1, 0);
 
+// One camera for the module, not one per conveyor: the parts draw their
+// outlines against it once at build time, so it is baked into their geometry
+// and cannot be swapped underneath them. `createConveyor` refuses a second
+// conveyor for this reason.
 const H = CONFIG.frustum;
 export const camera = new THREE.OrthographicCamera(-H, H, H, -H, 0.1, 200);
 const target = new THREE.Vector3(...CONFIG.lookAt);
