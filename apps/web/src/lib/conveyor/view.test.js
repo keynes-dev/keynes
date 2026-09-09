@@ -6,9 +6,9 @@
 import * as THREE from "three";
 import { afterEach, describe as suite, expect, it } from "vitest";
 
-import { CONFIG } from "../../src/lib/conveyor/config.js";
-import { TUBES } from "../../src/lib/conveyor/timeline.js";
-import { camera, frameCamera, skyOffset } from "../../src/lib/conveyor/view.js";
+import { CONFIG } from "./config.js";
+import { TUBES } from "./timeline.js";
+import { camera, frameCamera, skyOffset } from "./view.js";
 
 function skyFor(place) {
   frameCamera(1, place);
