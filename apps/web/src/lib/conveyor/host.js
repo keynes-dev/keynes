@@ -51,9 +51,11 @@ function resolve(colour, fallback) {
   right camera in the wrong strokes.
 */
 export function host(container, { scene, camera, update, loop, still, place }) {
-  const reducedMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
+  // Followed rather than read once: a reader who turns motion off does so to
+  // stop something already moving, and waiting for a reload to honour that is
+  // most of the way to not honouring it.
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = motionQuery.matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   // The buffer is sized in device pixels below and the element is left to fill
   // whatever it was dropped into. Without this the canvas lays out at its own
@@ -147,17 +149,43 @@ export function host(container, { scene, camera, update, loop, still, place }) {
     attributeFilter: ["class"],
   });
 
+  // Only run while it is on screen — and only watch for that while motion is
+  // wanted at all, since with it turned off there is never anything to pause.
   let watching = null;
-  if (reducedMotion) {
-    update(still);
-    render();
-  } else {
-    // Only run while it is on screen.
+  function watch() {
+    if (watching) return;
     watching = new IntersectionObserver((entries) => {
       entries.some((e) => e.isIntersecting) ? start() : stop();
     });
+    // The observer reports where the element is as soon as it is given one, so
+    // this is also what starts the drawing.
     watching.observe(container);
   }
+  function unwatch() {
+    watching?.disconnect();
+    watching = null;
+  }
+
+  /*
+    Hold the one still frame, or go back to running when on screen. Called for
+    the setting the reader arrives with and again whenever they change it, so
+    the two directions cannot drift apart: turning motion off has to stop a
+    loop that is already going and leave something drawn behind it, and turning
+    it back on has to pick the loop up where it was left.
+  */
+  function settle() {
+    if (!reducedMotion) return watch();
+    unwatch();
+    stop();
+    update(still);
+    render();
+  }
+  settle();
+  const followMotion = (event) => {
+    reducedMotion = event.matches;
+    settle();
+  };
+  motionQuery.addEventListener("change", followMotion);
 
   // The page can take the drawing away again — an element is removed, a route
   // changes — and a WebGL context that nothing drops is one the browser keeps
@@ -171,7 +199,8 @@ export function host(container, { scene, camera, update, loop, still, place }) {
     stop();
     sizing.disconnect();
     theming.disconnect();
-    watching?.disconnect();
+    motionQuery.removeEventListener("change", followMotion);
+    unwatch();
     renderer.domElement.remove();
     renderer.dispose();
     renderer.forceContextLoss();
