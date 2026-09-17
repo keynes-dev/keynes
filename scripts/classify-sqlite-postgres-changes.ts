@@ -7,7 +7,6 @@ import { pathToFileURL } from "node:url";
 
 export type ApprovedCategory =
   | "documentation"
-  | "marketing-site"
   | "spec-kit-record"
   | "repository-metadata";
 
@@ -61,8 +60,6 @@ const exactMetadata = new Set([
   "LICENSE",
   ".github/CODEOWNERS",
   ".github/PULL_REQUEST_TEMPLATE.md",
-  "apps/web/AGENTS.md",
-  "apps/web/.gitignore",
 ]);
 
 const defaultRuntime: ClassifierRuntime = {
@@ -272,8 +269,6 @@ export function runClassifier(
 
 function approvedCategory(path: string): ApprovedCategory | undefined {
   if (path.startsWith("docs/")) return "documentation";
-  if (path.startsWith("apps/web/src/") || path.startsWith("apps/web/tests/"))
-    return "marketing-site";
   if (path.startsWith(".specify/memory/")) return "spec-kit-record";
   if (exactMetadata.has(path)) return "repository-metadata";
   return undefined;

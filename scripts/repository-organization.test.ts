@@ -71,7 +71,7 @@ describe("repository organization", () => {
     }
   });
 
-  it("uses conventional application and package workspace globs", () => {
+  it("uses the package workspace glob", () => {
     const workspaceSource = readFile("pnpm-workspace.yaml");
     const packagesBlock = /^packages:\n((?: {2}- .+\n)+)/mu.exec(
       workspaceSource,
@@ -82,7 +82,7 @@ describe("repository organization", () => {
       .filter((entry): entry is string => entry !== undefined)
       .sort();
 
-    expect(workspaces).toEqual(['"apps/*"', '"packages/*"']);
+    expect(workspaces).toEqual(['"packages/*"']);
   });
 
   it("removes every obsolete root owner", () => {
