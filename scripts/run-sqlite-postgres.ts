@@ -118,7 +118,6 @@ export async function runSqlite(
       `--outputFile=${reportPath}`,
     ],
     process.env,
-    "pipe",
   );
   let failure: Error | undefined;
   try {

@@ -362,10 +362,8 @@ export async function runPostgresqlSystemTests(
       : error;
   }
 
-  let cleanupFailed = false;
   const cleanupFailures: string[] = [];
   const recordCleanupFailure = (stage: string, error: unknown): void => {
-    cleanupFailed = true;
     const message = `${stage}: ${sanitizedFailure(error, [password, runId])}`;
     cleanupFailures.push(message);
     if (runtime === productionRuntime)
@@ -433,7 +431,7 @@ export async function runPostgresqlSystemTests(
     failure = new Error("PostgreSQL system run cancelled");
   observe({
     stage: "cleanup",
-    status: cleanupFailed ? "failed" : "passed",
+    status: cleanupFailures.length > 0 ? "failed" : "passed",
   });
 
   if (recordWorkspace !== undefined) {
@@ -483,7 +481,7 @@ export async function runPostgresqlSystemTests(
             environment: observedEnvironment,
             distribution: testedDistribution,
             stages,
-            cleanup: cleanupFailed ? "failed" : "passed",
+            cleanup: cleanupFailures.length > 0 ? "failed" : "passed",
           },
           null,
           2,
@@ -495,7 +493,8 @@ export async function runPostgresqlSystemTests(
         failure = postgresqlSystemFailure(runId, "observation-retention");
     }
     if (failure !== undefined) throw failure;
-    if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
+    if (cleanupFailures.length > 0)
+      throw postgresqlSystemFailure(runId, "cleanup");
     if (prohibited)
       throw new Error("Acceptance record contains prohibited content");
     if (testedDistribution === undefined)
@@ -532,7 +531,7 @@ export async function runPostgresqlSystemTests(
     }
   }
   if (
-    (failure !== undefined || cleanupFailed) &&
+    (failure !== undefined || cleanupFailures.length > 0) &&
     options.diagnosticsPath !== undefined
   ) {
     try {
@@ -546,7 +545,7 @@ export async function runPostgresqlSystemTests(
                 ? "PostgreSQL cleanup failed"
                 : sanitizedFailure(failure, [password, runId]),
             stages,
-            cleanup: cleanupFailed ? "failed" : "passed",
+            cleanup: cleanupFailures.length > 0 ? "failed" : "passed",
             cleanupFailures,
             report: diagnosticReport,
           },
@@ -562,14 +561,15 @@ export async function runPostgresqlSystemTests(
     }
   }
   if (failure !== undefined) {
-    if (cleanupFailed)
+    if (cleanupFailures.length > 0)
       throw new AggregateError(
         [failure, postgresqlSystemFailure(runId, "cleanup")],
         `${String(failure)}; cleanup also failed`,
       );
     throw failure;
   }
-  if (cleanupFailed) throw postgresqlSystemFailure(runId, "cleanup");
+  if (cleanupFailures.length > 0)
+    throw postgresqlSystemFailure(runId, "cleanup");
   return runId;
 }
 
@@ -1199,7 +1199,6 @@ const productionRuntime: PostgresqlSystemRuntime = {
         ...files,
       ],
       environment,
-      "pipe",
       isRecord(context) && typeof context.administratorUrl === "string"
         ? [decodeURIComponent(new URL(context.administratorUrl).password)]
         : [],
@@ -1260,23 +1259,21 @@ async function runCommand(
 export function spawnTestChild(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv,
-  stdio: "inherit" | "ignore" | "pipe" = "ignore",
   secrets: readonly string[] = [],
 ): RunningTestChild {
   const child = spawn("pnpm", arguments_, {
     cwd: REPOSITORY_ROOT,
     env: { ...process.env, ...environment },
     detached: process.platform !== "win32",
-    stdio,
+    stdio: "pipe",
   });
   for (const [input, output] of [
     [child.stdout, process.stdout],
     [child.stderr, process.stderr],
   ] as const) {
-    if (input !== null)
-      createInterface({ input }).on("line", (line: string) =>
-        output.write(`${sanitizeDiagnostic(line, secrets)}\n`),
-      );
+    createInterface({ input }).on("line", (line: string) =>
+      output.write(`${sanitizeDiagnostic(line, secrets)}\n`),
+    );
   }
   return manageChild(child);
 }

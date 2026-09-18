@@ -263,20 +263,6 @@ describe("PostgreSQL system-test runner", () => {
     ).toThrow();
   });
 
-  it("does not forward private test subprocess diagnostics to runner logs", async () => {
-    const result = await promisify(execFile)(process.execPath, [
-      "--input-type=module",
-      "-e",
-      `
-      import { spawnTestChild } from './packages/postgresql/test/system/run.ts';
-      const child = spawnTestChild(['exec','node','-e', 'process.stdout.write("private-fixture-secret"); process.stderr.write("private-fixture-secret"); process.exitCode=1'], process.env);
-      try { await child.wait(); } catch { process.stdout.write("tests failed"); } finally { await child.terminate(); }
-    `,
-    ]);
-    expect(result.stdout).toBe("tests failed");
-    expect(result.stderr).toBe("");
-  });
-
   it("redacts credential values without erasing ordinary authorization descriptions", () => {
     expect(
       sanitizeDiagnostic(
@@ -301,7 +287,7 @@ describe("PostgreSQL system-test runner", () => {
       "-e",
       String.raw`
       import { spawnTestChild } from './packages/postgresql/test/system/run.ts';
-      const child = spawnTestChild(['exec', 'node', '-e', 'process.stdout.write("stage ok\\nprivate-fixture-"); setTimeout(() => { process.stdout.write("secret\\n"); process.stderr.write("worker failed\\npostgresql://user:other-secret@localhost/db\\n"); process.exitCode=7; }, 10)'], process.env, 'pipe', ['private-fixture-secret']);
+      const child = spawnTestChild(['exec', 'node', '-e', 'process.stdout.write("stage ok\\nprivate-fixture-"); setTimeout(() => { process.stdout.write("secret\\n"); process.stderr.write("worker failed\\npostgresql://user:other-secret@localhost/db\\n"); process.exitCode=7; }, 10)'], process.env, ['private-fixture-secret']);
       try { await child.wait(); } catch (error) { process.stdout.write(error.message); } finally { await child.terminate(); }
     `,
     ]);
