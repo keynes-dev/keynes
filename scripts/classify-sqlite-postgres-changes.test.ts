@@ -57,6 +57,13 @@ describe("PR workflow contract", () => {
       );
       expect(step(job, "Set up Node.js")).toContain("cache: pnpm");
     }
+    for (const name of [
+      "Run repository checks and tests",
+      "Run native PostgreSQL correctness",
+    ]) {
+      expect(step(workflow, name)).toContain("!cancelled()");
+      expect(step(workflow, name)).toContain("success()");
+    }
     expect(workflow).toContain("pnpm format:docs");
     expect(workflow).toContain("pnpm test:ci:postgresql");
     expect(workflow).not.toContain("pnpm test:sqlite-postgres");

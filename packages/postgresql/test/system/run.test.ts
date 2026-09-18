@@ -77,6 +77,62 @@ describe("PostgreSQL system-test runner", () => {
     expect(diagnostics).toContain('"cleanup": "passed"');
   });
 
+  it.each(["assertion", "cleanup", "cancellation"])(
+    "retains %s failure diagnostics without accepting the run",
+    async (kind) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime();
+      const controller = new AbortController();
+      if (kind === "cleanup") {
+        const run = fake.runtime.run;
+        fake.runtime.run = async (...args) => {
+          if (args[0] === "docker" && args[1][0] === "rm")
+            throw new Error(PASSWORD);
+          return run(...args);
+        };
+      } else {
+        const spawn = fake.runtime.spawnTests;
+        fake.runtime.spawnTests = (environment) => {
+          const child = spawn(environment);
+          return {
+            ...child,
+            wait: async () => {
+              await child.wait();
+              if (kind === "cancellation") controller.abort();
+              else {
+                const path = environment.KEYNES_POSTGRESQL_SYSTEM_REPORT_PATH;
+                if (path === undefined) throw new Error("Missing report path");
+                const report = JSON.parse(await readFile(path, "utf8"));
+                await writeFile(
+                  path,
+                  JSON.stringify({ ...report, success: false }),
+                );
+              }
+            },
+          };
+        };
+      }
+      await expect(
+        runPostgresqlSystemTests(
+          fake.runtime,
+          {},
+          {
+            selection: { kind: "ci" },
+            diagnosticsPath: output.path,
+            signal: controller.signal,
+          },
+        ),
+      ).rejects.toThrow();
+      const contents = await readFile(output.path, "utf8");
+      expect(contents).not.toContain(PASSWORD);
+      const diagnostics = JSON.parse(contents);
+      expect(diagnostics.cleanup).toBe(
+        kind === "cleanup" ? "failed" : "passed",
+      );
+      expect(fake.childTerminations.count).toBe(1);
+    },
+  );
+
   it("does not retain diagnostics on success", async () => {
     const output = await temporaryOutputPath();
     await runPostgresqlSystemTests(

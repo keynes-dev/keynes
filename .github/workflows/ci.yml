@@ -55,18 +55,21 @@ jobs:
           esac
 
       - name: Check out repository
+        if: ${{ success() && !cancelled() }}
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Set up pnpm
+        if: ${{ success() && !cancelled() }}
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Set up Node.js
+        if: ${{ success() && !cancelled() }}
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: package.json
@@ -74,14 +77,15 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
+        if: ${{ success() && !cancelled() }}
         run: pnpm install --frozen-lockfile
 
       - name: Check documentation formatting
-        if: needs.changes.outputs.run_databases == 'false'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'false' }}
         run: pnpm format:docs
 
       - name: Run repository checks and tests
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         run: pnpm test:pr
 
   sqlite-postgres:
@@ -103,21 +107,21 @@ jobs:
           esac
 
       - name: Check out repository
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Set up pnpm
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Set up Node.js
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: package.json
@@ -125,15 +129,15 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Run native PostgreSQL correctness
-        if: needs.changes.outputs.run_databases == 'true'
+        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         run: pnpm test:ci:postgresql -- --diagnostics "$RUNNER_TEMP/ci/postgresql.json"
 
       - name: Retain failure diagnostics
-        if: ${{ failure() && needs.changes.outputs.run_databases == 'true' }}
+        if: ${{ failure() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
