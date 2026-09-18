@@ -82,48 +82,32 @@ describe("PostgreSQL package build promotion", () => {
     );
   });
 
-  it("preserves migrations 0001 through 0007 while adding configured creation", async () => {
-    const expectedHashes = [
-      "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
-      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
-      "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
-      "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
-      "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
-      "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
-      "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
-    ];
-    for (const [index, migration] of installationRecord.migrations
-      .slice(0, 7)
-      .entries()) {
-      const bytes = await readFile(
-        new URL(`../../migrations/${migration.path}`, import.meta.url),
-      );
-      expect(createHash("sha256").update(bytes).digest("hex")).toBe(
-        expectedHashes[index],
-      );
-      expect(migration.sha256).toBe(expectedHashes[index]);
-    }
-    expect(installationRecord.migrations.map(({ id }) => id)).toEqual([
-      "0001-storage",
-      "0002-budget",
-      "0003-public",
-      "0004-policy",
-      "0005-resource-bound-budget",
-      "0006-remote-access",
-      "0007-resource-definitions",
-      "0008-configured-creation",
-    ]);
+  it("binds installation to one baseline", async () => {
+    expect(installationRecord.migrations).toHaveLength(1);
+    const migration = installationRecord.migrations[0];
+    expect(migration).toEqual({
+      id: "0001-baseline",
+      path: "0001-baseline.sql",
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      contractDigest: installationRecord.contractDigest,
+    });
+    const bytes = await readFile(
+      new URL("../../migrations/0001-baseline.sql", import.meta.url),
+    );
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+      migration?.sha256,
+    );
   });
 
-  it("marks only configured creation as the current contract migration", () => {
+  it("marks the baseline as the only contract migration", () => {
     expect(
       migrationManifest.migrations.filter(
         (migration) => migration.contract === true,
       ),
     ).toEqual([
       {
-        id: "0008-configured-creation",
-        path: "0008-configured-creation.sql",
+        id: "0001-baseline",
+        path: "0001-baseline.sql",
         contract: true,
       },
     ]);
@@ -134,10 +118,10 @@ describe("PostgreSQL package build promotion", () => {
       installationRecord.migrations
         .filter(({ contractDigest }) => contractDigest === contract.digest)
         .map(({ id }) => id),
-    ).toEqual(["0008-configured-creation"]);
+    ).toEqual(["0001-baseline"]);
   });
 
-  it("generates the configured creation migration deterministically without rewriting history", async () => {
+  it("generates baseline identity deterministically without rewriting SQL", async () => {
     const repositoryRoot = await mkdtemp(
       join(tmpdir(), "keynes-postgresql-generation-"),
     );
@@ -173,12 +157,18 @@ describe("PostgreSQL package build promotion", () => {
       ),
     ).toEqual(before);
     await generatePostgresql({ ...options, check: true });
-    expect(first.contractMigrationId).toBe("0008-configured-creation");
-    const historical = await readFile(
-      join(packageRoot, "migrations/0007-resource-definitions.sql"),
+    expect(first.contractMigrationId).toBe("0001-baseline");
+    const baseline = await readFile(
+      join(packageRoot, "migrations/0001-baseline.sql"),
+      "utf8",
     );
-    expect(createHash("sha256").update(historical).digest("hex")).toBe(
-      "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
+    expect(baseline).toBe(before[1]);
+    await writeFile(
+      join(packageRoot, "migrations/0002-stale.sql"),
+      "select 1;\n",
+    );
+    await expect(generatePostgresql(options)).rejects.toThrow(
+      "migration directory does not match manifest",
     );
   });
 

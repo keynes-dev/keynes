@@ -32,6 +32,11 @@ and compatibility checks. These commands are not implemented by this documentati
 The existing `keynes-postgresql` installer remains the executable contract until
 its replacement lands.
 
+That installer packages one `0001-baseline.sql` for fresh databases. An exact
+reinstall is read-only; historical, partial, drifted, or profile-mismatched
+targets fail closed. Recreate development databases rather than treating the
+baseline as an upgrade or downgrade path.
+
 Do not confuse repository command-type generation from canonical contracts with
 application binding generation from a selected remote catalog. Discovery and checks
 must not write remote definitions. Definition deployment and database installation

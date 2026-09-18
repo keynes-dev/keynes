@@ -2,7 +2,7 @@
 
 `@keynes/postgresql` is the canonical PostgreSQL distribution for the Keynes
 embedded PostgreSQL preview. It owns the authoritative SQL, PL/pgSQL,
-migration graph, installation identity, and private durable storage. The
+single fresh-install baseline, installation identity, and private durable storage. The
 package is an installable CLI and PostgreSQL archive, not another SDK or a
 PostgreSQL extension.
 
@@ -90,7 +90,9 @@ logs, fixtures, and retained acceptance records must follow the same rule.
 ## Preview support limits
 
 The supported profile is PostgreSQL 18.6 (`server_version_num = 180006`) with
-one prepared owner role, one application role, and one bootstrap principal.
+prepared owner, execution, administration, and application roles plus one
+bootstrap principal. The archive contains only `0001-baseline.sql`; development
+databases created from the former migration graph must be recreated.
 The installer supports only fresh installation and exact recheck. It rejects
 incompatible or partial state without repair. Resource definition and configured
 creation use semantic generation 3 and minimum SDK generation 3. Older preview

@@ -271,7 +271,7 @@ describe("PostgreSQL system-test runner", () => {
     ).toBe("current authorization and selected-definition validation");
     expect(
       sanitizeDiagnostic(
-        'password: "two word secret", \"password\": \"json-secret\", PGPASSWORD=env-secret Authorization: Bearer token',
+        'password: "two word secret", "password": "json-secret", PGPASSWORD=env-secret Authorization: Bearer token',
       ),
     ).not.toMatch(/two word secret|json-secret|env-secret|token/);
     expect(

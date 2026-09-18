@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import {
@@ -8,31 +7,11 @@ import {
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  new URL("../../migrations/0004-policy.sql", import.meta.url),
+  new URL("../../migrations/0001-baseline.sql", import.meta.url),
   "utf8",
 );
 
-describe("generated PostgreSQL Policy backend", () => {
-  it.each([
-    [
-      "0001-storage.sql",
-      "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
-    ],
-    [
-      "0002-budget.sql",
-      "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
-    ],
-    [
-      "0003-public.generated.sql",
-      "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
-    ],
-  ])("keeps immutable migration %s byte exact", (path, expected) => {
-    const contents = readFileSync(
-      new URL(`../../migrations/${path}`, import.meta.url),
-    );
-    expect(createHash("sha256").update(contents).digest("hex")).toBe(expected);
-  });
-
+describe("PostgreSQL Policy baseline", () => {
   it("defines every validator and renderer declared by the Policy profile", () => {
     for (const validator of Object.values(POLICY_POSTGRESQL_VALIDATORS)) {
       expect(migration).toContain(`FUNCTION keynes_internal.${validator}(`);
@@ -74,10 +53,10 @@ describe("generated PostgreSQL Policy backend", () => {
       "WHEN 'or' THEN '(SELECT CASE lhs.value WHEN TRUE THEN TRUE ELSE (' || keynes_internal.render_policy_node(node->'right') || ' OR lhs.value) END FROM (VALUES (' || keynes_internal.render_policy_node(node->'left') || ')) AS lhs(value))'",
     );
     expect(migration).toContain(
-      "CREATE OR REPLACE FUNCTION keynes_internal.policy_runtime_numeric(value numeric)\nRETURNS numeric\nLANGUAGE plpgsql\nVOLATILE",
+      "CREATE FUNCTION keynes_internal.policy_runtime_numeric(value numeric) RETURNS numeric\nLANGUAGE plpgsql",
     );
     expect(migration).toContain(
-      "REVOKE ALL ON FUNCTION keynes_internal.policy_runtime_numeric(value numeric) FROM PUBLIC",
+      "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA keynes, keynes_internal FROM PUBLIC",
     );
   });
 

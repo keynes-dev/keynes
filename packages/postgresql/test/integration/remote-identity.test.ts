@@ -30,16 +30,7 @@ describe("remote PostgreSQL installation and administration", () => {
     await fixture.recheck();
 
     expect(await installationState(fixture)).toEqual(before);
-    expect(before.migrations).toEqual([
-      "0001-storage",
-      "0002-budget",
-      "0003-public",
-      "0004-policy",
-      "0005-resource-bound-budget",
-      "0006-remote-access",
-      "0007-resource-definitions",
-      "0008-configured-creation",
-    ]);
+    expect(before.migrations).toEqual(["0001-baseline"]);
     expect(before.missingProcedures).toEqual([]);
   });
 

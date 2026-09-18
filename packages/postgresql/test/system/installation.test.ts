@@ -32,51 +32,9 @@ const EXPLICIT_INSTALLATION = {
 
 const MIGRATIONS = [
   {
-    id: "0001-storage",
-    path: "0001-storage.sql",
+    id: "0001-baseline",
+    path: "0001-baseline.sql",
     tableName: "keynes_internal.commands",
-    procedureName: null,
-  },
-  {
-    id: "0002-budget",
-    path: "0002-budget.sql",
-    tableName: null,
-    procedureName: "keynes_internal.apply_command(text,jsonb)",
-  },
-  {
-    id: "0003-public",
-    path: "0003-public.generated.sql",
-    tableName: null,
-    procedureName: "keynes.define_resource_type(jsonb)",
-  },
-  {
-    id: "0004-policy",
-    path: "0004-policy.sql",
-    tableName: null,
-    procedureName: "keynes_internal.validate_policy_program(jsonb)",
-  },
-  {
-    id: "0005-resource-bound-budget",
-    path: "0005-resource-bound-budget.sql",
-    tableName: null,
-    procedureName: null,
-  },
-  {
-    id: "0006-remote-access",
-    path: "0006-remote-access.sql",
-    tableName: "keynes_internal.remote_role_mappings",
-    procedureName: "keynes.remote_get_compatibility(jsonb)",
-  },
-  {
-    id: "0007-resource-definitions",
-    path: "0007-resource-definitions.sql",
-    tableName: null,
-    procedureName: "keynes.define_resources(jsonb)",
-  },
-  {
-    id: "0008-configured-creation",
-    path: "0008-configured-creation.sql",
-    tableName: null,
     procedureName: "keynes.validate_resources(jsonb)",
   },
 ] as const;
@@ -175,7 +133,7 @@ describe("PostgreSQL installation", () => {
     });
   });
 
-  it("installs migrations 0001 through 0008 and rechecks them without changes", async () => {
+  it("installs one baseline and rechecks it without changes", async () => {
     const { installDatabase } = await import("./support/migrations.js");
     await withFreshDatabase(async (database) => {
       await installDatabase(database, EXPLICIT_INSTALLATION);
@@ -183,14 +141,7 @@ describe("PostgreSQL installation", () => {
       await installDatabase(database, EXPLICIT_INSTALLATION);
       expect(await installationState(database)).toEqual(before);
       expect(before.migrations.rows).toEqual([
-        { migration_id: "0001-storage" },
-        { migration_id: "0002-budget" },
-        { migration_id: "0003-public" },
-        { migration_id: "0004-policy" },
-        { migration_id: "0005-resource-bound-budget" },
-        { migration_id: "0006-remote-access" },
-        { migration_id: "0007-resource-definitions" },
-        { migration_id: "0008-configured-creation" },
+        { migration_id: "0001-baseline" },
       ]);
     });
   });
@@ -259,7 +210,7 @@ describe("PostgreSQL installation", () => {
 
   it("rejects migration byte drift before applying it", async () => {
     const { installDatabase } = await loadInstallerWith((path, contents) => {
-      if (!path.pathname.endsWith("0001-storage.sql")) return contents;
+      if (!path.pathname.endsWith("0001-baseline.sql")) return contents;
       if (typeof contents === "string") return `${contents}\n-- drift\n`;
       return Buffer.concat([contents, Buffer.from("\n-- drift\n")]);
     });
@@ -269,7 +220,7 @@ describe("PostgreSQL installation", () => {
         installDatabase(database, EXPLICIT_INSTALLATION),
       ).rejects.toMatchObject({
         code: "installation_drift",
-        details: { migrationId: "0001-storage" },
+        details: { migrationId: "0001-baseline" },
       });
     });
   });
