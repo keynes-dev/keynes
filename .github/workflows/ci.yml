@@ -39,7 +39,7 @@ jobs:
   checks:
     name: Repository and tests
     needs: changes
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -91,7 +91,7 @@ jobs:
   sqlite-postgres:
     name: SQLite and PostgreSQL behavior tests
     needs: changes
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

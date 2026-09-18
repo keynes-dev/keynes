@@ -88,7 +88,7 @@ describe("PostgreSQL system-test runner", () => {
         const run = fake.runtime.run;
         fake.runtime.run = async (...args) => {
           if (args[0] === "docker" && args[1][0] === "rm")
-            throw new Error(PASSWORD);
+            throw new Error(`Docker removal denied ${PASSWORD}`);
           return run(...args);
         };
       } else {
@@ -130,6 +130,10 @@ describe("PostgreSQL system-test runner", () => {
       expect(diagnostics.cleanup).toBe(
         kind === "cleanup" ? "failed" : "passed",
       );
+      if (kind === "cleanup")
+        expect(diagnostics.cleanupFailures).toEqual([
+          "PostgreSQL container: Docker removal denied [redacted]",
+        ]);
       expect(fake.childTerminations.count).toBe(1);
     },
   );
