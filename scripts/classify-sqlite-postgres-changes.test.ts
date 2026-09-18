@@ -84,15 +84,11 @@ describe("path classification", () => {
   it.each([
     ["docs/product.md", "documentation"],
     ["docs/features/key-93/spec.md", "documentation"],
-    ["apps/web/src/pages/index.astro", "marketing-site"],
-    ["apps/web/tests/home.test.ts", "marketing-site"],
     [".specify/memory/constitution.md", "spec-kit-record"],
     ["AGENTS.md", "repository-metadata"],
     ["LICENSE", "repository-metadata"],
     [".github/CODEOWNERS", "repository-metadata"],
     [".github/PULL_REQUEST_TEMPLATE.md", "repository-metadata"],
-    ["apps/web/AGENTS.md", "repository-metadata"],
-    ["apps/web/.gitignore", "repository-metadata"],
   ])("approves %s as %s", async (path, category) => {
     const { classifyChangedPaths } = await loadClassifier();
     expect(classifyChangedPaths([{ status: "M", path }])).toEqual({
@@ -108,13 +104,8 @@ describe("path classification", () => {
     "scripts/classify-sqlite-postgres-changes.ts",
     ".github/workflows/ci.yml",
     "package.json",
-    "apps/web/package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "apps/web/astro.config.mjs",
-    "apps/web/components.json",
-    "apps/web/tsconfig.json",
-    "apps/web/vitest.config.ts",
     ".specify/scripts/bash/common.sh",
     ".specify/extensions.yml",
     ".gitignore",
@@ -130,22 +121,11 @@ describe("path classification", () => {
     });
   });
 
-  it("requires execution for a lockfile beside website source", async () => {
-    const { classifyChangedPaths } = await loadClassifier();
-    expect(
-      classifyChangedPaths([
-        { status: "M", path: "apps/web/src/pages/index.astro" },
-        { status: "M", path: "pnpm-lock.yaml" },
-      ]).disposition,
-    ).toBe("relevant");
-  });
-
   it("approves a mix of every safe category", async () => {
     const { classifyChangedPaths } = await loadClassifier();
     expect(
       classifyChangedPaths([
         { status: "M", path: "docs/product.md" },
-        { status: "M", path: "apps/web/src/pages/index.astro" },
         { status: "M", path: ".specify/memory/constitution.md" },
         { status: "M", path: ".github/CODEOWNERS" },
       ]).disposition,
@@ -184,12 +164,12 @@ describe("NUL-delimited Git status parsing", () => {
     expect(
       parseNameStatusZ(
         Buffer.from(
-          "A\0docs/new.md\0M\0apps/web/src/page.ts\0D\0packages/old.ts\0T\0tool\0",
+          "A\0docs/new.md\0M\0packages/new.ts\0D\0packages/old.ts\0T\0tool\0",
         ),
       ),
     ).toEqual([
       { status: "A", path: "docs/new.md" },
-      { status: "M", path: "apps/web/src/page.ts" },
+      { status: "M", path: "packages/new.ts" },
       { status: "D", path: "packages/old.ts" },
       { status: "T", path: "tool" },
     ]);

@@ -50,5 +50,4 @@ implementation, verification, evidence boundaries, and review path.
 
 ## Learned Workspace Facts
 
-- `docs/product.md` is the product vision document, not marketing copy.
-- The public web app lives in `apps/web` (Astro).
+- `docs/product.md` is the product vision document.
