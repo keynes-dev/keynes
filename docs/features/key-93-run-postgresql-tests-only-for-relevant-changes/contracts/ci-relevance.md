@@ -63,9 +63,7 @@ The TypeScript boundary represents one closed union:
 
 ```ts
 type ApprovedCategory =
-  | "documentation"
-  | "spec-kit-record"
-  | "repository-metadata";
+  "documentation" | "spec-kit-record" | "repository-metadata";
 
 type RelevanceDecision =
   | {

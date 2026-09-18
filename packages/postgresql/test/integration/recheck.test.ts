@@ -396,7 +396,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
              left join lateral unnest(p.proconfig) as config(cfg) on config.cfg like 'search_path=%'
             where n.nspname = 'keynes'
               and p.proargtypes = '3802'::oidvector
-              and p.proname not like 'remote\_%' escape '\\'
+              and p.proname not like 'remote_%' escape '\\'
             order by target`,
       );
 
@@ -465,7 +465,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
                   bool_and(coalesce(has_function_privilege($1, to_regprocedure(remote), 'EXECUTE'), false))
                     as application_remote_execute,
                   bool_or(has_function_privilege($1, p.oid, 'EXECUTE')) filter (
-                    where n.nspname = 'keynes' and p.proname not like 'remote\_%' escape '\\'
+                    where n.nspname = 'keynes' and p.proname not like 'remote_%' escape '\\'
                   ) as application_canonical_execute,
                   bool_and(coalesce(has_function_privilege($2, to_regprocedure(admin), 'EXECUTE'), false))
                     as administration_execute,
@@ -473,7 +473,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
                     where n.nspname = 'keynes'
                   ) as administration_remote_execute,
                   bool_and(p.proowner = (select oid from pg_roles where rolname = $3)) filter (
-                    where n.nspname = 'keynes' and p.proname like 'remote\_%' escape '\\'
+                    where n.nspname = 'keynes' and p.proname like 'remote_%' escape '\\'
                   ) as execution_owns_remote
              from pg_proc p
              join pg_namespace n on n.oid = p.pronamespace
