@@ -21,51 +21,12 @@
   "contractDigest": "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921",
   "policyProfileDigest": "e24288a917bc812465bd78271f5d2771d63aae73bc55b6efb126abbef7830128",
   "remoteProceduresDigest": "bfcd38aa5ab6571e6a1c24ee623b52b4d242ac81954f2b2c131535db88e5f0f0",
-  "migrationSetDigest": "9371ae5632d33c9732bdb5873368210eddf8e9dc911808b2d30a01b970fe1de9",
+  "migrationSetDigest": "9d2fe283f4c560b1380f07cf863faa385a64d400aa8a8f474cd50a71966c8e02",
   "migrations": [
     {
-      "id": "0001-storage",
-      "path": "0001-storage.sql",
-      "sha256": "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd"
-    },
-    {
-      "id": "0002-budget",
-      "path": "0002-budget.sql",
-      "sha256": "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b"
-    },
-    {
-      "id": "0003-public",
-      "path": "0003-public.generated.sql",
-      "sha256": "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753"
-    },
-    {
-      "id": "0004-policy",
-      "path": "0004-policy.sql",
-      "sha256": "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
-      "contractDigest": "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7"
-    },
-    {
-      "id": "0005-resource-bound-budget",
-      "path": "0005-resource-bound-budget.sql",
-      "sha256": "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
-      "contractDigest": "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5"
-    },
-    {
-      "id": "0006-remote-access",
-      "path": "0006-remote-access.sql",
-      "sha256": "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
-      "contractDigest": "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27"
-    },
-    {
-      "id": "0007-resource-definitions",
-      "path": "0007-resource-definitions.sql",
-      "sha256": "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
-      "contractDigest": "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f"
-    },
-    {
-      "id": "0008-configured-creation",
-      "path": "0008-configured-creation.sql",
-      "sha256": "3e5127fd6502a170cdcc4e7d5dceb46f793e552eb9a9832fbeb8eed740a4bb46",
+      "id": "0001-baseline",
+      "path": "0001-baseline.sql",
+      "sha256": "7b9da95c43edbff0a5cb89e34717c4482f859da1f37ed0424b40593478bb528e",
       "contractDigest": "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921"
     }
   ],
@@ -164,6 +125,28 @@
     "function:keynes.remote_open_budget(input jsonb)",
     "function:keynes.remote_recover_operation(input jsonb)",
     "function:keynes.remote_get_compatibility(input jsonb)",
+    "function:keynes_internal.canonical_definitions_v0007(operation_name text,value jsonb)",
+    "function:keynes_internal.resolve_resource_v0007(selected_tenant uuid,selected_principal uuid,selected_command uuid,selected_resource uuid,canonical_definition jsonb)",
+    "function:keynes_internal.apply_define_resources_v0007(input jsonb)",
+    "function:keynes_internal.apply_define_resource_v0007(input jsonb)",
+    "function:keynes_internal.apply_create_budget_v0007(input jsonb)",
+    "function:keynes_internal.canonical_creation_v0007(resource_source jsonb,allocation_value jsonb)",
+    "function:keynes_internal.remote_create_budget_v0007(input jsonb)",
+    "function:keynes_internal.remote_apply_command_v0007(operation_name text,input jsonb)",
+    "function:keynes_internal.remote_define_resources_v0007(input jsonb)",
+    "function:keynes_internal.remote_get_compatibility_v0007(input jsonb)",
+    "function:keynes.define_resources(input jsonb)",
+    "function:keynes.remote_define_resources(input jsonb)",
+    "function:keynes_internal.remote_get_compatibility_v0008(input jsonb)",
+    "function:keynes_internal.canonical_creation_v0008(definitions_value jsonb,amounts_value jsonb)",
+    "function:keynes_internal.apply_create_budget_v0008(input jsonb)",
+    "function:keynes_internal.remote_create_budget_v0008(input jsonb)",
+    "function:keynes_internal.remote_recover_operation_v0008(input jsonb)",
+    "function:keynes_internal.remote_apply_command_v0008(operation_name text,input jsonb)",
+    "function:keynes_internal.validate_resources_v0008(input jsonb)",
+    "function:keynes_internal.remote_validate_resources_v0008(input jsonb)",
+    "function:keynes.validate_resources(input jsonb)",
+    "function:keynes.remote_validate_resources(input jsonb)",
     "function:keynes_internal.apply_command_legacy(operation_name text,input jsonb)",
     "function:keynes_internal.policy_canonical_json(value jsonb)",
     "function:keynes_internal.canonical_policy_set(policies jsonb)",
@@ -226,29 +209,7 @@
     "function:keynes_internal.validate_power(node jsonb)",
     "function:keynes_internal.render_power(node jsonb)",
     "function:keynes_internal.validate_aggregate(node jsonb)",
-    "function:keynes_internal.render_aggregate(node jsonb)",
-    "function:keynes_internal.canonical_definitions_v0007(operation_name text,value jsonb)",
-    "function:keynes_internal.resolve_resource_v0007(selected_tenant uuid,selected_principal uuid,selected_command uuid,selected_resource uuid,canonical_definition jsonb)",
-    "function:keynes_internal.apply_define_resources_v0007(input jsonb)",
-    "function:keynes_internal.apply_define_resource_v0007(input jsonb)",
-    "function:keynes_internal.apply_create_budget_v0007(input jsonb)",
-    "function:keynes_internal.canonical_creation_v0007(resource_source jsonb,allocation_value jsonb)",
-    "function:keynes_internal.remote_create_budget_v0007(input jsonb)",
-    "function:keynes_internal.remote_apply_command_v0007(operation_name text,input jsonb)",
-    "function:keynes_internal.remote_define_resources_v0007(input jsonb)",
-    "function:keynes_internal.remote_get_compatibility_v0007(input jsonb)",
-    "function:keynes.define_resources(input jsonb)",
-    "function:keynes.remote_define_resources(input jsonb)",
-    "function:keynes_internal.remote_get_compatibility_v0008(input jsonb)",
-    "function:keynes_internal.canonical_creation_v0008(definitions_value jsonb,amounts_value jsonb)",
-    "function:keynes_internal.apply_create_budget_v0008(input jsonb)",
-    "function:keynes_internal.remote_create_budget_v0008(input jsonb)",
-    "function:keynes_internal.remote_recover_operation_v0008(input jsonb)",
-    "function:keynes_internal.remote_apply_command_v0008(operation_name text,input jsonb)",
-    "function:keynes_internal.validate_resources_v0008(input jsonb)",
-    "function:keynes_internal.remote_validate_resources_v0008(input jsonb)",
-    "function:keynes.validate_resources(input jsonb)",
-    "function:keynes.remote_validate_resources(input jsonb)"
+    "function:keynes_internal.render_aggregate(node jsonb)"
   ],
   "functions": [
     {

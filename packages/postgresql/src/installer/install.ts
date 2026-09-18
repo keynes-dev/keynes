@@ -106,6 +106,9 @@ export async function install(input: {
   try {
     await checkServer(client);
     await checkRoles(client, config);
+    await client.query(
+      "select pg_advisory_lock(hashtextextended('keynes-installation:' || current_database(), 0))",
+    );
     const state = await classifyTarget(client);
     if (state === "incompatible")
       throw new InstallationError("incompatible_target", "target");

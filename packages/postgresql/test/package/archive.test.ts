@@ -21,14 +21,7 @@ const expectedFiles = [
   "package/dist/installer/run-installation.d.ts",
   "package/dist/installer/run-installation.js",
   "package/generated/installation-record.json",
-  "package/migrations/0001-storage.sql",
-  "package/migrations/0002-budget.sql",
-  "package/migrations/0003-public.generated.sql",
-  "package/migrations/0004-policy.sql",
-  "package/migrations/0005-resource-bound-budget.sql",
-  "package/migrations/0006-remote-access.sql",
-  "package/migrations/0007-resource-definitions.sql",
-  "package/migrations/0008-configured-creation.sql",
+  "package/migrations/0001-baseline.sql",
   "package/migrations/manifest.json",
   "package/package.json",
 ] as const;
@@ -72,42 +65,15 @@ describe("@keynes/postgresql packed archive", () => {
     }
   });
 
-  it("publishes eight ordered migrations with immutable history and one current contract", () => {
+  it("publishes one contract-bearing baseline", () => {
     const manifest: unknown = JSON.parse(
       entry("package/migrations/manifest.json").body.toString("utf8"),
     );
     expect(manifest).toEqual({
       migrations: [
-        { id: "0001-storage", path: "0001-storage.sql" },
-        { id: "0002-budget", path: "0002-budget.sql" },
-        { id: "0003-public", path: "0003-public.generated.sql" },
         {
-          id: "0004-policy",
-          path: "0004-policy.sql",
-          contractDigest:
-            "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-        },
-        {
-          id: "0005-resource-bound-budget",
-          path: "0005-resource-bound-budget.sql",
-          contractDigest:
-            "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
-        },
-        {
-          id: "0006-remote-access",
-          path: "0006-remote-access.sql",
-          contractDigest:
-            "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
-        },
-        {
-          id: "0007-resource-definitions",
-          path: "0007-resource-definitions.sql",
-          contractDigest:
-            "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
-        },
-        {
-          id: "0008-configured-creation",
-          path: "0008-configured-creation.sql",
+          id: "0001-baseline",
+          path: "0001-baseline.sql",
           contract: true,
         },
       ],
@@ -123,14 +89,6 @@ describe("@keynes/postgresql packed archive", () => {
         readonly contractDigest?: string;
       }[];
     };
-    expect(record.migrations.at(-2)).toEqual({
-      id: "0007-resource-definitions",
-      path: "0007-resource-definitions.sql",
-      sha256:
-        "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
-      contractDigest:
-        "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
-    });
     expect(
       record.migrations.map(({ id, path, contractDigest }) => [
         id,
@@ -138,32 +96,9 @@ describe("@keynes/postgresql packed archive", () => {
         contractDigest ?? null,
       ]),
     ).toEqual([
-      ["0001-storage", "0001-storage.sql", null],
-      ["0002-budget", "0002-budget.sql", null],
-      ["0003-public", "0003-public.generated.sql", null],
       [
-        "0004-policy",
-        "0004-policy.sql",
-        expect.stringMatching(/^[a-f0-9]{64}$/u),
-      ],
-      [
-        "0005-resource-bound-budget",
-        "0005-resource-bound-budget.sql",
-        expect.stringMatching(/^[a-f0-9]{64}$/u),
-      ],
-      [
-        "0006-remote-access",
-        "0006-remote-access.sql",
-        "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
-      ],
-      [
-        "0007-resource-definitions",
-        "0007-resource-definitions.sql",
-        "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
-      ],
-      [
-        "0008-configured-creation",
-        "0008-configured-creation.sql",
+        "0001-baseline",
+        "0001-baseline.sql",
         expect.stringMatching(/^[a-f0-9]{64}$/u),
       ],
     ]);

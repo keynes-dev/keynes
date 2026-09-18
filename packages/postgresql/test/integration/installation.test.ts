@@ -102,7 +102,18 @@ describe("native PostgreSQL installation", () => {
     expect(after).toEqual(before);
   });
 
-  it("installs configured-creation migration 0008 after immutable history", async () => {
+  it("serializes two installers racing on one empty target", async () => {
+    const target = await openTarget();
+    const results = await Promise.all([install(target), install(target)]);
+
+    expect(results.map(({ outcome }) => outcome).sort()).toEqual([
+      "already-installed",
+      "installed",
+    ]);
+    expect(await schemasExist(target)).toBe(true);
+  });
+
+  it("records one contract-bearing baseline migration", async () => {
     const target = await openTarget();
     await install(target);
 
@@ -112,23 +123,12 @@ describe("native PostgreSQL installation", () => {
            from keynes_internal.schema_migrations
           order by migration_id`,
     );
-    expect(migrations.rows.map(({ migration_id }) => migration_id)).toEqual([
-      "0001-storage",
-      "0002-budget",
-      "0003-public",
-      "0004-policy",
-      "0005-resource-bound-budget",
-      "0006-remote-access",
-      "0007-resource-definitions",
-      "0008-configured-creation",
+    expect(migrations.rows).toEqual([
+      {
+        migration_id: "0001-baseline",
+        contract_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      },
     ]);
-    expect(migrations.rows).toHaveLength(8);
-    expect(migrations.rows.at(-3)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
-    expect(migrations.rows.at(-2)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
-    expect(migrations.rows.at(-1)?.contract_digest).toMatch(/^[0-9a-f]{64}$/);
-    expect(migrations.rows.at(-1)?.contract_digest).not.toBe(
-      migrations.rows.at(-2)?.contract_digest,
-    );
   });
 
   it("moves Resource provenance to the defining command", async () => {
@@ -338,6 +338,33 @@ describe("native PostgreSQL installation", () => {
     expect(await privateSchemaExists(target)).toBe(true);
   });
 
+  it("rejects a historical migration ledger without changing the target", async () => {
+    const target = await openTarget();
+    await install(target);
+    await query(
+      target,
+      `delete from keynes_internal.schema_migrations;
+       insert into keynes_internal.schema_migrations
+         (migration_id, byte_checksum, contract_digest)
+       values
+         ('0001-storage', repeat('0', 64), null),
+         ('0002-budget', repeat('0', 64), null),
+         ('0003-public', repeat('0', 64), null),
+         ('0004-policy', repeat('0', 64), null),
+         ('0005-resource-bound-budget', repeat('0', 64), null),
+         ('0006-remote-access', repeat('0', 64), null),
+         ('0007-resource-definitions', repeat('0', 64), null),
+         ('0008-configured-creation', repeat('0', 64), null)`,
+    );
+    const before = await installationSnapshot(target);
+
+    await expect(install(target)).rejects.toMatchObject({
+      code: "incompatible_target",
+      check: "migration:0001-baseline",
+    });
+    expect(await installationSnapshot(target)).toEqual(before);
+  });
+
   it("rejects a migration-byte mismatch without changing the target", async () => {
     const target = await openTarget();
     await install(target);
@@ -346,15 +373,15 @@ describe("native PostgreSQL installation", () => {
       target,
       `update keynes_internal.schema_migrations
          set byte_checksum = repeat('0', 64)
-         where migration_id = '0001-storage'`,
+         where migration_id = '0001-baseline'`,
     );
 
     await expect(install(target)).rejects.toMatchObject({
       code: "incompatible_target",
-      check: "migration:0001-storage",
+      check: "migration:0001-baseline",
     });
     expect(await installationSnapshot(target)).not.toEqual(before);
-    expect(await migrationChecksum(target, "0001-storage")).toBe(
+    expect(await migrationChecksum(target, "0001-baseline")).toBe(
       "0".repeat(64),
     );
   });
@@ -366,12 +393,12 @@ describe("native PostgreSQL installation", () => {
       target,
       `update keynes_internal.schema_migrations
          set contract_digest = repeat('0', 64)
-         where migration_id = '0003-public'`,
+         where migration_id = '0001-baseline'`,
     );
 
     await expect(install(target)).rejects.toMatchObject({
       code: "incompatible_target",
-      check: "migration:0003-public",
+      check: "migration:0001-baseline",
     });
   });
 
@@ -504,7 +531,7 @@ describe("native PostgreSQL installation", () => {
     });
   });
 
-  it("rolls back every migration after an injected failure", async () => {
+  it("rolls back the baseline after an injected failure", async () => {
     const target = await openTarget();
     const failure = new Error("injected migration failure");
     let injectionReached = false;
@@ -528,6 +555,41 @@ describe("native PostgreSQL installation", () => {
     await expect(install(target)).rejects.toBe(failure);
     querySpy.mockRestore();
     expect(injectionReached).toBe(true);
+    expect(await schemasExist(target)).toBe(false);
+    await expect(install(target)).resolves.toMatchObject({
+      ok: true,
+      outcome: "installed",
+    });
+  });
+
+  it("preserves installation and rollback failures together", async () => {
+    const target = await openTarget();
+    const installationFailure = new Error("injected migration failure");
+    const rollbackFailure = new Error("injected rollback failure");
+    const originalQuery = Client.prototype.query;
+    const querySpy = vi.spyOn(Client.prototype, "query");
+    querySpy.mockImplementation(async function (
+      this: InstanceType<typeof Client>,
+      ...args
+    ) {
+      const statement = args[0];
+      if (statement === "rollback") throw rollbackFailure;
+      if (
+        typeof statement === "string" &&
+        statement.includes("CREATE FUNCTION keynes_internal.raise_domain_error")
+      ) {
+        throw installationFailure;
+      }
+      return await originalQuery.apply(this, args);
+    });
+
+    const error = await install(target).catch((caught: unknown) => caught);
+    querySpy.mockRestore();
+    expect(error).toBeInstanceOf(AggregateError);
+    expect((error as AggregateError).errors).toEqual([
+      installationFailure,
+      rollbackFailure,
+    ]);
     expect(await schemasExist(target)).toBe(false);
   });
 });

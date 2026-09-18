@@ -11,6 +11,7 @@ import type { InstallationConfig } from "../../src/installer/config.ts";
 import { Client } from "pg";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
 import {
+  identifier,
   REMOTE_ADMIN_PROCEDURES,
   REMOTE_RUNTIME_PROCEDURES,
 } from "../system/support/remote-identity.js";
@@ -63,47 +64,6 @@ const principalId = "00000000-0000-4000-8000-000000000101";
 
 const expectedObjects = installationRecord.expectedObjects;
 const expectedFunctions = installationRecord.functions;
-const HISTORICAL_MIGRATIONS = [
-  {
-    id: "0001-storage",
-    sha256: "1f1745d223274d9ddafa253b01ae61cc6e11fe9e65841667123f9914cad470dd",
-    contractDigest: null,
-  },
-  {
-    id: "0002-budget",
-    sha256: "464fabeb3119048d1f08c5d387268aede428d92db97513ec9e168b16783c6e6b",
-    contractDigest: null,
-  },
-  {
-    id: "0003-public",
-    sha256: "b5870fb835851e014e6ac0ccdafe2259482f57d1539bbddf9f996949cf4ec753",
-    contractDigest: null,
-  },
-  {
-    id: "0004-policy",
-    sha256: "d354c351b1144fe069def514c4700bcc92864f181079a6194cb832049bc4f28c",
-    contractDigest:
-      "f0aae48573f0c2e2fc017223d0762a43eb3cbc553924faa783eb963c9eed71a7",
-  },
-  {
-    id: "0005-resource-bound-budget",
-    sha256: "bcb0c5f2b68a39bf2256935042f70e11e01cf967776006109e316a8174bd12c7",
-    contractDigest:
-      "cb9e2a1744efb693b83daeaf7dea92673518cf9d3809b19688355a7a73ec78c5",
-  },
-  {
-    id: "0006-remote-access",
-    sha256: "7ecbfbf95851f68678f8660d258b2021c0f62bf4cc0d7ce55a7b7157e54c7927",
-    contractDigest:
-      "774ebb89c8eddfd758abe7c125ad526017bcf53ae23ae2af96ae8c7ed139bb27",
-  },
-  {
-    id: "0007-resource-definitions",
-    sha256: "dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6",
-    contractDigest:
-      "365386e907e27e6ddab7a178677865cf231fd8969d82623e010201308fd49c4f",
-  },
-] as const;
 if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
   throw new Error(
     "Native tests require runner context; use a PostgreSQL deployment runner",
@@ -131,9 +91,22 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("rechecks the exact graph read-only", async () => {
+  it("rechecks the exact baseline read-only", async () => {
     const client = await connect(target.databaseUrl);
     try {
+      await client.query("begin");
+      await client.query(`set local role ${identifier(config.ownerRole)}`);
+      await client.query(
+        "select set_config('keynes.tenant_id', $1, true), set_config('keynes.principal_id', $2, true)",
+        [tenantId, principalId],
+      );
+      await client.query("select keynes.define_resource_type($1::jsonb)", [
+        JSON.stringify(fixtureSource.commands.defineConsumable),
+      ]);
+      await client.query("select keynes.create_budget($1::jsonb)", [
+        JSON.stringify(fixtureSource.commands.createRoot),
+      ]);
+      await client.query("commit");
       const before = await installationState(client);
       const querySpy = vi.spyOn(client, "query");
       await recheckInstallation({ client, config });
@@ -163,15 +136,6 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
              from keynes_internal.schema_migrations
           order by migration_id`,
       );
-      expect(
-        installationRecord.migrations
-          .slice(0, HISTORICAL_MIGRATIONS.length)
-          .map((migration) => ({
-            id: migration.id,
-            sha256: migration.sha256,
-            contractDigest: migration.contractDigest ?? null,
-          })),
-      ).toEqual(HISTORICAL_MIGRATIONS);
       expect(migrations.rows).toEqual(
         installationRecord.migrations.map((migration) => ({
           migration_id: migration.id,
@@ -212,7 +176,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
-  it("rejects an otherwise exact target that lacks configured-creation migration 0008", async () => {
+  it("rejects an otherwise exact target that lacks the baseline ledger row", async () => {
     const client = await connect(target.databaseUrl);
     try {
       const removed = await client.query<{
@@ -221,7 +185,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
         readonly contract_digest: string | null;
       }>(
         `delete from keynes_internal.schema_migrations
-            where migration_id = '0008-configured-creation'
+            where migration_id = '0001-baseline'
             returning migration_id, byte_checksum, contract_digest`,
       );
       const migration = removed.rows[0];
@@ -234,7 +198,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           recheckInstallation({ client, config }),
         ).rejects.toMatchObject({
           code: "incompatible_target",
-          check: "migration:0008-configured-creation",
+          check: "migration:0001-baseline",
         });
       } finally {
         await client.query(
@@ -619,10 +583,22 @@ async function installationState(client: Client): Promise<unknown> {
   const identity = await client.query(
     "select * from keynes_internal.installation_identity",
   );
+  const resources = await client.query(
+    "select * from keynes_internal.resource_types order by tenant_id, resource_type_id",
+  );
+  const budgets = await client.query(
+    "select * from keynes_internal.budgets order by tenant_id, budget_id",
+  );
+  const commands = await client.query(
+    "select * from keynes_internal.commands order by tenant_id, command_id",
+  );
   return {
     migrations: migrations.rows,
     permissions: permissions.rows,
     identity: identity.rows,
+    resources: resources.rows,
+    budgets: budgets.rows,
+    commands: commands.rows,
   };
 }
 
