@@ -325,10 +325,19 @@ export function remoteScenarioInventory(
 export interface EmbeddedSelection {
   readonly kind: "embedded";
 }
-export type NativeSelection = RemoteSelection | EmbeddedSelection;
+export type NativeSelection =
+  | RemoteSelection
+  | EmbeddedSelection
+  | { readonly kind: "ci" };
 export function selectedScenarioInventory(
   selection: NativeSelection,
 ): Readonly<Record<string, readonly string[]>> {
+  if (selection.kind === "ci") {
+    return {
+      ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+      ...remoteScenarioInventory({ kind: "remote", modes: ["direct"] }),
+    };
+  }
   return selection.kind === "remote"
     ? remoteScenarioInventory(selection)
     : {
@@ -346,10 +355,10 @@ export function validateNativeSelection(value: unknown): NativeSelection {
     typeof value === "object" &&
     value !== null &&
     "kind" in value &&
-    value.kind === "embedded" &&
+    (value.kind === "embedded" || value.kind === "ci") &&
     !("modes" in value) &&
     !("installed" in value)
   )
-    return { kind: "embedded" };
+    return { kind: value.kind };
   return validateRemoteSelection(value);
 }

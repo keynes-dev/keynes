@@ -1,4 +1,4 @@
-name: PostgreSQL System
+name: Database qualification
 
 on:
   workflow_dispatch:
@@ -8,9 +8,9 @@ permissions:
 
 jobs:
   system:
-    name: PostgreSQL System
+    name: Database qualification
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -29,12 +29,13 @@ jobs:
         with:
           node-version-file: package.json
           check-latest: false
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Test PostgreSQL system
-        run: pnpm test:system:postgresql -- --output "$RUNNER_TEMP/postgresql-system/postgresql.json"
+        run: pnpm test:sqlite-postgres -- --output "$RUNNER_TEMP/sqlite-postgres"
 
       - name: Retain system-test record
         id: upload
@@ -43,9 +44,11 @@ jobs:
         with:
           name: postgresql-system-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           path: |
-            ${{ runner.temp }}/postgresql-system/postgresql.json
-            ${{ runner.temp }}/postgresql-system/postgresql.json.vitest.json
-            ${{ runner.temp }}/postgresql-system/postgresql.json.observations.json
+            ${{ runner.temp }}/sqlite-postgres/manifest.json
+            ${{ runner.temp }}/sqlite-postgres/sqlite.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.observations.json
           if-no-files-found: error
           overwrite: false
           retention-days: 14

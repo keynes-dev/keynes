@@ -2,7 +2,7 @@ import { Client } from "pg";
 
 import {
   REMOTE_MODES,
-  validateRemoteSelection,
+  validateNativeSelection,
 } from "../required-scenarios.ts";
 
 import type { RemoteLogin } from "./remote-identity.js";
@@ -107,7 +107,10 @@ export function selectedConnectionProfiles(): readonly RemoteConnectionProfile[]
     throw new Error("Remote profiles require runner context");
   const context: unknown = JSON.parse(source);
   if (!isRecord(context)) throw new Error("Invalid runner context");
-  return context.selection === undefined
-    ? REMOTE_MODES
-    : validateRemoteSelection(context.selection).modes;
+  if (context.selection === undefined) return REMOTE_MODES;
+  const selection = validateNativeSelection(context.selection);
+  if (selection.kind === "ci") return ["direct"];
+  if (selection.kind !== "remote")
+    throw new Error("Remote profiles require remote or CI selection");
+  return selection.modes;
 }
