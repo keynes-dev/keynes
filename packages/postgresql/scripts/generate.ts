@@ -41,13 +41,6 @@ const POSTGRES_PROFILE = {
   },
 } as const;
 
-interface InstallationMigration {
-  readonly id: string;
-  readonly path: string;
-  readonly sha256: string;
-  readonly contractDigest?: string;
-}
-
 interface GeneratePostgresqlOptions {
   readonly check: boolean;
   readonly contract: LoadedContract;
@@ -57,20 +50,19 @@ interface GeneratePostgresqlOptions {
 
 export async function generatePostgresql(options: GeneratePostgresqlOptions) {
   const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot();
-  const manifest = readMigrationManifest(repositoryRoot);
-  const contractMigrations = manifest.filter(
-    (migration) => migration.contract === true,
-  );
-  if (contractMigrations.length !== 1) {
-    throw new Error("migration manifest must declare one contract migration");
-  }
-  const contractMigrationId = requireString(contractMigrations[0], "id");
-  const migrations = migrationRecords(repositoryRoot, manifest).map(
-    (migration) =>
-      migration.id === contractMigrationId
-        ? { ...migration, contractDigest: options.contract.digest }
-        : migration,
-  );
+  const baseline = readBaselineManifest(repositoryRoot);
+  const migrations = [
+    {
+      ...baseline,
+      sha256: sha256(
+        readFileSync(
+          join(repositoryRoot, "packages/postgresql/migrations", baseline.path),
+          "utf8",
+        ),
+      ),
+      contractDigest: options.contract.digest,
+    },
+  ];
   const installationRecord = {
     ...POSTGRES_PROFILE,
     contractDigest: options.contract.digest,
@@ -100,68 +92,40 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     ]),
     generatedDirectories: [{ path: "generated", accepts: () => true }],
   });
-  return { contractMigrationId, migrations };
+  return { contractMigrationId: baseline.id, migrations };
 }
 
-function readMigrationManifest(repositoryRoot: string): readonly JsonObject[] {
+function readBaselineManifest(repositoryRoot: string): {
+  readonly id: string;
+  readonly path: string;
+} {
   const path = join(
     repositoryRoot,
     "packages/postgresql/migrations/manifest.json",
   );
   if (!existsSync(path)) throw new Error("migration manifest is required");
   const value: unknown = JSON.parse(readFileSync(path, "utf8"));
-  if (!isObject(value) || !Array.isArray(value.migrations)) {
-    throw new Error("migration manifest must contain a migrations array");
+  if (
+    !isObject(value) ||
+    !Array.isArray(value.migrations) ||
+    value.migrations.length !== 1 ||
+    !isObject(value.migrations[0]) ||
+    value.migrations[0].contract !== true
+  ) {
+    throw new Error("migration manifest must declare one contract baseline");
   }
-  const migrations = value.migrations.map((migration) => {
-    if (!isObject(migration))
-      throw new Error("migration manifest entry must be an object");
-    requireString(migration, "id");
-    requireString(migration, "path");
-    return migration;
-  });
+  const baseline = {
+    id: requireString(value.migrations[0], "id"),
+    path: requireString(value.migrations[0], "path"),
+  };
   const migrationRoot = join(repositoryRoot, "packages/postgresql/migrations");
   const actual = readdirSync(migrationRoot)
     .filter((entry) => entry.endsWith(".sql"))
     .sort();
-  const expected = migrations
-    .map((migration) => requireString(migration, "path"))
-    .sort();
-  if (
-    actual.length !== expected.length ||
-    actual.some((entry, index) => entry !== expected[index])
-  ) {
+  if (actual.length !== 1 || actual[0] !== baseline.path) {
     throw new Error("migration directory does not match manifest");
   }
-  return migrations;
-}
-
-function migrationRecords(
-  repositoryRoot: string,
-  migrations: readonly JsonObject[],
-): readonly InstallationMigration[] {
-  return migrations.map((migration) => {
-    const id = requireString(migration, "id");
-    const path = requireString(migration, "path");
-    const contents = readFileSync(
-      join(repositoryRoot, "packages/postgresql/migrations", path),
-      "utf8",
-    );
-    const contractDigest = migration.contractDigest;
-    if (
-      contractDigest !== undefined &&
-      (typeof contractDigest !== "string" ||
-        !/^[0-9a-f]{64}$/u.test(contractDigest))
-    ) {
-      throw new Error("migration field contractDigest must be a digest");
-    }
-    return {
-      id,
-      path,
-      sha256: sha256(contents),
-      ...(typeof contractDigest === "string" ? { contractDigest } : {}),
-    };
-  });
+  return baseline;
 }
 
 function sha256(value: string): string {

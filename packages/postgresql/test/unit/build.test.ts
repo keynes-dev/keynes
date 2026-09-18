@@ -170,6 +170,19 @@ describe("PostgreSQL package build promotion", () => {
     await expect(generatePostgresql(options)).rejects.toThrow(
       "migration directory does not match manifest",
     );
+    await rm(join(packageRoot, "migrations/0002-stale.sql"));
+    await writeFile(
+      join(packageRoot, "migrations/manifest.json"),
+      JSON.stringify({
+        migrations: [
+          ...migrationManifest.migrations,
+          { id: "0002-extra", path: "0002-extra.sql", contract: false },
+        ],
+      }),
+    );
+    await expect(generatePostgresql(options)).rejects.toThrow(
+      "migration manifest must declare one contract baseline",
+    );
   });
 
   it("preserves the previous dist when compilation fails", async () => {
