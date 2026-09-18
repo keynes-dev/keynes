@@ -45,7 +45,7 @@ describe("PR workflow contract", () => {
     for (const id of ["checks", "sqlite-postgres"]) {
       const job = workflow.split(`  ${id}:`)[1]?.split(/\n  [\w-]+:/)[0] ?? "";
       expect(job).toContain("needs: changes");
-      expect(job).toContain("if: ${{ always() }}");
+      expect(job).toContain("if: ${{ !cancelled() }}");
       const guard = step(job, "Require explicit relevance decision");
       expect(guard).toContain("needs.changes.result");
       expect(guard).toContain(

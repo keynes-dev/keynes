@@ -363,11 +363,19 @@ export async function runPostgresqlSystemTests(
   }
 
   let cleanupFailed = false;
+  const cleanupFailures: string[] = [];
+  const recordCleanupFailure = (stage: string, error: unknown): void => {
+    cleanupFailed = true;
+    const message = `${stage}: ${sanitizedFailure(error, [password, runId])}`;
+    cleanupFailures.push(message);
+    if (runtime === productionRuntime)
+      process.stderr.write(`PostgreSQL cleanup failed: ${message}\n`);
+  };
   if (child !== undefined) {
     try {
       await child.terminate();
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("test process", error);
     }
   }
   for (const pooler of poolerContainers.reverse()) {
@@ -378,8 +386,8 @@ export async function runPostgresqlSystemTests(
         environment,
         AbortSignal.timeout(10_000),
       );
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("pooler container", error);
     }
   }
   if (containerStarted) {
@@ -390,8 +398,8 @@ export async function runPostgresqlSystemTests(
         environment,
         AbortSignal.timeout(10_000),
       );
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("PostgreSQL container", error);
     }
   }
   if (networkCreated) {
@@ -402,22 +410,22 @@ export async function runPostgresqlSystemTests(
         environment,
         AbortSignal.timeout(10_000),
       );
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("Docker network", error);
     }
   }
   if (poolerWorkspace !== undefined) {
     try {
       await rm(poolerWorkspace.root, { recursive: true, force: true });
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("pooler workspace", error);
     }
   }
   if (packed !== undefined) {
     try {
       await packed.close();
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("package workspace", error);
     }
   }
 
@@ -461,8 +469,8 @@ export async function runPostgresqlSystemTests(
         recursive: true,
         force: true,
       });
-    } catch {
-      cleanupFailed = true;
+    } catch (error: unknown) {
+      recordCleanupFailure("acceptance report", error);
       observe({ stage: "report-cleanup", status: "failed" });
     }
     try {
@@ -518,8 +526,8 @@ export async function runPostgresqlSystemTests(
     } finally {
       try {
         await rm(transientReportRoot, { recursive: true, force: true });
-      } catch {
-        cleanupFailed = true;
+      } catch (error: unknown) {
+        recordCleanupFailure("test report", error);
       }
     }
   }
@@ -539,6 +547,7 @@ export async function runPostgresqlSystemTests(
                 : sanitizedFailure(failure, [password, runId]),
             stages,
             cleanup: cleanupFailed ? "failed" : "passed",
+            cleanupFailures,
             report: diagnosticReport,
           },
           null,
