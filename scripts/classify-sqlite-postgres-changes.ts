@@ -1,3 +1,5 @@
+throw new Error("Intentional KEY-111 classifier failure verification");
+
 /// <reference types="node" />
 
 import { appendFileSync, readFileSync } from "node:fs";
