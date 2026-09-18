@@ -29,8 +29,8 @@ import {
   type PostgresqlSystemRuntime,
   manageChild,
   sanitizeVitestReport,
+  sanitizeDiagnostic,
   POSTGRES_IMAGE,
-  POSTGRESQL_SYSTEM_TEST_FILES,
   runPostgresqlSystemTests,
   validatePostgresqlSystemReport,
 } from "./run.js";
@@ -41,6 +41,133 @@ import {
 } from "./required-scenarios.js";
 
 describe("PostgreSQL system-test runner", () => {
+  it("keeps native correctness coverage in CI without packed installation or poolers", () => {
+    const selection = validateNativeSelection({ kind: "ci" });
+    const inventory = selectedScenarioInventory(selection);
+    expect(Object.keys(inventory).sort()).toEqual(
+      Object.keys(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).sort(),
+    );
+    expect(Object.values(inventory).flat().join("\n")).not.toMatch(
+      /session-pool|transaction-pool|PgBouncer/,
+    );
+    expect(() =>
+      validateSelectedPostgresqlReport(
+        { ...passingVitestReport(), success: false },
+        selection,
+      ),
+    ).toThrow();
+  });
+
+  it("retains a redacted process failure even when all assertions passed", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({
+      childFailure: new Error(
+        `Native subprocess failed (exit code 7, signal none): ${PASSWORD}`,
+      ),
+    });
+    await expect(
+      runPostgresqlSystemTests(
+        fake.runtime,
+        {},
+        { selection: { kind: "ci" }, diagnosticsPath: output.path },
+      ),
+    ).rejects.toThrow("exit code 7");
+    const diagnostics = await readFile(output.path, "utf8");
+    expect(diagnostics).toContain("exit code 7");
+    expect(diagnostics).not.toContain(PASSWORD);
+    expect(diagnostics).toContain('"cleanup": "passed"');
+  });
+
+  it.each(["assertion", "cleanup", "cancellation"])(
+    "retains %s failure diagnostics without accepting the run",
+    async (kind) => {
+      const output = await temporaryOutputPath();
+      const fake = fakeRuntime();
+      const controller = new AbortController();
+      if (kind === "cleanup") {
+        const run = fake.runtime.run;
+        fake.runtime.run = async (...args) => {
+          if (args[0] === "docker" && args[1][0] === "rm")
+            throw new Error(`Docker removal denied ${PASSWORD}`);
+          return run(...args);
+        };
+      } else {
+        const spawn = fake.runtime.spawnTests;
+        fake.runtime.spawnTests = (environment) => {
+          const child = spawn(environment);
+          return {
+            ...child,
+            wait: async () => {
+              await child.wait();
+              if (kind === "cancellation") controller.abort();
+              else {
+                const path = environment.KEYNES_POSTGRESQL_SYSTEM_REPORT_PATH;
+                if (path === undefined) throw new Error("Missing report path");
+                const report = JSON.parse(await readFile(path, "utf8"));
+                await writeFile(
+                  path,
+                  JSON.stringify({ ...report, success: false }),
+                );
+              }
+            },
+          };
+        };
+      }
+      await expect(
+        runPostgresqlSystemTests(
+          fake.runtime,
+          {},
+          {
+            selection: { kind: "ci" },
+            diagnosticsPath: output.path,
+            signal: controller.signal,
+          },
+        ),
+      ).rejects.toThrow();
+      const contents = await readFile(output.path, "utf8");
+      expect(contents).not.toContain(PASSWORD);
+      const diagnostics = JSON.parse(contents);
+      expect(diagnostics.cleanup).toBe(
+        kind === "cleanup" ? "failed" : "passed",
+      );
+      if (kind === "cleanup")
+        expect(diagnostics.cleanupFailures).toEqual([
+          "PostgreSQL container: Docker removal denied [redacted]",
+        ]);
+      expect(fake.childTerminations.count).toBe(1);
+    },
+  );
+
+  it("does not retain diagnostics on success", async () => {
+    const output = await temporaryOutputPath();
+    await runPostgresqlSystemTests(
+      fakeRuntime().runtime,
+      {},
+      { selection: { kind: "ci" }, diagnosticsPath: output.path },
+    );
+    await expect(readFile(output.path)).rejects.toThrow();
+  });
+
+  it("preserves a real child exit code and signal", async () => {
+    const failed = manageChild(
+      spawn(process.execPath, ["-e", "process.exitCode=7"], {
+        detached: true,
+        stdio: "ignore",
+      }),
+    );
+    await expect(failed.wait()).rejects.toThrow("exit code 7");
+    await failed.terminate();
+    const killed = spawn(
+      process.execPath,
+      ["-e", "setInterval(() => {}, 1000)"],
+      { detached: true, stdio: "ignore" },
+    );
+    const managed = manageChild(killed);
+    killed.kill("SIGTERM");
+    await expect(managed.wait()).rejects.toThrow("SIGTERM");
+    await managed.terminate();
+  });
+
   it("rejects a selected schema with otherwise complete native assertions", () => {
     expect(() =>
       validatePostgresqlSystemReport({
@@ -136,18 +263,40 @@ describe("PostgreSQL system-test runner", () => {
     ).toThrow();
   });
 
-  it("does not forward private test subprocess diagnostics to runner logs", async () => {
+  it("redacts credential values without erasing ordinary authorization descriptions", () => {
+    expect(
+      sanitizeDiagnostic(
+        "current authorization and selected-definition validation",
+      ),
+    ).toBe("current authorization and selected-definition validation");
+    expect(
+      sanitizeDiagnostic(
+        'password: "two word secret", \"password\": \"json-secret\", PGPASSWORD=env-secret Authorization: Bearer token',
+      ),
+    ).not.toMatch(/two word secret|json-secret|env-secret|token/);
+    expect(
+      sanitizeDiagnostic(
+        'KEYNES_POSTGRESQL_SYSTEM_CONTEXT={"private":"secret"}',
+      ),
+    ).toBe("[redacted runner context]");
+  });
+
+  it("streams useful output while redacting credentials across chunks", async () => {
     const result = await promisify(execFile)(process.execPath, [
       "--input-type=module",
       "-e",
-      `
+      String.raw`
       import { spawnTestChild } from './packages/postgresql/test/system/run.ts';
-      const child = spawnTestChild(['exec','node','-e', 'process.stdout.write("private-fixture-secret"); process.stderr.write("private-fixture-secret"); process.exitCode=1'], process.env);
-      try { await child.wait(); } catch { process.stdout.write("tests failed"); } finally { await child.terminate(); }
+      const child = spawnTestChild(['exec', 'node', '-e', 'process.stdout.write("stage ok\\nprivate-fixture-"); setTimeout(() => { process.stdout.write("secret\\n"); process.stderr.write("worker failed\\npostgresql://user:other-secret@localhost/db\\n"); process.exitCode=7; }, 10)'], process.env, ['private-fixture-secret']);
+      try { await child.wait(); } catch (error) { process.stdout.write(error.message); } finally { await child.terminate(); }
     `,
     ]);
-    expect(result.stdout).toBe("tests failed");
-    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("stage ok");
+    expect(result.stdout).toContain("exit code 7");
+    expect(result.stderr).toContain("worker failed");
+    expect(result.stdout + result.stderr).not.toMatch(
+      /private-fixture-secret|other-secret|postgresql:\/\//,
+    );
   });
 
   it("retains sanitized failed reports and startup diagnostics without publishing acceptance", async () => {
@@ -647,7 +796,7 @@ describe("PostgreSQL system-test runner", () => {
 
     expect(failure).toBeInstanceOf(Error);
     expect(String(failure)).toBe(
-      `Error: PostgreSQL system run ${RUN_ID} failed during tests`,
+      `Error: PostgreSQL system run ${RUN_ID} failed during tests: child failed with [redacted connection]`,
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(String(failure)).not.toContain(privateUrl);
@@ -672,7 +821,7 @@ describe("PostgreSQL system-test runner", () => {
     }
 
     expect(String(failure)).toBe(
-      `Error: PostgreSQL system run ${RUN_ID} failed during network-create`,
+      `Error: PostgreSQL system run ${RUN_ID} failed during network-create: spawn docker ENOENT [redacted]`,
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(fake.commands).toHaveLength(1);
@@ -1028,19 +1177,7 @@ describe("checkout package preparation lock", () => {
       (error: unknown) => String(error),
     );
     let pid: number | undefined;
-    try {
-      await vi.waitFor(async () =>
-        expect(await readFile(join(root, "descendant"), "utf8")).toMatch(
-          /^\d+$/,
-        ),
-      );
-      pid = Number(await readFile(join(root, "descendant"), "utf8"));
-      controller.abort();
-      expect(await outcome).toMatch(/cancel/i);
-      await vi.waitFor(() => expect(() => process.kill(pid!, 0)).toThrow(), {
-        timeout: 1000,
-      });
-    } finally {
+    onTestFinished(async () => {
       controller.abort();
       await outcome;
       if (pid !== undefined) {
@@ -1057,7 +1194,20 @@ describe("checkout package preparation lock", () => {
       }
       vi.unstubAllEnvs();
       await rm(root, { recursive: true, force: true });
-    }
+    });
+    await vi.waitFor(async () =>
+      expect(await readFile(join(root, "descendant"), "utf8")).toMatch(/^\d+$/),
+    );
+    const descendantPid = Number(
+      await readFile(join(root, "descendant"), "utf8"),
+    );
+    pid = descendantPid;
+    controller.abort();
+    expect(await outcome).toMatch(/cancel/i);
+    await vi.waitFor(
+      () => expect(() => process.kill(descendantPid, 0)).toThrow(),
+      { timeout: 1000 },
+    );
   });
 
   it("serializes two preparations and releases before independent work", async () => {
@@ -1198,6 +1348,7 @@ it.each([
     selection: { kind: "remote", modes: [mode] },
   })),
   { args: ["embedded"], poolers: [], selection: { kind: "embedded" } },
+  { args: ["ci"], poolers: [], selection: { kind: "ci" } },
 ])(
   "starts only selected dependencies: $args",
   async ({ args, poolers, selection }) => {

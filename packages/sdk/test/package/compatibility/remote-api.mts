@@ -73,9 +73,9 @@ expectType<ResourceBinding<"usdCents">>(
   await remote.defineResources(checkedDefinitions),
 );
 // @ts-expect-error Bindings expose no reference.
-binding.bindingReference;
+void binding.bindingReference;
 // @ts-expect-error Bindings expose no producing client.
-binding.client;
+void binding.client;
 
 const governed = await remote.createBudget(
   { usdCents: 1_000 },
@@ -121,7 +121,7 @@ if (recovery.kind === "committed") {
     // @ts-expect-error Recovered bindings cannot supply configured creation names.
     await remote.createBudget(recovery.result, { recoveredName: 1 });
     // @ts-expect-error Recovery must not expose private receipt references.
-    recovery.result.bindingReference;
+    void recovery.result.bindingReference;
   } else if (recovery.operation === "requestBudget") {
     expectType<BudgetReference>(recovery.result.parentBudgetReference);
     if (recovery.result.kind === "approved") {
@@ -144,7 +144,7 @@ await using local = await localPromise;
 const localRoot = await local.createBudget({ usdCents: 100 });
 
 // @ts-expect-error Local Budget handles have no durable reference.
-localRoot.reference;
+void localRoot.reference;
 // @ts-expect-error Local Keynes handles cannot reopen durable Budgets.
 await local.openBudget({ reference: storedReference, resourceTypes });
 // @ts-expect-error Local Keynes handles cannot recover remote operations.

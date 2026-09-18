@@ -1,31 +1,30 @@
 # Keynes runtime architecture
 
-> **Status:** Target architecture. KEY-78 configured creation is implemented in
-> the current source. The historical `main` snapshot at
-> `fb0ca4f50417c76d7f1833f93c46980cc40689ba` does not implement this architecture.
-> The [KEY-7 assessment snapshot](https://linear.app/keynes/issue/KEY-7/roadmap-and-evidence-reconciliation)
-> records source and exact-revision evidence. A retained result proves only the
-> source revision and verification lane that it records.
+> **Status:** Adopted target architecture. [ADR-0012](adr/0012-postgresql-and-pglite.md)
+> replaces the SQLite direction. Current source still uses SQLite Local in the
+> combined SDK; KEY-109 owns replacement and KEY-96 owns source/package separation.
+> KEY-78 configured creation is implemented. Other target behavior requires its
+> own feature acceptance. Historical results prove only their recorded revision
+> and verification lane.
 
 ## Purpose
 
 Keynes gives an application one accounting and governance contract for
-Resources, Policies, and Budgets. The contract is implemented by a private
-in-memory SQLite authority for local work and by PostgreSQL for every durable
-deployment.
+Resources, Policies, and Budgets. One canonical PostgreSQL implementation will run in private
+in-memory PGlite for Local and native PostgreSQL for durable deployments.
 
 ```text
 application
   |
-  +-- Local: createKeynes({ resources }) ----------> private in-memory SQLite
+  +-- Local: SDK + PGlite adapter -----------------> private in-memory PGlite
   |
-  +-- Hosted: createKeynes({ resources, databaseUrl })
+  +-- Hosted: SDK + PostgreSQL adapter
   |                                               --> constrained PostgreSQL procedures
   |
   `-- Embedded: application database code ---------> canonical PostgreSQL procedures
 ```
 
-The TypeScript SDK adapts calls and types. It does not own durable state, infer
+The TypeScript SDK adapts calls and types. It contains no business rules or compiler and does not own database state, infer
 server state from caller types, or maintain a second replay ledger.
 
 Local, Hosted, and Embedded are product deployment modes. They share the
@@ -38,7 +37,7 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 
 1. PostgreSQL is the only durable authority for definitions, Budgets,
    accounting, replay, and history.
-2. SQLite and PostgreSQL implement one command and accounting contract.
+2. PGlite and native PostgreSQL execute one canonical business implementation.
 3. Resource and Policy definitions contain no quantity and exist independently
    of Budgets.
 4. Every live quantity unit belongs to exactly one non-settled Budget.
@@ -53,8 +52,8 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 
 ## Public contract
 
-The ordinary path configures Resource declarations once and creates Budgets from
-amounts:
+The current combined SDK configures Resource declarations once and creates
+Budgets from amounts. KEY-96 adds explicit `runtime` selection to this call:
 
 ```ts
 const resources = {
@@ -145,7 +144,7 @@ tenant-scoped Policy contains:
 - canonical Resource names it reads or constrains;
 - exact context schema;
 - stable denial reasons; and
-- one validated normalized query program.
+- one validated compiled Policy definition.
 
 The authority resolves every Resource name when the Policy is defined. A
 missing Resource rejects the batch. Exact reuse returns the existing Policy.
@@ -371,19 +370,24 @@ The logical PostgreSQL state owners are:
 | history                      | Ordered domain evidence derived from committed transitions |
 | references and role mappings | Durable lookup and authenticated tenant scope              |
 
-## SQLite parity
+## Local PostgreSQL execution
 
-`createKeynes({ resources })` owns one private in-memory SQLite database and
-initializes its ephemeral catalog from the declarations. The SDK exposes
-neither the connection nor arbitrary SQL. All methods remain asynchronous.
+The PGlite adapter will own one private Node in-memory instance, install the
+canonical procedures and initialize its ephemeral catalog from declarations.
+The SDK exposes neither the connection nor arbitrary SQL. Methods remain asynchronous.
 
-SQLite executes the same validation, replay, movement, usage, lifecycle,
-Policy, result, and history semantics. One runtime queue serializes mutations,
-which is the local equivalent of PostgreSQL row-lock ordering. Separate local
-clients share no state, and process exit discards the authority.
+PGlite and native PostgreSQL execute the same validation, replay, accounting,
+Policy and history procedures. The Local adapter owns admission and close/drain
+behavior around its single connection. Separate Local instances share no state;
+process exit discards it. Single-connection execution does not qualify native
+PostgreSQL row locking, contention or caller-owned transaction behavior.
 
-Local mode has no file-backed option, migration API, network listener,
-multi-process coordination, or recovery after process exit.
+Local has no persistence option, public migration API, network listener, browser
+support, multi-process coordination or recovery after process exit. Internal
+installation of SQL does not create a public Local migration surface.
+
+Current Local still uses SQLite in the SDK. KEY-109 must pass compatibility and
+replacement acceptance before removing it or switching the required CI lane.
 
 ## Node.js support
 
@@ -393,9 +397,9 @@ release may remain compatible with Keynes, but the Node.js project no longer
 provides its security fixes. Production deployments should use an
 upstream-supported release.
 
-Package qualification builds one SDK archive and tests that digest on the
-minimum supported major and the latest Node.js release across the supported
-operating systems. A qualification record proves only the versions that it
+Package qualification retains exact SDK, selected adapter and applicable Policy
+authoring archives and tests those digests on the minimum supported major and
+the latest Node.js release across the supported operating systems. A qualification record proves only the versions that it
 names. It does not turn untested future versions into exact-revision evidence.
 When a new Node.js major becomes the latest release, it replaces the previous
 latest-release lane.
@@ -430,7 +434,9 @@ Generated Resource declarations carry the runtime definition information needed
 for configured-client compatibility validation. Initialization compares supplied
 definitions against the persisted tenant catalog without defining missing names
 or changing conflicting entries. Generated output grants no authorization.
-KEY-6 owns Hosted catalog generation; its tooling is outside KEY-78 acceptance.
+KEY-108 owns catalog generation and developer onboarding. KEY-6 supplies the
+authenticated catalog/provisioning support and independently qualifies baseline
+continuity. Complete remote onboarding requires KEY-108 as well.
 
 Created handles infer their exact Resources and attached Policies from inputs.
 A reference-loaded handle begins with generated catalog unions and narrows
@@ -440,6 +446,47 @@ generated code is stale.
 Generated output contains no Budget rows, balances, lifecycle, behavior
 controls, references, principals, credentials, operation keys, command
 results, or history. It performs no runtime registration.
+
+## Developer CLI
+
+The adopted `apps/cli` application is distributed as `@keynes/cli` with the
+`keynes` executable. It composes reusable database installation/connection APIs
+from `@keynes/postgres` and authoring tooling from `@keynes/policy`. It does not
+own another schema, validator, accounting implementation or Policy evaluator.
+Installing the SDK or an adapter does not install the CLI. The CLI may depend
+on server and authoring tooling without weakening application dependency isolation.
+
+KEY-96 establishes this application boundary and moves the existing installation
+command into it with a documented command migration. KEY-108 delivers the
+remote developer workflow. Both remain unimplemented; the current executable is
+`keynes-postgresql` and supports installation only.
+
+| Operation                      | Direction and responsibility                                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install and verify             | Install canonical Keynes tables/procedures and verify version/profile compatibility                                                          |
+| Generate application types     | Read the selected remote catalog and write deterministic Resource/Policy TypeScript bindings                                                 |
+| Preview and deploy definitions | Compare authored definitions with the selected remote catalog, display changes, then explicitly apply through database provisioning commands |
+| Check compatibility            | Detect conflicting definitions, stale bindings and incompatible database installations without writes                                        |
+
+These are capability names, not finalized CLI subcommand syntax. SDK command and
+result types are generated during the Keynes build from central contracts;
+application-specific Resource and Policy types come from the selected catalog.
+Generated bindings retain runtime compatibility descriptors, grant no permissions,
+and contain no credentials, Budget rows or balances.
+
+There is no bidirectional schema sync. Remote definitions remain immutable;
+exact reuse succeeds, missing definitions require explicit authorized deployment,
+and conflicts fail without overwriting or deleting definitions. Definition writes
+must revalidate the catalog in the database; a prior preview cannot authorize a
+stale or conflicting write. Client initialization remains non-mutating. Supported
+manual declarations remain valid.
+
+Database installation is separate from Resource/Policy deployment. The current
+baseline supports fresh installation and exact reinstallation; upgrades require
+a separate migration contract. CLI acceptance must cover selected host and tenant,
+read-only credentials for discovery, separate write permissions, deterministic
+output, mismatch refusal and exact-archive clean consumers. PGlite Local and native
+fixtures do not establish Hosted onboarding or Embedded readiness.
 
 ## PostgreSQL installation
 
@@ -467,8 +514,9 @@ closed.
 Local owns a private authority for one process. It offers no persistence,
 multi-process coordination, or recovery after the process exits.
 
-Hosted uses PostgreSQL as a separate durable authority. The current SDK owns a
-bounded PostgreSQL pool and strict `sslmode=verify-full` normalization. It
+Hosted uses PostgreSQL as a separate durable authority. The current combined SDK owns a
+bounded PostgreSQL pool and strict `sslmode=verify-full` normalization. KEY-96
+moves this connection work into the PostgreSQL adapter. It
 invokes only supported wrappers and never falls back to Local state or another
 database. A customer-operated Hosted deployment and Keynes Cloud use the same
 command contract; they differ in who owns credentials, upgrades, backups,
@@ -500,25 +548,49 @@ restoration, and every external action associated with released quantity.
 
 ## Module ownership
 
-The implementation should keep knowledge together:
+The adopted source owner is private `packages/database`, organizing Budget,
+Resource and Policy definitions, command contracts, canonical SQL and Policy
+compiler source. Move the existing canonical inputs from `packages/contracts`;
+do not create duplicate schemas or a second business implementation.
 
-- contract sources own commands, schemas, errors, canonicalization, and
-  generated TypeScript/PostgreSQL metadata;
-- the SDK owns public handles, inference, binding scope, connection lifecycle,
-  and error translation;
-- the SQLite authority owns local transactions and parity semantics;
-- PostgreSQL migrations and procedures own durable validation, locking,
-  accounting, replay, authorization, and history; and
-- the generator owns deterministic catalog-to-TypeScript output only.
+| Distribution       | Responsibility                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `@keynes/sdk`      | Typed handles, inference, action invocation, encoding, result mapping and public errors         |
+| `@keynes/pglite`   | Private Node in-memory installation, procedure calls and lifecycle                              |
+| `@keynes/postgres` | Server connections, caller-owned connections and reusable installation APIs                     |
+| `@keynes/policy`   | Database-owned Policy authoring compiler                                                        |
+| `@keynes/cli`      | Developer CLI for installation, type generation, definition deployment and compatibility checks |
 
-No storage adapter, repository layer, Policy service, settlement service, or
-generic permission framework should split these invariants without a proven
-need.
+These are targets owned by KEY-96. Current source still places SQLite and compiler
+code in the SDK, SQL in `packages/postgresql`, and canonical inputs in
+`packages/contracts`. No new public distribution is implied by this document.
+
+Consumer builds produce their own artifacts from canonical source without
+writing sibling workspaces, hand-maintained SQL copies or leaked private workspace
+imports. Tests remain beside their subject; shared cases stay adapter-independent.
+Local consumers exclude the server adapter and driver; server consumers exclude
+PGlite. SDK-only consumers install neither engines nor compiler.
+
+Compilation remains outside the engine in database-owned tooling. Preserve the
+existing Kysely/raw SQL profile, parser, canonical identities and type inference.
+The database independently validates submitted definitions and evaluates Policies
+inside command transactions. Generating SDK validators does not justify putting
+business rules into the SDK. Mechanical alias mapping and response checks must
+preserve unknown-key errors, canonical database identity and sound types.
+
+Use explicit `createKeynes({ resources, runtime })` selection without fallback.
+Adapters must not replace, close, commit or roll back borrowed connections or
+retry part of an application transaction. Results remain provisional until caller
+commit. Exact adapter factory exports belong to KEY-96's specification.
+
+Name modules for their function: adapters, CLI, installation, result mapping,
+Policy validation and serialization. A generic storage framework or separate
+service per primitive is not part of this design.
 
 ## Verification model
 
 Implementation is complete only when one shared behavior suite passes against
-SQLite and native PostgreSQL for:
+PGlite and native PostgreSQL after the KEY-109 transition for:
 
 - definition reuse and conflicts;
 - configured creation, exact amount-key membership, and all-zero Budgets;
@@ -537,6 +609,12 @@ caller-owned transactions, baseline/profile installation, drift, grants,
 tenant isolation, TLS, recovery, and direct and supported pooled connections.
 Local evidence must cover queue ordering, isolation, close/drain behavior,
 package contents, and the declared Node.js qualification lanes.
+
+Until KEY-109 qualifies replacement, `pnpm test:sqlite-postgres` and the
+existing required SQLite/native PostgreSQL CI check remain in force. KEY-109
+must preserve native coverage, fail-closed applicability, required-check
+enforcement and evidence retention while replacing the Local lane. Do not
+rename executable commands or remove gates through documentation alone.
 
 Current passing provider-free checks do not prove this target. Native
 PostgreSQL, hosted, package, provider, security, recovery, performance, and

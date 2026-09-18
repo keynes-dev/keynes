@@ -1,3 +1,4 @@
+import { setTimeout } from "node:timers/promises";
 import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it } from "vitest";
 
@@ -91,11 +92,14 @@ describe("native PostgreSQL contention", () => {
         amounts: { modelTokens: 10, reviewerSeats: 1 },
       });
 
-      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
-      await first.commit();
-      await expect(conflicting).rejects.toMatchObject({
+      const rejected = expect(conflicting).rejects.toMatchObject({
         code: "command_conflict",
       });
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await first.commit();
+      // Exercise rejection arriving before the test resumes awaiting the result.
+      await setTimeout(25);
+      await rejected;
       await second.commit();
       expect(stored.budget.resources).toEqual(
         expect.arrayContaining([

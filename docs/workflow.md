@@ -4,6 +4,41 @@ Use stock Spec Kit 1.0.4 with the Codex integration. Linear owns scheduling and
 current issue status; Spec Kit artifacts own requirements, plans, tasks, and
 acceptance evidence; GitHub owns PR review, CI, and merge.
 
+## Adopted PostgreSQL/PGlite transition
+
+[ADR-0012](adr/0012-postgresql-and-pglite.md) and constitution 11.0.0 adopt one
+PostgreSQL implementation, PGlite Local execution and database-owned source/tooling.
+Current source and CI still use SQLite Local. KEY-109 must qualify replacement
+before removing SQLite; KEY-96 owns the subsequent package and naming changes.
+
+The SQLite/native PostgreSQL commands and required check documented below remain
+the current executable contract until KEY-109 replaces them. That feature must
+retain native concurrency, permission and caller-transaction coverage, fail-closed
+change classification, required-check enforcement and qualification evidence retention. Coordinate
+check-name changes with branch protection. No PGlite test command is available
+merely because the target architecture is adopted.
+
+Reconcile affected active feature artifacts when resumed, including KEY-85's
+asynchronous lifecycle specification. Keep historical specs and acceptance records
+bound to their original decisions and revisions. Mark PGlite compatibility,
+performance and package qualification NOT RUN until fresh evidence exists.
+
+## CLI and generated types
+
+The target developer application lives in `apps/cli`, publishes as `@keynes/cli`
+and exposes `keynes`. KEY-96 owns the application/installation boundary; KEY-108
+owns remote catalog discovery, application type generation, definition deployment
+and compatibility checks. These commands are not implemented by this documentation.
+The existing `keynes-postgresql` installer remains the executable contract until
+its replacement lands.
+
+Do not confuse repository command-type generation from canonical contracts with
+application binding generation from a selected remote catalog. Discovery and checks
+must not write remote definitions. Definition deployment and database installation
+are explicit operations with separate acceptance; neither is a generic schema sync.
+Complete Hosted onboarding requires KEY-108, while KEY-6 can independently qualify
+baseline continuity using manually supplied declarations.
+
 ## Select and prepare a feature
 
 1. Read the selected Linear issue using the existing connector. Confirm its exact
@@ -146,67 +181,64 @@ Deleting runner machinery must preserve or explicitly defer its product assertio
 as recorded in the feature's research document. Fewer lines alone do not prove
 that future development avoids duplicated behavior or setup.
 
-### SQLite and PostgreSQL behavior tests
+### PR correctness and explicit qualification
 
-The required PR job `SQLite and PostgreSQL behavior tests` runs independently of
-`Repository and tests` on every revision. It classifies the complete pull request
-change set before installing dependencies or starting a database. The job reports
-for the reviewed path rules and failure states.
+The PR workflow classifies the complete change set once. Both existing required
+checks, `Repository and tests` and `SQLite and PostgreSQL behavior tests`, reject
+missing, malformed or failed classification. Approved documentation and metadata
+changes run only documentation formatting. Mixed changes, executable tooling,
+dependencies, workflows and unknown paths run both correctness suites. Deletions
+and both paths of a rename are classified. New pushes cancel superseded PR runs.
 
-All package manifests, `pnpm-lock.yaml`, workspace inputs, workflows, scripts,
-runtime packages, shared contracts, database tests, Spec Kit
-machinery, mixed changes, and unknown paths require full execution. Deletions and
-both paths of a move are classified. Missing, malformed, empty, stale, or failed
-classification fails the required job; it never becomes a successful skip. There is
-no label override, manual bypass, or scheduled substitute.
+`Repository and tests` runs generation, formatting, lint, type checking, dependency
+boundaries and package tests through `pnpm test:pr`. This includes SQLite shared
+Budget scenarios. The historical database check name stays for branch protection;
+its job now runs `pnpm test:ci:postgresql`, without repeating SQLite tests.
 
-For `not-applicable`, inspect the required job summary for the checked-out merge
-candidate, event base and head, merge base, disposition, and every path's approved
-category. The summary states that SQLite and PostgreSQL are `NOT RUN` and that no
-database evidence was produced. A green required result in this state is
-classification evidence, not proof that either database passed. The job must not
-install dependencies, execute the paired runner, upload database files, or confirm
-an artifact receipt.
-
-For a relevant revision, the job runs the same Budget registration on real private
-SQLite and the complete native PostgreSQL suite. Every assertion must pass, the
-shared names must match, and native-only coverage must be complete. Missing Docker,
-skipped tests, stale or incomplete evidence, and failed cleanup fail the command.
-
-Reproduce the paired check from a clean checkout with frozen dependencies,
-supported Node.js, pnpm, and Docker:
+The native CI command reuses the source installer and starts one PostgreSQL instance.
+It covers shared Budget behavior, contention, rollback, Policies, permissions, direct
+remote connections and recovery, source installation and caller-owned transactions.
+It does not prepare packages or start PgBouncer. Passing this suite does not qualify
+a package, pooled deployment, installed SDK, verified TLS deployment or managed Hosted
+service. No automatic retry or scheduled substitute is configured.
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm test:pr
+pnpm test:ci:postgresql
+```
+
+Tests and runner stages appear in sanitized logs. Child process failures remain
+failures even when every assertion passed. The CI command accepts
+`-- --diagnostics <new-failure-file>` to retain sanitized stages, failure cause and
+available test results only on failure. CI uploads that file for seven days;
+successful runs produce no artifacts. Upload failure cannot turn a failed test into
+success or replace its cause. SIGINT and SIGTERM initiate bounded cleanup; GitHub
+runner disposal remains the final boundary after forced termination.
+
+### Qualification
+
+Use the manual `Database qualification` workflow for full SQLite/native PostgreSQL
+qualification. It retains the existing packed installation, pooler, scenario coverage
+and evidence checks. The SDK package matrix and reference measurement remain manual.
+Run qualification explicitly when making package or deployment acceptance claims.
+
+```sh
 pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$(node -p 'crypto.randomUUID()')"
 ```
 
-The output directory must be new. `manifest.json` identifies the candidate, attempt,
-observed environment, both authorities, and retained file hashes. `sqlite.vitest.json`
-and `postgresql.json.vitest.json` contain sanitized scenario results. The native
-success record is `postgresql.json`; `postgresql.json.observations.json` retains
-safe startup and cleanup observations. A scenario failure has an executed assertion
-result. Startup failure may have no test report and must remain `NOT RUN`, with its
-cause recorded in the attempt. Failure diagnostics never qualify an attempt.
+Use a clean checkout, frozen dependencies, supported Node.js, pnpm and Docker. The
+output directory must be new. The paired manifest identifies the revision, attempt,
+environment and retained file hashes. SQLite and PostgreSQL reports record scenario
+results; native observations include startup and cleanup. Failed attempts cannot
+qualify. The manual workflow retains the five evidence files for 14 days and checks
+its upload receipt. Retain durable acceptance copies before expiry. Native-only
+qualification remains `pnpm test:system:postgresql -- --output <new-result-file>`.
 
-For native-only diagnosis, use `pnpm test:system:postgresql -- --output
-<new-result-file>`. Its sanitized report and observations use `.vitest.json` and
-`.observations.json` suffixes. This command does not replace paired qualification.
-
-CI retains only the named evidence files under a candidate/run/attempt/job-specific
-artifact for 14 days. The job summary records the artifact ID and SHA-256 receipt.
-Download the bundle for review and retain durable acceptance copies before expiry.
-Missing upload receipts fail the job even when local tests pass.
-
-SIGINT and SIGTERM stop new work and initiate bounded child and fixture cleanup.
-Forced termination can prevent final writes; canceled work cannot qualify, and
-GitHub-hosted VM disposal is the final cleanup boundary after loss of the runner.
-
-Protected-branch acceptance requires the exact observed database behavior check from
-GitHub Actions, existing required checks, and up-to-date candidates. Workflow YAML
-alone does not establish enforcement. The owning feature must retain policy
-readback and a native-failure blocked-merge demonstration. Each later shared
-behavior feature still owns its own real SQLite and native PostgreSQL evidence.
+Branch protection still requires both historical check names and up-to-date
+candidates. Workflow YAML does not prove hosted enforcement. Shared behavior features
+must retain their applicable Local/native verification; release claims need full
+qualification against the exact archive and revision.
 
 Use existing investigation, design, TypeScript, and review skills when they resolve
 a real uncertainty. They operate on the same Spec Kit artifacts and introduce no

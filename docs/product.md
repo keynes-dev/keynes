@@ -1,6 +1,9 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Target contract. KEY-78 configured creation is implemented in the
+> **Status:** Target contract. [ADR-0012](adr/0012-postgresql-and-pglite.md) adopts
+> PostgreSQL/PGlite and separate SDK, adapter and Policy tooling distributions.
+> Current Local source still uses SQLite; KEY-109 and KEY-96 remain unimplemented.
+> KEY-78 configured creation is implemented in the
 > current source. [Linear](https://linear.app/keynes) tracks delivery and
 > evidence. Each retained result proves only the source revision and verification
 > lane that it records. Target behavior remains undelivered until its feature
@@ -284,30 +287,35 @@ mode implements the same Budget contract: Resource and Policy definitions,
 requests, settlement, replay, inspection, accounting, and history have the
 same public meaning.
 
-| Mode     | Where a Budget lives                                        | What it is for                                            | Mode-specific capability                                                          |
-| -------- | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Local    | A private in-memory SQLite authority in one Node.js process | Fast, isolated development and disposable work            | Requires no service or database setup; state ends with the process                |
-| Hosted   | A PostgreSQL authority separate from the application        | Durable shared governance across applications and workers | The operator manages durable access, credentials, capacity, recovery, and support |
-| Embedded | The application's PostgreSQL installation                   | Governance that must commit with application data         | The application calls canonical procedures inside its own transaction             |
+| Mode     | Where a Budget lives                                 | What it is for                                            | Mode-specific capability                                                          |
+| -------- | ---------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Local    | Private in-memory PGlite in one Node.js process      | Fast, isolated development and disposable work            | Requires no service or database setup; state ends with the process                |
+| Hosted   | A PostgreSQL authority separate from the application | Durable shared governance across applications and workers | The operator manages durable access, credentials, capacity, recovery, and support |
+| Embedded | The application's PostgreSQL installation            | Governance that must commit with application data         | The application calls canonical procedures inside its own transaction             |
 
 Hosted may be customer-operated or managed by Keynes. Those choices change who
 operates the service; they do not change Budget behavior. No mode automatically
 moves a live Budget to another authority.
 
-Keynes exposes this contract through three current execution paths:
+The adopted execution paths use one PostgreSQL implementation:
 
 ```text
 TypeScript application
 |
-+-- createKeynes({ resources })
-|   `-- private in-memory SQLite authority
++-- createKeynes({ resources, runtime: <PGlite adapter> })
+|   `-- private in-memory PGlite, canonical PostgreSQL procedures
 |
-+-- createKeynes({ resources, databaseUrl })
++-- createKeynes({ resources, runtime: <PostgreSQL adapter> })
 |   `-- verified PostgreSQL connection
 |
 `-- application-owned PostgreSQL client
     `-- Keynes procedures in the caller's transaction
 ```
+
+The adapter labels above are schematic, not callable factory names. KEY-96 owns
+the exact exports. Today, the combined SDK uses `createKeynes({ resources })`
+for SQLite Local and `createKeynes({ resources, databaseUrl })` for server access.
+The new adapter packages are not yet implemented.
 
 Local mode is ephemeral and process-owned. PostgreSQL is the only durable
 database implementation. The Hosted SDK currently connects directly to
@@ -355,6 +363,29 @@ provider retries, usage observation, business outcomes, application
 transactions, refunds, quota restoration, and any action associated with
 released quantity.
 
+## Developer setup and remote onboarding
+
+The adopted `keynes` CLI lets a developer install and verify Keynes in PostgreSQL,
+generate application types from a selected remote catalog, preview and explicitly
+deploy Resource/Policy definitions, and check compatibility. It is a separate
+`@keynes/cli` application; using the SDK does not require installing developer tools.
+
+The remote catalog supplies application-specific Resource names and Policy types.
+Generated bindings can be committed for offline editing and reproducible builds.
+Keynes generates the SDK's own command types from its central contracts during
+its build. Neither kind of generated type grants database permissions.
+
+Schema synchronization has explicit direction. Catalog reads generate local
+bindings; authorized definition deployment creates missing immutable definitions
+or reuses exact matches. Conflicts fail without overwriting existing definitions.
+Ordinary initialization never deploys definitions. Database upgrades are separate
+from catalog deployment and require a migration contract beyond the clean baseline.
+
+These capabilities are adopted targets, not available commands. KEY-96 establishes
+the CLI boundary; KEY-108 delivers the remote developer workflow. Manual declarations
+remain supported. Baseline Hosted continuity and complete developer onboarding
+retain separate acceptance, and both are required for the Hosted product experience.
+
 ## Product commitments
 
 - Resource and Policy definitions are independent, immutable authority state.
@@ -367,7 +398,12 @@ released quantity.
 - A Budget never becomes settled while any descendant remains non-settled.
 - Settlement leaves every settled Budget with zero live quantity.
 - PostgreSQL owns all durable Budget, replay, and history state.
-- SQLite and PostgreSQL implement one command and accounting contract.
+- One PostgreSQL implementation owns business rules in PGlite and native PostgreSQL.
+- The SDK carries types and performs actions without business logic. Database-owned
+  Policy authoring tooling retains compilation outside the engine; the database
+  independently validates definitions and evaluates Policies.
+- Local remains Node-only and in-memory; browser and persistent Local support are
+  outside this decision. PGlite Local does not qualify Embedded transactions.
 - Keynes TypeScript packages use one Node.js `>=24` compatibility floor.
 - The SDK contains no fallback authority and no public IAM system.
 - The active PostgreSQL implementation starts from one clean baseline. Existing

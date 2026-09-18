@@ -36,10 +36,14 @@ export function manageChild(
   );
   const completion = new Promise<void>((resolveChild, rejectChild) => {
     child.once("error", rejectChild);
-    child.once("close", (code) =>
+    child.once("close", (code, signal) =>
       code === 0
         ? resolveChild()
-        : rejectChild(new Error("Native subprocess failed")),
+        : rejectChild(
+            new Error(
+              `Native subprocess failed (exit code ${code ?? "none"}, signal ${signal ?? "none"})`,
+            ),
+          ),
     );
   });
   void completion.catch(() => {});

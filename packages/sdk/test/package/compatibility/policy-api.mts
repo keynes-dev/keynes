@@ -12,7 +12,7 @@ import type {
 } from "@keynes/sdk";
 import * as sdk from "@keynes/sdk";
 // @ts-expect-error Plain declarations replace the old schema wrapper type.
-import type { ResourceSchema } from "@keynes/sdk";
+export type { ResourceSchema } from "@keynes/sdk";
 
 function expectType<Value>(_value: Value): void {}
 
@@ -44,11 +44,11 @@ expectType<ResourceBinding<"usdCents">>(
   await keynes.defineResources(checkedDefinitions),
 );
 // @ts-expect-error The opaque reference is not public.
-binding.bindingReference;
+void binding.bindingReference;
 // @ts-expect-error Bindings expose no Resource IDs.
-binding.resourceTypeId;
+void binding.resourceTypeId;
 // @ts-expect-error The standalone helper has been removed.
-sdk.defineResources;
+void sdk.defineResources;
 // @ts-expect-error Bindings have no public constructor.
 new sdk.ResourceBinding();
 
@@ -239,11 +239,11 @@ new sdk.Keynes();
 new sdk.Budget();
 
 // @ts-expect-error Resource installation identifiers stay private.
-resources.resourceTypeId;
+void resources.resourceTypeId;
 // @ts-expect-error Runtime identifiers stay private.
-keynes.runtimeId;
+void keynes.runtimeId;
 // @ts-expect-error Budget identifiers stay private.
-root.budgetId;
+void root.budgetId;
 const requestResult = await root.request({ usdCents: 1 });
 // @ts-expect-error Command identifiers stay private.
-requestResult.commandId;
+void requestResult.commandId;
