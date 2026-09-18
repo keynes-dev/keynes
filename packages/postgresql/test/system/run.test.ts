@@ -29,6 +29,7 @@ import {
   type PostgresqlSystemRuntime,
   manageChild,
   sanitizeVitestReport,
+  sanitizeDiagnostic,
   POSTGRES_IMAGE,
   runPostgresqlSystemTests,
   validatePostgresqlSystemReport,
@@ -270,6 +271,24 @@ describe("PostgreSQL system-test runner", () => {
     ]);
     expect(result.stdout).toBe("tests failed");
     expect(result.stderr).toBe("");
+  });
+
+  it("redacts credential values without erasing ordinary authorization descriptions", () => {
+    expect(
+      sanitizeDiagnostic(
+        "current authorization and selected-definition validation",
+      ),
+    ).toBe("current authorization and selected-definition validation");
+    expect(
+      sanitizeDiagnostic(
+        'password: "two word secret", \"password\": \"json-secret\", PGPASSWORD=env-secret Authorization: Bearer token',
+      ),
+    ).not.toMatch(/two word secret|json-secret|env-secret|token/);
+    expect(
+      sanitizeDiagnostic(
+        'KEYNES_POSTGRESQL_SYSTEM_CONTEXT={"private":"secret"}',
+      ),
+    ).toBe("[redacted runner context]");
   });
 
   it("streams useful output while redacting credentials across chunks", async () => {

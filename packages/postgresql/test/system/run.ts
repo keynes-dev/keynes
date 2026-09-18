@@ -1284,9 +1284,10 @@ export function sanitizeDiagnostic(
   return text
     .replace(/postgres(?:ql)?:\/\/[^\s"'<>]+/giu, "[redacted connection]")
     .replace(
-      /\b(?:password|PGPASSWORD|authorization|bearer)["']?\s*[=: ]\s*[^\s,;}]+/giu,
+      /\b(?:password|PGPASSWORD|authorization)["']?\s*[=:]\s*(?:"[^"]*"|'[^']*'|(?:bearer\s+)?[^\s,;}]+)/giu,
       "[redacted credential]",
     )
+    .replace(/\bbearer\s+[^\s"',;}]+/giu, "[redacted credential]")
     .replace(
       /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/giu,
       "[redacted id]",
