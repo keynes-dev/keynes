@@ -65,11 +65,11 @@ Active graph references exist in the generated installation record, manifest, ge
 | `pnpm test:remote -- --mode direct`                                                                              | Passed, 183 native tests after the installer-race, retained-data, retry, and rollback-failure changes                                                                            |
 | `pnpm test:system:postgresql`                                                                                    | Passed, 297 native tests across installation, exact recheck, rollback, contention, Policy, caller transactions, Remote, direct/pool profiles, recovery, permissions, and cleanup |
 | `pnpm test:package:postgresql -- --archive ... --output .artifacts/key-76/postgresql-package-20260918T1536.json` | Passed, 26 exact-archive, CLI, build-preservation, and blocked-import tests                                                                                                      |
-| `pnpm test:sqlite-postgres -- --output .artifacts/key-76/paired-20260918T225833Z`                                | Passed on clean revision `93cf15565393abbd1e38c874654334babd025c25`: SQLite 99 tests, native PostgreSQL 298 tests, and cleanup passed                                            |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-76/paired-final-20260918T230751Z`                          | Passed on clean revision `51a2ca221adf86f466017201431081e37cda42df`: SQLite 99 tests, native PostgreSQL 298 tests, and cleanup passed                                            |
 
 The package record reports Node `v26.5.0`, pnpm `11.21.0`, Darwin `25.5.0` on arm64, archive outcome `passed`, and `cleanBefore: false`/`cleanAfter: false`. The native runner used the pinned PostgreSQL 18.6 and PgBouncer images and reported cleanup passed.
 
-The paired manifest records clean source revision `93cf15565393abbd1e38c874654334babd025c25`, attempt `061d7979-2c53-4601-8040-9d284802e56f`, SQLite 3.53.3, PostgreSQL 18.6, PgBouncer 1.25.2, exact package archive SHA-256 `44f57a1754e5efccea0ac4c2b97151f8d95fabb1585c7d748de44d27ce7fba3f`, and matching installation-record SHA-256 `807ecb4a7e6fa9598cee4e590d56cb1d5c30d419a8ed41e2ab87eb4a3a672545`.
+The paired manifest records clean source revision `51a2ca221adf86f466017201431081e37cda42df`, attempt `b8690b87-b122-4a98-88c8-ac1dd7984745`, SQLite 3.53.3, PostgreSQL 18.6, PgBouncer 1.25.2, exact package archive SHA-256 `44f57a1754e5efccea0ac4c2b97151f8d95fabb1585c7d748de44d27ce7fba3f`, and matching installation-record SHA-256 `807ecb4a7e6fa9598cee4e590d56cb1d5c30d419a8ed41e2ab87eb4a3a672545`.
 
 ## Requirement reconciliation
 
