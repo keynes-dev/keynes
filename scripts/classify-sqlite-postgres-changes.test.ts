@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,54 +29,77 @@ afterEach(() => {
   }
 });
 
-describe("SQLite and PostgreSQL workflow contract", () => {
-  it("routes the required job through one explicit relevance decision", () => {
+describe("PR workflow contract", () => {
+  it("classifies once and fails both required checks when classification fails", () => {
     const workflow = readFileSync(
       join(root, ".github/workflows/ci.yml"),
       "utf8",
     );
-
     expect(
-      workflow.match(/name: SQLite and PostgreSQL behavior tests/gmu) ?? [],
+      workflow.match(/node scripts\/classify-sqlite-postgres-changes.ts/g),
     ).toHaveLength(1);
-    expect(workflow).toContain("fetch-depth: 0");
-    expect(workflow).toContain("id: relevance");
-    expect(workflow).toContain(
-      "node scripts/classify-sqlite-postgres-changes.ts",
-    );
-    expect(workflow).toContain("Require explicit relevance decision");
+    expect(workflow).toContain("cancel-in-progress: true");
     expect(workflow).not.toMatch(
       /paths-ignore|^\s+paths:|workflow_dispatch|schedule:/mu,
     );
-
-    const job = workflow.slice(workflow.indexOf("  sqlite-postgres:"));
-    expect(job).not.toMatch(/^ {4}(?:if|needs):/mu);
-    expect(job.indexOf("id: relevance")).toBeLessThan(
-      job.indexOf("name: Set up pnpm"),
-    );
-    expect(step(job, "Set up Node.js")).toContain(
-      "package-manager-cache: false",
-    );
-
-    for (const name of [
-      "Set up pnpm",
-      "Install dependencies",
-      "Run SQLite and PostgreSQL behavior tests",
-    ]) {
-      expect(step(job, name)).toContain(
-        "steps.relevance.outputs.run_databases == 'true'",
+    for (const id of ["checks", "sqlite-postgres"]) {
+      const job = workflow.split(`  ${id}:`)[1]?.split(/\n  [\w-]+:/)[0] ?? "";
+      expect(job).toContain("needs: changes");
+      expect(job).toContain("if: ${{ always() }}");
+      const guard = step(job, "Require explicit relevance decision");
+      expect(guard).toContain("needs.changes.result");
+      expect(guard).toContain(
+        "success/true/relevant | success/false/not-applicable",
       );
-    }
-    for (const name of [
-      "Retain SQLite and PostgreSQL evidence",
-      "Confirm artifact retention",
-    ]) {
-      const source = step(job, name);
-      expect(source).toContain("always()");
-      expect(source).toContain(
-        "steps.relevance.outputs.run_databases == 'true'",
+      expect(guard).toContain("*) exit 1");
+      expect(step(job, "Set up Node.js")).toContain(
+        "node-version-file: package.json",
       );
+      expect(step(job, "Set up Node.js")).toContain("cache: pnpm");
     }
+    expect(workflow).toContain("pnpm format:docs");
+    expect(workflow).toContain("pnpm test:ci:postgresql");
+    expect(workflow).not.toContain("pnpm test:sqlite-postgres");
+    expect(workflow).not.toContain("Confirm artifact retention");
+    expect(step(workflow, "Retain failure diagnostics")).toContain("failure()");
+    expect(step(workflow, "Retain failure diagnostics")).toContain(
+      "retention-days: 7",
+    );
+    expect(step(workflow, "Retain failure diagnostics")).toContain(
+      "continue-on-error: true",
+    );
+  });
+});
+
+describe("required-check guard", () => {
+  it.each([
+    ["success", "true", "relevant", 0],
+    ["success", "false", "not-applicable", 0],
+    ["failure", "true", "relevant", 1],
+    ["cancelled", "false", "not-applicable", 1],
+    ["skipped", "false", "not-applicable", 1],
+    ["success", "", "", 1],
+    ["success", "false", "relevant", 1],
+    ["success", "true", "not-applicable", 1],
+  ])("handles %s/%s/%s", (classification, run, disposition, exit) => {
+    const workflow = readFileSync(
+      join(root, ".github/workflows/ci.yml"),
+      "utf8",
+    );
+    const command = step(workflow, "Require explicit relevance decision").split(
+      "run: |\n",
+    )[1];
+    expect(command).toBeDefined();
+    if (command === undefined) throw new Error("Missing relevance guard");
+    const result = spawnSync("bash", ["-e", "-c", command], {
+      env: {
+        ...process.env,
+        CLASSIFICATION: String(classification),
+        RUN_DATABASES: String(run),
+        DISPOSITION: String(disposition),
+      },
+    });
+    expect(result.status).toBe(exit);
   });
 });
 

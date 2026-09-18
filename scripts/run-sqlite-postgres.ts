@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   runPostgresqlSystemTests,
   sanitizeVitestReport,
+  spawnTestChild,
   validatePostgresqlSystemReport,
 } from "../packages/postgresql/test/system/run.ts";
 import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgresql/test/system/required-scenarios.ts";
@@ -102,8 +103,7 @@ export async function runSqlite(
   signal: AbortSignal,
 ): Promise<unknown> {
   if (signal.aborted) throw new Error("sqlite-postgres cancelled");
-  const child = spawn(
-    "pnpm",
+  const managed = spawnTestChild(
     [
       "exec",
       "vitest",
@@ -113,12 +113,13 @@ export async function runSqlite(
       "--exclude=**/.claude/worktrees/**",
       "--allowOnly=false",
       "--passWithNoTests=false",
+      "--reporter=default",
       "--reporter=json",
       `--outputFile=${reportPath}`,
     ],
-    { cwd: ROOT, stdio: "ignore", detached: process.platform !== "win32" },
+    process.env,
+    "pipe",
   );
-  const managed = manageChild(child);
   let failure: Error | undefined;
   try {
     await waitWithCancellation(managed.wait(), signal);

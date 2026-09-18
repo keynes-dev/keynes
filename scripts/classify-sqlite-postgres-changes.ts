@@ -196,7 +196,7 @@ export function renderSummary(report: ClassificationReport): string {
     );
   } else {
     lines.push(
-      "Full SQLite and PostgreSQL execution is required. Runtime results and evidence are reported by the existing paired gate.",
+      "Repository correctness tests include SQLite; the database job runs native PostgreSQL source correctness. Full qualification is explicit.",
     );
   }
   return `${lines.join("\n")}\n`;

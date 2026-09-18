@@ -1,13 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 9.0.0 -> 10.0.0
-- Rationale: adopt one PostgreSQL implementation with PGlite Local execution and database-owned Policy tooling.
-- Modified principles: I, one PostgreSQL implementation; III, database-owned compiler and evaluation; IV, PGlite/native PostgreSQL acceptance with a qualified transition.
-- Modified sections: Product constraints; Delivery and evidence gates.
+- Version change: 10.0.0 -> 11.0.0
+- Rationale: separate required PR correctness from explicit package and deployment qualification.
+- Modified principles: I and IV, preserve Local/native correctness without requiring full qualification on every relevant PR; V, failure-only PR diagnostics and retained qualification evidence.
 - Added sections: none
 - Removed sections: none
-- Migration impact: KEY-109 replaces SQLite only after qualification; KEY-96 delivers central source and separate distributions. Existing SQLite/native PostgreSQL CI remains required until the replacement gate lands.
-- Managed templates and commands: unchanged; read the constitution at runtime.
+- Migration impact: existing required check names remain; SQLite stays until KEY-109 qualification. Full paired and package qualification remain explicit.
+- Managed templates and commands: unchanged.
 - Follow-up TODOs: none
 -->
 
@@ -25,7 +24,7 @@ reproduce business transitions or write private database state directly.
 
 This is the adopted target in [ADR-0012](../../docs/adr/0012-postgresql-and-pglite.md).
 Until KEY-109 qualifies replacement, the existing SQLite Local implementation
-MAY remain and MUST retain its current required acceptance gates. KEY-96 owns
+MAY remain and MUST retain required Local and native PostgreSQL correctness checks. KEY-96 owns
 the subsequent source and package separation. This amendment MUST NOT be
 reported as runtime implementation or qualification.
 
@@ -92,10 +91,14 @@ public meaning of a Budget command.
 
 Every shared Budget example MUST run as a black-box comparison against
 PGlite and native PostgreSQL after KEY-109. Until its replacement gate lands,
-the current SQLite/native PostgreSQL suite MUST remain required. KEY-109 MUST
-qualify PGlite before removing SQLite and MUST preserve required-check enforcement,
-fail-closed applicability classification and evidence retention during the CI
-transition. Results, errors, replay flags, history,
+SQLite and native PostgreSQL source correctness MUST remain required for relevant PRs.
+SQLite scenarios MAY run in the repository check without duplicate execution in the
+native database job. Native checks MUST retain shared Budget, concurrency, rollback,
+Policy, permission, direct remote recovery and caller-transaction coverage. Package
+installation and pooler qualification MUST remain explicitly runnable, separate from
+the routine PR gate. KEY-109 MUST qualify PGlite before removing SQLite and MUST
+preserve required-check enforcement, fail-closed applicability classification and
+qualification evidence retention during the CI transition. Results, errors, replay flags, history,
 and final Budget state MUST agree. Separate suites MUST cover local lifecycle
 and memory, PostgreSQL concurrency and transactions, remote authentication and
 tenant isolation, recovery, packaging, and managed operations. A pass in one
@@ -113,6 +116,12 @@ failing for the expected reason before implementation begins. The default
 verification lane MUST be deterministic and provider-free. Networked, paid,
 managed-provider, fault, and benchmark lanes MUST remain explicit and, where
 they can spend money or mutate external state, separately authorized.
+
+Routine PR checks MUST report test and process failures in sanitized logs. Successful
+PR runs need not upload artifacts; failures MAY retain sanitized diagnostics. An
+artifact-upload failure MUST NOT replace the original test failure. Full qualification
+MUST retain exact-revision evidence when supporting package or deployment claims.
+Retries or passing assertion counts MUST NOT conceal a failing test process.
 
 Specs and plans MUST define measurable acceptance evidence, including security,
 recovery, migration, compatibility, shared behavior, deployment-specific, and
@@ -254,4 +263,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 10.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-12
+**Version**: 11.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-18

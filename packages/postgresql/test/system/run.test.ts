@@ -40,6 +40,73 @@ import {
 } from "./required-scenarios.js";
 
 describe("PostgreSQL system-test runner", () => {
+  it("keeps native correctness coverage in CI without packed installation or poolers", () => {
+    const selection = validateNativeSelection({ kind: "ci" });
+    const inventory = selectedScenarioInventory(selection);
+    expect(Object.keys(inventory).sort()).toEqual(
+      Object.keys(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).sort(),
+    );
+    expect(Object.values(inventory).flat().join("\n")).not.toMatch(
+      /session-pool|transaction-pool|PgBouncer/,
+    );
+    expect(() =>
+      validateSelectedPostgresqlReport(
+        { ...passingVitestReport(), success: false },
+        selection,
+      ),
+    ).toThrow();
+  });
+
+  it("retains a redacted process failure even when all assertions passed", async () => {
+    const output = await temporaryOutputPath();
+    const fake = fakeRuntime({
+      childFailure: new Error(
+        `Native subprocess failed (exit code 7, signal none): ${PASSWORD}`,
+      ),
+    });
+    await expect(
+      runPostgresqlSystemTests(
+        fake.runtime,
+        {},
+        { selection: { kind: "ci" }, diagnosticsPath: output.path },
+      ),
+    ).rejects.toThrow("exit code 7");
+    const diagnostics = await readFile(output.path, "utf8");
+    expect(diagnostics).toContain("exit code 7");
+    expect(diagnostics).not.toContain(PASSWORD);
+    expect(diagnostics).toContain('"cleanup": "passed"');
+  });
+
+  it("does not retain diagnostics on success", async () => {
+    const output = await temporaryOutputPath();
+    await runPostgresqlSystemTests(
+      fakeRuntime().runtime,
+      {},
+      { selection: { kind: "ci" }, diagnosticsPath: output.path },
+    );
+    await expect(readFile(output.path)).rejects.toThrow();
+  });
+
+  it("preserves a real child exit code and signal", async () => {
+    const failed = manageChild(
+      spawn(process.execPath, ["-e", "process.exitCode=7"], {
+        detached: true,
+        stdio: "ignore",
+      }),
+    );
+    await expect(failed.wait()).rejects.toThrow("exit code 7");
+    await failed.terminate();
+    const killed = spawn(
+      process.execPath,
+      ["-e", "setInterval(() => {}, 1000)"],
+      { detached: true, stdio: "ignore" },
+    );
+    const managed = manageChild(killed);
+    killed.kill("SIGTERM");
+    await expect(managed.wait()).rejects.toThrow("SIGTERM");
+    await managed.terminate();
+  });
+
   it("rejects a selected schema with otherwise complete native assertions", () => {
     expect(() =>
       validatePostgresqlSystemReport({
@@ -147,6 +214,24 @@ describe("PostgreSQL system-test runner", () => {
     ]);
     expect(result.stdout).toBe("tests failed");
     expect(result.stderr).toBe("");
+  });
+
+  it("streams useful output while redacting credentials across chunks", async () => {
+    const result = await promisify(execFile)(process.execPath, [
+      "--input-type=module",
+      "-e",
+      String.raw`
+      import { spawnTestChild } from './packages/postgresql/test/system/run.ts';
+      const child = spawnTestChild(['exec', 'node', '-e', 'process.stdout.write("stage ok\\nprivate-fixture-"); setTimeout(() => { process.stdout.write("secret\\n"); process.stderr.write("worker failed\\npostgresql://user:other-secret@localhost/db\\n"); process.exitCode=7; }, 10)'], process.env, 'pipe', ['private-fixture-secret']);
+      try { await child.wait(); } catch (error) { process.stdout.write(error.message); } finally { await child.terminate(); }
+    `,
+    ]);
+    expect(result.stdout).toContain("stage ok");
+    expect(result.stdout).toContain("exit code 7");
+    expect(result.stderr).toContain("worker failed");
+    expect(result.stdout + result.stderr).not.toMatch(
+      /private-fixture-secret|other-secret|postgresql:\/\//,
+    );
   });
 
   it("retains sanitized failed reports and startup diagnostics without publishing acceptance", async () => {
@@ -646,7 +731,7 @@ describe("PostgreSQL system-test runner", () => {
 
     expect(failure).toBeInstanceOf(Error);
     expect(String(failure)).toBe(
-      `Error: PostgreSQL system run ${RUN_ID} failed during tests`,
+      `Error: PostgreSQL system run ${RUN_ID} failed during tests: child failed with [redacted connection]`,
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(String(failure)).not.toContain(privateUrl);
@@ -671,7 +756,7 @@ describe("PostgreSQL system-test runner", () => {
     }
 
     expect(String(failure)).toBe(
-      `Error: PostgreSQL system run ${RUN_ID} failed during network-create`,
+      `Error: PostgreSQL system run ${RUN_ID} failed during network-create: spawn docker ENOENT [redacted]`,
     );
     expect(String(failure)).not.toContain(PASSWORD);
     expect(fake.commands).toHaveLength(1);
@@ -1198,6 +1283,7 @@ it.each([
     selection: { kind: "remote", modes: [mode] },
   })),
   { args: ["embedded"], poolers: [], selection: { kind: "embedded" } },
+  { args: ["ci"], poolers: [], selection: { kind: "ci" } },
 ])(
   "starts only selected dependencies: $args",
   async ({ args, poolers, selection }) => {

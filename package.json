@@ -34,7 +34,9 @@
     "test:local": "pnpm --filter @keynes/sdk test:local",
     "test:remote": "pnpm --filter @keynes/postgresql test:remote",
     "test:embedded": "pnpm --filter @keynes/postgresql test:embedded",
-    "test:hosted": "pnpm --filter @keynes/sdk test:hosted"
+    "test:hosted": "pnpm --filter @keynes/sdk test:hosted",
+    "test:ci:postgresql": "pnpm --filter @keynes/postgresql test:ci",
+    "format:docs": "oxfmt --check docs .specify/memory AGENTS.md .github/PULL_REQUEST_TEMPLATE.md"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
