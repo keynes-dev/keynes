@@ -44,18 +44,14 @@ Rules are positive and exact. All unmatched paths are relevant.
 | Path rule                          | Category            | Notes                                                                             |
 | ---------------------------------- | ------------------- | --------------------------------------------------------------------------------- |
 | `docs/**`                          | documentation       | Includes product, architecture, contributor, ADR, feature, and evidence documents |
-| `apps/web/src/**`                  | marketing-site      | Website source, assets, components, pages, and styles only                        |
-| `apps/web/tests/**`                | marketing-site      | Website-only tests                                                                |
 | `.specify/memory/**`               | spec-kit-record     | Governing Spec Kit records, not executable machinery                              |
 | `AGENTS.md`                        | repository-metadata | Contributor and agent instructions                                                |
 | `LICENSE`                          | repository-metadata | License text                                                                      |
 | `.github/CODEOWNERS`               | repository-metadata | Review ownership only                                                             |
 | `.github/PULL_REQUEST_TEMPLATE.md` | repository-metadata | Review template only                                                              |
-| `apps/web/AGENTS.md`               | repository-metadata | Website contributor instructions                                                  |
-| `apps/web/.gitignore`              | repository-metadata | Website-local ignored output only                                                 |
 
 Explicit relevant examples include all `package.json` files, `pnpm-lock.yaml`,
-workspace manifests, website and root toolchain configuration, `.gitignore`,
+workspace manifests, root toolchain configuration, `.gitignore`,
 `.gitattributes`, `.dockerignore`, `.github/workflows/**`, `scripts/**`,
 `packages/**`, `.specify` scripts/templates/extensions/integrations/configuration,
 new top-level paths, and every other unknown path. One relevant path makes a mixed
@@ -68,7 +64,6 @@ The TypeScript boundary represents one closed union:
 ```ts
 type ApprovedCategory =
   | "documentation"
-  | "marketing-site"
   | "spec-kit-record"
   | "repository-metadata";
 

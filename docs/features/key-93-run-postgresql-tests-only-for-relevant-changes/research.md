@@ -45,23 +45,21 @@ Source: [Events that trigger workflows](https://docs.github.com/en/actions/refer
 ## Path policy
 
 **Decision**: Use a positive safe allowlist and make every unmatched path relevant.
-Approve `docs/**`, `apps/web/src/**`, `apps/web/tests/**`, `.specify/memory/**`, and
-exact non-executable metadata files: `AGENTS.md`, `LICENSE`,
-`.github/CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `apps/web/AGENTS.md`,
-and `apps/web/.gitignore`.
+Approve `docs/**`, `.specify/memory/**`, and exact non-executable metadata files:
+`AGENTS.md`, `LICENSE`, `.github/CODEOWNERS`, and
+`.github/PULL_REQUEST_TEMPLATE.md`.
 
 **Rationale**: This proves the specification's required condition: every changed
-path is known to be unrelated. Website manifests and configuration remain relevant
-because they are dependency or toolchain inputs. `.specify` scripts, templates,
-extensions, integrations, and configuration remain relevant. `.gitignore`,
-`.gitattributes`, and `.dockerignore` remain relevant because they can affect
-candidate cleanliness, checkout behavior, or build inputs. `pnpm-lock.yaml`, every
-manifest, workflow, script, package, root toolchain file, new path, and other unknown
-path falls through to relevant.
+path is known to be unrelated. `.specify` scripts, templates, extensions,
+integrations, and configuration remain relevant. `.gitignore`, `.gitattributes`,
+and `.dockerignore` remain relevant because they can affect candidate cleanliness,
+checkout behavior, or build inputs. `pnpm-lock.yaml`, every manifest, workflow,
+script, package, root toolchain file, new path, and other unknown path falls
+through to relevant.
 
 **Alternatives considered**: A relevant-path list fails open when the repository
-grows. Broad `apps/web/**` and `.specify/**` rules hide toolchain changes. Treating
-all root metadata as safe ignores files that alter qualification inputs.
+grows. Broad `.specify/**` rules hide toolchain changes. Treating all root
+metadata as safe ignores files that alter qualification inputs.
 
 ## Classifier boundary and result
 
@@ -115,8 +113,8 @@ could turn a relevant failure into a passing required result.
 ## Architecture synthesis
 
 Candidate A's single required job is the base. Candidate B contributed the narrower
-website allowlist, closed truth table, structured-decision validation, and explicit
-website toolchain tests. The three-job aggregator and classification artifact were
+allowlist, closed truth table, structured-decision validation, and explicit
+toolchain tests. The three-job aggregator and classification artifact were
 rejected because they add latency and Actions state without improving the
 fail-closed classification proof. Hosted duration, proposed-workflow trust, and
 future path-policy drift remain explicit acceptance and review risks.

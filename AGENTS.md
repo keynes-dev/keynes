@@ -50,5 +50,4 @@ implementation, verification, evidence boundaries, and review path.
 
 ## Learned Workspace Facts
 
-- `docs/product.md` is the product vision document, not marketing copy.
-- The public website lives in the separate `keynes-dev/web` repository.
+- `docs/product.md` is the product vision document.

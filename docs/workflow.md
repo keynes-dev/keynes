@@ -151,9 +151,6 @@ that future development avoids duplicated behavior or setup.
 The required PR job `SQLite and PostgreSQL behavior tests` runs independently of
 `Repository and tests` on every revision. It classifies the complete pull request
 change set before installing dependencies or starting a database. The job reports
-`not-applicable` only when every changed path is approved documentation, a Spec Kit
-record, or exact non-executable repository metadata.
-See the [KEY-93 applicability contract](features/key-93-run-postgresql-tests-only-for-relevant-changes/contracts/ci-relevance.md)
 for the reviewed path rules and failure states.
 
 All package manifests, `pnpm-lock.yaml`, workspace inputs, workflows, scripts,

@@ -30,7 +30,7 @@ git diff --check
 ```
 
 The test matrix must cover every approved category, all relevant exceptions,
-`pnpm-lock.yaml` beside website changes, mixed and unknown paths, additions,
+`pnpm-lock.yaml` beside documentation changes, mixed and unknown paths, additions,
 modifications, deletions, type changes, both sides of moves, base advancement,
 empty or malformed input, Git failure, revision mismatch, safe summary rendering,
 and every workflow routing/evidence condition.
@@ -56,7 +56,7 @@ merging it:
 
 | Case                                                                                                             | Expected required result                                                                                                                            |
 | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Documentation, website source/test, Spec Kit record, exact metadata only                                         | Same required job succeeds within 30 seconds of job start; summary classifies every path; both databases are `NOT RUN`; no database artifact exists |
+| Documentation, Spec Kit record, exact metadata only                                                              | Same required job succeeds within 30 seconds of job start; summary classifies every path; both databases are `NOT RUN`; no database artifact exists |
 | Runtime, shared contract, database test/runner, manifest, lockfile, toolchain, workflow/classifier, unknown path | Full paired gate runs; passing requires the existing database artifact receipt                                                                      |
 | Approved files plus one relevant file                                                                            | Full paired gate runs                                                                                                                               |
 | Relevant deletion or move into an approved directory                                                             | Full paired gate runs because the old path remains visible                                                                                          |

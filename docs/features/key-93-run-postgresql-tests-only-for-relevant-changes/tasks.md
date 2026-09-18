@@ -21,7 +21,7 @@
 
 **Goal**: Prove every changed path is approved and skip all database cost for that revision.
 
-**Independent Test**: Feed documentation-only, website-source/test-only, Spec Kit-record-only, metadata-only, and cross-category-safe diffs through the classifier and confirm `not-applicable`, complete attribution, and no database-step eligibility.
+**Independent Test**: Feed documentation-only, Spec Kit-record-only, metadata-only, and cross-category-safe diffs through the classifier and confirm `not-applicable`, complete attribution, and no database-step eligibility.
 
 - [x] T003 [US1] Implement the dependency-free types, strict NUL-delimited status parser, relative-path validation, narrow approved allowlist, and default-relevant decision in `scripts/classify-sqlite-postgres-changes.ts`; keep all manifests, lockfiles, toolchain inputs, workflows, scripts, `.specify` machinery, and unknown paths relevant.
 - [x] T004 [US1] Implement the injected Git/event boundary in `scripts/classify-sqlite-postgres-changes.ts`: validate event base/head and checked-out merge SHAs, compute the merge base, run `git diff --name-status -z --no-renames`, reject empty or malformed comparisons, and emit only a closed Boolean/disposition pair.
@@ -37,7 +37,7 @@
 
 **Goal**: Make every relevant, mixed, unknown, or unclassifiable revision execute or fail without weakening existing evidence.
 
-**Independent Test**: Exercise all relevant categories, including `pnpm-lock.yaml` beside website files and both sides of a cross-category move, then run the unchanged paired gate into a fresh directory.
+**Independent Test**: Exercise all relevant categories, including `pnpm-lock.yaml` beside documentation files and both sides of a cross-category move, then run the unchanged paired gate into a fresh directory.
 
 - [x] T008 [US2] Complete the relevant-lane conditions in `.github/workflows/ci.yml`: gate upload and receipt steps on the validated relevant output while preserving `always()`, the five-file allowlist, missing-file failure, no overwrite, retention, artifact ID/digest checks, and the existing paired command.
 - [x] T009 [US2] Run the policy, Git-boundary, and workflow-contract matrix in `scripts/classify-sqlite-postgres-changes.test.ts`; prove classifier errors exit nonzero without successful not-applicable outputs and record the results in `acceptance.md`.
@@ -68,7 +68,7 @@
 - [x] T014 Run `pnpm test:pr`, `pnpm format`, Spec Kit prerequisite resolution, `git diff --check`, and a requirements/tasks audit; resolve feature-caused failures and record exact commands, versions, candidate, and outcomes in `acceptance.md`.
 - [x] T015 Commit and push the implementation and task updates on the exact Linear branch; update PR #53 from the repository template with motivation, behavior, design choices, evidence, limits, review order, and every `NOT RUN` lane, preserving its current ready-for-review state.
 - [x] T016 Inspect the pushed feature revision's required checks and database artifact receipt; confirm the feature's own workflow/classifier changes classify as relevant and run the full gate, then record check URLs, durations, revision, artifact ID/digest, and result in `acceptance.md`.
-- [ ] T017 After the classifier is available on the target branch, demonstrate documentation-only, website-source/test-only, Spec Kit-record-only, and metadata-only pull request revisions on GitHub; confirm the same required job finishes within 30 seconds of job start, all expensive/database/evidence steps skip, the summary is complete, and no database artifact exists. Until such revisions can run without a second feature PR, keep this task and SC-001/SC-002/SC-005/SC-007 hosted skip evidence `NOT RUN`.
+- [ ] T017 After the classifier is available on the target branch, demonstrate documentation-only, Spec Kit-record-only, and metadata-only pull request revisions on GitHub; confirm the same required job finishes within 30 seconds of job start, all expensive/database/evidence steps skip, the summary is complete, and no database artifact exists. Until such revisions can run without a second feature PR, keep this task and SC-001/SC-002/SC-005/SC-007 hosted skip evidence `NOT RUN`.
 - [ ] T018 Demonstrate hosted relevant, mixed, lockfile, unknown, deletion, cross-category move, classifier-failure, and failing-database cases after the classifier is available on the target branch; confirm fail-closed routing and evidence retention, or retain each unavailable case as `NOT RUN` without inference.
 - [ ] T019 Read back protected `main` enforcement and observed check contexts; verify strict up-to-date policy still requires exactly `Repository and tests` and `SQLite and PostgreSQL behavior tests`, and that a failing relevant attempt cannot satisfy the database context. Do not mutate protection or merge as the demonstration.
 - [x] T020 Review FR-001 through FR-014 and SC-001 through SC-007 against the exact candidate in `acceptance.md`; reconcile every task as complete or explicitly `NOT RUN`, attach the published task and acceptance artifacts to KEY-93, and leave Linear short of Done until merge and required acceptance pass.

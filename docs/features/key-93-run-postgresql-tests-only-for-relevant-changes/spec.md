@@ -10,7 +10,7 @@
 
 **Input**: Keep the required SQLite and PostgreSQL behavior result on every pull request, but run the real-database work only when the proposed changes can affect that behavior. Skip only explicitly approved non-runtime changes, fail closed for every other change, and preserve the full gate and its evidence when it applies.
 
-The current pull request workflow runs the full SQLite and PostgreSQL behavior suite for every revision. Recent documentation and marketing-site changes therefore waited for database setup and execution even though they could not change the behavior under test. Maintainers need faster feedback for such changes without weakening protection for Keynes runtime, contract, test, dependency, or CI changes.
+The current pull request workflow runs the full SQLite and PostgreSQL behavior suite for every revision. Recent documentation changes therefore waited for database setup and execution even though they could not change the behavior under test. Maintainers need faster feedback for such changes without weakening protection for Keynes runtime, contract, test, dependency, or CI changes.
 
 ## User Scenarios & Testing
 
@@ -18,15 +18,14 @@ The current pull request workflow runs the full SQLite and PostgreSQL behavior s
 
 As a maintainer, I can receive the required database-check result for a change that contains only approved non-runtime files without waiting for real database execution.
 
-**Why this priority**: Avoiding unrelated database work is the reason for this feature. It shortens feedback for documentation, marketing-site, Spec Kit, and repository-metadata changes while retaining a required result for every revision.
+**Why this priority**: Avoiding unrelated database work is the reason for this feature. It shortens feedback for documentation, Spec Kit, and repository-metadata changes while retaining a required result for every revision.
 
 **Independent Test**: Submit representative pull requests containing only files from each approved non-runtime category. Confirm that each revision receives the required result without executing either database or retaining database evidence.
 
 **Acceptance Scenarios**:
 
 1. **Given** a revision that changes only product or contributor documentation, **When** pull request checks run, **Then** the required database result reports that execution is not applicable and performs no database work.
-2. **Given** a revision that changes only the marketing site, **When** pull request checks run, **Then** the required database result reports that execution is not applicable and performs no database work.
-3. **Given** a revision that changes only Spec Kit records or approved repository metadata, **When** pull request checks run, **Then** the required database result reports that execution is not applicable and performs no database work.
+2. **Given** a revision that changes only Spec Kit records or approved repository metadata, **When** pull request checks run, **Then** the required database result reports that execution is not applicable and performs no database work.
 
 ---
 
@@ -79,9 +78,9 @@ As a reviewer, I can tell whether the required database result represents real e
 
 - **FR-001**: Every pull request revision MUST receive the existing required result named `SQLite and PostgreSQL behavior tests`.
 - **FR-002**: The required result MAY omit real database execution only when every changed path is completely classified within an explicit, reviewed set of non-runtime categories.
-- **FR-003**: The approved non-runtime categories MUST be limited to documentation, the marketing site, Spec Kit records, and repository metadata that cannot affect product execution, database qualification, dependencies, or CI decisions.
+- **FR-003**: The approved non-runtime categories MUST be limited to documentation, Spec Kit records, and repository metadata that cannot affect product execution, database qualification, dependencies, or CI decisions.
 - **FR-004**: Runtime packages, shared contracts and scenarios, SQLite or PostgreSQL test infrastructure, database runners, dependency manifests and lockfiles, toolchain inputs, CI workflows, classification rules, unknown paths, and mixed revisions MUST require complete database execution.
-- **FR-005**: A `pnpm-lock.yaml` change MUST require complete database execution, including when every other changed file belongs to the marketing site or another approved non-runtime category.
+- **FR-005**: A `pnpm-lock.yaml` change MUST require complete database execution, including when every other changed file belongs to an approved non-runtime category.
 - **FR-006**: Relevance evaluation MUST account for additions, modifications, deletions, and both sides of a move or rename across the complete pull request change set.
 - **FR-007**: Missing, partial, malformed, stale, or failed relevance evaluation MUST fail closed and MUST NOT produce a successful not-applicable result.
 - **FR-008**: Relevant revisions MUST preserve the current full SQLite and PostgreSQL execution, shared-scenario parity, native-only coverage, cancellation, cleanup, sanitized evidence, artifact upload, receipt verification, and failure behavior.
@@ -104,7 +103,7 @@ As a reviewer, I can tell whether the required database result represents real e
 
 ### Measurable Outcomes
 
-- **SC-001**: In an acceptance matrix covering documentation-only, marketing-site-only, Spec Kit-only, and repository-metadata-only revisions, 100% receive the required result without database setup, database execution, or database artifacts.
+- **SC-001**: In an acceptance matrix covering documentation-only, Spec Kit-only, and repository-metadata-only revisions, 100% receive the required result without database setup, database execution, or database artifacts.
 - **SC-002**: Approved non-runtime revisions complete the required database result within 30 seconds of the job starting under the reference hosted environment.
 - **SC-003**: In an acceptance matrix covering every relevant category, mixed changes, unknown paths, deletions, and cross-category renames, 100% require the complete database gate and zero receive a not-applicable result.
 - **SC-004**: A classification failure or incomplete change set produces zero successful not-applicable results.
