@@ -4,6 +4,41 @@ Use stock Spec Kit 1.0.4 with the Codex integration. Linear owns scheduling and
 current issue status; Spec Kit artifacts own requirements, plans, tasks, and
 acceptance evidence; GitHub owns PR review, CI, and merge.
 
+## Adopted PostgreSQL/PGlite transition
+
+[ADR-0012](adr/0012-postgresql-and-pglite.md) and constitution 10.0.0 adopt one
+PostgreSQL implementation, PGlite Local execution and database-owned source/tooling.
+Current source and CI still use SQLite Local. KEY-109 must qualify replacement
+before removing SQLite; KEY-96 owns the subsequent package and naming changes.
+
+The SQLite/native PostgreSQL commands and required check documented below remain
+the current executable contract until KEY-109 replaces them. That feature must
+retain native concurrency, permission and caller-transaction coverage, fail-closed
+change classification, required-check enforcement and evidence retention. Coordinate
+check-name changes with branch protection. No PGlite test command is available
+merely because the target architecture is adopted.
+
+Reconcile affected active feature artifacts when resumed, including KEY-85's
+asynchronous lifecycle specification. Keep historical specs and acceptance records
+bound to their original decisions and revisions. Mark PGlite compatibility,
+performance and package qualification NOT RUN until fresh evidence exists.
+
+## CLI and generated types
+
+The target developer application lives in `apps/cli`, publishes as `@keynes/cli`
+and exposes `keynes`. KEY-96 owns the application/installation boundary; KEY-108
+owns remote catalog discovery, application type generation, definition deployment
+and compatibility checks. These commands are not implemented by this documentation.
+The existing `keynes-postgresql` installer remains the executable contract until
+its replacement lands.
+
+Do not confuse repository command-type generation from canonical contracts with
+application binding generation from a selected remote catalog. Discovery and checks
+must not write remote definitions. Definition deployment and database installation
+are explicit operations with separate acceptance; neither is a generic schema sync.
+Complete Hosted onboarding requires KEY-108, while KEY-6 can independently qualify
+baseline continuity using manually supplied declarations.
+
 ## Select and prepare a feature
 
 1. Read the selected Linear issue using the existing connector. Confirm its exact

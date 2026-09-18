@@ -1,12 +1,12 @@
 <!--
 Sync Impact Report
-- Version change: 8.0.1 -> 9.0.0
-- Rationale: KEY-77 fixed-funding reconciliation removes the previously permitted alternative-funding direction.
-- Modified principle: IV, alternative funding now requires a constitutional amendment.
-- Modified section: Product constraints, creation-only funding and explicit lifecycle boundaries.
+- Version change: 9.0.0 -> 10.0.0
+- Rationale: adopt one PostgreSQL implementation with PGlite Local execution and database-owned Policy tooling.
+- Modified principles: I, one PostgreSQL implementation; III, database-owned compiler and evaluation; IV, PGlite/native PostgreSQL acceptance with a qualified transition.
+- Modified sections: Product constraints; Delivery and evidence gates.
 - Added sections: none
 - Removed sections: none
-- Migration impact: remove planned replenishment and addition controls from active product and feature contracts; preserve zero-funded roots. No runtime changes or new runtime qualification. Historical evidence remains valid only for its original revision.
+- Migration impact: KEY-109 replaces SQLite only after qualification; KEY-96 delivers central source and separate distributions. Existing SQLite/native PostgreSQL CI remains required until the replacement gate lands.
 - Managed templates and commands: unchanged; read the constitution at runtime.
 - Follow-up TODOs: none
 -->
@@ -17,12 +17,17 @@ Sync Impact Report
 
 ### I. One source of truth per Budget
 
-Each Budget MUST be stored and changed in exactly one place. The process-local
-SQLite runtime MUST own the committed state and state transitions for a local Budget.
-The `keynes.*` PostgreSQL procedures MUST own the committed state and state
-transitions for a durable Budget. SDKs, services, and integrations MUST NOT
-reproduce those transitions outside the selected implementation or write its
-private state directly.
+Each Budget MUST be stored and changed in exactly one place. One canonical
+PostgreSQL implementation MUST own committed state and transitions through
+`keynes.*` procedures, running in private in-memory PGlite for Local and native
+PostgreSQL for durable deployments. SDKs, services and integrations MUST NOT
+reproduce business transitions or write private database state directly.
+
+This is the adopted target in [ADR-0012](../../docs/adr/0012-postgresql-and-pglite.md).
+Until KEY-109 qualifies replacement, the existing SQLite Local implementation
+MAY remain and MUST retain its current required acceptance gates. KEY-96 owns
+the subsequent source and package separation. This amendment MUST NOT be
+reported as runtime implementation or qualification.
 
 A command MUST publish one complete result atomically or change no state.
 Resource conservation, availability, settlement, exact replay, conflicting
@@ -55,17 +60,19 @@ available Resources, and one fixed context object supplied by the application.
 It MUST NOT access Keynes private storage, application tables, secrets,
 history, or unrelated requests.
 
-The TypeScript SDK MUST use Kysely as the normal Policy authoring path and MUST
-also accept advanced raw SQL within the same supported profile. Kysely-compiled
-SQL and raw SQL MUST pass through one pinned PostgreSQL parser, validator, and
-normalizer into a versioned Keynes Policy program. Policy evaluation MUST occur
-inside the selected Budget authority's atomic command, and Keynes MUST NOT trust
-an application-supplied Policy decision. Keynes MUST define one versioned
-semantics contract for that program. Deployments MAY use one shared evaluator
-or deployment-native backends when each backend enforces the same contract and
-passes the canonical Policy behavior test corpus. Kysely's operation tree, the parser's
-syntax tree, and backend-specific representations are not public or durable
-contracts.
+Database-owned Policy authoring tooling MUST use Kysely as the normal authoring
+path and MUST also accept advanced raw SQL within the same supported profile.
+Both MUST pass through one pinned PostgreSQL parser, validator and normalizer
+into a versioned compiled Policy definition. The compiler MUST be distributed
+separately from the SDK. Moving compilation inside the database engine is not
+part of this amendment; the existing compiler execution approach MUST remain.
+
+The database MUST independently validate submitted definitions and evaluate
+Policies inside the Budget command's transaction. It MUST NOT trust an
+application-supplied Policy decision. One canonical PostgreSQL evaluator MUST
+implement the versioned semantics in PGlite and native PostgreSQL. Kysely's
+operation tree, the parser syntax tree and backend representations MUST NOT
+become public or durable contracts through this relocation.
 
 Invalid SQL, forbidden access, nondeterministic behavior, an execution-limit
 failure, invalid context, or an invalid result MUST fail the request. None may
@@ -75,7 +82,7 @@ be free of secrets.
 
 ### IV. Consistent behavior across deployments
 
-The in-memory SQLite runtime and PostgreSQL MUST implement the same Budget commands,
+PGlite and native PostgreSQL MUST execute the same canonical Budget implementation, preserving commands,
 results, errors, replay behavior, accounting rules, and evidence format. The
 generated TypeScript client MUST depend on a deployment-neutral command
 boundary. Local lifecycle code, PostgreSQL procedure clients, and remote
@@ -83,8 +90,12 @@ transport clients MAY differ in storage, authentication, transactions,
 concurrency controls, recovery, and operations, but they MUST NOT change the
 public meaning of a Budget command.
 
-Every shared Budget example MUST run as a black-box comparison against the
-in-memory SQLite runtime and native PostgreSQL. Results, errors, replay flags, history,
+Every shared Budget example MUST run as a black-box comparison against
+PGlite and native PostgreSQL after KEY-109. Until its replacement gate lands,
+the current SQLite/native PostgreSQL suite MUST remain required. KEY-109 MUST
+qualify PGlite before removing SQLite and MUST preserve required-check enforcement,
+fail-closed applicability classification and evidence retention during the CI
+transition. Results, errors, replay flags, history,
 and final Budget state MUST agree. Separate suites MUST cover local lifecycle
 and memory, PostgreSQL concurrency and transactions, remote authentication and
 tenant isolation, recovery, packaging, and managed operations. A pass in one
@@ -142,13 +153,23 @@ host, and attempt that produced it.
 - Secrets MUST NOT appear in Policy context, committed fixtures, generated
   artifacts, logs, prompts, or retained evidence.
 - Local mode MUST run privately inside one Node.js process, expose no persistence
-  or database handle, and lose its state when the process exits.
+  or database handle, and lose its state when the process exits. PGlite support
+  MUST NOT imply browser support, persistence or Embedded qualification.
 - PostgreSQL MUST be the only durable database implementation. It MAY be
   installed in an application's database, reached directly by the SDK in a
   customer-operated deployment, or operated by Keynes as managed Cloud.
 - Supporting MySQL, SQLite, or another durable database implementation requires
   a later constitution amendment and its own behavior, migration, concurrency,
   security, recovery, packaging, and operations evidence.
+- One private database source package MUST own Budget, Resource and Policy
+  definitions, command contracts, SQL procedures and Policy compiler source.
+  Existing canonical contracts MUST move into that owner without a second copy.
+- The SDK MUST carry types and perform actions without business rules, compiler
+  code or database drivers. PGlite and PostgreSQL adapters MUST be explicit,
+  separately installable distributions. Policy authoring MUST be separate tooling.
+- Adapters MUST NOT commit, roll back or close caller-owned connections, replace
+  the supplied connection, or retry a fragment of an application transaction.
+  Results within that transaction MUST remain provisional until caller commit.
 - TypeScript MUST remain the only supported SDK until a later product and
   architecture decision adds another language.
 - `docs/product.md` owns the product thesis and commitments;
@@ -178,8 +199,9 @@ host, and attempt that produced it.
 - Each feature MUST complete its Spec Kit lifecycle on one Linear-generated
   branch and normally one independently accepted PR. Internal phases MUST stay
   in tasks.md and MUST NOT require sub-issue publication or PR stacks. Analysis MUST verify one acceptance outcome and
-  landed prerequisites. Each shared behavior feature MUST own passing SQLite
-  and native PostgreSQL evidence before acceptance. Linear content MUST NOT
+  landed prerequisites. Each shared behavior feature MUST own passing Local
+  and native PostgreSQL evidence before acceptance, using the transition rules
+  in principle IV. Linear content MUST NOT
   copy tasks, requirements, checkpoints, completion counts, or evidence.
 - Every implementation plan MUST pass the Constitution Check before research
   and again after design. It MUST identify where each affected Budget is stored,
@@ -193,7 +215,7 @@ host, and attempt that produced it.
   deployment-specific lifecycle, transaction, security, recovery, packaging, or
   managed-operations tests that apply.
 - A Policy change MUST name changes to context, Kysely compilation, raw-SQL
-  parsing, Policy-program normalization, the shared semantic definition, every
+  parsing, compiled Policy normalization, the shared semantic definition, every
   selected execution backend, cross-backend Policy behavior tests, evidence, and replay.
 - Provider-free verification MUST pass before any authorized live, paid, or
   externally mutating validation. Authorization MUST bind the exact plan,
@@ -232,4 +254,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 9.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-05
+**Version**: 10.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-12
