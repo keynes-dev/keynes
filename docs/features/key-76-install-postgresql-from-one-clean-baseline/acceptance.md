@@ -7,7 +7,7 @@
 - Starting Node.js: `v26.5.0`
 - Starting pnpm: `11.21.0`
 - Prerequisite: KEY-75 is Done in Linear
-- Specification analysis: 19 buildable FR/SC items, 23 tasks, 100% planned coverage, zero blocking consistency findings
+- Specification analysis: 19 buildable FR/SC items, 24 tasks, 100% planned coverage, zero blocking consistency findings
 
 The worktree contained a user-owned correction in `packages/postgresql/test/system/run.test.ts` before implementation resumed. KEY-76 preserves that edit and does not attribute it to this feature.
 
@@ -52,24 +52,24 @@ Active graph references exist in the generated installation record, manifest, ge
 
 ## Verification
 
-| Command                                                                                                          | Outcome                                                                                                                                                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm generate:check`                                                                                            | Passed                                                                                                                                                                                     |
-| `pnpm test:repository`                                                                                           | Passed, 60 tests                                                                                                                                                                           |
-| `pnpm --filter @keynes/postgresql test`                                                                          | Passed, 85 tests                                                                                                                                                                           |
-| `pnpm test:local`                                                                                                | Passed, 430 SQLite Local/shared tests                                                                                                                                                      |
-| `pnpm typecheck`                                                                                                 | Passed for all four packages and repository tests                                                                                                                                          |
-| `CI=true pnpm test:pr`                                                                                           | Passed after removing a stale package-preparation lock left by an interrupted earlier run                                                                                                  |
-| `pnpm format`                                                                                                    | Passed                                                                                                                                                                                     |
-| `git diff --check`                                                                                               | Passed                                                                                                                                                                                     |
-| `pnpm test:remote -- --mode direct`                                                                              | Passed, 183 native tests after the installer-race, retained-data, retry, and rollback-failure changes                                                                                      |
-| `pnpm test:system:postgresql`                                                                                    | Passed, 297 native tests across installation, exact recheck, rollback, contention, Policy, caller transactions, Remote, direct/pool profiles, recovery, permissions, and cleanup           |
-| `pnpm test:package:postgresql -- --archive ... --output .artifacts/key-76/postgresql-package-20260918T1536.json` | Passed, 26 exact-archive, CLI, build-preservation, and blocked-import tests                                                                                                                |
-| `pnpm test:sqlite-postgres -- --output .artifacts/key-76/paired-20260918T1529`                                   | Failed before execution at `candidate:validation` because the required evidence command rejects a dirty worktree; both authorities are recorded `NOT RUN` in that immutable failed attempt |
+| Command                                                                                                          | Outcome                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm generate:check`                                                                                            | Passed                                                                                                                                                                           |
+| `pnpm test:repository`                                                                                           | Passed, 60 tests                                                                                                                                                                 |
+| `pnpm --filter @keynes/postgresql test`                                                                          | Passed, 85 tests                                                                                                                                                                 |
+| `pnpm test:local`                                                                                                | Passed, 430 SQLite Local/shared tests                                                                                                                                            |
+| `pnpm typecheck`                                                                                                 | Passed for all four packages and repository tests                                                                                                                                |
+| `CI=true pnpm test:pr`                                                                                           | Passed after removing a stale package-preparation lock left by an interrupted earlier run                                                                                        |
+| `pnpm format`                                                                                                    | Passed                                                                                                                                                                           |
+| `git diff --check`                                                                                               | Passed                                                                                                                                                                           |
+| `pnpm test:remote -- --mode direct`                                                                              | Passed, 183 native tests after the installer-race, retained-data, retry, and rollback-failure changes                                                                            |
+| `pnpm test:system:postgresql`                                                                                    | Passed, 297 native tests across installation, exact recheck, rollback, contention, Policy, caller transactions, Remote, direct/pool profiles, recovery, permissions, and cleanup |
+| `pnpm test:package:postgresql -- --archive ... --output .artifacts/key-76/postgresql-package-20260918T1536.json` | Passed, 26 exact-archive, CLI, build-preservation, and blocked-import tests                                                                                                      |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-76/paired-20260918T225833Z`                                | Passed on clean revision `93cf15565393abbd1e38c874654334babd025c25`: SQLite 99 tests, native PostgreSQL 298 tests, and cleanup passed                                            |
 
 The package record reports Node `v26.5.0`, pnpm `11.21.0`, Darwin `25.5.0` on arm64, archive outcome `passed`, and `cleanBefore: false`/`cleanAfter: false`. The native runner used the pinned PostgreSQL 18.6 and PgBouncer images and reported cleanup passed.
 
-The candidate is an uncommitted worktree based on `b29b9262e67a6c4d2366f4b12ad13603a593a57c`. A clean source revision is still required before paired acceptance can pass and before these results can qualify a PR revision.
+The paired manifest records clean source revision `93cf15565393abbd1e38c874654334babd025c25`, attempt `061d7979-2c53-4601-8040-9d284802e56f`, SQLite 3.53.3, PostgreSQL 18.6, PgBouncer 1.25.2, exact package archive SHA-256 `44f57a1754e5efccea0ac4c2b97151f8d95fabb1585c7d748de44d27ce7fba3f`, and matching installation-record SHA-256 `807ecb4a7e6fa9598cee4e590d56cb1d5c30d419a8ed41e2ab87eb4a3a672545`.
 
 ## Requirement reconciliation
 
@@ -79,9 +79,9 @@ The candidate is an uncommitted worktree based on `b29b9262e67a6c4d2366f4b12ad13
 - FR-005, SC-004: Injected baseline failure rolls back the schemas and ledger. Existing rollback-failure propagation remains covered. Concurrent installers now serialize to `installed` plus `already-installed`.
 - FR-006, FR-007, SC-005: SQLite Local passed 430 tests; the full native package-backed run passed 297 tests including replay, conflict, rollback, contention, caller transactions, permissions, recovery, Policy, history, and Budget state.
 - FR-008, SC-006: Manifest, baseline, generated identity, source tests, and exact archive agree on `0001-baseline`; stale SQL and old archive inventory fail their checks.
-- FR-009 and FR-011 are partially satisfied: source/native and dirty-worktree exact-archive evidence pass, but clean-revision paired evidence remains blocked until the work is committed.
+- FR-009 and FR-011: The clean-revision paired manifest records both SQLite and package-backed native PostgreSQL passing against the same committed source and generated identities.
 - FR-010 and FR-012: Active package, architecture, workflow, and feature docs describe fresh installation, exact recheck, development recreation, and incompatible-target refusal without adding upgrades, downgrades, compatibility views, data rewrites, PGlite, Hosted, or Embedded delivery claims.
-- SC-007 is partially satisfied for local evidence and cleanup; the clean candidate revision and successful paired manifest remain outstanding.
+- SC-007: The paired attempt records the clean candidate revision, exact environment and input identities, both authority reports, successful native startup, and successful cleanup.
 
 ## Evidence boundaries
 

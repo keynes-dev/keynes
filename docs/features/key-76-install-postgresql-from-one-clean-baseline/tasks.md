@@ -93,7 +93,7 @@
 
 - [x] T019 Update active installation guidance in `packages/postgresql/README.md`, `docs/architecture.md`, `docs/workflow.md`, and `docs/features/key-76-install-postgresql-from-one-clean-baseline/quickstart.md` for one baseline, development recreation, exact reinstall, incompatible-target refusal, profiles, and the explicit absence of upgrades, downgrades, PGlite, Hosted, or Embedded delivery claims
 - [x] T020 Run `pnpm generate:check`, `pnpm test:repository`, `pnpm --filter @keynes/postgresql test`, `pnpm test:local`, `pnpm typecheck`, `CI=true pnpm test:pr`, `pnpm format`, and `git diff --check`; retain exact outcomes and distinguish failures, skips, and `NOT RUN` in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md`
-- [ ] T021 Run `pnpm test:sqlite-postgres -- --output .artifacts/key-76/<new-attempt-id>` against a new immutable attempt directory; retain the paired manifest, SQLite/native scenario results, source revision, environment, baseline and contract digests, native startup/cleanup, and failed-attempt status in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md`
+- [x] T021 Run `pnpm test:sqlite-postgres -- --output .artifacts/key-76/<new-attempt-id>` against a new immutable attempt directory; retain the paired manifest, SQLite/native scenario results, source revision, environment, baseline and contract digests, native startup/cleanup, and failed-attempt status in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md`
 - [x] T022 Pack the exact PostgreSQL archive and run `pnpm test:package:postgresql` with a new output file; retain archive path/SHA-256, clean-consumer inventory, fresh install, exact reinstall, CLI/error/import checks, environment, and exclusions in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md`
 - [x] T023 Reconcile FR-001 through FR-012 and SC-001 through SC-007 against exact candidate evidence in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md`; inspect the complete diff, active links, deleted migration references, generated outputs, and acceptance boundaries without rewriting historical feature evidence or marking KEY-76 Done before merge
 
@@ -128,4 +128,4 @@ No new dependency, migration framework, schema DSL, destructive reset option, co
 
 ## Phase 7: Convergence
 
-- [ ] T024 After the candidate has a clean committed revision, rerun T021 into a new immutable attempt directory and record the passing paired SQLite/native manifest in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md` per FR-009, FR-011, SC-005, and SC-007 (partial)
+- [x] T024 After the candidate has a clean committed revision, rerun T021 into a new immutable attempt directory and record the passing paired SQLite/native manifest in `docs/features/key-76-install-postgresql-from-one-clean-baseline/acceptance.md` per FR-009, FR-011, SC-005, and SC-007
