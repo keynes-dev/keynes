@@ -30,7 +30,6 @@ import {
   manageChild,
   sanitizeVitestReport,
   POSTGRES_IMAGE,
-  POSTGRESQL_SYSTEM_TEST_FILES,
   runPostgresqlSystemTests,
   validatePostgresqlSystemReport,
 } from "./run.js";
@@ -1028,19 +1027,7 @@ describe("checkout package preparation lock", () => {
       (error: unknown) => String(error),
     );
     let pid: number | undefined;
-    try {
-      await vi.waitFor(async () =>
-        expect(await readFile(join(root, "descendant"), "utf8")).toMatch(
-          /^\d+$/,
-        ),
-      );
-      pid = Number(await readFile(join(root, "descendant"), "utf8"));
-      controller.abort();
-      expect(await outcome).toMatch(/cancel/i);
-      await vi.waitFor(() => expect(() => process.kill(pid!, 0)).toThrow(), {
-        timeout: 1000,
-      });
-    } finally {
+    onTestFinished(async () => {
       controller.abort();
       await outcome;
       if (pid !== undefined) {
@@ -1057,7 +1044,20 @@ describe("checkout package preparation lock", () => {
       }
       vi.unstubAllEnvs();
       await rm(root, { recursive: true, force: true });
-    }
+    });
+    await vi.waitFor(async () =>
+      expect(await readFile(join(root, "descendant"), "utf8")).toMatch(/^\d+$/),
+    );
+    const descendantPid = Number(
+      await readFile(join(root, "descendant"), "utf8"),
+    );
+    pid = descendantPid;
+    controller.abort();
+    expect(await outcome).toMatch(/cancel/i);
+    await vi.waitFor(
+      () => expect(() => process.kill(descendantPid, 0)).toThrow(),
+      { timeout: 1000 },
+    );
   });
 
   it("serializes two preparations and releases before independent work", async () => {

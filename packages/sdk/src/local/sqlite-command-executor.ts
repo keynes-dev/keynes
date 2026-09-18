@@ -1304,6 +1304,7 @@ function canonicalDefinitions(
         typeof unit !== "string" ||
         unit.length < 1 ||
         [...unit].length > 64 ||
+        // oxlint-disable-next-line no-control-regex -- Mirrors the canonical Resource unit schema.
         !/^(?!\s)(?!.*\s$)[^\u0000-\u001f\u007f]+$/.test(unit)
       )
         return invalid(`${path}.unit`, "pattern");

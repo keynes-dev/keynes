@@ -619,17 +619,3 @@ async function invokeAsync(
   const result: unknown = Reflect.apply(target, receiver, args);
   return await Promise.resolve(result);
 }
-
-function requireRecord(
-  value: unknown,
-  description: string,
-): Record<string, unknown> {
-  if (!isRecord(value)) {
-    throw new TypeError(`expected ${description}`);
-  }
-  return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
