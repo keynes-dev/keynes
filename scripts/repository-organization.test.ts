@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { extname, join, relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -173,6 +173,43 @@ describe("repository organization", () => {
           /(?:from\s+|import\s*)["']@keynes\//u,
         );
       }
+    }
+  });
+
+  it("keeps one PGlite-backed Local authority path", () => {
+    const obsoleteRuntimeFiles = [
+      "packages/sdk/src/local/sqlite-command-executor.ts",
+      "packages/sdk/src/local/sqlite-store.ts",
+      "packages/sdk/src/policy/evaluate.ts",
+    ];
+    const sdkSources = listFiles(join(repositoryRoot, "packages/sdk/src"));
+    const build = readJsonObject(
+      join(repositoryRoot, "packages/sdk/tsconfig.build.json"),
+    );
+
+    expect({
+      obsoleteRuntimeFiles: obsoleteRuntimeFiles.filter((path) =>
+        existsSync(join(repositoryRoot, path)),
+      ),
+      obsoleteRuntimeImports: sdkSources
+        .filter((path) =>
+          /(?:node:sqlite|(?:\.\.\/policy|\.)\/evaluate|\.\/sqlite-(?:command-executor|store))/u.test(
+            readFileSync(path, "utf8"),
+          ),
+        )
+        .map((path) => relative(repositoryRoot, path)),
+      buildRoots: build.files,
+    }).toEqual({
+      obsoleteRuntimeFiles: [],
+      obsoleteRuntimeImports: [],
+      buildRoots: ["src/index.ts"],
+    });
+
+    for (const path of [
+      "packages/sdk/src/policy/compile.ts",
+      "packages/sdk/src/policy/parse.ts",
+    ]) {
+      expect(existsSync(join(repositoryRoot, path)), path).toBe(true);
     }
   });
 

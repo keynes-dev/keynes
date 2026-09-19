@@ -5,7 +5,6 @@ import {
 import { parsePassingReport } from "../packages/testkit/src/report.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { DatabaseSync } from "node:sqlite";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir, platform, release, arch, hostname } from "node:os";
@@ -18,8 +17,9 @@ import {
   validatePostgresqlSystemReport,
 } from "../packages/postgresql/test/system/run.ts";
 import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgresql/test/system/required-scenarios.ts";
+import { LOCAL_GROUPS } from "../packages/sdk/test/system/run-local.ts";
 
-export const SQLITE_AGGREGATE = "packages/sdk/test/contract/budget.test.ts";
+export const PGLITE_AGGREGATE = "packages/sdk/test/contract/budget.test.ts";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -40,11 +40,7 @@ export function validateTestReport(
     (file) => file.name === aggregate || file.name.endsWith(`/${aggregate}`),
   );
   const first = shared[0];
-  if (
-    shared.length !== 1 ||
-    first === undefined ||
-    (aggregate === SQLITE_AGGREGATE && files.length !== 1)
-  )
+  if (shared.length !== 1 || first === undefined)
     throw new Error("Incomplete test report");
   return [...first.assertions];
 }
@@ -61,7 +57,7 @@ export async function verifySqlitePostgresResults(
       const report = await executors[authority]();
       const shared = validateTestReport(
         report,
-        authority === "sqlite" ? SQLITE_AGGREGATE : POSTGRESQL_BUDGET_AGGREGATE,
+        authority === "sqlite" ? PGLITE_AGGREGATE : POSTGRESQL_BUDGET_AGGREGATE,
       );
       if (authority === "postgresql") validatePostgresqlSystemReport(report);
       results.push(shared);
@@ -108,7 +104,7 @@ export async function runSqlite(
       "exec",
       "vitest",
       "run",
-      SQLITE_AGGREGATE,
+      ...LOCAL_GROUPS.map((group) => `packages/sdk/${group}`),
       "--root=.",
       "--exclude=**/.claude/worktrees/**",
       "--allowOnly=false",
@@ -125,8 +121,8 @@ export async function runSqlite(
   } catch (error: unknown) {
     failure = new Error(
       record(error) && error.code === "ENOENT"
-        ? "SQLite process unavailable"
-        : "SQLite process failed",
+        ? "PGlite process unavailable"
+        : "PGlite process failed",
     );
   } finally {
     try {
@@ -134,7 +130,7 @@ export async function runSqlite(
     } catch {
       failure = new AggregateError(
         failure === undefined ? [] : [failure],
-        "SQLite cleanup failed",
+        "PGlite cleanup failed",
       );
     }
   }
@@ -159,7 +155,7 @@ if (
       ),
     )
     .catch(() => {
-      process.stderr.write("SQLite and PostgreSQL behavior tests failed\n");
+      process.stderr.write("PGlite and PostgreSQL behavior tests failed\n");
       process.exitCode = 1;
     })
     .finally(() => {
@@ -177,7 +173,7 @@ export interface SqlitePostgresSnapshot {
     readonly installationRecordSha256: string;
   };
   readonly environment: Readonly<Record<string, string>>;
-  readonly sqliteVersion: string;
+  readonly pgliteVersion: string;
 }
 export interface EvidenceRuntime {
   snapshot(): Promise<SqlitePostgresSnapshot>;
@@ -189,7 +185,7 @@ interface FileReference {
   readonly sha256: string;
 }
 interface RuntimeEvidence {
-  readonly authority: "sqlite" | "postgresql";
+  readonly authority: "pglite" | "postgresql";
   environment: unknown;
   execution: {
     status: "completed" | "failed" | "NOT RUN";
@@ -210,6 +206,7 @@ const environmentKeys = [
   "pnpm",
   "vitest",
   "sdk",
+  "pglite",
   "postgresql",
   "pg",
   "postgresqlPg",
@@ -326,16 +323,9 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       throw new Error("Missing installed version");
     return value.version;
   };
-  const database = new DatabaseSync(":memory:");
-  let sqliteVersion: string;
-  try {
-    const row = database.prepare("select sqlite_version() as version").get();
-    if (typeof row?.version !== "string")
-      throw new Error("Missing SQLite version");
-    sqliteVersion = row.version;
-  } finally {
-    database.close();
-  }
+  const pgliteVersion = version(
+    sdkRequire("@electric-sql/pglite/package.json"),
+  );
   return {
     commit,
     clean: status === "",
@@ -344,12 +334,13 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       lockfileSha256: hash(lock),
       installationRecordSha256: hash(installation),
     },
-    sqliteVersion,
+    pgliteVersion,
     environment: {
       node: process.version,
       pnpm,
       vitest: version(require("vitest/package.json")),
       sdk: version(require("../packages/sdk/package.json")),
+      pglite: pgliteVersion,
       postgresql: version(require("../packages/postgresql/package.json")),
       pg: version(sdkRequire("pg/package.json")),
       postgresqlPg: version(
@@ -391,7 +382,7 @@ export function validateManifestIdentity(
 ): void {
   if (
     !record(value) ||
-    value.schemaVersion !== "keynes.sqlite-postgres/v1" ||
+    value.schemaVersion !== "keynes.pglite-postgresql/v1" ||
     !record(value.candidate) ||
     value.candidate.commit !== expected.commit ||
     !record(value.attempt) ||
@@ -400,7 +391,7 @@ export function validateManifestIdentity(
     !Array.isArray(value.runtimes) ||
     value.runtimes.length !== 2 ||
     !record(value.runtimes[0]) ||
-    value.runtimes[0].authority !== "sqlite" ||
+    value.runtimes[0].authority !== "pglite" ||
     !record(value.runtimes[1]) ||
     value.runtimes[1].authority !== "postgresql"
   )
@@ -422,7 +413,7 @@ function validateSnapshot(value: SqlitePostgresSnapshot): void {
     Object.values(value.inputs).some(
       (digest) => !/^[0-9a-f]{64}$/.test(digest),
     ) ||
-    !/^\d+\.\d+\.\d+$/.test(value.sqliteVersion)
+    !/^\d+\.\d+\.\d+$/.test(value.pgliteVersion)
   )
     throw new Error("Invalid candidate or inputs");
   for (const key of environmentKeys)
@@ -527,9 +518,9 @@ export async function runSqlitePostgresTests(
       }),
     ),
   };
-  const runtimes: RuntimeEvidence[] = ["sqlite", "postgresql"].map(
+  const runtimes: RuntimeEvidence[] = (["pglite", "postgresql"] as const).map(
     (authority) => ({
-      authority: authority === "sqlite" ? "sqlite" : "postgresql",
+      authority,
       environment: unavailable,
       execution: { status: "NOT RUN", cause: "not started" },
       cleanup: "unconfirmed",
@@ -560,29 +551,29 @@ export async function runSqlitePostgresTests(
       process.env.GITHUB_SHA !== before.commit
     )
       throw new Error("Candidate differs from invocation");
-    temporary = await mkdtemp(join(tmpdir(), "keynes-sqlite-postgres-"));
+    temporary = await mkdtemp(join(tmpdir(), "keynes-pglite-postgresql-"));
     for (const entry of runtimes) {
       if (signal.aborted) {
         entry.execution = { status: "NOT RUN", cause: "cancelled" };
         failures.push("cancelled");
         break;
       }
-      const rawPath = join(temporary, "sqlite.json");
+      const rawPath = join(temporary, "pglite.json");
       const nativePath = join(outputPath, "postgresql.json");
       let nativeRunId: string | undefined;
       entry.environment =
-        entry.authority === "sqlite"
-          ? { sqliteVersion: before.sqliteVersion }
+        entry.authority === "pglite"
+          ? { pgliteVersion: before.pgliteVersion }
           : unavailable;
       try {
-        if (entry.authority === "sqlite") await runtime.sqlite(rawPath, signal);
+        if (entry.authority === "pglite") await runtime.sqlite(rawPath, signal);
         else nativeRunId = await runtime.native(nativePath, signal);
         entry.execution = { status: "completed", exitStatus: 0 };
       } catch (error: unknown) {
         if (
-          entry.authority === "sqlite" &&
+          entry.authority === "pglite" &&
           error instanceof Error &&
-          error.message === "SQLite cleanup failed"
+          error.message === "PGlite cleanup failed"
         )
           entry.cleanup = "failed";
         entry.execution = {
@@ -590,9 +581,9 @@ export async function runSqlitePostgresTests(
           cause: signal.aborted ? "cancelled" : "execution failed",
         };
         if (
-          entry.authority === "sqlite" &&
+          entry.authority === "pglite" &&
           error instanceof Error &&
-          error.message === "SQLite process unavailable"
+          error.message === "PGlite process unavailable"
         )
           entry.execution = {
             status: "NOT RUN",
@@ -600,16 +591,17 @@ export async function runSqlitePostgresTests(
           };
         failures.push(`${entry.authority}:execution`);
       }
-      if (entry.authority === "sqlite") {
+      if (entry.authority === "pglite") {
         if (entry.cleanup !== "failed") entry.cleanup = "passed";
         try {
           const sanitized = sanitizeVitestReport(
             JSON.parse(await readFile(rawPath, "utf8")),
           );
-          entry.report = await retain("sqlite.vitest.json", sanitized);
+          entry.report = await retain("pglite.vitest.json", sanitized);
           reports.set(entry.authority, sanitized);
         } catch {
-          failures.push("sqlite:report-retention");
+          entry.execution = { status: "failed", cause: "report missing" };
+          failures.push("pglite:report-retention");
         }
       } else {
         let observations: unknown;
@@ -676,7 +668,7 @@ export async function runSqlitePostgresTests(
     stage = "coverage";
     await verifySqlitePostgresResults(
       {
-        sqlite: async () => reports.get("sqlite"),
+        sqlite: async () => reports.get("pglite"),
         postgresql: async () => reports.get("postgresql"),
       },
       signal,
@@ -688,9 +680,9 @@ export async function runSqlitePostgresTests(
       try {
         await rm(temporary, { recursive: true, force: true });
       } catch {
-        failures.push("sqlite:cleanup");
-        const sqlite = runtimes[0];
-        if (sqlite) sqlite.cleanup = "failed";
+        failures.push("pglite:cleanup");
+        const pglite = runtimes[0];
+        if (pglite) pglite.cleanup = "failed";
       }
     }
   }
@@ -738,7 +730,7 @@ export async function runSqlitePostgresTests(
     }),
   );
   const manifest = {
-    schemaVersion: "keynes.sqlite-postgres/v1",
+    schemaVersion: "keynes.pglite-postgresql/v1",
     candidate: {
       commit,
       event: safeLabel(process.env.GITHUB_EVENT_NAME) ?? "local",

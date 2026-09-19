@@ -2,7 +2,8 @@
 
 > **Status:** Target contract. [ADR-0012](adr/0012-postgresql-and-pglite.md) adopts
 > PostgreSQL/PGlite and separate SDK, adapter and Policy tooling distributions.
-> Current Local source still uses SQLite; KEY-109 and KEY-96 remain unimplemented.
+> Current Local runs canonical procedures in private in-memory PGlite inside the
+> combined SDK. KEY-96's package separation remains unimplemented.
 > KEY-78 configured creation is implemented in the
 > current source. [Linear](https://linear.app/keynes) tracks delivery and
 > evidence. Each retained result proves only the source revision and verification
@@ -314,7 +315,7 @@ TypeScript application
 
 The adapter labels above are schematic, not callable factory names. KEY-96 owns
 the exact exports. Today, the combined SDK uses `createKeynes({ resources })`
-for SQLite Local and `createKeynes({ resources, databaseUrl })` for server access.
+for PGlite Local and `createKeynes({ resources, databaseUrl })` for server access.
 The new adapter packages are not yet implemented.
 
 Local mode is ephemeral and process-owned. PostgreSQL is the only durable

@@ -1,6 +1,6 @@
 # ADR-0003: Use an in-memory SQLite runtime locally and PostgreSQL for durable deployments
 
-> **Superseded in part, 2026-09-12:** [ADR-0012](0012-postgresql-and-pglite.md) adopts PostgreSQL/PGlite and central database source ownership. The decision below records its original context and implementation; KEY-109 and KEY-96 own the replacement.
+> **Superseded, 2026-09-18:** [ADR-0012](0012-postgresql-and-pglite.md) owns the Local engine and one canonical PostgreSQL implementation. The decision below remains historical context; KEY-96 still owns package separation.
 
 - **Status:** Accepted
 - **Date:** 2026-08-25
@@ -9,8 +9,8 @@
 > **Superseded in part:** KEY-54 replaced the local `Keynes.create()` call
 > shape with schema-first `createKeynes({ resources })`. [ADR-0007](0007-direct-postgresql-remote-access.md)
 > replaces the planned API-key discovery and service data path with direct
-> PostgreSQL access. This ADR still owns the local SQLite and durable PostgreSQL
-> storage decision.
+> PostgreSQL access. ADR-0012 now owns Local; the durable PostgreSQL discussion
+> below remains historical context.
 
 ## Context
 

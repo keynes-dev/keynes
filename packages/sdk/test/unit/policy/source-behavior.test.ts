@@ -6,7 +6,6 @@ import {
 } from "@keynes/contracts/contract-tests";
 
 import { definePolicySql, policyValue } from "../../../src/index.js";
-import { evaluatePolicyProgram } from "../../../src/policy/evaluate.js";
 
 const resources = {
   modelTokens: { unit: "token", accountingBehavior: "consumable" },
@@ -46,17 +45,6 @@ describe("Policy source behavior", () => {
         } else {
           expect(definition.canonicalSql, testCase.name).toBe(previous);
         }
-      }
-
-      if (testCase.evaluationInput !== undefined) {
-        expect(
-          evaluatePolicyProgram(definition.program, {
-            ...testCase.evaluationInput,
-            outputResources: ["model_tokens"],
-            reasons: declaration().reasons,
-          }),
-          testCase.name,
-        ).toEqual(expectedRows(testCase));
       }
     }
   });
@@ -134,17 +122,6 @@ function isInvalidPolicyCase(
     testCase.expected.outcome === "invalid_policy" &&
     typeof testCase.expected.rule === "string"
   );
-}
-
-function expectedRows(testCase: PolicyTestCase): unknown {
-  if (
-    !isRecord(testCase.expected) ||
-    testCase.expected.outcome !== "rows" ||
-    !Array.isArray(testCase.expected.rows)
-  ) {
-    throw new Error(`Source fixture has no row expectation: ${testCase.name}`);
-  }
-  return testCase.expected.rows;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

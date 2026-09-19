@@ -64,6 +64,38 @@ describe("SDK staged build", () => {
     );
   });
 
+  it("keeps only the canonical Local runtime in the production manifest", () => {
+    const replacedModules = [
+      "local/sqlite-command-executor",
+      "local/sqlite-store",
+      "policy/evaluate",
+    ];
+    const retainedCompilerModules = [
+      "policy/compile",
+      "policy/normalize-expression",
+      "policy/parse",
+      "policy/validate",
+    ];
+    const productionModules = new Set<string>(SDK_PRODUCTION_MODULES);
+
+    expect({
+      replacedModules: replacedModules.filter((module) =>
+        productionModules.has(module),
+      ),
+      missingCompilerModules: retainedCompilerModules.filter(
+        (module) => !productionModules.has(module),
+      ),
+      assets: SDK_PRODUCTION_ASSETS,
+    }).toEqual({
+      replacedModules: [],
+      missingCompilerModules: [],
+      assets: [
+        "local/assets/0001-baseline.sql",
+        "local/assets/installation-record.json",
+      ],
+    });
+  });
+
   it("preserves the prior distribution after compilation fails", async () => {
     const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-build-test-"));
     temporaryRoots.push(root);

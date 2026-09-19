@@ -1,13 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createKeynes, type LocalKeynes } from "../../../src/index.js";
-import {
-  openSqliteCommandExecutor as openRealSqliteCommandExecutor,
-  SqliteCommandExecutor,
-  type SqliteMutationObserver,
-} from "../../../src/local/sqlite-command-executor.js";
-import { SqliteStore } from "../../../src/local/sqlite-store.js";
-import { failAtMutationStage } from "../support/sqlite-faults.js";
+import { openPgliteCommandExecutor } from "../../../src/local/pglite-command-executor.js";
 
 const workUnitResources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -16,7 +10,6 @@ const workUnitResources = {
 afterEach(() => {
   vi.doUnmock("../../../src/local/runtime.js");
   vi.doUnmock("../../../src/local/pglite-command-executor.js");
-  vi.doUnmock("../../../src/local/sqlite-command-executor.js");
   vi.resetModules();
 });
 
@@ -24,19 +17,21 @@ describe("configured local startup", () => {
   it("awaits asynchronous PGlite acquisition before exposing the client", async () => {
     vi.resetModules();
     const acquired =
-      Promise.withResolvers<ReturnType<typeof openTestExecutor>>();
-    const openPgliteCommandExecutor = vi.fn(() => acquired.promise);
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof openPgliteCommandExecutor>>
+      >();
+    const open = vi.fn(() => acquired.promise);
     vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
-      openPgliteCommandExecutor,
+      openPgliteCommandExecutor: open,
     }));
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
     const pending = createFreshKeynes({ resources: workUnitResources });
-    const executor = openTestExecutor();
+    const executor = await openPgliteCommandExecutor();
     let keynes: LocalKeynes<"workUnits"> | undefined;
     try {
       expect(pending).toBeInstanceOf(Promise);
-      expect(openPgliteCommandExecutor).toHaveBeenCalledOnce();
+      expect(open).toHaveBeenCalledOnce();
       acquired.resolve(executor);
       keynes = await pending;
       await expect(
@@ -46,86 +41,7 @@ describe("configured local startup", () => {
       acquired.resolve(executor);
       keynes ??= await pending;
       await keynes.close();
-      executor.close();
-    }
-  });
-
-  it("initializes isolated catalogs without Budget, holdings, history, or quantity", async () => {
-    const hosts = installStartupHosts();
-    const { createKeynes: createFreshKeynes } =
-      await import("../../../src/keynes.js");
-    const handles: LocalKeynes<"workUnits">[] = [];
-    try {
-      for (const unit of ["unit", "other-unit"]) {
-        handles.push(
-          await createFreshKeynes({
-            resources: {
-              workUnits: { unit, accountingBehavior: "consumable" },
-            },
-          }),
-        );
-      }
-      expect(hosts).toHaveLength(2);
-      for (const host of hosts) {
-        expect(host.store.inspectState()).toMatchObject({
-          resources: 1,
-          budgets: 0,
-          holdings: 0,
-          history: 0,
-          quantity: 0,
-        });
-      }
-      for (const [index, unit] of ["unit", "other-unit"].entries()) {
-        const handle = handles[index];
-        await expect(
-          handle.defineResources({
-            workUnits: { unit, accountingBehavior: "consumable" },
-          }),
-        ).resolves.toBeDefined();
-        await expect(
-          handle.defineResources({
-            workUnits: { unit: "conflict", accountingBehavior: "consumable" },
-          }),
-        ).rejects.toMatchObject({ code: "resource_type_conflict" });
-      }
-    } finally {
-      await Promise.all(handles.map((handle) => handle.close()));
-      for (const host of hosts) host.close();
-    }
-  });
-
-  it("captures declarations before its first await", async () => {
-    const hosts = installStartupHosts();
-    const { createKeynes: createFreshKeynes } =
-      await import("../../../src/keynes.js");
-    const resources = {
-      workUnits: { unit: "original", accountingBehavior: "consumable" },
-    };
-    const options = { resources };
-    const pending = createFreshKeynes(options);
-    resources.workUnits.unit = "mutated";
-    options.resources = {
-      workUnits: { unit: "replaced", accountingBehavior: "reusable" },
-    };
-    let handle: LocalKeynes<"workUnits"> | undefined;
-    try {
-      handle = await pending;
-      await expect(
-        handle.defineResources({
-          workUnits: { unit: "original", accountingBehavior: "consumable" },
-        }),
-      ).resolves.toBeDefined();
-      await expect(handle.defineResources(resources)).rejects.toMatchObject({
-        code: "resource_type_conflict",
-      });
-      expect(hosts[0].store.inspectState()).toMatchObject({
-        resources: 1,
-        budgets: 0,
-        quantity: 0,
-      });
-    } finally {
-      if (handle !== undefined) await handle.close();
-      for (const host of hosts) host.close();
+      await executor.close();
     }
   });
 
@@ -133,18 +49,20 @@ describe("configured local startup", () => {
     const startupFailure = new Error(
       "configured catalog initialization failed",
     );
-    const hosts = installStartupHosts(startupFailure);
+    const executor = await openPgliteCommandExecutor();
+    const close = vi.fn(() => executor.close());
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: async () => ({
+        execute: () => Promise.reject(startupFailure),
+        close,
+      }),
+    }));
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
-    try {
-      await expect(
-        createFreshKeynes({ resources: workUnitResources }),
-      ).rejects.toBe(startupFailure);
-      expect(hosts).toHaveLength(1);
-      expect(hosts[0].close).toHaveBeenCalledOnce();
-    } finally {
-      for (const host of hosts) host.close();
-    }
+    await expect(
+      createFreshKeynes({ resources: workUnitResources }),
+    ).rejects.toBe(startupFailure);
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("returns an asynchronous acquisition failure with its cause", async () => {
@@ -269,7 +187,10 @@ describe("configured local startup", () => {
   ])(
     "rejects %s asynchronously before acquiring a host",
     async (_name, args, code) => {
-      const hosts = installStartupHosts();
+      const openPgliteCommandExecutor = vi.fn();
+      vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+        openPgliteCommandExecutor,
+      }));
       const { createKeynes: createFreshKeynes } =
         await import("../../../src/keynes.js");
       let result: unknown;
@@ -281,56 +202,13 @@ describe("configured local startup", () => {
         await expect(result).rejects.toMatchObject({
           code,
         });
-        expect(hosts).toHaveLength(0);
+        expect(openPgliteCommandExecutor).not.toHaveBeenCalled();
       } finally {
-        for (const host of hosts) host.close();
+        vi.doUnmock("../../../src/local/pglite-command-executor.js");
       }
     },
   );
 });
-
-function installStartupHosts(startupFailure?: Error) {
-  vi.resetModules();
-  const hosts: { store: SqliteStore; close: () => void }[] = [];
-  const installation = {
-    tenantId: "00000000-0000-4000-8000-000000000002",
-    principals: [
-      {
-        principalId: "00000000-0000-4000-8000-000000000201",
-        permissions: [
-          "define_resource_type",
-          "create_root_budget",
-          "request_budget",
-          "settle_budget",
-          "read_budget",
-        ],
-      },
-    ],
-  } as const;
-  const context = {
-    tenantId: installation.tenantId,
-    principalId: installation.principals[0].principalId,
-  };
-  vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
-    openPgliteCommandExecutor: async () => {
-      const store = SqliteStore.open(installation);
-      const executor = new SqliteCommandExecutor(store, context);
-      const close = vi.fn(() => executor.close());
-      hosts.push({ store, close });
-      return {
-        execute: (
-          operation: Parameters<typeof executor.execute>[0],
-          input: unknown,
-        ) =>
-          startupFailure === undefined
-            ? executor.execute(operation, input)
-            : Promise.reject(startupFailure),
-        close,
-      };
-    },
-  }));
-  return hosts;
-}
 
 describe("local runtime lifecycle", () => {
   it("drains independent definitions admitted before close", async () => {
@@ -434,15 +312,15 @@ describe("local runtime lifecycle", () => {
 
   it("shares one failed close result and remains closed", async () => {
     const closeFailure = new Error("close failed");
-    const executor = openTestExecutor();
+    const executor = await openPgliteCommandExecutor();
     vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
       openPgliteCommandExecutor: vi.fn(async () => ({
         execute: (
           operation: Parameters<typeof executor.execute>[0],
           input: unknown,
         ) => executor.execute(operation, input),
-        close: vi.fn(() => {
-          executor.close();
+        close: vi.fn(async () => {
+          await executor.close();
           throw closeFailure;
         }),
       })),
@@ -481,9 +359,9 @@ describe("local runtime lifecycle", () => {
   }, 15_000);
 
   it("constructs the local runtime with one PGlite command executor", async () => {
-    const executor = openTestExecutor();
+    const executor = await openPgliteCommandExecutor();
     const close = vi.fn(() => executor.close());
-    const openPgliteCommandExecutor = vi.fn(async () => ({
+    const open = vi.fn(async () => ({
       execute: (
         operation: Parameters<typeof executor.execute>[0],
         input: unknown,
@@ -491,7 +369,7 @@ describe("local runtime lifecycle", () => {
       close,
     }));
     vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
-      openPgliteCommandExecutor,
+      openPgliteCommandExecutor: open,
     }));
 
     const { closeRuntime, openConfiguredRuntime } =
@@ -500,8 +378,8 @@ describe("local runtime lifecycle", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     });
 
-    expect(openPgliteCommandExecutor).toHaveBeenCalledOnce();
-    expect(openPgliteCommandExecutor).toHaveBeenCalledWith();
+    expect(open).toHaveBeenCalledOnce();
+    expect(open).toHaveBeenCalledWith();
 
     await closeRuntime(runtime);
     expect(close).toHaveBeenCalledOnce();
@@ -533,32 +411,6 @@ describe("local runtime lifecycle", () => {
     ).rejects.toMatchObject({ code: "runtime_closed" });
     expect(read).not.toHaveBeenCalled();
     await closing;
-  });
-
-  it("retains configured definitions when root creation rolls back", async () => {
-    const fault = failAtMutationStage("after_command_binding");
-    const executor = openTestExecutor(fault.observe);
-    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
-      openPgliteCommandExecutor: vi.fn(async () => executor),
-    }));
-    const { createKeynes: createFreshKeynes } =
-      await import("../../../src/keynes.js");
-    const keynes = await createFreshKeynes({ resources: workUnitResources });
-    try {
-      fault.arm();
-      await expect(keynes.createBudget({ workUnits: 10 })).rejects.toThrow(
-        "test rollback checkpoint: after_command_binding",
-      );
-      const root = await keynes.createBudget({ workUnits: 4 });
-      await expect(root.inspect()).resolves.toMatchObject({
-        budget: {
-          resources: [{ resource: "workUnits", unit: "unit", allocated: 4 }],
-        },
-        history: { entries: [{ kind: "budget_created" }] },
-      });
-    } finally {
-      await keynes.close();
-    }
   });
 
   it("retains a PGlite schema initialization failure", async () => {
@@ -608,31 +460,6 @@ describe("local runtime lifecycle", () => {
     });
   });
 });
-
-function openTestExecutor(observeMutation?: SqliteMutationObserver) {
-  return openRealSqliteCommandExecutor(
-    {
-      tenantId: "00000000-0000-4000-8000-000000000002",
-      principals: [
-        {
-          principalId: "00000000-0000-4000-8000-000000000201",
-          permissions: [
-            "define_resource_type",
-            "create_root_budget",
-            "request_budget",
-            "settle_budget",
-            "read_budget",
-          ],
-        },
-      ],
-    },
-    {
-      tenantId: "00000000-0000-4000-8000-000000000002",
-      principalId: "00000000-0000-4000-8000-000000000201",
-    },
-    observeMutation,
-  );
-}
 
 async function invokeAsync(
   target: unknown,

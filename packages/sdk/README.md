@@ -2,7 +2,7 @@
 
 `@keynes/sdk` is a private, unpublished ESM package. It owns the typed
 Local and Remote API, portable Policy authoring, generated contracts, one
-private in-memory SQLite runtime, and the direct PostgreSQL client.
+private in-memory PGlite runtime, and the direct PostgreSQL client.
 
 ## Install the private archive
 
@@ -15,10 +15,10 @@ CI=true pnpm pack:sdk
 Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
 The package pins and bundles Kysely for typed Policy queries, `libpg-query`
 and `@pgsql/types` for the PostgreSQL 18 parser and its types, `decimal.js`
-for local bounded-decimal evaluation, and the complete `pg` runtime closure
-for direct remote PostgreSQL access. It contains no
-PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
-library. The package remains private and has no registry publication command.
+for Policy compiler validation, PGlite 0.5.8 with its WASM/data files and exact
+canonical Local SQL/installation assets, and the complete `pg` runtime closure
+for direct remote PostgreSQL access. It contains no SQLite runtime, database
+server, daemon, or native Keynes library. The package remains private and has no registry publication command.
 
 ## Create a local Budget
 
@@ -148,7 +148,7 @@ PostgreSQL, and the supported query profile.
 
 ## Runtime limits
 
-Local mode opens one private `node:sqlite` in-memory database for each
+Local mode opens one private PGlite in-memory database for each
 `createKeynes(...)` call. State belongs to that runtime and does not survive
 `close()` or process exit. Two runtimes share no state.
 

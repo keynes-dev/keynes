@@ -7,5 +7,5 @@
     "rootDir": "src",
     "types": ["node"]
   },
-  "files": ["src/index.ts", "src/local/sqlite-command-executor.ts"]
+  "files": ["src/index.ts"]
 }

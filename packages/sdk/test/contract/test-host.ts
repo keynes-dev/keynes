@@ -3,7 +3,6 @@ import type {
   ContractTestHost,
   FixturePrincipal,
   RemoteContractTestHost,
-  RollbackCheckpoint,
 } from "@keynes/contracts/contract-tests";
 import { createContractClient } from "@keynes/contracts/contract-tests";
 
@@ -14,8 +13,6 @@ import {
 } from "../../src/generated/client.js";
 import type { PgliteDatabase } from "../../src/local/install.js";
 import { PgliteCommandExecutor } from "../../src/local/pglite-command-executor.js";
-import { SqliteCommandExecutor } from "../../src/local/sqlite-command-executor.js";
-import { SqliteStore } from "../../src/local/sqlite-store.js";
 import { CommittedResponseLostError } from "../../src/replay.js";
 import { openPgliteHost } from "../unit/support/pglite-host.js";
 
@@ -75,58 +72,6 @@ const FIXTURE_INSTALLATION = {
     },
   ],
 } as const;
-
-export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
-  let armedCheckpoint: RollbackCheckpoint | undefined;
-  const store = SqliteStore.open(FIXTURE_INSTALLATION);
-  const executor = new SqliteCommandExecutor(
-    store,
-    {
-      tenantId: FIXTURE_TENANT_ID,
-      principalId: FIXTURE_PRINCIPALS["product-fixture"],
-    },
-    (stage) => {
-      if (stage === armedCheckpoint) {
-        armedCheckpoint = undefined;
-        throw new Error(`private rollback checkpoint: ${stage}`);
-      }
-    },
-  );
-
-  return {
-    clientFor(fixture, options) {
-      if (options?.forbidResourceWrites) store.forbidResourceWrites();
-      const caller = loseCommittedResponseOnce(
-        {
-          async execute(operation, input) {
-            armedCheckpoint = options?.checkpoint;
-            try {
-              return await executor.executeFor(
-                {
-                  tenantId: FIXTURE_TENANT_ID,
-                  principalId: FIXTURE_PRINCIPALS[fixture],
-                },
-                operation,
-                input,
-              );
-            } finally {
-              armedCheckpoint = undefined;
-            }
-          },
-        },
-        options,
-      );
-      return {
-        ...createKeynesClient(caller),
-        defineResources: createContractClient(caller).defineResources,
-        validateResources: createContractClient(caller).validateResources,
-        createBudget: createContractClient(caller).createBudget,
-      };
-    },
-    inspectState: async () => store.inspectState(),
-    close: async () => executor.close(),
-  };
-}
 
 export async function openPgliteContractTestHost(): Promise<ContractTestHost> {
   const host = await openPgliteHost();

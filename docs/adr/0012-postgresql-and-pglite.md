@@ -1,7 +1,7 @@
 # ADR-0012: Use one PostgreSQL implementation with PGlite for Local
 
 - **Date:** 2026-09-12
-- **Status:** Accepted direction; runtime migration and package separation not implemented
+- **Status:** Accepted; runtime migration implemented, package separation pending KEY-96
 - **Supersedes:** [ADR-0003](0003-sqlite-and-postgresql.md) for the Local engine and dual implementation decision
 - **Amends:** [ADR-0006](0006-idiomatic-monorepo.md) for database source ownership and package boundaries
 
@@ -45,11 +45,11 @@ Use functional module names during relocation: adapters, CLI, installation, resu
 
 ## Transition and acceptance
 
-[KEY-109](https://linear.app/keynes/issue/KEY-109/run-local-on-postgresql-procedures-with-pglite) owns the runtime replacement using KEY-76's clean baseline. It must prove installation compatibility and current behavior before removing SQLite, with fresh startup, memory, footprint and throughput measurements. A failure blocks replacement; it must not produce another Local business implementation. KEY-87 owns the complete operating envelope and KEY-88 owns final archive qualification.
+[KEY-109](https://linear.app/keynes/issue/KEY-109/run-local-on-postgresql-procedures-with-pglite) replaced SQLite after passing compatibility and behavior gates on KEY-76's clean baseline. Its fresh startup, memory, footprint and throughput results remain observations, not a new operating envelope. KEY-87 owns that envelope and KEY-88 owns final split-archive qualification.
 
-[KEY-96](https://linear.app/keynes/issue/KEY-96/separate-sdk-and-database-runtime-packages) owns source centralization, thin SDK boundaries, separate distributions and the naming pass. These paths and packages are adopted targets, not existing install instructions. Current source still combines SQLite and SDK code and keeps SQL in `packages/postgresql` and canonical inputs in `packages/contracts`.
+[KEY-96](https://linear.app/keynes/issue/KEY-96/separate-sdk-and-database-runtime-packages) owns source centralization, thin SDK boundaries, separate distributions and the naming pass. These paths and packages are adopted targets, not existing install instructions. Current source still combines PGlite and SDK code and keeps SQL in `packages/postgresql` and canonical inputs in `packages/contracts`.
 
-Until KEY-109's replacement gate lands, the existing SQLite/native PostgreSQL suite and required CI check remain in force. KEY-109 replaces the Local lane with PGlite while preserving native tests, fail-closed change classification, required-check enforcement and retained evidence. Coordinate any check-name change with branch protection; documentation approval alone cannot remove a gate.
+The historical SQLite-named required CI check remains while PGlite and native tests, fail-closed change classification, required-check enforcement and retained evidence continue. Coordinate any check-name change with branch protection; documentation approval alone cannot remove a gate.
 
 Shared acceptance covers definitions, commands, errors, replay, rollback, Policy failures, history and final state. Local acceptance covers instance isolation and close/drain behavior. Native PostgreSQL independently proves concurrency, permissions and caller transactions. PGlite's single connection cannot establish those guarantees.
 

@@ -169,7 +169,7 @@ export function renderSummary(report: ClassificationReport): string {
   validateSha(report.checkout, "checked-out candidate");
   const decision = validateRelevanceDecision(report.decision);
   const lines = [
-    "## SQLite and PostgreSQL relevance",
+    "## PGlite and PostgreSQL relevance",
     "",
     `- Checked-out candidate: \`${report.checkout}\``,
     `- Event head: \`${report.head}\``,
@@ -188,7 +188,7 @@ export function renderSummary(report: ClassificationReport): string {
 
   if (decision.disposition === "not-applicable") {
     lines.push(
-      "SQLite: NOT RUN",
+      "PGlite: NOT RUN",
       "",
       "PostgreSQL: NOT RUN",
       "",
@@ -196,7 +196,7 @@ export function renderSummary(report: ClassificationReport): string {
     );
   } else {
     lines.push(
-      "Repository correctness tests include SQLite; the database job runs native PostgreSQL source correctness. Full qualification is explicit.",
+      "Repository correctness tests include PGlite; the database job runs native PostgreSQL source correctness. Full qualification is explicit.",
     );
   }
   return `${lines.join("\n")}\n`;

@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test PostgreSQL system
-        run: pnpm test:sqlite-postgres -- --output "$RUNNER_TEMP/sqlite-postgres"
+      - name: Test PGlite and PostgreSQL
+        run: pnpm test:pglite-postgresql -- --output "$RUNNER_TEMP/pglite-postgresql"
 
       - name: Retain system-test record
         id: upload
@@ -44,11 +44,11 @@ jobs:
         with:
           name: postgresql-system-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           path: |
-            ${{ runner.temp }}/sqlite-postgres/manifest.json
-            ${{ runner.temp }}/sqlite-postgres/sqlite.vitest.json
-            ${{ runner.temp }}/sqlite-postgres/postgresql.json
-            ${{ runner.temp }}/sqlite-postgres/postgresql.json.vitest.json
-            ${{ runner.temp }}/sqlite-postgres/postgresql.json.observations.json
+            ${{ runner.temp }}/pglite-postgresql/manifest.json
+            ${{ runner.temp }}/pglite-postgresql/pglite.vitest.json
+            ${{ runner.temp }}/pglite-postgresql/postgresql.json
+            ${{ runner.temp }}/pglite-postgresql/postgresql.json.vitest.json
+            ${{ runner.temp }}/pglite-postgresql/postgresql.json.observations.json
           if-no-files-found: error
           overwrite: false
           retention-days: 14
@@ -61,4 +61,4 @@ jobs:
         run: |
           [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || exit 1
           [[ "$ARTIFACT_DIGEST" =~ ^[0-9a-fA-F]{64}$ ]] || exit 1
-          printf 'PostgreSQL artifact ID: `%s`\n\nSHA-256: `%s`\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf 'PGlite/PostgreSQL artifact ID: `%s`\n\nSHA-256: `%s`\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"

@@ -234,3 +234,36 @@ SQLite and the TypeScript runtime evaluator may now be removed in Phase 5. This 
 | Routine PR and paired full qualification                                                                     | `NOT RUN`                                          |
 | Live branch protection, rulesets, and candidate required checks                                              | `NOT RUN`                                          |
 | Managed providers, publication, Hosted, Embedded, KEY-87 operating envelope, and KEY-88 final split archives | `NOT RUN` or excluded                              |
+
+## Phase 5: SQLite retirement and enforcement preservation
+
+T020 first failed on the three retained SQLite/evaluator production modules and the broad build root. T021 first failed on the old Local report selection, missing-report treatment, manifest identity and workflow artifact naming. Those failures were observed before the production deletion and runner/workflow changes.
+
+The production graph now has one Local authority path: `local/runtime.ts` opens `local/pglite-command-executor.ts`, which installs and calls the canonical PostgreSQL procedures. The SQLite executor, SQLite store, TypeScript Policy evaluator and their now-unreachable decimal helper were deleted. `decimal.js` remains a production dependency because compiler validation in `policy/validate.ts` uses it. Historical SQLite measurement code remains only to interpret and compare the retained pre-replacement archive; it is not built into the SDK.
+
+The paired runner now selects the full PGlite Local report, writes `pglite.vitest.json`, records schema `keynes.pglite-postgresql/v1`, and names both PGlite and PostgreSQL runtime authorities. The old `test:sqlite-postgres` command remains a compatibility alias for `test:pglite-postgresql`; required check display names remain exactly `Repository and tests` and `SQLite and PostgreSQL behavior tests` so branch protection does not silently stop gating changes.
+
+### Hosted enforcement inspection
+
+GitHub CLI access to `keynes-dev/keynes` succeeded. The default branch is `main`; repository rulesets returned an empty list. Branch protection is strict, enforces administrators and requires the two exact contexts `Repository and tests` and `SQLite and PostgreSQL behavior tests` from GitHub Actions app id `15368`. There is no pull request for this branch, so no applicable candidate check runs exist to inspect. Actual hosted candidate results and proof that the renamed internals still satisfy branch protection are therefore `NOT RUN` and block SC-005 acceptance; this is not inferred from workflow YAML.
+
+### Active-document reconciliation
+
+The product, architecture, contributor workflow, SDK README, constitution and ADR transition wording now describe PGlite Local execution and PostgreSQL 18.3. `packages/postgresql/README.md` was inspected and needed no change: it already describes the separately packaged native product without claiming Local ownership. ADR-0012 still explicitly supersedes ADR-0003, and the package split remains KEY-96 work.
+
+KEY-85 has no repository feature artifacts to edit in this checkout. When KEY-85 resumes, reconcile its asynchronous Local lifecycle wording with the PGlite owner while preserving initialization, admission, drain, concurrent and repeated close, queued-failure, and partial-initialization cleanup behavior. KEY-109 claims no KEY-85 delivery or acceptance.
+
+### Phase 5 verification
+
+| Command or lane                                     | Outcome                                                                                                                    |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Focused T020/T021 red runs                          | Failed at the intended obsolete-module, broad build-root, old report, missing-report, manifest and artifact identity seams |
+| Focused repository, package, runner and classifier  | Passed after deletion and truthful PGlite identity changes                                                                 |
+| Production import/module inventory                  | No SQLite runtime, SQLite store or TypeScript Policy evaluator remains; compiler `decimal.js` dependency retained          |
+| `pnpm test:pr`                                      | Passed: 510 SDK tests plus repository, paired-run, package, formatting, lint, typecheck and dependency-boundary checks     |
+| Phase 5 Ponytail review                             | Three reductions accepted; repeated deletion cases retained because T021 explicitly requires deletion coverage             |
+| Live branch protection and rulesets                 | Protection inspected; exact required contexts confirmed; no rulesets                                                       |
+| Actual applicable candidate required checks         | `NOT RUN`: no pull request or candidate check runs exist for this branch                                                   |
+| Managed providers, publication, Hosted and Embedded | `NOT RUN` or excluded                                                                                                      |
+
+Final clean paired qualification, native rerun, archive qualification, measurements and reconciliation remain T027-T029 work.

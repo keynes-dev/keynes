@@ -1,8 +1,8 @@
 # Keynes runtime architecture
 
 > **Status:** Adopted target architecture. [ADR-0012](adr/0012-postgresql-and-pglite.md)
-> replaces the SQLite direction. Current source still uses SQLite Local in the
-> combined SDK; KEY-109 owns replacement and KEY-96 owns source/package separation.
+> replaces the SQLite direction. Current source uses PGlite Local in the combined
+> SDK; KEY-96 owns source/package separation.
 > KEY-78 configured creation is implemented. Other target behavior requires its
 > own feature acceptance. Historical results prove only their recorded revision
 > and verification lane.
@@ -372,7 +372,7 @@ The logical PostgreSQL state owners are:
 
 ## Local PostgreSQL execution
 
-The PGlite adapter will own one private Node in-memory instance, install the
+The combined SDK Local runtime owns one private Node in-memory PGlite instance, installs the
 canonical procedures and initialize its ephemeral catalog from declarations.
 The SDK exposes neither the connection nor arbitrary SQL. Methods remain asynchronous.
 
@@ -386,8 +386,7 @@ Local has no persistence option, public migration API, network listener, browser
 support, multi-process coordination or recovery after process exit. Internal
 installation of SQL does not create a public Local migration surface.
 
-Current Local still uses SQLite in the SDK. KEY-109 must pass compatibility and
-replacement acceptance before removing it or switching the required CI lane.
+KEY-109 passed its replacement gate. SQLite is no longer a production Local path.
 
 ## Node.js support
 
@@ -561,8 +560,8 @@ do not create duplicate schemas or a second business implementation.
 | `@keynes/policy`   | Database-owned Policy authoring compiler                                                        |
 | `@keynes/cli`      | Developer CLI for installation, type generation, definition deployment and compatibility checks |
 
-These are targets owned by KEY-96. Current source still places SQLite and compiler
-code in the SDK, SQL in `packages/postgresql`, and canonical inputs in
+These are targets owned by KEY-96. Current source still places the compiler in
+the SDK, SQL in `packages/postgresql`, and canonical inputs in
 `packages/contracts`. No new public distribution is implied by this document.
 
 Consumer builds produce their own artifacts from canonical source without
@@ -610,11 +609,10 @@ tenant isolation, TLS, recovery, and direct and supported pooled connections.
 Local evidence must cover queue ordering, isolation, close/drain behavior,
 package contents, and the declared Node.js qualification lanes.
 
-Until KEY-109 qualifies replacement, `pnpm test:sqlite-postgres` and the
-existing required SQLite/native PostgreSQL CI check remain in force. KEY-109
-must preserve native coverage, fail-closed applicability, required-check
-enforcement and evidence retention while replacing the Local lane. Do not
-rename executable commands or remove gates through documentation alone.
+`pnpm test:pglite-postgresql` runs the paired PGlite/native qualification.
+`pnpm test:sqlite-postgres` remains a compatibility alias, and the historical
+SQLite-named required check remains in branch protection. Native coverage,
+fail-closed applicability, enforcement and evidence retention remain mandatory.
 
 Current passing provider-free checks do not prove this target. Native
 PostgreSQL, hosted, package, provider, security, recovery, performance, and

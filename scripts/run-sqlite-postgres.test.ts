@@ -10,7 +10,7 @@ import {
   verifySqlitePostgresResults,
   validateTestReport,
   parseArguments,
-  SQLITE_AGGREGATE,
+  PGLITE_AGGREGATE,
   runSqlite,
   runSqlitePostgresTests,
   validateNativeEvidence,
@@ -29,7 +29,7 @@ function report(native = false) {
     ? Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS)
     : [
         [
-          SQLITE_AGGREGATE,
+          PGLITE_AGGREGATE,
           REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
         ] as const,
       ];
@@ -63,12 +63,35 @@ function report(native = false) {
   };
 }
 
+function localReport() {
+  const value = report();
+  value.testResults.push({
+    name: "/checkout/packages/sdk/test/unit/local/runtime.test.ts",
+    status: "passed",
+    message: "",
+    assertionResults: [
+      {
+        fullName:
+          "native PostgreSQL installation installs a fresh target atomically",
+        ancestorTitles: [],
+        status: "passed",
+        failureMessages: [],
+      },
+    ],
+  });
+  value.numTotalTests++;
+  value.numPassedTests++;
+  value.numTotalTestSuites++;
+  value.numPassedTestSuites++;
+  return value;
+}
+
 describe("SQLite and PostgreSQL result verification", () => {
   it("rejects selected schema even when it carries complete assertion counts", () => {
     expect(() =>
       validateTestReport(
         { ...report(), schemaVersion: "keynes.deployment-test/v1" },
-        SQLITE_AGGREGATE,
+        PGLITE_AGGREGATE,
       ),
     ).toThrow();
   });
@@ -88,7 +111,7 @@ describe("SQLite and PostgreSQL result verification", () => {
           new AbortController().signal,
         );
         if (exitCode === 0) await expect(result).resolves.toEqual(report());
-        else await expect(result).rejects.toThrow("SQLite process failed");
+        else await expect(result).rejects.toThrow("PGlite process failed");
       } finally {
         vi.unstubAllEnvs();
         await rm(temporary, { recursive: true, force: true });
@@ -121,7 +144,7 @@ describe("SQLite and PostgreSQL result verification", () => {
         controller.signal,
       );
       timer = setTimeout(() => controller.abort(), 100);
-      await expect(result).rejects.toThrow("SQLite process failed");
+      await expect(result).rejects.toThrow("PGlite process failed");
     } finally {
       clearTimeout(timer);
       vi.unstubAllEnvs();
@@ -171,11 +194,11 @@ describe("SQLite and PostgreSQL result verification", () => {
         })),
       })),
     };
-    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(4);
+    expect(validateTestReport(nested, PGLITE_AGGREGATE)).toHaveLength(4);
     expect(() =>
       validateTestReport(
         { ...nested, numTotalTestSuites: 4, numPassedTestSuites: 4 },
-        SQLITE_AGGREGATE,
+        PGLITE_AGGREGATE,
       ),
     ).toThrow();
   });
@@ -183,6 +206,14 @@ describe("SQLite and PostgreSQL result verification", () => {
     await expect(
       verifySqlitePostgresResults({
         sqlite: async () => report(),
+        postgresql: async () => report(true),
+      }),
+    ).resolves.toBeUndefined();
+  });
+  it("accepts the complete Local inventory while comparing shared coverage", async () => {
+    await expect(
+      verifySqlitePostgresResults({
+        sqlite: async () => localReport(),
         postgresql: async () => report(true),
       }),
     ).resolves.toBeUndefined();
@@ -243,7 +274,7 @@ describe("SQLite and PostgreSQL result verification", () => {
       const value = report();
       const assertion = value.testResults[0]?.assertionResults[0];
       if (assertion) assertion.status = status;
-      expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
+      expect(() => validateTestReport(value, PGLITE_AGGREGATE)).toThrow();
     },
   );
   it.each([
@@ -258,19 +289,19 @@ describe("SQLite and PostgreSQL result verification", () => {
   ] as const)("rejects inconsistent %s", (field) => {
     const value = report();
     value[field]++;
-    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, PGLITE_AGGREGATE)).toThrow();
   });
   it.each([null, {}, "malformed", { success: true }])(
     "rejects missing or malformed reports: %j",
     (value) => {
-      expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
+      expect(() => validateTestReport(value, PGLITE_AGGREGATE)).toThrow();
     },
   );
   it("rejects empty execution", () => {
     expect(() =>
       validateTestReport(
         { ...report(), testResults: [], numTotalTests: 0, numPassedTests: 0 },
-        SQLITE_AGGREGATE,
+        PGLITE_AGGREGATE,
       ),
     ).toThrow();
   });
@@ -279,17 +310,17 @@ describe("SQLite and PostgreSQL result verification", () => {
     const assertions = value.testResults[0]?.assertionResults;
     if (assertions?.[0] && assertions[1])
       assertions[1].fullName = assertions[0].fullName;
-    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, PGLITE_AGGREGATE)).toThrow();
   });
   it("rejects collection and unhandled errors", () => {
     const value = report();
     if (value.testResults[0])
       value.testResults[0].message = "collection failed";
-    expect(() => validateTestReport(value, SQLITE_AGGREGATE)).toThrow();
+    expect(() => validateTestReport(value, PGLITE_AGGREGATE)).toThrow();
     expect(() =>
       validateTestReport(
         { ...report(), unhandledErrors: ["error"] },
-        SQLITE_AGGREGATE,
+        PGLITE_AGGREGATE,
       ),
     ).toThrow();
   });
@@ -340,11 +371,12 @@ describe("paired evidence", () => {
                 pnpm: "11.21.0",
                 vitest: "4.1.11",
                 sdk: "0.0.0",
+                pglite: "0.5.8",
                 postgresql: "0.0.0",
                 pg: "8.23.0",
                 postgresqlPg: "8.23.0",
               },
-              sqliteVersion: "3.50.0",
+              pgliteVersion: "0.5.8",
             }),
             sqlite: async () => {
               calls++;
@@ -388,11 +420,12 @@ function evidenceSnapshot() {
       pnpm: "11.21.0",
       vitest: "4.1.11",
       sdk: "0.0.0",
+      pglite: "0.5.8",
       postgresql: "0.0.0",
       pg: "8.23.0",
       postgresqlPg: "8.23.0",
     },
-    sqliteVersion: "3.50.0",
+    pgliteVersion: "0.5.8",
   };
 }
 function nativeFixture() {
@@ -523,6 +556,8 @@ describe("evidence identity and retention", () => {
     "write",
     "reuse",
     "native-failed",
+    "local-report-missing",
+    "native-report-missing",
     "cancelled",
     "pass",
   ])("retains attributable %s outcome", async (mode) => {
@@ -558,8 +593,9 @@ describe("evidence identity and retention", () => {
           if (mode === "redaction" && raw.testResults[0])
             raw.testResults[0].message =
               "postgresql://secret@private keynes_internal PGPASSWORD=secret";
-          await writeFile(path, JSON.stringify(raw));
-          if (mode === "write") await mkdir(join(output, "sqlite.vitest.json"));
+          if (mode !== "local-report-missing")
+            await writeFile(path, JSON.stringify(raw));
+          if (mode === "write") await mkdir(join(output, "pglite.vitest.json"));
           if (mode === "cancelled") controller.abort();
           return report();
         },
@@ -570,7 +606,11 @@ describe("evidence identity and retention", () => {
             `${path}.observations.json`,
             JSON.stringify(observationFixture()),
           );
-          await writeFile(`${path}.vitest.json`, JSON.stringify(report(true)));
+          if (mode !== "native-report-missing")
+            await writeFile(
+              `${path}.vitest.json`,
+              JSON.stringify(report(true)),
+            );
           if (mode === "native-failed")
             throw new Error("postgresql://password@private");
           await writeFile(path, JSON.stringify(nativeFixture()));
@@ -591,16 +631,20 @@ describe("evidence identity and retention", () => {
       else await expect(result).rejects.toThrow();
       const bytes = await readFile(join(output, "manifest.json"), "utf8");
       const manifest = JSON.parse(bytes);
-      expect(manifest.schemaVersion).toBe("keynes.sqlite-postgres/v1");
+      expect(manifest.schemaVersion).toBe("keynes.pglite-postgresql/v1");
       expect(manifest.outcome).toBe(passes ? "passed" : "failed");
       expect(manifest.runtimes).toHaveLength(2);
       expect(bytes).not.toContain("postgresql://");
       expect(bytes).not.toContain("private-secret");
       if (mode === "startup-failed")
         expect(manifest.runtimes[1].execution.status).toBe("NOT RUN");
+      if (mode === "local-report-missing")
+        expect(manifest.runtimes[0].execution.status).not.toBe("completed");
+      if (mode === "native-report-missing")
+        expect(manifest.runtimes[1].execution.status).not.toBe("completed");
       if (mode === "redaction") {
         const retained = await readFile(
-          join(output, "sqlite.vitest.json"),
+          join(output, "pglite.vitest.json"),
           "utf8",
         );
         expect(retained).not.toContain("secret");
@@ -610,6 +654,14 @@ describe("evidence identity and retention", () => {
       if (mode === "cancelled") expect(nativeCalls).toBe(0);
       if (mode === "write" || mode === "native-failed")
         expect(nativeCalls).toBe(1);
+      if (mode === "pass") {
+        expect(
+          manifest.runtimes.map(
+            (runtime: { authority: string }) => runtime.authority,
+          ),
+        ).toEqual(["pglite", "postgresql"]);
+        expect(manifest.runtimes[0].report.path).toBe("pglite.vitest.json");
+      }
     } finally {
       await rm(temporary, { recursive: true, force: true });
     }
@@ -645,11 +697,11 @@ it.each([
 ])("rejects stale manifest %s against invocation", (field) => {
   const snapshot = evidenceSnapshot();
   const value = {
-    schemaVersion: "keynes.sqlite-postgres/v1",
+    schemaVersion: "keynes.pglite-postgresql/v1",
     candidate: { commit: snapshot.commit },
     attempt: { id: "current-attempt" },
     inputs: { ...snapshot.inputs },
-    runtimes: [{ authority: "sqlite" }, { authority: "postgresql" }],
+    runtimes: [{ authority: "pglite" }, { authority: "postgresql" }],
     startedAt: "2026-09-01T00:00:00.000Z",
     finishedAt: "2026-09-01T00:01:00.000Z",
   };

@@ -6,17 +6,13 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
 
 ## Adopted PostgreSQL/PGlite transition
 
-[ADR-0012](adr/0012-postgresql-and-pglite.md) and constitution 11.0.0 adopt one
+[ADR-0012](adr/0012-postgresql-and-pglite.md) and constitution 11.0.1 adopt one
 PostgreSQL implementation, PGlite Local execution and database-owned source/tooling.
-Current source and CI still use SQLite Local. KEY-109 must qualify replacement
-before removing SQLite; KEY-96 owns the subsequent package and naming changes.
+Current source and CI use PGlite Local. KEY-96 owns the subsequent package and naming changes.
 
-The SQLite/native PostgreSQL commands and required check documented below remain
-the current executable contract until KEY-109 replaces them. That feature must
-retain native concurrency, permission and caller-transaction coverage, fail-closed
-change classification, required-check enforcement and qualification evidence retention. Coordinate
-check-name changes with branch protection. No PGlite test command is available
-merely because the target architecture is adopted.
+The historical `SQLite and PostgreSQL behavior tests` check name remains the
+branch-protection contract. Its execution and retained reports now identify
+PGlite and native PostgreSQL truthfully.
 
 Reconcile affected active feature artifacts when resumed, including KEY-85's
 asynchronous lifecycle specification. Keep historical specs and acceptance records
@@ -135,7 +131,7 @@ create a new spec; do not recreate an existing spec merely to resume implementat
 Start with the feature's exact commands. `pnpm test:repository` checks repository
 organization; `pnpm test:pr` runs the provider-free PR suite; `pnpm format` checks
 formatting. Follow the approved feature plan for native runtime, concurrency,
-package-consumer, and qualification checks. Shared behavior requires real SQLite
+package-consumer, and qualification checks. Shared behavior requires real PGlite
 and native PostgreSQL evidence. Preserve replay, rollback, validation/types, and
 relevant concurrency coverage; final archive qualification cannot absorb deferred
 feature tests. See [product](product.md), [architecture](architecture.md), and the
@@ -196,9 +192,9 @@ dependencies, workflows and unknown paths run both correctness suites. Deletions
 and both paths of a rename are classified. New pushes cancel superseded PR runs.
 
 `Repository and tests` runs generation, formatting, lint, type checking, dependency
-boundaries and package tests through `pnpm test:pr`. This includes SQLite shared
+boundaries and package tests through `pnpm test:pr`. This includes PGlite shared
 Budget scenarios. The historical database check name stays for branch protection;
-its job now runs `pnpm test:ci:postgresql`, without repeating SQLite tests.
+its job now runs `pnpm test:ci:postgresql`, without repeating PGlite tests.
 
 The native CI command reuses the source installer and starts one PostgreSQL instance.
 It covers shared Budget behavior, contention, rollback, Policies, permissions, direct
@@ -223,18 +219,18 @@ runner disposal remains the final boundary after forced termination.
 
 ### Qualification
 
-Use the manual `Database qualification` workflow for full SQLite/native PostgreSQL
+Use the manual `Database qualification` workflow for full PGlite/native PostgreSQL
 qualification. It retains the existing packed installation, pooler, scenario coverage
 and evidence checks. The SDK package matrix and reference measurement remain manual.
 Run qualification explicitly when making package or deployment acceptance claims.
 
 ```sh
-pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$(node -p 'crypto.randomUUID()')"
+pnpm test:pglite-postgresql -- --output ".artifacts/pglite-postgresql/$(node -p 'crypto.randomUUID()')"
 ```
 
 Use a clean checkout, frozen dependencies, supported Node.js, pnpm and Docker. The
 output directory must be new. The paired manifest identifies the revision, attempt,
-environment and retained file hashes. SQLite and PostgreSQL reports record scenario
+environment and retained file hashes. PGlite and PostgreSQL reports record scenario
 results; native observations include startup and cleanup. Failed attempts cannot
 qualify. The manual workflow retains the five evidence files for 14 days and checks
 its upload receipt. Retain durable acceptance copies before expiry. Native-only

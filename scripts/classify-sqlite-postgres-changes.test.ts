@@ -129,6 +129,9 @@ describe("path classification", () => {
 
   it.each([
     "packages/sdk/src/keynes.ts",
+    "packages/sdk/src/local/pglite-command-executor.ts",
+    "packages/postgresql/migrations/0001-baseline.sql",
+    "packages/postgresql/scripts/generate.ts",
     "packages/contracts/contract-tests/scenarios/create.ts",
     "scripts/run-sqlite-postgres.ts",
     "scripts/classify-sqlite-postgres-changes.ts",
@@ -170,6 +173,17 @@ describe("path classification", () => {
         { status: "A", path: "docs/old.ts" },
       ]).disposition,
     ).toBe("relevant");
+  });
+
+  it.each([
+    "packages/sdk/src/local/pglite-command-executor.ts",
+    "packages/postgresql/migrations/0001-baseline.sql",
+    "packages/contracts/generated/contract-digest.json",
+  ])("requires execution when %s is deleted", async (path) => {
+    const { classifyChangedPaths } = await loadClassifier();
+    expect(classifyChangedPaths([{ status: "D", path }]).disposition).toBe(
+      "relevant",
+    );
   });
 
   it("allows a safe-to-safe move represented as delete and add", async () => {
@@ -367,7 +381,7 @@ describe("closed decision and CI boundary", () => {
     expect(appended.get("output.txt")).toBe(
       "run_databases=false\ndisposition=not-applicable\n",
     );
-    expect(appended.get("summary.md")).toContain("SQLite: NOT RUN");
+    expect(appended.get("summary.md")).toContain("PGlite: NOT RUN");
     expect(appended.get("summary.md")).toContain("PostgreSQL: NOT RUN");
   });
 
@@ -470,6 +484,34 @@ describe("closed decision and CI boundary", () => {
     expect(summary).toContain('"path":"new-owner/line\\nbreak-```-file.ts"');
     expect(summary).not.toContain("SQLite: passed");
     expect(summary).not.toContain("PostgreSQL: passed");
+  });
+});
+
+describe("full qualification retention", () => {
+  it("fails closed when PGlite evidence or the upload receipt is missing", () => {
+    const workflow = readFileSync(
+      join(root, ".github/workflows/postgresql-system.yml"),
+      "utf8",
+    );
+    const upload = step(workflow, "Retain system-test record");
+    expect(upload).toContain("pglite.vitest.json");
+    expect(upload).toContain("if-no-files-found: error");
+    expect(upload).not.toContain("continue-on-error: true");
+
+    const confirmation = step(workflow, "Confirm artifact retention");
+    expect(confirmation).toContain("if: always()");
+    const command = confirmation.split("run: |\n")[1];
+    expect(command).toBeDefined();
+    if (command === undefined) throw new Error("Missing receipt guard");
+    for (const env of [
+      { ARTIFACT_ID: "", ARTIFACT_DIGEST: "" },
+      { ARTIFACT_ID: "123", ARTIFACT_DIGEST: "missing" },
+    ]) {
+      const result = spawnSync("bash", ["-e", "-c", command], {
+        env: { ...process.env, ...env, GITHUB_STEP_SUMMARY: "/dev/null" },
+      });
+      expect(result.status).toBe(1);
+    }
   });
 });
 

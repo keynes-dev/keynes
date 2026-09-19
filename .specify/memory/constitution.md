@@ -1,11 +1,11 @@
 <!--
 Sync Impact Report
-- Version change: 10.0.0 -> 11.0.0
-- Rationale: separate required PR correctness from explicit package and deployment qualification.
-- Modified principles: I and IV, preserve Local/native correctness without requiring full qualification on every relevant PR; V, failure-only PR diagnostics and retained qualification evidence.
+- Version change: 11.0.0 -> 11.0.1
+- Rationale: record KEY-109's qualified PGlite replacement without changing the adopted architecture.
+- Modified principles: I and IV, remove the completed SQLite transition allowance and require PGlite/native correctness directly.
 - Added sections: none
 - Removed sections: none
-- Migration impact: existing required check names remain; SQLite stays until KEY-109 qualification. Full paired and package qualification remain explicit.
+- Migration impact: existing required check names remain as compatibility identifiers; full paired and package qualification remain explicit.
 - Managed templates and commands: unchanged.
 - Follow-up TODOs: none
 -->
@@ -22,11 +22,8 @@ PostgreSQL implementation MUST own committed state and transitions through
 PostgreSQL for durable deployments. SDKs, services and integrations MUST NOT
 reproduce business transitions or write private database state directly.
 
-This is the adopted target in [ADR-0012](../../docs/adr/0012-postgresql-and-pglite.md).
-Until KEY-109 qualifies replacement, the existing SQLite Local implementation
-MAY remain and MUST retain required Local and native PostgreSQL correctness checks. KEY-96 owns
-the subsequent source and package separation. This amendment MUST NOT be
-reported as runtime implementation or qualification.
+KEY-109's replacement gate permits removal of the former SQLite Local
+implementation. KEY-96 owns the subsequent source and package separation.
 
 A command MUST publish one complete result atomically or change no state.
 Resource conservation, availability, settlement, exact replay, conflicting
@@ -89,15 +86,12 @@ transport clients MAY differ in storage, authentication, transactions,
 concurrency controls, recovery, and operations, but they MUST NOT change the
 public meaning of a Budget command.
 
-Every shared Budget example MUST run as a black-box comparison against
-PGlite and native PostgreSQL after KEY-109. Until its replacement gate lands,
-SQLite and native PostgreSQL source correctness MUST remain required for relevant PRs.
-SQLite scenarios MAY run in the repository check without duplicate execution in the
-native database job. Native checks MUST retain shared Budget, concurrency, rollback,
+Every shared Budget example MUST run as a black-box comparison against PGlite
+and native PostgreSQL. PGlite scenarios MAY run in the repository check without
+duplicate execution in the native database job. Native checks MUST retain shared Budget, concurrency, rollback,
 Policy, permission, direct remote recovery and caller-transaction coverage. Package
 installation and pooler qualification MUST remain explicitly runnable, separate from
-the routine PR gate. KEY-109 MUST qualify PGlite before removing SQLite and MUST
-preserve required-check enforcement, fail-closed applicability classification and
+the routine PR gate. Required-check enforcement, fail-closed applicability classification and
 qualification evidence retention during the CI transition. Results, errors, replay flags, history,
 and final Budget state MUST agree. Separate suites MUST cover local lifecycle
 and memory, PostgreSQL concurrency and transactions, remote authentication and
@@ -263,4 +257,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 11.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-18
+**Version**: 11.0.1 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-18

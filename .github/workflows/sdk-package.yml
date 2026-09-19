@@ -75,7 +75,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, macos-15, windows-2025]
-        node: ["24", "latest"]
+        node: ["24", "26"]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     steps:
@@ -122,6 +122,7 @@ jobs:
           pnpm test:package:sdk --
           --archive "${{ env.ARCHIVE_PATH }}"
           --output .artifacts/package-tests/sdk/consumer.json
+          --observations
 
       - name: Retain consumer qualification
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -132,7 +133,7 @@ jobs:
           retention-days: 14
 
   measurement:
-    name: Node SQLite reference measurement
+    name: PGlite reference measurement
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -182,6 +183,8 @@ jobs:
           pnpm measure:package:sdk --
           --archive "${{ env.ARCHIVE_PATH }}"
           --output "${{ env.MEASUREMENT_PATH }}"
+          --observations
+          --engine pglite
 
       - name: Retain measurement
         if: always()
