@@ -1,3 +1,5 @@
+import "../support/pglite-snapshot.js";
+
 import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it } from "vitest";
 

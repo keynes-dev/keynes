@@ -1,3 +1,5 @@
+import "../support/pglite-snapshot.js";
+
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";

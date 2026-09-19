@@ -1,3 +1,5 @@
+import "../support/pglite-snapshot.js";
+
 import { describe, expect, it } from "vitest";
 
 import {
