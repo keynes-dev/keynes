@@ -1,11 +1,19 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import installationRecord from "../../../postgresql/generated/installation-record.json" with { type: "json" };
-
-const MIGRATIONS_ROOT = new URL(
-  "../../../postgresql/migrations/",
+const ASSETS_ROOT = new URL(
+  import.meta.url.endsWith(".ts") ? "../../../postgresql/" : "./assets/",
   import.meta.url,
+);
+const INSTALLATION_RECORD_URL = new URL(
+  import.meta.url.endsWith(".ts")
+    ? "generated/installation-record.json"
+    : "installation-record.json",
+  ASSETS_ROOT,
+);
+const MIGRATIONS_ROOT = new URL(
+  import.meta.url.endsWith(".ts") ? "migrations/" : "./",
+  ASSETS_ROOT,
 );
 const TENANT_ID = "00000000-0000-4000-8000-000000000002";
 const PRINCIPAL_ID = "00000000-0000-4000-8000-000000000201";
@@ -27,6 +35,34 @@ interface InstallationAsset {
   readonly sha256: string;
   readonly sql: string;
 }
+
+interface InstallationRecord {
+  readonly profileId: string;
+  readonly serverVersionNum: string;
+  readonly contractDigest: string;
+  readonly migrationSetDigest: string;
+  readonly policyProfileDigest: string;
+  readonly remoteProceduresDigest: string;
+  readonly expectedObjects: readonly string[];
+  readonly migrations: readonly {
+    readonly id: string;
+    readonly path: string;
+    readonly sha256: string;
+    readonly contractDigest: string;
+  }[];
+  readonly functions: readonly {
+    readonly target: string;
+    readonly argumentType: string;
+    readonly returnType: string;
+    readonly language: string;
+    readonly securityDefiner: boolean;
+    readonly searchPath: readonly string[];
+  }[];
+}
+
+const installationRecord = requireInstallationRecord(
+  JSON.parse(await readFile(INSTALLATION_RECORD_URL, "utf8")),
+);
 
 export interface PgliteConnection {
   query<Row>(
@@ -351,4 +387,99 @@ async function checkPermissions(database: PgliteConnection): Promise<void> {
 
 function incompatible(check: string): PgliteInstallationError {
   return new PgliteInstallationError(check);
+}
+
+function requireInstallationRecord(value: unknown): InstallationRecord {
+  if (!isRecord(value)) throw incompatible("installation-record");
+  const profileId = requireString(value.profileId);
+  const serverVersionNum = requireString(value.serverVersionNum);
+  const contractDigest = requireString(value.contractDigest);
+  const migrationSetDigest = requireString(value.migrationSetDigest);
+  const policyProfileDigest = requireString(value.policyProfileDigest);
+  const remoteProceduresDigest = requireString(value.remoteProceduresDigest);
+  const expectedObjects = stringArray(value.expectedObjects);
+  const migrations = Array.isArray(value.migrations)
+    ? value.migrations.map(requireMigration)
+    : undefined;
+  const functions = Array.isArray(value.functions)
+    ? value.functions.map(requireFunction)
+    : undefined;
+  if (
+    expectedObjects === undefined ||
+    migrations === undefined ||
+    functions === undefined
+  ) {
+    throw incompatible("installation-record");
+  }
+  return {
+    profileId,
+    serverVersionNum,
+    contractDigest,
+    migrationSetDigest,
+    policyProfileDigest,
+    remoteProceduresDigest,
+    expectedObjects,
+    migrations,
+    functions,
+  };
+}
+
+function requireMigration(
+  value: unknown,
+): InstallationRecord["migrations"][number] {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.path !== "string" ||
+    typeof value.sha256 !== "string" ||
+    typeof value.contractDigest !== "string"
+  ) {
+    throw incompatible("installation-record");
+  }
+  return {
+    id: value.id,
+    path: value.path,
+    sha256: value.sha256,
+    contractDigest: value.contractDigest,
+  };
+}
+
+function requireFunction(
+  value: unknown,
+): InstallationRecord["functions"][number] {
+  if (
+    !isRecord(value) ||
+    typeof value.target !== "string" ||
+    typeof value.argumentType !== "string" ||
+    typeof value.returnType !== "string" ||
+    typeof value.language !== "string" ||
+    typeof value.securityDefiner !== "boolean"
+  ) {
+    throw incompatible("installation-record");
+  }
+  const searchPath = stringArray(value.searchPath);
+  if (searchPath === undefined) throw incompatible("installation-record");
+  return {
+    target: value.target,
+    argumentType: value.argumentType,
+    returnType: value.returnType,
+    language: value.language,
+    securityDefiner: value.securityDefiner,
+    searchPath,
+  };
+}
+
+function stringArray(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : undefined;
+}
+
+function requireString(value: unknown): string {
+  if (typeof value !== "string") throw incompatible("installation-record");
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

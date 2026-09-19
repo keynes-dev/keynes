@@ -168,7 +168,55 @@ These are local observations, not performance promises or claims of statistical 
 
 The package-test failure is not waived as a final result. T014 adds the new asset/dependency assertions and T016 updates package qualification for the PGlite-only interim SDK while keeping legacy size outcomes separate. Full package qualification, shared behavior, public lifecycle, native rerun, paired qualification, hosted checks and final archives remain `NOT RUN`.
 
-## Evidence status after Phase 3
+## Phase 4 canonical Local replacement gate
+
+Phase 4 moved the private Local executor to one owned in-memory PGlite instance. The adapter maps the seven generated operations to fixed canonical procedure targets, binds JSON through `$1::jsonb`, and sets tenant, principal and test-checkpoint context transaction-locally in the same owned transaction. The existing runtime still owns admission, serialized drain, one bounded exact-replay retry and shared close results. It awaits engine creation, canonical installation and configured Resource definition before returning the public handle, and closes partial initialization failures.
+
+The SDK build now copies the canonical SQL and generated installation record byte-for-byte into `dist/local/assets/`. Packaged installation reads only those SDK-owned assets. Qualification requires their exact canonical bytes, the complete PGlite dependency/WASM/data closure and a clean public consumer. The interim archive deliberately still contains the unreachable SQLite modules and TypeScript evaluator until this replacement gate permits T020-T022; Local execution no longer imports them.
+
+### Test-first and review record
+
+The four test-first lanes failed only at the planned boundaries: the absent PGlite command executor/runtime opener, absent packaged canonical assets and PGlite dependency inventory, and absent package `--observations` mode. After implementation, the shared Resource/Budget/Policy scenarios ran through both SQLite and PGlite, canonical Policy security/replay/arithmetic cases ran through real SQL, and Local initialization, isolation, foreign bindings, response-loss retry, queued errors, drain, close failure and cleanup passed.
+
+The Phase 4 Ponytail review proposed five reductions, all accepted: remove a duplicate mocked isolation test, a duplicate mock-heavy drain test, a duplicate response-loss case, a second full package installation, and three dynamic-import wrappers. Post-review SDK verification passed 660 tests in 29 files.
+
+### Retained Phase 4 evidence
+
+| Evidence                 | Identity and outcome                                                                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exact source candidate   | Detached clean evidence revision `eaf2247c0015079c3b02711006824ce52497bac3`; same Phase 4 runtime and package source later committed on this branch, followed only by test fixture loading and acceptance updates                     |
+| SDK archive              | `.artifacts/key-109/attempt-004/package/node26/keynes-sdk-0.0.0.tgz`; SHA-256 `46cf450ba7481ffaffa5a228baa509d56455a99a9b1e1ea017c46b77261b292c`; 9,851,516 compressed bytes                                                          |
+| Node 26 consumer         | `.artifacts/key-109/attempt-004/package/node26/qualification.json`; Node `v26.5.0`, pnpm `11.21.0`, macOS arm64; passed all 14 structural, asset, public-consumer, lifecycle and isolation checks                                     |
+| Node 24 consumer         | `.artifacts/key-109/attempt-004/package/node24/qualification.json`; Node `v24.21.0`, pnpm `11.21.0`, Linux arm64 container; the same archive passed all 14 checks                                                                     |
+| Legacy size observations | Archive limit failed: 9,851,516 B versus 1,048,576 B. Installed production passed: 30,804,134 B on Node 26 and 30,804,669 B on Node 24 versus 36,700,160 B. Structural, dependency and consumer failures remain fatal.                |
+| Native PostgreSQL        | `.artifacts/key-109/attempt-004/native/postgresql.json`; clean source `eaf2247c0015079c3b02711006824ce52497bac3`; PostgreSQL `180003`; 298 tests passed across 38 suites; cleanup and report retention passed                         |
+| Native report hashes     | Record `78fce34f4ab2b538c37c5aa3eb936f8bf576e3bdeb858a079788be3ab0c5e11c`; Vitest `bba77f5ab44b7ec44218bbd77ea7d1fdcd299dd71a70884445faa3986a13d6a1`; observations `fc8a3239dafa67e0fed8621a4d5b315f51cdb530e87d997b4b12c1660693c06d` |
+
+The first retained-report native invocation stopped before startup because that mode rejects a dirty checkout. The exact source patch was committed in a detached worktree and rerun cleanly. The first Node 24 attempt reused the macOS TypeScript platform package and failed at consumer typecheck; the isolated Linux dependency rerun passed. Both failures are retained in `.artifacts/key-109/attempt-004/failed-runs.md` and neither is represented as a sample or pass.
+
+### Replacement decision
+
+The T019 replacement gate passes for source candidate `eaf2247c0015079c3b02711006824ce52497bac3` and SDK archive `46cf450ba7481ffaffa5a228baa509d56455a99a9b1e1ea017c46b77261b292c`:
+
+- T010 canonical installation and compatibility measurements passed on PGlite `0.5.8` reporting PostgreSQL `180003`.
+- The shared behavior inventory passed on PGlite, and the independently retained native PostgreSQL run passed concurrency, permissions, rollback, recovery and caller-owned transactions.
+- Public Local initialization, instance isolation, replay, failure, drain and cleanup passed after the PGlite switch.
+- The exact interim archive passed canonical asset, engine dependency and clean public-consumer checks on Node 24 and 26.
+
+SQLite and the TypeScript runtime evaluator may now be removed in Phase 5. This gate does not waive the failed legacy archive limit, adopt a new performance SLA, qualify hosted enforcement or replace the final clean candidate runs in T027-T029.
+
+### Phase 4 verification
+
+| Command or lane                                 | Outcome                                                                                                                 |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Focused T011-T014 red runs                      | Failed at the intended missing executor, runtime, SQL execution, asset and observations seams                           |
+| Post-review SDK suite                           | Passed, 660 tests in 29 files                                                                                           |
+| `pnpm test:pr`                                  | Passed: generation, repository checks, paired-run tests, formatting, lint, all package tests, typechecks and boundaries |
+| Node 24 and Node 26 exact-archive qualification | Passed all 14 checks on both runtimes; legacy archive size retained as a failed observation                             |
+| Clean native PostgreSQL retained run            | Passed, 298 tests in 38 suites on PostgreSQL `180003`; cleanup and report retention passed                              |
+| Phase 4 Ponytail review and `git diff --check`  | Five reductions accepted; final diff check passed                                                                       |
+
+## Evidence status after Phase 4
 
 | Lane                                                                                                         | Status                                             |
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
@@ -177,10 +225,10 @@ The package-test failure is not waived as a final result. T014 adds the new asse
 | PGlite canonical installation, exact recheck, negative compatibility, and cleanup                            | Passed in Phase 3                                  |
 | Unchanged SQLite archive retention and fresh baseline measurements                                           | Passed in Phase 3                                  |
 | PGlite compatibility-host measurements                                                                       | Passed in Phase 3; final public archive rerun due  |
-| Shared Budget and Policy comparison on PGlite and native PostgreSQL                                          | `NOT RUN`                                          |
-| Local initialization, isolation, replay, response-loss retry, close, and drain                               | `NOT RUN`                                          |
-| Native contention, permissions, rollback, recovery, and caller-owned transactions                            | Passed for Phase 2; final rerun required           |
-| Interim and final SDK package qualification on Node 24 and 26                                                | `NOT RUN`                                          |
+| Shared Budget and Policy comparison on PGlite and native PostgreSQL                                          | Passed in Phase 4                                  |
+| Local initialization, isolation, replay, response-loss retry, close, and drain                               | Passed in Phase 4                                  |
+| Native contention, permissions, rollback, recovery, and caller-owned transactions                            | Passed in Phase 4; final rerun required            |
+| Interim and final SDK package qualification on Node 24 and 26                                                | Interim passed in Phase 4; final rerun required    |
 | SQLite-versus-PGlite final archive comparison                                                                | `NOT RUN`                                          |
 | Native source CI lane                                                                                        | Passed for Phase 2; clean retained record deferred |
 | Routine PR and paired full qualification                                                                     | `NOT RUN`                                          |

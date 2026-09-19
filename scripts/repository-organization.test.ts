@@ -133,6 +133,7 @@ describe("repository organization", () => {
       [
         "packages/sdk",
         {
+          "@electric-sql/pglite": "0.5.8",
           "@pgsql/types": "18.0.0",
           "decimal.js": "10.6.0",
           kysely: "0.29.5",

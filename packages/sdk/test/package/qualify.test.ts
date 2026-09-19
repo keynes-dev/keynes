@@ -34,6 +34,7 @@ const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const expectedProductionDependencies = {
+  "@electric-sql/pglite": "0.5.8",
   "@pgsql/types": "18.0.0",
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
@@ -138,6 +139,10 @@ describe("SDK package-test runner", () => {
       archivePath: resolve(repositoryRoot, "sdk.tgz"),
       authorizedDatabase: true,
     });
+    expect(parseArguments(["--archive", "sdk.tgz", "--observations"])).toEqual({
+      archivePath: resolve(repositoryRoot, "sdk.tgz"),
+      observations: true,
+    });
     expect(() =>
       parseArguments(["--archive", "sdk.tgz", "--authorized-database=false"]),
     ).toThrow("Unknown argument");
@@ -145,7 +150,7 @@ describe("SDK package-test runner", () => {
 
   it("writes an immutable secret-safe evidence record", async () => {
     const outputPath = resolve(suiteRoot, "records", "sdk.json");
-    const result = await qualifyArchive({ archivePath });
+    const result = await qualifyArchive({ archivePath, observations: true });
 
     expect(result).not.toHaveProperty("archivePath");
     await writeQualificationResult(outputPath, result);
@@ -158,15 +163,44 @@ describe("SDK package-test runner", () => {
     expect(JSON.stringify(retained)).not.toContain(suiteRoot);
   }, 30_000);
 
-  it("rejects PGlite and copied database files", () => {
-    expect(() =>
-      validatePackageFilePaths(["package/dist/local/pglite-database.js"]),
-    ).toThrow("package/dist/local/pglite-database.js");
-    expect(() =>
-      validatePackageFilePaths([
-        "package/dist/database/migrations/0001-storage.sql",
-      ]),
-    ).toThrow("package/dist/database/migrations/0001-storage.sql");
+  it("packs exact canonical installation assets and the PGlite runtime", async () => {
+    const sql = await readFile(
+      resolve(
+        repositoryRoot,
+        "packages/postgresql/migrations/0001-baseline.sql",
+      ),
+    );
+    expect(
+      archiveEntries.get("package/dist/local/assets/0001-baseline.sql"),
+    ).toEqual(sql);
+    expect(
+      JSON.parse(
+        archiveEntries
+          .get("package/dist/local/assets/installation-record.json")
+          ?.toString("utf8") ?? "null",
+      ),
+    ).toEqual(
+      JSON.parse(
+        await readFile(
+          resolve(
+            repositoryRoot,
+            "packages/postgresql/generated/installation-record.json",
+          ),
+          "utf8",
+        ),
+      ),
+    );
+
+    const paths = [...archiveEntries.keys()];
+    expect(paths).toContain(
+      "package/node_modules/@electric-sql/pglite/dist/initdb.wasm",
+    );
+    expect(paths).toContain(
+      "package/node_modules/@electric-sql/pglite/dist/pglite.wasm",
+    );
+    expect(paths).toContain(
+      "package/node_modules/@electric-sql/pglite/dist/pglite.data",
+    );
   });
 
   it("enforces compressed and production size limits", () => {
@@ -235,13 +269,8 @@ describe("SDK package-test runner", () => {
     expect(paths).toContain("package/node_modules/@pgsql/types/package.json");
   });
 
-  it("contains no PGlite or copied database archive path", () => {
+  it("contains no legacy copied database tree", () => {
     const paths = [...archiveEntries.keys()];
-    expect(
-      paths.filter(
-        (path) => path.startsWith("package/dist/") && /pglite/i.test(path),
-      ),
-    ).toEqual([]);
     expect(
       paths.filter((path) => path.startsWith("package/dist/database/")),
     ).toEqual([]);
@@ -321,9 +350,9 @@ describe("SDK package-test runner", () => {
     const supplied = resolve(suiteRoot, "failed-consumer.tgz");
     await writeFile(supplied, gzipSync(bytes));
     const original = await readFile(supplied);
-    await expect(qualifyArchive({ archivePath: supplied })).rejects.toThrow(
-      /SDK consumer remote-exports failed/,
-    );
+    await expect(
+      qualifyArchive({ archivePath: supplied, observations: true }),
+    ).rejects.toThrow(/SDK consumer remote-exports failed/);
     expect(await readFile(supplied)).toEqual(original);
   }, 30_000);
 
@@ -331,7 +360,7 @@ describe("SDK package-test runner", () => {
     const consumerRoot = resolve(suiteRoot, "consumers");
     const result = spawnSync(
       process.execPath,
-      [runnerPath, "--archive", archivePath],
+      [runnerPath, "--archive", archivePath, "--observations"],
       {
         cwd: repositoryRoot,
         encoding: "utf8",
@@ -371,7 +400,13 @@ describe("SDK package-test runner", () => {
         "closure",
         "process-loss",
         "deep-imports-blocked",
+        "canonical-assets",
+        "local-pglite",
       ],
+      legacyLimits: {
+        archiveBytes: { outcome: "failed" },
+        productionBytes: { outcome: "passed" },
+      },
       exclusions: {
         authorizedRemoteDatabase: "NOT RUN",
       },

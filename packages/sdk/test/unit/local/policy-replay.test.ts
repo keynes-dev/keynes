@@ -12,6 +12,7 @@ import { definePolicySql, policyValue } from "../../../src/policy/authoring.js";
 import { digestCanonicalJson } from "../../../src/policy/canonicalize.js";
 import type { PolicyEvaluationInput } from "../../../src/policy/evaluate.js";
 import type { PolicyProgramV1 } from "../../../src/generated/policy-types.js";
+import { openPgliteCommandExecutor as openCanonicalExecutor } from "../../../src/local/pglite-command-executor.js";
 
 const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
@@ -221,6 +222,60 @@ describe("local governed request replay", () => {
       expect(harness.observe).toHaveBeenCalledTimes(mutationCalls);
     } finally {
       harness.close();
+    }
+  });
+
+  it("replays canonical SQL with normalized Context and rejects changed Context", async () => {
+    const executor = await openCanonicalExecutor();
+    const client = createKeynesClient(executor);
+    try {
+      const rootInput = rootResources([
+        { definition: tokensResource, amount: 10 },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000071",
+        definitions: rootInput.definitions,
+      });
+      const root = await client.createBudget({
+        commandId: "20000000-0000-4000-8000-000000000071",
+        ...rootInput,
+        policies: [ceilingPolicy("canonical_replay", 1)],
+      });
+      const resourceTypeId =
+        root.budget.resources[0]?.resourceType.resourceTypeId;
+      if (resourceTypeId === undefined) {
+        throw new Error("canonical root must project its Resource");
+      }
+      const command = {
+        commandId: "30000000-0000-4000-8000-000000000071",
+        parentBudgetId: root.budget.budgetId,
+        resources: [{ resourceTypeId, amount: 4 }],
+        context: { factor: 1, segment: "standard" },
+      } satisfies RequestBudgetCommand;
+
+      const first = await client.requestBudget(command);
+      const replay = await client.requestBudget({
+        ...command,
+        context: { segment: "standard", factor: 1 },
+      });
+      await expect(
+        client.requestBudget({
+          ...command,
+          context: { factor: 2, segment: "standard" },
+        }),
+      ).rejects.toMatchObject({ code: "command_conflict" });
+
+      expect(replay).toEqual({ ...first, replayed: true });
+      await expect(
+        client.getBudget({ budgetId: root.budget.budgetId }),
+      ).resolves.toMatchObject({
+        budget: { resources: [{ available: 6, committed: 4 }] },
+        history: {
+          entries: [{}, { policyEvidence: { decision: "approved" } }],
+        },
+      });
+    } finally {
+      await executor.close();
     }
   });
 });

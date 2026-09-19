@@ -11,6 +11,8 @@ export const SDK_PRODUCTION_MODULES = [
   "index",
   "keynes",
   "local/runtime",
+  "local/install",
+  "local/pglite-command-executor",
   "local/sqlite-command-executor",
   "local/sqlite-store",
   "policy/authoring",
@@ -34,4 +36,9 @@ export const SDK_PRODUCTION_MODULES = [
   "remote/references",
   "remote/retry",
   "sdk-errors",
+] as const;
+
+export const SDK_PRODUCTION_ASSETS = [
+  "local/assets/0001-baseline.sql",
+  "local/assets/installation-record.json",
 ] as const;

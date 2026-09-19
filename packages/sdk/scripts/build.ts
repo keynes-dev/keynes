@@ -1,9 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { access, mkdtemp, readdir, rename, rm } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
+import {
+  access,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rename,
+  rm,
+} from "node:fs/promises";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SDK_PRODUCTION_MODULES } from "./production-modules.ts";
+import {
+  SDK_PRODUCTION_ASSETS,
+  SDK_PRODUCTION_MODULES,
+} from "./production-modules.ts";
 
 const sdkRoot = fileURLToPath(new URL("..", import.meta.url));
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
@@ -11,7 +22,20 @@ const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const expectedFiles = SDK_PRODUCTION_MODULES.flatMap((path) => [
   `${path}.d.ts`,
   `${path}.js`,
-]).sort();
+])
+  .concat(SDK_PRODUCTION_ASSETS)
+  .sort();
+
+const canonicalAssets = {
+  "local/assets/0001-baseline.sql": resolve(
+    sdkRoot,
+    "../postgresql/migrations/0001-baseline.sql",
+  ),
+  "local/assets/installation-record.json": resolve(
+    sdkRoot,
+    "../postgresql/generated/installation-record.json",
+  ),
+} as const satisfies Record<(typeof SDK_PRODUCTION_ASSETS)[number], string>;
 
 interface BuildSdkOptions {
   readonly root?: string;
@@ -25,10 +49,19 @@ export async function buildSdk(options: BuildSdkOptions = {}): Promise<void> {
   const stagedDist = resolve(stageRoot, "dist");
   try {
     await compileDistribution(stagedDist);
+    await copyCanonicalAssets(stagedDist);
     await validateDistribution(stagedDist);
     await replaceDistribution(stagedDist, resolve(root, "dist"));
   } finally {
     await rm(stageRoot, { recursive: true, force: true });
+  }
+}
+
+async function copyCanonicalAssets(root: string): Promise<void> {
+  for (const asset of SDK_PRODUCTION_ASSETS) {
+    const destination = resolve(root, asset);
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(canonicalAssets[asset], destination);
   }
 }
 

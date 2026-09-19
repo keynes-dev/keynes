@@ -1,5 +1,15 @@
 import { registerBudgetContractTests } from "@keynes/contracts/contract-tests";
+import { describe } from "vitest";
 
-import { openSqliteContractTestHost } from "./test-host.js";
+import {
+  openPgliteContractTestHost,
+  openSqliteContractTestHost,
+} from "./test-host.js";
 
-registerBudgetContractTests(openSqliteContractTestHost);
+describe("SQLite shared contract", () => {
+  registerBudgetContractTests(openSqliteContractTestHost);
+});
+
+describe("PGlite shared contract", () => {
+  registerBudgetContractTests(openPgliteContractTestHost);
+});

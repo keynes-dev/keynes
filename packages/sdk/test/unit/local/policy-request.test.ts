@@ -1,3 +1,4 @@
+import { rootResources } from "@keynes/contracts/contract-tests";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,6 +9,8 @@ import {
   type PolicyDefinition,
   type PolicySet,
 } from "../../../src/index.js";
+import { createKeynesClient } from "../../../src/generated/client.js";
+import { openPgliteCommandExecutor as openCanonicalExecutor } from "../../../src/local/pglite-command-executor.js";
 
 const resources = {
   tokens: { unit: "token", accountingBehavior: "consumable" },
@@ -584,6 +587,72 @@ describe("local governed Budget requests", () => {
       });
     } finally {
       await keynes.close();
+    }
+  });
+
+  it("evaluates compiled arithmetic and Context through canonical SQL", async () => {
+    const policy = ceilingPolicy({
+      name: "canonical_arithmetic",
+      revision: 1,
+      reason: "canonical_limit",
+      ceiling: "least(available.amount, requested.amount + context.limit)",
+    });
+    const executor = await openCanonicalExecutor();
+    const client = createKeynesClient(executor);
+    try {
+      const rootInput = rootResources([
+        {
+          definition: {
+            canonicalName: "tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          amount: 10,
+        },
+      ]);
+      await client.defineResources({
+        commandId: "10000000-0000-4000-8000-000000000091",
+        definitions: rootInput.definitions,
+      });
+      const root = await client.createBudget({
+        commandId: "20000000-0000-4000-8000-000000000091",
+        ...rootInput,
+        policies: [policy],
+      });
+      const resourceTypeId =
+        root.budget.resources[0]?.resourceType.resourceTypeId;
+      if (resourceTypeId === undefined) {
+        throw new Error("canonical root must project its Resource");
+      }
+
+      await expect(
+        client.requestBudget({
+          commandId: "30000000-0000-4000-8000-000000000091",
+          parentBudgetId: root.budget.budgetId,
+          resources: [{ resourceTypeId, amount: 4 }],
+          context: { limit: 2, segment: "standard" },
+        }),
+      ).resolves.toMatchObject({
+        kind: "approved",
+        policyEvidence: {
+          context: { limit: 2, segment: "standard" },
+          policies: [
+            {
+              name: "canonical_arithmetic",
+              rows: [
+                {
+                  resource: "tokens",
+                  ceiling: 6,
+                  reason: "canonical_limit",
+                },
+              ],
+            },
+          ],
+          decision: "approved",
+        },
+      });
+    } finally {
+      await executor.close();
     }
   });
 });

@@ -4,7 +4,7 @@ import type { ResourceDefinitions } from "../resources.js";
 import { createKeynesClient } from "../generated/client.js";
 import { CommittedResponseLostError } from "../replay.js";
 import { KeynesSdkError } from "../sdk-errors.js";
-import { openSqliteCommandExecutor } from "./sqlite-command-executor.js";
+import { openPgliteCommandExecutor } from "./pglite-command-executor.js";
 
 type RuntimeState = "open" | "closing" | "closed";
 
@@ -21,30 +21,12 @@ interface LocalRuntimeHost {
   readonly close: () => Promise<void>;
 }
 
-const PRODUCT_TENANT_ID = "00000000-0000-4000-8000-000000000002";
-const PRODUCT_PRINCIPAL_ID = "00000000-0000-4000-8000-000000000201";
-const PRODUCT_INSTALLATION = {
-  tenantId: PRODUCT_TENANT_ID,
-  principals: [
-    {
-      principalId: PRODUCT_PRINCIPAL_ID,
-      permissions: [
-        "define_resource_type",
-        "create_root_budget",
-        "request_budget",
-        "settle_budget",
-        "read_budget",
-      ],
-    },
-  ],
-} as const;
-
 export async function openConfiguredRuntime(
   definitions: ResourceDefinitions,
 ): Promise<LocalRuntime> {
   let host: LocalRuntimeHost;
   try {
-    host = openLocalRuntimeHost();
+    host = await openLocalRuntimeHost();
   } catch (cause: unknown) {
     throw new KeynesSdkError("initialization_failed", {}, { cause });
   }
@@ -108,13 +90,10 @@ export function closeRuntime(runtime: LocalRuntime): Promise<void> {
   return runtime.closePromise;
 }
 
-function openLocalRuntimeHost(): LocalRuntimeHost {
-  const executor = openSqliteCommandExecutor(PRODUCT_INSTALLATION, {
-    tenantId: PRODUCT_TENANT_ID,
-    principalId: PRODUCT_PRINCIPAL_ID,
-  });
+async function openLocalRuntimeHost(): Promise<LocalRuntimeHost> {
+  const executor = await openPgliteCommandExecutor();
   return {
     client: createKeynesClient(executor),
-    close: async () => executor.close(),
+    close: () => executor.close(),
   };
 }

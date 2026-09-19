@@ -15,11 +15,41 @@ const workUnitResources = {
 
 afterEach(() => {
   vi.doUnmock("../../../src/local/runtime.js");
+  vi.doUnmock("../../../src/local/pglite-command-executor.js");
   vi.doUnmock("../../../src/local/sqlite-command-executor.js");
   vi.resetModules();
 });
 
 describe("configured local startup", () => {
+  it("awaits asynchronous PGlite acquisition before exposing the client", async () => {
+    vi.resetModules();
+    const acquired =
+      Promise.withResolvers<ReturnType<typeof openTestExecutor>>();
+    const openPgliteCommandExecutor = vi.fn(() => acquired.promise);
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor,
+    }));
+    const { createKeynes: createFreshKeynes } =
+      await import("../../../src/keynes.js");
+    const pending = createFreshKeynes({ resources: workUnitResources });
+    const executor = openTestExecutor();
+    let keynes: LocalKeynes<"workUnits"> | undefined;
+    try {
+      expect(pending).toBeInstanceOf(Promise);
+      expect(openPgliteCommandExecutor).toHaveBeenCalledOnce();
+      acquired.resolve(executor);
+      keynes = await pending;
+      await expect(
+        keynes.createBudget({ workUnits: 1 }),
+      ).resolves.toBeDefined();
+    } finally {
+      acquired.resolve(executor);
+      keynes ??= await pending;
+      await keynes.close();
+      executor.close();
+    }
+  });
+
   it("initializes isolated catalogs without Budget, holdings, history, or quantity", async () => {
     const hosts = installStartupHosts();
     const { createKeynes: createFreshKeynes } =
@@ -122,8 +152,8 @@ describe("configured local startup", () => {
     const open = vi.fn(() => {
       throw startupFailure;
     });
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor: open,
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: open,
     }));
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
@@ -262,11 +292,27 @@ describe("configured local startup", () => {
 function installStartupHosts(startupFailure?: Error) {
   vi.resetModules();
   const hosts: { store: SqliteStore; close: () => void }[] = [];
-  vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-    openSqliteCommandExecutor: (
-      ...args: Parameters<typeof openRealSqliteCommandExecutor>
-    ) => {
-      const [installation, context] = args;
+  const installation = {
+    tenantId: "00000000-0000-4000-8000-000000000002",
+    principals: [
+      {
+        principalId: "00000000-0000-4000-8000-000000000201",
+        permissions: [
+          "define_resource_type",
+          "create_root_budget",
+          "request_budget",
+          "settle_budget",
+          "read_budget",
+        ],
+      },
+    ],
+  } as const;
+  const context = {
+    tenantId: installation.tenantId,
+    principalId: installation.principals[0].principalId,
+  };
+  vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+    openPgliteCommandExecutor: async () => {
       const store = SqliteStore.open(installation);
       const executor = new SqliteCommandExecutor(store, context);
       const close = vi.fn(() => executor.close());
@@ -389,8 +435,8 @@ describe("local runtime lifecycle", () => {
   it("shares one failed close result and remains closed", async () => {
     const closeFailure = new Error("close failed");
     const executor = openTestExecutor();
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor: vi.fn(() => ({
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: vi.fn(async () => ({
         execute: (
           operation: Parameters<typeof executor.execute>[0],
           input: unknown,
@@ -434,18 +480,18 @@ describe("local runtime lifecycle", () => {
     }
   }, 15_000);
 
-  it("constructs the local runtime with one SQLite command executor", async () => {
+  it("constructs the local runtime with one PGlite command executor", async () => {
     const executor = openTestExecutor();
     const close = vi.fn(() => executor.close());
-    const openSqliteCommandExecutor = vi.fn(() => ({
+    const openPgliteCommandExecutor = vi.fn(async () => ({
       execute: (
         operation: Parameters<typeof executor.execute>[0],
         input: unknown,
       ) => executor.execute(operation, input),
       close,
     }));
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor,
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor,
     }));
 
     const { closeRuntime, openConfiguredRuntime } =
@@ -454,28 +500,8 @@ describe("local runtime lifecycle", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     });
 
-    expect(openSqliteCommandExecutor).toHaveBeenCalledOnce();
-    expect(openSqliteCommandExecutor).toHaveBeenCalledWith(
-      {
-        tenantId: "00000000-0000-4000-8000-000000000002",
-        principals: [
-          {
-            principalId: "00000000-0000-4000-8000-000000000201",
-            permissions: [
-              "define_resource_type",
-              "create_root_budget",
-              "request_budget",
-              "settle_budget",
-              "read_budget",
-            ],
-          },
-        ],
-      },
-      {
-        tenantId: "00000000-0000-4000-8000-000000000002",
-        principalId: "00000000-0000-4000-8000-000000000201",
-      },
-    );
+    expect(openPgliteCommandExecutor).toHaveBeenCalledOnce();
+    expect(openPgliteCommandExecutor).toHaveBeenCalledWith();
 
     await closeRuntime(runtime);
     expect(close).toHaveBeenCalledOnce();
@@ -512,8 +538,8 @@ describe("local runtime lifecycle", () => {
   it("retains configured definitions when root creation rolls back", async () => {
     const fault = failAtMutationStage("after_command_binding");
     const executor = openTestExecutor(fault.observe);
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor: vi.fn(() => executor),
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: vi.fn(async () => executor),
     }));
     const { createKeynes: createFreshKeynes } =
       await import("../../../src/keynes.js");
@@ -535,10 +561,10 @@ describe("local runtime lifecycle", () => {
     }
   });
 
-  it("retains a SQLite schema initialization failure", async () => {
+  it("retains a PGlite schema initialization failure", async () => {
     const startupFailure = new Error("schema initialization failed");
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor: vi.fn(() => {
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: vi.fn(async () => {
         throw startupFailure;
       }),
     }));
@@ -554,14 +580,14 @@ describe("local runtime lifecycle", () => {
     });
   });
 
-  it("retains SQLite schema initialization and cleanup failures", async () => {
+  it("retains PGlite schema initialization and cleanup failures", async () => {
     const startupFailure = new Error("schema initialization failed");
     const cleanupFailure = new Error("close failed");
-    vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-      openSqliteCommandExecutor: vi.fn(() => {
+    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+      openPgliteCommandExecutor: vi.fn(async () => {
         throw new AggregateError(
           [startupFailure, cleanupFailure],
-          "SQLite initialization and cleanup failed",
+          "PGlite initialization and cleanup failed",
           { cause: startupFailure },
         );
       }),

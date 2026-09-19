@@ -22,6 +22,7 @@ type FacadeMutationOperation = Exclude<
 >;
 
 afterEach(() => {
+  vi.doUnmock("../../../src/local/pglite-command-executor.js");
   vi.doUnmock("../../../src/local/sqlite-command-executor.js");
   vi.resetModules();
 });
@@ -245,14 +246,15 @@ async function loadHarness(
       captured.push(input);
     },
   );
-  vi.doMock("../../../src/local/sqlite-command-executor.js", () => ({
-    openSqliteCommandExecutor: () => ({
-      execute: faultingExecutor.execute,
-      close: () => {
-        close();
-        executor.close();
-      },
-    }),
+  const host = () => ({
+    execute: faultingExecutor.execute,
+    close: () => {
+      close();
+      executor.close();
+    },
+  });
+  vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
+    openPgliteCommandExecutor: async () => host(),
   }));
   const { createKeynes } = await import("../../../src/index.js");
   return { createKeynes, captured, close, store };

@@ -12,7 +12,10 @@ import { dirname, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildSdk } from "../../scripts/build.js";
-import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
+import {
+  SDK_PRODUCTION_ASSETS,
+  SDK_PRODUCTION_MODULES,
+} from "../../scripts/production-modules.ts";
 
 const temporaryRoots: string[] = [];
 
@@ -25,6 +28,28 @@ afterEach(async () => {
 });
 
 describe("SDK staged build", () => {
+  it("copies the canonical installation assets byte-for-byte", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-build-test-"));
+    temporaryRoots.push(root);
+
+    await buildSdk({ root, compileDistribution: writeProductionFiles });
+
+    for (const asset of SDK_PRODUCTION_ASSETS) {
+      const canonical = asset.endsWith(".sql")
+        ? resolve(
+            import.meta.dirname,
+            "../../../postgresql/migrations/0001-baseline.sql",
+          )
+        : resolve(
+            import.meta.dirname,
+            "../../../postgresql/generated/installation-record.json",
+          );
+      expect(await readFile(resolve(root, "dist", asset))).toEqual(
+        await readFile(canonical),
+      );
+    }
+  });
+
   it("includes every remote runtime module in the production manifest", () => {
     expect(SDK_PRODUCTION_MODULES).toEqual(
       expect.arrayContaining([

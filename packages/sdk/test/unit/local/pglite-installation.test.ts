@@ -1,12 +1,34 @@
 import { PGlite } from "@electric-sql/pglite";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 
-import installationRecord from "../../../../postgresql/generated/installation-record.json" with { type: "json" };
 import {
   installPglite,
   recheckPgliteInstallation,
 } from "../../../src/local/install.ts";
 import { openPgliteHost } from "../support/pglite-host.ts";
+
+const installationRecord: {
+  readonly contractDigest: string;
+  readonly expectedTargets: readonly string[];
+  readonly migrationSetDigest: string;
+  readonly migrations: readonly {
+    readonly contractDigest: string;
+    readonly id: string;
+    readonly sha256: string;
+  }[];
+  readonly policyProfileDigest: string;
+  readonly remoteProceduresDigest: string;
+  readonly serverVersionNum: string;
+} = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../postgresql/generated/installation-record.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 
 interface QueryResult<Row> {
   readonly rows: readonly Row[];

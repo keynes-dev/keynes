@@ -21,7 +21,10 @@ import { parseArgs } from "node:util";
 
 import { readPackageArchiveBytes } from "@keynes/testkit/archive";
 import { providerFreeEnvironment } from "@keynes/testkit/package";
-import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
+import {
+  SDK_PRODUCTION_ASSETS,
+  SDK_PRODUCTION_MODULES,
+} from "../../scripts/production-modules.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const installRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -32,6 +35,7 @@ export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
 const expectedProductionDependencies = {
+  "@electric-sql/pglite": "0.5.8",
   "@pgsql/types": "18.0.0",
   "decimal.js": "10.6.0",
   kysely: "0.29.5",
@@ -65,6 +69,9 @@ const requiredBundledPackageFiles = [
   "package/node_modules/libpg-query/wasm/index.js",
   "package/node_modules/libpg-query/wasm/libpg-query.js",
   "package/node_modules/libpg-query/wasm/libpg-query.wasm",
+  "package/node_modules/@electric-sql/pglite/dist/initdb.wasm",
+  "package/node_modules/@electric-sql/pglite/dist/pglite.data",
+  "package/node_modules/@electric-sql/pglite/dist/pglite.wasm",
 ] as const;
 
 const allowedPackageFiles = [
@@ -75,12 +82,14 @@ const allowedPackageFiles = [
     `package/dist/${path}.d.ts`,
     `package/dist/${path}.js`,
   ]),
+  ...SDK_PRODUCTION_ASSETS.map((path) => `package/dist/${path}`),
 ].sort();
 
 export interface QualificationArguments {
   readonly archivePath: string;
   readonly outputPath?: string;
   readonly authorizedDatabase?: true;
+  readonly observations?: true;
 }
 
 const PROVIDER_FREE_PACKAGE_CHECKS = [
@@ -100,7 +109,15 @@ const PROVIDER_FREE_PACKAGE_CHECKS = [
 
 type PackageCheck =
   | (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number]
+  | "canonical-assets"
+  | "local-pglite"
   | "authorized-database-walkthrough";
+
+interface LegacyLimitOutcome {
+  readonly actual: number;
+  readonly limit: number;
+  readonly outcome: "passed" | "failed";
+}
 
 export interface QualificationResult {
   readonly schemaVersion: "keynes.package-test.sdk/v1";
@@ -126,6 +143,10 @@ export interface QualificationResult {
   };
   readonly checks: readonly PackageCheck[];
   readonly outcome: "passed";
+  readonly legacyLimits: {
+    readonly archiveBytes: LegacyLimitOutcome;
+    readonly productionBytes: LegacyLimitOutcome;
+  };
   readonly exclusions: {
     readonly hostedMatrix: "NOT RUN";
     readonly authorizedRemoteDatabase: "NOT RUN";
@@ -158,6 +179,7 @@ export function parseArguments(
       archive: { type: "string" },
       output: { type: "string" },
       "authorized-database": { type: "boolean" },
+      observations: { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -170,12 +192,14 @@ export function parseArguments(
     if (
       token.name !== "archive" &&
       token.name !== "output" &&
-      token.name !== "authorized-database"
+      token.name !== "authorized-database" &&
+      token.name !== "observations"
     )
       throw new Error(`Unknown argument ${token.rawName}`);
     if (token.inlineValue === true)
       throw new Error(`Unknown argument ${normalized[token.index]}`);
-    if (token.name === "authorized-database") continue;
+    if (token.name === "authorized-database" || token.name === "observations")
+      continue;
     if (token.value === undefined || token.value.startsWith("--"))
       throw new Error(`${token.rawName} requires a path`);
   }
@@ -187,12 +211,17 @@ export function parseArguments(
   const authorizedDatabaseTokens = optionTokens.filter(
     (token) => token.name === "authorized-database",
   );
+  const observationTokens = optionTokens.filter(
+    (token) => token.name === "observations",
+  );
   if (archiveTokens.length > 1)
     throw new Error("--archive may be provided only once");
   if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
   if (authorizedDatabaseTokens.length > 1)
     throw new Error("--authorized-database may be provided only once");
+  if (observationTokens.length > 1)
+    throw new Error("--observations may be provided only once");
   const archive = archiveTokens[0]?.value;
   const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
@@ -204,6 +233,7 @@ export function parseArguments(
     ...(authorizedDatabaseTokens.length === 0
       ? {}
       : { authorizedDatabase: true as const }),
+    ...(observationTokens.length === 0 ? {} : { observations: true as const }),
   };
 }
 
@@ -260,14 +290,17 @@ export async function qualifyArchive(
 ): Promise<QualificationResult> {
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
-  validateSizes({
-    compressedBytes: archive.compressedBytes,
-    productionBytes: 0,
-  });
+  if (args.observations !== true) {
+    validateSizes({
+      compressedBytes: archive.compressedBytes,
+      productionBytes: 0,
+    });
+  }
 
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
+    { enforceLegacyLimits: args.observations !== true },
   );
   const consumer = resolve(external.root, "build/consumer.mjs");
   const execution = await Promise.resolve()
@@ -340,11 +373,17 @@ export async function qualifyArchive(
     },
     checks: [
       ...PROVIDER_FREE_PACKAGE_CHECKS,
+      "canonical-assets",
+      "local-pglite",
       ...(args.authorizedDatabase === true
         ? (["authorized-database-walkthrough"] as const)
         : []),
     ],
     outcome: "passed",
+    legacyLimits: {
+      archiveBytes: limitOutcome(archive.compressedBytes, ARCHIVE_LIMIT_BYTES),
+      productionBytes: limitOutcome(productionBytes, PRODUCTION_LIMIT_BYTES),
+    },
     exclusions: {
       hostedMatrix: "NOT RUN",
       authorizedRemoteDatabase: "NOT RUN",
@@ -353,6 +392,10 @@ export async function qualifyArchive(
       productionReadiness: "NOT RUN",
     },
   };
+}
+
+function limitOutcome(actual: number, limit: number): LegacyLimitOutcome {
+  return { actual, limit, outcome: actual <= limit ? "passed" : "failed" };
 }
 
 export async function writeQualificationResult(
@@ -456,6 +499,14 @@ export async function installExternalConsumer(
     const installedPgConnectionString = await realpath(
       installedRequire.resolve("pg-connection-string"),
     );
+    const installedPgliteRoot = await realpath(
+      resolve(installedPackage, "node_modules/@electric-sql/pglite"),
+    );
+    const installedPgliteAssets = await Promise.all(
+      ["initdb.wasm", "pglite.data", "pglite.wasm"].map((name) =>
+        realpath(resolve(installedPgliteRoot, "dist", name)),
+      ),
+    );
     const installedParserWasm = await realpath(
       resolve(dirname(installedParserEntry), "libpg-query.wasm"),
     );
@@ -466,11 +517,19 @@ export async function installExternalConsumer(
     assertWithin(installedParserRoot, installedParserWasm);
     assertWithin(externalRoot, installedPg);
     assertWithin(externalRoot, installedPgConnectionString);
+    assertWithin(externalRoot, installedPgliteRoot);
     assertWithin(
       await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
       installedParserTypes,
     );
     assertWithin(externalRoot, installedParserWasm);
+    for (const asset of installedPgliteAssets) {
+      assertWithin(installedPgliteRoot, asset);
+      const assetStat = await stat(asset);
+      if (!assetStat.isFile() || assetStat.size === 0) {
+        throw new Error(`Installed PGlite asset is missing or empty: ${asset}`);
+      }
+    }
     const parserWasmStat = await stat(installedParserWasm);
     if (!parserWasmStat.isFile() || parserWasmStat.size === 0) {
       throw new Error("Installed libpg-query parser WASM is missing or empty");
@@ -521,6 +580,31 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
       normalizeLineEndings(repositoryLicense)
   ) {
     throw new Error("Archive license differs from the repository license");
+  }
+  const canonicalAssets = [
+    [
+      "package/dist/local/assets/0001-baseline.sql",
+      resolve(
+        repositoryRoot,
+        "packages/postgresql/migrations/0001-baseline.sql",
+      ),
+    ],
+    [
+      "package/dist/local/assets/installation-record.json",
+      resolve(
+        repositoryRoot,
+        "packages/postgresql/generated/installation-record.json",
+      ),
+    ],
+  ] as const;
+  for (const [archivePath, canonicalPath] of canonicalAssets) {
+    const packaged = entries.find((entry) => entry.path === archivePath);
+    if (
+      packaged === undefined ||
+      !packaged.body.equals(await readFile(canonicalPath))
+    ) {
+      throw new Error(`Archive canonical asset differs: ${archivePath}`);
+    }
   }
 
   const manifest = entries.find(

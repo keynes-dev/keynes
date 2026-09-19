@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";
 
 const setupResources = {
   setupUnits: { unit: "unit", accountingBehavior: "consumable" },
 };
+
+afterEach(() => {
+  vi.doUnmock("../../../src/local/pglite-command-executor.js");
+  vi.resetModules();
+});
 
 describe("local Keynes facade", () => {
   it("attributes empty raw definitions to the invoked operation", async () => {
@@ -451,9 +456,11 @@ describe("local Keynes facade", () => {
       if (!(conflict instanceof KeynesError)) {
         throw new Error("expected a KeynesError");
       }
-      expect(JSON.stringify(conflict.details)).toBe(
-        '{"resource":"usdCents","existing":1,"attempted":2}',
-      );
+      expect(conflict.details).toEqual({
+        resource: "usdCents",
+        existing: 1,
+        attempted: 2,
+      });
     } finally {
       await keynes.close();
     }

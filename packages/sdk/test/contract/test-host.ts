@@ -12,9 +12,12 @@ import {
   createRemoteKeynesClient,
   type RemoteCommandExecutor,
 } from "../../src/generated/client.js";
+import type { PgliteDatabase } from "../../src/local/install.js";
+import { PgliteCommandExecutor } from "../../src/local/pglite-command-executor.js";
 import { SqliteCommandExecutor } from "../../src/local/sqlite-command-executor.js";
 import { SqliteStore } from "../../src/local/sqlite-store.js";
 import { CommittedResponseLostError } from "../../src/replay.js";
+import { openPgliteHost } from "../unit/support/pglite-host.js";
 
 const FIXTURE_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -125,6 +128,66 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
   };
 }
 
+export async function openPgliteContractTestHost(): Promise<ContractTestHost> {
+  const host = await openPgliteHost();
+  try {
+    await installFixturePermissions(host.database);
+  } catch (error: unknown) {
+    try {
+      await host.close();
+    } catch (cleanupFailure: unknown) {
+      throw new AggregateError(
+        [error, cleanupFailure],
+        "PGlite fixture initialization and cleanup failed",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+
+  return {
+    async inspectState() {
+      const result = await host.database.query<
+        Awaited<ReturnType<ContractTestHost["inspectState"]>>
+      >(`
+        select
+          (select count(*)::integer from keynes_internal.resource_types) as resources,
+          (select count(*)::integer from keynes_internal.commands where result is not null) as commands,
+          (select count(*)::integer from keynes_internal.budgets) as budgets,
+          (select count(*)::integer from keynes_internal.budget_resources) as holdings,
+          (select count(*)::integer from keynes_internal.budget_history_entries) as history,
+          (select coalesce(sum(allocated_amount), 0)::double precision from keynes_internal.budget_resources) as quantity
+      `);
+      const state = result.rows[0];
+      if (state === undefined)
+        throw new Error("Missing authority state counts");
+      return state;
+    },
+    clientFor(fixture, options) {
+      const executor = new PgliteCommandExecutor(host.database, {
+        tenantId: FIXTURE_TENANT_ID,
+        principalId: FIXTURE_PRINCIPALS[fixture],
+        checkpoint: options?.checkpoint,
+      });
+      let forbidResourceWrites = options?.forbidResourceWrites ?? false;
+      const caller = loseCommittedResponseOnce(
+        {
+          async execute(operation, input) {
+            if (forbidResourceWrites) {
+              await installResourceWriteProhibition(host.database);
+              forbidResourceWrites = false;
+            }
+            return executor.execute(operation, input);
+          },
+        },
+        options,
+      );
+      return createContractClient(caller);
+    },
+    close: host.close,
+  };
+}
+
 export async function openRemoteContractTestHost(
   executor: RemoteCommandExecutor,
   closeExecutor: () => Promise<void> = async () => undefined,
@@ -151,4 +214,34 @@ function loseCommittedResponseOnce(
       return result;
     },
   };
+}
+
+async function installFixturePermissions(
+  database: PgliteDatabase,
+): Promise<void> {
+  for (const principal of FIXTURE_INSTALLATION.principals) {
+    for (const permission of principal.permissions) {
+      await database.query(
+        `insert into keynes_internal.principal_permissions
+           (tenant_id, principal_id, permission)
+         values ($1, $2, $3)
+         on conflict do nothing`,
+        [FIXTURE_TENANT_ID, principal.principalId, permission],
+      );
+    }
+  }
+}
+
+async function installResourceWriteProhibition(
+  database: PgliteDatabase,
+): Promise<void> {
+  await database.exec(`
+    create function keynes_internal.forbid_resource_write_test()
+    returns trigger language plpgsql as $test$
+    begin raise exception 'private Resource write prohibition'; end;
+    $test$;
+    create trigger forbid_resource_write_test before insert or update or delete
+    on keynes_internal.resource_types for each statement
+    execute function keynes_internal.forbid_resource_write_test();
+  `);
 }
