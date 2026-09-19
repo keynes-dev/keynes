@@ -13,6 +13,7 @@ import {
   PGLITE_AGGREGATE,
   runSqlite,
   runSqlitePostgresTests,
+  snapshot,
   validateNativeEvidence,
   verifyEvidenceFiles,
   validateManifestIdentity,
@@ -23,6 +24,13 @@ beforeEach(() => {
   vi.stubEnv("GITHUB_EVENT_PATH", undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
+
+it("reads the installed PGlite version without package export access", async () => {
+  await expect(snapshot()).resolves.toMatchObject({
+    pgliteVersion: "0.5.8",
+    environment: { pglite: "0.5.8" },
+  });
+});
 
 function report(native = false) {
   const files = native

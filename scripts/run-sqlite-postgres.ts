@@ -293,8 +293,8 @@ async function command(executable: string, args: string[]): Promise<string> {
     await managed.terminate();
   }
 }
-async function snapshot(): Promise<SqlitePostgresSnapshot> {
-  const [commit, status, pnpm, lock, contractBytes, installation] =
+export async function snapshot(): Promise<SqlitePostgresSnapshot> {
+  const [commit, status, pnpm, lock, contractBytes, installation, pgliteBytes] =
     await Promise.all([
       command("git", ["rev-parse", "HEAD"]),
       command("git", ["status", "--porcelain", "--untracked-files=all"]),
@@ -307,8 +307,16 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       readFile(
         join(ROOT, "packages/postgresql/generated/installation-record.json"),
       ),
+      readFile(
+        join(
+          ROOT,
+          "packages/sdk/node_modules/@electric-sql/pglite/package.json",
+        ),
+        "utf8",
+      ),
     ]);
   const contract: unknown = JSON.parse(contractBytes);
+  const pglite: unknown = JSON.parse(pgliteBytes);
   if (
     !record(contract) ||
     typeof contract.digest !== "string" ||
@@ -323,9 +331,7 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       throw new Error("Missing installed version");
     return value.version;
   };
-  const pgliteVersion = version(
-    sdkRequire("@electric-sql/pglite/package.json"),
-  );
+  const pgliteVersion = version(pglite);
   return {
     commit,
     clean: status === "",
