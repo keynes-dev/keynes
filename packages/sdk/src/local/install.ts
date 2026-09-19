@@ -304,70 +304,136 @@ async function checkFunctions(
   database: PgliteConnection,
   assets: readonly InstallationAsset[],
 ): Promise<void> {
-  const expectedBodies = parseFunctionBodies(assets);
-  for (const expected of installationRecord.functions) {
-    const signature = `${expected.target}(${expected.argumentType})`;
-    const result = await database.query<{
-      readonly body: string;
-      readonly language: string;
-      readonly return_type: string;
-      readonly security_definer: boolean;
-      readonly settings: string[];
-    }>(
-      `select p.prosrc as body, l.lanname as language,
-              pg_get_function_result(p.oid) as return_type,
-              p.prosecdef as security_definer,
-              coalesce(p.proconfig, '{}'::text[]) as settings
-         from pg_proc p join pg_language l on l.oid = p.prolang
-        where p.oid = to_regprocedure($1)`,
-      [signature],
-    );
-    const actual = result.rows[0];
-    const body = expectedBodies.get(signature);
-    const settings = [`search_path=${expected.searchPath.join(", ")}`];
+  const expected = parseFunctions(assets);
+  const functions = await database.query<{
+    readonly object_name: string;
+    readonly body: string;
+    readonly language: string;
+    readonly return_type: string;
+    readonly security_definer: boolean;
+    readonly settings: string[];
+    readonly volatility: "i" | "s" | "v";
+  }>(
+    `select 'function:' || n.nspname || '.' || p.proname || '(' ||
+            replace(pg_get_function_identity_arguments(p.oid), ', ', ',') || ')' as object_name,
+            p.prosrc as body,
+            l.lanname as language,
+            pg_get_function_result(p.oid) as return_type,
+            p.prosecdef as security_definer,
+            coalesce(p.proconfig, '{}'::text[]) as settings,
+            p.provolatile as volatility
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       join pg_language l on l.oid = p.prolang
+      where n.nspname in ('keynes', 'keynes_internal')
+      order by object_name`,
+  );
+  for (const actual of functions.rows) {
+    const definition = expected.get(actual.object_name);
     if (
-      result.rows.length !== 1 ||
-      actual === undefined ||
-      body === undefined ||
-      actual.body.trim() !== body ||
-      actual.language !== expected.language ||
-      actual.return_type !== expected.returnType ||
-      actual.security_definer !== expected.securityDefiner ||
-      actual.settings.length !== settings.length ||
-      actual.settings.some((value, index) => value !== settings[index])
+      definition === undefined ||
+      actual.body.trim() !== definition.body ||
+      actual.language !== definition.language ||
+      actual.return_type !== definition.returnType ||
+      actual.security_definer !== definition.securityDefiner ||
+      actual.volatility !== definition.volatility ||
+      !sameStrings(actual.settings, definition.settings)
     ) {
-      throw incompatible(`function:${signature}`);
+      throw incompatible(actual.object_name);
     }
+  }
+  if (functions.rows.length !== expected.size) {
+    throw incompatible("function-inventory");
   }
 }
 
-function parseFunctionBodies(
+interface ExpectedFunction {
+  readonly body: string;
+  readonly language: string;
+  readonly returnType: string;
+  readonly securityDefiner: boolean;
+  readonly settings: readonly string[];
+  readonly volatility: "i" | "s" | "v";
+}
+
+function parseFunctions(
   assets: readonly InstallationAsset[],
-): ReadonlyMap<string, string> {
-  const bodies = new Map<string, string>();
-  const pattern =
-    /CREATE(?: OR REPLACE)? FUNCTION\s+([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)\s*\(([^)]*)\)\s*RETURNS\s+[^\n]+\n[\s\S]*?\nAS\s+(\$[a-z_]*\$)([\s\S]*?)\3;/giu;
+): ReadonlyMap<string, ExpectedFunction> {
+  const functions = new Map<string, ExpectedFunction>();
+  const createPattern =
+    /CREATE(?: OR REPLACE)? FUNCTION\s+([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\)\s*RETURNS\s+([^\n]+)\n([\s\S]*?)\nAS\s+(\$[a-z_]*\$)([\s\S]*?)\5;/giu;
+  const renamePattern =
+    /ALTER FUNCTION\s+([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\)\s+RENAME TO\s+([a-z_][a-z0-9_]*);/giu;
   for (const asset of assets) {
-    for (const match of asset.sql.matchAll(pattern)) {
-      const [, target, arguments_, , body] = match;
+    for (const match of asset.sql.matchAll(renamePattern)) {
+      const [, target, rawArguments, replacement] = match;
       if (
         target === undefined ||
-        arguments_ === undefined ||
+        rawArguments === undefined ||
+        replacement === undefined
+      ) {
+        throw incompatible(`migration:${asset.id}`);
+      }
+      const sourceName = functionObjectName(target, rawArguments);
+      const definition = functions.get(sourceName);
+      if (definition === undefined) throw incompatible(sourceName);
+      functions.delete(sourceName);
+      const schema = target.slice(0, target.indexOf("."));
+      functions.set(
+        functionObjectName(`${schema}.${replacement}`, rawArguments),
+        definition,
+      );
+    }
+    for (const match of asset.sql.matchAll(createPattern)) {
+      const [, target, rawArguments, rawReturnType, attributes, , body] = match;
+      if (
+        target === undefined ||
+        rawArguments === undefined ||
+        rawReturnType === undefined ||
+        attributes === undefined ||
         body === undefined
       ) {
         throw incompatible(`migration:${asset.id}`);
       }
-      bodies.set(`${target}(${normalizeArguments(arguments_)})`, body.trim());
+      const language = /(?:^|\n)LANGUAGE\s+([a-z]+)/iu.exec(attributes)?.[1];
+      if (language === undefined) throw incompatible(`function:${target}`);
+      const searchPath = /(?:^|\n)SET search_path\s*=\s*([^\n]+)/iu.exec(
+        attributes,
+      )?.[1];
+      functions.set(functionObjectName(target, rawArguments), {
+        body: body.trim(),
+        language: language.toLowerCase(),
+        returnType: rawReturnType.trim().toLowerCase(),
+        securityDefiner: /(?:^|\n)SECURITY DEFINER(?:\n|$)/iu.test(attributes),
+        settings:
+          searchPath === undefined ? [] : [`search_path=${searchPath.trim()}`],
+        volatility: /(?:^|\n)IMMUTABLE(?:\n|$)/iu.test(attributes)
+          ? "i"
+          : /(?:^|\n)STABLE(?:\n|$)/iu.test(attributes)
+            ? "s"
+            : "v",
+      });
     }
   }
-  return bodies;
+  return functions;
 }
 
-function normalizeArguments(arguments_: string): string {
-  return arguments_
+function functionObjectName(target: string, rawArguments: string): string {
+  const arguments_ = rawArguments
     .split(",")
-    .map((argument) => argument.trim().split(/\s+/u).at(-1))
+    .map((argument) => argument.trim().replace(/\s+/gu, " "))
     .join(",");
+  return `function:${target}(${arguments_})`;
+}
+
+function sameStrings(
+  actual: readonly string[],
+  expected: readonly string[],
+): boolean {
+  return (
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index])
+  );
 }
 
 async function checkPermissions(database: PgliteConnection): Promise<void> {

@@ -424,7 +424,10 @@ function readSourceRevision(): {
 export async function installExternalConsumer(
   archivePath: string,
   compressedBytes: number,
-  options: { readonly enforceLegacyLimits?: boolean } = {},
+  options: {
+    readonly enforceLegacyLimits?: boolean;
+    readonly runtimeEngine?: "sqlite" | "pglite";
+  } = {},
 ): Promise<ExternalConsumer> {
   await mkdir(tmpdir(), { recursive: true });
   const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-package-test-"));
@@ -499,14 +502,6 @@ export async function installExternalConsumer(
     const installedPgConnectionString = await realpath(
       installedRequire.resolve("pg-connection-string"),
     );
-    const installedPgliteRoot = await realpath(
-      resolve(installedPackage, "node_modules/@electric-sql/pglite"),
-    );
-    const installedPgliteAssets = await Promise.all(
-      ["initdb.wasm", "pglite.data", "pglite.wasm"].map((name) =>
-        realpath(resolve(installedPgliteRoot, "dist", name)),
-      ),
-    );
     const installedParserWasm = await realpath(
       resolve(dirname(installedParserEntry), "libpg-query.wasm"),
     );
@@ -517,17 +512,27 @@ export async function installExternalConsumer(
     assertWithin(installedParserRoot, installedParserWasm);
     assertWithin(externalRoot, installedPg);
     assertWithin(externalRoot, installedPgConnectionString);
-    assertWithin(externalRoot, installedPgliteRoot);
     assertWithin(
       await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
       installedParserTypes,
     );
     assertWithin(externalRoot, installedParserWasm);
-    for (const asset of installedPgliteAssets) {
-      assertWithin(installedPgliteRoot, asset);
-      const assetStat = await stat(asset);
-      if (!assetStat.isFile() || assetStat.size === 0) {
-        throw new Error(`Installed PGlite asset is missing or empty: ${asset}`);
+    if (options.runtimeEngine !== "sqlite") {
+      const installedPgliteRoot = await realpath(
+        resolve(installedPackage, "node_modules/@electric-sql/pglite"),
+      );
+      assertWithin(externalRoot, installedPgliteRoot);
+      for (const name of ["initdb.wasm", "pglite.data", "pglite.wasm"]) {
+        const asset = await realpath(
+          resolve(installedPgliteRoot, "dist", name),
+        );
+        assertWithin(installedPgliteRoot, asset);
+        const assetStat = await stat(asset);
+        if (!assetStat.isFile() || assetStat.size === 0) {
+          throw new Error(
+            `Installed PGlite asset is missing or empty: ${asset}`,
+          );
+        }
       }
     }
     const parserWasmStat = await stat(installedParserWasm);

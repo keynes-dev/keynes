@@ -148,7 +148,21 @@ describe("PGlite canonical installation", () => {
     await expect(
       recheckPgliteInstallation({ database: second }),
     ).rejects.toMatchObject({
-      check: "function:keynes.get_budget(jsonb)",
+      check: "function:keynes.get_budget(input jsonb)",
+      code: "incompatible_target",
+    });
+
+    const third = await createDatabase();
+    await installPglite({ database: third });
+    await third.exec(`
+      create or replace function keynes_internal.checkpoint(checkpoint_name text) returns void
+      language sql as 'select'
+    `);
+
+    await expect(
+      recheckPgliteInstallation({ database: third }),
+    ).rejects.toMatchObject({
+      check: "function:keynes_internal.checkpoint(checkpoint_name text)",
       code: "incompatible_target",
     });
   });

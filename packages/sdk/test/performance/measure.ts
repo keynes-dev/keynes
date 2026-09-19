@@ -11,7 +11,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { arch, platform, release, tmpdir } from "node:os";
+import { arch, hostname, platform, release, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -225,6 +225,9 @@ export function assertCompleteObservation(
   if (!isRecord(value) || !isRecord(value.engine)) {
     throw new Error("engine observation is missing engine identity");
   }
+  if (value.schemaVersion !== "keynes.package-test.sdk-observations/v2") {
+    throw new Error("engine observation has an unsupported schema version");
+  }
   const engine = value.engine.name;
   if (
     (engine !== "sqlite" && engine !== "pglite") ||
@@ -232,6 +235,22 @@ export function assertCompleteObservation(
     typeof value.engine.version !== "string"
   ) {
     throw new Error("engine observation has invalid engine identity");
+  }
+  if (!isRecord(value.environment)) {
+    throw new Error(`${engine} observation is missing its environment`);
+  }
+  for (const name of [
+    "os",
+    "release",
+    "architecture",
+    "nodeVersion",
+    "pnpmVersion",
+    "runnerName",
+    "hostIdentity",
+  ]) {
+    if (typeof value.environment[name] !== "string") {
+      throw new Error(`${engine} observation has invalid environment ${name}`);
+    }
   }
   if (!isRecord(value.installation)) {
     throw new Error(`${engine} observation is missing installation samples`);
@@ -338,20 +357,40 @@ export function assertCompleteObservation(
 
 export function assertComparableObservations(value: unknown): void {
   if (!isRecord(value)) throw new Error("engine comparison is missing");
-  for (const engine of ["sqlite", "pglite"] as const) {
-    const observation = value[engine];
-    if (!isRecord(observation) || observation.outcome === "failed") {
-      throw new Error(`${engine} observation is missing or failed`);
-    }
-    try {
-      assertCompleteObservation(observation);
-    } catch (error: unknown) {
-      throw new Error(`${engine} observation is incomplete`, { cause: error });
-    }
-    if (observation.engine.name !== engine) {
-      throw new Error(`${engine} observation has the wrong engine identity`);
+  const sqlite = requireObservation(value.sqlite, "sqlite");
+  const pglite = requireObservation(value.pglite, "pglite");
+  const environmentFields = [
+    "os",
+    "release",
+    "architecture",
+    "nodeVersion",
+    "pnpmVersion",
+    "runnerName",
+    "hostIdentity",
+  ] as const satisfies readonly (keyof ObservationRecord["environment"])[];
+  for (const field of environmentFields) {
+    if (sqlite.environment[field] !== pglite.environment[field]) {
+      throw new Error(`engine observations differ in environment ${field}`);
     }
   }
+}
+
+function requireObservation(
+  value: unknown,
+  engine: "sqlite" | "pglite",
+): ObservationRecord {
+  if (!isRecord(value) || value.outcome === "failed") {
+    throw new Error(`${engine} observation is missing or failed`);
+  }
+  try {
+    assertCompleteObservation(value);
+  } catch (error: unknown) {
+    throw new Error(`${engine} observation is incomplete`, { cause: error });
+  }
+  if (value.engine.name !== engine) {
+    throw new Error(`${engine} observation has the wrong engine identity`);
+  }
+  return value;
 }
 
 interface InstallationSample {
@@ -384,7 +423,7 @@ interface WorkloadBatch {
 }
 
 interface ObservationRecord {
-  readonly schemaVersion: "keynes.package-test.sdk-observations/v1";
+  readonly schemaVersion: "keynes.package-test.sdk-observations/v2";
   readonly subject: "@keynes/sdk";
   readonly sourceRevision: {
     readonly commit: string;
@@ -403,6 +442,7 @@ interface ObservationRecord {
     readonly nodeVersion: string;
     readonly pnpmVersion: string;
     readonly runnerName: string;
+    readonly hostIdentity: string;
   };
   readonly engine: {
     readonly name: "sqlite" | "pglite";
@@ -457,7 +497,7 @@ async function measureObservations(
   const external = await installExternalConsumer(
     args.archivePath,
     archiveStat.size,
-    { enforceLegacyLimits: false },
+    { enforceLegacyLimits: false, runtimeEngine: args.engine },
   );
   try {
     const worker = resolve(external.root, "measure-worker.mjs");
@@ -465,14 +505,12 @@ async function measureObservations(
       fileURLToPath(new URL("measure-worker.mjs", import.meta.url)),
       worker,
     );
-    const installer = fileURLToPath(
-      new URL("../../src/local/install.ts", import.meta.url),
-    );
+    const identity = runObservationIdentity(worker, external.root, args.engine);
     for (let index = 0; index < 3; index += 1) {
-      runObservationCold(worker, external.root, args.engine, installer);
+      runObservationCold(worker, external.root, args.engine);
     }
     const coldSamples = Array.from({ length: 30 }, () =>
-      runObservationCold(worker, external.root, args.engine, installer),
+      runObservationCold(worker, external.root, args.engine),
     );
     const workloads = [
       {
@@ -484,7 +522,6 @@ async function measureObservations(
             external.root,
             args.engine,
             "without-policy",
-            installer,
           ),
         ),
       },
@@ -497,12 +534,10 @@ async function measureObservations(
             external.root,
             args.engine,
             "with-policy",
-            installer,
           ),
         ),
       },
     ] as const;
-    const identity = observationIdentity(args.engine, coldSamples[0]);
     const failures = legacyThresholdFailures(
       archiveStat.size,
       external.productionBytes,
@@ -510,7 +545,7 @@ async function measureObservations(
       workloads,
     );
     const base = {
-      schemaVersion: "keynes.package-test.sdk-observations/v1" as const,
+      schemaVersion: "keynes.package-test.sdk-observations/v2" as const,
       subject: "@keynes/sdk" as const,
       sourceRevision: readSourceRevision(),
       archive: {
@@ -526,6 +561,10 @@ async function measureObservations(
         nodeVersion: process.version,
         pnpmVersion: commandOutput(pnpm, ["--version"], repositoryRoot),
         runnerName: process.env.RUNNER_NAME ?? "local",
+        hostIdentity: createHash("sha256")
+          .update(hostname())
+          .digest("hex")
+          .slice(0, 16),
       },
       engine: identity,
       installation: {
@@ -626,27 +665,23 @@ function installFreshConsumer(
   );
 }
 
-interface ColdWorkerObservation extends ColdObservation {
-  readonly runtimeEngine: "node:sqlite" | "pglite";
-  readonly version: string;
-  readonly serverVersionNum?: "180003";
-}
+type ColdWorkerObservation = ColdObservation;
 
 function runObservationCold(
   path: string,
   cwd: string,
   engine: "sqlite" | "pglite",
-  installer: string,
 ): ColdWorkerObservation {
-  const value =
-    engine === "sqlite"
-      ? workerOutput(path, "cold-first", cwd)
-      : workerOutput(path, "compatibility-cold-first", cwd, [
-          "without-policy",
-          installer,
-        ]);
+  const value = workerOutput(path, "cold-first", cwd, [engine]);
+  if (
+    value.kind !== "cold-first" ||
+    value.engine !== engine ||
+    value.closed !== true
+  ) {
+    throw new Error(`${engine} cold worker returned invalid output`);
+  }
   const peak = requiredRecord(value.peakSampling, "peakSampling");
-  const shared = {
+  return {
     firstRequestMilliseconds: requiredNumber(
       value.firstRequestMilliseconds,
       "firstRequestMilliseconds",
@@ -666,30 +701,6 @@ function runObservationCold(
     ),
     exitCode: 0 as const,
     cleanup: "passed" as const,
-  };
-  if (engine === "sqlite") {
-    return {
-      ...shared,
-      runtimeEngine: "node:sqlite",
-      version: requiredString(value.sqliteVersion, "sqliteVersion"),
-      engineInitializationMilliseconds: requiredNumber(
-        value.parserInitializationMilliseconds,
-        "parserInitializationMilliseconds",
-      ),
-      publicCreateMilliseconds: requiredNumber(
-        value.coldCreateMilliseconds,
-        "coldCreateMilliseconds",
-      ),
-    };
-  }
-  if (value.serverVersionNum !== "180003") {
-    throw new Error("PGlite worker did not report server_version_num 180003");
-  }
-  return {
-    ...shared,
-    runtimeEngine: "pglite",
-    version: requiredString(value.postgresVersion, "postgresVersion"),
-    serverVersionNum: "180003",
     engineInitializationMilliseconds: requiredNumber(
       value.engineInitializationMilliseconds,
       "engineInitializationMilliseconds",
@@ -706,15 +717,11 @@ function runObservationWorkload(
   cwd: string,
   engine: "sqlite" | "pglite",
   workload: "without-policy" | "with-policy",
-  installer: string,
 ): WorkloadBatch {
-  const value = workerOutput(
-    path,
-    engine === "sqlite" ? "steady" : "compatibility-steady",
-    cwd,
-    engine === "sqlite" ? [workload] : [workload, installer],
-  );
+  const value = workerOutput(path, "steady", cwd, [engine, workload]);
   if (
+    value.kind !== "steady" ||
+    value.engine !== engine ||
     value.workloadLabel !== workload ||
     value.policy !== (workload === "with-policy" ? "compiled" : "none") ||
     value.warmupCount !== 10 ||
@@ -740,24 +747,38 @@ function runObservationWorkload(
   };
 }
 
-function observationIdentity(
+function runObservationIdentity(
+  path: string,
+  cwd: string,
   engine: "sqlite" | "pglite",
-  sample: ColdWorkerObservation | undefined,
 ): ObservationRecord["engine"] {
-  if (sample === undefined)
-    throw new Error("Observation produced no cold sample");
+  const value = workerOutput(path, "identity", cwd, [engine]);
+  if (
+    value.kind !== "identity" ||
+    value.runtimeEngine !== (engine === "sqlite" ? "node:sqlite" : "pglite") ||
+    value.closed !== true
+  ) {
+    throw new Error(`${engine} identity worker returned invalid output`);
+  }
   return engine === "sqlite"
     ? {
         name: "sqlite",
         runtimeEngine: "node:sqlite",
-        version: sample.version,
+        version: requiredString(value.version, "SQLite version"),
       }
     : {
         name: "pglite",
         runtimeEngine: "pglite",
-        version: sample.version,
-        serverVersionNum: "180003",
+        version: requiredString(value.version, "PostgreSQL version"),
+        serverVersionNum: requirePostgresVersion(value.serverVersionNum),
       };
+}
+
+function requirePostgresVersion(value: unknown): "180003" {
+  if (value !== "180003") {
+    throw new Error("PGlite worker did not report server_version_num 180003");
+  }
+  return value;
 }
 
 function observationSummary(
@@ -891,7 +912,7 @@ function comparisonTable(
   const sqliteMetrics = comparisonMetrics(sqlite);
   const pgliteMetrics = comparisonMetrics(pglite);
   return {
-    schemaVersion: "keynes.package-test.sdk-comparison/v1" as const,
+    schemaVersion: "keynes.package-test.sdk-comparison/v2" as const,
     sqliteRun: {
       archiveSha256: sqlite.archive.sha256,
       sourceRevision: sqlite.sourceRevision,
@@ -1290,12 +1311,12 @@ function runColdWorker(
   readonly shutdownMilliseconds: number;
   readonly runtimeIdentity: RuntimeIdentity;
 } {
-  const value = workerOutput(path, "cold-first", cwd);
+  const value = workerOutput(path, "cold-first", cwd, ["sqlite"]);
   if (
     value.kind !== "cold-first" ||
-    !isFiniteNonNegative(value.parserInitializationMilliseconds) ||
+    !isFiniteNonNegative(value.engineInitializationMilliseconds) ||
     !isFiniteNonNegative(value.readyRssBytes) ||
-    !isFiniteNonNegative(value.coldCreateMilliseconds) ||
+    !isFiniteNonNegative(value.publicCreateMilliseconds) ||
     !isFiniteNonNegative(value.firstRequestMilliseconds) ||
     !isFiniteNonNegative(value.shutdownMilliseconds) ||
     value.runtimeEngine !== "node:sqlite" ||
@@ -1306,9 +1327,9 @@ function runColdWorker(
     throw new Error("Cold measurement worker returned invalid output");
   }
   return {
-    parserInitializationMilliseconds: value.parserInitializationMilliseconds,
+    parserInitializationMilliseconds: value.engineInitializationMilliseconds,
     readyRssBytes: value.readyRssBytes,
-    coldCreateMilliseconds: value.coldCreateMilliseconds,
+    coldCreateMilliseconds: value.publicCreateMilliseconds,
     firstRequestMilliseconds: value.firstRequestMilliseconds,
     shutdownMilliseconds: value.shutdownMilliseconds,
     runtimeIdentity: {
@@ -1339,7 +1360,7 @@ function assertSameRuntimeIdentity(
 }
 
 function runSteadyWorker(path: string, cwd: string): number[] {
-  const value = workerOutput(path, "steady", cwd);
+  const value = workerOutput(path, "steady", cwd, ["sqlite", "without-policy"]);
   if (
     value.kind !== "steady" ||
     value.warmupCount !== 10 ||

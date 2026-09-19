@@ -39,7 +39,7 @@ Expected after implementation: paired command identifies PGlite and native Postg
 ```sh
 pnpm pack:sdk
 pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-109/attempt-001/package.json --observations
-pnpm measure:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-109/attempt-001/measurements.json --observations
+pnpm measure:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/key-109/attempt-001/measurements.json --observations --engine pglite --compare .artifacts/key-109/attempt-001/sqlite-baseline/measurements.json
 ```
 
 The planned observations option preserves structural/package/consumer failures while reporting legacy size thresholds separately. Smoke the packed SDK in a clean consumer using only public imports, with canonical assets present and no sibling workspace runtime resolution. Confirm Node 24 and 26 compatibility separately and retain each environment's result. No full archive release qualification is claimed.

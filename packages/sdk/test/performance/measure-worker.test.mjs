@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { cp, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -57,19 +56,32 @@ function run(command, args) {
 }
 
 describe("SDK package measurement worker", () => {
-  it("reports exact runtime identity, cold measurements, and shutdown once", () => {
-    const result = runWorker("cold-first");
+  it("reports the installed PGlite runtime identity", () => {
+    const result = runWorker("identity", "pglite");
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      kind: "identity",
+      runtimeEngine: "pglite",
+      nodeVersion: process.version,
+      version: expect.any(String),
+      serverVersionNum: "180003",
+      closed: true,
+    });
+  }, 15_000);
+
+  it("reports public cold measurements and shutdown once", () => {
+    const result = runWorker("cold-first", "pglite");
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout.trim().split("\n")).toHaveLength(1);
     const output = JSON.parse(result.stdout);
     expect(output).toMatchObject({
       kind: "cold-first",
-      runtimeEngine: "node:sqlite",
+      engine: "pglite",
+      runtimeEngine: "pglite",
       nodeVersion: process.version,
-      sqliteVersion: installedSqliteVersion(),
-      parserInitializationMilliseconds: expect.any(Number),
+      engineInitializationMilliseconds: expect.any(Number),
       readyRssBytes: expect.any(Number),
-      coldCreateMilliseconds: expect.any(Number),
+      publicCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),
       peakRssBytes: expect.any(Number),
       peakSampling: {
@@ -90,12 +102,13 @@ describe("SDK package measurement worker", () => {
   }, 15_000);
 
   it("excludes ten warmups and reports one hundred steady requests", () => {
-    const result = runWorker("steady");
+    const result = runWorker("steady", "pglite", "without-policy");
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout.trim().split("\n")).toHaveLength(1);
     const output = JSON.parse(result.stdout);
     expect(output).toMatchObject({
       kind: "steady",
+      engine: "pglite",
       workloadLabel: "without-policy",
       policy: "none",
       warmupCount: 10,
@@ -113,7 +126,7 @@ describe("SDK package measurement worker", () => {
   }, 15_000);
 
   it("labels the compiled-Policy workload and keeps its samples separate", () => {
-    const result = runWorker("steady", "with-policy");
+    const result = runWorker("steady", "pglite", "with-policy");
     expect(result.status, result.stderr).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output).toMatchObject({
@@ -129,29 +142,16 @@ describe("SDK package measurement worker", () => {
   }, 15_000);
 
   it("rejects unknown modes without a structured success message", () => {
-    const result = runWorker("unknown");
+    const result = runWorker("unknown", "pglite");
     expect(result.status).not.toBe(0);
     expect(result.stdout).toBe("");
   });
 });
 
-function runWorker(mode, workload) {
-  return spawnSync(
-    process.execPath,
-    [workerPath, mode, workload].filter(Boolean),
-    {
-      cwd: external.root,
-      encoding: "utf8",
-      timeout: 15_000,
-    },
-  );
-}
-
-function installedSqliteVersion() {
-  const database = new DatabaseSync(":memory:", { allowExtension: false });
-  try {
-    return database.prepare("SELECT sqlite_version() AS version").get().version;
-  } finally {
-    database.close();
-  }
+function runWorker(...args) {
+  return spawnSync(process.execPath, [workerPath, ...args], {
+    cwd: external.root,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
 }

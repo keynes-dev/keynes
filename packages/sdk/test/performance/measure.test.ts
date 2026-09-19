@@ -330,6 +330,30 @@ describe("SDK package measurement controller", () => {
     ).toThrow("pglite");
   });
 
+  it("requires both observations to come from the same environment", () => {
+    const sqlite = validObservationInput();
+    for (const field of [
+      "os",
+      "release",
+      "architecture",
+      "nodeVersion",
+      "pnpmVersion",
+      "runnerName",
+      "hostIdentity",
+    ] as const) {
+      const pglite = validObservationInput("pglite");
+      expect(() =>
+        invokeMeasurement("assertComparableObservations", {
+          sqlite,
+          pglite: {
+            ...pglite,
+            environment: { ...pglite.environment, [field]: "different" },
+          },
+        }),
+      ).toThrow(`environment ${field}`);
+    }
+  });
+
   it("keeps observation completeness separate from legacy thresholds", () => {
     const legacyOverLimit = createQualificationRecord({
       ...validRecordInput(),
@@ -431,6 +455,16 @@ function validObservationInput(engine: "sqlite" | "pglite" = "sqlite") {
     cleanup: "passed",
   };
   return {
+    schemaVersion: "keynes.package-test.sdk-observations/v2",
+    environment: {
+      os: "linux",
+      release: "test",
+      architecture: "x64",
+      nodeVersion: "v24.0.0",
+      pnpmVersion: "11.0.0",
+      runnerName: "test",
+      hostIdentity: "host",
+    },
     engine: {
       name: engine,
       runtimeEngine: engine === "sqlite" ? "node:sqlite" : "pglite",
