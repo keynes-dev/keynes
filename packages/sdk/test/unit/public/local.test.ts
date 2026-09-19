@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";
+
+import { mockLocalExecutor } from "../support/local-executor.js";
 
 const setupResources = {
   setupUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -13,7 +15,7 @@ afterEach(() => {
 
 describe("local Keynes facade", () => {
   it("attributes empty raw definitions to the invoked operation", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createValidationKeynes();
     try {
       for (const operation of ["createBudget", "defineResources"] as const) {
         const pending: unknown = Reflect.apply(keynes[operation], keynes, [
@@ -281,7 +283,7 @@ describe("local Keynes facade", () => {
   ])(
     "rejects malformed independent definitions asynchronously: %s",
     async (_name, definitions) => {
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createValidationKeynes();
       try {
         const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
           definitions,
@@ -578,7 +580,7 @@ describe("local Keynes facade", () => {
   );
 
   it("rejects definition fields that could override the derived canonical name", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createValidationKeynes();
     try {
       await expect(
         Reflect.apply(keynes.defineResources, keynes, [
@@ -599,7 +601,7 @@ describe("local Keynes facade", () => {
   it.each([null, { workUnits: null }])(
     "returns a stable error for malformed Resource definitions %#",
     async (definitions) => {
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createValidationKeynes();
       try {
         await expect(
           Reflect.apply(keynes.defineResources, keynes, [definitions]),
@@ -886,6 +888,21 @@ describe("local Keynes facade", () => {
     });
   });
 });
+
+async function createValidationKeynes() {
+  vi.resetModules();
+  const { execute } = mockLocalExecutor();
+  const { createKeynes: createFreshKeynes } =
+    await import("../../../src/index.js");
+  const keynes = await createFreshKeynes({
+    resources: {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    },
+  });
+  execute.mockClear();
+  onTestFinished(() => expect(execute).not.toHaveBeenCalled());
+  return keynes;
+}
 
 type InvocationOutcome =
   | { readonly kind: "returned"; readonly value: unknown }

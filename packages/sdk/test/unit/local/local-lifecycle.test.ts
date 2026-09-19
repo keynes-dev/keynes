@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createKeynes, type LocalKeynes } from "../../../src/index.js";
 import { openPgliteCommandExecutor } from "../../../src/local/pglite-command-executor.js";
 
+import { mockLocalExecutor } from "../support/local-executor.js";
+
 const workUnitResources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
 };
@@ -49,8 +51,7 @@ describe("configured local startup", () => {
     const startupFailure = new Error(
       "configured catalog initialization failed",
     );
-    const executor = await openPgliteCommandExecutor();
-    const close = vi.fn(() => executor.close());
+    const close = vi.fn(async () => undefined);
     vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
       openPgliteCommandExecutor: async () => ({
         execute: () => Promise.reject(startupFailure),
@@ -359,18 +360,7 @@ describe("local runtime lifecycle", () => {
   }, 15_000);
 
   it("constructs the local runtime with one PGlite command executor", async () => {
-    const executor = await openPgliteCommandExecutor();
-    const close = vi.fn(() => executor.close());
-    const open = vi.fn(async () => ({
-      execute: (
-        operation: Parameters<typeof executor.execute>[0],
-        input: unknown,
-      ) => executor.execute(operation, input),
-      close,
-    }));
-    vi.doMock("../../../src/local/pglite-command-executor.js", () => ({
-      openPgliteCommandExecutor: open,
-    }));
+    const { open, close, execute } = mockLocalExecutor();
 
     const { closeRuntime, openConfiguredRuntime } =
       await import("../../../src/local/runtime.js");
@@ -380,6 +370,7 @@ describe("local runtime lifecycle", () => {
 
     expect(open).toHaveBeenCalledOnce();
     expect(open).toHaveBeenCalledWith();
+    expect(execute).toHaveBeenCalledOnce();
 
     await closeRuntime(runtime);
     expect(close).toHaveBeenCalledOnce();
