@@ -108,15 +108,75 @@ The version change did not alter the baseline SQL, the lockfile, the contract di
 
 The native run covered installation, exact recheck, the shared Budget inventory, contention, caller-owned transactions, remote identity and permissions, recovery, Policy behavior, and rollback on the pinned 18.3 image. Installed SDK and TLS qualification, Hosted, PGlite, and the full paired acceptance remained `NOT RUN`.
 
-## Evidence status after Phase 1
+## Phase 3 compatibility checkpoint
+
+Phase 3 pinned `@electric-sql/pglite` `0.5.8` and exercised the unchanged canonical baseline through a private, role-neutral in-memory host. The installer reads the canonical generated record and SQL bytes, verifies the migration checksum, requires `server_version_num` `180003`, rejects partial targets, writes the canonical ledger and identity in the installation transaction, and rechecks the exact object inventory and public procedure definitions. It does not claim native role, ownership, grant, recovery, contention or caller-transaction qualification.
+
+The test-first run initially failed at the three planned seams: the PGlite dependency, Local installer/host and observation helpers did not exist. After the dependency was pinned, the focused run still failed for the missing installer and measurement exports. The first implementation run also established that the canonical numeric function returns the exact scaled text `0.300000000000000000`; the test now preserves that PostgreSQL result rather than shortening it.
+
+The compatibility suite passed fresh install, exact idempotent recheck, migration checksum drift, function-body drift, stored digest/version drift, partial-target rejection, all seven deferred public procedure bodies, canonical JSON, exact numeric behavior, transaction-local context cleanup and owned-engine cleanup after failed initialization. PGlite reported `server_version_num` `180003` and `PostgreSQL 18.3 (PGlite 0.5.8)`.
+
+### Retained inputs and attempts
+
+| Identity                    | SQLite baseline                                                    | PGlite compatibility                                                                          |
+| --------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Attempt                     | `.artifacts/key-109/attempt-003/sqlite-baseline/`                  | `.artifacts/key-109/attempt-003/pglite-compatibility/`                                        |
+| Archive SHA-256             | `30c26ddbce92bac74ab057b047af1fd5694da22eef7e3b59ad5556fac0ac2f68` | `d771915bd2db0eac62cef53c97a3398d1b7791840f22acd3091ef90d136a7b61`                            |
+| Archive bytes               | `1,003,014`                                                        | `9,804,639`                                                                                   |
+| Installed production bytes  | `5,026,607`                                                        | `30,463,966`                                                                                  |
+| Engine                      | `node:sqlite` `3.53.3`                                             | PGlite `0.5.8`, PostgreSQL `180003`                                                           |
+| Source boundary             | Clean revision `bbc8c43308f6f9ddff66f1c5a6fc354fba342253`          | Revision `bbc8c43308f6f9ddff66f1c5a6fc354fba342253` plus the Phase 3 implementation patch     |
+| Lockfile SHA-256            | `3953a03bb0112eb10fdeec2ce05fa886a5a1ac0b0fa7f5ec4a39d551a649360a` | `50eac528f417a43d30c38c2e04297e684d346a489856d360cb3c6ebf70648d53`                            |
+| Canonical SQL SHA-256       | `7b9da95c43edbff0a5cb89e34717c4482f859da1f37ed0424b40593478bb528e` | Same                                                                                          |
+| Installation-record SHA-256 | `2398c16bf2ecb0938d9fb837ec54821e518963d809b4d346d24244a5b1c385dd` | Same                                                                                          |
+| Observation record SHA-256  | `b8ef2d4c9e63170f24a111426f92babb9055e2ec93ec2581530aaa86361d8047` | `69e1576589a0014a0728444d0069e835f7a626eb09f72327dcf538633dc3c834`                            |
+| Historical envelope         | Passed                                                             | Failed `archiveBytes` and `readyRssBytes`; retained as observations, not adopted as a new SLA |
+
+Attempt 001 is retained because its detached SQLite worktree resolved Node `v25.9.0`, not the declared Node `v26.5.0` reference runtime. Attempt 002 used Node `v26.5.0`, pnpm `11.21.0`, macOS `25.5.0` and arm64 for both engines. Its successful records predate the Phase 3 Ponytail simplification and are superseded by attempt 003, which measured the exact final Phase 3 sources on the same runtime and host. Attempt 002 also retains two failed PGlite worker attempts: missing Resource definition setup and a wrong procedure target. No failure was overwritten or counted as a sample.
+
+The initial checkpoint used one worker and identical fixed counts: five isolated-prefilled offline installs, three discarded cold processes, 30 retained cold processes, ten warmup requests, and five fresh 100-request/settle batches for both no-Policy and compiled-Policy workloads. Each retained batch completed 200 commands. SQLite had to be packed before the dependency change, so the initial archive groups ran sequentially. The final Phase 6 paired run still must alternate engine order and compare the final PGlite-only public SDK archive; this compatibility table is not that final acceptance.
+
+### Initial compatibility observations
+
+| Metric                             | SQLite       | PGlite          | Absolute delta | Percentage delta |
+| ---------------------------------- | ------------ | --------------- | -------------- | ---------------- |
+| Archive bytes                      | 1,003,014    | 9,804,639       | +8,801,625     | +877.52%         |
+| Installed production bytes         | 5,026,607    | 30,463,966      | +25,437,359    | +506.05%         |
+| Median cached installation         | 307.91 ms    | 353.61 ms       | +45.69 ms      | +14.84%          |
+| Median public/compatibility create | 1.64 ms      | 20.10 ms        | +18.46 ms      | +1,128.11%       |
+| Median first request               | 0.32 ms      | 7.49 ms         | +7.17 ms       | +2,272.91%       |
+| Median sampled peak RSS            | 95,174,656 B | 1,007,452,160 B | +912,277,504 B | +958.53%         |
+| No-Policy request p95              | 4.11 ms      | 8.54 ms         | +4.43 ms       | +107.82%         |
+| No-Policy median throughput        | 1,095.97/s   | 407.06/s        | -688.92/s      | -62.86%          |
+| Compiled-Policy request p95        | 4.25 ms      | 16.46 ms        | +12.21 ms      | +287.62%         |
+| Compiled-Policy median throughput  | 1,007.64/s   | 212.49/s        | -795.15/s      | -78.91%          |
+| Median shutdown                    | 0.03 ms      | 0.94 ms         | +0.91 ms       | +2,929.59%       |
+
+These are local observations, not performance promises or claims of statistical significance. The PGlite archive is a dual-engine compatibility artifact: it includes PGlite's dependency closure while the public Local default remains SQLite. T016 owns the SDK-owned canonical asset archive, and T028 owns the final PGlite-only archive comparison.
+
+### Phase 3 verification
+
+| Command                                                                                                | Outcome                                                                                                  |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Focused T006/T007 red runs                                                                             | Failed at the intended missing dependency, installer/host and observation exports                        |
+| `pnpm --filter @keynes/sdk exec vitest run test/unit/local/pglite-installation.test.ts --maxWorkers=1` | Passed, 6 tests                                                                                          |
+| `pnpm --filter @keynes/sdk test:unit`                                                                  | Passed, 427 tests in 24 files                                                                            |
+| `pnpm --filter @keynes/sdk test:performance`                                                           | Passed, 17 tests in 2 files                                                                              |
+| `pnpm --filter @keynes/sdk typecheck`                                                                  | Passed                                                                                                   |
+| SQLite and PGlite `measure:package -- --observations ...` runs                                         | Passed with complete raw records and comparison; PGlite reported `180003`                                |
+| `pnpm --filter @keynes/sdk test:package:unit`                                                          | Expected transition failure: 8 assertions still enforce the pre-PGlite archive dependency/size inventory |
+
+The package-test failure is not waived as a final result. T014 adds the new asset/dependency assertions and T016 updates package qualification for the PGlite-only interim SDK while keeping legacy size outcomes separate. Full package qualification, shared behavior, public lifecycle, native rerun, paired qualification, hosted checks and final archives remain `NOT RUN`.
+
+## Evidence status after Phase 3
 
 | Lane                                                                                                         | Status                                             |
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | KEY-76 ancestry and starting identities                                                                      | Confirmed by repository inspection                 |
 | PostgreSQL 18.3 profile, image, SDK identity, and wrong-version rejection                                    | Passed in Phase 2                                  |
-| PGlite canonical installation, exact recheck, negative compatibility, and cleanup                            | `NOT RUN`                                          |
-| Unchanged SQLite archive retention and fresh baseline measurements                                           | `NOT RUN`                                          |
-| PGlite compatibility-host measurements                                                                       | `NOT RUN`                                          |
+| PGlite canonical installation, exact recheck, negative compatibility, and cleanup                            | Passed in Phase 3                                  |
+| Unchanged SQLite archive retention and fresh baseline measurements                                           | Passed in Phase 3                                  |
+| PGlite compatibility-host measurements                                                                       | Passed in Phase 3; final public archive rerun due  |
 | Shared Budget and Policy comparison on PGlite and native PostgreSQL                                          | `NOT RUN`                                          |
 | Local initialization, isolation, replay, response-loss retry, close, and drain                               | `NOT RUN`                                          |
 | Native contention, permissions, rollback, recovery, and caller-owned transactions                            | Passed for Phase 2; final rerun required           |

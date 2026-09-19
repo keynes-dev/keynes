@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import * as measurement from "./measure.js";
 import {
   assertNewOutputPath,
   assertWithinLimits,
@@ -204,6 +205,159 @@ describe("SDK package measurement controller", () => {
     });
     expect(() => assertWithinLimits(inclusiveCeilings)).not.toThrow();
   });
+
+  it("validates engine observations without mutating their raw samples", () => {
+    const input = validObservationInput();
+    const before = structuredClone(input);
+
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", input),
+    ).not.toThrow();
+    expect(input).toEqual(before);
+  });
+
+  it("requires every fixed installation, cold, and workload sample", () => {
+    const input = validObservationInput();
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        installation: {
+          ...input.installation,
+          samples: input.installation.samples.slice(1),
+        },
+      }),
+    ).toThrow("5 installation");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        coldSamples: input.coldSamples.slice(1),
+      }),
+    ).toThrow("30 cold");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        workloads: [
+          {
+            ...input.workloads[0],
+            batches: input.workloads[0].batches.slice(1),
+          },
+          input.workloads[1],
+        ],
+      }),
+    ).toThrow("5 batches");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        workloads: [
+          {
+            ...input.workloads[0],
+            batches: [
+              {
+                ...input.workloads[0].batches[0],
+                requestMilliseconds:
+                  input.workloads[0].batches[0].requestMilliseconds.slice(1),
+              },
+              ...input.workloads[0].batches.slice(1),
+            ],
+          },
+          input.workloads[1],
+        ],
+      }),
+    ).toThrow("100 requests");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        installation: {
+          ...input.installation,
+          cacheBoundary: "shared",
+          downloadTime: "included",
+        },
+      }),
+    ).toThrow("isolated-prefilled");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        coldSamples: [
+          { ...input.coldSamples[0], peakSampleCount: 0 },
+          ...input.coldSamples.slice(1),
+        ],
+      }),
+    ).toThrow("peak");
+  });
+
+  it("rejects failed engine processes and incomplete engine comparisons", () => {
+    const input = validObservationInput();
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        installation: {
+          ...input.installation,
+          samples: [
+            { elapsedMilliseconds: 10, exitCode: 1 },
+            ...input.installation.samples.slice(1),
+          ],
+        },
+      }),
+    ).toThrow("installation process");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...input,
+        coldSamples: [
+          { ...input.coldSamples[0], cleanup: "failed" },
+          ...input.coldSamples.slice(1),
+        ],
+      }),
+    ).toThrow("cleanup");
+    expect(() =>
+      invokeMeasurement("assertComparableObservations", {
+        sqlite: input,
+      }),
+    ).toThrow("pglite");
+    expect(() =>
+      invokeMeasurement("assertComparableObservations", {
+        sqlite: { outcome: "failed" },
+        pglite: validObservationInput("pglite"),
+      }),
+    ).toThrow("sqlite");
+    expect(() =>
+      invokeMeasurement("assertComparableObservations", {
+        sqlite: input,
+        pglite: {
+          ...validObservationInput("pglite"),
+          coldSamples: [],
+        },
+      }),
+    ).toThrow("pglite");
+  });
+
+  it("keeps observation completeness separate from legacy thresholds", () => {
+    const legacyOverLimit = createQualificationRecord({
+      ...validRecordInput(),
+      samples: {
+        ...validRecordInput().samples,
+        coldCreateMilliseconds: Array(30).fill(3_001),
+      },
+    });
+
+    expect(() => assertWithinLimits(legacyOverLimit)).toThrow(
+      "coldCreateMilliseconds",
+    );
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", validObservationInput()),
+    ).not.toThrow();
+  });
+
+  it("computes throughput and comparison deltas including zero baselines", () => {
+    expect(invokeMeasurement("commandsPerSecond", 200, 2_000)).toBe(100);
+    expect(invokeMeasurement("comparisonDelta", 100, 130)).toEqual({
+      absolute: 30,
+      percentage: 30,
+    });
+    expect(invokeMeasurement("comparisonDelta", 0, 7)).toEqual({
+      absolute: 7,
+      percentage: null,
+    });
+  });
 });
 
 function validRecordInput(): QualificationRecordInput {
@@ -266,4 +420,73 @@ async function temporaryDirectory(): Promise<string> {
   const path = await mkdtemp(resolve(tmpdir(), "keynes-measure-test-"));
   temporaryDirectories.push(path);
   return path;
+}
+
+function validObservationInput(engine: "sqlite" | "pglite" = "sqlite") {
+  const batch = {
+    requestMilliseconds: Array.from({ length: 100 }, (_, index) => index + 1),
+    elapsedMilliseconds: 2_000,
+    completedCommands: 200,
+    exitCode: 0,
+    cleanup: "passed",
+  };
+  return {
+    engine: {
+      name: engine,
+      runtimeEngine: engine === "sqlite" ? "node:sqlite" : "pglite",
+      version: engine === "sqlite" ? "3.49.1" : "18.3",
+    },
+    installation: {
+      cacheBoundary: "isolated-prefilled",
+      downloadTime: "excluded",
+      samples: Array.from({ length: 5 }, (_, index) => ({
+        elapsedMilliseconds: index + 1,
+        exitCode: 0,
+      })),
+    },
+    method: {
+      coldWarmupProcesses: 3,
+      coldProcesses: 30,
+      installationProcesses: 5,
+      steadyWarmupRequests: 10,
+      steadyBatches: 5,
+      requestsPerBatch: 100,
+      commandsPerRequest: 2,
+      peakSamplingIntervalMilliseconds: 5,
+    },
+    coldSamples: Array.from({ length: 30 }, (_, index) => ({
+      engineInitializationMilliseconds: index + 1,
+      publicCreateMilliseconds: index + 2,
+      firstRequestMilliseconds: index + 3,
+      readyRssBytes: index + 4,
+      peakRssBytes: index + 5,
+      peakSampleCount: 2,
+      heapUsedBytes: index + 6,
+      externalBytes: index + 7,
+      arrayBuffersBytes: index + 8,
+      shutdownMilliseconds: index + 9,
+      exitCode: 0,
+      cleanup: "passed",
+    })),
+    workloads: [
+      {
+        label: "without-policy",
+        policy: "none",
+        batches: Array.from({ length: 5 }, () => ({ ...batch })),
+      },
+      {
+        label: "with-policy",
+        policy: "compiled",
+        batches: Array.from({ length: 5 }, () => ({ ...batch })),
+      },
+    ],
+  };
+}
+
+function invokeMeasurement(name: string, ...args: readonly unknown[]): unknown {
+  const candidate = Reflect.get(measurement, name);
+  if (typeof candidate !== "function") {
+    throw new Error(`Missing planned measurement export ${name}`);
+  }
+  return Reflect.apply(candidate, undefined, args);
 }

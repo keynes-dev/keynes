@@ -32,6 +32,7 @@
     "test:hosted": "node test/system/run-hosted.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@pgsql/types": "18.0.0",
     "decimal.js": "10.6.0",
     "kysely": "0.29.5",
@@ -60,6 +61,7 @@
     "vitest": "4.1.11"
   },
   "bundledDependencies": [
+    "@electric-sql/pglite",
     "@pgsql/types",
     "decimal.js",
     "kysely",

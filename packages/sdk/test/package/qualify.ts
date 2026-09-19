@@ -381,6 +381,7 @@ function readSourceRevision(): {
 export async function installExternalConsumer(
   archivePath: string,
   compressedBytes: number,
+  options: { readonly enforceLegacyLimits?: boolean } = {},
 ): Promise<ExternalConsumer> {
   await mkdir(tmpdir(), { recursive: true });
   const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-package-test-"));
@@ -475,7 +476,9 @@ export async function installExternalConsumer(
       throw new Error("Installed libpg-query parser WASM is missing or empty");
     }
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
-    validateSizes({ compressedBytes, productionBytes });
+    if (options.enforceLegacyLimits !== false) {
+      validateSizes({ compressedBytes, productionBytes });
+    }
 
     run(
       process.execPath,
