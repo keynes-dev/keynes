@@ -112,8 +112,8 @@ function passingRecord(): ExternalPostgresqlAcceptanceRecord {
     },
     target: {
       provider: "provider",
-      serverProfile: "postgresql-18.6",
-      serverVersionNum: "180006",
+      serverProfile: "postgresql-18.3",
+      serverVersionNum: "180003",
       hostClass: "public-dns",
       topology: "direct",
       downstreamTlsOwner: "provider",

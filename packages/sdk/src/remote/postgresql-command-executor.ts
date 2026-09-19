@@ -27,7 +27,7 @@ import {
 
 export const POSTGRESQL_WAITING_CALLERS_MAXIMUM = 100;
 export const POSTGRESQL_CLOSE_TIMEOUT_MILLISECONDS = 10_000;
-export const POSTGRESQL_INSTALLATION_ID = "embedded-postgresql-18.6-preview";
+export const POSTGRESQL_INSTALLATION_ID = "embedded-postgresql-18.3-preview";
 
 type ExecutorState = "open" | "closing" | "closed";
 

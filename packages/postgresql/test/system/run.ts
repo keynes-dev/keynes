@@ -42,13 +42,13 @@ import {
 } from "./required-scenarios.ts";
 
 export const POSTGRES_IMAGE =
-  "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941";
+  "postgres:18.3@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db";
 export const PGBOUNCER_IMAGE =
   "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340";
 
 export const POSTGRESQL_SYSTEM_CONTEXT_ENV = "KEYNES_POSTGRESQL_SYSTEM_CONTEXT";
 
-const EXPECTED_SERVER_VERSION = "180006";
+const EXPECTED_SERVER_VERSION = "180003";
 const READINESS_TIMEOUT_MS = 30_000;
 const READINESS_INTERVAL_MS = 100;
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));

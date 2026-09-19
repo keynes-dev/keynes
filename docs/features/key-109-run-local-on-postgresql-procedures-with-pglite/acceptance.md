@@ -71,20 +71,58 @@ The fixed comparison method is in `contracts/qualification.md`. It uses the same
 
 No `.artifacts/key-109/` attempt exists at Phase 1. The first execution uses `.artifacts/key-109/attempt-001/`, with separate `sqlite-baseline/`, `pglite-compatibility/`, `native/`, `paired/`, `package/`, and `comparison/` children as applicable. A retry or changed input uses the next unused `attempt-NNN` directory. Commands must create outputs without overwrite; the acceptance record links each retained result to its exact source and archive identity.
 
+## Phase 2 version alignment
+
+Phase 2 started from `fafe93a4dcc5f518e55b810808235e1973b31c69`. The tested source patch SHA-256 was `4568b6f3e1be510cb63078b103f129a38dea7a27c1ba9084de9e0005b830c2de`. The phase commit contains the same source changes plus this acceptance update and the task markers.
+
+The test-first run produced six intended failures. The generated record still reported `embedded-postgresql-18.6-preview` and `180006`; the external profile parser rejected `postgresql-18.3`; the SDK exported the 18.6 installation identity; the system runner accepted `180006` and rejected the expected `180003`; and paired evidence validation accepted two mutually matching 18.6 reports. The native recheck assertion changed to `180003` but requires the runner-owned database, so it ran only after the implementation change.
+
+The aligned identity is:
+
+| Identity                              | Phase 2 value                                                                           |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| Generated profile                     | `embedded-postgresql-18.3-preview`                                                      |
+| PostgreSQL `server_version_num`       | `180003`                                                                                |
+| Docker image                          | `postgres:18.3@sha256:7e32e9833a6fb1c92c32552794cb6ed569d51b445a54907d35fc112ef39684db` |
+| Image digest type                     | Docker Hub multi-architecture OCI index                                                 |
+| Generated installation-record SHA-256 | `2398c16bf2ecb0938d9fb837ec54821e518963d809b4d346d24244a5b1c385dd`                      |
+| Baseline SQL SHA-256                  | `7b9da95c43edbff0a5cb89e34717c4482f859da1f37ed0424b40593478bb528e`                      |
+| Lockfile SHA-256                      | `3953a03bb0112eb10fdeec2ce05fa886a5a1ac0b0fa7f5ec4a39d551a649360a`                      |
+
+The Docker Hub registry and `docker buildx imagetools inspect postgres:18.3` returned the same OCI index digest. The index points to `sha256:a145910d7079e9fbf73e6df19d5fcca0ce59d747cf7d97ac772bff28c3759c32` for linux/amd64 and `sha256:0c24d31b13a9801233f136bc80e908bda9577ab7e9c622e572eebc13c186ed4d` for linux/arm64/v8. The repository pins the index so Docker retains platform selection.
+
+The version change did not alter the baseline SQL, the lockfile, the contract digest, the Policy profile digest, the remote procedures digest, or the migration-set digest. Exact wrong-version rejection now covers the generated record, the native runner, the external target, the SDK compatibility identity, and the paired evidence validator.
+
+### Phase 2 verification
+
+| Command                                      | Outcome                                                                                                                     |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Focused red Vitest run for T003              | Failed in six intended assertions before implementation                                                                     |
+| Focused affected Vitest run                  | Passed, 282 tests in eight files                                                                                            |
+| `pnpm generate:check`                        | Passed                                                                                                                      |
+| `pnpm --filter @keynes/postgresql test`      | Passed, 87 tests in 13 files                                                                                                |
+| `pnpm --filter @keynes/postgresql typecheck` | Passed                                                                                                                      |
+| `pnpm --filter @keynes/sdk typecheck`        | Passed                                                                                                                      |
+| `pnpm test:pr`                               | Passed: generation, repository checks, paired-run tests, format, lint, package tests, typechecks, and dependency boundaries |
+| `pnpm test:ci:postgresql`                    | Passed against actual PostgreSQL `180003`, 293 tests in 16 files; cleanup passed                                            |
+
+The native run covered installation, exact recheck, the shared Budget inventory, contention, caller-owned transactions, remote identity and permissions, recovery, Policy behavior, and rollback on the pinned 18.3 image. Installed SDK and TLS qualification, Hosted, PGlite, and the full paired acceptance remained `NOT RUN`.
+
 ## Evidence status after Phase 1
 
-| Lane                                                                                                         | Status                             |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
-| KEY-76 ancestry and starting identities                                                                      | Confirmed by repository inspection |
-| PostgreSQL 18.3 profile, image, SDK identity, and wrong-version rejection                                    | `NOT RUN`                          |
-| PGlite canonical installation, exact recheck, negative compatibility, and cleanup                            | `NOT RUN`                          |
-| Unchanged SQLite archive retention and fresh baseline measurements                                           | `NOT RUN`                          |
-| PGlite compatibility-host measurements                                                                       | `NOT RUN`                          |
-| Shared Budget and Policy comparison on PGlite and native PostgreSQL                                          | `NOT RUN`                          |
-| Local initialization, isolation, replay, response-loss retry, close, and drain                               | `NOT RUN`                          |
-| Native contention, permissions, rollback, recovery, and caller-owned transactions                            | `NOT RUN`                          |
-| Interim and final SDK package qualification on Node 24 and 26                                                | `NOT RUN`                          |
-| SQLite-versus-PGlite final archive comparison                                                                | `NOT RUN`                          |
-| Routine CI and paired full qualification                                                                     | `NOT RUN`                          |
-| Live branch protection, rulesets, and candidate required checks                                              | `NOT RUN`                          |
-| Managed providers, publication, Hosted, Embedded, KEY-87 operating envelope, and KEY-88 final split archives | `NOT RUN` or excluded              |
+| Lane                                                                                                         | Status                                             |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| KEY-76 ancestry and starting identities                                                                      | Confirmed by repository inspection                 |
+| PostgreSQL 18.3 profile, image, SDK identity, and wrong-version rejection                                    | Passed in Phase 2                                  |
+| PGlite canonical installation, exact recheck, negative compatibility, and cleanup                            | `NOT RUN`                                          |
+| Unchanged SQLite archive retention and fresh baseline measurements                                           | `NOT RUN`                                          |
+| PGlite compatibility-host measurements                                                                       | `NOT RUN`                                          |
+| Shared Budget and Policy comparison on PGlite and native PostgreSQL                                          | `NOT RUN`                                          |
+| Local initialization, isolation, replay, response-loss retry, close, and drain                               | `NOT RUN`                                          |
+| Native contention, permissions, rollback, recovery, and caller-owned transactions                            | Passed for Phase 2; final rerun required           |
+| Interim and final SDK package qualification on Node 24 and 26                                                | `NOT RUN`                                          |
+| SQLite-versus-PGlite final archive comparison                                                                | `NOT RUN`                                          |
+| Native source CI lane                                                                                        | Passed for Phase 2; clean retained record deferred |
+| Routine PR and paired full qualification                                                                     | `NOT RUN`                                          |
+| Live branch protection, rulesets, and candidate required checks                                              | `NOT RUN`                                          |
+| Managed providers, publication, Hosted, Embedded, KEY-87 operating envelope, and KEY-88 final split archives | `NOT RUN` or excluded                              |

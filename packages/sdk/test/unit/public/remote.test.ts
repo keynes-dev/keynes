@@ -43,6 +43,16 @@ afterEach(() => {
 });
 
 describe("configured remote creation", () => {
+  it("uses the PostgreSQL 18.3 installation identity", async () => {
+    const actual = await vi.importActual<
+      typeof import("../../../src/remote/postgresql-command-executor.js")
+    >("../../../src/remote/postgresql-command-executor.js");
+
+    expect(actual.POSTGRESQL_INSTALLATION_ID).toBe(
+      "embedded-postgresql-18.3-preview",
+    );
+  });
+
   it.each([10, 0])(
     "sends selected definitions and amounts with explicit options, amount %i",
     async (amount) => {
@@ -1022,7 +1032,7 @@ function responseFor(
       return {
         ok: true,
         result: {
-          installationId: "embedded-postgresql-18.6-preview",
+          installationId: "embedded-postgresql-18.3-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
           policyProfileDigest: `policy:${"b".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,

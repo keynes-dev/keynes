@@ -125,7 +125,7 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
           client,
           "select current_setting('server_version_num') as value",
         ),
-      ).toBe("180006");
+      ).toBe("180003");
 
       const migrations = await client.query<{
         readonly migration_id: string;

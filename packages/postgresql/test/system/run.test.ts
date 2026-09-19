@@ -768,7 +768,7 @@ describe("PostgreSQL system-test runner", () => {
   });
 
   it("rejects the wrong PostgreSQL server version and cleans up", async () => {
-    const fake = fakeRuntime({ probe: async () => "170006" });
+    const fake = fakeRuntime({ probe: async () => "180006" });
 
     await expect(runPostgresqlSystemTests(fake.runtime, {})).rejects.toThrow(
       `PostgreSQL system run ${RUN_ID} failed during version-check`,
@@ -874,8 +874,8 @@ describe("PostgreSQL system-test runner", () => {
       },
       profile: {
         postgresImage: POSTGRES_IMAGE,
-        postgresServerVersionNum: "180006",
-        profileId: "embedded-postgresql-18.6-preview",
+        postgresServerVersionNum: "180003",
+        profileId: "embedded-postgresql-18.3-preview",
         contractDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         migrations: expect.any(Array),
       },
@@ -920,7 +920,7 @@ describe("PostgreSQL system-test runner", () => {
     );
     expect(observations.environment).toMatchObject({
       dockerVersion: "29.0.1",
-      postgresVersion: "180006",
+      postgresVersion: "180003",
       pgbouncerVersion: "1.25.1",
       postgresImageId: `sha256:${"a".repeat(64)}`,
       pgbouncerImageId: `sha256:${"a".repeat(64)}`,
@@ -1667,7 +1667,7 @@ function fakeRuntime(options?: {
       async probe(connectionUrl) {
         probeUrls.push(connectionUrl);
         probeAttempt += 1;
-        return options?.probe?.(probeAttempt) ?? "180006";
+        return options?.probe?.(probeAttempt) ?? "180003";
       },
     },
   };

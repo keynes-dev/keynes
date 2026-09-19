@@ -89,7 +89,7 @@ logs, fixtures, and retained acceptance records must follow the same rule.
 
 ## Preview support limits
 
-The supported profile is PostgreSQL 18.6 (`server_version_num = 180006`) with
+The supported profile is PostgreSQL 18.3 (`server_version_num = 180003`) with
 prepared owner, execution, administration, and application roles plus one
 bootstrap principal. The archive contains only `0001-baseline.sql`; development
 databases created from the former migration graph must be recreated.

@@ -2,7 +2,7 @@ export interface ExternalPostgresqlProfile {
   readonly schemaVersion: "keynes.external-postgresql-profile/v1";
   readonly authorizationReference: string;
   readonly provider: string;
-  readonly serverProfile: "postgresql-18.6";
+  readonly serverProfile: "postgresql-18.3";
   readonly hostClass: string;
   readonly topology: "direct";
   readonly downstreamTlsOwner: string;
@@ -42,7 +42,7 @@ export function parseExternalProfile(
     !SAFE_LABEL.test(authorizationReference) ||
     typeof provider !== "string" ||
     !SAFE_LABEL.test(provider) ||
-    serverProfile !== "postgresql-18.6" ||
+    serverProfile !== "postgresql-18.3" ||
     typeof hostClass !== "string" ||
     !SAFE_LABEL.test(hostClass) ||
     topology !== "direct" ||

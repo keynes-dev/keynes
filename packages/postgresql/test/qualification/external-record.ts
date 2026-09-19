@@ -33,8 +33,8 @@ export interface ExternalPostgresqlAcceptanceRecord {
   };
   readonly target: {
     readonly provider: string;
-    readonly serverProfile: "postgresql-18.6";
-    readonly serverVersionNum: "180006";
+    readonly serverProfile: "postgresql-18.3";
+    readonly serverVersionNum: "180003";
     readonly hostClass: string;
     readonly topology: "direct";
     readonly downstreamTlsOwner: string;
@@ -171,8 +171,8 @@ export function validateExternalRecord(
     !SHA256.test(record.semantics.remoteProcedureIdentitySha256) ||
     !SHA256.test(record.semantics.migrationSetDigest) ||
     record.semantics.remoteProcedureCount !== 8 ||
-    record.target.serverProfile !== "postgresql-18.6" ||
-    record.target.serverVersionNum !== "180006" ||
+    record.target.serverProfile !== "postgresql-18.3" ||
+    record.target.serverVersionNum !== "180003" ||
     record.target.topology !== "direct" ||
     record.tls.hostnameVerification !== "passed" ||
     !Number.isInteger(record.tls.keyBits) ||

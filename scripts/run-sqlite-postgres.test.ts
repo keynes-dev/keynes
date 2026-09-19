@@ -406,7 +406,7 @@ function nativeFixture() {
     },
     profile: {
       contractDigest: snapshot.inputs.contractDigest,
-      postgresServerVersionNum: "180006",
+      postgresServerVersionNum: "180003",
     },
     distribution: {
       version: "0.0.0",
@@ -423,7 +423,7 @@ function observationFixture() {
     cleanup: "passed",
     environment: {
       dockerVersion: "28.1.1",
-      postgresVersion: "180006",
+      postgresVersion: "180003",
       pgbouncerVersion: "1.25.1",
       postgresImageId: `sha256:${"f".repeat(64)}`,
       pgbouncerImageId: `sha256:${"a".repeat(64)}`,
@@ -491,6 +491,22 @@ describe("evidence identity and retention", () => {
         observationFixture().runId,
       ),
     ).not.toThrow();
+  });
+  it("rejects matching evidence from the wrong PostgreSQL version", () => {
+    const native = nativeFixture();
+    const observations = observationFixture();
+    native.profile.postgresServerVersionNum = "180006";
+    observations.environment.postgresVersion = "180006";
+
+    expect(() =>
+      validateNativeEvidence(
+        native,
+        observations,
+        evidenceSnapshot(),
+        report(true),
+        observations.runId,
+      ),
+    ).toThrow("PostgreSQL version mismatch");
   });
   it.each([
     "changed",

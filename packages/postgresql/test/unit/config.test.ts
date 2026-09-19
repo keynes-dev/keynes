@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import installationRecord from "../../generated/installation-record.json" with { type: "json" };
 import { parseInstallationConfig } from "../../src/installer/config.ts";
 
 const CONFIG = {
@@ -12,6 +13,13 @@ const CONFIG = {
 } as const;
 
 describe("PostgreSQL installation configuration", () => {
+  it("uses the PostgreSQL 18.3 installation profile", () => {
+    expect(installationRecord).toMatchObject({
+      profileId: "embedded-postgresql-18.3-preview",
+      serverVersionNum: "180003",
+    });
+  });
+
   it("accepts exactly the six declared keys", () => {
     expect(parseInstallationConfig(CONFIG)).toEqual(CONFIG);
   });
@@ -26,7 +34,7 @@ describe("PostgreSQL installation configuration", () => {
     expect(() =>
       parseInstallationConfig({
         ...CONFIG,
-        profileId: "embedded-postgresql-18.6-preview",
+        profileId: "embedded-postgresql-18.3-preview",
       }),
     ).toThrow();
   });

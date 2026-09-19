@@ -6,7 +6,7 @@ const validProfile = {
   schemaVersion: "keynes.external-postgresql-profile/v1",
   authorizationReference: "user-approved-2026-09-03",
   provider: "provider",
-  serverProfile: "postgresql-18.6",
+  serverProfile: "postgresql-18.3",
   hostClass: "public-dns",
   topology: "direct",
   downstreamTlsOwner: "provider",

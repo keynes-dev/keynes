@@ -267,7 +267,7 @@ class ExternalQualificationTarget implements DatabaseTarget {
           "select current_setting('server_version_num') as \"serverVersionNum\"",
         );
         const serverVersionNum = server.rows[0]?.serverVersionNum;
-        if (serverVersionNum !== "180006") {
+        if (serverVersionNum !== "180003") {
           throw new Error("unexpected server profile");
         }
         const installed = await operator.query<{

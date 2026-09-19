@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExternalPostgresqlProfile } from "./external-profile.js";
+import {
+  parseExternalProfile,
+  type ExternalPostgresqlProfile,
+} from "./external-profile.js";
 import {
   EXTERNAL_TARGET_ENVIRONMENT_KEYS,
   openExternalQualificationTarget,
@@ -11,7 +14,7 @@ const profile: ExternalPostgresqlProfile = {
   schemaVersion: "keynes.external-postgresql-profile/v1",
   authorizationReference: "user-approved-2026-09-03",
   provider: "provider",
-  serverProfile: "postgresql-18.6",
+  serverProfile: "postgresql-18.3",
   hostClass: "public-dns",
   topology: "direct",
   downstreamTlsOwner: "provider",
@@ -19,6 +22,13 @@ const profile: ExternalPostgresqlProfile = {
 };
 
 describe("attach-only external PostgreSQL target", () => {
+  it("accepts only the PostgreSQL 18.3 profile", () => {
+    expect(parseExternalProfile(profile)).toEqual(profile);
+    expect(() =>
+      parseExternalProfile({ ...profile, serverProfile: "postgresql-18.6" }),
+    ).toThrow("invalid external profile");
+  });
+
   it("parses the seven strict-TLS credentials without connecting", () => {
     const environment = validEnvironment();
     const parsed = parseExternalTargetEnvironment(environment);

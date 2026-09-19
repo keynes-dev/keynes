@@ -20,8 +20,8 @@ import { expectedPostgresObjects } from "./policy-migration.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
 
 const POSTGRES_PROFILE = {
-  profileId: "embedded-postgresql-18.6-preview",
-  serverVersionNum: "180006",
+  profileId: "embedded-postgresql-18.3-preview",
+  serverVersionNum: "180003",
   support: {
     install: true,
     exactRecheck: true,

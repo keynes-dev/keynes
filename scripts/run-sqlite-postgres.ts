@@ -479,8 +479,9 @@ export function validateNativeEvidence(
   )
     throw new Error("Native observation missing");
   if (
+    value.profile.postgresServerVersionNum !== "180003" ||
     value.profile.postgresServerVersionNum !==
-    observations.environment.postgresVersion
+      observations.environment.postgresVersion
   )
     throw new Error("PostgreSQL version mismatch");
   for (const key of ["dockerVersion", "postgresVersion", "pgbouncerVersion"])

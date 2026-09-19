@@ -17,9 +17,9 @@
 
 No Local engine replacement or SQLite deletion is allowed in this phase.
 
-- [ ] T003 Add and observe failing 180003/profile consistency and wrong-version rejection assertions in `packages/postgresql/test/unit/config.test.ts`, `packages/postgresql/test/integration/recheck.test.ts`, `packages/postgresql/test/system/run.test.ts`, `packages/postgresql/test/qualification/external-target.test.ts`, `packages/sdk/test/unit/public/remote.test.ts` and `scripts/run-sqlite-postgres.test.ts`. FR-014.
-- [ ] T004 Change generator profile/version to `embedded-postgresql-18.3-preview`/`180003` in `packages/postgresql/scripts/generate.ts`, resolve and pin the official 18.3 container digest in `packages/postgresql/test/system/run.ts`, align SDK identity and external qualification profile/target/record code plus fixtures, and run `pnpm generate` to regenerate `packages/postgresql/generated/installation-record.json`. Preserve exact rejection, native roles and fresh-only installation. FR-014.
-- [ ] T005 Run affected version/installer checks, `pnpm generate:check`, and native source correctness on PostgreSQL 18.3; retain actual version and results in the feature's `acceptance.md`. Preserve historical 18.6 records. An incompatibility blocks the next phase. FR-002, FR-014.
+- [x] T003 Add and observe failing 180003/profile consistency and wrong-version rejection assertions in `packages/postgresql/test/unit/config.test.ts`, `packages/postgresql/test/integration/recheck.test.ts`, `packages/postgresql/test/system/run.test.ts`, `packages/postgresql/test/qualification/external-target.test.ts`, `packages/sdk/test/unit/public/remote.test.ts` and `scripts/run-sqlite-postgres.test.ts`. FR-014.
+- [x] T004 Change generator profile/version to `embedded-postgresql-18.3-preview`/`180003` in `packages/postgresql/scripts/generate.ts`, resolve and pin the official 18.3 container digest in `packages/postgresql/test/system/run.ts`, align SDK identity and external qualification profile/target/record code plus fixtures, and run `pnpm generate` to regenerate `packages/postgresql/generated/installation-record.json`. Preserve exact rejection, native roles and fresh-only installation. FR-014.
+- [x] T005 Run affected version/installer checks, `pnpm generate:check`, and native source correctness on PostgreSQL 18.3; retain actual version and results in the feature's `acceptance.md`. Preserve historical 18.6 records. An incompatibility blocks the next phase. FR-002, FR-014.
 
 ## Phase 3: US1 - Establish canonical Local compatibility (Priority: P1)
 
