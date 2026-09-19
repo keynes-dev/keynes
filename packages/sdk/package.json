@@ -23,7 +23,7 @@
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "pnpm test:unit && pnpm test:contract && vitest run test/system --maxWorkers=1 && vitest run test/package/qualify.test.ts --maxWorkers=1",
     "test:unit": "vitest run test/unit/local --maxWorkers=1 && vitest run test/unit/public --maxWorkers=1 && vitest run test/unit/policy test/unit/remote --maxWorkers=1",
-    "test:contract": "vitest run test/contract --maxWorkers=1",
+    "test:contract": "vitest run test/contract/budget.test.ts --maxWorkers=1 && vitest run test/contract/remote.test.ts --maxWorkers=1",
     "test:package:unit": "vitest run test/package --maxWorkers=1",
     "test:package": "pnpm test:package:unit && node test/package/qualify.ts",
     "test:performance": "vitest run test/performance --maxWorkers=1",
