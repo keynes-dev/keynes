@@ -10,8 +10,8 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm KEY-76 ancestry and record source/contract/baseline/lockfile identities plus current Node/pnpm/host in `docs/features/key-109-run-local-on-postgresql-procedures-with-pglite/acceptance.md`; identify fresh immutable attempt directories and record every unrun lane as NOT RUN. FR-011, FR-013, SC-006.
-- [ ] T002 Inventory exact version/profile references and existing shared/native cases in `packages/postgresql/scripts/generate.ts`, `packages/postgresql/test/system/run.ts`, `packages/sdk/src/remote/postgresql-command-executor.ts` and `packages/contracts/contract-tests`; record the 18.3 change inventory and measurement baseline method in the feature's `acceptance.md`. FR-001, FR-014.
+- [x] T001 Confirm KEY-76 ancestry and record source/contract/baseline/lockfile identities plus current Node/pnpm/host in `docs/features/key-109-run-local-on-postgresql-procedures-with-pglite/acceptance.md`; identify fresh immutable attempt directories and record every unrun lane as NOT RUN. FR-011, FR-013, SC-006.
+- [x] T002 Inventory exact version/profile references and existing shared/native cases in `packages/postgresql/scripts/generate.ts`, `packages/postgresql/test/system/run.ts`, `packages/sdk/src/remote/postgresql-command-executor.ts` and `packages/contracts/contract-tests`; record the 18.3 change inventory and measurement baseline method in the feature's `acceptance.md`. FR-001, FR-014.
 
 ## Phase 2: Foundational version alignment
 
@@ -30,13 +30,13 @@ No Local engine replacement or SQLite deletion is allowed in this phase.
 ### Tests first
 
 - [ ] T006 [P] [US1] Add and observe failing tests in `packages/sdk/test/unit/local/pglite-installation.test.ts` for canonical install/recheck, exact bytes/object/function identity, partial installation, digest/version mismatch, deferred procedure bodies, numeric/JSON/context behavior and initialization cleanup. FR-001, FR-002, SC-001.
-- [ ] T007 [P] [US1] Extend `packages/sdk/test/performance/measure.test.ts` and `measure-worker.test.mjs` with failing assertions for engine-aware observations, fixed sample counts, throughput arithmetic, failed/missing samples, peak sampling metadata, fresh output paths and separate legacy-threshold outcomes. FR-001, FR-011, SC-003.
+- [ ] T007 [P] [US1] Extend `packages/sdk/test/performance/measure.test.ts` and `measure-worker.test.mjs` with failing assertions for engine-aware observations, fixed sample counts, throughput and comparison-delta arithmetic including zero baselines, failed/missing samples from either engine, installation timing/cache boundaries, Policy/no-Policy workload labels, peak sampling metadata, fresh output paths and separate legacy-threshold outcomes. FR-001, FR-011, SC-003.
 
 ### Implementation and checkpoint
 
 - [ ] T008 [US1] Pin `@electric-sql/pglite` 0.5.8 in `packages/sdk/package.json` and `pnpm-lock.yaml`; add a private compatibility host in `packages/sdk/test/unit/support/pglite-host.ts` and minimal canonical installation orchestration in `packages/sdk/src/local/install.ts`, reusing/extracting asset loading from `packages/postgresql/src/installer/run-installation.ts`. Keep production imports out of test support and authored SQL in one place. FR-002, FR-006.
-- [ ] T009 [US1] Implement the planned observations mode and compatibility-host measurement path in `packages/sdk/test/performance/measure.ts` and `measure-worker.mjs` using contracts/qualification.md's fixed method. Preserve existing default envelope behavior, record raw startup/memory/footprint/latency/throughput/close observations and fail incomplete runs. FR-001, FR-011, SC-003.
-- [ ] T010 [US1] Execute installation checks and pre-switch PGlite measurements; retain exact input identities, actual 180003 results for PGlite and native PostgreSQL and raw attempts under `.artifacts/key-109/`, linked from the feature's `acceptance.md`. Stop replacement on incompatibility or incomplete required observations; no fallback engine is permitted. FR-001, FR-002, FR-011, SC-001, SC-003.
+- [ ] T009 [US1] Implement the planned observations mode and compatibility-host measurement path in `packages/sdk/test/performance/measure.ts` and `measure-worker.mjs` using contracts/qualification.md's fixed measurement and comparison method, including installation timing, Policy/no-Policy workloads and a SQLite/PGlite result table linked to both exact archive/run identities. Preserve existing default envelope behavior, record raw startup/memory/footprint/latency/throughput/close observations and fail incomplete runs. FR-001, FR-011, SC-003.
+- [ ] T010 [US1] Pack and retain the unchanged SQLite SDK before replacement, execute fresh SQLite baseline measurements and PGlite compatibility measurements using the same method; retain exact input identities, actual 180003 results for PGlite and native PostgreSQL and raw attempts under `.artifacts/key-109/`, linked from the feature's `acceptance.md`. Stop replacement on incompatibility or incomplete required observations; no fallback engine is permitted. FR-001, FR-002, FR-011, SC-001, SC-003.
 
 ## Phase 4: US2 - Preserve Local journeys through canonical SQL (Priority: P1)
 
@@ -81,7 +81,7 @@ No Local engine replacement or SQLite deletion is allowed in this phase.
 ## Phase 6: Final qualification and reconciliation
 
 - [ ] T027 Run `pnpm test:pr`, `pnpm test:ci:postgresql` and paired full qualification from `quickstart.md` on the final clean candidate; the paired run includes native system qualification. Preserve exact reports and cleanup under a fresh `.artifacts/key-109/` attempt. FR-002 through FR-011, FR-014, SC-001, SC-002, SC-004, SC-006.
-- [ ] T028 Pack the final interim SDK and repeat canonical asset/consumer checks and measurements using `packages/sdk/test/package/qualify.ts` and `packages/sdk/test/performance/measure.ts`; compare like-for-like samples with pre-switch results, record legacy limit outcomes, archive digests and Node 24/26 smoke separately. FR-001, FR-011, FR-013, SC-003.
+- [ ] T028 Pack the final interim SDK and repeat canonical asset/consumer checks and measurements using `packages/sdk/test/package/qualify.ts` and `packages/sdk/test/performance/measure.ts`; compare final PGlite results with the retained SQLite archive using contracts/qualification.md's same-host protocol and absolute/percentage delta table, record legacy limit outcomes, archive digests and Node 24/26 smoke separately. FR-001, FR-011, FR-013, SC-003.
 - [ ] T029 Reconcile every FR/SC to retained evidence and hosted checks in the feature's `acceptance.md`; preserve failed attempts, durable evidence copies and explicit NOT RUN lanes. Reconfirm the sole production rule path and unchanged historical records with `git diff --check` and focused searches. Do not claim KEY-87/KEY-88, Hosted, Embedded or publication acceptance. FR-009 through FR-014, SC-004, SC-005, SC-006.
 
 ## Dependencies and execution order
@@ -101,5 +101,3 @@ Parallel examples: US1 installation tests and measurement tests touch disjoint f
 US1 is the smallest useful compatibility demonstration, not a shippable partial replacement. Keep SQLite available until US2's complete replacement gate passes. Finish US3 and final qualification for one independently accepted feature. No new feature issues or phase PRs are needed.
 
 Documentation, generated-output and dependency inventory changes use focused formatting/drift checks rather than invented behavioral tests. Runtime, version acceptance, measurement/reporting, package-consumer and CI behavior changes have explicit failing tests first.
-
-Planning boundary: all 29 implementation tasks remain unchecked. The current request ends after read-only Spec Kit analysis.

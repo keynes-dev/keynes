@@ -22,6 +22,8 @@ Each accepted command starts an owned transaction, sets transaction-local tenant
 
 ## Qualification record
 
-Extend existing records rather than invent an unrelated store. Record attempt ID, source commit and dirty state, commands and exits, lockfile/SQL/contract/archive digests, PGlite version, actual PostgreSQL version, Node/pnpm/OS/architecture, raw measurement samples, selected scenario inventory, outcomes and cleanup. Reports identify PGlite rather than inheriting SQLite labels. New attempt paths must not overwrite earlier evidence.
+Extend existing records rather than invent an unrelated store. Record attempt ID, source commit and dirty state, commands and exits, lockfile/SQL/contract/archive digests, engine identity and version, actual PostgreSQL version for PGlite/native runs or SQLite version for baseline runs, Node/pnpm/OS/architecture, raw measurement samples, selected scenario inventory, outcomes and cleanup. Each report names the engine actually measured; PGlite reports cannot inherit SQLite labels. New attempt paths must not overwrite earlier evidence.
+
+The SQLite-versus-PGlite comparison links both exact archive/run identities and the shared workload identity. Each metric records its unit, raw samples, sample count, summary statistic, both engine values, absolute delta and percentage delta, with N/A for a zero baseline. Installation records include cache/download boundaries; runtime records distinguish Policy and no-Policy workloads. The method and metrics live in [the qualification contract](contracts/qualification.md#sqlite-versus-pglite-comparison).
 
 Measurement observations, legacy threshold comparisons and feature acceptance are separate fields. A measured value does not establish a published limit. Missing samples, failed processes or failed cleanup cannot yield a passing measurement/qualification record.

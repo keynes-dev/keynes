@@ -4,10 +4,10 @@
 
 1. Confirm KEY-76 is landed, align native target/profile/image to PostgreSQL 18.3 with failing tests first, and freeze candidate source/lockfile/SQL identities. Assert both actual engines report 180003. Preserve native exact-version rejection.
 2. Test fresh canonical install, exact recheck, identity drift and partial-target failure on PGlite. Exercise procedure bodies, not only schema installation.
-3. Measure fresh startup, memory, footprint and throughput using the compatibility host before changing the default Local runtime.
+3. Retain the unchanged SQLite archive and fresh baseline measurements before switching Local; measure fresh PGlite startup, memory, footprint and throughput using the compatibility host.
 4. Prove shared commands/Policy/errors/replay/conflict/rollback on PGlite and native PostgreSQL, Local public journeys, isolation and lifecycle, plus an installed interim SDK smoke.
 5. Retain passing replacement evidence, then delete SQLite and alternate runtime evaluation. Re-run relevant checks and repeat final measurements on the packed candidate.
-6. Verify final CI applicability, required contexts, native coverage and full retained evidence. Only the combined outcome accepts KEY-109.
+6. Complete the final same-host SQLite-versus-PGlite archive comparison, then verify final CI applicability, required contexts, native coverage and full retained evidence. Only the combined outcome accepts KEY-109.
 
 Compatibility failure stops steps 3-6 that depend on successful installation. A failed attempt retains its cause and any observations already available; missing costs are NOT RUN, never fabricated. No alternate Local rule implementation bypasses failure.
 
@@ -22,7 +22,21 @@ Use the existing explicit performance runner and a provider-free child-process e
 - Measure the exact SDK archive compressed bytes and isolated installed production tree, including engine/WASM/data assets and dependencies. Before replacement, measure the compatibility artifact/dependency closure and label it as such; it is not the final SDK archive.
 - Missing/invalid samples, child exit failures and failed cleanup fail the run. Retain raw failures. Report existing SQLite ceiling results separately; observations mode does not claim they pass or change them silently.
 
-No numeric PGlite SLA is adopted here. KEY-87 owns the full envelope and comparative benchmarking. Historical engine measurements remain background. KEY-88 owns final archives after KEY-96. This feature must still prove canonical asset inclusion and a working isolated interim consumer.
+No numeric PGlite SLA is adopted here. KEY-109 includes the requested SQLite-versus-PGlite comparison; KEY-87 owns the complete operating envelope. Historical engine measurements remain background. KEY-88 owns final archives after KEY-96. This feature must still prove canonical asset inclusion and a working isolated interim consumer.
+
+## SQLite-versus-PGlite comparison
+
+Compare the current SQLite Local implementation with the replacement PGlite Local implementation. This is separate from the PGlite/native PostgreSQL behavior comparison.
+
+- Before switching the default, pack the unchanged SQLite SDK and retain its source, lockfile, archive and engine identities. Reuse that immutable artifact after SQLite source removal; do not preserve a second production engine for benchmarking.
+- Use the same reference host, Node version, pnpm version, workload inputs and measurement worker for both archives. Run each archive in its own clean external consumer with only its production dependencies. Record unavoidable build/source differences. Exclude Node itself from both installed sizes; SQLite's built-in engine has no additional npm payload, not zero total runtime cost.
+- Report SDK archive bytes, total compressed dependency payload and installed production bytes, including PGlite WASM/data assets. Measure engine-added payload separately where attributable. Do not compare a dual-engine transition package against the final SQLite archive as if it were the final replacement.
+- Measure installation time over five fresh consumer installs per engine using an isolated, prefilled package cache and the same install command. Exclude download time and state that boundary. Retain elapsed samples and process exits; network conditions must not masquerade as engine speed differences.
+- Apply the startup/memory method above to both archives. For steady speed, repeat the measured request/settle batch five times in fresh instances, with identical funding and Resource definitions. Run one workload without Policy and one with the same compiled Policy/context. Verify equivalent successful results; record request latency, batch throughput and shutdown separately.
+- Alternate engine order between trials and run one measured process at a time. Retain all samples and median/p95 with sample counts; five-trial p95 is the maximum, not a tail-latency guarantee.
+- Retain one comparison table with metric, unit, SQLite value, PGlite value, absolute delta and percent delta, computed as `(PGlite - SQLite) / SQLite * 100`. A zero baseline yields N/A for the percentage. Lower is better for bytes, memory and elapsed time; higher is better for throughput. Report observed variation without claiming statistical significance or a performance improvement in advance.
+
+Store the raw records and comparison beside the feature acceptance evidence. Missing either engine's required measurements leaves comparative acceptance incomplete. Initial compatibility-host costs remain separately labeled; the final decision uses comparable public SDK workloads and exact archives.
 
 ## Behavior inventory
 

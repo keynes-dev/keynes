@@ -22,6 +22,8 @@ pnpm --filter @keynes/sdk exec vitest run test/unit/local/pglite-installation.te
 
 Expected: unchanged canonical baseline installs and rechecks, identity/partial-install negatives reject, representative procedure bodies execute and cleanup passes. Stop replacement on any incompatibility. Run the compatibility-host measurement through the same engine-aware worker before changing Local's default; retain its independently identified artifact and raw observations as specified in contracts/qualification.md.
 
+Before switching Local, pack and retain the unchanged SQLite SDK with its source and lockfile identity. Run the comparison protocol in contracts/qualification.md using separate clean consumers and identical Node/workload settings. Keep that archive available for final same-host trials after SQLite source removal.
+
 ## Local replacement and both engines
 
 ```sh
@@ -42,7 +44,7 @@ pnpm measure:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.
 
 The planned observations option preserves structural/package/consumer failures while reporting legacy size thresholds separately. Smoke the packed SDK in a clean consumer using only public imports, with canonical assets present and no sibling workspace runtime resolution. Confirm Node 24 and 26 compatibility separately and retain each environment's result. No full archive release qualification is claimed.
 
-Review raw startup, memory, byte-size, latency, throughput and close samples. Compare with the pre-switch PGlite compatibility result; explain any changed measurement boundary. Never describe an unrun or failed legacy envelope check as passed.
+Review raw startup, memory, byte-size, latency, throughput and close samples. Compare the final PGlite archive against the retained SQLite archive for download/installed bytes, installation time, startup, memory, request latency, throughput and shutdown. Retain raw samples and an absolute/percentage delta table. Keep compatibility-host observations separate and explain any changed measurement boundary. Never describe an unrun or failed legacy envelope check as passed.
 
 ## Final acceptance
 

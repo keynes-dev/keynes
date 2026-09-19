@@ -16,6 +16,8 @@
 
 - User direction: downgrade native PostgreSQL to 18.3 to match the pinned PGlite version while preserving functionality. This adds version/profile alignment to KEY-109's planned work; implementation remains outside this run.
 
+- User direction: include a fresh SQLite-versus-PGlite comparison of installation footprint and speed in KEY-109. Keep the planning-only boundary; comparative measurements are NOT RUN.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Establish that the canonical engine can run locally (Priority: P1)
@@ -24,13 +26,14 @@ As a maintainer, I can determine whether the current canonical installation and 
 
 **Why this priority**: An incompatible engine blocks the replacement and its consumers. Historic results cannot establish today's compatibility.
 
-**Independent Test**: Install the exact canonical baseline in a fresh private Local instance, exercise installation identity and representative commands, and retain fresh startup, memory, footprint and throughput observations. This is a compatibility checkpoint, not the completed feature.
+**Independent Test**: Install the exact canonical baseline in a fresh private Local instance, exercise installation identity and representative commands, and retain fresh startup, memory, footprint and throughput observations. Retain the unchanged SQLite archive and fresh baseline measurements for the final same-host comparison. This is a compatibility checkpoint, not the completed feature.
 
 **Acceptance Scenarios**:
 
 1. **Given** the landed KEY-76 baseline and a pinned engine, **When** a fresh instance installs it and checks its identity, **Then** all required objects and procedure definitions match the canonical source, and exact reinstallation leaves state unchanged.
 2. **Given** an incompatible SQL feature, incomplete installation or identity mismatch, **When** initialization runs, **Then** it fails with an attributable cause, releases owned resources and blocks replacement without a substitute Local rule implementation.
 3. **Given** current source and an identified environment, **When** measurements run before replacement, **Then** raw samples and methodology identify startup, ready and peak memory, archive and installed footprint, and completed-command throughput. Failed attempts remain visible.
+4. **Given** retained SQLite and final PGlite archives, **When** both run the same workloads on the same host and Node version, **Then** the report compares download/installed size, installation time, startup, memory, latency, throughput and shutdown using raw samples, absolute deltas and percentage differences. Workloads cover requests with and without Policies; unavailable or failed measurements cannot count as completed comparison.
 
 ### User Story 2 - Use the existing Local journeys through one rule implementation (Priority: P1)
 
@@ -76,7 +79,7 @@ As a maintainer, I can remove the duplicate Local implementation after replaceme
 
 ### Functional Requirements
 
-- **FR-001**: Begin implementation with fresh canonical-installation compatibility checks and startup, memory, package-footprint and throughput measurements on identified current inputs. Historical PGlite evidence is background only.
+- **FR-001**: Begin implementation with fresh canonical-installation compatibility checks and startup, memory, package-footprint and throughput measurements on identified current inputs. Compare current SQLite and PGlite on the same host, Node version and workload, retaining absolute results and percentage differences for archive/installed size, installation time, startup, memory, latency, throughput and shutdown. Historical evidence is background only.
 - **FR-002**: Use exactly one canonical PostgreSQL SQL source for Local and native execution. Installation, exact recheck and incompatible/partial-target failure MUST be tested; compatibility failure blocks replacement acceptance and dependent work.
 - **FR-003**: Preserve currently implemented Resource definitions and configured creation, Budget requests, denials, settlement, inspection, history, quantities, membership and errors through canonical procedures.
 - **FR-004**: Preserve exact replay, conflict rejection and transaction rollback, including invalid Resource/Policy definitions and post-commit response loss, without alternate Local business logic.
@@ -105,7 +108,7 @@ As a maintainer, I can remove the duplicate Local implementation after replaceme
 
 - **SC-001**: Fresh install, exact recheck and all negative compatibility cases pass with one canonical source identity; zero compatibility failures are waived with a Local alternative.
 - **SC-002**: Every current shared Resource, Budget and Policy scenario passes on both engines with zero unexplained differences. Local isolation, rollback, replay/conflict and close/drain cases pass with no leaked owned instance.
-- **SC-003**: Fresh raw startup, memory, footprint and throughput measurements are retained before replacement and repeated for the final candidate. Missing/failed samples fail the measurement run; this feature makes no new speed or size promise.
+- **SC-003**: Fresh SQLite baseline and PGlite measurements are retained before replacement, with final PGlite candidate results compared against the retained baseline using the same method. The comparison includes archive/installed size, installation time, startup, memory, latency, throughput and shutdown, absolute values and percentage differences. Missing/failed samples fail the measurement run; this feature makes no new speed or size promise.
 - **SC-004**: Final production code contains zero SQLite imports or alternate Local Budget/Resource/Policy execution paths; one canonical source supplies both engines.
 - **SC-005**: Relevant changes require both Local and native passing checks; classification-error and missing-result cases fail closed. Hosted enforcement is verified at the candidate revision, with zero interval in which both old and replacement required checks are absent.
 - **SC-006**: Acceptance records identify all executed lanes and explicitly mark other lanes NOT RUN, while native transaction, permission and concurrency coverage remains separately executable and historical records remain unchanged.

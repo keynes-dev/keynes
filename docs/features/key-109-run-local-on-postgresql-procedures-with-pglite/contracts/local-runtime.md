@@ -6,6 +6,8 @@ Retain current `createKeynes({ resources })`, returned typed handles, Resource d
 
 Canonical command inputs/results/errors continue to come from `packages/contracts` and the generated client. No new schema inventory is introduced. Future product APIs are not silently added.
 
+The [SQLite-versus-PGlite comparison](qualification.md#sqlite-versus-pglite-comparison) exercises these same public calls through isolated archived SDK consumers, with and without Policies. Benchmark tooling must not add public engine-selection options or retain SQLite in the replacement distribution.
+
 ## Private procedure transport
 
 The existing `CommandExecutor.execute(operation, input)` remains the boundary. Resolve operation names through a fixed canonical mapping, never caller-supplied SQL. Serialize input as JSON, bind it to `$1::jsonb`, set private tenant/principal context within the same owned transaction, and call the installed target:

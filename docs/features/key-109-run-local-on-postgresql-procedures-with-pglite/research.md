@@ -46,7 +46,7 @@ Compatibility must exercise PL/pgSQL, SECURITY DEFINER/search_path, catalog/obje
 
 ## Measurements and acceptance boundaries
 
-**Decision**: Extend the existing explicit measure.ts/measure-worker.mjs machinery with a truthful engine-aware observation mode and completed-command throughput. Retain existing legacy-limit outcomes separately. Run the first measurements through the compatibility host before changing the default, and repeat on the final packed candidate.
+**Decision**: Extend the existing explicit measure.ts/measure-worker.mjs machinery with a truthful engine-aware observation mode and completed-command throughput. The user explicitly requests a fresh SQLite-versus-PGlite comparison, so capture the unchanged SQLite archive before replacement and compare it with the final PGlite archive using the same method. Use the [qualification contract](contracts/qualification.md#sqlite-versus-pglite-comparison) for size, installation-time and runtime metrics, Policy/no-Policy workloads, raw samples and absolute/percentage deltas. Retain existing legacy-limit outcomes separately. Run the first measurements through the compatibility host before changing the default, and repeat on the final packed candidate.
 
 **Rationale**: Existing tooling hardcodes node:sqlite, a 1 MiB archive ceiling, 35 MiB installed ceiling, 512 MiB ready RSS, 3000 ms cold create, 250 ms first request and 100 ms steady request thresholds. Those are not fresh PGlite qualification. This feature requires costs to be measured, while KEY-87 owns the complete envelope and KEY-88 final archive acceptance. No historical ceiling is silently relaxed or presented as passed.
 
