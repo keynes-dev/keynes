@@ -267,3 +267,82 @@ KEY-85 has no repository feature artifacts to edit in this checkout. When KEY-85
 | Managed providers, publication, Hosted and Embedded | `NOT RUN` or excluded                                                                                                      |
 
 Final clean paired qualification, native rerun, archive qualification, measurements and reconciliation remain T027-T029 work.
+
+## Phase 6: Final qualification and reconciliation
+
+The final runtime candidate is clean revision `b9ad56f6c2af230cfc1cc16ee1905ce7cea276d3`. It follows the Phase 5 commit with two evidence-runner corrections: read PGlite's installed version without relying on an unexported `package.json` subpath, and remove the redundant Local-only suite-name wrapper so the shared 99-case inventory compares exactly with native PostgreSQL.
+
+### Retained attempts
+
+| Attempt                                  | Outcome                                                                                                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.artifacts/key-109/attempt-005/paired/` | Failed before execution because the evidence snapshot tried to import PGlite's unexported `package.json`; both engines remained `NOT RUN`.              |
+| `.artifacts/key-109/attempt-006/paired/` | PGlite 394 tests and native 298 tests passed with cleanup, but coverage comparison failed on the redundant `PGlite shared contract` prefix.             |
+| `.artifacts/key-109/attempt-007/paired/` | Passed from a clean checkout: exact shared coverage, PGlite report, PostgreSQL `180003` report, native acceptance, observations, retention and cleanup. |
+
+No failed attempt was overwritten or counted as a pass. A later attempt to remeasure the retained SQLite archive with the final PGlite-only runner failed because that historical archive intentionally has no PGlite dependency closure. The comparison therefore uses the immutable Phase 3 SQLite observation record produced by the same measurement protocol on this host, Node `v26.5.0` and pnpm `11.21.0`; the failed rerun contributes no samples.
+
+### Final evidence identities
+
+| Evidence                 | Identity and outcome                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Paired manifest          | `.artifacts/key-109/attempt-007/paired/manifest.json`; SHA-256 `471d2844618bf94a4da434ce67948dabde59ab0dcbf23ed865d902cdb94c4f6b`; attempt id `959f6e3b-0dbc-40f8-9c55-18fd60faa36a`; passed.                                     |
+| PGlite report            | 394 tests in 18 files; SHA-256 `ee69162a5d86f417f50d8d1aa7d1ecea43a0ec52b200565bf3be336796f3ce6b`; cleanup passed.                                                                                                                |
+| Native report            | PostgreSQL `180003`; 298 tests in 16 files; record SHA-256 `1f79278975b11273434fcf584fd3ad4682126cec032228294db949df2f43b5ac`; Vitest SHA-256 `7a8112f2d53ab8331fe1261c7599a144c469ca04c83da126b95fe1c9e4b5866c`; cleanup passed. |
+| Final SDK archive        | `.artifacts/key-109/attempt-007/package/keynes-sdk-0.0.0.tgz`; SHA-256 `2bbe64575a85b236046716f47ea91f70f43a00b69a001b0125a1ee9f1b115a44`; 9,828,695 compressed bytes.                                                            |
+| Node 26 consumer         | `.artifacts/key-109/attempt-007/package-node26.json`; SHA-256 `ceb7934c5800633c859abc2c46b048915e0f5b9bef2e26387f465171ae6188a9`; all 14 checks passed; 30,712,442 production bytes.                                              |
+| Node 24 consumer         | `.artifacts/key-109/attempt-007/package-node24.json`; SHA-256 `dbe4da103b924e7b4ec09dafa4a833596c19132190a360ba2b214203d38713af`; all 14 checks passed; 30,711,863 production bytes.                                              |
+| PGlite observations      | `.artifacts/key-109/attempt-007/measurements-pglite-node26.json`; SHA-256 `dca00f95933c20365eb3c7412be540af47f75e9decff394519eb96c92542a744`; complete fixed-count record.                                                        |
+| Final comparison         | `.artifacts/key-109/attempt-007/comparison-node26.json`; SHA-256 `450409f6322c26a2e602d13c81ca39a32eec66c6aa0177215d50874cc205f331`; passed completeness and same-host comparability checks.                                      |
+| Retained SQLite baseline | Archive SHA-256 `30c26ddbce92bac74ab057b047af1fd5694da22eef7e3b59ad5556fac0ac2f68`; observation SHA-256 `b8ef2d4c9e63170f24a111426f92babb9055e2ec93ec2581530aaa86361d8047`.                                                       |
+
+The final archive's historical compressed-size limit failed on both Node versions: 9,828,695 B versus 1,048,576 B. The historical production-size limit passed: 30,711,863 B on Node 24 and 30,712,442 B on Node 26 versus 36,700,160 B. These are observations, not a new KEY-87 operating envelope. Canonical assets, dependency closure, public imports, Policy execution, lifecycle, isolation and cleanup remained fatal qualification checks and all passed.
+
+### Final SQLite-to-PGlite observations
+
+| Metric                            |       SQLite |        PGlite | Absolute delta | Percentage delta |
+| --------------------------------- | -----------: | ------------: | -------------: | ---------------: |
+| Archive bytes                     |    1,003,014 |     9,828,695 |     +8,825,681 |         +879.92% |
+| Installed production bytes        |    5,026,607 |    30,712,442 |    +25,685,835 |         +511.00% |
+| Median cached installation        |    307.91 ms |     359.26 ms |      +51.35 ms |          +16.68% |
+| Median public create              |      1.64 ms |      20.71 ms |      +19.07 ms |       +1,165.53% |
+| Median first request              |      0.32 ms |       7.34 ms |       +7.03 ms |       +2,227.60% |
+| Median sampled peak RSS           | 95,174,656 B | 930,676,736 B | +835,502,080 B |         +877.86% |
+| Median shutdown                   |      0.03 ms |       0.91 ms |       +0.88 ms |       +2,830.67% |
+| No-Policy request p95             |      4.11 ms |       8.60 ms |       +4.50 ms |         +109.46% |
+| No-Policy median throughput       |   1,095.97/s |      405.34/s |      -690.63/s |          -63.02% |
+| Compiled-Policy request p95       |      4.25 ms |      16.51 ms |      +12.26 ms |         +288.65% |
+| Compiled-Policy median throughput |   1,007.64/s |      211.58/s |      -796.06/s |          -79.00% |
+
+### Final verification
+
+| Command or lane                                                                 | Outcome                                                                                                                                                      |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test:pr`                                                                  | Passed after both runner corrections: 510 SDK tests plus generation, repository, paired-run, package, format, lint, typecheck and dependency-boundary gates. |
+| `pnpm test:ci:postgresql`                                                       | Passed 293 source-feedback tests against PostgreSQL `180003`; cleanup passed.                                                                                |
+| `pnpm test:pglite-postgresql -- --output .artifacts/key-109/attempt-007/paired` | Passed the full PGlite/native inventory, exact shared comparison, retention and cleanup.                                                                     |
+| Node 24 and Node 26 exact-archive qualification                                 | Passed all 14 checks separately against archive `2bbe6457...`; legacy compressed-size failure retained.                                                      |
+| Final observation and comparison records                                        | Passed fixed-count completeness, exact engine identity and same-host comparison validation.                                                                  |
+| Production-path search                                                          | No `node:sqlite`, SQLite executor/store or TypeScript Policy evaluator reference remains in `packages/sdk/src` or `packages/sdk/scripts`.                    |
+| `git diff --check`                                                              | Passed before final reconciliation.                                                                                                                          |
+| Phase 6 Ponytail review                                                         | One repeated evidence sentence deleted; both code/test corrections were already minimum-sized.                                                               |
+
+### Requirement reconciliation
+
+| Requirement           | Final evidence                                                                                                                                                                                     |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001, FR-002        | Final raw measurements and exact archive comparison retained; PGlite and native both report PostgreSQL `180003`; canonical installation and exact recheck pass.                                    |
+| FR-003 through FR-005 | The full Local/shared/Policy inventory executes through canonical procedures with owned transactions and transaction-local context; paired and package consumers pass.                             |
+| FR-006, FR-007        | Public initialization, admission, isolation, bounded replay, drain, concurrent/repeated close, failure and cleanup cases pass.                                                                     |
+| FR-008                | Shared 99-case behavior agrees exactly between PGlite and native PostgreSQL; native-only contention, permission, rollback, recovery and caller-transaction suites pass separately.                 |
+| FR-009                | Focused production search and build inventory confirm one PGlite-backed Local authority path with no SQLite or TypeScript evaluator runtime.                                                       |
+| FR-010                | Fail-closed relevance, failure/report handling and required workflow names pass locally. Live branch protection requires both exact contexts, but actual candidate hosted checks remain `NOT RUN`. |
+| FR-011                | Paired, package and measurement records retain exact source, archive, environment, report, failure, cleanup and comparison identities.                                                             |
+| FR-012 through FR-014 | Active product, architecture, workflow, SDK, constitution and ADR wording is reconciled; package separation remains KEY-96; PostgreSQL 18.3 identities and rejection tests pass.                   |
+| SC-001, SC-002        | Canonical installation and representative procedure behavior pass in PGlite and native; shared behavior, lifecycle and native-only semantics pass.                                                 |
+| SC-003                | Same-host raw SQLite/PGlite records and absolute/percentage deltas are retained without claiming a performance improvement or new SLA.                                                             |
+| SC-004                | Production/build inventory and focused search confirm removal of the duplicate SQLite and TypeScript evaluator paths.                                                                              |
+| SC-005                | **Blocked for hosted acceptance:** protection configuration is verified, but there is no pull request and therefore no actual applicable candidate check result.                                   |
+| SC-006                | Executed lanes identify exact candidates and outcomes; failed attempts and explicit `NOT RUN` lanes are preserved; historical feature evidence was not rewritten.                                  |
+
+Hosted, Embedded, managed-provider, registry, publication, security-qualification, production-readiness, KEY-87 operating-envelope and KEY-88 final split-archive acceptance remain `NOT RUN` or outside KEY-109. KEY-109 makes no claim that those lanes passed.
