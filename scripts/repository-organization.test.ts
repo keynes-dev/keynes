@@ -65,6 +65,18 @@ describe("repository organization", () => {
     );
   });
 
+  it("keeps package qualification out of routine SDK tests", () => {
+    const scripts = requireObject(
+      readJsonObject(join(repositoryRoot, "packages/sdk/package.json")),
+      "scripts",
+    );
+    expect(scripts.test).not.toContain("test/package");
+    expect(scripts["test:package:unit"]).toContain("vitest run test/package");
+    expect(readFile(".github/workflows/sdk-package.yml")).toContain(
+      "pnpm --filter @keynes/sdk test:package:unit",
+    );
+  });
+
   it("materializes every target owner", () => {
     for (const directory of targetDirectories) {
       expect(existsSync(join(repositoryRoot, directory)), directory).toBe(true);

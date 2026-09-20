@@ -1,6 +1,15 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { access, cp, mkdir, writeFile } from "node:fs/promises";
-import { arch, platform, release } from "node:os";
+import {
+  access,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { arch, platform, release, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -56,8 +65,16 @@ export interface QualificationRecordInput {
     readonly steadyWarmup: number;
     readonly steadySamples: number;
     readonly percentile: "nearest-rank";
+    readonly offlineInstalls: 5;
+    readonly memorySamplingIntervalMilliseconds: 1;
+    readonly installCache: "prefilled-offline";
   };
   readonly samples: {
+    readonly startupMilliseconds: readonly number[];
+    readonly sampledPeakRssBytes: readonly number[];
+    readonly memorySampleCount: readonly number[];
+    readonly offlineInstallMilliseconds: readonly number[];
+    readonly steadyElapsedMilliseconds: readonly number[];
     readonly parserInitializationMilliseconds: readonly number[];
     readonly readyRssBytes: readonly number[];
     readonly coldCreateMilliseconds: readonly number[];
@@ -135,6 +152,55 @@ export function nearestRankPercentile(
 }
 
 export function createQualificationRecord(input: QualificationRecordInput) {
+  if (
+    !/^[a-f0-9]{40}$/.test(input.sourceRevision.commit) ||
+    typeof input.sourceRevision.cleanBefore !== "boolean" ||
+    typeof input.sourceRevision.cleanAfter !== "boolean" ||
+    !Number.isSafeInteger(input.archive.compressedBytes) ||
+    input.archive.compressedBytes <= 0 ||
+    !Number.isSafeInteger(input.archive.productionBytes) ||
+    input.archive.productionBytes <= 0 ||
+    !input.archive.packageVersion ||
+    input.environment.commit !== input.sourceRevision.commit ||
+    !/^[a-f0-9]{64}$/.test(input.archive.sha256) ||
+    !/^[a-f0-9]{64}$/.test(input.archive.contractDigest) ||
+    input.environment.runtimeEngine !== "node:sqlite" ||
+    !/^v\d+\.\d+\.\d+$/.test(input.environment.nodeVersion) ||
+    !/^\d+\.\d+\.\d+$/.test(input.environment.sqliteVersion) ||
+    input.method.coldProcesses !== 30 ||
+    input.method.coldWarmup !== 3 ||
+    input.method.parserInitializationProcesses !== 30 ||
+    input.method.firstRequestProcesses !== 30 ||
+    input.method.steadySamples !== 100 ||
+    input.method.steadyWarmup !== 10 ||
+    input.method.offlineInstalls !== 5 ||
+    input.method.memorySamplingIntervalMilliseconds !== 1 ||
+    input.method.installCache !== "prefilled-offline" ||
+    input.method.percentile !== "nearest-rank"
+  )
+    throw new Error("Invalid measurement identity or method");
+  validateSamples(input.samples.startupMilliseconds, 30, "startupMilliseconds");
+  validateSamples(input.samples.sampledPeakRssBytes, 30, "sampledPeakRssBytes");
+  validateSamples(input.samples.memorySampleCount, 30, "memorySampleCount");
+  validateSamples(
+    input.samples.offlineInstallMilliseconds,
+    5,
+    "offlineInstallMilliseconds",
+  );
+  validateSamples(
+    input.samples.steadyElapsedMilliseconds,
+    1,
+    "steadyElapsedMilliseconds",
+  );
+  if (
+    input.samples.steadyElapsedMilliseconds[0] <= 0 ||
+    !Number.isFinite(100_000 / input.samples.steadyElapsedMilliseconds[0]) ||
+    input.samples.memorySampleCount.some(
+      (value) => !Number.isInteger(value) || value < 2,
+    )
+  ) {
+    throw new Error("Invalid measurement duration or memory sample count");
+  }
   validateSamples(
     input.samples.parserInitializationMilliseconds,
     30,
@@ -163,6 +229,11 @@ export function createQualificationRecord(input: QualificationRecordInput) {
   );
 
   const samples = {
+    startupMilliseconds: [...input.samples.startupMilliseconds],
+    sampledPeakRssBytes: [...input.samples.sampledPeakRssBytes],
+    memorySampleCount: [...input.samples.memorySampleCount],
+    offlineInstallMilliseconds: [...input.samples.offlineInstallMilliseconds],
+    steadyElapsedMilliseconds: [...input.samples.steadyElapsedMilliseconds],
     parserInitializationMilliseconds: [
       ...input.samples.parserInitializationMilliseconds,
     ],
@@ -173,7 +244,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     shutdownMilliseconds: [...input.samples.shutdownMilliseconds],
   };
   return {
-    schemaVersion: "keynes.package-test.sdk-measurement/v1" as const,
+    schemaVersion: "keynes.package-test.sdk-measurement/v2" as const,
     subject: "@keynes/sdk" as const,
     sourceRevision: { ...input.sourceRevision },
     archive: {
@@ -187,6 +258,14 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     method: { ...input.method },
     samples,
     observed: {
+      startupMilliseconds: observation(samples.startupMilliseconds),
+      sampledPeakRssBytes: observation(samples.sampledPeakRssBytes),
+      memorySampleCount: observation(samples.memorySampleCount),
+      offlineInstallMilliseconds: observation(
+        samples.offlineInstallMilliseconds,
+      ),
+      steadyElapsedMilliseconds: observation(samples.steadyElapsedMilliseconds),
+      requestsPerSecond: 100_000 / samples.steadyElapsedMilliseconds[0],
       parserInitializationMilliseconds: observation(
         samples.parserInitializationMilliseconds,
       ),
@@ -259,6 +338,9 @@ async function measure(
   await assertNewOutputPath(args.outputPath);
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
+  const offlineInstallMilliseconds = await measureFreshInstallations(
+    args.archivePath,
+  );
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
@@ -273,6 +355,9 @@ async function measure(
     for (let index = 0; index < COLD_WARMUP_PROCESSES; index += 1) {
       runColdWorker(worker, external.root);
     }
+    const startupMilliseconds: number[] = [];
+    const sampledPeakRssBytes: number[] = [];
+    const memorySampleCount: number[] = [];
     const readyRssBytes: number[] = [];
     const parserInitializationMilliseconds: number[] = [];
     const coldCreateMilliseconds: number[] = [];
@@ -286,6 +371,9 @@ async function measure(
       parserInitializationMilliseconds.push(
         result.parserInitializationMilliseconds,
       );
+      startupMilliseconds.push(result.startupMilliseconds);
+      sampledPeakRssBytes.push(result.sampledPeakRssBytes);
+      memorySampleCount.push(result.memorySampleCount);
       readyRssBytes.push(result.readyRssBytes);
       coldCreateMilliseconds.push(result.coldCreateMilliseconds);
       firstRequestMilliseconds.push(result.firstRequestMilliseconds);
@@ -294,7 +382,7 @@ async function measure(
     if (runtimeIdentity === undefined) {
       throw new Error("Cold measurement produced no runtime identity");
     }
-    const steadyRequestMilliseconds = runSteadyWorker(worker, external.root);
+    const steady = runSteadyWorker(worker, external.root, runtimeIdentity);
     measured = {
       archive: {
         sha256: archive.sha256,
@@ -304,7 +392,7 @@ async function measure(
         contractDigest: archive.contractDigest,
       },
       environment: {
-        commit: commandOutput("git", ["rev-parse", "HEAD"], process.cwd()),
+        commit: commandOutput("git", ["rev-parse", "HEAD"], repositoryRoot),
         os: platform(),
         release: release(),
         architecture: arch(),
@@ -321,13 +409,21 @@ async function measure(
         steadyWarmup: 10,
         steadySamples: 100,
         percentile: "nearest-rank",
+        offlineInstalls: 5,
+        memorySamplingIntervalMilliseconds: 1,
+        installCache: "prefilled-offline",
       },
       samples: {
+        startupMilliseconds,
+        sampledPeakRssBytes,
+        memorySampleCount,
+        offlineInstallMilliseconds,
+        steadyElapsedMilliseconds: [steady.elapsed],
         parserInitializationMilliseconds,
         readyRssBytes,
         coldCreateMilliseconds,
         firstRequestMilliseconds,
-        steadyRequestMilliseconds,
+        steadyRequestMilliseconds: steady.samples,
         shutdownMilliseconds,
       },
     };
@@ -336,6 +432,13 @@ async function measure(
   }
   if (measured === undefined)
     throw new Error("SDK measurement produced no record");
+  if (
+    createHash("sha256")
+      .update(await readFile(args.archivePath))
+      .digest("hex") !== archive.sha256
+  ) {
+    throw new Error("SDK archive changed during measurement");
+  }
   const sourceAfter = readSourceRevision();
   if (
     sourceAfter.commit !== sourceBefore.commit ||
@@ -359,11 +462,54 @@ export async function writeMeasurementRecord(
   outputPath: string,
   record: SdkPackageMeasurementRecord,
 ): Promise<void> {
-  assertWithinLimits(record);
+  const validated = createQualificationRecord(record);
+  assertWithinLimits(validated);
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, `${JSON.stringify(record, null, 2)}\n`, {
+  await writeFile(outputPath, `${JSON.stringify(validated, null, 2)}\n`, {
     flag: "wx",
   });
+}
+
+async function measureFreshInstallations(
+  archivePath: string,
+): Promise<number[]> {
+  const root = await mkdtemp(
+    resolve(tmpdir(), "keynes-sdk-install-measurement-"),
+  );
+  const store = resolve(root, "store");
+  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  try {
+    const samples: number[] = [];
+    for (let index = 0; index < 6; index += 1) {
+      const consumer = resolve(root, String(index));
+      await mkdir(consumer);
+      await cp(archivePath, resolve(consumer, "keynes-sdk.tgz"));
+      await writeFile(
+        resolve(consumer, "package.json"),
+        JSON.stringify({
+          private: true,
+          dependencies: { "@keynes/sdk": "file:./keynes-sdk.tgz" },
+        }),
+      );
+      const started = performance.now();
+      commandOutput(
+        pnpm,
+        [
+          "install",
+          "--prod",
+          "--offline",
+          "--ignore-scripts",
+          "--store-dir",
+          store,
+        ],
+        consumer,
+      );
+      if (index > 0) samples.push(performance.now() - started);
+    }
+    return samples;
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 function readSourceRevision(): {
@@ -371,8 +517,8 @@ function readSourceRevision(): {
   readonly status: string;
 } {
   return {
-    commit: commandOutput("git", ["rev-parse", "HEAD"], process.cwd()),
-    status: commandOutput("git", ["status", "--porcelain"], process.cwd()),
+    commit: commandOutput("git", ["rev-parse", "HEAD"], repositoryRoot),
+    status: commandOutput("git", ["status", "--porcelain"], repositoryRoot),
   };
 }
 
@@ -385,8 +531,8 @@ function validateSamples(
   minimum: number,
   name: string,
 ): void {
-  if (samples.length < minimum) {
-    throw new Error(`${name} requires at least ${minimum} samples`);
+  if (samples.length !== minimum) {
+    throw new Error(`${name} requires exactly ${minimum} samples`);
   }
   if (samples.some((sample) => !Number.isFinite(sample) || sample < 0)) {
     throw new Error(`${name} samples must be finite non-negative numbers`);
@@ -397,6 +543,9 @@ function runColdWorker(
   path: string,
   cwd: string,
 ): {
+  readonly startupMilliseconds: number;
+  readonly sampledPeakRssBytes: number;
+  readonly memorySampleCount: number;
   readonly parserInitializationMilliseconds: number;
   readonly readyRssBytes: number;
   readonly coldCreateMilliseconds: number;
@@ -407,6 +556,10 @@ function runColdWorker(
   const value = workerOutput(path, "cold-first", cwd);
   if (
     value.kind !== "cold-first" ||
+    value.runtimeObserved !== true ||
+    !isFiniteNonNegative(value.startupMilliseconds) ||
+    !isFiniteNonNegative(value.sampledPeakRssBytes) ||
+    !isFiniteNonNegative(value.memorySampleCount) ||
     !isFiniteNonNegative(value.parserInitializationMilliseconds) ||
     !isFiniteNonNegative(value.readyRssBytes) ||
     !isFiniteNonNegative(value.coldCreateMilliseconds) ||
@@ -420,6 +573,9 @@ function runColdWorker(
     throw new Error("Cold measurement worker returned invalid output");
   }
   return {
+    startupMilliseconds: value.startupMilliseconds,
+    sampledPeakRssBytes: value.sampledPeakRssBytes,
+    memorySampleCount: value.memorySampleCount,
     parserInitializationMilliseconds: value.parserInitializationMilliseconds,
     readyRssBytes: value.readyRssBytes,
     coldCreateMilliseconds: value.coldCreateMilliseconds,
@@ -452,10 +608,16 @@ function assertSameRuntimeIdentity(
   }
 }
 
-function runSteadyWorker(path: string, cwd: string): number[] {
+function runSteadyWorker(path: string, cwd: string, identity: RuntimeIdentity) {
   const value = workerOutput(path, "steady", cwd);
   if (
     value.kind !== "steady" ||
+    value.runtimeObserved !== true ||
+    value.runtimeEngine !== identity.runtimeEngine ||
+    value.nodeVersion !== identity.nodeVersion ||
+    value.sqliteVersion !== identity.sqliteVersion ||
+    !isFiniteNonNegative(value.steadyElapsedMilliseconds) ||
+    value.steadyElapsedMilliseconds <= 0 ||
     value.warmupCount !== 10 ||
     !Array.isArray(value.steadyRequestMilliseconds) ||
     value.steadyRequestMilliseconds.length !== 100 ||
@@ -464,7 +626,10 @@ function runSteadyWorker(path: string, cwd: string): number[] {
   ) {
     throw new Error("Steady measurement worker returned invalid output");
   }
-  return [...value.steadyRequestMilliseconds];
+  return {
+    samples: [...value.steadyRequestMilliseconds],
+    elapsed: value.steadyElapsedMilliseconds,
+  };
 }
 
 function workerOutput(

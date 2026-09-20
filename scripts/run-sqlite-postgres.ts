@@ -1,4 +1,8 @@
 import {
+  localTestFiles,
+  validateLocalReport,
+} from "../packages/sdk/test/system/run-local.ts";
+import {
   manageChild,
   waitWithCancellation,
 } from "../packages/testkit/src/process.ts";
@@ -40,11 +44,7 @@ export function validateTestReport(
     (file) => file.name === aggregate || file.name.endsWith(`/${aggregate}`),
   );
   const first = shared[0];
-  if (
-    shared.length !== 1 ||
-    first === undefined ||
-    (aggregate === SQLITE_AGGREGATE && files.length !== 1)
-  )
+  if (shared.length !== 1 || first === undefined)
     throw new Error("Incomplete test report");
   return [...first.assertions];
 }
@@ -103,12 +103,13 @@ export async function runSqlite(
   signal: AbortSignal,
 ): Promise<unknown> {
   if (signal.aborted) throw new Error("sqlite-postgres cancelled");
+  const files = await localTestFiles();
   const managed = spawnTestChild(
     [
       "exec",
       "vitest",
       "run",
-      SQLITE_AGGREGATE,
+      ...files,
       "--root=.",
       "--exclude=**/.claude/worktrees/**",
       "--allowOnly=false",
@@ -139,7 +140,9 @@ export async function runSqlite(
     }
   }
   if (failure !== undefined) throw failure;
-  return JSON.parse(await readFile(reportPath, "utf8"));
+  const report: unknown = JSON.parse(await readFile(reportPath, "utf8"));
+  validateLocalReport(report, files);
+  return report;
 }
 
 const executed = process.argv[1];

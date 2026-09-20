@@ -1,3 +1,4 @@
+import { localTestFiles } from "../packages/sdk/test/system/run-local.ts";
 import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,7 +38,7 @@ function report(native = false) {
     name: `/checkout/${name}`,
     status: "passed",
     message: "",
-    assertionResults: names.map((fullName) => ({
+    assertionResults: names.map((fullName: string) => ({
       fullName,
       ancestorTitles: [],
       status: "passed",
@@ -64,6 +65,32 @@ function report(native = false) {
 }
 
 describe("SQLite and PostgreSQL result verification", () => {
+  it("extracts shared coverage while retaining additional Local suites", () => {
+    const value = report();
+    value.testResults.push({
+      name: "/checkout/packages/sdk/test/unit/local/extra.test.ts",
+      status: "passed",
+      message: "",
+      assertionResults: [
+        {
+          fullName: "Local lifecycle",
+          ancestorTitles: [],
+          status: "passed",
+          failureMessages: [],
+        },
+      ],
+    });
+    value.numTotalTests++;
+    value.numPassedTests++;
+    value.numTotalTestSuites++;
+    value.numPassedTestSuites++;
+    expect(validateTestReport(value, SQLITE_AGGREGATE)).toEqual(
+      [
+        ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE],
+      ].sort(),
+    );
+  });
+
   it("rejects selected schema even when it carries complete assertion counts", () => {
     expect(() =>
       validateTestReport(
@@ -75,11 +102,31 @@ describe("SQLite and PostgreSQL result verification", () => {
   it.each([0, 1])(
     "honors actual SQLite process exit %i with success-shaped JSON",
     async (exitCode) => {
+      const selected = await localTestFiles();
+      const complete = report();
+      complete.testResults = selected.map((name) => ({
+        name,
+        status: "passed",
+        message: "",
+        assertionResults: [
+          {
+            fullName: name,
+            ancestorTitles: [],
+            status: "passed",
+            failureMessages: [],
+          },
+        ],
+      }));
+      complete.numTotalTests =
+        complete.numPassedTests =
+        complete.numTotalTestSuites =
+        complete.numPassedTestSuites =
+          selected.length;
       const temporary = await mkdtemp(join(tmpdir(), "keynes-child-fixture-"));
       try {
         await writeFile(
           join(temporary, "pnpm"),
-          `#!${process.execPath}\nconst fs = require('node:fs');\nconst output = process.argv.find(arg => arg.startsWith('--outputFile=')).slice('--outputFile='.length);\nif (!process.argv.includes('--allowOnly=false')) process.exit(9);\nfs.writeFileSync(output, ${JSON.stringify(JSON.stringify(report()))});\nprocess.exit(${exitCode});\n`,
+          `#!${process.execPath}\nconst fs = require('node:fs');\nconst output = process.argv.find(arg => arg.startsWith('--outputFile=')).slice('--outputFile='.length);\nif (!process.argv.includes('--allowOnly=false')) process.exit(9);\nfs.writeFileSync(output, ${JSON.stringify(JSON.stringify(complete))});\nprocess.exit(${exitCode});\n`,
           { mode: 0o700 },
         );
         vi.stubEnv("PATH", temporary);
@@ -87,7 +134,7 @@ describe("SQLite and PostgreSQL result verification", () => {
           join(temporary, "report.json"),
           new AbortController().signal,
         );
-        if (exitCode === 0) await expect(result).resolves.toEqual(report());
+        if (exitCode === 0) await expect(result).resolves.toEqual(complete);
         else await expect(result).rejects.toThrow("SQLite process failed");
       } finally {
         vi.unstubAllEnvs();
@@ -95,6 +142,24 @@ describe("SQLite and PostgreSQL result verification", () => {
       }
     },
   );
+  it("rejects a successful child report missing required Local files", async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "keynes-child-incomplete-"));
+    try {
+      await writeFile(
+        join(temporary, "pnpm"),
+        `#!${process.execPath}\nconst fs = require('node:fs');\nconst output = process.argv.find(arg => arg.startsWith('--outputFile=')).slice('--outputFile='.length);\nfs.writeFileSync(output, ${JSON.stringify(JSON.stringify(report()))});\n`,
+        { mode: 0o700 },
+      );
+      vi.stubEnv("PATH", temporary);
+      await expect(
+        runSqlite(join(temporary, "report.json"), new AbortController().signal),
+      ).rejects.toThrow("Local suite selection is incomplete");
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
   it("rejects an unavailable SQLite executable", async () => {
     vi.stubEnv("PATH", "");
     try {
