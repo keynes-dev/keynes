@@ -32,7 +32,7 @@ interface RemoteBudgetMethods<
   readonly reference: BudgetReference;
   readonly request: <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
-    options?: RemoteOperationOptions & BudgetRequestOptions,
+    ...options: [] | [RemoteOperationOptions & BudgetRequestOptions]
   ) => Promise<
     RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
   >;

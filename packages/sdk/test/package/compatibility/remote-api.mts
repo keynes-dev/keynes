@@ -70,7 +70,15 @@ const requestResult = await root.request({ usdCents: 25 }, { operationKey });
 if (requestResult.status === "approved") {
   expectType<BudgetReference>(requestResult.budget.reference);
 }
+await root.request({ usdCents: 1 });
 await root.settle({ usdCents: 19 }, { operationKey });
+// @ts-expect-error Explicit undefined is not a remote request option.
+await root.request({ usdCents: 1 }, undefined);
+declare const optionalRemoteOptions:
+  | { readonly operationKey: OperationKey }
+  | undefined;
+// @ts-expect-error Optional option variables cannot supply a remote request option.
+await root.request({ usdCents: 1 }, optionalRemoteOptions);
 
 const reopenedPromise = remote.openBudget({
   reference: storedReference,
