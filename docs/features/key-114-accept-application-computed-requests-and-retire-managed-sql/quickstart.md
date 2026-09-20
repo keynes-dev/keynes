@@ -1,6 +1,9 @@
 # Customer examples and validation
 
-Proposed contract; examples and runtime checks NOT RUN. Run these after implementation is authorized. Use supported Node >=24, pnpm 11.21.0, frozen dependencies and Docker for native PostgreSQL. Use fresh provider-free fixtures.
+> **Implementation status:** Phases 3 and 4 are implemented. The recorded
+> checks are in [acceptance.md](acceptance.md). This quickstart preserves its
+> planning verification and qualification limits; it does not claim final
+> package or paired qualification.
 
 ## TypeScript
 
@@ -114,8 +117,10 @@ Use a clean candidate and a new output directory for every attempt:
 ```sh
 pnpm test:pr
 pnpm test:sqlite-postgres -- --output .artifacts/key-114/attempt-01
-pnpm test:package:sdk
-pnpm test:package:postgresql
+pnpm --config.node-linker=hoisted --filter @keynes/sdk pack --pack-destination "$PWD/.artifacts/key-114/packages"
+pnpm --filter @keynes/postgresql pack --pack-destination "$PWD/.artifacts/key-114/packages"
+pnpm test:package:sdk -- --archive .artifacts/key-114/packages/keynes-sdk-0.0.0.tgz --output .artifacts/key-114/packages/sdk-consumer.json
+pnpm test:package:postgresql -- --archive .artifacts/key-114/packages/keynes-postgresql-0.0.0.tgz --output .artifacts/key-114/packages/postgresql-consumer.json
 ```
 
 The paired command supplies Local/native qualification; do not repeat the same full native run without a changed candidate or unresolved failure. Retain exact revision, dependency/tool/host identities, archives/digests, reports, child process exits and cleanup outcomes. Keep both required CI check names and fail-closed applicability classification. Routine `pnpm test:ci:postgresql` remains correctness evidence, not package or managed-operation qualification.

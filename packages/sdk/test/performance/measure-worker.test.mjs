@@ -61,7 +61,6 @@ describe("SDK package measurement worker", () => {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
-      parserInitializationMilliseconds: expect.any(Number),
       runtimeObserved: true,
       startupMilliseconds: expect.any(Number),
       sampledPeakRssBytes: expect.any(Number),
@@ -81,6 +80,7 @@ describe("SDK package measurement worker", () => {
     );
     expect(output).not.toHaveProperty("emptyRssBytes");
     expect(output).not.toHaveProperty("readyRssDeltaBytes");
+    expect(output).not.toHaveProperty("parserInitializationMilliseconds");
     for (const value of Object.values(output)) {
       if (typeof value === "number") {
         expect(Number.isFinite(value)).toBe(true);

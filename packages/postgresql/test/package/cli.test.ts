@@ -79,6 +79,18 @@ describe("@keynes/postgresql packed CLI", () => {
     }
   });
 
+  it("rejects a retired managed Policy configuration field", async () => {
+    const configPath = await writeConfig({
+      ...config,
+      policyProfileId: "legacy-managed-policy-profile",
+    });
+    expectFailure(
+      run(["install", "--config", configPath]),
+      "invalid_config",
+      "config",
+    );
+  });
+
   it("redacts connection secrets from both streams", async () => {
     const configPath = await writeConfig(config);
     const secret = "packed-cli-secret";

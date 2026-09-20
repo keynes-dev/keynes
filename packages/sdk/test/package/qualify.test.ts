@@ -203,23 +203,13 @@ describe("SDK package-test runner", () => {
     expect(manifest.bundledDependencies).toEqual(expectedBundledDependencies);
   });
 
-  it("packs only the reachable schema-first and Policy API modules", () => {
+  it("packs the reduced application-request module set", () => {
     const paths = [...archiveEntries.keys()];
-    for (const module of [
-      "budget",
-      "resources",
-      "generated/policy-profile",
-      "generated/policy-types",
-      "policy/authoring",
-      "policy/canonicalize",
-      "policy/compile",
-      "policy/normalize",
-      "policy/parse",
-      "policy/validate",
-    ]) {
+    for (const module of SDK_PRODUCTION_MODULES) {
       expect(paths).toContain(`package/dist/${module}.d.ts`);
       expect(paths).toContain(`package/dist/${module}.js`);
     }
+    expect(paths.filter((path) => /policy/i.test(path))).toEqual([]);
   });
 
   it("contains no PGlite or copied database archive path", () => {
@@ -352,7 +342,7 @@ describe("SDK package-test runner", () => {
         "configuration-rejection",
         "environment-isolation",
         "budget-loop",
-        "policy-runtime",
+        "application-request",
         "isolation",
         "closure",
         "process-loss",

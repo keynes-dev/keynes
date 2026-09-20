@@ -131,7 +131,7 @@ export interface Budget<
   readonly [budgetBrand]: undefined;
   readonly request: <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
-    ...options: readonly [] | readonly [BudgetRequestOptions]
+    ...options: [] | [BudgetRequestOptions]
   ) => Promise<
     BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
   >;

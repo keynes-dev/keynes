@@ -4,7 +4,10 @@
 
 **Input**: `docs/features/key-114-accept-application-computed-requests-and-retire-managed-sql/spec.md`
 
-**Baseline**: `6f765b81cc93824340cfcf2a79a3b4b031af7802`. Fresh planning after deleting the previous worktree. Implementation NOT RUN.
+**Baseline**: `6f765b81cc93824340cfcf2a79a3b4b031af7802`. This planning baseline preceded
+implementation. Phases 3 and 4 are implemented; see
+[acceptance.md](acceptance.md) for recorded checks and remaining qualification
+limits.
 
 ## Summary
 

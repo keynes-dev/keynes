@@ -52,11 +52,9 @@ const expectedBundledDependencies = Object.keys(
 const bundledPackageRoots = expectedBundledDependencies.map(
   (name) => `package/node_modules/${name}`,
 );
-const requiredBundledPackageFiles = [
-  ...expectedBundledDependencies.map(
-    (name) => `package/node_modules/${name}/package.json`,
-  ),
-] as const;
+const requiredBundledPackageFiles = expectedBundledDependencies.map(
+  (name) => `package/node_modules/${name}/package.json`,
+);
 
 const allowedPackageFiles = [
   "package/LICENSE",
@@ -81,7 +79,7 @@ const PROVIDER_FREE_PACKAGE_CHECKS = [
   "configuration-rejection",
   "environment-isolation",
   "budget-loop",
-  "policy-runtime",
+  "application-request",
   "isolation",
   "closure",
   "process-loss",
@@ -271,7 +269,7 @@ export async function qualifyArchive(
         "configuration-rejection",
         "environment-isolation",
         "budget-loop",
-        "policy-runtime",
+        "application-request",
         "isolation",
         "closure",
       ])

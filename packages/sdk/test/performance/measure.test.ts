@@ -58,7 +58,7 @@ describe("SDK package measurement controller", () => {
     const input = validRecordInput();
     const record = createQualificationRecord(input);
     expect(record).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk-measurement/v2",
+      schemaVersion: "keynes.package-test.sdk-measurement/v3",
       subject: "@keynes/sdk",
       outcome: "passed",
       exclusions: {
@@ -123,7 +123,6 @@ describe("SDK package measurement controller", () => {
         "startupMilliseconds",
         "steadyElapsedMilliseconds",
         "firstRequestMilliseconds",
-        "parserInitializationMilliseconds",
         "readyRssBytes",
         "shutdownMilliseconds",
         "steadyRequestMilliseconds",
@@ -138,7 +137,6 @@ describe("SDK package measurement controller", () => {
         "startupMilliseconds",
         "steadyElapsedMilliseconds",
         "firstRequestMilliseconds",
-        "parserInitializationMilliseconds",
         "readyRssBytes",
         "shutdownMilliseconds",
         "steadyRequestMilliseconds",
@@ -147,6 +145,13 @@ describe("SDK package measurement controller", () => {
     expect(record.observed.requestsPerSecond).toBeCloseTo(100_000 / 5050);
     expect(record.samples).not.toHaveProperty("readyRssDeltaBytes");
     expect(record.observed).not.toHaveProperty("readyRssDeltaBytes");
+    expect(record.method).not.toHaveProperty("parserInitializationProcesses");
+    expect(record.samples).not.toHaveProperty(
+      "parserInitializationMilliseconds",
+    );
+    expect(record.observed).not.toHaveProperty(
+      "parserInitializationMilliseconds",
+    );
     expect(record.observed.steadyRequestMilliseconds).toEqual({
       count: 100,
       p95: 95,
@@ -282,7 +287,6 @@ function validRecordInput(): QualificationRecordInput {
     method: {
       coldWarmup: 3,
       coldProcesses: 30,
-      parserInitializationProcesses: 30,
       firstRequestProcesses: 30,
       steadyWarmup: 10,
       steadySamples: 100,
@@ -297,10 +301,6 @@ function validRecordInput(): QualificationRecordInput {
       memorySampleCount: Array(30).fill(2),
       offlineInstallMilliseconds: Array(5).fill(100),
       steadyElapsedMilliseconds: [5050],
-      parserInitializationMilliseconds: Array.from(
-        { length: 30 },
-        (_, index) => index + 1,
-      ),
       readyRssBytes: Array.from({ length: 30 }, (_, index) => index + 1),
       coldCreateMilliseconds: Array.from(
         { length: 30 },

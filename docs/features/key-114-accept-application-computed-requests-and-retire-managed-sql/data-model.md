@@ -1,6 +1,8 @@
 # Data model
 
-Proposed changes only; implementation NOT RUN.
+This is the planning data model. Phases 3 and 4 implement the described Policy
+retirement and request-evidence model; [acceptance.md](acceptance.md) records
+the observed checks and remaining qualification limits.
 
 | Entity            | Retained ownership and invariant                         | Change                                           |
 | ----------------- | -------------------------------------------------------- | ------------------------------------------------ |

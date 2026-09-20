@@ -21,12 +21,16 @@ import {
 
 const ROOT_BUDGET_ID = "21000000-0000-4000-8000-000000000001";
 const REQUEST_COMMAND_ID = "31000000-0000-4000-8000-000000000001";
+const CUSTOMER_REQUEST_COMMAND_ID = "31000000-0000-4000-8000-000000000004";
 const OUTBOX_ID = "41000000-0000-4000-8000-000000000001";
 const BOUND_ROOT_ID = "22000000-0000-4000-8000-000000000001";
 const REDEFINITION_ID = "12000000-0000-4000-8000-000000000001";
 const BOUND_ROOT_DEFINITION_ID = "12000000-0000-4000-8000-000000000002";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
+type RootResourceDefinition = Parameters<
+  typeof rootResources
+>[0][number]["definition"];
 
 interface EmbeddedFixture {
   readonly database: TransactionalDatabase;
@@ -363,6 +367,118 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     });
   });
 
+  it("runs a customer SQL decision and ordinary request in one caller rollback", async () => {
+    database = await openFixture();
+    const usdCents = {
+      canonicalName: "usd_cents",
+      unit: "cent",
+      accountingBehavior: "consumable" as const,
+    };
+    const small = await seedRoot(database, {
+      definition: usdCents,
+      amount: 10,
+      definitionCommandId: "10000000-0000-4000-8000-000000000003",
+      budgetCommandId: "20000000-0000-4000-8000-000000000003",
+    });
+    const large = await seedRoot(database, {
+      definition: usdCents,
+      amount: 100,
+      definitionCommandId: "10000000-0000-4000-8000-000000000004",
+      budgetCommandId: "20000000-0000-4000-8000-000000000004",
+    });
+    const before = await definitionTransactionState(database.database);
+    const transaction = await database.beginTransaction();
+    await transaction.connection.query(
+      "select set_config('keynes.tenant_id', $1::text, true), set_config('keynes.principal_id', $2::text, true)",
+      [FIXTURE_TENANT_ID, FIXTURE_PRINCIPALS["product-fixture"]],
+    );
+    const noSubmission = await Promise.all([
+      customerDecision(transaction, "basic", 25),
+      customerDecision(transaction, "pro", 24),
+    ]);
+    expect(noSubmission).toEqual([[], []]);
+    const evaluation = await customerDecision(transaction, "pro", 25);
+    expect(evaluation).toEqual([{ request: { usdCents: 25 } }]);
+    const amount = evaluation[0]?.request.usdCents;
+    if (amount === undefined)
+      throw new Error("customer decision did not return an amount");
+    const denied = await transaction.connection.query<{
+      readonly response: unknown;
+    }>(
+      `select keynes.request(jsonb_build_object(
+         'commandId', $1::uuid,
+         'parentBudgetId', $2::uuid,
+         'resources', jsonb_build_array(jsonb_build_object(
+           'resourceTypeId', $3::uuid, 'amount', $4::bigint
+         )),
+         'decisionEvidence', jsonb_build_object('rule', 'pro', 'revision', 1)
+       )) as response`,
+      [REQUEST_COMMAND_ID, small.budgetId, small.resourceTypeId, amount],
+    );
+    expect(denied.rows[0]?.response).toMatchObject({
+      ok: true,
+      result: {
+        kind: "denied",
+        decisionEvidence: { rule: "pro", revision: 1 },
+      },
+    });
+    const response = await transaction.connection.query<{
+      readonly response: unknown;
+    }>(
+      `select keynes.request(jsonb_build_object(
+         'commandId', $1::uuid,
+         'parentBudgetId', $2::uuid,
+         'resources', jsonb_build_array(jsonb_build_object(
+           'resourceTypeId', $3::uuid, 'amount', $4::bigint
+         )),
+         'decisionEvidence', jsonb_build_object('rule', 'pro', 'revision', 1)
+       )) as response`,
+      [
+        CUSTOMER_REQUEST_COMMAND_ID,
+        large.budgetId,
+        large.resourceTypeId,
+        amount,
+      ],
+    );
+    expect(response.rows[0]?.response).toMatchObject({
+      ok: true,
+      result: {
+        kind: "approved",
+        decisionEvidence: { rule: "pro", revision: 1 },
+      },
+    });
+    await transaction.connection.query(
+      `insert into application_outbox
+        (outbox_id, command_id, child_budget_id)
+       values ($1::uuid, $2::uuid, $3::uuid)`,
+      [OUTBOX_ID, CUSTOMER_REQUEST_COMMAND_ID, CUSTOMER_REQUEST_COMMAND_ID],
+    );
+    const parent = await transaction.connection.query<{
+      readonly response: unknown;
+    }>(
+      "select keynes.get_budget(jsonb_build_object('budgetId', $1::uuid)) as response",
+      [large.budgetId],
+    );
+    expect(parent.rows[0]?.response).toMatchObject({
+      ok: true,
+      result: { budget: { resources: [{ available: 75 }] } },
+    });
+    await transaction.rollback();
+
+    expect(await definitionTransactionState(database.database)).toEqual(before);
+    expect(await readState(database, CUSTOMER_REQUEST_COMMAND_ID)).toEqual({
+      budget: false,
+      outbox: false,
+    });
+    const evidence = await database.database.query<{ readonly count: string }>(
+      `select count(*)::text as count
+         from keynes_internal.budget_history_entries
+        where command_id = $1::uuid`,
+      [CUSTOMER_REQUEST_COMMAND_ID],
+    );
+    expect(evidence.rows).toEqual([{ count: "0" }]);
+  });
+
   it("preserves the original definition provenance for later definition", async () => {
     database = await openFixture();
     const transaction = await database.beginTransaction();
@@ -625,7 +741,7 @@ async function createResourceBoundBudget(
   return client.createBudget({ commandId, ...root });
 }
 
-function resourceDefinition(canonicalName: string) {
+function resourceDefinition(canonicalName: string): RootResourceDefinition {
   return {
     canonicalName,
     unit: "token",
@@ -660,28 +776,32 @@ async function openFixture(): Promise<EmbeddedFixture> {
 
 async function seedRoot(
   database: EmbeddedFixture,
+  options: {
+    readonly definition?: RootResourceDefinition;
+    readonly amount?: number;
+    readonly definitionCommandId?: string;
+    readonly budgetCommandId?: string;
+  } = {},
 ): Promise<{ resourceTypeId: string; budgetId: string }> {
+  const definition = options.definition ?? resourceDefinition("model_tokens");
+  const amount = options.amount ?? 10;
+  const definitionCommandId =
+    options.definitionCommandId ?? "10000000-0000-4000-8000-000000000001";
+  const budgetCommandId =
+    options.budgetCommandId ?? "20000000-0000-4000-8000-000000000001";
   const transaction = await database.beginTransaction();
   try {
     const client = createTransactionClient(transaction);
     const resource = await client.defineResource({
-      commandId: "10000000-0000-4000-8000-000000000001",
-      definition: {
-        canonicalName: "model_tokens",
-        unit: "token",
-        accountingBehavior: "consumable",
-      },
+      commandId: definitionCommandId,
+      definition,
     });
     const root = await client.createBudget({
-      commandId: "20000000-0000-4000-8000-000000000001",
+      commandId: budgetCommandId,
       ...rootResources([
         {
-          definition: {
-            canonicalName: "model_tokens",
-            unit: "token",
-            accountingBehavior: "consumable",
-          },
-          amount: 10,
+          definition,
+          amount,
         },
       ]),
     });
@@ -694,6 +814,20 @@ async function seedRoot(
     await transaction.rollback();
     throw error;
   }
+}
+
+async function customerDecision(
+  transaction: PostgresTransaction,
+  tier: string,
+  limit: number,
+): Promise<readonly { readonly request: { readonly usdCents: number } }[]> {
+  const result = await transaction.connection.query<{
+    readonly request: { readonly usdCents: number };
+  }>(
+    "select jsonb_build_object('usdCents', 25) as request where $1::text = 'pro' and $2::bigint >= 25",
+    [tier, limit],
+  );
+  return result.rows;
 }
 
 function request(

@@ -8,13 +8,19 @@ PostgreSQL extension.
 
 ## Adopted target and current implementation
 
-[ADR-0013](../../docs/adr/0013-application-owned-policies.md) adopts application-computed requests and retires database-managed Policy registration, compilation and evaluation. Current SQL and generated contracts still implement managed Policies; KEY-114 owns the breaking replacement and its tests. KEY-96 owns package/CLI separation. The commands and installation rules below describe the current archive, not the future package exports.
+[ADR-0013](../../docs/adr/0013-application-owned-policies.md) adopts
+application-computed requests and retires database-managed Policy registration,
+compilation, and evaluation. KEY-114 implemented that breaking contract. KEY-96
+still owns package/CLI separation.
 
 Customers evaluate policy in any language, including SQL over customer data. Supported Keynes commands retain database validation, permissions, Budget constraints, quantity enforcement, settlement and replay. Valid requests can be denied; caller decision evidence proves neither execution nor authority. SQL access from other application languages does not promise another SDK or prevent a database owner bypassing supported operations.
 
 Customers own evaluation failures, fallback, recomputation and their surrounding transactions. Keynes replay does not rerun customer policy. Supported Embedded calls use the supplied connection without committing, rolling back, replacing or closing it; results remain provisional until caller commit. An evaluation service or a separate customer database does not create a shared atomic transaction.
 
-The baseline remains fresh-install-only with exact read-only rechecks. No automatic upgrade, state transfer or old-Policy migration is promised by the adopted target.
+The baseline remains fresh-install-only with exact read-only rechecks. This is
+a compatibility break: recreate an incompatible development database and
+install the current archive. No automatic upgrade, state transfer, or old-Policy
+migration is supplied.
 
 ## Commands
 
@@ -105,7 +111,7 @@ bootstrap principal. The archive contains only `0001-baseline.sql`; development
 databases created from the former migration graph must be recreated.
 The installer supports only fresh installation and exact recheck. It rejects
 incompatible or partial state without repair. Resource definition and configured
-creation use semantic generation 3 and minimum SDK generation 3. Older preview
+creation use semantic generation 4 and minimum SDK generation 4. Older preview
 installations do not match this schema and procedure contract. Prepare a fresh
 database and install the current archive; there is no in-place migration or
 automatic data transfer from an incompatible installation.

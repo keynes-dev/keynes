@@ -1,6 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { createRequire, registerHooks } from "node:module";
-import { fileURLToPath } from "node:url";
+import { registerHooks } from "node:module";
 
 const mode = process.argv[2];
 if (mode === "cold-first") await runColdFirst();
@@ -21,13 +20,6 @@ async function runColdFirst() {
   // ponytail: sampling misses synchronous spikes; use external RSS tracing if needed.
   const sampler = setInterval(sampleMemory, 1);
   sampler.unref();
-  const sdkEntry = fileURLToPath(import.meta.resolve("@keynes/sdk"));
-  const parserEntry = createRequire(sdkEntry).resolve("libpg-query");
-  const parserInitializationStarted = performance.now();
-  const { loadModule } = await import(parserEntry);
-  await loadModule();
-  const parserInitializationMilliseconds =
-    performance.now() - parserInitializationStarted;
   const { createKeynes } = await importMeasuredSdk();
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -63,7 +55,6 @@ async function runColdFirst() {
       memorySampleCount,
       nodeVersion: process.version,
       sqliteVersion,
-      parserInitializationMilliseconds,
       readyRssBytes,
       coldCreateMilliseconds,
       firstRequestMilliseconds,

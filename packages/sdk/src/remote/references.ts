@@ -10,6 +10,7 @@ import type {
 } from "../generated/types.js";
 import { KeynesSdkError } from "../sdk-errors.js";
 import { canonicalDecisionEvidence } from "../decision-evidence.js";
+import type { DecisionEvidence } from "../decision-evidence.js";
 
 import {
   createResourceDefinitionBinding,
@@ -50,8 +51,12 @@ type RemoteRequestBudgetResult =
         readonly parentBudgetReference: string;
         readonly childBudgetReference?: string;
       }
-      ? Omit<Result, "parentBudgetReference" | "childBudgetReference"> & {
+      ? Omit<
+          Result,
+          "parentBudgetReference" | "childBudgetReference" | "decisionEvidence"
+        > & {
           readonly parentBudgetReference: BudgetReference;
+          readonly decisionEvidence?: DecisionEvidence;
         } & (Result extends { readonly childBudgetReference: string }
             ? { readonly childBudgetReference: BudgetReference }
             : object)

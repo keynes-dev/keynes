@@ -1,10 +1,4 @@
-import {
-  createKeynes,
-  createOperationKey,
-  definePolicySql,
-  policySet,
-  policyValue,
-} from "@keynes/sdk";
+import { createKeynes, createOperationKey } from "@keynes/sdk";
 import type { BudgetReference } from "@keynes/sdk";
 
 declare const process: {
@@ -17,8 +11,8 @@ switch (mode) {
   case "budget-loop":
     await runBudgetLoop();
     break;
-  case "policy-runtime":
-    await runPolicyRuntime();
+  case "application-request":
+    await runApplicationRequest();
     break;
   case "remote-exports":
     runRemoteExports();
@@ -240,44 +234,35 @@ async function runBudgetLoop(): Promise<void> {
   }
 }
 
-async function runPolicyRuntime(): Promise<void> {
-  const resources = {
-    modelTokens: { unit: "token", accountingBehavior: "consumable" },
-  };
-  const limit = definePolicySql(resources, {
-    name: "package_limit",
-    revision: 1,
-    inputs: ["modelTokens"],
-    outputs: ["modelTokens"],
-    context: { limit: policyValue.integer() },
-    reasons: ["package_limit"],
-    sql: `
-      SELECT requested.resource AS resource,
-             least(available.amount, context.limit) AS ceiling,
-             'package_limit' AS reason
-        FROM requested_resources AS requested
-        INNER JOIN available_resources AS available USING (resource)
-        CROSS JOIN policy_context AS context
-    `,
-  });
-  const keynes = await createKeynes({ resources });
-  try {
-    const root = await keynes.createBudget(
-      { modelTokens: 10 },
-      { policies: policySet(limit) },
-    );
-    const approved = await root.request(
-      { modelTokens: 4 },
-      { context: { limit: 5 } },
-    );
-    assertEqual(approved.status, "approved");
+function requestFor(tier: string, limit: number) {
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new Error("Invalid limit");
+  }
+  return tier === "pro" && limit >= 25 ? { usdCents: 25 } : null;
+}
 
-    const denied = await root.request(
-      { modelTokens: 6 },
-      { context: { limit: 5 } },
-    );
-    assertEqual(denied.status, "denied");
-    assertEqual(denied.policyEvidence?.decision, "denied");
+async function runApplicationRequest(): Promise<void> {
+  const keynes = await createKeynes({
+    resources: {
+      usdCents: { unit: "cent", accountingBehavior: "consumable" },
+    },
+  });
+  try {
+    const root = await keynes.createBudget({ usdCents: 100 });
+    const amounts = requestFor("pro", 25);
+    if (amounts === null) throw new Error("expected application request");
+    const request = await root.request(amounts, {
+      decisionEvidence: { rule: "pro", revision: 1 },
+    });
+    if (request.status !== "approved") {
+      throw new Error("application request was denied");
+    }
+    assertEqual(request.decisionEvidence, { revision: 1, rule: "pro" });
+    assertEqual((await root.inspect()).budget.resources[0]?.available, 75);
+    await request.budget.settle({ usdCents: 20 });
+    assertEqual((await root.inspect()).budget.resources[0]?.available, 80);
+    assertEqual(requestFor("basic", 25), null);
+    assertEqual(requestFor("pro", 24), null);
   } finally {
     await keynes.close();
   }

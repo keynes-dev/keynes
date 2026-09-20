@@ -6,11 +6,11 @@ import type {
   BudgetSnapshot,
   Keynes,
   LocalKeynes,
-  PolicySet,
   ResourceBinding,
   ResourceDefinitions,
 } from "@keynes/sdk";
 import * as sdk from "@keynes/sdk";
+
 // @ts-expect-error Plain declarations replace the old schema wrapper type.
 export type { ResourceSchema } from "@keynes/sdk";
 
@@ -32,8 +32,7 @@ expectType<Budget<"usdCents">>(root);
 const binding = await keynes.defineResources(resources);
 expectType<ResourceBinding<"usdCents" | "searchQueries">>(binding);
 const allocation = { usdCents: 100 };
-const configuredRoot = await createBudget(allocation);
-expectType<Budget<"usdCents">>(configuredRoot);
+expectType<Budget<"usdCents">>(await createBudget(allocation));
 const invalidAllocation = { usdCents: 100, unknownResource: 1 };
 // @ts-expect-error Unknown amount keys cannot widen configured names.
 await createBudget(invalidAllocation);
@@ -53,7 +52,14 @@ void sdk.defineResources;
 new sdk.ResourceBinding();
 
 const { request, settle, inspect } = root;
-await request({ usdCents: 10 });
+const requestResult = await request(
+  { usdCents: 10 },
+  { decisionEvidence: { rule: "package", revision: 1 } },
+);
+if (requestResult.status === "approved" && requestResult.decisionEvidence) {
+  // @ts-expect-error Public evidence is readonly.
+  requestResult.decisionEvidence.rule = "changed";
+}
 await settle({ usdCents: 1 });
 await inspect();
 await close();
@@ -62,7 +68,6 @@ await close();
 await keynes.createBudget({ storageBytes: 1 });
 // @ts-expect-error A Budget only accepts Resources allocated to that handle.
 await root.request({ searchQueries: 1 });
-
 // @ts-expect-error Configured declarations are required.
 await createKeynes();
 // @ts-expect-error Explicit undefined is still a setup argument.
@@ -76,158 +81,33 @@ await createKeynes({ resources: binding });
 await createBudget(resources, allocation);
 // @ts-expect-error Positional ResourceBinding creation was removed.
 await createBudget(binding, allocation);
-
 const extraResource = { usdCents: 1, searchQueries: 1 };
 // @ts-expect-error Exact Resource checks also reject predeclared objects.
 await root.request(extraResource);
 
-declare const governedPolicies: PolicySet<
-  "usdCents",
-  { readonly customerTier: string },
-  "customer_tier_limit"
->;
-declare const childPolicies: PolicySet<
-  "usdCents",
-  { readonly riskClass: string },
-  "workflow_risk_limit"
->;
+// @ts-expect-error Managed Policy types are no longer public.
+type _RemovedPolicySet = sdk.PolicySet;
+// @ts-expect-error Managed Policy authoring is no longer public.
+type _RemovedPolicyAuthor = typeof sdk.definePolicySql;
+// @ts-expect-error Legacy request options are rejected.
+await root.request({ usdCents: 1 }, { policies: undefined });
+// @ts-expect-error Legacy request context is rejected.
+await root.request({ usdCents: 1 }, { context: undefined });
+// @ts-expect-error Legacy child Policies are rejected.
+await root.request({ usdCents: 1 }, { childPolicies: undefined });
+// @ts-expect-error Legacy Policy evidence is rejected.
+await root.request({ usdCents: 1 }, { policyEvidence: undefined });
 
-const governedChildFromUngovernedResult = await root.request(
-  { usdCents: 10 },
-  { childPolicies },
-);
-if (governedChildFromUngovernedResult.status === "approved") {
-  expectType<
-    Budget<"usdCents", { readonly riskClass: string }, "workflow_risk_limit">
-  >(governedChildFromUngovernedResult.budget);
-  await governedChildFromUngovernedResult.budget.request(
-    { usdCents: 1 },
-    { context: { riskClass: "standard" } },
-  );
-}
-await root.request(
-  { usdCents: 10 },
-  // @ts-expect-error Request-time Policies must be named childPolicies.
-  {
-    policies: childPolicies,
-  },
-);
-
-const governed = await keynes.createBudget(
-  { usdCents: 100 },
-  { policies: governedPolicies },
-);
-const governedResult = await governed.request(
-  { usdCents: 10 },
-  { context: { customerTier: "standard" } },
-);
-if (governedResult.status === "approved") {
-  expectType<string>(governedResult.policyEvidence.context.customer_tier);
-  expectType<"customer_tier_limit" | undefined>(
-    governedResult.policyEvidence.policies[0]?.rows[0]?.reason,
-  );
-  // @ts-expect-error Evidence records canonical context keys.
-  void governedResult.policyEvidence.context.customerTier;
-}
-const governedSnapshot = await governed.inspect();
-for (const entry of governedSnapshot.history.entries) {
-  if ("policyEvidence" in entry) {
-    expectType<string>(entry.policyEvidence.context.customer_tier);
-    expectType<"customer_tier_limit" | undefined>(
-      entry.policyEvidence.effectiveCeilings[0]?.reasons[0]?.reason,
-    );
-  }
-}
-// @ts-expect-error Governed requests require their complete Context.
-await governed.request({ usdCents: 10 });
-await governed.request(
-  { usdCents: 10 },
-  // @ts-expect-error Governed Context rejects undeclared fields.
-  { context: { customerTier: "standard", riskClass: "low" } },
-);
-
-const extraContext = { customerTier: "standard", riskClass: "low" };
-// @ts-expect-error Exact Context checks also reject predeclared objects.
-await governed.request({ usdCents: 10 }, { context: extraContext });
-
-// @ts-expect-error Ungoverned requests reject Context instead of ignoring it.
-await root.request({ usdCents: 10 }, { context: { customerTier: "standard" } });
-
-const unexpectedContext = { customerTier: "standard" };
-// @ts-expect-error Ungoverned Context is forbidden for predeclared objects too.
-await root.request({ usdCents: 10 }, { context: unexpectedContext });
-
-const ungovernedChildResult = await governed.request(
-  { usdCents: 10 },
-  { context: { customerTier: "standard" } },
-);
-if (ungovernedChildResult.status === "approved") {
-  expectType<Budget<"usdCents">>(ungovernedChildResult.budget);
-  await ungovernedChildResult.budget.request({ usdCents: 1 });
-  await ungovernedChildResult.budget.request(
-    { usdCents: 1 },
-    // @ts-expect-error A child does not inherit its parent's governed Context.
-    { context: { customerTier: "standard" } },
-  );
-}
-
-const governedChildResult = await governed.request(
-  { usdCents: 10 },
-  {
-    context: { customerTier: "standard" },
-    childPolicies,
-  },
-);
-if (governedChildResult.status === "approved") {
-  expectType<
-    Budget<"usdCents", { readonly riskClass: string }, "workflow_risk_limit">
-  >(governedChildResult.budget);
-  await governedChildResult.budget.request(
-    { usdCents: 1 },
-    { context: { riskClass: "low" } },
-  );
-  // @ts-expect-error A governed child requires its own complete Context.
-  await governedChildResult.budget.request({ usdCents: 1 });
-}
-
-await governed.request(
-  { usdCents: 10 },
-  {
-    context: { customerTier: "standard" },
-    // @ts-expect-error Request-time Policies must be named childPolicies.
-    policies: childPolicies,
-  },
-);
-
-declare const legacyRequestResult: BudgetRequestResult<
-  "usdCents",
-  "parent_limit",
-  { readonly riskClass: string },
-  "child_limit"
->;
+declare const legacyRequestResult: BudgetRequestResult<"usdCents">;
 if (legacyRequestResult.status === "approved") {
-  expectType<Budget<"usdCents", { readonly riskClass: string }, "child_limit">>(
-    legacyRequestResult.budget,
-  );
-  expectType<"parent_limit" | undefined>(
-    legacyRequestResult.policyEvidence.policies[0]?.rows[0]?.reason,
-  );
+  expectType<Budget<"usdCents">>(legacyRequestResult.budget);
 }
-
-declare const legacyHistoryEntry: BudgetHistoryEntry<
-  "usdCents",
-  "parent_limit"
->;
-if ("policyEvidence" in legacyHistoryEntry) {
-  expectType<"parent_limit" | undefined>(
-    legacyHistoryEntry.policyEvidence.policies[0]?.rows[0]?.reason,
-  );
-}
-
-declare const legacySnapshot: BudgetSnapshot<"usdCents", "parent_limit">;
-expectType<readonly BudgetHistoryEntry<"usdCents", "parent_limit">[]>(
+declare const legacyHistoryEntry: BudgetHistoryEntry<"usdCents">;
+declare const legacySnapshot: BudgetSnapshot<"usdCents">;
+expectType<readonly BudgetHistoryEntry<"usdCents">[]>(
   legacySnapshot.history.entries,
 );
+void legacyHistoryEntry;
 
 // @ts-expect-error Keynes is a type-only capability with no constructor.
 new Keynes();
@@ -237,13 +117,11 @@ new Budget();
 new sdk.Keynes();
 // @ts-expect-error The package exports no Budget runtime class value.
 new sdk.Budget();
-
 // @ts-expect-error Resource installation identifiers stay private.
 void resources.resourceTypeId;
 // @ts-expect-error Runtime identifiers stay private.
 void keynes.runtimeId;
 // @ts-expect-error Budget identifiers stay private.
 void root.budgetId;
-const requestResult = await root.request({ usdCents: 1 });
 // @ts-expect-error Command identifiers stay private.
 void requestResult.commandId;

@@ -82,6 +82,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "embedded PostgreSQL caller-owned transactions returns invalid_command for malformed input without opening application work",
     "embedded PostgreSQL caller-owned transactions uses the caller-owned transaction lifecycle",
     "embedded PostgreSQL caller-owned transactions rolls back a configured root with caller-owned application work",
+    "embedded PostgreSQL caller-owned transactions runs a customer SQL decision and ordinary request in one caller rollback",
     "embedded PostgreSQL caller-owned transactions preserves the original definition provenance for later definition",
     "embedded PostgreSQL caller-owned transactions keeps a pending child and outbox row invisible to another session",
     "embedded PostgreSQL caller-owned transactions makes the child and outbox row visible after the caller commits",

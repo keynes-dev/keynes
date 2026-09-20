@@ -1,7 +1,8 @@
 # Contracts
 
 - **Owner:** `@shubsharan`
-- **Functional status:** KEY-43 provider-free contract implemented
+- **Functional status:** provider-free contract implemented; KEY-114 request
+  evidence and Policy retirement implemented
 
 ## Responsibility
 
@@ -21,6 +22,17 @@ Production code must not import this package. Owner-local generator scripts and 
 
 Author logical contract inputs here and review each change as a shared interface change. Run `pnpm generate` after an approved change. Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata, and the digest derive from these inputs.
 
+The current request contract has no managed Policy fields. A request may include
+bounded `decisionEvidence`, which participates in canonical request identity
+and is returned in request outcomes and history. The generated schema remains
+strict: retired Policy fields and other additional properties are invalid rather
+than ignored. Semantic generation 4 is a fresh-install compatibility break;
+the PostgreSQL installer can recheck an exact target but does not upgrade an
+older one.
+
 ## Deferred work
 
-KEY-43 does not provide a general contract catalog, a released package, or a compatibility policy. Native PostgreSQL and cross-host contract equivalence remain `NOT RUN`.
+KEY-43 does not provide a general contract catalog, a released package, or a
+compatibility policy. KEY-114 records native source evidence in its
+[acceptance record](../../docs/features/key-114-accept-application-computed-requests-and-retire-managed-sql/acceptance.md);
+cross-host contract equivalence remains `NOT RUN`.

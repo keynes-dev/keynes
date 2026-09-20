@@ -65,7 +65,7 @@ interface RootBudgetCreator<Names extends string> {
   <const Allocation extends ResourceAmounts<Names>>(
     allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
     ...options: readonly []
-  ): Promise<Budget<Extract<keyof Allocation, Names>>>;
+  ): Promise<Budget<Extract<keyof Allocation, string>>>;
 }
 
 export interface Keynes<Names extends string = string> extends AsyncDisposable {

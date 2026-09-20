@@ -1,6 +1,9 @@
 # Proposed request contract
 
-Implementation and qualification NOT RUN.
+The design is implemented through Phases 3 and 4. See
+[acceptance.md](../acceptance.md) for recorded checks and remaining
+qualification limits. This contract retains its planning baseline and migration
+details.
 
 ## API and validation
 
