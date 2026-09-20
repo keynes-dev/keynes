@@ -1,8 +1,6 @@
 # Data model
 
-This is the planning data model. Phases 3 and 4 implement the described Policy
-retirement and request-evidence model; [acceptance.md](acceptance.md) records
-the observed checks and remaining qualification limits.
+The implemented Policy retirement and request-evidence model is verified by the exact candidate checks recorded in [acceptance.md](acceptance.md). Deployment limits remain explicit there.
 
 | Entity            | Retained ownership and invariant                         | Change                                           |
 | ----------------- | -------------------------------------------------------- | ------------------------------------------------ |

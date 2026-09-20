@@ -1,9 +1,6 @@
-# Proposed request contract
+# Request contract
 
-The design is implemented through Phases 3 and 4. See
-[acceptance.md](../acceptance.md) for recorded checks and remaining
-qualification limits. This contract retains its planning baseline and migration
-details.
+Implemented and locally verified. See [acceptance.md](../acceptance.md) for exact candidate evidence and remaining qualification limits.
 
 ## API and validation
 

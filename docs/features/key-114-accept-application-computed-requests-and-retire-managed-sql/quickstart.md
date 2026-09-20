@@ -1,9 +1,6 @@
 # Customer examples and validation
 
-> **Implementation status:** Phases 3 and 4 are implemented. The recorded
-> checks are in [acceptance.md](acceptance.md). This quickstart preserves its
-> planning verification and qualification limits; it does not claim final
-> package or paired qualification.
+> **Implementation status:** Implemented and locally verified. [Acceptance](acceptance.md) records exact clean-candidate repository, paired SQLite/PostgreSQL and archive-consumer evidence, plus remaining deployment limits.
 
 ## TypeScript
 

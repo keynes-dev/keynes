@@ -2,7 +2,7 @@
 
 **Input**: [spec](spec.md), [plan](plan.md), [research](research.md), [model](data-model.md), [contract](contracts/requests.md), [quickstart](quickstart.md).
 
-Implementation is authorized. Phases 1 through 5 are complete; final acceptance remains unchecked until verified. New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
+Implementation is authorized. All six phases are complete; exact revisions, verification outcomes and remaining deployment limits are recorded in [acceptance.md](acceptance.md). New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
 
 ## Phase 1: Setup
 
@@ -57,8 +57,8 @@ Checkpoint: all three stories are needed for acceptance. No automatic database u
 
 ## Phase 6: Final acceptance
 
-- [ ] T021 Run `pnpm test:pr` and the paired exact-candidate command from feature-local `quickstart.md`; retain evidence in feature-local `acceptance.md`. Reuse unchanged passing package results from T020; rerun affected lanes after changes. Record every failure and NOT RUN lane, including Hosted CI status.
-- [ ] T022 Review the complete diff against feature-local `spec.md`, stock analysis/convergence and `.github/PULL_REQUEST_TEMPLATE.md`; resolve findings and update feature-local `tasks.md` / `acceptance.md`. Do not mark Linear Done before merge and required acceptance; publication and merge are not authorized by this planning run.
+- [x] T021 Run `pnpm test:pr` and the paired exact-candidate command from feature-local `quickstart.md`; retain evidence in feature-local `acceptance.md`. Reuse unchanged passing package results from T020; rerun affected lanes after changes. Record every failure and NOT RUN lane, including Hosted CI status.
+- [x] T022 Review the complete diff against feature-local `spec.md`, stock analysis/convergence and `.github/PULL_REQUEST_TEMPLATE.md`; resolve findings and update feature-local `tasks.md` / `acceptance.md`. Do not mark Linear Done before merge and required acceptance; publication and merge are not authorized by this implementation run.
 
 ## Dependencies and execution order
 

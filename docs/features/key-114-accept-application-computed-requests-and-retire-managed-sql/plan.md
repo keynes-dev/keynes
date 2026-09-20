@@ -5,7 +5,7 @@
 **Input**: `docs/features/key-114-accept-application-computed-requests-and-retire-managed-sql/spec.md`
 
 **Baseline**: `6f765b81cc93824340cfcf2a79a3b4b031af7802`. This planning baseline preceded
-implementation. Phases 3 and 4 are implemented; see
+implementation. All six implementation phases are complete; see
 [acceptance.md](acceptance.md) for recorded checks and remaining qualification
 limits.
 
@@ -54,10 +54,10 @@ Both planning checks pass. Current combined SDK/runtime packaging is the staged 
 
 - [Research](research.md): source findings, decisions and rejected alternatives.
 - [Data model](data-model.md): retained state and removed Policy state.
-- [Request contract](contracts/requests.md): proposed API, evidence and compatibility rules.
+- [Request contract](contracts/requests.md): implemented API, evidence and compatibility rules.
 - [Quickstart](quickstart.md): customer examples and verification commands.
 - [Tasks](tasks.md): ordered implementation work.
-- [Acceptance](acceptance.md): planning checks and future exact-revision evidence.
+- [Acceptance](acceptance.md): planning history and exact-revision implementation evidence.
 
 ### Source Code
 

@@ -1,8 +1,12 @@
-# Acceptance: Fresh KEY-114 planning
+# Acceptance: KEY-114
 
 **Baseline**: `6f765b81cc93824340cfcf2a79a3b4b031af7802`
 
 **Date**: 2026-09-20
+
+**Current outcome**: All six phases are implemented and locally verified. Final repository and paired acceptance use clean commit `9c9b07978c58b26f952b7558612349b1ffbd6929`; exact package identities and reuse are recorded in Phase 6. Hosted CI and unsupported deployment lanes remain NOT RUN. The final evidence commit changes feature documentation only.
+
+## Historical planning checkpoint
 
 The user requested deletion and a fresh start. The prior KEY-114 worktree, uncommitted drafts and branch were removed. A clean worktree was created from local `main` under Linear's exact branch name. No prior draft was copied into these documents. Unrelated worktrees and the main checkout were preserved.
 
@@ -120,3 +124,32 @@ Measurement-tool schema v3 removes parser initialization fields and discovery, r
 All paths in this phase resolve under `.artifacts/key-114/phase5/`. Both package reports identify source `ebd121e6c06dc39ead7002cbb33f73cbd65b5393` plus unchanged uncommitted Phase 5 edits (`cleanBefore: false`, `cleanAfter: false`), Node v25.9.0, pnpm 11.21.0, Darwin 25.5.0 arm64. These are exact-archive results, not clean-commit evidence. The first package invocations omitted mandatory `--archive` arguments and stopped at preflight (SDK unit tests passed first); quickstart now includes packing and explicit archive/output paths. Direct PostgreSQL archive tests also require the runner-owned archive environment and do not qualify anything when called without it.
 
 Phase 5 Ponytail review found only duplicate request SQL in the customer example and proposed a five-argument helper. The supervisor retained the two explicit calls so the denial and approval example remain readable without another test API. No production simplification was identified. Documentation distinguishes the implemented request boundary from unrelated target capabilities and historical evidence. T016-T020 are complete. Final clean-candidate paired acceptance and hosted/deployment lanes are not established by these package results.
+
+## Phase 6: Final acceptance
+
+The first full repository run stopped at a stale dependency inventory: `scripts/repository-organization.test.ts` still expected the four removed Policy dependencies. It reported one failure and 60 passes (`.artifacts/key-114/final-pr.log`). Terra removed those four expectations, preserving the exact dependency assertion; the focused suite passed 61/61. This test-only correction is committed as `9c9b07978c58b26f952b7558612349b1ffbd6929`. The earlier clean `fc40a500aeeff1bd16806389aab201813bfbb5ee` paired run also passed and remains retained as attempt-01; it is not substituted for the final attempt.
+
+### Exact candidate results
+
+- `pnpm test:pr`: PASS, exit 0 on clean `9c9b07978c58b26f952b7558612349b1ffbd6929` (`.artifacts/key-114/final-pr-02.log`). Repository checks: 61; runner checks: 174; contracts: 39; PostgreSQL unit/qualification: 77; SDK: 450. Generation, quality, package and repository type checks, and dependency boundaries pass. Turbo reports all nine tasks successful with zero cached results.
+- `pnpm test:sqlite-postgres -- --output .artifacts/key-114/attempt-02`: PASS, clean before/after on the same commit, attempt `78aaeda3-b129-4ff3-b8b4-f7a761052eed`. SQLite: 347 tests; PostgreSQL: 259 across 12 files. Both child processes exit 0 and cleanup passes. Required shared coverage, native scenario inventory and report retention pass. Native run `584230c4-d804-40f1-829e-510af33b5a66`; retained manifest and reports are in that attempt directory. The native runner uses the packed PostgreSQL installer and exercises direct and PgBouncer paths.
+- `pnpm test:package:sdk -- --archive .artifacts/key-114/phase5/keynes-sdk-0.0.0.tgz --output .artifacts/key-114/sdk-consumer-final.json`: PASS, 21 package unit tests and all 11 provider-free consumer checks, exit 0 (`package-sdk-final.log`).
+- `pnpm test:package:postgresql -- --archive .artifacts/key-114/phase5/keynes-postgresql-0.0.0.tgz --output .artifacts/key-114/postgresql-consumer-final.json`: PASS, 28 tests, exit 0 (`package-postgresql-final.log`).
+
+The final package logs/reports are under `.artifacts/key-114/`. Both package reports identify clean `fc40a500aeeff1bd16806389aab201813bfbb5ee`. They reuse the Phase 5 exact archives, whose bytes and package sources did not change when the repository-only expectation was corrected. The final native runner independently packed the identical PostgreSQL SHA-256 `07f62f1c405916a9e0b24b075f6464b6af5bf3bfb9c2331e7bdc0f5af8088e8d`. SDK archive SHA-256 remains `df08d0141e238aeb669bba2c19087d79f515c87390f9dfbb5bf38a773c6be8c4`. This is explicit unchanged-archive reuse, not a claim that those consumer processes ran at `9c9b079`.
+
+The final host is Darwin 25.5.0 arm64, Node v25.9.0, pnpm 11.21.0, Vitest 4.1.11, pg 8.23.0, SQLite 3.53.0, PostgreSQL 18.6 (`180006`), PgBouncer 1.25.2 and Docker 29.6.2. The manifest retains pinned image IDs and host identity. Contract digest: `046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766`; lockfile SHA-256: `3b65a8c832c588714e4335f5dce8a30217de8d2166c80eb114359d1abc4924ed`; installation-record SHA-256: `26ee588460b5575e560fdd6cec2f1426374a1f99f2a97181b1bedb188ed9157b`.
+
+### Review and convergence
+
+Stock Spec Kit analysis and convergence use the explicit feature directory and unchanged 1.0.4 skills; no extension hooks are configured. Analysis maps all nine functional requirements and four success criteria to the 22 tasks, and all 16 acceptance scenarios to implementation and tests. Coverage is 100%; no unmapped tasks, ambiguous or duplicate requirements, or constitutional conflicts remain. A preliminary review misread the constitution's warning against presenting an amendment alone as runtime evidence; review withdrew that finding because KEY-114 supplies separate implementation and verification and expressly replaces the old checks. No constitution amendment was needed.
+
+Convergence checks the present request contract, schema/generation, SQLite and SQL enforcement, evidence/replay/recovery, installation rejection, examples, package inventories and retained verification against the specification and plan. It finds no missing, partial, contradictory or unrequested work within this feature. No convergence tasks or empty phase are appended. All five governing principles are accounted for; staged package separation remains assigned to KEY-96. Spec/plan status metadata now distinguishes implementation evidence from historical planning.
+
+Final Ponytail review finds no production complexity to remove. The supervisor accepts the minimal repository inventory correction and retains the explicit SQL example calls as explained in Phase 5. Review against the PR template covers motivation, behavior, ownership, compatibility, design limits, exact evidence and the review path without creating or updating a PR. Review order: reduced schema and compatibility identity; public validation/snapshots; authority membership and transactional evidence binding; remote permission-before-replay and recovery; installation read-only rejection; package and native evidence.
+
+### Remaining limits and publication
+
+Hosted implementation CI, cross-host/Node-version package matrices, registry publication, installed Embedded product qualification, managed Hosted, external providers, standalone security qualification, production readiness, upgrade/downgrade, rolling deployment, backup/failover, fault campaigns and performance benchmarks are NOT RUN. Durable Local, cross-authority funding and delegation remain outside this feature. Passing native caller-owned transaction fixtures does not qualify the separate installed Embedded product. Measurement tooling tests are not performance evidence.
+
+T021/T022 and all 22 implementation tasks are complete. The final commit records evidence and status only; it does not change the tested runtime, packages or tests. Every phase has a local commit and evaluated Ponytail review. No implementation commit is pushed, no PR is opened or updated, and Linear is not marked Done. Merge and its required acceptance remain separate.
