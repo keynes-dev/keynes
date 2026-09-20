@@ -453,6 +453,8 @@ credentials, or database internals.
 The application owns end-user authentication, workflow authorization, policy evaluation and facts, provider credentials, provider idempotency, refunds, quota
 restoration, and every external action associated with released quantity.
 
+Customers control their deployments. Guarantees cover supported Keynes operations, not prevention of owner bypass. Customers may call supported SQL from different application languages; this does not promise another language SDK.
+
 ## Module ownership
 
 One source owner defines the common command contracts. Separate engine-specific SQLite and PostgreSQL runtime packages own accounting outside the SDK. KEY-96 determines their exact names and exports without duplicating canonical contracts or requiring a shared TypeScript engine. The SDK owns typed handles, inference, encoding, invocation, result mapping and public errors, with no accounting rules, managed Policy compiler or database drivers.

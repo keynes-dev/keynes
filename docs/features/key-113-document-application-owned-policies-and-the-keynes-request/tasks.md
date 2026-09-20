@@ -25,9 +25,9 @@
 
 **Independent validation**: Walk US1's four scenarios through product, architecture, constitution and ADR; require agreement on denial, evidence, replay and current behavior.
 
-- [ ] T006 [P] [US1] Complete the product-facing ownership, target/current, customer-failure and valid-request-denial explanation in docs/product.md after T004, avoiding a mandatory policy interface. FR-001 through FR-005.
-- [ ] T007 [P] [US1] Complete command, evidence, permissions, transaction and replay descriptions in docs/architecture.md after T004; remove managed Policy registration/compiler/evaluator as target responsibilities while distinguishing implemented behavior. Cover stale availability, input conflicts and separate-database limits. FR-001 through FR-005, FR-015.
-- [ ] T008 [US1] Review US1 against .specify/memory/constitution.md and the new ADR, and record the four scenario outcomes in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md without making runtime claims. SC-001.
+- [x] T006 [P] [US1] Complete the product-facing ownership, target/current, customer-failure and valid-request-denial explanation in docs/product.md after T004, avoiding a mandatory policy interface. FR-001 through FR-005.
+- [x] T007 [P] [US1] Complete command, evidence, permissions, transaction and replay descriptions in docs/architecture.md after T004; remove managed Policy registration/compiler/evaluator as target responsibilities while distinguishing implemented behavior. Cover stale availability, input conflicts and separate-database limits. FR-001 through FR-005, FR-015.
+- [x] T008 [US1] Review US1 against .specify/memory/constitution.md and the new ADR, and record the four scenario outcomes in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md without making runtime claims. SC-001.
 
 ## Phase 4: User story 2 - Evaluation examples and optional tooling (P2)
 
