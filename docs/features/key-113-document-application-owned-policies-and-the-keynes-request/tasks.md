@@ -2,14 +2,14 @@
 
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [documentation contract](contracts/documentation.md).
 
-**Implementation state**: NOT RUN. All tasks below are future work. This turn stops after planning and read-only analysis. No checkbox represents completion merely because a planning artifact exists.
+**Implementation state**: Documentation implementation authorized through speckit-implement. Runtime changes remain excluded. Checkboxes record completed documentation work, not runtime qualification.
 
 **Validation**: Documentation-only change. No executable behavior changes, so no failing runtime test or runtime suite applies. Use focused formatting, link/contradiction review and scenario acceptance. Keep runtime and qualification lanes NOT RUN.
 
 ## Phase 1: Setup
 
-- [ ] T001 Refresh KEY-113 and base revision, confirm the exact branch/directory, and update the scope inventory in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/research.md without importing previous KEY-113 acceptance. Preserve unrelated work. FR-014, FR-018.
-- [ ] T002 Confirm the next ADR filename in docs/adr/ and the current constitutional conflict in .specify/memory/constitution.md; record the final supersession scope and planned amendment version in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/plan.md. FR-006.
+- [x] T001 Refresh KEY-113 and base revision, confirm the exact branch/directory, and update the scope inventory in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/research.md without importing previous KEY-113 acceptance. Preserve unrelated work. FR-014, FR-018.
+- [x] T002 Confirm the next ADR filename in docs/adr/ and the current constitutional conflict in .specify/memory/constitution.md; record the final supersession scope and planned amendment version in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/plan.md. FR-006.
 
 ## Phase 2: Foundational governance amendment
 

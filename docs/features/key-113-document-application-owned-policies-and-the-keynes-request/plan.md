@@ -6,7 +6,7 @@
 
 ## Summary
 
-Plan one documentation change that adopts customer-computed requests and SQLite Local while preserving database accounting. Begin implementation with a superseding ADR and an explicit major constitution amendment, then reconcile product, architecture, workflow and package docs. Keep implemented managed Policy behavior labeled until KEY-114 replaces it. This pass produces planning artifacts only; implementation is NOT RUN.
+Plan one documentation change that adopts customer-computed requests and SQLite Local while preserving database accounting. Begin implementation with a superseding ADR and an explicit major constitution amendment, then reconcile product, architecture, workflow and package docs. Keep implemented managed Policy behavior labeled until KEY-114 replaces it. Planning completed in `f496701`. The user has now authorized documentation implementation through speckit-implement; runtime changes remain excluded.
 
 The base is `a203a26d20ed1ecc940d9bca1f05c9d9b81b80b4`, which includes KEY-121 maintenance via PR #62. The previous KEY-113 worktree was removed at the user's request; this branch starts from that main revision. No earlier KEY-113 implementation or acceptance is reused.
 
@@ -26,7 +26,7 @@ The base is `a203a26d20ed1ecc940d9bca1f05c9d9b81b80b4`, which includes KEY-121 m
 
 **Performance goals**: N/A; no runtime or measured operating-envelope change.
 
-**Constraints**: Stop before implementation; preserve generated tooling and historical evidence; no invented executable API signatures, migration promises or published package names.
+**Constraints**: Documentation-only implementation; preserve generated tooling and historical evidence; no invented executable API signatures, migration promises or published package names.
 
 **Scale/scope**: One new ADR, three governing documents, workflow and affected package READMEs, plus minimal historical ADR forward references. Linear owns the active roadmap; no repository roadmap file exists.
 
@@ -44,7 +44,7 @@ The base is `a203a26d20ed1ecc940d9bca1f05c9d9b81b80b4`, which includes KEY-121 m
 | One issue and independently accepted PR                            | KEY-113 only; no phase issues or runtime prerequisites. KEY-121 is landed.                                                                         |
 | Historical evidence and upstream tooling                           | Immutable historical bodies/evidence; only supersession notices on relevant ADRs. No generated file changes.                                       |
 
-Planning may describe the explicitly requested amendment. This is not a clean constitutional pass for adopting the target. Stock analysis must report the remaining conflict as CRITICAL while constitution 11.0.0 remains in force. Before normal implementation proceeds, the explicit constitution update must occur outside analyze, with its Sync Impact Report and affected governing guidance; rerun the check and analysis afterward. User authorization for this turn ends before those edits.
+Planning may describe the explicitly requested amendment. This is not a clean constitutional pass for adopting the target. Stock analysis must report the remaining conflict as CRITICAL while constitution 11.0.0 remains in force. Before normal implementation proceeds, the explicit constitution update must occur outside analyze, with its Sync Impact Report and affected governing guidance; rerun the check and analysis afterward. The subsequent speckit-implement request authorizes that explicit amendment.
 
 ### After design
 
@@ -100,4 +100,4 @@ The planning pass runs stock setup/prerequisite checks, targeted feature formatt
 | Constitution I/IV mandate PGlite and one PostgreSQL implementation                          | KEY-113 explicitly adopts SQLite Local and separate engines outside SDK. | Keeping PGlite contradicts the selected issue. Plan the major amendment; retain existing rules until it occurs and analysis passes.                                   |
 | Constitution III and Policy constraints mandate registration/compiler/in-command evaluation | KEY-113 explicitly transfers policy evaluation to customers.             | Calling customer decisions trusted Policy results preserves the wrong trust boundary. Amend governance explicitly; KEY-114 later changes runtime contracts and tests. |
 
-These entries explain the planned amendment. They do not waive constitutional review or authorize implementation in this turn.
+These entries explain the amendment required at implementation intake. ADR-0013 and constitution 12.0.0 are the selected targets; the post-amendment check must resolve both conflicts.

@@ -10,7 +10,7 @@
 
 ## Scope and status
 
-This specification describes one documentation acceptance outcome. Implementation means writing the superseding ADR and amending governing and active documentation. Those edits, runtime implementation and qualification are NOT RUN in this planning pass. The current constitution remains unchanged. Its managed Policy and PGlite requirements require an explicit amendment before the target can become governing repository policy.
+This specification describes one documentation acceptance outcome. Implementation means writing the superseding ADR and amending governing and active documentation. Planning stopped before those edits. The subsequent speckit-implement request authorizes documentation implementation, beginning with the explicit constitutional amendment. Runtime implementation and qualification remain excluded.
 
 Customers compute a typed request or reject an operation. Keynes validates submitted requests and atomically enforces Budget permissions, constraints, quantities, allocation, settlement and replay. Approval is never implied by request validity or customer decision evidence.
 
@@ -93,7 +93,7 @@ A maintainer can identify the documentation changes, later owners and verificati
 - **FR-015**: Supported SQL access MUST remain usable from different application languages. Customers control deployments; guarantees apply to supported operations without promising to prevent owner bypass.
 - **FR-016**: KEY-122 MUST own detailed cross-authority accounting and governing amendments, KEY-123 durable Local recovery, and KEY-124 PostgreSQL-to-local delegation, active partial surrender and final reconciliation required for Cloud. Workers, workflows and steps use one Budget model. This feature MUST NOT design or implement that protocol.
 - **FR-017**: Customer policy ownership MUST permit execution in an application, a customer service or later Keynes Cloud hosting. KEY-125 owns versioned HTTP evaluation shared across apps outside authoritative accounting. Initial hosting is evaluation-only; mandatory evaluation-and-submission is deferred. Neither first Local nor first Cloud depends on it.
-- **FR-018**: Delivery MUST remain one issue and one documentation acceptance outcome with source-revision evidence. Runtime, schema, generated contract, CI behavior, package export and provider integration changes are excluded. Planning MUST stop before the ADR, governing amendment and documentation implementation.
+- **FR-018**: Delivery MUST remain one issue and one documentation acceptance outcome with source-revision evidence. Runtime, schema, generated contract, CI behavior, package export and provider integration changes are excluded. The initial planning pass MUST stop before the ADR, governing amendment and documentation implementation; the subsequent explicit implementation request authorizes those documentation edits.
 
 ### Key entities
 

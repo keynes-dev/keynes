@@ -64,3 +64,7 @@ Read-only review used the live KEY-113 issue, base `a203a26d20ed1ecc940d9bca1f05
 ## Resolved scope
 
 No clarification is needed to write the plan. The unresolved constitution conflict is an explicit adoption gate, not an unknown design choice. Runtime, provider, package and deployment qualification remain NOT RUN.
+
+## Implementation intake
+
+KEY-113 was refreshed at implementation intake; its scope and branch are unchanged. Planning commit `f496701072dbe70da6d100ac7287c71aff977e4e` is the starting point. ADR-0013 is available; constitution 11.0.0 requires a major 12.0.0 amendment. Existing ignore rules cover repository artifacts; no package publication or new tooling requires an ignore-file change. The unrelated untracked KEY-118 directory remains untouched.
