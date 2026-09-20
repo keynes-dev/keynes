@@ -1,7 +1,6 @@
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 
-import { isPolicyDefinitionV1 } from "../generated/policy-profile.js";
-import type { PermissionName, PolicyDefinitionV1 } from "../generated/types.js";
+import type { PermissionName } from "../generated/types.js";
 
 export interface SqlitePrincipalPermissions {
   readonly principalId: string;
@@ -19,7 +18,6 @@ export interface SqliteBudgetRow {
   readonly rootBudgetId: string;
   readonly depth: bigint;
   readonly lifecycle: "active" | "settling";
-  readonly policies: readonly PolicyDefinitionV1[];
 }
 
 export interface SqliteHoldingRow {
@@ -87,7 +85,6 @@ CREATE TABLE budgets (
   root_budget_id TEXT NOT NULL,
   depth INTEGER NOT NULL,
   lifecycle TEXT NOT NULL,
-  policies_json TEXT NOT NULL,
   PRIMARY KEY (tenant_id, budget_id)
 );
 CREATE TABLE budget_resources (
@@ -320,7 +317,6 @@ export class SqliteStore {
     readonly rootBudgetId: string;
     readonly depth: bigint;
     readonly lifecycle: SqliteBudgetRow["lifecycle"];
-    readonly policiesJson: string;
   }): void {
     this.#statements.insertBudget.run(
       budget.tenantId,
@@ -329,7 +325,6 @@ export class SqliteStore {
       budget.rootBudgetId,
       budget.depth,
       budget.lifecycle,
-      budget.policiesJson,
     );
   }
 
@@ -447,13 +442,13 @@ function prepareStatements(database: DatabaseSync) {
       "INSERT INTO resource_types (tenant_id, resource_type_id, definition_command_id, canonical_name, unit, accounting_behavior, definition_digest, definer_principal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     ),
     budget: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND budget_id = ?",
+      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle FROM budgets WHERE tenant_id = ? AND budget_id = ?",
     ),
     children: prepareRead(
-      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json FROM budgets WHERE tenant_id = ? AND parent_budget_id = ? ORDER BY budget_id",
+      "SELECT budget_id, parent_budget_id, root_budget_id, depth, lifecycle FROM budgets WHERE tenant_id = ? AND parent_budget_id = ? ORDER BY budget_id",
     ),
     insertBudget: database.prepare(
-      "INSERT INTO budgets (tenant_id, budget_id, parent_budget_id, root_budget_id, depth, lifecycle, policies_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO budgets (tenant_id, budget_id, parent_budget_id, root_budget_id, depth, lifecycle) VALUES (?, ?, ?, ?, ?, ?)",
     ),
     setLifecycle: database.prepare(
       "UPDATE budgets SET lifecycle = ? WHERE tenant_id = ? AND budget_id = ?",
@@ -506,16 +501,7 @@ function budgetRow(value: unknown): SqliteBudgetRow {
     rootBudgetId: stringColumn(row, "root_budget_id"),
     depth: bigintColumn(row, "depth"),
     lifecycle,
-    policies: storedPolicies(stringColumn(row, "policies_json")),
   };
-}
-
-function storedPolicies(value: string): readonly PolicyDefinitionV1[] {
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed) || !parsed.every(isPolicyDefinitionV1)) {
-    throw new Error("Invalid stored Policy definitions");
-  }
-  return Object.freeze(structuredClone(parsed));
 }
 
 function holdingRow(value: unknown): SqliteHoldingRow {

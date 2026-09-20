@@ -280,27 +280,47 @@ describe("native PostgreSQL contention", () => {
       const first = await keynes.beginAttempt("requester-fixture");
       const second = await keynes.beginAttempt("requester-fixture");
       expect(first.backendPid).not.toBe(second.backendPid);
+      const fundedEvidence = { approved: true, source: "first" };
+      const deniedEvidence = { approved: true, source: "second" };
 
-      const funded = await first.client.requestBudget({
-        commandId: FIRST_REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId, amount: 7 }],
-      });
-      const competing = second.client.requestBudget({
-        commandId: SECOND_REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId, amount: 7 }],
-      });
+      const funded = await Reflect.apply(
+        first.client.requestBudget,
+        first.client,
+        [
+          {
+            commandId: FIRST_REQUEST_ID,
+            parentBudgetId: ROOT_BUDGET_ID,
+            resources: [{ resourceTypeId, amount: 7 }],
+            decisionEvidence: fundedEvidence,
+          },
+        ],
+      );
+      const competing = Reflect.apply(
+        second.client.requestBudget,
+        second.client,
+        [
+          {
+            commandId: SECOND_REQUEST_ID,
+            parentBudgetId: ROOT_BUDGET_ID,
+            resources: [{ resourceTypeId, amount: 7 }],
+            decisionEvidence: deniedEvidence,
+          },
+        ],
+      );
 
       await keynes.requireBlockedBy(second.backendPid, first.backendPid);
       await first.commit();
       const denied = await competing;
       await second.commit();
 
-      expect(funded.kind).toBe("approved");
+      expect(funded).toMatchObject({
+        kind: "approved",
+        decisionEvidence: fundedEvidence,
+      });
       expect(denied).toMatchObject({
         kind: "denied",
         reasons: [{ code: "insufficient_available", available: 3 }],
+        decisionEvidence: deniedEvidence,
       });
       const final = await keynes
         .clientFor("reader-fixture")
@@ -314,7 +334,16 @@ describe("native PostgreSQL contention", () => {
         final.history.entries.filter(
           (entry) => entry.kind === "request_approved",
         ),
-      ).toHaveLength(1);
+      ).toEqual([
+        expect.objectContaining({ decisionEvidence: fundedEvidence }),
+      ]);
+      expect(
+        final.history.entries.filter(
+          (entry) => entry.kind === "request_denied",
+        ),
+      ).toEqual([
+        expect.objectContaining({ decisionEvidence: deniedEvidence }),
+      ]);
     } finally {
       await keynes.close();
     }
@@ -366,12 +395,20 @@ describe("native PostgreSQL contention", () => {
       const { resourceTypeId } = await seedRoot(keynes);
       const request = await keynes.beginAttempt("requester-fixture");
       const settlement = await keynes.beginAttempt("settlement-fixture");
+      const decisionEvidence = { approved: true, source: "race" };
 
-      const funded = await request.client.requestBudget({
-        commandId: FIRST_REQUEST_ID,
-        parentBudgetId: ROOT_BUDGET_ID,
-        resources: [{ resourceTypeId, amount: 5 }],
-      });
+      const funded = await Reflect.apply(
+        request.client.requestBudget,
+        request.client,
+        [
+          {
+            commandId: FIRST_REQUEST_ID,
+            parentBudgetId: ROOT_BUDGET_ID,
+            resources: [{ resourceTypeId, amount: 5 }],
+            decisionEvidence,
+          },
+        ],
+      );
       const competing = settlement.client.settleBudget({
         commandId: SETTLEMENT_ID,
         budgetId: ROOT_BUDGET_ID,
@@ -383,7 +420,7 @@ describe("native PostgreSQL contention", () => {
       const sealed = await competing;
       await settlement.commit();
 
-      expect(funded.kind).toBe("approved");
+      expect(funded).toMatchObject({ kind: "approved", decisionEvidence });
       expect(sealed.kind).toBe("settling");
       const final = await keynes
         .clientFor("reader-fixture")
@@ -394,6 +431,7 @@ describe("native PostgreSQL contention", () => {
         "request_approved",
         "budget_settlement_recorded",
       ]);
+      expect(final.history.entries[1]).toMatchObject({ decisionEvidence });
     } finally {
       await keynes.close();
     }
@@ -418,6 +456,70 @@ describe("native PostgreSQL contention", () => {
       await first.commit();
       await expect(replay).resolves.toEqual({ ...stored, replayed: true });
       await second.commit();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("replays matching evidence and rejects changed evidence when contenders wait", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId } = await seedRoot(keynes);
+      const first = await keynes.beginAttempt("requester-fixture");
+      const second = await keynes.beginAttempt("requester-fixture");
+      const changed = await keynes.beginAttempt("requester-fixture");
+      const decisionEvidence = {
+        approved: true,
+        request_source: "application",
+      };
+      const command = {
+        commandId: FIRST_REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId, amount: 5 }],
+        decisionEvidence,
+      };
+
+      const stored = await Reflect.apply(
+        first.client.requestBudget,
+        first.client,
+        [command],
+      );
+      expect(stored).toMatchObject({
+        kind: "approved",
+        replayed: false,
+        decisionEvidence,
+      });
+      const replay = Reflect.apply(second.client.requestBudget, second.client, [
+        command,
+      ]);
+      const conflicting = Reflect.apply(
+        changed.client.requestBudget,
+        changed.client,
+        [
+          {
+            ...command,
+            decisionEvidence: {
+              approved: false,
+              request_source: "application",
+            },
+          },
+        ],
+      );
+      const conflict = expect(conflicting).rejects.toMatchObject({
+        code: "command_conflict",
+      });
+
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      await keynes.requireBlockedBy(changed.backendPid, first.backendPid);
+      await first.commit();
+      await expect(replay).resolves.toMatchObject({
+        kind: "approved",
+        replayed: true,
+        decisionEvidence,
+      });
+      await second.commit();
+      await conflict;
+      await changed.commit();
     } finally {
       await keynes.close();
     }

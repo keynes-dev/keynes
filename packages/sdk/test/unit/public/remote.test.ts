@@ -230,6 +230,163 @@ describe("configured remote creation", () => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("snapshots and canonically orders request decision evidence before remote admission", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl, resources });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const evidence = { resources: "application", kind: true, a: 0 };
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 3 },
+        { decisionEvidence: evidence },
+      ]);
+      evidence.resources = "changed";
+      await expect(requested).resolves.toMatchObject({ status: "approved" });
+      expect(executor.inputs.at(-1)).toEqual({
+        operationKey: expect.any(String),
+        parentBudgetReference: rootReference,
+        resources: [{ resource: "work_units", amount: 3 }],
+        decisionEvidence: { a: 0, kind: true, resources: "application" },
+      });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it.each([
+    ["omitted", []],
+    ["explicit undefined", [{ decisionEvidence: undefined }]],
+    ["empty", [{ decisionEvidence: {} }]],
+  ])(
+    "normalizes %s remote decision evidence to omission",
+    async (_name, options) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl, resources });
+      try {
+        const root = await remote.createBudget({ workUnits: 10 });
+        const requested: unknown = Reflect.apply(root.request, root, [
+          { workUnits: 3 },
+          ...options,
+        ]);
+        await expect(requested).resolves.toMatchObject({ status: "approved" });
+        expect(executor.inputs.at(-1)).toEqual({
+          operationKey: expect.any(String),
+          parentBudgetReference: rootReference,
+          resources: [{ resource: "work_units", amount: 3 }],
+        });
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it.each([
+    ["undefined member", () => ({ note: undefined })],
+    ["bigint", () => ({ amount: BigInt(1) })],
+    ["NaN", () => ({ amount: Number.NaN })],
+    ["infinite number", () => ({ amount: Number.POSITIVE_INFINITY })],
+    ["symbol", () => ({ [Symbol("evidence")]: true })],
+    ["nested array", () => ({ values: [1] })],
+  ])(
+    "rejects non-JSON decision evidence %s before remote mutation",
+    async (_name, build) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl, resources });
+      try {
+        const root = await remote.createBudget({ workUnits: 10 });
+        const requested: unknown = Reflect.apply(root.request, root, [
+          { workUnits: 3 },
+          { decisionEvidence: build() },
+        ]);
+        await expect(requested).rejects.toMatchObject({
+          code: "invalid_configuration",
+          details: { field: "decisionEvidence", reason: "unsupported" },
+        });
+        expect(executor.methods).toEqual(["validateResources", "createBudget"]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it.each([
+    [
+      "empty Policy attachment",
+      {
+        policies: {
+          definitions: [],
+          contextSchemaDigest: null,
+          setDigest: "a".repeat(64),
+        },
+      },
+    ],
+    ["undefined Policy attachment", { policies: undefined }],
+  ])(
+    "rejects root %s before remote creation transport",
+    async (_name, options) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({ databaseUrl, resources });
+      try {
+        const pending: unknown = Reflect.apply(remote.createBudget, remote, [
+          { workUnits: 1 },
+          options,
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_configuration",
+        });
+        expect(executor.methods).toEqual(["validateResources"]);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  it.each([
+    ["Policy context", [{ workUnits: 1 }, { context: {} }]],
+    [
+      "empty child Policy attachment",
+      [
+        { workUnits: 1 },
+        {
+          childPolicies: {
+            definitions: [],
+            contextSchemaDigest: null,
+            setDigest: "a".repeat(64),
+          },
+        },
+      ],
+    ],
+    [
+      "undefined child Policy attachment",
+      [{ workUnits: 1 }, { childPolicies: undefined }],
+    ],
+    [
+      "undefined Policy evidence",
+      [{ workUnits: 1 }, { policyEvidence: undefined }],
+    ],
+    ["an excess argument", [{ workUnits: 1 }, {}, undefined]],
+  ])("rejects request %s before remote mutation", async (_name, arguments_) => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({ databaseUrl, resources });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const pending: unknown = Reflect.apply(root.request, root, arguments_);
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({
+        code: "invalid_configuration",
+      });
+      expect(executor.methods).toEqual(["validateResources", "createBudget"]);
+    } finally {
+      await remote.close();
+    }
+  });
+
   it("attributes empty raw definitions to the invoked operation", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
@@ -1024,10 +1181,9 @@ function responseFor(
         result: {
           installationId: "embedded-postgresql-18.6-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
-          policyProfileDigest: `policy:${"b".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 3,
-          minimumSdkGeneration: 3,
+          semanticGeneration: 4,
+          minimumSdkGeneration: 4,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,

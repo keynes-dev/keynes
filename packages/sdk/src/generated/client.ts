@@ -73,19 +73,14 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921";
+  "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766";
 
 export const REMOTE_PROCEDURES_DIGEST =
-  "bfcd38aa5ab6571e6a1c24ee623b52b4d242ac81954f2b2c131535db88e5f0f0";
+  "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd";
 export const REMOTE_CONTRACT = {
-  semanticGeneration: 3,
-  minimumSdkGeneration: 3,
-  semanticIdentities: [
-    "installation",
-    "command_contract",
-    "policy_profile",
-    "remote_procedures",
-  ],
+  semanticGeneration: 4,
+  minimumSdkGeneration: 4,
+  semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
       method: "defineResources",
@@ -106,7 +101,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 3,
+      revision: 4,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",
@@ -114,7 +109,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "requestBudget",
       target: "keynes.remote_request",
-      revision: 1,
+      revision: 2,
       mode: "mutation",
       input: "RemoteRequestBudgetCommand",
       output: "RemoteRequestBudgetResult",
@@ -130,7 +125,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudget",
       target: "keynes.remote_get_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RemoteGetBudgetQuery",
       output: "RemoteGetBudgetResult",
@@ -138,7 +133,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",
@@ -146,7 +141,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "openBudget",
       target: "keynes.remote_open_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "OpenBudgetQuery",
       output: "OpenBudgetResult",
@@ -154,7 +149,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",
@@ -162,7 +157,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getCompatibility",
       target: "keynes.remote_get_compatibility",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetCompatibilityQuery",
       output: "GetCompatibilityResult",
@@ -176,17 +171,10 @@ const resultFieldRank = new Map(
     "contractDigest",
     "key",
     "kind",
-    "availabilityJoin",
-    "base",
     "bindingReference",
-    "branches",
     "code",
     "details",
-    "else",
     "entryId",
-    "exponent",
-    "function",
-    "arguments",
     "name",
     "operationKey",
     "budgetReference",
@@ -196,12 +184,10 @@ const resultFieldRank = new Map(
     "expectedResources",
     "history",
     "operation",
-    "operator",
-    "left",
-    "operand",
     "parentBudgetReference",
     "childBudgetReference",
     "path",
+    "remoteProceduresDigest",
     "resource",
     "resourceType",
     "allocated",
@@ -210,30 +196,27 @@ const resultFieldRank = new Map(
     "canonicalName",
     "requested",
     "available",
-    "ceiling",
     "committed",
     "directUsage",
-    "policyName",
-    "policyRevision",
-    "reason",
     "result",
     "retryAfterMilliseconds",
-    "right",
     "rootBudgetReference",
     "rule",
-    "scale",
+    "semanticGeneration",
+    "minimumSdkGeneration",
+    "procedures",
     "sequence",
     "commandId",
     "definition",
     "amount",
     "definitions",
-    "source",
-    "field",
+    "amounts",
     "subjectBudgetId",
     "budgetId",
     "newlyKnown",
     "parentBudgetId",
     "childBudgetId",
+    "reasons",
     "rootBudgetId",
     "depth",
     "entries",
@@ -241,15 +224,9 @@ const resultFieldRank = new Map(
     "subtreeObservedUsage",
     "target",
     "revision",
-    "inputResources",
-    "outputResources",
-    "contextSchema",
-    "reasons",
-    "programVersion",
-    "queryProfileVersion",
-    "type",
     "unit",
     "accountingBehavior",
+    "definitionDigest",
     "unresolved",
     "deficit",
     "unresolvedResourceTypeIds",
@@ -257,34 +234,10 @@ const resultFieldRank = new Map(
     "lifecycle",
     "isolatedDeficits",
     "resources",
-    "context",
-    "childPolicies",
-    "policies",
-    "amounts",
-    "effectiveCeilings",
-    "decision",
-    "policyEvidence",
     "replayed",
+    "decisionEvidence",
     "usage",
     "valid",
-    "validatorVersion",
-    "limitsVersion",
-    "policyProfileDigest",
-    "program",
-    "canonicalSql",
-    "remoteProceduresDigest",
-    "semanticGeneration",
-    "minimumSdkGeneration",
-    "procedures",
-    "sourceDigest",
-    "definitionDigest",
-    "value",
-    "values",
-    "valueType",
-    "nullable",
-    "where",
-    "groupBy",
-    "orderBy",
   ].map((field, index) => [field, index]),
 );
 
@@ -344,18 +297,25 @@ function invalidCommand(
   });
 }
 
-function orderResult<Value>(value: Value): Value {
-  if (Array.isArray(value)) return value.map(orderResult) as Value;
+function orderResult<Value>(value: Value, preserveAsciiOrder = false): Value {
+  if (Array.isArray(value))
+    return value.map((member) =>
+      orderResult(member, preserveAsciiOrder),
+    ) as Value;
   if (!isRecord(value)) return value;
   return Object.fromEntries(
     Object.entries(value)
       .sort(([left], [right]) => {
+        if (preserveAsciiOrder) return left < right ? -1 : left > right ? 1 : 0;
         const rank =
           (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) -
           (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);
         return rank || left.localeCompare(right);
       })
-      .map(([key, member]) => [key, orderResult(member)]),
+      .map(([key, member]) => [
+        key,
+        orderResult(member, preserveAsciiOrder || key === "decisionEvidence"),
+      ]),
   ) as Value;
 }
 

@@ -162,12 +162,11 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toEqual({
-      semanticGeneration: 3,
-      minimumSdkGeneration: 3,
+      semanticGeneration: 4,
+      minimumSdkGeneration: 4,
       semanticIdentities: [
         "installation",
         "command_contract",
-        "policy_profile",
         "remote_procedures",
       ],
       procedures: [
@@ -190,7 +189,7 @@ describe("contract source", () => {
         {
           method: "createBudget",
           target: "keynes.remote_create_budget",
-          revision: 3,
+          revision: 4,
           mode: "mutation",
           input: "RemoteCreateBudgetCommand",
           output: "RemoteCreateBudgetResult",
@@ -198,7 +197,7 @@ describe("contract source", () => {
         {
           method: "requestBudget",
           target: "keynes.remote_request",
-          revision: 1,
+          revision: 2,
           mode: "mutation",
           input: "RemoteRequestBudgetCommand",
           output: "RemoteRequestBudgetResult",
@@ -214,7 +213,7 @@ describe("contract source", () => {
         {
           method: "getBudget",
           target: "keynes.remote_get_budget",
-          revision: 1,
+          revision: 2,
           mode: "read",
           input: "RemoteGetBudgetQuery",
           output: "RemoteGetBudgetResult",
@@ -222,7 +221,7 @@ describe("contract source", () => {
         {
           method: "getBudgetHistoryPage",
           target: "keynes.remote_get_budget_history_page",
-          revision: 1,
+          revision: 2,
           mode: "read",
           input: "GetBudgetHistoryPageQuery",
           output: "GetBudgetHistoryPageResult",
@@ -230,7 +229,7 @@ describe("contract source", () => {
         {
           method: "openBudget",
           target: "keynes.remote_open_budget",
-          revision: 1,
+          revision: 2,
           mode: "read",
           input: "OpenBudgetQuery",
           output: "OpenBudgetResult",
@@ -238,7 +237,7 @@ describe("contract source", () => {
         {
           method: "recoverOperation",
           target: "keynes.remote_recover_operation",
-          revision: 1,
+          revision: 2,
           mode: "read",
           input: "RecoverOperationQuery",
           output: "RecoverOperationResult",
@@ -246,7 +245,7 @@ describe("contract source", () => {
         {
           method: "getCompatibility",
           target: "keynes.remote_get_compatibility",
-          revision: 1,
+          revision: 2,
           mode: "read",
           input: "GetCompatibilityQuery",
           output: "GetCompatibilityResult",
@@ -354,51 +353,105 @@ describe("contract source", () => {
     });
   });
 
-  it("wires Policy commands, evidence, reasons, and errors into the Budget contract", () => {
+  it.each([
+    ["CreateBudgetCommand", fixtures.commands.createRoot, "policies", []],
+    [
+      "RemoteCreateBudgetCommand",
+      {
+        operationKey: `kop_v1_${"a".repeat(43)}`,
+        definitions: fixtures.commands.createRoot.definitions,
+        amounts: fixtures.commands.createRoot.amounts,
+      },
+      "policies",
+      [],
+    ],
+    ["RequestBudgetCommand", fixtures.commands.requestChild, "context", {}],
+    [
+      "RequestBudgetCommand",
+      fixtures.commands.requestChild,
+      "childPolicies",
+      [],
+    ],
+    [
+      "RequestBudgetCommand",
+      fixtures.commands.requestChild,
+      "childPolicies",
+      undefined,
+    ],
+    [
+      "RemoteRequestBudgetCommand",
+      {
+        operationKey: `kop_v1_${"a".repeat(43)}`,
+        parentBudgetReference: `kbr_v1_${"b".repeat(43)}`,
+        resources: [{ resource: "model_tokens", amount: 40 }],
+      },
+      "context",
+      {},
+    ],
+    [
+      "RemoteRequestBudgetCommand",
+      {
+        operationKey: `kop_v1_${"a".repeat(43)}`,
+        parentBudgetReference: `kbr_v1_${"b".repeat(43)}`,
+        resources: [{ resource: "model_tokens", amount: 40 }],
+      },
+      "childPolicies",
+      [],
+    ],
+    [
+      "RemoteRequestBudgetCommand",
+      {
+        operationKey: `kop_v1_${"a".repeat(43)}`,
+        parentBudgetReference: `kbr_v1_${"b".repeat(43)}`,
+        resources: [{ resource: "model_tokens", amount: 40 }],
+      },
+      "childPolicies",
+      undefined,
+    ],
+  ])(
+    "%s rejects legacy attachment inputs, including empty and undefined values",
+    (definition, command, key, value) => {
+      const validate = contractValidator(definition);
+      expect(
+        validate({ ...command, [key]: value }),
+        JSON.stringify(validate.errors),
+      ).toBe(false);
+    },
+  );
+
+  it("keeps request schemas and outcomes free of managed Policy data", () => {
     const definitions = loadContract(packageRoot).definitions;
 
-    expect(definitions.CreateBudgetCommand).toMatchObject({
-      properties: {
-        policies: {
-          type: "array",
-          items: { $ref: "#/$defs/PolicyDefinitionV1" },
-        },
-      },
-    });
-    expect(definitions.RequestBudgetCommand).toMatchObject({
-      properties: {
-        context: { $ref: "#/$defs/PolicyContextV1" },
-        childPolicies: {
-          type: "array",
-          items: { $ref: "#/$defs/PolicyDefinitionV1" },
-        },
-      },
-    });
     for (const name of [
+      "CreateBudgetCommand",
+      "RemoteCreateBudgetCommand",
+      "RequestBudgetCommand",
+      "RemoteRequestBudgetCommand",
       "RequestApproved",
       "RequestDenied",
       "RequestApprovedHistoryEntry",
       "RequestDeniedHistoryEntry",
+      "RemoteRequestApprovedResult",
+      "RemoteRequestDeniedResult",
+      "RemoteRequestApprovedHistoryEntry",
+      "RemoteRequestDeniedHistoryEntry",
+      "RemoteErrorEnvelope",
+      "RemoteSimpleErrorEnvelope",
+      "RemoteDefinitiveDomainErrorEnvelope",
+      "CompatibilityErrorEnvelope",
+      "GetCompatibilityResult",
     ]) {
-      expect(definitions[name]).toMatchObject({
-        properties: {
-          policyEvidence: { $ref: "#/$defs/PolicyEvidenceV1" },
-        },
-      });
+      const definition = definitions[name];
+      expect(definition, `missing schema definition ${name}`).toBeDefined();
+      expect(JSON.stringify(definition)).not.toMatch(/policy/i);
     }
-    expect(definitions.RequestDenialReason).toMatchObject({
-      oneOf: expect.arrayContaining([
-        { $ref: "#/$defs/AvailabilityDenialReason" },
-        { $ref: "#/$defs/PolicyCeilingReasonV1" },
-      ]),
-    });
-    expect(definitions.ErrorEnvelope).toMatchObject({
-      oneOf: expect.arrayContaining([
-        { $ref: "#/$defs/InvalidPolicyErrorEnvelope" },
-        { $ref: "#/$defs/InvalidPolicyContextErrorEnvelope" },
-        { $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope" },
-      ]),
-    });
+    expect(JSON.stringify(definitions.RequestDenialReason)).not.toMatch(
+      /policy/i,
+    );
+    expect(JSON.stringify(definitions.ErrorEnvelope)).not.toMatch(/policy/i);
+    expect(
+      Object.keys(definitions).filter((name) => /policy/i.test(name)),
+    ).toEqual([]);
   });
 
   it("rejects operation metadata drift", () => {

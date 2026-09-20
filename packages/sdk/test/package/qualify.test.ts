@@ -34,10 +34,6 @@ const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const expectedProductionDependencies = {
-  "@pgsql/types": "18.0.0",
-  "decimal.js": "10.6.0",
-  kysely: "0.29.5",
-  "libpg-query": "18.1.4",
   pg: "8.23.0",
   "pg-cloudflare": "1.4.0",
   "pg-connection-string": "2.14.0",
@@ -207,32 +203,13 @@ describe("SDK package-test runner", () => {
     expect(manifest.bundledDependencies).toEqual(expectedBundledDependencies);
   });
 
-  it("packs only the reachable schema-first and Policy API modules", () => {
+  it("packs the reduced application-request module set", () => {
     const paths = [...archiveEntries.keys()];
-    for (const module of [
-      "budget",
-      "resources",
-      "generated/policy-profile",
-      "generated/policy-types",
-      "policy/authoring",
-      "policy/canonicalize",
-      "policy/compile",
-      "policy/normalize",
-      "policy/parse",
-      "policy/validate",
-    ]) {
+    for (const module of SDK_PRODUCTION_MODULES) {
       expect(paths).toContain(`package/dist/${module}.d.ts`);
       expect(paths).toContain(`package/dist/${module}.js`);
     }
-  });
-
-  it("bundles the parser runtime and WASM in the archive", () => {
-    const paths = [...archiveEntries.keys()];
-    expect(paths).toContain(
-      "package/node_modules/libpg-query/wasm/libpg-query.wasm",
-    );
-    expect(paths).toContain("package/node_modules/libpg-query/wasm/index.js");
-    expect(paths).toContain("package/node_modules/@pgsql/types/package.json");
+    expect(paths.filter((path) => /policy/i.test(path))).toEqual([]);
   });
 
   it("contains no PGlite or copied database archive path", () => {
@@ -359,14 +336,13 @@ describe("SDK package-test runner", () => {
         contractDigest: CONTRACT_DIGEST,
       },
       checks: [
-        "parser-wasm",
         "public-types",
         "package-root-import",
         "remote-exports",
         "configuration-rejection",
         "environment-isolation",
         "budget-loop",
-        "policy-runtime",
+        "application-request",
         "isolation",
         "closure",
         "process-loss",

@@ -296,6 +296,50 @@ describe("remote Budget reopen and operation recovery", () => {
     expect(key).toMatch(/^kop_v1_[A-Za-z0-9_-]{43}$/u);
   });
 
+  it("preserves request evidence through committed recovery", async () => {
+    const decisionEvidence = { rule: "pro", revision: 1 };
+    const requestResult = {
+      ...approvedResponse().result,
+      decisionEvidence,
+    };
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") return createdResponse();
+      if (method === "requestBudget")
+        return { ok: true, result: requestResult };
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "requestBudget",
+            result: requestResult,
+          },
+        };
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({ databaseUrl, resources });
+    const root = await remote.createBudget({ workUnits: 10 });
+    const requestOptions = { operationKey, decisionEvidence };
+    const requested = await root.request({ workUnits: 3 }, requestOptions);
+
+    expect(requested).toMatchObject({
+      status: "approved",
+      decisionEvidence,
+    });
+    expect(await remote.recoverOperation(operationKey)).toMatchObject({
+      kind: "committed",
+      operationKey,
+      operation: "requestBudget",
+      result: { decisionEvidence },
+    });
+    expect(executor.inputs[1]).toMatchObject({
+      operationKey,
+      decisionEvidence,
+    });
+  });
+
   it("reopens only the PostgreSQL-checked Resource binding", async () => {
     const executor = fakeExecutor((method, input) => {
       if (method !== "openBudget") {

@@ -21,13 +21,4 @@ export {
   registerSettlementContractTests,
   registerRemoteContractTests,
 } from "./scenarios/index.ts";
-export { canonicalizePolicyCommand } from "./policy.ts";
-export {
-  POLICY_TEST_CASES,
-  POLICY_RUNTIME_TEST_CASES,
-  type PolicyTestCase,
-  type PolicyTestCategory,
-  type PolicyRuntimeTestCase,
-} from "./policy/cases.ts";
-
 export { rootResources } from "./scenarios/root-resource.ts";

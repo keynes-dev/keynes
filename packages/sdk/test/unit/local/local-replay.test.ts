@@ -82,6 +82,35 @@ describe("local facade committed-response replay", () => {
       await keynes.close();
     }
   });
+
+  it("retries a lost request with the evidence snapshot captured on the first call", async () => {
+    const harness = await loadHarness("requestBudget", 1);
+    const resources = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    const keynes = await harness.createKeynes({ resources });
+    try {
+      const root = await keynes.createBudget({ workUnits: 10 });
+      const decisionEvidence = { rule: "pro", revision: 1 };
+      const pending = Reflect.apply(root.request, root, [
+        { workUnits: 4 },
+        { decisionEvidence },
+      ]);
+      decisionEvidence.revision = 2;
+
+      await expect(Promise.resolve(pending)).resolves.toMatchObject({
+        status: "approved",
+      });
+      expect(harness.captured).toHaveLength(2);
+      expect(harness.captured[1]).toBe(harness.captured[0]);
+      expect(harness.captured[0]).toMatchObject({
+        decisionEvidence: { rule: "pro", revision: 1 },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("recovers mixed-zero creation without duplicate funding or unused members", async () => {
     const harness = await loadHarness("createBudget", 1);
     const resources = {
@@ -169,7 +198,7 @@ describe("local facade committed-response replay", () => {
 });
 
 async function exerciseMutation(
-  keynes: Keynes,
+  keynes: Keynes<"workUnits">,
   operation: FacadeMutationOperation,
 ): Promise<void> {
   const root = await keynes.createBudget({ workUnits: 10 });

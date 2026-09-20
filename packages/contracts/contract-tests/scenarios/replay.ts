@@ -507,6 +507,109 @@ export function registerReplayContractTests(
       expect(replay).toEqual({ ...created, replayed: true });
     });
 
+    it("binds caller decision evidence into request replay identity", async () => {
+      const client = local.clientFor("product-fixture");
+      const defined = await client.defineResource({
+        commandId: "13000000-0000-0000-0000-000000000095",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const root = await client.createBudget({
+        commandId: "23000000-0000-0000-0000-000000000095",
+        ...rootResources([rootResource(defined.resourceType, 10)]),
+      });
+      const request = {
+        commandId: "33000000-0000-0000-0000-000000000095",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 4 },
+        ],
+        decisionEvidence: { rule: "pro", revision: 1 },
+      } satisfies RequestBudgetCommand;
+      const approved = await client.requestBudget(request);
+      expect(approved.kind).toBe("approved");
+      await expect(
+        local.clientFor("requester-fixture").requestBudget({
+          ...request,
+          decisionEvidence: { revision: 1, rule: "pro" },
+        }),
+      ).resolves.toEqual({ ...approved, replayed: true });
+      await expectCommandConflict(
+        local.clientFor("requester-fixture").requestBudget({
+          ...request,
+          decisionEvidence: { rule: "pro", revision: 2 },
+        }),
+        request.commandId,
+        "requestBudget",
+        "requestBudget",
+      );
+      await expectCommandConflict(
+        local.clientFor("requester-fixture").requestBudget({
+          commandId: request.commandId,
+          parentBudgetId: request.parentBudgetId,
+          resources: request.resources,
+        }),
+        request.commandId,
+        "requestBudget",
+        "requestBudget",
+      );
+    });
+
+    it("replays a recorded denial after availability is restored", async () => {
+      const client = local.clientFor("product-fixture");
+      const defined = await client.defineResource({
+        commandId: "13000000-0000-0000-0000-000000000096",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const root = await client.createBudget({
+        commandId: "23000000-0000-0000-0000-000000000096",
+        ...rootResources([rootResource(defined.resourceType, 10)]),
+      });
+      const consuming = await client.requestBudget({
+        commandId: "33000000-0000-0000-0000-000000000096",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
+        ],
+      });
+      if (consuming.kind !== "approved") {
+        throw new Error("fixture request must be funded");
+      }
+      const deniedCommand = {
+        commandId: "33000000-0000-0000-0000-000000000097",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 1 },
+        ],
+        decisionEvidence: { rule: "pro", revision: 1 },
+      } satisfies RequestBudgetCommand;
+      const denied = await client.requestBudget(deniedCommand);
+      expect(denied.kind).toBe("denied");
+
+      await client.settleBudget({
+        commandId: "43000000-0000-0000-0000-000000000096",
+        budgetId: consuming.childBudgetId,
+        usage: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 0 },
+        ],
+      });
+      const restored = await client.getBudget({
+        budgetId: root.budget.budgetId,
+      });
+      expect(restored.budget.resources[0]).toMatchObject({ available: 10 });
+
+      await expect(
+        local.clientFor("requester-fixture").requestBudget(deniedCommand),
+      ).resolves.toEqual({ ...denied, replayed: true });
+    });
+
     it("rejects omitted explicit-zero membership under the same command identity", async () => {
       const client = local.clientFor("product-fixture");
       const definitions = {
@@ -568,32 +671,6 @@ export function registerReplayContractTests(
         ...first,
         replayed: true,
       });
-    });
-
-    it("replays semantically equivalent Policy definitions", async () => {
-      const client = local.clientFor("product-fixture");
-      const defined = await client.defineResource({
-        commandId: "13000000-0000-0000-0000-000000000095",
-        definition: {
-          canonicalName: "model_tokens",
-          unit: "token",
-          accountingBehavior: "consumable",
-        },
-      });
-      const command = {
-        commandId: "23000000-0000-0000-0000-000000000095",
-        ...rootResources([rootResource(defined.resourceType, 10)]),
-      } satisfies CreateBudgetCommand;
-      const created = await client.createBudget(command);
-      const replay = await local.clientFor("root-fixture").createBudget({
-        ...command,
-        policies: [],
-      });
-      expect(replay).toEqual({ ...created, replayed: true });
-      expect(
-        (await client.getBudget({ budgetId: created.budget.budgetId })).history
-          .entries,
-      ).toHaveLength(1);
     });
   });
 }

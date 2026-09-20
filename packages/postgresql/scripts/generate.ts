@@ -9,14 +9,12 @@ import {
   canonicalJson,
   jsonFile,
   loadContract,
-  loadPolicyProfile,
   type JsonObject,
   type LoadedContract,
-  type LoadedPolicyProfile,
 } from "@keynes/contracts";
 import { format } from "oxfmt";
 
-import { expectedPostgresObjects } from "./policy-migration.ts";
+import { expectedPostgresObjects } from "./installation-inventory.ts";
 import { installationFunctions } from "./secure-public-functions.ts";
 
 const POSTGRES_PROFILE = {
@@ -44,7 +42,6 @@ const POSTGRES_PROFILE = {
 interface GeneratePostgresqlOptions {
   readonly check: boolean;
   readonly contract: LoadedContract;
-  readonly policyProfile: LoadedPolicyProfile;
   readonly repositoryRoot?: string;
 }
 
@@ -66,7 +63,6 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
   const installationRecord = {
     ...POSTGRES_PROFILE,
     contractDigest: options.contract.digest,
-    policyProfileDigest: options.policyProfile.digest,
     remoteProceduresDigest: options.contract.remoteDigest,
     migrationSetDigest: sha256(canonicalJson(migrations)),
     migrations,
@@ -76,7 +72,7 @@ export async function generatePostgresql(options: GeneratePostgresqlOptions) {
     remoteTargets: options.contract.source.remote.procedures.map(
       ({ target }) => target,
     ),
-    expectedObjects: expectedPostgresObjects(options.policyProfile),
+    expectedObjects: expectedPostgresObjects(),
     functions: installationFunctions(options.contract.source),
   };
 
@@ -170,9 +166,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await generatePostgresql({
     check: values.check === true,
     contract: loadContract(join(repositoryRoot, "packages/contracts")),
-    policyProfile: loadPolicyProfile(
-      join(repositoryRoot, "packages/contracts"),
-    ),
     repositoryRoot,
   });
 }

@@ -70,18 +70,6 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@pgsql/types':
-        specifier: 18.0.0
-        version: 18.0.0
-      decimal.js:
-        specifier: 10.6.0
-        version: 10.6.0
-      kysely:
-        specifier: 0.29.5
-        version: 0.29.5
-      libpg-query:
-        specifier: 18.1.4
-        version: 18.1.4
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -625,9 +613,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@pgsql/types@18.0.0':
-    resolution: {integrity: sha512-jtAY4JU7jdVYZ/Vv3zlZqVP+FRWZokyCLKPPCnAApiaJAElpyyiMC3HRiquBu29kSrVs+rkqZD50SUIb/zyEGw==}
-
   '@rolldown/binding-android-arm-eabi@1.2.5':
     resolution: {integrity: sha512-DLe/i+l8ynIBY7XEQ191TeZvCoowIGa18R+dIV30GW7DiOtp74i/xX8hs8GUjW5ARV7VZuie3d6AumSmCwbeRA==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1051,13 +1036,6 @@ packages:
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
-
-  kysely@0.29.5:
-    resolution: {integrity: sha512-ooa+eSbBNPTo3MycPEuW5jdrxQdQwdtB3LC3h43FiXQbIry5tR0C5lDG7eealK0E4D7XjrnOP5DIUg/LyjRMYQ==}
-    engines: {node: '>=22.0.0'}
-
-  libpg-query@18.1.4:
-    resolution: {integrity: sha512-6jF9qn9ln4yLnmSF+bS/DBvAfNcPhGI05+pkQy+n3cRd3p9aO8LWjquEin8SLO0k7zYk745ZGBXYUiL9AUI7gA==}
 
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
@@ -1729,8 +1707,6 @@ snapshots:
   '@oxlint/binding-win32-x64-msvc@1.79.0':
     optional: true
 
-  '@pgsql/types@18.0.0': {}
-
   '@rolldown/binding-android-arm-eabi@1.2.5':
     optional: true
 
@@ -1964,7 +1940,8 @@ snapshots:
       - '@noble/hashes'
     optional: true
 
-  decimal.js@10.6.0: {}
+  decimal.js@10.6.0:
+    optional: true
 
   detect-libc@2.1.2: {}
 
@@ -2083,12 +2060,6 @@ snapshots:
       tinyglobby: 0.2.17
 
   json-schema-traverse@1.0.0: {}
-
-  kysely@0.29.5: {}
-
-  libpg-query@18.1.4:
-    dependencies:
-      '@pgsql/types': 18.0.0
 
   lightningcss-android-arm64@1.33.0:
     optional: true

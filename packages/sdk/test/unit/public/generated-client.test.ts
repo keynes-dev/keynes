@@ -2,13 +2,10 @@ import { rootResources } from "@keynes/contracts/contract-tests";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { loadContract, loadPolicyProfile } from "@keynes/contracts";
+import { loadContract } from "@keynes/contracts";
 import { describe, expect, it } from "vitest";
 
-import {
-  renderPolicyProfile,
-  renderValidators,
-} from "../../../scripts/render.js";
+import { renderValidators } from "../../../scripts/render.js";
 import { createKeynesClient } from "../../../src/generated/client.js";
 import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
@@ -90,100 +87,87 @@ const EXPECTED_OPERATIONS = [
   "getBudget",
 ] satisfies readonly OperationName[];
 
-describe.each(["issues", "boolean"])(
-  "generated %s own-property validation",
-  (kind) => {
-    const packageRoot = fileURLToPath(
-      new URL("../../../../contracts/", import.meta.url),
-    );
-    const definitions = {
-      NamedDefinitions: {
+describe("generated own-property validation", () => {
+  const packageRoot = fileURLToPath(
+    new URL("../../../../contracts/", import.meta.url),
+  );
+  const definitions = {
+    NamedDefinitions: {
+      type: "object",
+      propertyNames: { type: "string", pattern: "^[a-z][A-Za-z0-9]*$" },
+      additionalProperties: {
         type: "object",
-        propertyNames: { type: "string", pattern: "^[a-z][A-Za-z0-9]*$" },
-        additionalProperties: {
-          type: "object",
-          required: ["unit", "accountingBehavior"],
-          properties: {
-            unit: { type: "string", minLength: 1 },
-            accountingBehavior: { enum: ["consumable", "reusable"] },
-          },
-          additionalProperties: false,
+        required: ["unit", "accountingBehavior"],
+        properties: {
+          unit: { type: "string", minLength: 1 },
+          accountingBehavior: { enum: ["consumable", "reusable"] },
         },
+        additionalProperties: false,
       },
-    };
-    const source =
-      kind === "issues"
-        ? renderValidators(definitions, loadContract(packageRoot).source)
-        : renderPolicyProfile(loadPolicyProfile(packageRoot), {
-            $defs: definitions,
-          });
-    const validate: unknown = new Function(
-      `${stripTypeScriptTypes(source).replaceAll("export ", "")}\nreturn validateDefinition;`,
-    )();
-    if (typeof validate !== "function")
-      throw new Error("Missing generated validator");
-    const valid = { unit: "token", accountingBehavior: "consumable" };
+    },
+  };
+  const source = renderValidators(
+    definitions,
+    loadContract(packageRoot).source,
+  );
+  const validate: unknown = new Function(
+    `${stripTypeScriptTypes(source).replaceAll("export ", "")}\nreturn validateDefinition;`,
+  )();
+  if (typeof validate !== "function")
+    throw new Error("Missing generated validator");
+  const valid = { unit: "token", accountingBehavior: "consumable" };
 
-    it.each(Object.entries(valid))(
-      "rejects inherited required %s",
-      (field, value) => {
-        const entry = Object.assign(
-          Object.create({ [field]: value }),
-          Object.fromEntries(
-            Object.entries(valid).filter(([name]) => name !== field),
-          ),
-        );
-        expect(validate("NamedDefinitions", { modelTokens: entry })).toEqual(
-          kind === "issues"
-            ? [{ path: `/modelTokens/${field}`, rule: "required" }]
-            : false,
-        );
-      },
-    );
+  it.each(Object.entries(valid))(
+    "rejects inherited required %s",
+    (field, value) => {
+      const entry = Object.assign(
+        Object.create({ [field]: value }),
+        Object.fromEntries(
+          Object.entries(valid).filter(([name]) => name !== field),
+        ),
+      );
+      expect(validate("NamedDefinitions", { modelTokens: entry })).toEqual([
+        { path: `/modelTokens/${field}`, rule: "required" },
+      ]);
+    },
+  );
 
-    it("rejects an unknown own constructor field even when undefined", () => {
+  it("rejects an unknown own constructor field even when undefined", () => {
+    expect(
+      validate("NamedDefinitions", {
+        modelTokens: { ...valid, constructor: undefined },
+      }),
+    ).toEqual([
+      { path: "/modelTokens/constructor", rule: "additionalProperties" },
+    ]);
+  });
+
+  it.each(["constructor", "toString"])(
+    "validates malformed named %s entries",
+    (name) => {
+      expect(validate("NamedDefinitions", { [name]: undefined })).toEqual([
+        { path: `/${name}`, rule: "type" },
+      ]);
+    },
+  );
+
+  it.each(["constructor", "toString"])(
+    "rejects invalid behavior for named %s entries",
+    (name) => {
       expect(
         validate("NamedDefinitions", {
-          modelTokens: { ...valid, constructor: undefined },
+          [name]: { ...valid, accountingBehavior: "invalid" },
         }),
-      ).toEqual(
-        kind === "issues"
-          ? [{ path: "/modelTokens/constructor", rule: "additionalProperties" }]
-          : false,
-      );
-    });
+      ).toEqual([{ path: `/${name}/accountingBehavior`, rule: "enum" }]);
+    },
+  );
 
-    it.each(["constructor", "toString"])(
-      "validates malformed named %s entries",
-      (name) => {
-        expect(validate("NamedDefinitions", { [name]: undefined })).toEqual(
-          kind === "issues" ? [{ path: `/${name}`, rule: "type" }] : false,
-        );
-      },
-    );
-
-    it.each(["constructor", "toString"])(
-      "rejects invalid behavior for named %s entries",
-      (name) => {
-        expect(
-          validate("NamedDefinitions", {
-            [name]: { ...valid, accountingBehavior: "invalid" },
-          }),
-        ).toEqual(
-          kind === "issues"
-            ? [{ path: `/${name}/accountingBehavior`, rule: "enum" }]
-            : false,
-        );
-      },
-    );
-
-    it("accepts valid prototype-like Resource names", () => {
-      expect(
-        validate("NamedDefinitions", { constructor: valid, toString: valid }),
-      ).toEqual(kind === "issues" ? [] : true);
-    });
-  },
-);
+  it("accepts valid prototype-like Resource names", () => {
+    expect(
+      validate("NamedDefinitions", { constructor: valid, toString: valid }),
+    ).toEqual([]);
+  });
+});
 
 describe("generated client bindings", () => {
   it("binds every concrete method to its deployment-neutral operation", async () => {

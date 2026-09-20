@@ -14,7 +14,6 @@ import {
   type RemoteCommandExecutor,
   type RemoteProcedureDescriptor,
 } from "../generated/client.js";
-import { POLICY_PROFILE_DIGEST } from "../generated/policy-profile.js";
 import type { GetCompatibilityResult } from "../generated/types.js";
 import {
   closeRemoteFailure,
@@ -109,9 +108,6 @@ function verifyCompatibility(result: GetCompatibilityResult): void {
     result.semanticGeneration !== REMOTE_CONTRACT.semanticGeneration
   ) {
     throw compatibilityFailure("command_contract");
-  }
-  if (result.policyProfileDigest !== POLICY_PROFILE_DIGEST) {
-    throw compatibilityFailure("policy_profile");
   }
   if (result.remoteProceduresDigest !== REMOTE_PROCEDURES_DIGEST) {
     throw compatibilityFailure("remote_procedures");
@@ -299,6 +295,6 @@ export async function openPostgresqlCommandExecutor(
   } catch (error: unknown) {
     await executor.close();
     if (error instanceof KeynesError) throw error;
-    throw unknownRemoteFailure();
+    throw compatibilityFailure("command_contract");
   }
 }

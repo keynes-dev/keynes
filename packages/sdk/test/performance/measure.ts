@@ -60,7 +60,6 @@ export interface QualificationRecordInput {
   readonly method: {
     readonly coldWarmup: number;
     readonly coldProcesses: number;
-    readonly parserInitializationProcesses: number;
     readonly firstRequestProcesses: number;
     readonly steadyWarmup: number;
     readonly steadySamples: number;
@@ -75,7 +74,6 @@ export interface QualificationRecordInput {
     readonly memorySampleCount: readonly number[];
     readonly offlineInstallMilliseconds: readonly number[];
     readonly steadyElapsedMilliseconds: readonly number[];
-    readonly parserInitializationMilliseconds: readonly number[];
     readonly readyRssBytes: readonly number[];
     readonly coldCreateMilliseconds: readonly number[];
     readonly firstRequestMilliseconds: readonly number[];
@@ -169,7 +167,6 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     !/^\d+\.\d+\.\d+$/.test(input.environment.sqliteVersion) ||
     input.method.coldProcesses !== 30 ||
     input.method.coldWarmup !== 3 ||
-    input.method.parserInitializationProcesses !== 30 ||
     input.method.firstRequestProcesses !== 30 ||
     input.method.steadySamples !== 100 ||
     input.method.steadyWarmup !== 10 ||
@@ -201,11 +198,6 @@ export function createQualificationRecord(input: QualificationRecordInput) {
   ) {
     throw new Error("Invalid measurement duration or memory sample count");
   }
-  validateSamples(
-    input.samples.parserInitializationMilliseconds,
-    30,
-    "parserInitializationMilliseconds",
-  );
   validateSamples(input.samples.readyRssBytes, 30, "readyRssBytes");
   validateSamples(
     input.samples.coldCreateMilliseconds,
@@ -234,9 +226,6 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     memorySampleCount: [...input.samples.memorySampleCount],
     offlineInstallMilliseconds: [...input.samples.offlineInstallMilliseconds],
     steadyElapsedMilliseconds: [...input.samples.steadyElapsedMilliseconds],
-    parserInitializationMilliseconds: [
-      ...input.samples.parserInitializationMilliseconds,
-    ],
     readyRssBytes: [...input.samples.readyRssBytes],
     coldCreateMilliseconds: [...input.samples.coldCreateMilliseconds],
     firstRequestMilliseconds: [...input.samples.firstRequestMilliseconds],
@@ -244,7 +233,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     shutdownMilliseconds: [...input.samples.shutdownMilliseconds],
   };
   return {
-    schemaVersion: "keynes.package-test.sdk-measurement/v2" as const,
+    schemaVersion: "keynes.package-test.sdk-measurement/v3" as const,
     subject: "@keynes/sdk" as const,
     sourceRevision: { ...input.sourceRevision },
     archive: {
@@ -266,9 +255,6 @@ export function createQualificationRecord(input: QualificationRecordInput) {
       ),
       steadyElapsedMilliseconds: observation(samples.steadyElapsedMilliseconds),
       requestsPerSecond: 100_000 / samples.steadyElapsedMilliseconds[0],
-      parserInitializationMilliseconds: observation(
-        samples.parserInitializationMilliseconds,
-      ),
       readyRssBytes: observation(samples.readyRssBytes),
       coldCreateMilliseconds: observation(samples.coldCreateMilliseconds),
       firstRequestMilliseconds: observation(samples.firstRequestMilliseconds),
@@ -359,7 +345,6 @@ async function measure(
     const sampledPeakRssBytes: number[] = [];
     const memorySampleCount: number[] = [];
     const readyRssBytes: number[] = [];
-    const parserInitializationMilliseconds: number[] = [];
     const coldCreateMilliseconds: number[] = [];
     const firstRequestMilliseconds: number[] = [];
     const shutdownMilliseconds: number[] = [];
@@ -368,9 +353,6 @@ async function measure(
       const result = runColdWorker(worker, external.root);
       runtimeIdentity ??= result.runtimeIdentity;
       assertSameRuntimeIdentity(runtimeIdentity, result.runtimeIdentity);
-      parserInitializationMilliseconds.push(
-        result.parserInitializationMilliseconds,
-      );
       startupMilliseconds.push(result.startupMilliseconds);
       sampledPeakRssBytes.push(result.sampledPeakRssBytes);
       memorySampleCount.push(result.memorySampleCount);
@@ -404,7 +386,6 @@ async function measure(
       method: {
         coldWarmup: COLD_WARMUP_PROCESSES,
         coldProcesses: 30,
-        parserInitializationProcesses: 30,
         firstRequestProcesses: 30,
         steadyWarmup: 10,
         steadySamples: 100,
@@ -419,7 +400,6 @@ async function measure(
         memorySampleCount,
         offlineInstallMilliseconds,
         steadyElapsedMilliseconds: [steady.elapsed],
-        parserInitializationMilliseconds,
         readyRssBytes,
         coldCreateMilliseconds,
         firstRequestMilliseconds,
@@ -546,7 +526,6 @@ function runColdWorker(
   readonly startupMilliseconds: number;
   readonly sampledPeakRssBytes: number;
   readonly memorySampleCount: number;
-  readonly parserInitializationMilliseconds: number;
   readonly readyRssBytes: number;
   readonly coldCreateMilliseconds: number;
   readonly firstRequestMilliseconds: number;
@@ -560,7 +539,6 @@ function runColdWorker(
     !isFiniteNonNegative(value.startupMilliseconds) ||
     !isFiniteNonNegative(value.sampledPeakRssBytes) ||
     !isFiniteNonNegative(value.memorySampleCount) ||
-    !isFiniteNonNegative(value.parserInitializationMilliseconds) ||
     !isFiniteNonNegative(value.readyRssBytes) ||
     !isFiniteNonNegative(value.coldCreateMilliseconds) ||
     !isFiniteNonNegative(value.firstRequestMilliseconds) ||
@@ -576,7 +554,6 @@ function runColdWorker(
     startupMilliseconds: value.startupMilliseconds,
     sampledPeakRssBytes: value.sampledPeakRssBytes,
     memorySampleCount: value.memorySampleCount,
-    parserInitializationMilliseconds: value.parserInitializationMilliseconds,
     readyRssBytes: value.readyRssBytes,
     coldCreateMilliseconds: value.coldCreateMilliseconds,
     firstRequestMilliseconds: value.firstRequestMilliseconds,

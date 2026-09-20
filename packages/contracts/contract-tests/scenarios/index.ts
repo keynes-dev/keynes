@@ -3,6 +3,7 @@ import type { OpenContractTestHost } from "../host.ts";
 import { registerBudgetLifecycleContractTests } from "./budget-lifecycle.ts";
 import { registerReplayContractTests } from "./replay.ts";
 import { registerRequestDenialContractTests } from "./request-denial.ts";
+import { registerRequestEvidenceContractTests } from "./request-evidence.ts";
 import { registerResourceBoundRootContractTests } from "./resource-bound-root.ts";
 import { registerResourceDefinitionsContractTests } from "./resource-definitions.ts";
 import { registerRollbackContractTests } from "./rollback.ts";
@@ -13,6 +14,7 @@ export {
   registerBudgetLifecycleContractTests,
   registerReplayContractTests,
   registerRequestDenialContractTests,
+  registerRequestEvidenceContractTests,
   registerResourceBoundRootContractTests,
   registerResourceDefinitionsContractTests,
   registerRollbackContractTests,
@@ -26,6 +28,7 @@ export function registerBudgetContractTests(
   registerBudgetLifecycleContractTests(openHost);
   registerReplayContractTests(openHost);
   registerRequestDenialContractTests(openHost);
+  registerRequestEvidenceContractTests(openHost);
   registerResourceBoundRootContractTests(openHost);
   registerResourceDefinitionsContractTests(openHost);
   registerRollbackContractTests(openHost);

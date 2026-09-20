@@ -59,12 +59,11 @@
     }
   ],
   "remote": {
-    "semanticGeneration": 3,
-    "minimumSdkGeneration": 3,
+    "semanticGeneration": 4,
+    "minimumSdkGeneration": 4,
     "semanticIdentities": [
       "installation",
       "command_contract",
-      "policy_profile",
       "remote_procedures"
     ],
     "procedures": [
@@ -87,7 +86,7 @@
       {
         "method": "createBudget",
         "target": "keynes.remote_create_budget",
-        "revision": 3,
+        "revision": 4,
         "mode": "mutation",
         "input": "RemoteCreateBudgetCommand",
         "output": "RemoteCreateBudgetResult"
@@ -95,7 +94,7 @@
       {
         "method": "requestBudget",
         "target": "keynes.remote_request",
-        "revision": 1,
+        "revision": 2,
         "mode": "mutation",
         "input": "RemoteRequestBudgetCommand",
         "output": "RemoteRequestBudgetResult"
@@ -111,7 +110,7 @@
       {
         "method": "getBudget",
         "target": "keynes.remote_get_budget",
-        "revision": 1,
+        "revision": 2,
         "mode": "read",
         "input": "RemoteGetBudgetQuery",
         "output": "RemoteGetBudgetResult"
@@ -119,7 +118,7 @@
       {
         "method": "getBudgetHistoryPage",
         "target": "keynes.remote_get_budget_history_page",
-        "revision": 1,
+        "revision": 2,
         "mode": "read",
         "input": "GetBudgetHistoryPageQuery",
         "output": "GetBudgetHistoryPageResult"
@@ -127,7 +126,7 @@
       {
         "method": "openBudget",
         "target": "keynes.remote_open_budget",
-        "revision": 1,
+        "revision": 2,
         "mode": "read",
         "input": "OpenBudgetQuery",
         "output": "OpenBudgetResult"
@@ -135,7 +134,7 @@
       {
         "method": "recoverOperation",
         "target": "keynes.remote_recover_operation",
-        "revision": 1,
+        "revision": 2,
         "mode": "read",
         "input": "RecoverOperationQuery",
         "output": "RecoverOperationResult"
@@ -143,7 +142,7 @@
       {
         "method": "getCompatibility",
         "target": "keynes.remote_get_compatibility",
-        "revision": 1,
+        "revision": 2,
         "mode": "read",
         "input": "GetCompatibilityQuery",
         "output": "GetCompatibilityResult"

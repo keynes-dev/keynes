@@ -236,7 +236,9 @@ describe("SQLite and PostgreSQL result verification", () => {
         })),
       })),
     };
-    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(4);
+    expect(validateTestReport(nested, SQLITE_AGGREGATE)).toHaveLength(
+      REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS[POSTGRESQL_BUDGET_AGGREGATE].length,
+    );
     expect(() =>
       validateTestReport(
         { ...nested, numTotalTestSuites: 4, numPassedTestSuites: 4 },

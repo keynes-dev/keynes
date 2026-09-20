@@ -145,10 +145,6 @@ describe("repository organization", () => {
       [
         "packages/sdk",
         {
-          "@pgsql/types": "18.0.0",
-          "decimal.js": "10.6.0",
-          kysely: "0.29.5",
-          "libpg-query": "18.1.4",
           pg: "8.23.0",
           "pg-cloudflare": "1.4.0",
           "pg-connection-string": "2.14.0",

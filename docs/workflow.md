@@ -8,9 +8,17 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
 
 [ADR-0013](adr/0013-application-owned-policies.md) and constitution 12.0.0 adopt customer-owned policy evaluation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests or reject work; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove evaluation or grant authority.
 
-Current source still implements managed SQL Policies and combines SQLite/compiler code with the SDK. KEY-114 owns breaking Policy retirement and replacement contract/tests; KEY-96 owns runtime/package separation. Customer evaluation, optional toolkit contracts, configuration and model integration remain separate from allocation. No mandatory policy callback, result type or transaction manager is introduced.
+KEY-114 retired managed SQL Policies and added bounded caller evidence to the
+request contract. KEY-96 owns runtime/package separation. Customer evaluation,
+optional toolkit contracts, configuration, and model integration remain
+separate from allocation. No mandatory policy callback, result type, or
+transaction manager is introduced.
 
-The existing SQLite/native PostgreSQL commands and required CI check names remain the executable contract. Retain native concurrency, permissions, caller-owned transaction coverage, fail-closed change classification and explicit package/deployment qualification. Do not rename checks or drop current managed Policy tests through documentation alone; KEY-114 must replace affected tests with its runtime contract.
+The existing SQLite/native PostgreSQL commands and required CI check names
+remain the executable contract. Retain native concurrency, permissions,
+caller-owned transaction coverage, fail-closed change classification, and
+explicit package/deployment qualification. Preserve the ordinary request,
+evidence, replay, and transaction tests that replaced managed Policy coverage.
 
 First Local remains private, ephemeral Node SQLite. KEY-122 owns later cross-authority accounting amendments; KEY-123 owns durable Node Local recovery and KEY-124 owns delegation/reconciliation required for Cloud. KEY-116/117/118 remain required Local tooling with optional per-workflow use; KEY-119/120 are required Cloud configuration/editor capabilities. KEY-115 model exploration and KEY-125 later shared HTTP evaluation add no first-release gate. See [product commitments](product.md#policy-tooling-and-release-scope) for the capability boundaries and [Linear](https://linear.app/keynes) for current roadmap sequencing.
 
@@ -25,7 +33,10 @@ and compatibility checks. These commands are not implemented by this documentati
 The existing `keynes-postgresql` installer remains the executable contract until
 its replacement lands.
 
-Customer policy definitions and hosted evaluator deployments are separate from database Resource provisioning. The target retires managed Policy catalog/compiler/evaluator requirements; current Policy APIs remain implemented until KEY-114. These changes do not authorize automatic database upgrades.
+Customer evaluation and hosted evaluator deployments are separate from database
+Resource provisioning. The runtime has no managed Policy
+catalog/compiler/evaluator. These changes do not authorize automatic database
+upgrades.
 
 That installer packages one `0001-baseline.sql` for fresh databases. An exact
 reinstall is read-only; historical, partial, drifted, or profile-mismatched
@@ -196,7 +207,7 @@ Budget scenarios. The historical database check name stays for branch protection
 its job now runs `pnpm test:ci:postgresql`, without repeating SQLite tests.
 
 The native CI command reuses the source installer and starts one PostgreSQL instance.
-It covers shared Budget behavior, contention, rollback, Policies, permissions, direct
+It covers shared Budget behavior, contention, rollback, caller evidence, permissions, direct
 remote connections and recovery, source installation and caller-owned transactions.
 It does not prepare packages or start PgBouncer. Passing this suite does not qualify
 a package, pooled deployment, installed SDK, verified TLS deployment or managed Hosted

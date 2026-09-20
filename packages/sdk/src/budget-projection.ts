@@ -2,21 +2,19 @@ import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
-  PolicyEvidenceV1 as WirePolicyEvidenceV1,
   RequestDenialReason,
   ResourceAmount,
   SettleBudgetResult,
 } from "./generated/types.js";
 import { KeynesError } from "./generated/client.js";
+import { canonicalDecisionEvidence } from "./decision-evidence.js";
 import type { BudgetResourceBinding } from "./resource-binding.js";
 import type {
   BudgetHistoryEntry,
   BudgetRequestDenialReason,
   BudgetSnapshot,
   BudgetState,
-  CanonicalPolicyContext,
   NamedResourceAmount,
-  PolicyEvidence,
   Settlement,
 } from "./budget.js";
 
@@ -45,22 +43,17 @@ export function projectSettlement<
 
 export function projectSnapshot<
   Names extends string,
-  Reasons extends string,
-  Context,
   HistoryNames extends string,
 >(
   binding: BudgetResourceBinding<Names, HistoryNames>,
   result: GetBudgetResult,
-): BudgetSnapshot<Names, Reasons, Context, HistoryNames> {
+): BudgetSnapshot<Names, HistoryNames> {
   return Object.freeze({
     budget: projectBudget(binding, result.budget),
     history: Object.freeze({
       entries: Object.freeze(
         result.history.entries.map((entry) =>
-          projectHistoryEntry<Names, HistoryNames, Reasons, Context>(
-            binding,
-            entry,
-          ),
+          projectHistoryEntry(binding, entry),
         ),
       ),
     }),
@@ -98,18 +91,17 @@ function projectBudget<Names extends string, HistoryNames extends string>(
   });
 }
 
-function projectHistoryEntry<
-  Names extends string,
-  HistoryNames extends string,
-  Reasons extends string,
-  Context,
->(
+function projectHistoryEntry<Names extends string, HistoryNames extends string>(
   binding: BudgetResourceBinding<Names, HistoryNames>,
   entry: WireBudgetHistoryEntry,
-): BudgetHistoryEntry<HistoryNames, Reasons, Context> {
+): BudgetHistoryEntry<HistoryNames> {
   switch (entry.kind) {
     case "budget_created":
-    case "request_approved":
+    case "request_approved": {
+      const decisionEvidence =
+        entry.kind === "request_approved"
+          ? canonicalDecisionEvidence(entry.decisionEvidence)
+          : undefined;
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
@@ -117,43 +109,24 @@ function projectHistoryEntry<
           entry.resources,
           (resourceTypeId) => binding.resource(resourceTypeId).key,
         ),
-        ...(entry.kind === "request_approved" &&
-        entry.policyEvidence !== undefined
-          ? {
-              policyEvidence: projectHistoryPolicyEvidence<
-                Names,
-                HistoryNames,
-                Context,
-                Reasons
-              >(binding, entry.policyEvidence),
-            }
-          : {}),
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
-    case "request_denied":
+    }
+    case "request_denied": {
+      const decisionEvidence = canonicalDecisionEvidence(
+        entry.decisionEvidence,
+      );
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
         reasons: Object.freeze(
           entry.reasons
-            .map((reason) =>
-              projectHistoryDenialReason<Names, HistoryNames, Reasons>(
-                binding,
-                reason,
-              ),
-            )
+            .map((reason) => projectHistoryDenialReason(binding, reason))
             .sort(compareDenialReasons),
         ),
-        ...(entry.policyEvidence === undefined
-          ? {}
-          : {
-              policyEvidence: projectHistoryPolicyEvidence<
-                Names,
-                HistoryNames,
-                Context,
-                Reasons
-              >(binding, entry.policyEvidence),
-            }),
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
+    }
     case "budget_settlement_recorded":
       return Object.freeze({
         kind: entry.kind,
@@ -259,21 +232,10 @@ function isPrivateIdentityField(field: string): boolean {
 }
 
 export function compareDenialReasons<Names extends string>(
-  left: BudgetRequestDenialReason<Names, string>,
-  right: BudgetRequestDenialReason<Names, string>,
+  left: BudgetRequestDenialReason<Names>,
+  right: BudgetRequestDenialReason<Names>,
 ): number {
-  const resource = compareStrings(left.resource, right.resource);
-  if (resource !== 0) return resource;
-  const code = compareStrings(left.code, right.code);
-  if (code !== 0) return code;
-  if (left.code !== "policy_ceiling" || right.code !== "policy_ceiling") {
-    return 0;
-  }
-  return (
-    compareStrings(left.policyName, right.policyName) ||
-    left.policyRevision - right.policyRevision ||
-    compareStrings(left.reason, right.reason)
-  );
+  return compareStrings(left.resource, right.resource);
 }
 
 function compareStrings(left: string, right: string): number {
@@ -282,12 +244,11 @@ function compareStrings(left: string, right: string): number {
 
 export function projectDenialReason<
   Names extends string,
-  Reasons extends string,
   HistoryNames extends string,
 >(
   binding: BudgetResourceBinding<Names, HistoryNames>,
   reason: RequestDenialReason,
-): BudgetRequestDenialReason<Names, Reasons> {
+): BudgetRequestDenialReason<Names> {
   return projectDenialReasonWith(
     reason,
     (resourceTypeId) => binding.visibleResource(resourceTypeId).key,
@@ -297,118 +258,25 @@ export function projectDenialReason<
 function projectHistoryDenialReason<
   Names extends string,
   HistoryNames extends string,
-  Reasons extends string,
 >(
   binding: BudgetResourceBinding<Names, HistoryNames>,
   reason: RequestDenialReason,
-): BudgetRequestDenialReason<HistoryNames, Reasons> {
+): BudgetRequestDenialReason<HistoryNames> {
   return projectDenialReasonWith(
     reason,
     (resourceTypeId) => binding.resource(resourceTypeId).key,
   );
 }
 
-function projectDenialReasonWith<Names extends string, Reasons extends string>(
+function projectDenialReasonWith<Names extends string>(
   reason: RequestDenialReason,
   resourceName: (resourceTypeId: string) => Names,
-): BudgetRequestDenialReason<Names, Reasons> {
-  return reason.code === "insufficient_available"
-    ? Object.freeze({
-        code: reason.code,
-        resource: resourceName(reason.resourceTypeId),
-        requested: reason.requested,
-        available: reason.available,
-      })
-    : Object.freeze({
-        code: reason.code,
-        resource: resourceName(reason.resourceTypeId),
-        requested: reason.requested,
-        ceiling: reason.ceiling,
-        policyName: reason.policyName,
-        policyRevision: reason.policyRevision,
-        reason: reason.reason as Reasons,
-      });
-}
-
-export function projectPolicyEvidence<
-  Names extends string,
-  Context,
-  Reasons extends string,
-  HistoryNames extends string,
->(
-  binding: BudgetResourceBinding<Names, HistoryNames>,
-  evidence: WirePolicyEvidenceV1,
-): PolicyEvidence<Names, Context, Reasons> {
-  return projectPolicyEvidenceWith(
-    evidence,
-    (resourceTypeId) => binding.visibleResource(resourceTypeId).key,
-    (canonicalName) =>
-      binding.visibleResourceByCanonicalName(canonicalName).key,
-  );
-}
-
-function projectHistoryPolicyEvidence<
-  Names extends string,
-  HistoryNames extends string,
-  Context,
-  Reasons extends string,
->(
-  binding: BudgetResourceBinding<Names, HistoryNames>,
-  evidence: WirePolicyEvidenceV1,
-): PolicyEvidence<HistoryNames, Context, Reasons> {
-  return projectPolicyEvidenceWith(
-    evidence,
-    (resourceTypeId) => binding.resource(resourceTypeId).key,
-    (canonicalName) => binding.resourceByCanonicalName(canonicalName).key,
-  );
-}
-
-function projectPolicyEvidenceWith<
-  Names extends string,
-  Context,
-  Reasons extends string,
->(
-  evidence: WirePolicyEvidenceV1,
-  resourceName: (resourceTypeId: string) => Names,
-  resourceNameByCanonicalName: (canonicalName: string) => Names,
-): PolicyEvidence<Names, Context, Reasons> {
+): BudgetRequestDenialReason<Names> {
   return Object.freeze({
-    context: Object.freeze({
-      ...evidence.context,
-    }) as CanonicalPolicyContext<Context>,
-    policies: Object.freeze(
-      evidence.policies.map((policy) =>
-        Object.freeze({
-          name: policy.name,
-          revision: policy.revision,
-          sourceDigest: policy.sourceDigest,
-          definitionDigest: policy.definitionDigest,
-          rows: Object.freeze(
-            policy.rows.map((row) =>
-              Object.freeze({
-                resource: resourceNameByCanonicalName(row.resource),
-                ceiling: row.ceiling,
-                reason: row.reason as Reasons,
-              }),
-            ),
-          ),
-        }),
-      ),
-    ),
-    effectiveCeilings: Object.freeze(
-      evidence.effectiveCeilings.map((effective) =>
-        Object.freeze({
-          resource: resourceName(effective.resourceTypeId),
-          ceiling: effective.ceiling,
-          reasons: Object.freeze(
-            effective.reasons.map((reason) =>
-              Object.freeze({ ...reason, reason: reason.reason as Reasons }),
-            ),
-          ),
-        }),
-      ),
-    ),
-    decision: evidence.decision,
+    code: reason.code,
+    resource: resourceName(reason.resourceTypeId),
+    requested: reason.requested,
+    available: reason.available,
   });
 }
 

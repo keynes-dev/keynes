@@ -4,7 +4,6 @@ import type {
   BudgetReference,
   LocalKeynes,
   OperationKey,
-  PolicySet,
   RecoverOperationResult,
   RemoteKeynes,
   RemoteBudget,
@@ -21,16 +20,6 @@ const resourceTypes = {
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 };
 
-declare const rootPolicies: PolicySet<
-  "usdCents",
-  { readonly customerTier: string },
-  "customer_tier_limit"
->;
-declare const childPolicies: PolicySet<
-  "usdCents",
-  { readonly riskClass: string },
-  "workflow_risk_limit"
->;
 declare const storedReference: BudgetReference;
 
 expectType<() => OperationKey>(createOperationKey);
@@ -77,29 +66,19 @@ void binding.bindingReference;
 // @ts-expect-error Bindings expose no producing client.
 void binding.client;
 
-const governed = await remote.createBudget(
-  { usdCents: 1_000 },
-  { policies: rootPolicies, operationKey },
-);
-
 const requestResult = await root.request({ usdCents: 25 }, { operationKey });
 if (requestResult.status === "approved") {
   expectType<BudgetReference>(requestResult.budget.reference);
 }
-await root.request({ usdCents: 25 }, { childPolicies, operationKey });
-await governed.request(
-  { usdCents: 25 },
-  { context: { customerTier: "standard" }, operationKey },
-);
-await governed.request(
-  { usdCents: 25 },
-  {
-    context: { customerTier: "standard" },
-    childPolicies,
-    operationKey,
-  },
-);
+await root.request({ usdCents: 1 });
 await root.settle({ usdCents: 19 }, { operationKey });
+// @ts-expect-error Explicit undefined is not a remote request option.
+await root.request({ usdCents: 1 }, undefined);
+declare const optionalRemoteOptions:
+  | { readonly operationKey: OperationKey }
+  | undefined;
+// @ts-expect-error Optional option variables cannot supply a remote request option.
+await root.request({ usdCents: 1 }, optionalRemoteOptions);
 
 const reopenedPromise = remote.openBudget({
   reference: storedReference,
@@ -124,6 +103,10 @@ if (recovery.kind === "committed") {
     void recovery.result.bindingReference;
   } else if (recovery.operation === "requestBudget") {
     expectType<BudgetReference>(recovery.result.parentBudgetReference);
+    if (recovery.result.decisionEvidence !== undefined) {
+      // @ts-expect-error Recovered evidence remains readonly for package consumers.
+      recovery.result.decisionEvidence.rule = "changed";
+    }
     if (recovery.result.kind === "approved") {
       expectType<BudgetReference>(recovery.result.childBudgetReference);
     }
@@ -191,22 +174,6 @@ expectType<Budget<"usdCents">>(moneyOnly);
 await moneyOnly.request({ searchQueries: 0 });
 // @ts-expect-error Known extra names cannot widen inline configuration.
 await inline.createBudget({ unknownResource: 0 });
-const localGoverned = await inline.createBudget(
-  { usdCents: 1 },
-  { policies: rootPolicies },
-);
-await localGoverned.request(
-  { usdCents: 1 },
-  { context: { customerTier: "standard" } },
-);
-// @ts-expect-error Attached Policy context remains required.
-await localGoverned.request({ usdCents: 1 });
-// @ts-expect-error Attached Policy context retains its value types.
-await localGoverned.request({ usdCents: 1 }, { context: { customerTier: 1 } });
-// @ts-expect-error Policy Resources must fit selected membership.
-await inline.createBudget({ searchQueries: 1 }, { policies: rootPolicies });
-// @ts-expect-error Policy Resources must fit selected remote membership.
-await remote.createBudget({ searchQueries: 1 }, { policies: rootPolicies });
 await local.defineResources({
   addedLater: { unit: "unit", accountingBehavior: "consumable" },
 });

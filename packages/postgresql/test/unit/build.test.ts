@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { loadContract, loadPolicyProfile } from "@keynes/contracts";
+import { loadContract } from "@keynes/contracts";
 import { fileURLToPath } from "node:url";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
 import migrationManifest from "../../migrations/manifest.json" with { type: "json" };
@@ -32,12 +32,12 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL package build promotion", () => {
-  it("publishes configured creation with generation three compatibility", () => {
+  it("publishes configured creation with generation four compatibility", () => {
     const { source: contract } = loadContract(
       fileURLToPath(new URL("../../../contracts/", import.meta.url)),
     );
-    expect(contract.remote.semanticGeneration).toBe(3);
-    expect(contract.remote.minimumSdkGeneration).toBe(3);
+    expect(contract.remote.semanticGeneration).toBe(4);
+    expect(contract.remote.minimumSdkGeneration).toBe(4);
     expect(contract.operations).toContainEqual(
       expect.objectContaining({
         method: "validateResources",
@@ -71,7 +71,7 @@ describe("PostgreSQL package build promotion", () => {
     expect(contract.remote.procedures).toContainEqual(
       expect.objectContaining({
         method: "createBudget",
-        revision: 3,
+        revision: 4,
       }),
     );
     expect(installationRecord.expectedTargets).toContain(
@@ -139,7 +139,6 @@ describe("PostgreSQL package build promotion", () => {
     const options = {
       check: false,
       contract: loadContract(contractRoot),
-      policyProfile: loadPolicyProfile(contractRoot),
       repositoryRoot,
     };
     const first = await generatePostgresql(options);

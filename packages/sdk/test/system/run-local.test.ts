@@ -9,7 +9,6 @@ it("selects existing source groups without package or remote suites", () => {
   expect(LOCAL_GROUPS).toEqual([
     "test/unit/local",
     "test/unit/public",
-    "test/unit/policy",
     "test/contract/budget.test.ts",
   ]);
 });

@@ -159,6 +159,16 @@ describe("@keynes/postgresql packed archive", () => {
       /postgres(?:ql)?:\/\/|PGPASSWORD|password\s*[:=]/iu,
     );
   });
+
+  it("contains no retired Policy runtime or assets", () => {
+    expect(entries.some(({ path }) => /policy/iu.test(path))).toBe(false);
+    const runtime = Buffer.concat(
+      entries
+        .filter(({ path }) => path !== "package/README.md")
+        .map(({ body }) => body),
+    ).toString("utf8");
+    expect(runtime).not.toMatch(/\bpolicy\b/iu);
+  });
 });
 
 function entry(path: string): ArchiveEntry {

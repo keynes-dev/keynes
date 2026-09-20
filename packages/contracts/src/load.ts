@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import canonicalize from "canonicalize";
@@ -12,8 +12,6 @@ import type {
   RemoteContractMetadata,
   RemoteContractProcedure,
 } from "./model.ts";
-import { buildPolicySchema } from "./generation.ts";
-import { loadPolicyProfile } from "./load-policy-profile.ts";
 
 const EXPECTED_OPERATIONS = [
   {
@@ -75,14 +73,9 @@ const EXPECTED_OPERATIONS = [
 ] as const satisfies readonly ContractOperation[];
 
 const EXPECTED_REMOTE = {
-  semanticGeneration: 3,
-  minimumSdkGeneration: 3,
-  semanticIdentities: [
-    "installation",
-    "command_contract",
-    "policy_profile",
-    "remote_procedures",
-  ],
+  semanticGeneration: 4,
+  minimumSdkGeneration: 4,
+  semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
       method: "defineResources",
@@ -103,7 +96,7 @@ const EXPECTED_REMOTE = {
     {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 3,
+      revision: 4,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",
@@ -111,7 +104,7 @@ const EXPECTED_REMOTE = {
     {
       method: "requestBudget",
       target: "keynes.remote_request",
-      revision: 1,
+      revision: 2,
       mode: "mutation",
       input: "RemoteRequestBudgetCommand",
       output: "RemoteRequestBudgetResult",
@@ -127,7 +120,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getBudget",
       target: "keynes.remote_get_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RemoteGetBudgetQuery",
       output: "RemoteGetBudgetResult",
@@ -135,7 +128,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",
@@ -143,7 +136,7 @@ const EXPECTED_REMOTE = {
     {
       method: "openBudget",
       target: "keynes.remote_open_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "OpenBudgetQuery",
       output: "OpenBudgetResult",
@@ -151,7 +144,7 @@ const EXPECTED_REMOTE = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",
@@ -159,7 +152,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getCompatibility",
       target: "keynes.remote_get_compatibility",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetCompatibilityQuery",
       output: "GetCompatibilityResult",
@@ -198,9 +191,11 @@ export function loadContract(sourceRoot: string): LoadedContract {
     "schema",
   );
   validateSchemaDefinitions(sourceSchema);
-  const schema = addPolicyDefinitions(sourceRoot, sourceSchema);
-  const definitions = validateInputs(source, schema);
-  const encoded = canonicalize({ schema, operations: source.operations });
+  const definitions = validateInputs(source, sourceSchema);
+  const encoded = canonicalize({
+    schema: sourceSchema,
+    operations: source.operations,
+  });
   if (encoded === undefined)
     fail("contract contains a value that cannot be canonicalized");
   const encodedRemote = canonicalize(source.remote);
@@ -209,7 +204,7 @@ export function loadContract(sourceRoot: string): LoadedContract {
   }
   return {
     source,
-    schema,
+    schema: sourceSchema,
     definitions,
     digest: createHash("sha256").update(encoded).digest("hex"),
     remoteDigest: createHash("sha256").update(encodedRemote).digest("hex"),
@@ -221,48 +216,6 @@ function validateSchemaDefinitions(schema: JsonObject): void {
   for (const [name, definition] of Object.entries(definitions)) {
     validateSchemaNode(definition, `#/$defs/${name}`);
   }
-}
-
-function addPolicyDefinitions(
-  sourceRoot: string,
-  schema: JsonObject,
-): JsonObject {
-  if (!existsSync(join(sourceRoot, "policy-profile.json"))) return schema;
-  const definitions = requireObject(schema.$defs, "schema $defs");
-  const policySchema = buildPolicySchema(loadPolicyProfile(sourceRoot));
-  const policyDefinitions = requireObject(
-    policySchema.$defs,
-    "Policy schema $defs",
-  );
-  const merged = { ...definitions };
-  for (const [sourceName, definition] of Object.entries(policyDefinitions)) {
-    const name = sourceName === "Digest" ? "PolicyDigest" : sourceName;
-    const rewritten = rewritePolicyReferences(definition);
-    const existing = merged[name];
-    if (existing === undefined) {
-      merged[name] = rewritten;
-      continue;
-    }
-    if (canonicalize(existing) !== canonicalize(rewritten)) {
-      fail(
-        `Policy schema definition conflicts with contract definition ${name}`,
-      );
-    }
-  }
-  return { ...schema, $defs: merged };
-}
-
-function rewritePolicyReferences(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(rewritePolicyReferences);
-  if (!isObject(value)) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, member]) => [
-      key,
-      key === "$ref" && member === "#/$defs/Digest"
-        ? "#/$defs/PolicyDigest"
-        : rewritePolicyReferences(member),
-    ]),
-  );
 }
 
 function parseJson(path: string): unknown {

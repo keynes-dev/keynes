@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";
+import type { LocalKeynes } from "../../../src/keynes.js";
 
 const setupResources = {
   setupUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -691,6 +692,155 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it.each([
+    ["omitted", []],
+    ["explicit undefined", [{ decisionEvidence: undefined }]],
+    ["empty", [{ decisionEvidence: {} }]],
+  ])("normalizes %s decision evidence to omission", async (_name, options) => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        ...options,
+      ]);
+      await expect(requested).resolves.toMatchObject({
+        status: "approved",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots decision evidence before queued admission and freezes its projections", async () => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 3 });
+      const evidence = { note: "before" };
+      const first = root.request({ workUnits: 1 });
+      const pending: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        { decisionEvidence: evidence },
+      ]);
+      evidence.note = "after";
+      await first;
+      const approved = await pending;
+      expect(approved).toMatchObject({ status: "approved" });
+      if (
+        typeof approved !== "object" ||
+        approved === null ||
+        !("budget" in approved)
+      ) {
+        throw new Error("expected approved request");
+      }
+      const budget = approved.budget;
+      if (
+        typeof budget !== "object" ||
+        budget === null ||
+        !("inspect" in budget) ||
+        typeof budget.inspect !== "function"
+      ) {
+        throw new Error("expected Budget projection");
+      }
+      const snapshot = await budget.inspect();
+      const entry = snapshot.history.entries.find(
+        (entry: { readonly kind: string; readonly sequence: number }) =>
+          entry.kind === "request_approved" && entry.sequence === 3,
+      );
+      expect(entry).toMatchObject({
+        kind: "request_approved",
+        decisionEvidence: { note: "before" },
+      });
+      expect(Object.isFrozen(entry)).toBe(true);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([
+    ["undefined member", () => ({ note: undefined })],
+    ["bigint", () => ({ amount: BigInt(1) })],
+    ["NaN", () => ({ amount: Number.NaN })],
+    ["infinite number", () => ({ amount: Number.POSITIVE_INFINITY })],
+    ["symbol", () => ({ [Symbol("evidence")]: true })],
+    [
+      "non-enumerable member",
+      () => {
+        const evidence = { note: "value" };
+        Object.defineProperty(evidence, "hidden", { value: true });
+        return evidence;
+      },
+    ],
+  ])(
+    "rejects non-JSON decision evidence %s before mutation",
+    async (_name, build) => {
+      const keynes = await createKeynes({
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 2 });
+        const requested: unknown = Reflect.apply(root.request, root, [
+          { workUnits: 1 },
+          { decisionEvidence: build() },
+        ]);
+        await expect(requested).rejects.toMatchObject({
+          code: "invalid_configuration",
+          details: { field: "decisionEvidence", reason: "unsupported" },
+        });
+        expect((await root.inspect()).history.entries).toHaveLength(1);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects accessor and option getters without invoking them", async () => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      let reads = 0;
+      const evidence = Object.defineProperty({}, "note", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return "never read";
+        },
+      });
+      const options = Object.defineProperty({}, "decisionEvidence", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return evidence;
+        },
+      });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        options,
+      ]);
+      await expect(requested).rejects.toMatchObject({
+        code: "invalid_configuration",
+        details: { field: "options", reason: "unsupported" },
+      });
+      expect(reads).toBe(0);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("does not widen child Resource names from a later input mutation", async () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -856,6 +1006,99 @@ describe("local Keynes facade", () => {
   });
 
   it.each([
+    [
+      "empty root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          {
+            policies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          { policies: undefined },
+        ]),
+    ],
+    [
+      "Policy context",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { context: {} },
+        ]),
+    ],
+    [
+      "empty child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {
+            childPolicies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { childPolicies: undefined },
+        ]),
+    ],
+    [
+      "undefined Policy evidence",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { policyEvidence: undefined },
+        ]),
+    ],
+    [
+      "an excess argument",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {},
+          undefined,
+        ]),
+    ],
+  ])(
+    "rejects %s asynchronously without changing Budget state",
+    async (_name, invoke) => {
+      const keynes = await createKeynes({
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 5 });
+        const before = await root.inspect();
+        const pending: unknown = invoke(keynes, root);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_configuration",
+        });
+        await expect(root.inspect()).resolves.toEqual(before);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it.each([
     ["explicit undefined", undefined],
     ["an empty object", {}],
     [
@@ -923,4 +1166,19 @@ function requireRecord(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireBudget(value: unknown): {
+  readonly request: (...arguments_: readonly unknown[]) => unknown;
+} {
+  if (!isRecord(value) || !isCallable(value.request)) {
+    throw new TypeError("expected Budget handle");
+  }
+  return { request: value.request };
+}
+
+function isCallable(
+  value: unknown,
+): value is (...arguments_: readonly unknown[]) => unknown {
+  return typeof value === "function";
 }
