@@ -1,0 +1,103 @@
+# Implementation plan: Application-owned policies and the Keynes request boundary
+
+**Branch**: `key-113-document-application-owned-policies-and-the-keynes-request` | **Date**: 2026-09-19 | **Spec**: [spec.md](spec.md)
+
+**Input**: `docs/features/key-113-document-application-owned-policies-and-the-keynes-request/spec.md`
+
+## Summary
+
+Plan one documentation change that adopts customer-computed requests and SQLite Local while preserving database accounting. Begin implementation with a superseding ADR and an explicit major constitution amendment, then reconcile product, architecture, workflow and package docs. Keep implemented managed Policy behavior labeled until KEY-114 replaces it. This pass produces planning artifacts only; implementation is NOT RUN.
+
+The base is `a203a26d20ed1ecc940d9bca1f05c9d9b81b80b4`, which includes KEY-121 maintenance via PR #62. The previous KEY-113 worktree was removed at the user's request; this branch starts from that main revision. No earlier KEY-113 implementation or acceptance is reused.
+
+## Technical context
+
+**Language/version**: Markdown; stock Spec Kit 1.0.4 Codex integration.
+
+**Primary dependencies**: Existing Spec Kit shell scripts and repository oxfmt. No new dependency.
+
+**Storage**: No data/schema change. Documentation target is private in-memory Node SQLite for Local and PostgreSQL for Hosted/Embedded; each Budget remains in one authority.
+
+**Testing**: Focused formatting, diff/link checks, requirement coverage and manual contradiction review. Runtime tests and qualification NOT RUN because no executable behavior changes.
+
+**Target platform**: Repository documentation read by developers and maintainers.
+
+**Project type**: Documentation and governance amendment within the existing SDK/database monorepo.
+
+**Performance goals**: N/A; no runtime or measured operating-envelope change.
+
+**Constraints**: Stop before implementation; preserve generated tooling and historical evidence; no invented executable API signatures, migration promises or published package names.
+
+**Scale/scope**: One new ADR, three governing documents, workflow and affected package READMEs, plus minimal historical ADR forward references. Linear owns the active roadmap; no repository roadmap file exists.
+
+## Constitution check
+
+### Before research
+
+| Gate                                                               | Assessment                                                                                                                                         |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One Budget authority, atomic commands, conservation, exact replay  | Preserved; no runtime changes or distributed protocol design.                                                                                      |
+| Customer-owned external effects and transactions                   | Preserved; broaden documentation to evaluation ownership.                                                                                          |
+| Principles I/III/IV: managed Policies and PostgreSQL/PGlite        | CONFLICT with the requested target. Explicit amendment is part of this feature, not implicitly accomplished by this plan. See Complexity tracking. |
+| Thin SDK, canonical contracts, permissions and native verification | Preserve one command-contract owner; allow separate engine implementations outside the SDK after the amendment.                                    |
+| Evidence-first delivery                                            | Documentation-only exception applies; focused checks instead of behavioral tests. No qualification claim.                                          |
+| One issue and independently accepted PR                            | KEY-113 only; no phase issues or runtime prerequisites. KEY-121 is landed.                                                                         |
+| Historical evidence and upstream tooling                           | Immutable historical bodies/evidence; only supersession notices on relevant ADRs. No generated file changes.                                       |
+
+Planning may describe the explicitly requested amendment. This is not a clean constitutional pass for adopting the target. Stock analysis must report the remaining conflict as CRITICAL while constitution 11.0.0 remains in force. Before normal implementation proceeds, the explicit constitution update must occur outside analyze, with its Sync Impact Report and affected governing guidance; rerun the check and analysis afterward. User authorization for this turn ends before those edits.
+
+### After design
+
+The design preserves accounting, permissions, replay and transaction ownership. It introduces no callback contract, database schema or distributed protocol. The same constitutional conflict remains; no design artifact can supersede a MUST in the current constitution. The scope is ready for review, but adoption is blocked pending the explicit amendment.
+
+## Project structure
+
+### Documentation for this feature
+
+```text
+docs/features/key-113-document-application-owned-policies-and-the-keynes-request/
+  spec.md
+  checklists/requirements.md
+  plan.md
+  research.md
+  data-model.md
+  contracts/documentation.md
+  quickstart.md
+  tasks.md
+```
+
+[Research](research.md) records decisions and conflicts. [Data model](data-model.md) names conceptual ownership without introducing a schema. [Documentation contract](contracts/documentation.md) defines required statements and example acceptance. [Quickstart](quickstart.md) provides the validation procedure. Implementation tasks are generated separately.
+
+### Planned repository changes
+
+```text
+docs/adr/0013-application-owned-policies.md   # new, confirm next number at implementation
+.specify/memory/constitution.md              # explicit major amendment
+docs/product.md
+docs/architecture.md
+docs/workflow.md
+packages/sdk/README.md
+packages/postgresql/README.md
+packages/contracts/README.md                 # review; edit only if boundary wording conflicts
+docs/adr/0003-sqlite-and-postgresql.md        # supersession notice only
+docs/adr/0006-idiomatic-monorepo.md           # supersession notice only
+docs/adr/0007-direct-postgresql-remote-access.md # supersession notice only
+docs/adr/0012-postgresql-and-pglite.md         # supersession notice only
+```
+
+No production source, contract JSON, SQL baseline, generated outputs, dependencies or CI changes. `docs/README.md` already establishes Linear ownership and requires no edit unless review exposes a contradiction. Other feature artifacts are reconciled when their owning work resumes.
+
+Follow the [implementation tasks](tasks.md) for delivery order.
+
+## Verification lanes
+
+The planning pass runs stock setup/prerequisite checks, targeted feature formatting, link and task-format checks, and read-only analysis. The future documentation implementation runs `pnpm format:docs`, targeted formatting of changed package READMEs, `git diff --check`, link checks and the scenario review in quickstart. Existing SQLite/native commands and required check names remain unchanged. Native permissions, concurrency, caller transactions, Local operating envelope, archives, Hosted, durable recovery and providers remain NOT RUN here.
+
+## Complexity tracking
+
+| Conflicting rule                                                                            | Why the plan must describe a change                                      | Rejected alternative and resolution                                                                                                                                   |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Constitution I/IV mandate PGlite and one PostgreSQL implementation                          | KEY-113 explicitly adopts SQLite Local and separate engines outside SDK. | Keeping PGlite contradicts the selected issue. Plan the major amendment; retain existing rules until it occurs and analysis passes.                                   |
+| Constitution III and Policy constraints mandate registration/compiler/in-command evaluation | KEY-113 explicitly transfers policy evaluation to customers.             | Calling customer decisions trusted Policy results preserves the wrong trust boundary. Amend governance explicitly; KEY-114 later changes runtime contracts and tests. |
+
+These entries explain the planned amendment. They do not waive constitutional review or authorize implementation in this turn.
