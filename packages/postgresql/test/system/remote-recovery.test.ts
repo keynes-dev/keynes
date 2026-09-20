@@ -258,6 +258,111 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     expect(await authorityCounts(fixture)).toEqual(before);
   });
 
+  it("replays request evidence and conflicts when its caller decision changes", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    await provisionRoot(client, "request_evidence");
+    const created = await queryResponse(
+      client,
+      "keynes.remote_create_budget",
+      createRoot(operationKey("request-evidence-root"), "request_evidence"),
+    );
+    const parentBudgetReference = requireBudgetReference(created);
+    const operationKeyValue = operationKey("request-evidence");
+    const decisionEvidence = { approved: true, source: "application" };
+    const command = {
+      operationKey: operationKeyValue,
+      parentBudgetReference,
+      resources: [{ resource: "request_evidence", amount: 1 }],
+      decisionEvidence,
+    };
+
+    const approved = await queryResponse(
+      client,
+      "keynes.remote_request",
+      command,
+    );
+    expect(approved).toMatchObject({
+      ok: true,
+      result: { kind: "approved", replayed: false, decisionEvidence },
+    });
+    expect(
+      await queryResponse(client, "keynes.remote_request", command),
+    ).toMatchObject({
+      ok: true,
+      result: { kind: "approved", replayed: true, decisionEvidence },
+    });
+    const emptyEvidenceCommand = {
+      operationKey: operationKey("request-evidence-empty"),
+      parentBudgetReference,
+      resources: [{ resource: "request_evidence", amount: 1 }],
+    };
+    expect(
+      await queryResponse(
+        client,
+        "keynes.remote_request",
+        emptyEvidenceCommand,
+      ),
+    ).toMatchObject({
+      ok: true,
+      result: { kind: "approved", replayed: false },
+    });
+    expect(
+      await queryResponse(client, "keynes.remote_request", {
+        ...emptyEvidenceCommand,
+        decisionEvidence: {},
+      }),
+    ).toMatchObject({ ok: true, result: { kind: "approved", replayed: true } });
+    const normalizedEvidenceCommand = {
+      operationKey: operationKey("request-evidence-normalized"),
+      parentBudgetReference,
+      resources: [{ resource: "request_evidence", amount: 1 }],
+      decisionEvidence: { source: "application", revision: 1 },
+    };
+    expect(
+      await queryResponse(
+        client,
+        "keynes.remote_request",
+        normalizedEvidenceCommand,
+      ),
+    ).toMatchObject({
+      ok: true,
+      result: { kind: "approved", replayed: false },
+    });
+    const rawNumericReplay = await client.query(
+      "select keynes.remote_request($1::jsonb) as response",
+      [
+        JSON.stringify({
+          ...normalizedEvidenceCommand,
+          decisionEvidence: { revision: 1, source: "application" },
+        }).replace('"revision":1', '"revision":1.0'),
+      ],
+    );
+    expect(rawNumericReplay.rows[0]?.response).toMatchObject({
+      ok: true,
+      result: { kind: "approved", replayed: true },
+    });
+    expect(
+      await queryResponse(client, "keynes.remote_request", {
+        ...command,
+        decisionEvidence: { approved: false, source: "application" },
+      }),
+    ).toMatchObject({ ok: false, error: { code: "command_conflict" } });
+    expect(
+      await queryResponse(client, "keynes.remote_recover_operation", {
+        operationKey: operationKeyValue,
+      }),
+    ).toMatchObject({
+      ok: true,
+      result: {
+        kind: "committed",
+        operation: "requestBudget",
+        result: { kind: "approved", decisionEvidence },
+      },
+    });
+  });
+
   it("recovers a committed mutation after its transport response is lost", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);

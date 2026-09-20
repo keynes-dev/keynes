@@ -410,18 +410,25 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     const { resourceTypeId, budgetId } = await seedRoot(database);
     const transaction = await database.beginTransaction();
     const client = createTransactionClient(transaction);
+    const decisionEvidence = { approved: true, source: "provisional" };
 
-    const approved = await client.requestBudget(
-      request(resourceTypeId, budgetId),
-    );
-    expect(approved.kind).toBe("approved");
-    if (approved.kind !== "approved") return;
-    await insertOutbox(database, approved.childBudgetId, transaction);
+    const approved = await Reflect.apply(client.requestBudget, client, [
+      { ...request(resourceTypeId, budgetId), decisionEvidence },
+    ]);
+    expect(approved).toMatchObject({ kind: "approved", decisionEvidence });
+    await insertOutbox(database, REQUEST_COMMAND_ID, transaction);
 
-    expect(await readState(database, approved.childBudgetId)).toEqual({
+    expect(await readState(database, REQUEST_COMMAND_ID)).toEqual({
       budget: false,
       outbox: false,
     });
+    const evidence = await database.database.query<{ readonly count: string }>(
+      `select count(*)::text as count
+         from keynes_internal.budget_history_entries
+        where payload->'decisionEvidence' = $1::jsonb`,
+      [JSON.stringify(decisionEvidence)],
+    );
+    expect(evidence.rows).toEqual([{ count: "0" }]);
     await transaction.rollback();
   });
 
@@ -463,6 +470,36 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
       budget: false,
       outbox: false,
     });
+  });
+
+  it("rolls back approved evidence, history, and caller outbox together", async () => {
+    database = await openFixture();
+    const { resourceTypeId, budgetId } = await seedRoot(database);
+    const transaction = await database.beginTransaction();
+    const client = createTransactionClient(transaction);
+    const decisionEvidence = { approved: true, source: "application" };
+    const approved = await Reflect.apply(client.requestBudget, client, [
+      { ...request(resourceTypeId, budgetId), decisionEvidence },
+    ]);
+    expect(approved).toMatchObject({
+      kind: "approved",
+      replayed: false,
+      decisionEvidence,
+    });
+    await insertOutbox(database, REQUEST_COMMAND_ID, transaction);
+    await transaction.rollback();
+
+    expect(await readState(database, REQUEST_COMMAND_ID)).toEqual({
+      budget: false,
+      outbox: false,
+    });
+    const evidence = await database.database.query<{ readonly count: string }>(
+      `select count(*)::text as count
+         from keynes_internal.budget_history_entries
+        where payload->'decisionEvidence' = $1::jsonb`,
+      [JSON.stringify(decisionEvidence)],
+    );
+    expect(evidence.rows).toEqual([{ count: "0" }]);
   });
 
   it("allows a rolled-back command identity to be reused and committed", async () => {

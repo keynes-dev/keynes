@@ -18,6 +18,7 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
   "function:keynes_internal.checkpoint(checkpoint_name text)",
   "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
+  "function:keynes_internal.canonical_decision_evidence(operation_name text,value jsonb,issue_path text)",
   "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
   "function:keynes_internal.event_uuid(seed text)",
   "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",

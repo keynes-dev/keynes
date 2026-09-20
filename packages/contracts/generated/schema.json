@@ -334,6 +334,9 @@
         },
         "resources": {
           "$ref": "#/$defs/ResourceEnvelope"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -375,6 +378,9 @@
           "items": {
             "$ref": "#/$defs/RequestDenialReason"
           }
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -563,6 +569,9 @@
         },
         "resources": {
           "$ref": "#/$defs/ResourceEnvelope"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -595,6 +604,9 @@
         },
         "replayed": {
           "type": "boolean"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -628,6 +640,9 @@
         },
         "replayed": {
           "type": "boolean"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -952,6 +967,9 @@
         },
         "resources": {
           "$ref": "#/$defs/RemoteResourceEnvelope"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -973,6 +991,9 @@
           "items": {
             "$ref": "#/$defs/RemoteRequestDenialReason"
           }
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -1082,6 +1103,9 @@
         },
         "resources": {
           "$ref": "#/$defs/RemoteResourceEnvelope"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -1110,6 +1134,9 @@
         },
         "replayed": {
           "type": "boolean"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -1134,6 +1161,9 @@
         },
         "replayed": {
           "type": "boolean"
+        },
+        "decisionEvidence": {
+          "$ref": "#/$defs/DecisionEvidence"
         }
       }
     },
@@ -2372,6 +2402,33 @@
           "const": true
         }
       }
+    },
+    "DecisionEvidence": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxUtf8Bytes": 256,
+            "pattern": "^[^\\u0000\\ud800-\\udfff]*$"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/Amount"
+          }
+        ]
+      },
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,62}$"
+      },
+      "maxProperties": 32,
+      "maxCanonicalUtf8Bytes": 8192
     }
   }
 }

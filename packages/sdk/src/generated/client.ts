@@ -73,7 +73,7 @@ import {
 import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "e99141dd402d1d9a7911c628bef58c38ca097d4e6a15abf39fd7f27fa8caebc8";
+  "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766";
 
 export const REMOTE_PROCEDURES_DIGEST =
   "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd";
@@ -235,6 +235,7 @@ const resultFieldRank = new Map(
     "isolatedDeficits",
     "resources",
     "replayed",
+    "decisionEvidence",
     "usage",
     "valid",
   ].map((field, index) => [field, index]),
@@ -296,18 +297,25 @@ function invalidCommand(
   });
 }
 
-function orderResult<Value>(value: Value): Value {
-  if (Array.isArray(value)) return value.map(orderResult) as Value;
+function orderResult<Value>(value: Value, preserveAsciiOrder = false): Value {
+  if (Array.isArray(value))
+    return value.map((member) =>
+      orderResult(member, preserveAsciiOrder),
+    ) as Value;
   if (!isRecord(value)) return value;
   return Object.fromEntries(
     Object.entries(value)
       .sort(([left], [right]) => {
+        if (preserveAsciiOrder) return left < right ? -1 : left > right ? 1 : 0;
         const rank =
           (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) -
           (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);
         return rank || left.localeCompare(right);
       })
-      .map(([key, member]) => [key, orderResult(member)]),
+      .map(([key, member]) => [
+        key,
+        orderResult(member, preserveAsciiOrder || key === "decisionEvidence"),
+      ]),
   ) as Value;
 }
 

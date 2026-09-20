@@ -83,6 +83,34 @@ describe("public Budget projections", () => {
       resources: [{ resource: "alpha" }, { resource: "zebra" }],
     });
   });
+
+  it("projects frozen decision evidence in ASCII order without applying contract field ranks", async () => {
+    const resources = [
+      { key: "alpha" as const, resourceTypeId: LOW_RESOURCE_ID },
+      { key: "zebra" as const, resourceTypeId: HIGH_RESOURCE_ID },
+    ];
+    const runtime = createRuntime(resources);
+    const binding = createResourceBinding(
+      preparedResources(resources),
+      budgetProjection(resources, "initial"),
+    );
+    const budget = createBudgetHandle<ResourceName>(
+      runtime,
+      BUDGET_ID,
+      binding,
+    );
+
+    const result: unknown = await budget.request({ alpha: 1, zebra: 2 });
+
+    expect(result).toMatchObject({
+      status: "denied",
+      decisionEvidence: { a: 0, kind: true, resources: "application" },
+    });
+    expect(JSON.stringify(result)).toContain(
+      '"decisionEvidence":{"a":0,"kind":true,"resources":"application"}',
+    );
+    expect(Object.isFrozen(result)).toBe(true);
+  });
 });
 
 async function exerciseRuntime(resources: readonly InstalledResource[]) {
@@ -195,14 +223,17 @@ function createClient(
     async createBudget() {
       throw new Error("unexpected createBudget call");
     },
-    async requestBudget(): Promise<RequestDenied> {
-      return {
+    async requestBudget() {
+      const denied: RequestDenied = {
         kind: "denied",
         commandId: "00000000-0000-4000-8000-000000000204",
         parentBudgetId: BUDGET_ID,
         reasons,
         replayed: false,
       };
+      return Object.assign(denied, {
+        decisionEvidence: { resources: "application", kind: true, a: 0 },
+      });
     },
     async settleBudget(): Promise<SettleBudgetResult> {
       return {

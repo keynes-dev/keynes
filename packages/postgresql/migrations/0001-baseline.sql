@@ -225,6 +225,8 @@ DECLARE
   unresolved jsonb;
   deficits jsonb;
   denial_reasons jsonb;
+  decision_evidence jsonb := '{}'::jsonb;
+  decision_evidence_payload jsonb := '{}'::jsonb;
   available_amount numeric;
   existing_usage bigint;
   domain_error_message text;
@@ -325,7 +327,9 @@ BEGIN
         target_id := command_id;
       WHEN 'requestBudget' THEN
         IF NOT (input ? 'parentBudgetId') OR NOT (input ? 'resources')
-          OR input - ARRAY['commandId', 'parentBudgetId', 'resources']::text[] <> '{}'::jsonb
+          OR input - ARRAY[
+            'commandId', 'parentBudgetId', 'resources', 'decisionEvidence'
+          ]::text[] <> '{}'::jsonb
           OR jsonb_typeof(input->'parentBudgetId') <> 'string'
           OR input->>'parentBudgetId' !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
           PERFORM keynes_internal.invalid_command(operation_name, '$', 'properties');
@@ -334,7 +338,19 @@ BEGIN
         items := keynes_internal.canonical_envelope(
           operation_name, input->'resources', '$.resources', false
         );
-        body := jsonb_build_object('parentBudgetId', parent_id::text, 'resources', items);
+        IF input ? 'decisionEvidence' THEN
+          decision_evidence := keynes_internal.canonical_decision_evidence(
+            operation_name, input->'decisionEvidence', '$.decisionEvidence'
+          );
+        END IF;
+        IF decision_evidence <> '{}'::jsonb THEN
+          decision_evidence_payload := jsonb_build_object(
+            'decisionEvidence', decision_evidence
+          );
+        END IF;
+        body := jsonb_build_object(
+          'parentBudgetId', parent_id::text, 'resources', items
+        ) || decision_evidence_payload;
         target_kind := 'budget';
         target_id := command_id;
       WHEN 'settleBudget' THEN
@@ -553,13 +569,15 @@ BEGIN
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(
           tenant, budget.root_budget_id, command_id, 'request_denied', parent_id,
-          jsonb_build_object('parentBudgetId', parent_id::text, 'reasons', denial_reasons)
+          jsonb_build_object(
+            'parentBudgetId', parent_id::text, 'reasons', denial_reasons
+          ) || decision_evidence_payload
         );
         PERFORM keynes_internal.checkpoint('after_history_insertion');
         result := jsonb_build_object(
           'kind', 'denied', 'commandId', command_id::text,
           'parentBudgetId', parent_id::text, 'reasons', denial_reasons
-        );
+        ) || decision_evidence_payload;
       ELSE
         INSERT INTO keynes_internal.budgets (
           tenant_id, budget_id, parent_budget_id, root_budget_id,
@@ -579,14 +597,14 @@ BEGIN
           jsonb_build_object(
             'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
             'resources', items
-          )
+          ) || decision_evidence_payload
         );
         PERFORM keynes_internal.checkpoint('after_history_insertion');
         result := jsonb_build_object(
           'kind', 'approved', 'commandId', command_id::text,
           'parentBudgetId', parent_id::text, 'childBudgetId', command_id::text,
           'resources', items
-        );
+        ) || decision_evidence_payload;
       END IF;
     ELSE
       SELECT * INTO budget FROM keynes_internal.budgets
@@ -1551,6 +1569,73 @@ BEGIN
 END;
 $_$;
 
+CREATE FUNCTION keynes_internal.canonical_decision_evidence(
+  operation_name text, value jsonb, issue_path text
+) RETURNS jsonb
+LANGUAGE plpgsql
+AS $_$
+DECLARE
+  field record;
+  normalized jsonb := '{}'::jsonb;
+  compact_json text;
+  numeric_value numeric;
+BEGIN
+  IF jsonb_typeof(value) IS DISTINCT FROM 'object' THEN
+    PERFORM keynes_internal.invalid_command(operation_name, issue_path, 'type');
+  END IF;
+  IF (SELECT count(*) FROM jsonb_object_keys(value)) > 32 THEN
+    PERFORM keynes_internal.invalid_command(operation_name, issue_path, 'maxProperties');
+  END IF;
+  FOR field IN SELECT entry.key, entry.value FROM jsonb_each(value) AS entry LOOP
+    IF field.key !~ '^[a-z][a-z0-9_]{0,62}$' THEN
+      PERFORM keynes_internal.invalid_command(
+        operation_name, issue_path, 'propertyNames'
+      );
+    END IF;
+    CASE jsonb_typeof(field.value)
+      WHEN 'string' THEN
+        IF octet_length(convert_to(field.value #>> '{}', 'UTF8')) > 256 THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, issue_path || '.' || field.key, 'maxUtf8Bytes'
+          );
+        END IF;
+        normalized := normalized || jsonb_build_object(
+          field.key, field.value #>> '{}'
+        );
+      WHEN 'boolean', 'null' THEN
+        normalized := normalized || jsonb_build_object(field.key, field.value);
+      WHEN 'number' THEN
+        numeric_value := (field.value #>> '{}')::numeric;
+        IF numeric_value <> trunc(numeric_value)
+          OR numeric_value < 0 OR numeric_value > 9007199254740991 THEN
+          PERFORM keynes_internal.invalid_command(
+            operation_name, issue_path || '.' || field.key, 'range'
+          );
+        END IF;
+        normalized := normalized || jsonb_build_object(
+          field.key, numeric_value::bigint
+        );
+      ELSE
+        PERFORM keynes_internal.invalid_command(
+          operation_name, issue_path || '.' || field.key, 'type'
+        );
+    END CASE;
+  END LOOP;
+  SELECT '{' || coalesce(string_agg(
+    to_jsonb(entry.key)::text || ':' || entry.value::text,
+    ',' ORDER BY entry.key COLLATE "C"
+  ), '') || '}'
+  INTO compact_json
+  FROM jsonb_each(normalized) AS entry(key, value);
+  IF octet_length(convert_to(compact_json, 'UTF8')) > 8192 THEN
+    PERFORM keynes_internal.invalid_command(
+      operation_name, issue_path, 'maxCanonicalUtf8Bytes'
+    );
+  END IF;
+  RETURN normalized;
+END;
+$_$;
+
 
 
 
@@ -1781,6 +1866,8 @@ DECLARE
   core_response jsonb;
   remote_result jsonb;
   response_value jsonb;
+  normalized_input jsonb;
+  decision_evidence jsonb;
   parent_budget uuid;
   target_budget uuid;
   domain_error_message text;
@@ -1808,7 +1895,27 @@ BEGIN
       )
     );
   END IF;
-  operation_key_value := input->>'operationKey';
+  normalized_input := input;
+  IF operation_name = 'requestBudget' AND input ? 'decisionEvidence' THEN
+    decision_evidence := keynes_internal.canonical_decision_evidence(
+      operation_name, input->'decisionEvidence', '$.decisionEvidence'
+    );
+    normalized_input := input - 'decisionEvidence';
+    IF decision_evidence <> '{}'::jsonb THEN
+      normalized_input := normalized_input || jsonb_build_object(
+        'decisionEvidence', decision_evidence
+      );
+    END IF;
+  END IF;
+  IF operation_name = 'requestBudget' AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.principal_permissions
+    WHERE tenant_id = tenant
+      AND principal_id = current_setting('keynes.principal_id')::uuid
+      AND permission = 'request_budget'
+  ) THEN
+    RETURN keynes_internal.remote_error_v0006('unauthorized', operation_name);
+  END IF;
+  operation_key_value := normalized_input->>'operationKey';
   PERFORM pg_advisory_xact_lock(
     keynes_internal.remote_operation_lock_key_v0006(
       tenant, operation_key_value
@@ -1817,13 +1924,13 @@ BEGIN
   command_id_value := keynes_internal.event_uuid(
     'remote-operation:' || tenant::text || ':' || operation_key_value
   );
-  digest_value := encode(sha256(convert_to(input::text, 'UTF8')), 'hex');
+  digest_value := encode(sha256(convert_to(normalized_input::text, 'UTF8')), 'hex');
   INSERT INTO keynes_internal.remote_operations (
     tenant_id, operation_key, command_id, operation,
     canonical_input, input_digest
   ) VALUES (
     tenant, operation_key_value, command_id_value, operation_name,
-    input, digest_value
+    normalized_input, digest_value
   ) ON CONFLICT (tenant_id, operation_key) DO NOTHING;
   IF NOT FOUND THEN
     SELECT * INTO STRICT prior FROM keynes_internal.remote_operations stored
@@ -1832,7 +1939,7 @@ BEGIN
      FOR UPDATE;
     IF prior.operation <> operation_name
       OR prior.input_digest <> digest_value
-      OR prior.canonical_input <> input THEN
+      OR prior.canonical_input <> normalized_input THEN
       RETURN jsonb_build_object(
         'ok', false,
         'error', jsonb_build_object(
@@ -1860,36 +1967,36 @@ BEGIN
 
   BEGIN
     IF operation_name IN ('defineResources', 'createBudget') THEN
-      core_input := (input - 'operationKey') || jsonb_build_object(
+      core_input := (normalized_input - 'operationKey') || jsonb_build_object(
         'commandId', command_id_value::text
       );
     ELSIF operation_name = 'requestBudget' THEN
       parent_budget := keynes_internal.remote_budget_id_v0006(
-        tenant, input->>'parentBudgetReference', operation_name
+        tenant, normalized_input->>'parentBudgetReference', operation_name
       );
       core_input := (
-        input - ARRAY[
+        normalized_input - ARRAY[
           'operationKey', 'parentBudgetReference', 'resources'
         ]::text[]
       ) || jsonb_build_object(
         'commandId', command_id_value::text,
         'parentBudgetId', parent_budget::text,
         'resources', keynes_internal.remote_named_amounts_v0006(
-          tenant, parent_budget, coalesce(input->'resources', '[]'::jsonb),
+          tenant, parent_budget, coalesce(normalized_input->'resources', '[]'::jsonb),
           operation_name, 'resources', true
         )
       );
     ELSIF operation_name = 'settleBudget' THEN
       target_budget := keynes_internal.remote_budget_id_v0006(
-        tenant, input->>'budgetReference', operation_name
+        tenant, normalized_input->>'budgetReference', operation_name
       );
       core_input := (
-        input - ARRAY['operationKey', 'budgetReference', 'usage']::text[]
+        normalized_input - ARRAY['operationKey', 'budgetReference', 'usage']::text[]
       ) || jsonb_build_object(
         'commandId', command_id_value::text,
         'budgetId', target_budget::text,
         'usage', keynes_internal.remote_named_amounts_v0006(
-          tenant, target_budget, coalesce(input->'usage', '[]'::jsonb),
+          tenant, target_budget, coalesce(normalized_input->'usage', '[]'::jsonb),
           operation_name, 'usage', false
         )
       );
@@ -2815,7 +2922,7 @@ BEGIN
     required_keys := ARRAY['operationKey', 'definitions', 'amounts'];
   ELSIF operation_name = 'requestBudget' THEN
     allowed_keys := ARRAY[
-      'operationKey', 'parentBudgetReference', 'resources'
+      'operationKey', 'parentBudgetReference', 'resources', 'decisionEvidence'
     ];
     required_keys := ARRAY[
       'operationKey', 'parentBudgetReference', 'resources'
@@ -2887,6 +2994,22 @@ BEGIN
     RETURN keynes_internal.remote_invalid_v0006(
       operation_name, '$.cursor', 'format'
     );
+  END IF;
+
+  IF operation_name = 'requestBudget' AND input ? 'decisionEvidence' THEN
+    BEGIN
+      PERFORM keynes_internal.canonical_decision_evidence(
+        operation_name, input->'decisionEvidence', '$.decisionEvidence'
+      );
+    EXCEPTION WHEN SQLSTATE 'K0001' THEN
+      GET STACKED DIAGNOSTICS domain_error_message = MESSAGE_TEXT;
+      RETURN jsonb_build_object(
+        'ok', false,
+        'error', keynes_internal.remote_safe_error_v0006(
+          operation_name, domain_error_message::jsonb
+        )
+      );
+    END;
   END IF;
 
   IF operation_name = 'createBudget' THEN

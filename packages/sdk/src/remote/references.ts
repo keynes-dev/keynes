@@ -9,6 +9,7 @@ import type {
   RemoteSettleBudgetResult as WireRemoteSettleBudgetResult,
 } from "../generated/types.js";
 import { KeynesSdkError } from "../sdk-errors.js";
+import { canonicalDecisionEvidence } from "../decision-evidence.js";
 
 import {
   createResourceDefinitionBinding,
@@ -130,32 +131,41 @@ export function projectRecoverOperationResult(
           budget: projectBudget(result.result.budget),
         },
       };
-    case "requestBudget":
+    case "requestBudget": {
       if (result.result.kind === "approved") {
+        const { decisionEvidence: rawDecisionEvidence, ...requestResult } =
+          result.result;
+        const decisionEvidence = canonicalDecisionEvidence(rawDecisionEvidence);
         return {
           ...result,
           operationKey,
           result: {
-            ...result.result,
+            ...requestResult,
             parentBudgetReference: requireBudgetReference(
               result.result.parentBudgetReference,
             ),
             childBudgetReference: requireBudgetReference(
               result.result.childBudgetReference,
             ),
+            ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
           },
         };
       }
+      const { decisionEvidence: rawDecisionEvidence, ...requestResult } =
+        result.result;
+      const decisionEvidence = canonicalDecisionEvidence(rawDecisionEvidence);
       return {
         ...result,
         operationKey,
         result: {
-          ...result.result,
+          ...requestResult,
           parentBudgetReference: requireBudgetReference(
             result.result.parentBudgetReference,
           ),
+          ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
         },
       };
+    }
     case "settleBudget":
       return {
         ...result,
@@ -209,6 +219,17 @@ export function splitRemoteMutationOptions(
     (field) => field !== "operationKey" && !allowedFields.has(field),
   );
   if (unknownField !== undefined) throw invalidConfiguration(unknownField);
+  for (const field of fields) {
+    if (field === "operationKey") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(option, field);
+    if (
+      descriptor === undefined ||
+      !descriptor.enumerable ||
+      !("value" in descriptor)
+    ) {
+      throw invalidConfiguration(field);
+    }
+  }
 
   const operationKey = Object.hasOwn(option, "operationKey")
     ? requireOperationKey(option.operationKey)

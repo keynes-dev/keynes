@@ -33,6 +33,10 @@ export type {
   ResourceUsage,
   Settlement,
 } from "./budget.js";
+export type {
+  BudgetRequestOptions,
+  DecisionEvidence,
+} from "./decision-evidence.js";
 export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 export type {
   DefinedResource,

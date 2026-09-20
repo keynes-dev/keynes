@@ -460,6 +460,48 @@ describe("remote PostgreSQL identity and security", () => {
     ]);
   });
 
+  it("checks current request permission before replaying caller evidence", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const client = await fixture.connect(fixture.primary);
+    const definitions = {
+      requestTokens: { unit: "token", accountingBehavior: "consumable" },
+    };
+    expect(
+      await queryResponse(client, "keynes.remote_define_resources", {
+        operationKey: operationKey("request-evidence-definition"),
+        definitions,
+      }),
+    ).toMatchObject({ ok: true });
+    const root = await queryResponse(client, "keynes.remote_create_budget", {
+      operationKey: operationKey("request-evidence-root"),
+      definitions,
+      amounts: { requestTokens: 2 },
+    });
+    const command = {
+      operationKey: operationKey("request-evidence-replay"),
+      parentBudgetReference: requireCreatedReference(root),
+      resources: [{ resource: "request_tokens", amount: 1 }],
+      decisionEvidence: { approved: true, source: "application" },
+    };
+    expect(
+      await queryResponse(client, "keynes.remote_request", command),
+    ).toMatchObject({
+      ok: true,
+      result: { kind: "approved", decisionEvidence: command.decisionEvidence },
+    });
+    const before = await protectedState(fixture);
+    await fixture.administrator.query(
+      `delete from keynes_internal.principal_permissions
+        where tenant_id = $1 and principal_id = $2 and permission = 'request_budget'`,
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    expect(
+      await queryResponse(client, "keynes.remote_request", command),
+    ).toMatchObject({ ok: false, error: { code: "unauthorized" } });
+    expect(await protectedState(fixture)).toEqual(before);
+  });
+
   it("checks enabled mappings again on an already-open session", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);

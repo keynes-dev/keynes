@@ -7,6 +7,7 @@ import type {
   SettleBudgetResult,
 } from "./generated/types.js";
 import { KeynesError } from "./generated/client.js";
+import { canonicalDecisionEvidence } from "./decision-evidence.js";
 import type { BudgetResourceBinding } from "./resource-binding.js";
 import type {
   BudgetHistoryEntry,
@@ -96,7 +97,11 @@ function projectHistoryEntry<Names extends string, HistoryNames extends string>(
 ): BudgetHistoryEntry<HistoryNames> {
   switch (entry.kind) {
     case "budget_created":
-    case "request_approved":
+    case "request_approved": {
+      const decisionEvidence =
+        entry.kind === "request_approved"
+          ? canonicalDecisionEvidence(entry.decisionEvidence)
+          : undefined;
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
@@ -104,8 +109,13 @@ function projectHistoryEntry<Names extends string, HistoryNames extends string>(
           entry.resources,
           (resourceTypeId) => binding.resource(resourceTypeId).key,
         ),
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
-    case "request_denied":
+    }
+    case "request_denied": {
+      const decisionEvidence = canonicalDecisionEvidence(
+        entry.decisionEvidence,
+      );
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
@@ -114,7 +124,9 @@ function projectHistoryEntry<Names extends string, HistoryNames extends string>(
             .map((reason) => projectHistoryDenialReason(binding, reason))
             .sort(compareDenialReasons),
         ),
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
+    }
     case "budget_settlement_recorded":
       return Object.freeze({
         kind: entry.kind,

@@ -18,15 +18,15 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "e99141dd402d1d9a7911c628bef58c38ca097d4e6a15abf39fd7f27fa8caebc8",
+  "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766",
   "remoteProceduresDigest": "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd",
-  "migrationSetDigest": "5498d4c383a969ad2686c3643ea33bd93e53525e9814665529488ae46c0528ce",
+  "migrationSetDigest": "30540496ee33f92b48449cc35d027c53aa018483d05f706a546d3dbd251e06f1",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
-      "sha256": "bd2d4349153b965d6ccb6928c4ebfa5d823df25bdb148dc362243294c979bfba",
-      "contractDigest": "e99141dd402d1d9a7911c628bef58c38ca097d4e6a15abf39fd7f27fa8caebc8"
+      "sha256": "38822568b10faefe596d98b556576bf7114e2c2c63b4f128c52b906f0ab7e1d9",
+      "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
     }
   ],
   "expectedTargets": [
@@ -70,6 +70,7 @@
     "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
     "function:keynes_internal.checkpoint(checkpoint_name text)",
     "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
+    "function:keynes_internal.canonical_decision_evidence(operation_name text,value jsonb,issue_path text)",
     "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
     "function:keynes_internal.event_uuid(seed text)",
     "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",

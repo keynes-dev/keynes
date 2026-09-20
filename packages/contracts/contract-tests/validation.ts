@@ -41,18 +41,31 @@ export function validateOperationResult(
   return validator(output)(value);
 }
 
-export function orderContractResult<Value>(value: Value): Value {
-  if (Array.isArray(value)) return value.map(orderContractResult) as Value;
+export function orderContractResult<Value>(
+  value: Value,
+  preserveAsciiOrder = false,
+): Value {
+  if (Array.isArray(value))
+    return value.map((member) =>
+      orderContractResult(member, preserveAsciiOrder),
+    ) as Value;
   if (typeof value !== "object" || value === null) return value;
   return Object.fromEntries(
     Object.entries(value)
       .sort(([left], [right]) => {
+        if (preserveAsciiOrder) return left < right ? -1 : left > right ? 1 : 0;
         const rank =
           (resultFieldRank.get(left) ?? Number.MAX_SAFE_INTEGER) -
           (resultFieldRank.get(right) ?? Number.MAX_SAFE_INTEGER);
         return rank || left.localeCompare(right);
       })
-      .map(([key, member]) => [key, orderContractResult(member)]),
+      .map(([key, member]) => [
+        key,
+        orderContractResult(
+          member,
+          preserveAsciiOrder || key === "decisionEvidence",
+        ),
+      ]),
   ) as Value;
 }
 

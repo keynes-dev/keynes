@@ -12,7 +12,12 @@ import {
   projectSettlement,
   projectSnapshot,
 } from "./budget-projection.js";
-import { requireNoOptions } from "./budget-request-options.js";
+import {
+  canonicalDecisionEvidence,
+  requestDecisionEvidence,
+  type BudgetRequestOptions,
+  type DecisionEvidence,
+} from "./decision-evidence.js";
 import type { BudgetResourceBinding } from "./resource-binding.js";
 
 export const budgetBrand: unique symbol = Symbol("Budget");
@@ -42,10 +47,12 @@ export type BudgetRequestResult<
   | {
       readonly status: "approved";
       readonly budget: Budget<Names, HistoryNames>;
+      readonly decisionEvidence?: DecisionEvidence;
     }
   | {
       readonly status: "denied";
       readonly reasons: readonly BudgetRequestDenialReason<Names>[];
+      readonly decisionEvidence?: DecisionEvidence;
     };
 
 export interface BudgetResourceSnapshot<Name extends string = string> {
@@ -82,11 +89,13 @@ export type BudgetHistoryEntry<Names extends string = string> =
       readonly kind: "request_approved";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
+      readonly decisionEvidence?: DecisionEvidence;
     }
   | {
       readonly kind: "request_denied";
       readonly sequence: number;
       readonly reasons: readonly BudgetRequestDenialReason<Names>[];
+      readonly decisionEvidence?: DecisionEvidence;
     }
   | {
       readonly kind: "budget_settlement_recorded";
@@ -122,7 +131,7 @@ export interface Budget<
   readonly [budgetBrand]: undefined;
   readonly request: <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
-    ...options: readonly []
+    ...options: readonly [] | readonly [BudgetRequestOptions]
   ) => Promise<
     BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
   >;
@@ -200,7 +209,7 @@ async function requestBudget<
 ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
   type RequestedName = Extract<keyof Resources, Names>;
   const requestedResources = Object.freeze({ ...resources });
-  requireNoOptions(options);
+  const decisionEvidence = requestDecisionEvidence(options);
   const pending = admit(runtime, async () => {
     const resolved = binding.resources<RequestedName>(
       requestedResources,
@@ -210,9 +219,13 @@ async function requestBudget<
       commandId: randomUUID(),
       parentBudgetId: budgetId,
       resources: resolved.envelope,
+      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     };
     const result = await invokeBudgetOperation(resolved.binding, () =>
       invokeMutation(() => runtime.client.requestBudget(command)),
+    );
+    const resultDecisionEvidence = canonicalDecisionEvidence(
+      result.decisionEvidence,
     );
     if (result.kind === "approved") {
       return Object.freeze({
@@ -222,6 +235,9 @@ async function requestBudget<
           result.childBudgetId,
           resolved.binding,
         ),
+        ...(resultDecisionEvidence === undefined
+          ? {}
+          : { decisionEvidence: resultDecisionEvidence }),
       });
     }
     return Object.freeze({
@@ -236,6 +252,9 @@ async function requestBudget<
           )
           .sort(compareDenialReasons),
       ),
+      ...(resultDecisionEvidence === undefined
+        ? {}
+        : { decisionEvidence: resultDecisionEvidence }),
     });
   });
   return pending;

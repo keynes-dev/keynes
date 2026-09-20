@@ -19,6 +19,7 @@ import type {
   GetCompatibilityResult,
   ErrorEnvelope,
   RemoteErrorEnvelope,
+  DecisionEvidence,
   OperationName,
 } from "./types.js";
 
@@ -384,6 +385,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RequestDeniedHistoryEntry: {
@@ -424,6 +428,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/RequestDenialReason",
         },
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -613,6 +620,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RequestApproved: {
@@ -645,6 +655,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       replayed: {
         type: "boolean",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RequestDenied: {
@@ -671,6 +684,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -991,6 +1007,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RemoteRequestDeniedHistoryEntry: {
@@ -1011,6 +1030,9 @@ const definitions: Readonly<Record<string, Schema>> = {
         items: {
           $ref: "#/$defs/RemoteRequestDenialReason",
         },
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -1121,6 +1143,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RemoteRequestApprovedResult: {
@@ -1149,6 +1174,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       replayed: {
         type: "boolean",
       },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
+      },
     },
   },
   RemoteRequestDeniedResult: {
@@ -1172,6 +1200,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -2402,6 +2433,33 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
+  DecisionEvidence: {
+    type: "object",
+    additionalProperties: {
+      oneOf: [
+        {
+          type: "string",
+          maxUtf8Bytes: 256,
+          pattern: "^[^\\u0000\\ud800-\\udfff]*$",
+        },
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+        {
+          $ref: "#/$defs/Amount",
+        },
+      ],
+    },
+    propertyNames: {
+      type: "string",
+      pattern: "^[a-z][a-z0-9_]{0,62}$",
+    },
+    maxProperties: 32,
+    maxCanonicalUtf8Bytes: 8192,
+  },
 };
 
 function issue(path: string, rule: string): ValidationIssue[] {
@@ -2410,6 +2468,21 @@ function issue(path: string, rule: string): ValidationIssue[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPlainDataObject(value: Record<string, unknown>): boolean {
+  if (
+    (Object.getPrototypeOf(value) !== Object.prototype &&
+      Object.getPrototypeOf(value) !== null) ||
+    Object.getOwnPropertySymbols(value).length > 0
+  )
+    return false;
+  return Object.getOwnPropertyNames(value).every((name) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, name);
+    return (
+      descriptor !== undefined && descriptor.enumerable && "value" in descriptor
+    );
+  });
 }
 
 function sameJson(left: unknown, right: unknown): boolean {
@@ -2463,7 +2536,11 @@ function validate(
     return issue(path, "enum");
 
   if (schema.type === "object") {
-    if (!isRecord(value)) return issue(path, "type");
+    if (
+      !isRecord(value) ||
+      (schema.maxCanonicalUtf8Bytes !== undefined && !isPlainDataObject(value))
+    )
+      return issue(path, "type");
     const properties = schema.properties ?? {};
     const names = Object.keys(value);
     const issues: ValidationIssue[] = [];
@@ -2472,11 +2549,6 @@ function validate(
       names.length > schema.maxProperties
     )
       issues.push(...issue(path, "maxProperties"));
-    if (
-      schema.maxCanonicalUtf8Bytes !== undefined &&
-      utf8Length(JSON.stringify(value)) > schema.maxCanonicalUtf8Bytes
-    )
-      issues.push(...issue(path, "maxCanonicalUtf8Bytes"));
     for (const name of schema.required ?? []) {
       if (!Object.hasOwn(value, name))
         issues.push(...issue(`${path}/${name}`, "required"));
@@ -2504,6 +2576,12 @@ function validate(
       if (Object.hasOwn(value, name))
         issues.push(...validate(child, value[name], `${path}/${name}`));
     }
+    if (
+      issues.length === 0 &&
+      schema.maxCanonicalUtf8Bytes !== undefined &&
+      utf8Length(JSON.stringify(value)) > schema.maxCanonicalUtf8Bytes
+    )
+      issues.push(...issue(path, "maxCanonicalUtf8Bytes"));
     return issues;
   }
   if (schema.type === "array") {
@@ -2680,6 +2758,12 @@ export function validateRemoteErrorEnvelope(
   value: unknown,
 ): value is RemoteErrorEnvelope {
   return validateDefinition("RemoteErrorEnvelope", value).length === 0;
+}
+
+export function validateDecisionEvidence(
+  value: unknown,
+): value is DecisionEvidence {
+  return validateDefinition("DecisionEvidence", value).length === 0;
 }
 
 export function validateDefineResourceTypeCommandIssues(

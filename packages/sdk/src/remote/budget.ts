@@ -21,6 +21,8 @@ import {
   projectSnapshot,
 } from "../budget-projection.js";
 import { budgetBrand } from "../budget.js";
+import { canonicalDecisionEvidence } from "../decision-evidence.js";
+import { requestDecisionEvidence } from "../decision-evidence.js";
 import type { ExactResourceAmounts, ResourceAmounts } from "../budget.js";
 import { BudgetResourceBinding } from "../resource-binding.js";
 import {
@@ -225,7 +227,11 @@ async function requestRemoteBudget<
     Object.freeze({ ...resources }),
     "requestBudget",
   );
-  const { operationKey } = splitRemoteMutationOptions(options, new Set());
+  const { operationKey, remainingOptions } = splitRemoteMutationOptions(
+    options,
+    new Set(["decisionEvidence"]),
+  );
+  const decisionEvidence = requestDecisionEvidence(remainingOptions);
   const [first, ...rest] = resolved.envelope;
   if (first === undefined) throw remoteResultMismatch();
   const requestedResources: [RemoteResourceAmount, ...RemoteResourceAmount[]] =
@@ -248,11 +254,15 @@ async function requestRemoteBudget<
           operationKey,
           parentBudgetReference: budgetReference,
           resources: requestedResources,
+          ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
         }),
     );
     if (result.parentBudgetReference !== budgetReference) {
       throw remoteResultMismatch();
     }
+    const resultDecisionEvidence = canonicalDecisionEvidence(
+      result.decisionEvidence,
+    );
     if (result.kind === "approved") {
       assertRemoteAmounts(requestedResources, result.resources);
       if (result.childBudgetReference === budgetReference) {
@@ -260,6 +270,9 @@ async function requestRemoteBudget<
       }
       return Object.freeze({
         status: "approved" as const,
+        ...(resultDecisionEvidence === undefined
+          ? {}
+          : { decisionEvidence: resultDecisionEvidence }),
         budget: createRemoteBudgetHandle<RequestedName, HistoryNames>(
           client,
           {
@@ -276,6 +289,9 @@ async function requestRemoteBudget<
     }
     return Object.freeze({
       status: "denied" as const,
+      ...(resultDecisionEvidence === undefined
+        ? {}
+        : { decisionEvidence: resultDecisionEvidence }),
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
@@ -364,6 +380,13 @@ function remoteHistoryEntry(
         parentBudgetId: PRIVATE_UUID,
         childBudgetId: PRIVATE_UUID,
         resources: remoteEnvelope(entry.resources),
+        ...(entry.decisionEvidence === undefined
+          ? {}
+          : {
+              decisionEvidence: canonicalDecisionEvidence(
+                entry.decisionEvidence,
+              ),
+            }),
       };
     case "request_denied":
       return {
@@ -374,6 +397,13 @@ function remoteHistoryEntry(
           RequestDenialReason,
           ...RequestDenialReason[],
         ],
+        ...(entry.decisionEvidence === undefined
+          ? {}
+          : {
+              decisionEvidence: canonicalDecisionEvidence(
+                entry.decisionEvidence,
+              ),
+            }),
       };
     case "budget_settlement_recorded":
       return {

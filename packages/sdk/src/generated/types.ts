@@ -430,6 +430,14 @@ export interface RequestApprovedHistoryEntry {
   parentBudgetId: Uuid;
   childBudgetId: Uuid;
   resources: ResourceEnvelope;
+  decisionEvidence?: DecisionEvidence;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "DecisionEvidence".
+ */
+export interface DecisionEvidence {
+  [k: string]: string | boolean | null | Amount;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -446,6 +454,7 @@ export interface RequestDeniedHistoryEntry {
    * @minItems 1
    */
   reasons: [RequestDenialReason, ...RequestDenialReason[]];
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -537,6 +546,7 @@ export interface RequestBudgetCommand {
   commandId: Uuid;
   parentBudgetId: Uuid;
   resources: ResourceEnvelope;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -549,6 +559,7 @@ export interface RequestApproved {
   childBudgetId: Uuid;
   resources: ResourceEnvelope;
   replayed: boolean;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -563,6 +574,7 @@ export interface RequestDenied {
    */
   reasons: [RequestDenialReason, ...RequestDenialReason[]];
   replayed: boolean;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -675,6 +687,7 @@ export interface RemoteRequestApprovedHistoryEntry {
   kind: "request_approved";
   sequence: Amount;
   resources: RemoteResourceEnvelope;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -687,6 +700,7 @@ export interface RemoteRequestDeniedHistoryEntry {
    * @minItems 1
    */
   reasons: [RemoteRequestDenialReason, ...RemoteRequestDenialReason[]];
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -726,6 +740,7 @@ export interface RemoteRequestBudgetCommand {
   operationKey: OperationKey;
   parentBudgetReference: BudgetReference;
   resources: RemoteResourceEnvelope;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -737,6 +752,7 @@ export interface RemoteRequestApprovedResult {
   childBudgetReference: BudgetReference;
   resources: RemoteResourceEnvelope;
   replayed: boolean;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -750,6 +766,7 @@ export interface RemoteRequestDeniedResult {
    */
   reasons: [RemoteRequestDenialReason, ...RemoteRequestDenialReason[]];
   replayed: boolean;
+  decisionEvidence?: DecisionEvidence;
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema

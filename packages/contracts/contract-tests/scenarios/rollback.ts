@@ -4,7 +4,6 @@ import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
   DefineResourcesCommand,
-  RequestBudgetCommand,
   SettleBudgetCommand,
 } from "../../generated/types.ts";
 import type {
@@ -252,12 +251,16 @@ export function registerRollbackContractTests(
           resources: [
             { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
           ],
-        } satisfies RequestBudgetCommand;
+          decisionEvidence: { approved: true, checkpoint },
+        };
 
+        const faultingRequester = local.clientFor("requester-fixture", {
+          checkpoint,
+        });
         await expect(
-          local
-            .clientFor("requester-fixture", { checkpoint })
-            .requestBudget(command),
+          Reflect.apply(faultingRequester.requestBudget, faultingRequester, [
+            command,
+          ]),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
         await expectKeynesError(
           client.getBudget({ budgetId: commandId }),
@@ -273,18 +276,23 @@ export function registerRollbackContractTests(
         });
         expect(afterFailure.history.entries).toHaveLength(1 + index);
 
-        const retry = await local
-          .clientFor("requester-fixture")
-          .requestBudget(command);
+        const requester = local.clientFor("requester-fixture");
+        const retry = await Reflect.apply(requester.requestBudget, requester, [
+          command,
+        ]);
         expect(retry).toMatchObject({
           kind: "approved",
           childBudgetId: commandId,
           replayed: false,
+          decisionEvidence: command.decisionEvidence,
         });
         const afterRetry = await client.getBudget({
           budgetId: root.budget.budgetId,
         });
         expect(afterRetry.history.entries).toHaveLength(2 + index);
+        expect(afterRetry.history.entries.at(-1)).toMatchObject({
+          decisionEvidence: command.decisionEvidence,
+        });
       }
     });
 

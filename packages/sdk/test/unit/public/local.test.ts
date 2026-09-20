@@ -692,6 +692,155 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it.each([
+    ["omitted", []],
+    ["explicit undefined", [{ decisionEvidence: undefined }]],
+    ["empty", [{ decisionEvidence: {} }]],
+  ])("normalizes %s decision evidence to omission", async (_name, options) => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        ...options,
+      ]);
+      await expect(requested).resolves.toMatchObject({
+        status: "approved",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots decision evidence before queued admission and freezes its projections", async () => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 3 });
+      const evidence = { note: "before" };
+      const first = root.request({ workUnits: 1 });
+      const pending: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        { decisionEvidence: evidence },
+      ]);
+      evidence.note = "after";
+      await first;
+      const approved = await pending;
+      expect(approved).toMatchObject({ status: "approved" });
+      if (
+        typeof approved !== "object" ||
+        approved === null ||
+        !("budget" in approved)
+      ) {
+        throw new Error("expected approved request");
+      }
+      const budget = approved.budget;
+      if (
+        typeof budget !== "object" ||
+        budget === null ||
+        !("inspect" in budget) ||
+        typeof budget.inspect !== "function"
+      ) {
+        throw new Error("expected Budget projection");
+      }
+      const snapshot = await budget.inspect();
+      const entry = snapshot.history.entries.find(
+        (entry: { readonly kind: string; readonly sequence: number }) =>
+          entry.kind === "request_approved" && entry.sequence === 3,
+      );
+      expect(entry).toMatchObject({
+        kind: "request_approved",
+        decisionEvidence: { note: "before" },
+      });
+      expect(Object.isFrozen(entry)).toBe(true);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([
+    ["undefined member", () => ({ note: undefined })],
+    ["bigint", () => ({ amount: BigInt(1) })],
+    ["NaN", () => ({ amount: Number.NaN })],
+    ["infinite number", () => ({ amount: Number.POSITIVE_INFINITY })],
+    ["symbol", () => ({ [Symbol("evidence")]: true })],
+    [
+      "non-enumerable member",
+      () => {
+        const evidence = { note: "value" };
+        Object.defineProperty(evidence, "hidden", { value: true });
+        return evidence;
+      },
+    ],
+  ])(
+    "rejects non-JSON decision evidence %s before mutation",
+    async (_name, build) => {
+      const keynes = await createKeynes({
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 2 });
+        const requested: unknown = Reflect.apply(root.request, root, [
+          { workUnits: 1 },
+          { decisionEvidence: build() },
+        ]);
+        await expect(requested).rejects.toMatchObject({
+          code: "invalid_configuration",
+          details: { field: "decisionEvidence", reason: "unsupported" },
+        });
+        expect((await root.inspect()).history.entries).toHaveLength(1);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects accessor and option getters without invoking them", async () => {
+    const keynes = await createKeynes({
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      let reads = 0;
+      const evidence = Object.defineProperty({}, "note", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return "never read";
+        },
+      });
+      const options = Object.defineProperty({}, "decisionEvidence", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return evidence;
+        },
+      });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        options,
+      ]);
+      await expect(requested).rejects.toMatchObject({
+        code: "invalid_configuration",
+        details: { field: "options", reason: "unsupported" },
+      });
+      expect(reads).toBe(0);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("does not widen child Resource names from a later input mutation", async () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },

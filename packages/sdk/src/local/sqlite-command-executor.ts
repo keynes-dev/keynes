@@ -28,6 +28,7 @@ import {
   validateCreateBudgetResult,
   validateOperationInputIssues,
 } from "../generated/validators.js";
+import { canonicalDecisionEvidence } from "../decision-evidence.js";
 import {
   SqliteStore,
   type SqliteBudgetRow as BudgetRow,
@@ -420,6 +421,9 @@ export class SqliteCommandExecutor implements CommandExecutor {
     context: SqliteTransactionContext,
     command: RequestBudgetCommand,
   ): unknown {
+    const decisionEvidence = canonicalDecisionEvidence(
+      command.decisionEvidence,
+    );
     const parent = this.#requireBudget(
       context.tenantId,
       command.parentBudgetId,
@@ -495,6 +499,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
         subjectBudgetId: command.parentBudgetId,
         parentBudgetId: command.parentBudgetId,
         reasons: asNonEmpty(reasons),
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
       this.#observeMutation?.("after_history_insertion");
       return {
@@ -502,6 +507,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
         commandId: command.commandId,
         parentBudgetId: command.parentBudgetId,
         reasons,
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       };
     }
 
@@ -524,6 +530,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parentBudgetId: command.parentBudgetId,
       childBudgetId: command.commandId,
       resources,
+      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     });
     this.#observeMutation?.("after_history_insertion");
     return {
@@ -532,6 +539,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
       parentBudgetId: command.parentBudgetId,
       childBudgetId: command.commandId,
       resources,
+      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     };
   }
 
@@ -1002,12 +1010,16 @@ function canonicalCommand(
     };
   } else if (operation === "requestBudget") {
     const command = input as RequestBudgetCommand;
+    const decisionEvidence = canonicalDecisionEvidence(
+      command.decisionEvidence,
+    );
     commandId = command.commandId;
     targetKind = "budget";
     targetId = command.commandId;
     body = {
       parentBudgetId: command.parentBudgetId,
       resources: canonicalAmounts(command.resources),
+      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     };
   } else {
     const command = input as SettleBudgetCommand;

@@ -8,6 +8,7 @@ import type {
   Settlement,
 } from "../budget.js";
 import type { BudgetReference, RemoteOperationOptions } from "./references.js";
+import type { BudgetRequestOptions } from "../decision-evidence.js";
 
 export type RemoteBudgetRequestResult<
   Names extends string,
@@ -31,7 +32,7 @@ interface RemoteBudgetMethods<
   readonly reference: BudgetReference;
   readonly request: <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
-    options?: RemoteOperationOptions,
+    options?: RemoteOperationOptions & BudgetRequestOptions,
   ) => Promise<
     RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
   >;
@@ -44,4 +45,5 @@ interface RemoteBudgetMethods<
 export type RemoteBudget<
   Names extends string,
   HistoryNames extends string = Names,
-> = Budget<Names, HistoryNames> & RemoteBudgetMethods<Names, HistoryNames>;
+> = Omit<Budget<Names, HistoryNames>, "request"> &
+  RemoteBudgetMethods<Names, HistoryNames>;
