@@ -2,12 +2,12 @@
 
 **Input**: [spec](spec.md), [plan](plan.md), [research](research.md), [model](data-model.md), [contract](contracts/requests.md), [quickstart](quickstart.md).
 
-All tasks are unstarted. Stop before T001 in this planning run. New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
+Implementation is authorized. Phase 1 is complete; subsequent tasks remain unchecked until verified. New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm implementation authorization, exact branch and landed KEY-113/78 prerequisites; record the candidate in feature-local `acceptance.md`. Resolve any managed-skill integrity warning using supported Spec Kit tooling before invoking `.agents/skills/speckit-implement/SKILL.md`; do not edit generated skills or manifest hashes manually.
-- [ ] T002 Inventory Policy-only code and retained safety assertions in `packages/contracts/`, `packages/sdk/src/policy/`, `packages/postgresql/migrations/0001-baseline.sql` and their tests; record deletion/replacement ownership in feature-local `research.md`.
+- [x] T001 Confirm implementation authorization, exact branch and landed KEY-113/78 prerequisites; record the candidate in feature-local `acceptance.md`. Resolve any managed-skill integrity warning using supported Spec Kit tooling before invoking `.agents/skills/speckit-implement/SKILL.md`; do not edit generated skills or manifest hashes manually.
+- [x] T002 Inventory Policy-only code and retained safety assertions in `packages/contracts/`, `packages/sdk/src/policy/`, `packages/postgresql/migrations/0001-baseline.sql` and their tests; record deletion/replacement ownership in feature-local `research.md`.
 
 Checkpoint: one issue, no added dependency or acceptance gate. These inventory tasks are nonbehavioral and use document/source checks.
 
@@ -84,4 +84,4 @@ US1 is the smallest useful demonstration; the remaining stories are mandatory fo
 | SC-003      | T003-T005, T006-T010, T016-T018, T020 |
 | SC-004      | T001, T020-T022                       |
 
-22 unchecked tasks: 2 setup, 2 foundational, 6 US1, 5 US2, 5 US3 and 2 final acceptance. Six parallel markers identify disjoint work; they are not permission to edit shared files concurrently.
+22 tasks: 2 setup, 2 foundational, 6 US1, 5 US2, 5 US3 and 2 final acceptance. Six parallel markers identify disjoint work; they are not permission to edit shared files concurrently.
