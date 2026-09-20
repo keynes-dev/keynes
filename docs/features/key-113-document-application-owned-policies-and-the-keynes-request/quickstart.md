@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Use the exact KEY-113 branch and select its directory explicitly. Start from the recorded base, inspect current changes, and preserve unrelated work. The planning pass does not edit governing documentation or qualify runtime behavior. Node, pnpm and the repository's existing frozen dependencies are needed for formatting.
+Use the exact KEY-113 branch and select its directory explicitly. Start from the recorded base, inspect current changes, and preserve unrelated work. The completed planning pass did not edit governing documentation. Documentation implementation is now authorized; it does not qualify runtime behavior. Node, pnpm and the repository's existing frozen dependencies are needed for formatting.
 
 ```sh
 export SPECIFY_FEATURE_DIRECTORY=docs/features/key-113-document-application-owned-policies-and-the-keynes-request
@@ -15,7 +15,7 @@ Expected: stock prerequisite resolution selects this feature, all planning files
 
 ## Review before implementation
 
-Run stock `speckit-analyze` against spec, plan and tasks, with constitution 11.0.0 unchanged. Expect a CRITICAL adoption conflict for the managed Policy and PGlite MUSTs. Do not reinterpret it as a clean pass. Before normal adoption work, explicitly amend the constitution outside analysis and rerun the check, as described in the plan. This turn stops before that amendment.
+Run stock `speckit-analyze` against spec, plan and tasks using the current constitution. Planning recorded a CRITICAL conflict under 11.0.0; the explicit 12.0.0 amendment resolves it. Confirm the new requirements preserve accounting and evidence boundaries rather than treating the old conflict as a standing exception.
 
 ## Validate the later documentation implementation
 

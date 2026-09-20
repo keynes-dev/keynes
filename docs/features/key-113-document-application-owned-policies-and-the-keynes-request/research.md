@@ -63,7 +63,7 @@ Read-only review used the live KEY-113 issue, base `a203a26d20ed1ecc940d9bca1f05
 
 ## Resolved scope
 
-No clarification is needed to write the plan. The unresolved constitution conflict is an explicit adoption gate, not an unknown design choice. Runtime, provider, package and deployment qualification remain NOT RUN.
+No clarification is needed to write the plan. The constitution conflict identified during planning was an explicit adoption gate, resolved during implementation by constitution 12.0.0 and ADR-0013. Runtime, provider, package and deployment qualification remain NOT RUN.
 
 ## Implementation intake
 

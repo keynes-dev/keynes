@@ -34,21 +34,21 @@ The base is `a203a26d20ed1ecc940d9bca1f05c9d9b81b80b4`, which includes KEY-121 m
 
 ### Before research
 
-| Gate                                                               | Assessment                                                                                                                                         |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| One Budget authority, atomic commands, conservation, exact replay  | Preserved; no runtime changes or distributed protocol design.                                                                                      |
-| Customer-owned external effects and transactions                   | Preserved; broaden documentation to evaluation ownership.                                                                                          |
-| Principles I/III/IV: managed Policies and PostgreSQL/PGlite        | CONFLICT with the requested target. Explicit amendment is part of this feature, not implicitly accomplished by this plan. See Complexity tracking. |
-| Thin SDK, canonical contracts, permissions and native verification | Preserve one command-contract owner; allow separate engine implementations outside the SDK after the amendment.                                    |
-| Evidence-first delivery                                            | Documentation-only exception applies; focused checks instead of behavioral tests. No qualification claim.                                          |
-| One issue and independently accepted PR                            | KEY-113 only; no phase issues or runtime prerequisites. KEY-121 is landed.                                                                         |
-| Historical evidence and upstream tooling                           | Immutable historical bodies/evidence; only supersession notices on relevant ADRs. No generated file changes.                                       |
+| Gate                                                               | Assessment                                                                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| One Budget authority, atomic commands, conservation, exact replay  | Preserved; no runtime changes or distributed protocol design.                                                                  |
+| Customer-owned external effects and transactions                   | Preserved; broaden documentation to evaluation ownership.                                                                      |
+| Principles I/III/IV: managed Policies and PostgreSQL/PGlite        | Conflict identified at planning intake; resolved explicitly by constitution 12.0.0 and ADR-0013. See the post-amendment check. |
+| Thin SDK, canonical contracts, permissions and native verification | Preserve one command-contract owner; allow separate engine implementations outside the SDK after the amendment.                |
+| Evidence-first delivery                                            | Documentation-only exception applies; focused checks instead of behavioral tests. No qualification claim.                      |
+| One issue and independently accepted PR                            | KEY-113 only; no phase issues or runtime prerequisites. KEY-121 is landed.                                                     |
+| Historical evidence and upstream tooling                           | Immutable historical bodies/evidence; only supersession notices on relevant ADRs. No generated file changes.                   |
 
-Planning may describe the explicitly requested amendment. This is not a clean constitutional pass for adopting the target. Stock analysis must report the remaining conflict as CRITICAL while constitution 11.0.0 remains in force. Before normal implementation proceeds, the explicit constitution update must occur outside analyze, with its Sync Impact Report and affected governing guidance; rerun the check and analysis afterward. The subsequent speckit-implement request authorizes that explicit amendment.
+Planning correctly reported a CRITICAL conflict while constitution 11.0.0 remained in force. The subsequent speckit-implement request authorized an explicit amendment outside analysis, with its Sync Impact Report and governing guidance. The post-amendment check below supersedes that planning blocker.
 
-### After design
+### After the explicit amendment
 
-The design preserves accounting, permissions, replay and transaction ownership. It introduces no callback contract, database schema or distributed protocol. The same constitutional conflict remains; no design artifact can supersede a MUST in the current constitution. The scope is ready for review, but adoption is blocked pending the explicit amendment.
+PASS against constitution 12.0.0 and ADR-0013. The authorized amendment removes the managed Policy/PGlite conflict while preserving one Budget authority, database enforcement, exact accounting, fixed funding, caller transaction ownership and native verification. Read-only analysis found no remaining constitutional conflict in the specification or task plan. Workflow/package reconciliation and examples remain scheduled tasks; this is not final feature acceptance.
 
 ## Project structure
 
@@ -100,4 +100,4 @@ The planning pass runs stock setup/prerequisite checks, targeted feature formatt
 | Constitution I/IV mandate PGlite and one PostgreSQL implementation                          | KEY-113 explicitly adopts SQLite Local and separate engines outside SDK. | Keeping PGlite contradicts the selected issue. Plan the major amendment; retain existing rules until it occurs and analysis passes.                                   |
 | Constitution III and Policy constraints mandate registration/compiler/in-command evaluation | KEY-113 explicitly transfers policy evaluation to customers.             | Calling customer decisions trusted Policy results preserves the wrong trust boundary. Amend governance explicitly; KEY-114 later changes runtime contracts and tests. |
 
-These entries explain the amendment required at implementation intake. ADR-0013 and constitution 12.0.0 are the selected targets; the post-amendment check must resolve both conflicts.
+These entries retain the rationale for the explicit amendment. Constitution 12.0.0 and ADR-0013 resolve both conflicts; they are not standing exceptions.

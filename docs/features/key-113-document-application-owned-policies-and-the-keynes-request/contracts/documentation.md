@@ -1,6 +1,6 @@
 # Documentation contract
 
-This contract defines what readers must be able to establish from the finished documentation. It does not define a new runtime API. The governing edits described here are not yet implemented.
+This contract defines what readers must be able to establish from the finished documentation. It does not define a new runtime API. Use the feature acceptance record to distinguish completed documentation from unimplemented runtime behavior.
 
 ## Required ownership statements
 

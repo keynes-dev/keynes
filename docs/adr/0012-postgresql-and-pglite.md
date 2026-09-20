@@ -1,5 +1,7 @@
 # ADR-0012: Use one PostgreSQL implementation with PGlite for Local
 
+> **Superseded in part, 2026-09-19:** [ADR-0013](0013-application-owned-policies.md). ADR-0013 supersedes the PGlite/one-implementation and managed Policy requirements below. Applicable thin-SDK, explicit runtime selection, borrowed-connection and qualification boundaries remain.
+
 - **Date:** 2026-09-12
 - **Status:** Accepted direction; runtime migration and package separation not implemented
 - **Supersedes:** [ADR-0003](0003-sqlite-and-postgresql.md) for the Local engine and dual implementation decision
