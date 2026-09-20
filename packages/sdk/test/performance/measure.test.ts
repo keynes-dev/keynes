@@ -58,7 +58,7 @@ describe("SDK package measurement controller", () => {
     const input = validRecordInput();
     const record = createQualificationRecord(input);
     expect(record).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk-measurement/v1",
+      schemaVersion: "keynes.package-test.sdk-measurement/v2",
       subject: "@keynes/sdk",
       outcome: "passed",
       exclusions: {
@@ -114,22 +114,37 @@ describe("SDK package measurement controller", () => {
     const record = createQualificationRecord(input);
     expect(record.samples).toEqual(input.samples);
     expect(record.method).toMatchObject({ coldWarmup: 3 });
-    expect(Object.keys(record.samples).sort()).toEqual([
-      "coldCreateMilliseconds",
-      "firstRequestMilliseconds",
-      "parserInitializationMilliseconds",
-      "readyRssBytes",
-      "shutdownMilliseconds",
-      "steadyRequestMilliseconds",
-    ]);
-    expect(Object.keys(record.observed).sort()).toEqual([
-      "coldCreateMilliseconds",
-      "firstRequestMilliseconds",
-      "parserInitializationMilliseconds",
-      "readyRssBytes",
-      "shutdownMilliseconds",
-      "steadyRequestMilliseconds",
-    ]);
+    expect(Object.keys(record.samples)).toEqual(
+      expect.arrayContaining([
+        "coldCreateMilliseconds",
+        "memorySampleCount",
+        "offlineInstallMilliseconds",
+        "sampledPeakRssBytes",
+        "startupMilliseconds",
+        "steadyElapsedMilliseconds",
+        "firstRequestMilliseconds",
+        "parserInitializationMilliseconds",
+        "readyRssBytes",
+        "shutdownMilliseconds",
+        "steadyRequestMilliseconds",
+      ]),
+    );
+    expect(Object.keys(record.observed)).toEqual(
+      expect.arrayContaining([
+        "coldCreateMilliseconds",
+        "memorySampleCount",
+        "offlineInstallMilliseconds",
+        "sampledPeakRssBytes",
+        "startupMilliseconds",
+        "steadyElapsedMilliseconds",
+        "firstRequestMilliseconds",
+        "parserInitializationMilliseconds",
+        "readyRssBytes",
+        "shutdownMilliseconds",
+        "steadyRequestMilliseconds",
+      ]),
+    );
+    expect(record.observed.requestsPerSecond).toBeCloseTo(100_000 / 5050);
     expect(record.samples).not.toHaveProperty("readyRssDeltaBytes");
     expect(record.observed).not.toHaveProperty("readyRssDeltaBytes");
     expect(record.observed.steadyRequestMilliseconds).toEqual({
@@ -163,7 +178,7 @@ describe("SDK package measurement controller", () => {
           firstRequestMilliseconds: Array(29).fill(1),
         },
       }),
-    ).toThrow("at least 30");
+    ).toThrow("exactly 30");
 
     const record = createQualificationRecord({
       ...input,
@@ -173,6 +188,32 @@ describe("SDK package measurement controller", () => {
       },
     });
     expect(() => assertWithinLimits(record)).toThrow("coldCreateMilliseconds");
+  });
+
+  it("rejects invalid or inconsistent evidence identity and method", () => {
+    const input = validRecordInput();
+    for (const changed of [
+      { ...input, archive: { ...input.archive, sha256: "wrong" } },
+      {
+        ...input,
+        environment: { ...input.environment, commit: "d".repeat(40) },
+      },
+      { ...input, environment: { ...input.environment, sqliteVersion: "" } },
+      { ...input, method: { ...input.method, steadySamples: 99 } },
+      {
+        ...input,
+        samples: { ...input.samples, steadyElapsedMilliseconds: [0] },
+      },
+      {
+        ...input,
+        samples: { ...input.samples, memorySampleCount: Array(30).fill(0) },
+      },
+      {
+        ...input,
+        samples: { ...input.samples, offlineInstallMilliseconds: [] },
+      },
+    ])
+      expect(() => createQualificationRecord(changed)).toThrow();
   });
 
   it("rejects ready RSS equal to 512 MiB but accepts every inclusive ceiling", () => {
@@ -238,8 +279,16 @@ function validRecordInput(): QualificationRecordInput {
       steadyWarmup: 10,
       steadySamples: 100,
       percentile: "nearest-rank",
+      offlineInstalls: 5,
+      memorySamplingIntervalMilliseconds: 1,
+      installCache: "prefilled-offline",
     },
     samples: {
+      startupMilliseconds: Array(30).fill(10),
+      sampledPeakRssBytes: Array(30).fill(100),
+      memorySampleCount: Array(30).fill(2),
+      offlineInstallMilliseconds: Array(5).fill(100),
+      steadyElapsedMilliseconds: [5050],
       parserInitializationMilliseconds: Array.from(
         { length: 30 },
         (_, index) => index + 1,

@@ -62,12 +62,23 @@ describe("SDK package measurement worker", () => {
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
       parserInitializationMilliseconds: expect.any(Number),
+      runtimeObserved: true,
+      startupMilliseconds: expect.any(Number),
+      sampledPeakRssBytes: expect.any(Number),
+      memorySampleCount: expect.any(Number),
       readyRssBytes: expect.any(Number),
       coldCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),
       shutdownMilliseconds: expect.any(Number),
       closed: true,
     });
+    expect(output.sampledPeakRssBytes).toBeGreaterThanOrEqual(
+      output.readyRssBytes,
+    );
+    expect(output.memorySampleCount).toBeGreaterThanOrEqual(2);
+    expect(output.startupMilliseconds).toBeGreaterThanOrEqual(
+      output.coldCreateMilliseconds,
+    );
     expect(output).not.toHaveProperty("emptyRssBytes");
     expect(output).not.toHaveProperty("readyRssDeltaBytes");
     for (const value of Object.values(output)) {
@@ -86,6 +97,8 @@ describe("SDK package measurement worker", () => {
     expect(output).toMatchObject({
       kind: "steady",
       warmupCount: 10,
+      runtimeObserved: true,
+      steadyElapsedMilliseconds: expect.any(Number),
       steadyRequestMilliseconds: expect.any(Array),
       closed: true,
     });

@@ -15,9 +15,9 @@
 
 Independent test: exact-archive measurement and malformed evidence rejection.
 
-- [ ] T004 [US1] Add failing evidence/worker checks in packages/sdk/test/performance/measure.test.ts and measure-worker.test.mjs (FR-001/002/003).
-- [ ] T005 [US1] Extend packages/sdk/test/performance/measure.ts and measure-worker.mjs with runtime verification, observations and strict evidence validation (FR-001/002/003).
-- [ ] T006 [US1] Run performance checks and review the measurement changes; commit the phase.
+- [x] T004 [US1] Add failing evidence/worker checks in packages/sdk/test/performance/measure.test.ts and measure-worker.test.mjs (FR-001/002/003).
+- [x] T005 [US1] Extend packages/sdk/test/performance/measure.ts and measure-worker.mjs with runtime verification, observations and strict evidence validation (FR-001/002/003).
+- [x] T006 [US1] Run performance checks and review the measurement changes; commit the phase.
 
 ## Phase 4: User Story 2 - Focused complete CI
 
