@@ -48,7 +48,7 @@ Planning correctly reported a CRITICAL conflict while constitution 11.0.0 remain
 
 ### After the explicit amendment
 
-PASS against constitution 12.0.0 and ADR-0013. The authorized amendment removes the managed Policy/PGlite conflict while preserving one Budget authority, database enforcement, exact accounting, fixed funding, caller transaction ownership and native verification. Read-only analysis found no remaining constitutional conflict in the specification or task plan. Workflow/package reconciliation and examples remain scheduled tasks; this is not final feature acceptance.
+PASS against constitution 12.0.0 and ADR-0013. The authorized amendment removes the managed Policy/PGlite conflict while preserving one Budget authority, database enforcement, exact accounting, fixed funding, caller transaction ownership and native verification. Read-only analysis found no remaining constitutional conflict in the specification or task plan. Workflow/package reconciliation and examples are complete. [Acceptance](acceptance.md) records the documentation checks; runtime qualification remains NOT RUN.
 
 ## Project structure
 
@@ -91,7 +91,7 @@ Follow the [implementation tasks](tasks.md) for delivery order.
 
 ## Verification lanes
 
-The planning pass runs stock setup/prerequisite checks, targeted feature formatting, link and task-format checks, and read-only analysis. The future documentation implementation runs `pnpm format:docs`, targeted formatting of changed package READMEs, `git diff --check`, link checks and the scenario review in quickstart. Existing SQLite/native commands and required check names remain unchanged. Native permissions, concurrency, caller transactions, Local operating envelope, archives, Hosted, durable recovery and providers remain NOT RUN here.
+The planning pass runs stock setup/prerequisite checks, targeted feature formatting, link and task-format checks, and read-only analysis. Documentation implementation ran `pnpm format:docs`, targeted formatting of changed package READMEs, `git diff --check`, link checks and the scenario review in quickstart. Existing SQLite/native commands and required check names remain unchanged. Native permissions, concurrency, caller transactions, Local operating envelope, archives, Hosted, durable recovery and providers remain NOT RUN here.
 
 ## Complexity tracking
 

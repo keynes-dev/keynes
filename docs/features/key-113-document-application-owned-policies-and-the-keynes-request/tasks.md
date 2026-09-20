@@ -2,7 +2,7 @@
 
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [documentation contract](contracts/documentation.md).
 
-**Implementation state**: Documentation implementation authorized through speckit-implement. Runtime changes remain excluded. Checkboxes record completed documentation work, not runtime qualification.
+**Implementation state**: All documentation tasks completed and locally verified; see [acceptance.md](acceptance.md). Runtime changes remain excluded. Checkboxes record completed documentation work, not runtime qualification.
 
 **Validation**: Documentation-only change. No executable behavior changes, so no failing runtime test or runtime suite applies. Use focused formatting, link/contradiction review and scenario acceptance. Keep runtime and qualification lanes NOT RUN.
 
@@ -54,8 +54,8 @@
 
 ## Phase 6: Validation and acceptance
 
-- [ ] T018 Run docs/features/key-113-document-application-owned-policies-and-the-keynes-request/quickstart.md checks: documentation/package formatting, diff and link checks, targeted contradiction review and final requirement coverage. Confirm generated files, runtime behavior and historical evidence are unchanged. Record exact commands, outcomes and source revision in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md; list runtime/qualification as NOT RUN. SC-001 through SC-004, FR-018.
-- [ ] T019 Reconcile the completed diff against docs/features/key-113-document-application-owned-policies-and-the-keynes-request/spec.md and this task list. Confirm all 18 requirements and 4 success criteria have acceptance evidence, update only verified task checkboxes, and prepare the single documentation review outcome. Commit/push/PR and Linear artifact publication require their own authorization; do not mark Done before merge and required acceptance. SC-004, FR-018.
+- [x] T018 Run docs/features/key-113-document-application-owned-policies-and-the-keynes-request/quickstart.md checks: documentation/package formatting, diff and link checks, targeted contradiction review and final requirement coverage. Confirm generated files, runtime behavior and historical evidence are unchanged. Record exact commands, outcomes and source revision in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md; list runtime/qualification as NOT RUN. SC-001 through SC-004, FR-018.
+- [x] T019 Reconcile the completed diff against docs/features/key-113-document-application-owned-policies-and-the-keynes-request/spec.md and this task list. Confirm all 18 requirements and 4 success criteria have acceptance evidence, update only verified task checkboxes, and prepare the single documentation review outcome. Commit/push/PR and Linear artifact publication require their own authorization; do not mark Done before merge and required acceptance. SC-004, FR-018.
 
 ## Dependencies and execution order
 

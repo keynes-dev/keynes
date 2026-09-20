@@ -46,7 +46,7 @@ Record each requirement's review result and documentation checks in `acceptance.
 
 No runtime, numeric, concurrency, permission, provider, recovery, performance, archive or managed Hosted qualification is performed by these checks. Implementation acceptance cannot claim those lanes passed. Do not run full runtime suites just to validate prose. Keep existing executable CI commands and branch-protection requirements unchanged.
 
-Artifacts remain local-only until publication is separately authorized. Any later authorized push must link real published spec/plan/tasks artifacts from KEY-113 and verify those links; never attach URLs to unpushed files.
+Artifacts are published through draft PR #63 under the user's publication authorization. Each subsequent authorized push must keep KEY-113 spec/plan/tasks links current and pin acceptance to the published evidence revision; never attach URLs to unpushed files.
 
 ## Customer example smoke check
 

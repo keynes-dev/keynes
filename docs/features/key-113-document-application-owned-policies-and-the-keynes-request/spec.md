@@ -10,7 +10,7 @@
 
 ## Scope and status
 
-This specification describes one documentation acceptance outcome. Implementation means writing the superseding ADR and amending governing and active documentation. Planning stopped before those edits. The subsequent speckit-implement request authorizes documentation implementation, beginning with the explicit constitutional amendment. Runtime implementation and qualification remain excluded.
+This specification describes one documentation acceptance outcome. Implementation means writing the superseding ADR and amending governing and active documentation. Planning stopped before those edits. The subsequent speckit-implement request authorized documentation implementation, now recorded in [acceptance.md](acceptance.md), including the explicit constitutional amendment. Runtime implementation and qualification remain excluded.
 
 Customers compute a typed request or reject an operation. Keynes validates submitted requests and atomically enforces Budget permissions, constraints, quantities, allocation, settlement and replay. Approval is never implied by request validity or customer decision evidence.
 
