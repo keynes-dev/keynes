@@ -23,9 +23,9 @@ Independent test: exact-archive measurement and malformed evidence rejection.
 
 Independent test: dedicated package workflow wiring and complete Local/shared report validation.
 
-- [ ] T007 [US2] Add failing checks in scripts/repository-organization.test.ts and scripts/run-sqlite-postgres.test.ts (FR-004).
-- [ ] T008 [US2] Separate package tests in packages/sdk/package.json and broaden validated Local coverage in scripts/run-sqlite-postgres.ts (FR-004).
-- [ ] T009 [US2] Run focused CI/report tests and review changes; commit the phase.
+- [x] T007 [US2] Add failing checks in scripts/repository-organization.test.ts and scripts/run-sqlite-postgres.test.ts (FR-004).
+- [x] T008 [US2] Separate package tests in packages/sdk/package.json and broaden validated Local coverage in scripts/run-sqlite-postgres.ts (FR-004).
+- [x] T009 [US2] Run focused CI/report tests and review changes; commit the phase.
 
 ## Phase 5: Verification and delivery
 

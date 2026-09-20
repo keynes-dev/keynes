@@ -30,6 +30,22 @@ export function validateLocalReport(
     throw new Error("Local suite selection is incomplete");
 }
 
+export async function localTestFiles(): Promise<string[]> {
+  const files: string[] = [];
+  for (const group of LOCAL_GROUPS) {
+    const selected: string[] = [];
+    for await (const file of glob(
+      group.endsWith(".ts") ? group : `${group}/**/*.test.ts`,
+      { cwd: SDK },
+    ))
+      selected.push(join(SDK, file));
+    if (selected.length === 0)
+      throw new Error(`Local test group is empty: ${group}`);
+    files.push(...selected);
+  }
+  return files;
+}
+
 export async function runLocalTests(
   args: readonly string[],
   signal?: AbortSignal,
@@ -44,18 +60,7 @@ export async function runLocalTests(
   if (options.length !== 0)
     throw new Error("Local feedback accepts only standalone --help");
   signal?.throwIfAborted();
-  const files: string[] = [];
-  for (const group of LOCAL_GROUPS) {
-    const selected: string[] = [];
-    for await (const file of glob(
-      group.endsWith(".ts") ? group : `${group}/**/*.test.ts`,
-      { cwd: SDK },
-    ))
-      selected.push(join(SDK, file));
-    if (selected.length === 0)
-      throw new Error(`Local test group is empty: ${group}`);
-    files.push(...selected);
-  }
+  const files = await localTestFiles();
   process.stdout.write(
     `Local source feedback: ${LOCAL_GROUPS.join(", ")}. Installed and other deployment acceptance NOT RUN.\n`,
   );
