@@ -1,5 +1,4 @@
-import { createRequire } from "node:module";
-import { DatabaseSync } from "node:sqlite";
+import { createRequire, registerHooks } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const mode = process.argv[2];
@@ -10,10 +9,11 @@ else if (mode === "steady") await runSteady(engine);
 else throw new Error(`Unknown measurement worker mode ${mode ?? "missing"}`);
 
 async function runIdentity(engine) {
+  const { runtimeEngine, sdkEntry } = await importMeasuredSdk(engine);
   if (engine === "sqlite") {
     write({
       kind: "identity",
-      runtimeEngine: "node:sqlite",
+      runtimeEngine,
       nodeVersion: process.version,
       version: installedSqliteVersion(),
       closed: true,
@@ -21,7 +21,7 @@ async function runIdentity(engine) {
     return;
   }
 
-  const database = await createPglite();
+  const database = await createPglite(sdkEntry);
   let closed = false;
   try {
     const identity = await pgliteIdentity(database);
@@ -29,7 +29,7 @@ async function runIdentity(engine) {
     closed = true;
     write({
       kind: "identity",
-      runtimeEngine: "pglite",
+      runtimeEngine,
       nodeVersion: process.version,
       version: identity.version,
       serverVersionNum: identity.serverVersionNum,
@@ -42,7 +42,8 @@ async function runIdentity(engine) {
 
 async function runColdFirst(engine) {
   const sdkImportStarted = performance.now();
-  const { createKeynes } = await import("@keynes/sdk");
+  const { sdk, runtimeEngine } = await importMeasuredSdk(engine);
+  const { createKeynes } = sdk;
   const engineInitializationMilliseconds = performance.now() - sdkImportStarted;
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -69,7 +70,7 @@ async function runColdFirst(engine) {
     write({
       kind: "cold-first",
       engine,
-      runtimeEngine: engine === "sqlite" ? "node:sqlite" : "pglite",
+      runtimeEngine,
       nodeVersion: process.version,
       ...(engine === "sqlite"
         ? { sqliteVersion: installedSqliteVersion() }
@@ -100,8 +101,8 @@ async function runSteady(engine) {
   if (workload !== "without-policy" && workload !== "with-policy") {
     throw new Error(`Unknown steady workload ${workload}`);
   }
-  const { createKeynes, definePolicySql, policySet, policyValue } =
-    await import("@keynes/sdk");
+  const { sdk, runtimeEngine } = await importMeasuredSdk(engine);
+  const { createKeynes, definePolicySql, policySet, policyValue } = sdk;
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   };
@@ -141,6 +142,7 @@ async function runSteady(engine) {
     write({
       kind: "steady",
       engine,
+      runtimeEngine,
       workloadLabel: workload,
       policy: workload === "with-policy" ? "compiled" : "none",
       warmupCount: 10,
@@ -163,6 +165,7 @@ async function fundedRequest(root, workload) {
 }
 
 function installedSqliteVersion() {
+  const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite");
   const database = new DatabaseSync(":memory:", { allowExtension: false });
   try {
     const row = database.prepare("SELECT sqlite_version() AS version").get();
@@ -175,9 +178,40 @@ function installedSqliteVersion() {
   }
 }
 
-async function createPglite() {
-  const sdkEntry = fileURLToPath(import.meta.resolve("@keynes/sdk"));
-  const pgliteEntry = createRequire(sdkEntry).resolve("@electric-sql/pglite");
+async function importMeasuredSdk(expectedEngine) {
+  const sdkEntry = import.meta.resolve("@keynes/sdk");
+  const sdkRoot = new URL("./", sdkEntry).href;
+  const authorities = new Set();
+  const hooks = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (context.parentURL?.startsWith(sdkRoot)) {
+        if (specifier === "node:sqlite") authorities.add("node:sqlite");
+        if (specifier === "@electric-sql/pglite") authorities.add("pglite");
+      }
+      return nextResolve(specifier, context);
+    },
+  });
+  let sdk;
+  try {
+    sdk = await import("@keynes/sdk");
+  } finally {
+    hooks.deregister();
+  }
+  const expectedRuntime =
+    expectedEngine === "sqlite" ? "node:sqlite" : "pglite";
+  const loaded = [...authorities];
+  if (loaded.length !== 1 || loaded[0] !== expectedRuntime) {
+    throw new Error(
+      `Requested ${expectedEngine} measurement but the installed SDK loaded ${loaded.join(", ") || "no Local authority"}`,
+    );
+  }
+  return { sdk, runtimeEngine: loaded[0], sdkEntry };
+}
+
+async function createPglite(sdkEntry) {
+  const pgliteEntry = createRequire(fileURLToPath(sdkEntry)).resolve(
+    "@electric-sql/pglite",
+  );
   const { PGlite } = await import(pathToFileURL(pgliteEntry));
   return PGlite.create("memory://");
 }

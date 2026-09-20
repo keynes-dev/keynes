@@ -101,6 +101,15 @@ describe("SDK package measurement worker", () => {
     }
   }, 15_000);
 
+  it("rejects an engine label that differs from the installed Local authority", () => {
+    const result = runWorker("cold-first", "sqlite");
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      "Requested sqlite measurement but the installed SDK loaded pglite",
+    );
+  }, 15_000);
+
   it("excludes ten warmups and reports one hundred steady requests", () => {
     const result = runWorker("steady", "pglite", "without-policy");
     expect(result.status, result.stderr).toBe(0);
@@ -109,6 +118,7 @@ describe("SDK package measurement worker", () => {
     expect(output).toMatchObject({
       kind: "steady",
       engine: "pglite",
+      runtimeEngine: "pglite",
       workloadLabel: "without-policy",
       policy: "none",
       warmupCount: 10,

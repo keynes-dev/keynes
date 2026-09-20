@@ -228,11 +228,37 @@ export function assertCompleteObservation(
   if (value.schemaVersion !== "keynes.package-test.sdk-observations/v2") {
     throw new Error("engine observation has an unsupported schema version");
   }
+  if (value.subject !== "@keynes/sdk" || value.outcome !== "passed") {
+    throw new Error("engine observation is not a passing SDK observation");
+  }
+  if (
+    !isRecord(value.sourceRevision) ||
+    !isSha(value.sourceRevision.commit, 40) ||
+    typeof value.sourceRevision.status !== "string"
+  ) {
+    throw new Error("engine observation has invalid source revision identity");
+  }
+  if (
+    !isRecord(value.archive) ||
+    typeof value.archive.path !== "string" ||
+    value.archive.path.length === 0 ||
+    !isSha(value.archive.sha256, 64) ||
+    !isPositiveInteger(value.archive.compressedBytes) ||
+    !isPositiveInteger(value.archive.productionBytes)
+  ) {
+    throw new Error("engine observation has invalid archive identity");
+  }
   const engine = value.engine.name;
   if (
     (engine !== "sqlite" && engine !== "pglite") ||
-    typeof value.engine.runtimeEngine !== "string" ||
-    typeof value.engine.version !== "string"
+    typeof value.engine.version !== "string" ||
+    value.engine.version.length === 0 ||
+    (engine === "sqlite" &&
+      (value.engine.runtimeEngine !== "node:sqlite" ||
+        value.engine.serverVersionNum !== undefined)) ||
+    (engine === "pglite" &&
+      (value.engine.runtimeEngine !== "pglite" ||
+        value.engine.serverVersionNum !== "180003"))
   ) {
     throw new Error("engine observation has invalid engine identity");
   }
@@ -676,6 +702,7 @@ function runObservationCold(
   if (
     value.kind !== "cold-first" ||
     value.engine !== engine ||
+    value.runtimeEngine !== (engine === "sqlite" ? "node:sqlite" : "pglite") ||
     value.closed !== true
   ) {
     throw new Error(`${engine} cold worker returned invalid output`);
@@ -722,6 +749,7 @@ function runObservationWorkload(
   if (
     value.kind !== "steady" ||
     value.engine !== engine ||
+    value.runtimeEngine !== (engine === "sqlite" ? "node:sqlite" : "pglite") ||
     value.workloadLabel !== workload ||
     value.policy !== (workload === "with-policy" ? "compiled" : "none") ||
     value.warmupCount !== 10 ||
@@ -1413,6 +1441,18 @@ function isFiniteNonNegative(value: unknown): value is number {
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) > 0;
+}
+
+function isSha(value: unknown, length: number): value is string {
+  return (
+    typeof value === "string" &&
+    value.length === length &&
+    /^[0-9a-f]+$/.test(value)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

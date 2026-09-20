@@ -216,6 +216,48 @@ describe("SDK package measurement controller", () => {
     expect(input).toEqual(before);
   });
 
+  it("requires exact passing source, archive, and engine identity", () => {
+    const sqlite = validObservationInput();
+    for (const invalid of [
+      { ...sqlite, subject: "other" },
+      { ...sqlite, outcome: "failed" },
+      {
+        ...sqlite,
+        sourceRevision: { ...sqlite.sourceRevision, commit: "bad" },
+      },
+      { ...sqlite, sourceRevision: { commit: "c".repeat(40) } },
+      { ...sqlite, archive: { ...sqlite.archive, sha256: "bad" } },
+      { ...sqlite, archive: { ...sqlite.archive, compressedBytes: 0 } },
+      { ...sqlite, archive: { ...sqlite.archive, productionBytes: 1.5 } },
+      {
+        ...sqlite,
+        engine: { ...sqlite.engine, runtimeEngine: "pglite" },
+      },
+    ]) {
+      expect(() =>
+        invokeMeasurement("assertCompleteObservation", invalid),
+      ).toThrow();
+    }
+
+    const pglite = validObservationInput("pglite");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...pglite,
+        engine: { ...pglite.engine, serverVersionNum: "180002" },
+      }),
+    ).toThrow("engine identity");
+    expect(() =>
+      invokeMeasurement("assertCompleteObservation", {
+        ...pglite,
+        engine: {
+          name: "pglite",
+          runtimeEngine: "pglite",
+          version: "18.3",
+        },
+      }),
+    ).toThrow("engine identity");
+  });
+
   it("requires every fixed installation, cold, and workload sample", () => {
     const input = validObservationInput();
     expect(() =>
@@ -313,6 +355,15 @@ describe("SDK package measurement controller", () => {
         sqlite: input,
       }),
     ).toThrow("pglite");
+    expect(() =>
+      invokeMeasurement("assertComparableObservations", {
+        sqlite: {
+          ...input,
+          archive: { ...input.archive, sha256: "edited" },
+        },
+        pglite: validObservationInput("pglite"),
+      }),
+    ).toThrow("sqlite observation is incomplete");
     expect(() =>
       invokeMeasurement("assertComparableObservations", {
         sqlite: { outcome: "failed" },
@@ -456,6 +507,17 @@ function validObservationInput(engine: "sqlite" | "pglite" = "sqlite") {
   };
   return {
     schemaVersion: "keynes.package-test.sdk-observations/v2",
+    subject: "@keynes/sdk",
+    sourceRevision: {
+      commit: "c".repeat(40),
+      status: "",
+    },
+    archive: {
+      path: "/tmp/keynes-sdk.tgz",
+      sha256: "a".repeat(64),
+      compressedBytes: 1,
+      productionBytes: 1,
+    },
     environment: {
       os: "linux",
       release: "test",
@@ -469,6 +531,7 @@ function validObservationInput(engine: "sqlite" | "pglite" = "sqlite") {
       name: engine,
       runtimeEngine: engine === "sqlite" ? "node:sqlite" : "pglite",
       version: engine === "sqlite" ? "3.49.1" : "18.3",
+      ...(engine === "pglite" ? { serverVersionNum: "180003" } : {}),
     },
     installation: {
       cacheBoundary: "isolated-prefilled",
@@ -514,6 +577,7 @@ function validObservationInput(engine: "sqlite" | "pglite" = "sqlite") {
         batches: Array.from({ length: 5 }, () => ({ ...batch })),
       },
     ],
+    outcome: "passed",
   };
 }
 
