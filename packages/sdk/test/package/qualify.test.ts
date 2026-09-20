@@ -34,10 +34,6 @@ const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const expectedProductionDependencies = {
-  "@pgsql/types": "18.0.0",
-  "decimal.js": "10.6.0",
-  kysely: "0.29.5",
-  "libpg-query": "18.1.4",
   pg: "8.23.0",
   "pg-cloudflare": "1.4.0",
   "pg-connection-string": "2.14.0",
@@ -226,15 +222,6 @@ describe("SDK package-test runner", () => {
     }
   });
 
-  it("bundles the parser runtime and WASM in the archive", () => {
-    const paths = [...archiveEntries.keys()];
-    expect(paths).toContain(
-      "package/node_modules/libpg-query/wasm/libpg-query.wasm",
-    );
-    expect(paths).toContain("package/node_modules/libpg-query/wasm/index.js");
-    expect(paths).toContain("package/node_modules/@pgsql/types/package.json");
-  });
-
   it("contains no PGlite or copied database archive path", () => {
     const paths = [...archiveEntries.keys()];
     expect(
@@ -359,7 +346,6 @@ describe("SDK package-test runner", () => {
         contractDigest: CONTRACT_DIGEST,
       },
       checks: [
-        "parser-wasm",
         "public-types",
         "package-root-import",
         "remote-exports",

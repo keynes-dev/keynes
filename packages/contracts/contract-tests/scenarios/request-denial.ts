@@ -312,6 +312,68 @@ export function registerRequestDenialContractTests(
       await expectInvalidRequest(client, callerFunded);
     });
 
+    it.each([
+      ["context", {}],
+      ["childPolicies", []],
+      ["policies", []],
+    ])(
+      "rejects the legacy %s request field without residue",
+      async (field, value) => {
+        const client = local.clientFor("product-fixture");
+        const resource = await defineResource(
+          client,
+          "11000000-0000-0000-0000-000000000034",
+          "model_tokens",
+        );
+        const root = await client.createBudget({
+          commandId: "21000000-0000-0000-0000-000000000034",
+          ...rootResources([rootResource(resource, 10)]),
+        });
+        const before = await local.inspectState();
+
+        const command = {
+          commandId: "31000000-0000-0000-0000-000000000034",
+          parentBudgetId: root.budget.budgetId,
+          resources: [{ resourceTypeId: resource.resourceTypeId, amount: 1 }],
+        } satisfies RequestBudgetCommand;
+        await expectInvalidRequest(client, { ...command, [field]: value });
+
+        expect(await local.inspectState()).toEqual(before);
+      },
+    );
+
+    it.each([0, 1])(
+      "rejects a tenant-known Resource absent from the parent at amount %i without residue",
+      async (amount) => {
+        const client = local.clientFor("product-fixture");
+        const parentResource = await defineResource(
+          client,
+          "11000000-0000-0000-0000-000000000035",
+          "model_tokens",
+        );
+        const absentResource = await defineResource(
+          client,
+          "11000000-0000-0000-0000-000000000036",
+          "reviewer_seats",
+        );
+        const root = await client.createBudget({
+          commandId: "21000000-0000-0000-0000-000000000035",
+          ...rootResources([rootResource(parentResource, 10)]),
+        });
+        const before = await local.inspectState();
+
+        await expectInvalidRequest(client, {
+          commandId: `31000000-0000-0000-0000-00000000003${amount + 5}`,
+          parentBudgetId: root.budget.budgetId,
+          resources: [
+            { resourceTypeId: absentResource.resourceTypeId, amount },
+          ],
+        });
+
+        expect(await local.inspectState()).toEqual(before);
+      },
+    );
+
     it("rejects a Resource type that has not been defined before evaluating funding", async () => {
       const client = local.clientFor("product-fixture");
       const resource = await defineResource(

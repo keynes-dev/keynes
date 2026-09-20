@@ -2,7 +2,21 @@ import { describe, expect, it } from "vitest";
 
 import fixtures from "../fixtures/source.json" with { type: "json" };
 import { createContractClient } from "../contract-tests/host.ts";
-import type { ValidateResourcesQuery } from "../generated/types.ts";
+import type {
+  RequestBudgetCommand,
+  ValidateResourcesQuery,
+} from "../generated/types.ts";
+
+const requestCommand = {
+  commandId: "30000000-0000-0000-0000-000000000001",
+  parentBudgetId: "20000000-0000-0000-0000-000000000001",
+  resources: [
+    {
+      resourceTypeId: "10000000-0000-0000-0000-000000000002",
+      amount: 40,
+    },
+  ],
+} satisfies RequestBudgetCommand;
 
 describe("contract test client", () => {
   it("returns read-only validation confirmation without mutation replay metadata", async () => {
@@ -74,13 +88,12 @@ describe("contract test client", () => {
         replayed: false,
         result: {
           kind: "denied",
-          commandId: fixtures.commands.requestChild.commandId,
-          parentBudgetId: fixtures.commands.requestChild.parentBudgetId,
+          commandId: requestCommand.commandId,
+          parentBudgetId: requestCommand.parentBudgetId,
           reasons: [
             {
               code: "policy_ceiling",
-              resourceTypeId:
-                fixtures.commands.requestChild.resources[0].resourceTypeId,
+              resourceTypeId: requestCommand.resources[0].resourceTypeId,
               requested: 40,
               ceiling: 40,
               policyName: "request_limit",
@@ -93,7 +106,7 @@ describe("contract test client", () => {
       },
       error: /invalid result response for requestBudget/i,
       invoke: (client: ReturnType<typeof createContractClient>) =>
-        client.requestBudget(fixtures.commands.requestChild),
+        client.requestBudget(requestCommand),
     },
     {
       name: "Policy error envelope",
@@ -111,7 +124,7 @@ describe("contract test client", () => {
       },
       error: /invalid error response for requestBudget/i,
       invoke: (client: ReturnType<typeof createContractClient>) =>
-        client.requestBudget(fixtures.commands.requestChild),
+        client.requestBudget(requestCommand),
     },
   ])("rejects a removed $name", async ({ wire, error, invoke }) => {
     const client = createContractClient({ execute: async () => wire });

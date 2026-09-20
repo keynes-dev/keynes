@@ -3,10 +3,8 @@ import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
-  PolicyEvidenceV1,
   RemoteBudgetHistoryEntry,
   RemoteBudgetProjection,
-  RemotePolicyEvidence,
   RemoteRequestDenialReason,
   RemoteResourceAmount,
   RemoteSettleBudgetResult,
@@ -19,20 +17,11 @@ import {
   compareDenialReasons,
   invokeBudgetOperation,
   projectDenialReason,
-  projectPolicyEvidence,
   projectSettlement,
   projectSnapshot,
 } from "../budget-projection.js";
-import { prepareRequestPolicyOptions } from "../budget-request-options.js";
 import { budgetBrand } from "../budget.js";
-import type {
-  ContextOfPolicySet,
-  ExactResourceAmounts,
-  NoPolicyContext,
-  PolicySetInput,
-  ReasonsOfPolicySet,
-  ResourceAmounts,
-} from "../budget.js";
+import type { ExactResourceAmounts, ResourceAmounts } from "../budget.js";
 import { BudgetResourceBinding } from "../resource-binding.js";
 import {
   type PreparedRootResource,
@@ -125,20 +114,18 @@ export function createOpenedRemoteResourceBinding<Name extends string>(
 
 export function createRemoteBudgetHandle<
   Names extends string,
-  Context = NoPolicyContext,
-  Reasons extends string = never,
   HistoryNames extends string = Names,
 >(
   client: RemoteKeynesClient,
   identity: RemoteBudgetIdentity,
   binding: BudgetResourceBinding<Names, HistoryNames>,
-): RemoteBudget<Names, Context, Reasons, HistoryNames> {
+): RemoteBudget<Names, HistoryNames> {
   const { budgetReference } = identity;
   const request = <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
     ...options: readonly unknown[]
   ) =>
-    requestRemoteBudget<Names, HistoryNames, Context, Reasons, Resources>(
+    requestRemoteBudget<Names, HistoryNames, Resources>(
       client,
       identity,
       binding,
@@ -146,12 +133,10 @@ export function createRemoteBudgetHandle<
       options,
     );
 
-  const settle: RemoteBudget<
-    Names,
-    Context,
-    Reasons,
-    HistoryNames
-  >["settle"] = async (usage, ...options) => {
+  const settle: RemoteBudget<Names, HistoryNames>["settle"] = async (
+    usage,
+    ...options
+  ) => {
     const { operationKey } = splitRemoteMutationOptions(
       options,
       new Set<string>(),
@@ -174,12 +159,7 @@ export function createRemoteBudgetHandle<
     return projectSettlement(binding, remoteSettlement(result));
   };
 
-  const inspect: RemoteBudget<
-    Names,
-    Context,
-    Reasons,
-    HistoryNames
-  >["inspect"] = async () => {
+  const inspect: RemoteBudget<Names, HistoryNames>["inspect"] = async () => {
     const deadline = Date.now() + HISTORY_DEADLINE_MILLISECONDS;
     const budget = await invokeBudgetOperation(binding, () =>
       beforeInspectionDeadline("getBudget", deadline, () =>
@@ -203,7 +183,7 @@ export function createRemoteBudgetHandle<
       }
       history.push(...result.entries);
       if (result.nextCursor === null) {
-        return projectSnapshot<Names, Reasons, Context, HistoryNames>(
+        return projectSnapshot<Names, HistoryNames>(
           binding,
           remoteSnapshot(budget.budget, history),
         );
@@ -223,16 +203,13 @@ export function createRemoteBudgetHandle<
     request,
     settle,
     inspect,
-  }) as RemoteBudget<Names, Context, Reasons, HistoryNames>;
+  }) as RemoteBudget<Names, HistoryNames>;
 }
 
-function requestRemoteBudget<
+async function requestRemoteBudget<
   Names extends string,
   HistoryNames extends string,
-  Context,
-  Reasons extends string,
   const Resources extends ResourceAmounts<Names>,
-  const ChildPolicies extends PolicySetInput | undefined = undefined,
 >(
   client: RemoteKeynesClient,
   identity: RemoteBudgetIdentity,
@@ -240,14 +217,7 @@ function requestRemoteBudget<
   resources: ExactResourceAmounts<Names, Resources>,
   options: readonly unknown[],
 ): Promise<
-  RemoteBudgetRequestResult<
-    Extract<keyof Resources, Names>,
-    Reasons,
-    ContextOfPolicySet<ChildPolicies>,
-    ReasonsOfPolicySet<ChildPolicies>,
-    Context,
-    HistoryNames
-  >
+  RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
 > {
   const { budgetReference } = identity;
   type RequestedName = Extract<keyof Resources, Names>;
@@ -255,17 +225,20 @@ function requestRemoteBudget<
     Object.freeze({ ...resources }),
     "requestBudget",
   );
-  const { operationKey, remainingOptions } = splitRemoteMutationOptions(
-    options,
-    new Set(["context", "childPolicies"]),
-  );
-  const preparedOptions = prepareRequestPolicyOptions(remainingOptions);
-  const requestedResources = resolved.envelope.map(
-    ({ resourceTypeId, amount }) => ({
-      resource: binding.visibleResource(resourceTypeId).canonicalName,
-      amount,
-    }),
-  ) as [RemoteResourceAmount, ...RemoteResourceAmount[]];
+  const { operationKey } = splitRemoteMutationOptions(options, new Set());
+  const [first, ...rest] = resolved.envelope;
+  if (first === undefined) throw remoteResultMismatch();
+  const requestedResources: [RemoteResourceAmount, ...RemoteResourceAmount[]] =
+    [
+      {
+        resource: binding.visibleResource(first.resourceTypeId).canonicalName,
+        amount: first.amount,
+      },
+      ...rest.map(({ resourceTypeId, amount }) => ({
+        resource: binding.visibleResource(resourceTypeId).canonicalName,
+        amount,
+      })),
+    ];
   return invokeBudgetOperation(resolved.binding, async () => {
     const result = await invokeRemoteMutation(
       "requestBudget",
@@ -275,7 +248,6 @@ function requestRemoteBudget<
           operationKey,
           parentBudgetReference: budgetReference,
           resources: requestedResources,
-          ...preparedOptions,
         }),
     );
     if (result.parentBudgetReference !== budgetReference) {
@@ -288,12 +260,7 @@ function requestRemoteBudget<
       }
       return Object.freeze({
         status: "approved" as const,
-        budget: createRemoteBudgetHandle<
-          RequestedName,
-          ContextOfPolicySet<ChildPolicies>,
-          ReasonsOfPolicySet<ChildPolicies>,
-          HistoryNames
-        >(
+        budget: createRemoteBudgetHandle<RequestedName, HistoryNames>(
           client,
           {
             budgetReference: requireBudgetReference(
@@ -305,16 +272,6 @@ function requestRemoteBudget<
           },
           resolved.binding,
         ),
-        ...(result.policyEvidence === undefined
-          ? {}
-          : {
-              policyEvidence: projectPolicyEvidence<
-                RequestedName,
-                Context,
-                Reasons,
-                HistoryNames
-              >(resolved.binding, remotePolicyEvidence(result.policyEvidence)),
-            }),
       });
     }
     return Object.freeze({
@@ -322,34 +279,15 @@ function requestRemoteBudget<
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
-            projectDenialReason<RequestedName, Reasons, HistoryNames>(
+            projectDenialReason<RequestedName, HistoryNames>(
               resolved.binding,
               remoteDenialReason(reason),
             ),
           )
           .sort(compareDenialReasons),
       ),
-      ...(result.policyEvidence === undefined
-        ? {}
-        : {
-            policyEvidence: projectPolicyEvidence<
-              RequestedName,
-              Context,
-              Reasons,
-              HistoryNames
-            >(resolved.binding, remotePolicyEvidence(result.policyEvidence)),
-          }),
     });
-  }) as Promise<
-    RemoteBudgetRequestResult<
-      RequestedName,
-      Reasons,
-      ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>,
-      Context,
-      HistoryNames
-    >
-  >;
+  });
 }
 
 function remoteSnapshot(
@@ -426,9 +364,6 @@ function remoteHistoryEntry(
         parentBudgetId: PRIVATE_UUID,
         childBudgetId: PRIVATE_UUID,
         resources: remoteEnvelope(entry.resources),
-        ...(entry.policyEvidence === undefined
-          ? {}
-          : { policyEvidence: remotePolicyEvidence(entry.policyEvidence) }),
       };
     case "request_denied":
       return {
@@ -439,9 +374,6 @@ function remoteHistoryEntry(
           RequestDenialReason,
           ...RequestDenialReason[],
         ],
-        ...(entry.policyEvidence === undefined
-          ? {}
-          : { policyEvidence: remotePolicyEvidence(entry.policyEvidence) }),
       };
     case "budget_settlement_recorded":
       return {
@@ -479,18 +411,6 @@ function remoteDenialReason(
   return {
     ...reason,
     resourceTypeId: reason.resource,
-  };
-}
-
-function remotePolicyEvidence(
-  evidence: RemotePolicyEvidence,
-): PolicyEvidenceV1 {
-  return {
-    ...evidence,
-    effectiveCeilings: evidence.effectiveCeilings.map((ceiling) => ({
-      ...ceiling,
-      resourceTypeId: ceiling.resource,
-    })),
   };
 }
 

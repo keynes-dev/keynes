@@ -1,23 +1,11 @@
-import { createHash } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import type {
   CreateBudgetCommand,
-  PolicyDefinitionV1,
   RequestBudgetCommand,
   ResourceDefinition,
   SettleBudgetCommand,
 } from "../../generated/types.ts";
-import type { PolicyProgramV1 } from "../../generated/policy-types.ts";
-import {
-  POLICY_LIMITS_VERSION,
-  POLICY_PROFILE_DIGEST,
-  POLICY_PROGRAM_VERSION,
-  POLICY_QUERY_PROFILE_VERSION,
-  POLICY_VALIDATOR_VERSION,
-} from "../../generated/policy-profile.ts";
-import { canonicalJson } from "../../src/generation.ts";
 import type { OpenContractTestHost } from "../host.ts";
 
 export function registerResourceBoundRootContractTests(
@@ -442,107 +430,7 @@ export function registerResourceBoundRootContractTests(
         }
       },
     );
-
-    it("commits an attached Policy with selected root membership", async () => {
-      const host = await openTestKeynes();
-      try {
-        const client = host.clientFor("product-fixture");
-        await client.defineResources({ commandId: id(1), definitions });
-        const created = await client.createBudget({
-          commandId: id(2),
-          definitions: { modelTokens: definitions.modelTokens },
-          amounts: { modelTokens: 100 },
-          policies: [rootPolicy()],
-        });
-        const resourceTypeId =
-          created.budget.resources[0]?.resourceType.resourceTypeId;
-        if (resourceTypeId === undefined)
-          throw new Error("root Resource missing");
-        expect(
-          await client.requestBudget({
-            commandId: id(3),
-            parentBudgetId: created.budget.budgetId,
-            resources: [{ resourceTypeId, amount: 6 }],
-            context: {},
-          }),
-        ).toMatchObject({
-          kind: "denied",
-          reasons: [
-            {
-              code: "policy_ceiling",
-              resourceTypeId,
-              ceiling: 5,
-              policyName: "root_limit",
-              reason: "root_limit",
-            },
-          ],
-        });
-      } finally {
-        await host.close();
-      }
-    });
   });
-}
-
-function rootPolicy(): PolicyDefinitionV1 {
-  const program = {
-    kind: "select",
-    availabilityJoin: { kind: "inner_join" },
-    resource: {
-      kind: "reference",
-      source: "requested",
-      field: "resource",
-      valueType: "text",
-      nullable: false,
-    },
-    ceiling: {
-      kind: "decimal_literal",
-      value: "5",
-      valueType: "numeric",
-      nullable: false,
-    },
-    reason: {
-      kind: "text_literal",
-      value: "root_limit",
-      valueType: "text",
-      nullable: false,
-    },
-    where: null,
-    groupBy: [],
-    orderBy: ["resource", "reason", "ceiling"],
-  } satisfies PolicyProgramV1;
-  const canonicalSql = [
-    "select requested.resource as resource,",
-    "       5 as ceiling,",
-    "       'root_limit' as reason",
-    "from requested_resources as requested",
-    "inner join available_resources as available using (resource)",
-    "cross join policy_context as context",
-    "order by resource asc, reason asc, ceiling asc",
-    "",
-  ].join("\n");
-  const document = {
-    kind: "keynes.policy",
-    name: "root_limit",
-    revision: 1,
-    inputResources: ["model_tokens"],
-    outputResources: ["model_tokens"],
-    contextSchema: [],
-    reasons: ["root_limit"],
-    programVersion: POLICY_PROGRAM_VERSION,
-    queryProfileVersion: POLICY_QUERY_PROFILE_VERSION,
-    validatorVersion: POLICY_VALIDATOR_VERSION,
-    limitsVersion: POLICY_LIMITS_VERSION,
-    policyProfileDigest: POLICY_PROFILE_DIGEST,
-    program,
-    canonicalSql,
-    sourceDigest: digest(canonicalSql),
-  } satisfies Omit<PolicyDefinitionV1, "definitionDigest">;
-  return { ...document, definitionDigest: digest(canonicalJson(document)) };
-}
-
-function digest(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
 function id(suffix: number): string {

@@ -213,15 +213,14 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       result: {
         installationId: expect.any(String),
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        policyProfileDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 3,
-        minimumSdkGeneration: 3,
+        semanticGeneration: 4,
+        minimumSdkGeneration: 4,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",
             target: "keynes.remote_get_compatibility",
-            revision: 1,
+            revision: 2,
           }),
         ]),
       },

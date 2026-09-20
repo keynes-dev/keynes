@@ -1,18 +1,13 @@
 // Generated from packages/contracts. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921";
+  "e99141dd402d1d9a7911c628bef58c38ca097d4e6a15abf39fd7f27fa8caebc8";
 export const REMOTE_PROCEDURES_DIGEST =
-  "bfcd38aa5ab6571e6a1c24ee623b52b4d242ac81954f2b2c131535db88e5f0f0";
+  "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd";
 export const REMOTE_CONTRACT = {
-  semanticGeneration: 3,
-  minimumSdkGeneration: 3,
-  semanticIdentities: [
-    "installation",
-    "command_contract",
-    "policy_profile",
-    "remote_procedures",
-  ],
+  semanticGeneration: 4,
+  minimumSdkGeneration: 4,
+  semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
       method: "defineResources",
@@ -33,7 +28,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 3,
+      revision: 4,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",
@@ -41,7 +36,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "requestBudget",
       target: "keynes.remote_request",
-      revision: 1,
+      revision: 2,
       mode: "mutation",
       input: "RemoteRequestBudgetCommand",
       output: "RemoteRequestBudgetResult",
@@ -57,7 +52,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudget",
       target: "keynes.remote_get_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RemoteGetBudgetQuery",
       output: "RemoteGetBudgetResult",
@@ -65,7 +60,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",
@@ -73,7 +68,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "openBudget",
       target: "keynes.remote_open_budget",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "OpenBudgetQuery",
       output: "OpenBudgetResult",
@@ -81,7 +76,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",
@@ -89,7 +84,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getCompatibility",
       target: "keynes.remote_get_compatibility",
-      revision: 1,
+      revision: 2,
       mode: "read",
       input: "GetCompatibilityQuery",
       output: "GetCompatibilityResult",

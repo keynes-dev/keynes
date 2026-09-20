@@ -569,32 +569,6 @@ export function registerReplayContractTests(
         replayed: true,
       });
     });
-
-    it("replays semantically equivalent Policy definitions", async () => {
-      const client = local.clientFor("product-fixture");
-      const defined = await client.defineResource({
-        commandId: "13000000-0000-0000-0000-000000000095",
-        definition: {
-          canonicalName: "model_tokens",
-          unit: "token",
-          accountingBehavior: "consumable",
-        },
-      });
-      const command = {
-        commandId: "23000000-0000-0000-0000-000000000095",
-        ...rootResources([rootResource(defined.resourceType, 10)]),
-      } satisfies CreateBudgetCommand;
-      const created = await client.createBudget(command);
-      const replay = await local.clientFor("root-fixture").createBudget({
-        ...command,
-        policies: [],
-      });
-      expect(replay).toEqual({ ...created, replayed: true });
-      expect(
-        (await client.getBudget({ budgetId: created.budget.budgetId })).history
-          .entries,
-      ).toHaveLength(1);
-    });
   });
 }
 

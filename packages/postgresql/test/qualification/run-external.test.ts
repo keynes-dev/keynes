@@ -353,10 +353,9 @@ const inspection: Pick<
   semantics: {
     installationIdentitySha256: "f".repeat(64),
     contractDigest: "1".repeat(64),
-    policyProfileDigest: "3".repeat(64),
     remoteProcedureIdentitySha256: "2".repeat(64),
     migrationSetDigest: "4".repeat(64),
-    remoteProcedureCount: 8,
+    remoteProcedureCount: 10,
   },
 };
 

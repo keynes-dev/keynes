@@ -3,7 +3,6 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createBudgetHandle,
   type BudgetSnapshot,
-  type NoPolicyContext,
 } from "../../../src/budget.js";
 import type { KeynesClient } from "../../../src/generated/client.js";
 import type {
@@ -74,7 +73,7 @@ describe("public Budget projections", () => {
       { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
     ]);
     expectTypeOf(narrowed).toEqualTypeOf<
-      BudgetSnapshot<"alpha", never, NoPolicyContext, ResourceName>
+      BudgetSnapshot<"alpha", ResourceName>
     >();
     expect(narrowed.budget.resources.map(({ resource }) => resource)).toEqual([
       "alpha",

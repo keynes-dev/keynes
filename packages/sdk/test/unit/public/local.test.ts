@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";
+import type { LocalKeynes } from "../../../src/keynes.js";
 
 const setupResources = {
   setupUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -856,6 +857,99 @@ describe("local Keynes facade", () => {
   });
 
   it.each([
+    [
+      "empty root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          {
+            policies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          { policies: undefined },
+        ]),
+    ],
+    [
+      "Policy context",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { context: {} },
+        ]),
+    ],
+    [
+      "empty child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {
+            childPolicies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { childPolicies: undefined },
+        ]),
+    ],
+    [
+      "undefined Policy evidence",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { policyEvidence: undefined },
+        ]),
+    ],
+    [
+      "an excess argument",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {},
+          undefined,
+        ]),
+    ],
+  ])(
+    "rejects %s asynchronously without changing Budget state",
+    async (_name, invoke) => {
+      const keynes = await createKeynes({
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 5 });
+        const before = await root.inspect();
+        const pending: unknown = invoke(keynes, root);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_configuration",
+        });
+        await expect(root.inspect()).resolves.toEqual(before);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it.each([
     ["explicit undefined", undefined],
     ["an empty object", {}],
     [
@@ -923,4 +1017,19 @@ function requireRecord(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireBudget(value: unknown): {
+  readonly request: (...arguments_: readonly unknown[]) => unknown;
+} {
+  if (!isRecord(value) || !isCallable(value.request)) {
+    throw new TypeError("expected Budget handle");
+  }
+  return { request: value.request };
+}
+
+function isCallable(
+  value: unknown,
+): value is (...arguments_: readonly unknown[]) => unknown {
+  return typeof value === "function";
 }

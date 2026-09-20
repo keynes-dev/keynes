@@ -169,7 +169,7 @@ describe("local facade committed-response replay", () => {
 });
 
 async function exerciseMutation(
-  keynes: Keynes,
+  keynes: Keynes<"workUnits">,
   operation: FacadeMutationOperation,
 ): Promise<void> {
   const root = await keynes.createBudget({ workUnits: 10 });

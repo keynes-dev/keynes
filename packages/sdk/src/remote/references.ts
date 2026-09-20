@@ -193,10 +193,19 @@ export function splitRemoteMutationOptions(
     return { operationKey: createOperationKey(), remainingOptions: [] };
   }
   const option = options[0];
-  if (options.length !== 1 || !isRecord(option)) {
+  if (
+    options.length !== 1 ||
+    !isRecord(option) ||
+    (Object.getPrototypeOf(option) !== Object.prototype &&
+      Object.getPrototypeOf(option) !== null)
+  ) {
     throw invalidConfiguration("options");
   }
-  const unknownField = Object.keys(option).find(
+  if (Object.getOwnPropertySymbols(option).length > 0) {
+    throw invalidConfiguration("options");
+  }
+  const fields = Object.getOwnPropertyNames(option);
+  const unknownField = fields.find(
     (field) => field !== "operationKey" && !allowedFields.has(field),
   );
   if (unknownField !== undefined) throw invalidConfiguration(unknownField);
@@ -204,12 +213,14 @@ export function splitRemoteMutationOptions(
   const operationKey = Object.hasOwn(option, "operationKey")
     ? requireOperationKey(option.operationKey)
     : createOperationKey();
-  const remaining = Object.fromEntries(
-    Object.entries(option).filter(([field]) => field !== "operationKey"),
-  );
+  const remaining: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field !== "operationKey") remaining[field] = option[field];
+  }
   return {
     operationKey,
-    remainingOptions: Object.keys(remaining).length === 0 ? [] : [remaining],
+    remainingOptions:
+      Object.keys(remaining).length === 0 ? [] : [Object.freeze(remaining)],
   };
 }
 

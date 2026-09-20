@@ -121,32 +121,7 @@ describe("generated remote validators", () => {
         ...request,
         context: { Invalid: true },
       }),
-    ).toContainEqual({ path: "/context/Invalid", rule: "propertyNames" });
-    expect(
-      validateRemoteRequestBudgetCommandIssues({
-        ...request,
-        context: Object.fromEntries(
-          Array.from({ length: 33 }, (_, index) => [`field_${index}`, true]),
-        ),
-      }),
-    ).toContainEqual({ path: "/context", rule: "maxProperties" });
-    expect(
-      validateRemoteRequestBudgetCommandIssues({
-        ...request,
-        context: { label: "é".repeat(129) },
-      }),
-    ).not.toHaveLength(0);
-    expect(
-      validateRemoteRequestBudgetCommandIssues({
-        ...request,
-        context: Object.fromEntries(
-          Array.from({ length: 32 }, (_, index) => [
-            `field_${index}`,
-            "x".repeat(256),
-          ]),
-        ),
-      }),
-    ).toContainEqual({ path: "/context", rule: "maxCanonicalUtf8Bytes" });
+    ).toContainEqual({ path: "/context", rule: "additionalProperties" });
 
     const entry = {
       kind: "budget_created",

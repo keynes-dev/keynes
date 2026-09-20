@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createRequire } from "node:module";
 import {
   cp,
   lstat,
@@ -32,10 +31,6 @@ export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
 const expectedProductionDependencies = {
-  "@pgsql/types": "18.0.0",
-  "decimal.js": "10.6.0",
-  kysely: "0.29.5",
-  "libpg-query": "18.1.4",
   pg: "8.23.0",
   "pg-cloudflare": "1.4.0",
   "pg-connection-string": "2.14.0",
@@ -61,10 +56,6 @@ const requiredBundledPackageFiles = [
   ...expectedBundledDependencies.map(
     (name) => `package/node_modules/${name}/package.json`,
   ),
-  "package/node_modules/libpg-query/wasm/index.cjs",
-  "package/node_modules/libpg-query/wasm/index.js",
-  "package/node_modules/libpg-query/wasm/libpg-query.js",
-  "package/node_modules/libpg-query/wasm/libpg-query.wasm",
 ] as const;
 
 const allowedPackageFiles = [
@@ -84,7 +75,6 @@ export interface QualificationArguments {
 }
 
 const PROVIDER_FREE_PACKAGE_CHECKS = [
-  "parser-wasm",
   "public-types",
   "package-root-import",
   "remote-exports",
@@ -441,39 +431,17 @@ export async function installExternalConsumer(
     const installedPackage = await realpath(
       resolve(root, "node_modules/@keynes/sdk"),
     );
-    const installedRequire = createRequire(
-      resolve(installedPackage, "package.json"),
+    const installedPg = await realpath(
+      resolve(installedPackage, "node_modules/pg"),
     );
-    const installedParserEntry = installedRequire.resolve("libpg-query");
-    const installedParserRoot = await realpath(
-      resolve(installedPackage, "node_modules/libpg-query"),
-    );
-    const installedParserTypes = await realpath(
-      installedRequire.resolve("@pgsql/types"),
-    );
-    const installedPg = await realpath(installedRequire.resolve("pg"));
     const installedPgConnectionString = await realpath(
-      installedRequire.resolve("pg-connection-string"),
-    );
-    const installedParserWasm = await realpath(
-      resolve(dirname(installedParserEntry), "libpg-query.wasm"),
+      resolve(installedPackage, "node_modules/pg-connection-string"),
     );
     assertOutsideRepository(repositoryRoot, installedPackage);
     const externalRoot = await realpath(root);
     assertWithin(externalRoot, installedPackage);
-    assertWithin(installedParserRoot, installedParserEntry);
-    assertWithin(installedParserRoot, installedParserWasm);
     assertWithin(externalRoot, installedPg);
     assertWithin(externalRoot, installedPgConnectionString);
-    assertWithin(
-      await realpath(resolve(installedPackage, "node_modules/@pgsql/types")),
-      installedParserTypes,
-    );
-    assertWithin(externalRoot, installedParserWasm);
-    const parserWasmStat = await stat(installedParserWasm);
-    if (!parserWasmStat.isFile() || parserWasmStat.size === 0) {
-      throw new Error("Installed libpg-query parser WASM is missing or empty");
-    }
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
     validateSizes({ compressedBytes, productionBytes });
 

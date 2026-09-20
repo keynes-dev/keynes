@@ -8,5 +8,3 @@ export type {
   GeneratedDirectory,
 } from "./generation/generated-output.ts";
 export { contractFieldOrder } from "./generation/contract-field-order.ts";
-export { buildPolicySchema } from "./generation/policy-schema.ts";
-export { renderPolicyProfileModule } from "./generation/render-policy-profile.ts";

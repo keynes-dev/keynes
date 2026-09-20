@@ -625,6 +625,29 @@ describe("remote PostgreSQL identity and security", () => {
     );
     expect(generic.rows[0]?.present).toBe(false);
   });
+
+  it("pins every security-definer search path to trusted schemas with pg_temp last", async () => {
+    fixture = await openRemoteIdentityFixture();
+    const functions = await fixture.administrator.query<{
+      readonly name: string;
+      readonly search_path: string | null;
+    }>(
+      `select n.nspname || '.' || p.proname as name,
+                (select cfg from unnest(p.proconfig) cfg where cfg like 'search_path=%') as search_path
+           from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname in ('keynes', 'keynes_internal') and p.prosecdef
+          order by name`,
+    );
+
+    expect(functions.rows.length).toBeGreaterThan(0);
+    expect(functions.rows).toEqual(
+      functions.rows.map(({ name }) => ({
+        name,
+        search_path: "search_path=pg_catalog, keynes_internal, pg_temp",
+      })),
+    );
+  });
 });
 
 function createRoot(suffix: string): Record<string, unknown> {

@@ -41,18 +41,15 @@ const REMOTE_EXECUTION_TARGETS = [
   "keynes_internal.remote_recover_operation_v0008(jsonb)",
   "keynes_internal.remote_validate_resources_v0008(jsonb)",
   "keynes_internal.remote_get_compatibility_v0008(jsonb)",
-  "keynes_internal.remote_create_budget_v0007(jsonb)",
-  "keynes_internal.remote_define_resources_v0007(jsonb)",
-  "keynes_internal.remote_get_compatibility_v0007(jsonb)",
+  "keynes_internal.remote_define_resources_v0008(jsonb)",
   "keynes_internal.remote_validate_input_v0006(text,jsonb)",
   "keynes_internal.apply_command(text,jsonb)",
   "keynes_internal.get_budget(jsonb)",
-  "keynes_internal.remote_apply_command_v0006(text,jsonb)",
+  "keynes_internal.remote_apply_command_v0008(text,jsonb)",
   "keynes_internal.remote_get_budget_v0006(jsonb)",
   "keynes_internal.remote_get_budget_history_page_v0006(jsonb)",
   "keynes_internal.remote_open_budget_v0006(jsonb)",
   "keynes_internal.remote_recover_operation_v0006(jsonb)",
-  "keynes_internal.remote_get_compatibility_v0006(jsonb)",
   "keynes_internal.remote_dispatch_v0006(text,jsonb)",
 ] as const;
 
@@ -288,11 +285,38 @@ async function checkIdentity(
   client: QueryClient,
   config: InstallationConfig,
 ): Promise<void> {
+  const columns = await client.query<{ readonly column_name: string }>(
+    `select attname as column_name
+       from pg_attribute
+      where attrelid = 'keynes_internal.installation_identity'::regclass
+        and attnum > 0 and not attisdropped
+      order by attnum`,
+  );
+  if (
+    !sameStrings(
+      columns.rows.map(({ column_name }) => column_name),
+      [
+        "singleton",
+        "profile_id",
+        "server_version_num",
+        "contract_digest",
+        "migration_set_digest",
+        "owner_role",
+        "application_role",
+        "tenant_id",
+        "principal_id",
+        "execution_role",
+        "administration_role",
+        "remote_procedures_digest",
+      ],
+    )
+  ) {
+    throw new InstallationError("incompatible_target", "installation-identity");
+  }
   const identity = await client.query<{
     readonly profile_id: string;
     readonly server_version_num: string;
     readonly contract_digest: string;
-    readonly policy_profile_digest: string;
     readonly remote_procedures_digest: string;
     readonly migration_set_digest: string;
     readonly owner_role: string;
@@ -303,7 +327,7 @@ async function checkIdentity(
     readonly principal_id: string;
   }>(
     `select profile_id, server_version_num, contract_digest,
-            policy_profile_digest, remote_procedures_digest,
+            remote_procedures_digest,
             migration_set_digest, owner_role::text, execution_role::text,
             administration_role::text, application_role::text,
             tenant_id::text, principal_id::text
@@ -322,11 +346,6 @@ async function checkIdentity(
       "stored-server-version",
     ],
     ["contract_digest", installationRecord.contractDigest, "contract-digest"],
-    [
-      "policy_profile_digest",
-      installationRecord.policyProfileDigest,
-      "policy-profile-digest",
-    ],
     [
       "remote_procedures_digest",
       installationRecord.remoteProceduresDigest,
@@ -1037,10 +1056,9 @@ async function recordInstallation(
     `insert into keynes_internal.installation_identity (
        singleton, profile_id, server_version_num, contract_digest,
        migration_set_digest, owner_role, execution_role, administration_role,
-       application_role, tenant_id, principal_id,
-       policy_profile_digest, remote_procedures_digest
+       application_role, tenant_id, principal_id, remote_procedures_digest
      ) values (
-       true, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+       true, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
      )`,
     [
       installationRecord.profileId,
@@ -1053,7 +1071,6 @@ async function recordInstallation(
       config.applicationRole,
       config.tenantId,
       config.principalId,
-      installationRecord.policyProfileDigest,
       installationRecord.remoteProceduresDigest,
     ],
   );

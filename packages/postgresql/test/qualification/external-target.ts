@@ -273,13 +273,11 @@ class ExternalQualificationTarget implements DatabaseTarget {
         const installed = await operator.query<{
           readonly profileId: string;
           readonly contractDigest: string;
-          readonly policyProfileDigest: string;
           readonly remoteProceduresDigest: string;
           readonly migrationSetDigest: string;
         }>(
           `select profile_id as "profileId",
                   contract_digest as "contractDigest",
-                  policy_profile_digest as "policyProfileDigest",
                   remote_procedures_digest as "remoteProceduresDigest",
                   migration_set_digest as "migrationSetDigest"
              from keynes_internal.installation_identity
@@ -295,7 +293,6 @@ class ExternalQualificationTarget implements DatabaseTarget {
         if (
           identity?.profileId !== compatibility.installationId ||
           identity.contractDigest !== compatibility.contractDigest ||
-          identity.policyProfileDigest !== compatibility.policyProfileDigest ||
           identity.remoteProceduresDigest !==
             compatibility.remoteProceduresDigest ||
           !isSha256(identity.migrationSetDigest)
@@ -317,10 +314,9 @@ class ExternalQualificationTarget implements DatabaseTarget {
           semantics: {
             installationIdentitySha256: sha256(compatibility.installationId),
             contractDigest: compatibility.contractDigest,
-            policyProfileDigest: compatibility.policyProfileDigest,
             remoteProcedureIdentitySha256: compatibility.remoteProceduresDigest,
             migrationSetDigest: identity.migrationSetDigest,
-            remoteProcedureCount: 8,
+            remoteProcedureCount: 10,
           },
         };
         return inspection;
@@ -718,29 +714,25 @@ function diagnosticStrings(value: unknown): readonly string[] {
 function parseCompatibility(value: unknown): {
   readonly installationId: string;
   readonly contractDigest: string;
-  readonly policyProfileDigest: string;
   readonly remoteProceduresDigest: string;
 } {
   const result = requireOkResult(value);
   const installationId = result.installationId;
   const contractDigest = result.contractDigest;
-  const policyProfileDigest = result.policyProfileDigest;
   const remoteProceduresDigest = result.remoteProceduresDigest;
   const procedures = result.procedures;
   if (
     typeof installationId !== "string" ||
     !isSha256(contractDigest) ||
-    !isSha256(policyProfileDigest) ||
     !isSha256(remoteProceduresDigest) ||
     !Array.isArray(procedures) ||
-    procedures.length !== 8
+    procedures.length !== 10
   ) {
     throw new Error("invalid compatibility identity");
   }
   return {
     installationId,
     contractDigest,
-    policyProfileDigest,
     remoteProceduresDigest,
   };
 }

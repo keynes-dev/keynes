@@ -1,16 +1,4 @@
 import { rootResources } from "@keynes/contracts/contract-tests";
-import { createHash } from "node:crypto";
-
-import {
-  canonicalJson,
-  POLICY_LIMITS_VERSION,
-  POLICY_PROFILE_DIGEST,
-  POLICY_PROGRAM_VERSION,
-  POLICY_QUERY_PROFILE_VERSION,
-  POLICY_VALIDATOR_VERSION,
-  type PolicyDefinitionV1,
-  type PolicyProgramV1,
-} from "@keynes/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -419,88 +407,6 @@ describe("remote PostgreSQL Budget authority", () => {
       result: { budget: { lifecycle: "settled" } },
     });
   });
-
-  it("enforces a generated Policy through canonical remote Resources", async () => {
-    fixture = await openRemoteIdentityFixture();
-    await fixture.register(fixture.primary);
-    const client = await fixture.connect(fixture.primary);
-    const creation = rootResources([
-      { definition: resourceDefinition("remote_zebra"), amount: 10 },
-      { definition: resourceDefinition("remote_alpha"), amount: 20 },
-    ]);
-    expect(
-      await queryResponse(client, "keynes.remote_define_resources", {
-        operationKey: operationKey("policy-definitions"),
-        definitions: creation.definitions,
-      }),
-    ).toMatchObject({ ok: true });
-    const created = await queryResponse(client, "keynes.remote_create_budget", {
-      operationKey: operationKey("canonical"),
-      ...creation,
-      policies: [requestCeilingPolicy("remote_alpha")],
-    });
-    const budgetReference = requireBudgetReference(created);
-
-    expect(created).toMatchObject({
-      ok: true,
-      result: {
-        budget: {
-          resources: [
-            {
-              resource: resourceDefinition("remote_alpha"),
-              allocated: 20,
-            },
-            {
-              resource: resourceDefinition("remote_zebra"),
-              allocated: 10,
-            },
-          ],
-        },
-      },
-    });
-    const approved = await queryResponse(client, "keynes.remote_request", {
-      operationKey: operationKey("policy-approved"),
-      parentBudgetReference: budgetReference,
-      resources: [{ resource: "remote_alpha", amount: 5 }],
-      context: { remote_ceiling: 5 },
-    });
-    expect(approved).toMatchObject({
-      ok: true,
-      result: {
-        kind: "approved",
-        resources: [{ resource: "remote_alpha", amount: 5 }],
-        policyEvidence: {
-          decision: "approved",
-          policies: [expect.objectContaining({ name: "remote_ceiling" })],
-          effectiveCeilings: [
-            expect.objectContaining({ resource: "remote_alpha", ceiling: 5 }),
-          ],
-        },
-      },
-    });
-    const denied = await queryResponse(client, "keynes.remote_request", {
-      operationKey: operationKey("policy-denied"),
-      parentBudgetReference: budgetReference,
-      resources: [{ resource: "remote_alpha", amount: 6 }],
-      context: { remote_ceiling: 5 },
-    });
-    expect(denied).toMatchObject({
-      ok: true,
-      result: {
-        kind: "denied",
-        reasons: [
-          expect.objectContaining({
-            code: "policy_ceiling",
-            resource: "remote_alpha",
-            requested: 6,
-            ceiling: 5,
-            policyName: "remote_ceiling",
-          }),
-        ],
-        policyEvidence: { decision: "denied" },
-      },
-    });
-  });
 });
 
 function operationKey(suffix: string): string {
@@ -523,79 +429,6 @@ function requireResult(value: unknown): Record<string, unknown> {
   if (!isRecord(value) || !isRecord(value.result))
     throw new Error("Remote definition did not return a result");
   return value.result;
-}
-
-function requestCeilingPolicy(resource: string): PolicyDefinitionV1 {
-  const program = {
-    kind: "select",
-    availabilityJoin: { kind: "inner_join" },
-    resource: reference("requested", "resource", "text"),
-    ceiling: reference("context", "remote_ceiling", "numeric"),
-    reason: {
-      kind: "text_literal",
-      value: "remote_ceiling",
-      valueType: "text",
-      nullable: false,
-    },
-    where: {
-      kind: "comparison",
-      operator: "=",
-      left: reference("requested", "resource", "text"),
-      right: {
-        kind: "text_literal",
-        value: resource,
-        valueType: "text",
-        nullable: false,
-      },
-      valueType: "boolean",
-      nullable: false,
-    },
-    groupBy: [],
-    orderBy: ["resource", "reason", "ceiling"],
-  } satisfies PolicyProgramV1;
-  const canonicalSql = [
-    "select requested.resource as resource,",
-    "       context.remote_ceiling as ceiling,",
-    "       'remote_ceiling' as reason",
-    "from requested_resources as requested",
-    "inner join available_resources as available using (resource)",
-    "cross join policy_context as context",
-    `where requested.resource = '${resource}'`,
-    "order by resource asc, reason asc, ceiling asc",
-    "",
-  ].join("\n");
-  const document = {
-    kind: "keynes.policy",
-    name: "remote_ceiling",
-    revision: 1,
-    inputResources: [resource],
-    outputResources: [resource],
-    contextSchema: [
-      { name: "remote_ceiling", type: "integer", nullable: false },
-    ],
-    reasons: ["remote_ceiling"],
-    programVersion: POLICY_PROGRAM_VERSION,
-    queryProfileVersion: POLICY_QUERY_PROFILE_VERSION,
-    validatorVersion: POLICY_VALIDATOR_VERSION,
-    limitsVersion: POLICY_LIMITS_VERSION,
-    policyProfileDigest: POLICY_PROFILE_DIGEST,
-    program,
-    canonicalSql,
-    sourceDigest: digest(canonicalSql),
-  } satisfies Omit<PolicyDefinitionV1, "definitionDigest">;
-  return { ...document, definitionDigest: digest(canonicalJson(document)) };
-}
-
-function reference(
-  source: "requested" | "context",
-  field: string,
-  valueType: "text" | "numeric",
-): PolicyProgramV1["resource"] {
-  return { kind: "reference", source, field, valueType, nullable: false };
-}
-
-function digest(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
 }
 
 type ResourceDefinition = Parameters<

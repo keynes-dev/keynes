@@ -435,6 +435,11 @@ describe("contract source", () => {
       "RemoteRequestDeniedResult",
       "RemoteRequestApprovedHistoryEntry",
       "RemoteRequestDeniedHistoryEntry",
+      "RemoteErrorEnvelope",
+      "RemoteSimpleErrorEnvelope",
+      "RemoteDefinitiveDomainErrorEnvelope",
+      "CompatibilityErrorEnvelope",
+      "GetCompatibilityResult",
     ]) {
       const definition = definitions[name];
       expect(definition, `missing schema definition ${name}`).toBeDefined();

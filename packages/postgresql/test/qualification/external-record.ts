@@ -52,10 +52,9 @@ export interface ExternalPostgresqlAcceptanceRecord {
   readonly semantics: {
     readonly installationIdentitySha256: string;
     readonly contractDigest: string;
-    readonly policyProfileDigest: string;
     readonly remoteProcedureIdentitySha256: string;
     readonly migrationSetDigest: string;
-    readonly remoteProcedureCount: 8;
+    readonly remoteProcedureCount: 10;
   };
   readonly scenarios: readonly {
     readonly id: ExternalScenarioId;
@@ -117,7 +116,6 @@ const NESTED_KEYS = {
   semantics: [
     "installationIdentitySha256",
     "contractDigest",
-    "policyProfileDigest",
     "remoteProcedureIdentitySha256",
     "migrationSetDigest",
     "remoteProcedureCount",
@@ -167,10 +165,9 @@ export function validateExternalRecord(
     Date.parse(record.tls.validTo) <= Date.parse(record.tls.validFrom) ||
     !SHA256.test(record.semantics.installationIdentitySha256) ||
     !SHA256.test(record.semantics.contractDigest) ||
-    !SHA256.test(record.semantics.policyProfileDigest) ||
     !SHA256.test(record.semantics.remoteProcedureIdentitySha256) ||
     !SHA256.test(record.semantics.migrationSetDigest) ||
-    record.semantics.remoteProcedureCount !== 8 ||
+    record.semantics.remoteProcedureCount !== 10 ||
     record.target.serverProfile !== "postgresql-18.6" ||
     record.target.serverVersionNum !== "180006" ||
     record.target.topology !== "direct" ||

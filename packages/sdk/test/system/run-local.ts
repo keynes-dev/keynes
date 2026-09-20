@@ -11,7 +11,6 @@ const SDK = fileURLToPath(new URL("../..", import.meta.url));
 export const LOCAL_GROUPS = [
   "test/unit/local",
   "test/unit/public",
-  "test/unit/policy",
   "test/contract/budget.test.ts",
 ];
 

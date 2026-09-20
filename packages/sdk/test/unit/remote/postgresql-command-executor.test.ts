@@ -7,9 +7,7 @@ import {
   REMOTE_CONTRACT,
   REMOTE_PROCEDURES_DIGEST,
 } from "../../../src/generated/client.js";
-import { POLICY_PROFILE_DIGEST } from "../../../src/generated/policy-profile.js";
 import { createKeynes } from "../../../src/keynes.js";
-import type { GetCompatibilityResult } from "../../../src/generated/types.js";
 import {
   POSTGRESQL_INSTALLATION_ID,
   POSTGRESQL_WAITING_CALLERS_MAXIMUM,
@@ -111,9 +109,11 @@ describe("PostgreSQL remote command executor", () => {
   );
 
   it("refuses generation two before configured catalog validation and closes the pool", async () => {
-    const previousGeneration = compatibilityResult();
-    previousGeneration.semanticGeneration = 2;
-    previousGeneration.minimumSdkGeneration = 2;
+    const previousGeneration: Record<string, unknown> = {
+      ...compatibilityResult(),
+      semanticGeneration: 2,
+      minimumSdkGeneration: 2,
+    };
     const pool = createFakePool(async () =>
       compatibilityResponse(previousGeneration),
     );
@@ -127,12 +127,9 @@ describe("PostgreSQL remote command executor", () => {
   });
 
   it("refuses the previous Policy-bearing compatibility contract before catalog validation", async () => {
-    const legacy = compatibilityResult();
-    legacy.semanticGeneration = 3;
-    legacy.minimumSdkGeneration = 3;
     const pool = createFakePool(async ({ text }) =>
       text.includes("remote_get_compatibility")
-        ? compatibilityResponse(legacy)
+        ? compatibilityResponse(legacyPolicyCompatibilityResult())
         : queryResponse({ ok: true, result: { valid: true } }),
     );
     pgMock.constructPool.mockReturnValue(pool);
@@ -498,7 +495,7 @@ function createFakePool(
 }
 
 function compatibilityResponse(
-  result: GetCompatibilityResult = compatibilityResult(),
+  result: unknown = compatibilityResult(),
 ): QueryResponse {
   return queryResponse({ ok: true, result });
 }
@@ -507,11 +504,10 @@ function queryResponse(response: unknown): QueryResponse {
   return { rows: [{ response }] };
 }
 
-function compatibilityResult(): GetCompatibilityResult {
+function compatibilityResult() {
   return {
     installationId: POSTGRESQL_INSTALLATION_ID,
     contractDigest: CONTRACT_DIGEST,
-    policyProfileDigest: POLICY_PROFILE_DIGEST,
     remoteProceduresDigest: REMOTE_PROCEDURES_DIGEST,
     semanticGeneration: REMOTE_CONTRACT.semanticGeneration,
     minimumSdkGeneration: REMOTE_CONTRACT.minimumSdkGeneration,
@@ -529,12 +525,12 @@ function compatibilityResult(): GetCompatibilityResult {
       {
         name: "createBudget",
         target: "keynes.remote_create_budget",
-        revision: 3,
+        revision: 4,
       },
       {
         name: "requestBudget",
         target: "keynes.remote_request",
-        revision: 1,
+        revision: 2,
       },
       {
         name: "settleBudget",
@@ -544,18 +540,63 @@ function compatibilityResult(): GetCompatibilityResult {
       {
         name: "getBudget",
         target: "keynes.remote_get_budget",
+        revision: 2,
+      },
+      {
+        name: "getBudgetHistoryPage",
+        target: "keynes.remote_get_budget_history_page",
+        revision: 2,
+      },
+      {
+        name: "openBudget",
+        target: "keynes.remote_open_budget",
+        revision: 2,
+      },
+      {
+        name: "recoverOperation",
+        target: "keynes.remote_recover_operation",
+        revision: 2,
+      },
+      {
+        name: "getCompatibility",
+        target: "keynes.remote_get_compatibility",
+        revision: 2,
+      },
+    ],
+  };
+}
+
+function legacyPolicyCompatibilityResult(): unknown {
+  return {
+    ...compatibilityResult(),
+    semanticGeneration: 3,
+    minimumSdkGeneration: 3,
+    policyProfileDigest: "0".repeat(64),
+    procedures: [
+      {
+        name: "defineResources",
+        target: "keynes.remote_define_resources",
         revision: 1,
       },
+      {
+        name: "validateResources",
+        target: "keynes.remote_validate_resources",
+        revision: 1,
+      },
+      {
+        name: "createBudget",
+        target: "keynes.remote_create_budget",
+        revision: 3,
+      },
+      { name: "requestBudget", target: "keynes.remote_request", revision: 1 },
+      { name: "settleBudget", target: "keynes.remote_settle", revision: 1 },
+      { name: "getBudget", target: "keynes.remote_get_budget", revision: 1 },
       {
         name: "getBudgetHistoryPage",
         target: "keynes.remote_get_budget_history_page",
         revision: 1,
       },
-      {
-        name: "openBudget",
-        target: "keynes.remote_open_budget",
-        revision: 1,
-      },
+      { name: "openBudget", target: "keynes.remote_open_budget", revision: 1 },
       {
         name: "recoverOperation",
         target: "keynes.remote_recover_operation",

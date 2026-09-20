@@ -72,3 +72,15 @@ Do not delete these assertions merely because they sit in Policy suites. Move or
 - Native locks, trusted `SECURITY DEFINER` paths, application-role isolation, malformed-command rejection and fail-closed CI classification remain. The Policy-specific payload checks disappear; their authority boundaries stay in native security, installation and classifier cases under T004, T009, T015 and T018.
 
 `required-scenarios.ts` and qualification inventories must stop naming deleted Policy files only after the replacement request, replay, rollback and security assertions are registered. T018 owns that transfer.
+
+### Retained safety coverage audit during implementation
+
+The ordinary shared `request-denial.ts` already checks whole-envelope denial without partial reservation, independent request/settlement/read permissions, and invalid lifecycle requests. Shared `rollback.ts` retries the same request identity after each injected mutation checkpoint and verifies child, holdings and history before and after retry. Shared `settlement.ts` retains conservation, explicit zero membership, isolated deficits and arithmetic overflow. These assertions stay registered; duplicating them from deleted Policy suites would add no coverage.
+
+Native `embedded-transactions.test.ts` already checks caller-owned commit/rollback, failed application writes, provisional visibility, identity reuse after rollback and committed replay. `contention.test.ts` proves waiting sibling allocation, request/settlement ordering and matching-command replay. `remote-security.test.ts` retains tenant isolation and denial of private objects and canonical procedures. Phase 4 extends these existing cases with evidence.
+
+The generic security-definer search-path assertion in `policy-security.test.ts` must move into ordinary security coverage before that suite is deleted. The exact no-Policy command/result/replay/history JSON assertion is already present in shared `request-denial.ts`, executed by the native Budget aggregate. Policy SQL evaluation, evaluator revisions and declared-but-unrequested evaluator input locks have no remaining product behavior to test.
+
+### Evidence integration checks
+
+The generated SDK client recursively orders result fields using contract field ranks. Evidence keys such as `kind` and `resources` are valid caller keys but must retain ASCII order rather than inherit those ranks. T013/T014 must cover this collision as well as ordinary key reordering. Generated object validation currently measures JSON bytes before child validation; malformed JavaScript values such as bigint or accessors must reject without serialization or getter execution. Use the existing generator owner to enforce the evidence shape before measuring it.
