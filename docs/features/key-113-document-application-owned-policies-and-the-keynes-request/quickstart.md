@@ -47,3 +47,28 @@ Record each requirement's review result and documentation checks in `acceptance.
 No runtime, numeric, concurrency, permission, provider, recovery, performance, archive or managed Hosted qualification is performed by these checks. Implementation acceptance cannot claim those lanes passed. Do not run full runtime suites just to validate prose. Keep existing executable CI commands and branch-protection requirements unchanged.
 
 Artifacts remain local-only until publication is separately authorized. Any later authorized push must link real published spec/plan/tasks artifacts from KEY-113 and verify those links; never attach URLs to unpushed files.
+
+## Customer example smoke check
+
+Run from the repository root using Node with TypeScript stripping and Python 3. This executes only the customer examples, not Keynes allocation or a PostgreSQL runtime.
+
+````sh
+python3 - <<'PY_CHECK'
+from pathlib import Path
+import json, re, sqlite3, subprocess
+text = Path("docs/architecture.md").read_text().split("### Equivalent customer code and SQL")[1].split("### Evaluation hosting")[0]
+ts = re.search(r"```ts\n(.*?)```", text, re.S).group(1)
+sql = re.search(r"```sql\n(.*?)```", text, re.S).group(1)
+cases = [("pro", 25, {"usdCents": 25}), ("pro", 100, {"usdCents": 25}), ("pro", 24, None), ("basic", 25, None)]
+checks = "\nimport assert from 'node:assert/strict';\n"
+for tier, limit, expected in cases:
+    checks += f"assert.deepEqual(requestFor({json.dumps(tier)},{limit}),{json.dumps(expected)});\n"
+checks += "for (const x of [-1, NaN, Infinity, 1.5]) assert.throws(() => requestFor('pro', x));"
+subprocess.run(["node", "--input-type=module-typescript", "-e", ts + checks], check=True)
+with sqlite3.connect(":memory:") as db:
+    for tier, limit, expected in cases:
+        rows = db.execute(sql.replace("VALUES ('pro', 25)", "VALUES (?, ?)"), (tier, limit)).fetchall()
+        assert (json.loads(rows[0][0]) if rows else None) == expected
+print("PASS: four equivalent request/rejection cases and invalid numeric input checks")
+PY_CHECK
+````

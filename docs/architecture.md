@@ -180,6 +180,41 @@ Availability observed during customer evaluation can become stale. The authorita
 
 Exact command replay returns the recorded result without reevaluating customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity.
 
+### Equivalent customer code and SQL
+
+These examples construct the same request data. They are customer-owned evaluation, not new Keynes exports or a shipping replacement API. The customer validates its selected inputs first; this example requires a string tier and a non-negative safe-integer limit. The business rule allows only a pro-tier operation whose selected limit covers 25 cents.
+
+```ts
+function requestFor(
+  tier: string,
+  maxCents: number,
+): { usdCents: number } | null {
+  if (
+    typeof tier !== "string" ||
+    !Number.isSafeInteger(maxCents) ||
+    maxCents < 0
+  ) {
+    throw new Error("Invalid customer policy inputs");
+  }
+  return tier === "pro" && maxCents >= 25 ? { usdCents: 25 } : null;
+}
+
+const request = requestFor("pro", 25);
+```
+
+A customer SQLite query over those same validated inputs produces equivalent JSON. This query runs on the customer's own connection, not through a Keynes Local database handle. Production callers bind values instead of interpolating them into SQL.
+
+```sql
+WITH customer_inputs(tier, max_cents) AS (VALUES ('pro', 25))
+SELECT json_object('usdCents', 25) AS request
+FROM customer_inputs
+WHERE tier = 'pro' AND max_cents >= 25;
+```
+
+Both yield `{"usdCents":25}`. A limit of 24 or a non-pro tier yields `null` in customer code and no SQL row; the caller rejects before submitting any allocation command. This customer rejection is not a recorded Keynes denial. A valid 25-cent request submitted to a parent with only 10 cents available is denied by Keynes; customer evaluation cannot reserve quantity.
+
+A structured model assessment may supply a fact such as a risk category. Customers validate its schema and allowed values and decide how it affects this rule. Missing or malformed output, timeout and provider failure require customer-owned rejection or an explicit fallback before submission. Confidence is not Budget authority. Neither these examples nor the allocation API requires a model, callback or shared policy result interface.
+
 ### Evaluation hosting
 
 Customer-owned logic can run in an application, a customer service or later Keynes Cloud hosting. Shared deployment across apps is allowed; an evaluator per app is not required. KEY-125 owns later versioned HTTP evaluation. Initial hosting evaluates only, outside authoritative accounting; mandatory evaluation-and-submission is deferred. It adds no first Local or first Cloud gate and does not restore managed database Policies.

@@ -35,9 +35,9 @@
 
 **Independent validation**: Compare the two example outputs and pre-submission rejection cases, then review assessment failure, direct request use and shared hosted evaluation.
 
-- [ ] T009 [P] [US2] Add paired schematic ordinary-code and customer-SQL examples to docs/architecture.md using the documentation contract's identical facts/parameters; show matching requests, pre-submission rejection, customer-owned assessment validation/fallback, a valid but unfunded request, and replay without reevaluation. Label target usage and avoid invented exports or mandatory result types. FR-003, FR-004, FR-007.
-- [ ] T010 [P] [US2] Reconcile release commitments in docs/product.md for KEY-116/117/118 required Local tooling, KEY-119/120 Cloud configuration/editor, optional per-workflow use, independent KEY-115 model work and later KEY-125 shared versioned HTTP evaluation. State evaluation-only hosting, no first-release gate and deferred mandatory evaluation-and-submission. FR-008, FR-009, FR-017.
-- [ ] T011 [US2] Cross-check the example and tooling prose with .specify/memory/constitution.md and docs/architecture.md; document US2 scenario outcomes, including input validation and hosting ownership, in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md. SC-002, FR-003, FR-017.
+- [x] T009 [P] [US2] Add paired schematic ordinary-code and customer-SQL examples to docs/architecture.md using the documentation contract's identical facts/parameters; show matching requests, pre-submission rejection, customer-owned assessment validation/fallback, a valid but unfunded request, and replay without reevaluation. Label target usage and avoid invented exports or mandatory result types. FR-003, FR-004, FR-007.
+- [x] T010 [P] [US2] Reconcile release commitments in docs/product.md for KEY-116/117/118 required Local tooling, KEY-119/120 Cloud configuration/editor, optional per-workflow use, independent KEY-115 model work and later KEY-125 shared versioned HTTP evaluation. State evaluation-only hosting, no first-release gate and deferred mandatory evaluation-and-submission. FR-008, FR-009, FR-017.
+- [x] T011 [US2] Cross-check the example and tooling prose with .specify/memory/constitution.md and docs/architecture.md; document US2 scenario outcomes, including input validation and hosting ownership, in docs/features/key-113-document-application-owned-policies-and-the-keynes-request/acceptance.md. SC-002, FR-003, FR-017.
 
 ## Phase 5: User story 3 - Migration and deployment (P3)
 

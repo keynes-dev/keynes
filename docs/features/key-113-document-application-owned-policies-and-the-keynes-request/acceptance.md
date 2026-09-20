@@ -10,6 +10,12 @@ This record covers documentation adoption only. Managed Policy retirement, runti
 
 Ponytail review of setup and governance found no additional abstraction to remove. The shorter governing sections replace managed Policy machinery without weakening quantity, permission or transaction obligations. No automated behavioral test applies to a prose-only change.
 
+## US2 example and tooling review
+
+All four US2 scenarios passed documentation review. Ordinary customer code and customer SQLite produce identical quantities or reject before submission. Helpers remain optional per workflow; Local and Cloud tooling release requirements are explicit. Shared HTTP evaluation belongs to KEY-125, outside accounting, initially evaluation-only and not a first-release gate.
+
+The examples extracted from docs/architecture.md passed a local smoke check with Node v26.5.0 and Python SQLite. Cases: pro/25 and pro/100 produce 25 cents; pro/24 and basic/25 reject. TypeScript rejects -1, NaN, Infinity and fractional limits. SQL receives already validated inputs as documented. This is an example check, not Local or PostgreSQL runtime conformance. Ponytail review retained the short customer function and SQL query without adding a helper API or test framework.
+
 ## Evidence limits
 
 Runtime execution, numeric semantics, SQLite/native conformance, concurrency, permission/security, recovery, provider, performance, package archives and managed Hosted qualification are NOT RUN. Documentation examples are conceptual target usage, not a shipping allocation API. First Local remains ephemeral. No automatic database upgrade or extra SDK language is promised.

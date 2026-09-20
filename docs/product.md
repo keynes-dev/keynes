@@ -300,6 +300,20 @@ the CLI boundary; KEY-108 delivers the remote developer workflow. Manual declara
 remain supported. Baseline Hosted continuity and complete developer onboarding
 retain separate acceptance, and both are required for the Hosted product experience.
 
+## Policy tooling and release scope
+
+The Local preview includes supported policy tooling while keeping policy use optional in every workflow:
+
+- [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional policy definitions, deterministic composition, prepared requests and evaluation records.
+- [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
+
+These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. Optional helpers can define typed interfaces without imposing a policy language, result type, callback or transaction manager on allocation.
+
+[KEY-119](https://linear.app/keynes/issue/KEY-119) persisted parameters and [KEY-120](https://linear.app/keynes/issue/KEY-120) a schema-driven editor are required Cloud capabilities. Configuration, evaluation tooling and allocation have separate owners. [KEY-115](https://linear.app/keynes/issue/KEY-115) explores model judgments independently; no production provider integration is required for Local or Cloud.
+
+[KEY-125](https://linear.app/keynes/issue/KEY-125) owns later versioned HTTP evaluation shared across applications, including Keynes Cloud hosting of customer-owned logic. Initial hosting evaluates only and stays outside authoritative Budget accounting. Mandatory evaluation-and-submission is deferred. This work adds no first Local or first Cloud gate.
+
 ## Product commitments
 
 - Budget remains the only public stateful governance object. Defining Resources creates no quantity.
