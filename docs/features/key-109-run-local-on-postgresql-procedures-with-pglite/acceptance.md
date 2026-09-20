@@ -353,29 +353,32 @@ Review found that attempt 007 rechecked only the seven public wrappers, measured
 
 The corrected installer rechecks every canonical function in `keynes` and `keynes_internal`, including body and execution metadata. The corrected `v2` measurement worker runs the same installed-archive public `createKeynes` workload for both engines. It records a hashed host identity and rejects differences in host, OS, architecture, Node, pnpm, or runner before comparison.
 
-Attempt 008 measured a review-fix working tree at HEAD `4f96bf2b91a1720511b44a9a8e8eb9067958d553`. It is fresh correction evidence, not a clean release-candidate rerun. Both records used Darwin `25.5.0`, arm64, Node `v26.5.0`, pnpm `11.21.0`, runner `local`, and host identity `571a26261ad83163`.
+Further review found that attempt 008 still trusted the requested engine label instead of proving which Local authority the installed public SDK loaded. Its comparison validator also accepted records without exact passing outcome, source, archive and runtime identity. Attempt 008's measurements and embedded comparison are superseded; its package-consumer result remains historical evidence only.
 
-| Evidence                    | Identity and outcome                                                                                                                                                                                                      |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Retained SQLite archive     | SHA-256 `30c26ddbce92bac74ab057b047af1fd5694da22eef7e3b59ad5556fac0ac2f68`; measured through its installed public API.                                                                                                    |
-| Corrected PGlite archive    | `.artifacts/key-109/attempt-008/package/keynes-sdk-0.0.0.tgz`; SHA-256 `7a4cc4191a814ef1e8d289569b6b3ea121e8f1829aff5c9cd07a853bf8803086`; 9,828,925 compressed bytes.                                                    |
-| Node 26 package consumer    | `.artifacts/key-109/attempt-008/package-node26.json`; SHA-256 `a5cccebaf74a6655ffaf6fcf03d06ed8ab54fca2026b212c4c9545a426b26876`; all 14 checks passed; 30,714,853 production bytes.                                      |
-| SQLite observations         | `.artifacts/key-109/attempt-008/measurements-sqlite-node26.json`; SHA-256 `1d1f9b8577da96634acb5a377b3295fbbc707a12ea18fd5152387d091a041cf8`; complete `v2` record.                                                       |
-| PGlite observations         | `.artifacts/key-109/attempt-008/measurements-pglite-node26.json`; SHA-256 `f4dd8cfc31f1935f03ad961e77170b9a1f49da4b967b28fe9943439170fc28ae`; complete `v2` record with embedded `v2` comparison and PostgreSQL `180003`. |
-| Historical threshold result | SQLite passed. PGlite failed the unchanged archive and ready-RSS limits; these remain observations rather than a KEY-87 operating envelope.                                                                               |
+Attempt 009 measured clean commit `6505df5cdace188a04f0ee718fef83429ea6e14e`. The worker observed the Local authority imported directly by each installed SDK, rejected mismatched labels before emitting a record, and required complete passing `v2` evidence identity before comparison. Both measurement records used Darwin `25.5.0`, arm64, Node `v26.5.0`, pnpm `11.21.0`, runner `local`, and host identity `571a26261ad83163`.
 
-| Metric                            |       SQLite |          PGlite |   Absolute delta | Percentage delta |
-| --------------------------------- | -----------: | --------------: | ---------------: | ---------------: |
-| Archive bytes                     |    1,003,014 |       9,828,925 |       +8,825,911 |         +879.94% |
-| Installed production bytes        |    5,026,607 |      30,714,853 |      +25,688,246 |         +511.05% |
-| Median cached installation        |    332.57 ms |       380.10 ms |        +47.53 ms |          +14.29% |
-| Median public create              |      2.55 ms |       599.62 ms |       +597.06 ms |      +23,382.53% |
-| Median first request              |      0.35 ms |         5.56 ms |         +5.21 ms |       +1,486.66% |
-| Median sampled peak RSS           | 95,764,480 B | 1,158,316,032 B | +1,062,551,552 B |       +1,109.55% |
-| Median shutdown                   |      0.04 ms |         0.98 ms |         +0.94 ms |       +2,424.22% |
-| No-Policy request p95             |      4.38 ms |         9.48 ms |         +5.09 ms |         +116.24% |
-| No-Policy median throughput       |   1,020.55/s |        378.81/s |        -641.74/s |          -62.88% |
-| Compiled-Policy request p95       |      4.56 ms |        17.12 ms |        +12.56 ms |         +275.73% |
-| Compiled-Policy median throughput |     939.06/s |        205.39/s |        -733.67/s |          -78.13% |
+| Evidence                    | Identity and outcome                                                                                                                                                                                                                                                                               |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Retained SQLite archive     | SHA-256 `30c26ddbce92bac74ab057b047af1fd5694da22eef7e3b59ad5556fac0ac2f68`; worker observed `node:sqlite` while executing its installed public API.                                                                                                                                                |
+| Corrected PGlite archive    | `.artifacts/key-109/attempt-009/package/keynes-sdk-0.0.0.tgz`; SHA-256 `e1ed65f17c99c027b2693b34024cf77e744837d883839035d9b67f26ee1225ee`; 9,828,939 compressed bytes.                                                                                                                             |
+| Node 24 package consumer    | `.artifacts/key-109/attempt-009/package-node24.json`; SHA-256 `f55e7254e5bfcf8dfdec3851c308a69d9ca032295a30053f378292ee60ac691a`; all 14 checks passed on Node `v24.11.0`; 30,714,289 production bytes.                                                                                            |
+| Node 26 package consumer    | `.artifacts/key-109/attempt-009/package-node26.json`; SHA-256 `1a120d4a4b82b5cdfdb06878bcf5a6eb843b670e12822ff74db8494dc71f863b`; all 14 checks passed on Node `v26.5.0`; 30,714,868 production bytes.                                                                                             |
+| SQLite observations         | `.artifacts/key-109/attempt-009/measurements-sqlite-node26.json`; SHA-256 `6972e0f55dc567a9173e59d129ed44ce2201361cafcf4b837084f49007e05c71`; complete passing `v2` record with clean source, exact archive identity and observed `node:sqlite` authority.                                         |
+| PGlite observations         | `.artifacts/key-109/attempt-009/measurements-pglite-node26.json`; SHA-256 `cc03922be410a1f79a455a1922c82caf5916457cfccd2d01f8d4178ed68385c3`; complete passing `v2` record with clean source, exact archive identity, observed PGlite authority, PostgreSQL `180003` and embedded `v2` comparison. |
+| Historical threshold result | SQLite passed. PGlite failed the unchanged archive and ready-RSS limits while its installed-size limit passed; these remain observations rather than a KEY-87 operating envelope.                                                                                                                  |
 
-GitHub Actions run `35464696933` failed in `Repository and tests` when the single SDK Vitest worker reached V8's 2 GiB heap limit. The later package and Local timeouts were consequences of the worker crash. Run `35466736339` confirmed that fresh workers remove the unit-suite heap failure, then exposed CPU contention between the PGlite tests and other Turbo tasks on the two-core runner. Run `35467098107` confirmed that serial Turbo tasks remove those timeouts, then found the same process-level accumulation across the two contract files. The SDK test command now starts fresh sequential workers for Local, public, policy/remote, each contract file, system, and package groups, and `test:pr` runs Turbo tasks one at a time. Local verification keeps the existing heap and timeout settings; a replacement hosted run is required.
+| Metric                            |       SQLite |          PGlite | Absolute delta | Percentage delta |
+| --------------------------------- | -----------: | --------------: | -------------: | ---------------: |
+| Archive bytes                     |    1,003,014 |       9,828,939 |     +8,825,925 |         +879.94% |
+| Installed production bytes        |    5,026,607 |      30,714,868 |    +25,688,261 |         +511.05% |
+| Median cached installation        |    315.27 ms |       356.16 ms |      +40.89 ms |          +12.97% |
+| Median public create              |      2.40 ms |       575.13 ms |     +572.74 ms |      +23,913.44% |
+| Median first request              |      0.33 ms |         6.15 ms |       +5.82 ms |       +1,763.14% |
+| Median sampled peak RSS           | 96,649,216 B | 1,052,114,944 B | +955,465,728 B |         +988.59% |
+| Median shutdown                   |      0.04 ms |         0.92 ms |       +0.88 ms |       +2,480.86% |
+| No-Policy request p95             |      4.24 ms |         9.07 ms |       +4.83 ms |         +114.06% |
+| No-Policy median throughput       |   1,043.33/s |        391.92/s |      -651.41/s |          -62.44% |
+| Compiled-Policy request p95       |      4.46 ms |        17.32 ms |      +12.87 ms |         +288.59% |
+| Compiled-Policy median throughput |     963.40/s |        205.75/s |      -757.65/s |          -78.64% |
+
+GitHub Actions run `35464696933` failed in `Repository and tests` when the single SDK Vitest worker reached V8's 2 GiB heap limit. The later package and Local timeouts were consequences of the worker crash. Run `35466736339` confirmed that fresh workers remove the unit-suite heap failure, then exposed CPU contention between the PGlite tests and other Turbo tasks on the two-core runner. Run `35467098107` confirmed that serial Turbo tasks remove those timeouts, then found the same process-level accumulation across the two contract files. The SDK test command now starts fresh sequential workers for Local, public, policy/remote, each contract file, system, and package groups, and `test:pr` runs Turbo tasks one at a time. Run `35469220591` passed all required checks at `abd4b4b`; a replacement hosted run is required for the measurement-review commits.
