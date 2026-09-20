@@ -1,5 +1,14 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { access, cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { arch, platform, release, tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -145,6 +154,13 @@ export function nearestRankPercentile(
 export function createQualificationRecord(input: QualificationRecordInput) {
   if (
     !/^[a-f0-9]{40}$/.test(input.sourceRevision.commit) ||
+    typeof input.sourceRevision.cleanBefore !== "boolean" ||
+    typeof input.sourceRevision.cleanAfter !== "boolean" ||
+    !Number.isSafeInteger(input.archive.compressedBytes) ||
+    input.archive.compressedBytes <= 0 ||
+    !Number.isSafeInteger(input.archive.productionBytes) ||
+    input.archive.productionBytes <= 0 ||
+    !input.archive.packageVersion ||
     input.environment.commit !== input.sourceRevision.commit ||
     !/^[a-f0-9]{64}$/.test(input.archive.sha256) ||
     !/^[a-f0-9]{64}$/.test(input.archive.contractDigest) ||
@@ -178,6 +194,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
   );
   if (
     input.samples.steadyElapsedMilliseconds[0] <= 0 ||
+    !Number.isFinite(100_000 / input.samples.steadyElapsedMilliseconds[0]) ||
     input.samples.memorySampleCount.some(
       (value) => !Number.isInteger(value) || value < 2,
     )
@@ -415,6 +432,13 @@ async function measure(
   }
   if (measured === undefined)
     throw new Error("SDK measurement produced no record");
+  if (
+    createHash("sha256")
+      .update(await readFile(args.archivePath))
+      .digest("hex") !== archive.sha256
+  ) {
+    throw new Error("SDK archive changed during measurement");
+  }
   const sourceAfter = readSourceRevision();
   if (
     sourceAfter.commit !== sourceBefore.commit ||
@@ -438,9 +462,10 @@ export async function writeMeasurementRecord(
   outputPath: string,
   record: SdkPackageMeasurementRecord,
 ): Promise<void> {
-  assertWithinLimits(record);
+  const validated = createQualificationRecord(record);
+  assertWithinLimits(validated);
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, `${JSON.stringify(record, null, 2)}\n`, {
+  await writeFile(outputPath, `${JSON.stringify(validated, null, 2)}\n`, {
     flag: "wx",
   });
 }

@@ -18,6 +18,7 @@ async function runColdFirst() {
     );
     memorySampleCount += 1;
   };
+  // ponytail: sampling misses synchronous spikes; use external RSS tracing if needed.
   const sampler = setInterval(sampleMemory, 1);
   sampler.unref();
   const sdkEntry = fileURLToPath(import.meta.resolve("@keynes/sdk"));
@@ -40,6 +41,7 @@ async function runColdFirst() {
   let closed = false;
   try {
     const readyRssBytes = process.memoryUsage.rss();
+    sampledPeakRssBytes = Math.max(sampledPeakRssBytes, readyRssBytes);
     const sqliteVersion = installedSqliteVersion();
     const root = await keynes.createBudget({ workUnits: 2 });
     const requestStarted = performance.now();

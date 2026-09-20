@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, rm, stat } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -108,6 +108,33 @@ describe("SDK package measurement worker", () => {
       expect(sample).toBeGreaterThanOrEqual(0);
     }
   }, 15_000);
+
+  it("refuses to label a consumer without SQLite as SQLite", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "keynes-wrong-runtime-"));
+    try {
+      const sdk = resolve(root, "node_modules/@keynes/sdk");
+      await mkdir(sdk, { recursive: true });
+      await writeFile(
+        resolve(sdk, "package.json"),
+        JSON.stringify({ type: "module", exports: "./index.mjs" }),
+      );
+      await writeFile(
+        resolve(sdk, "index.mjs"),
+        "export const createKeynes = () => {};\n",
+      );
+      await cp(workerSource, resolve(root, "worker.mjs"));
+      const result = spawnSync(
+        process.execPath,
+        [resolve(root, "worker.mjs"), "steady"],
+        { cwd: root, encoding: "utf8", timeout: 15000 },
+      );
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Installed SDK did not load node:sqlite");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 
   it("rejects unknown modes without a structured success message", () => {
     const result = runWorker("unknown");

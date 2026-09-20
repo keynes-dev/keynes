@@ -194,6 +194,14 @@ describe("SDK package measurement controller", () => {
     const input = validRecordInput();
     for (const changed of [
       { ...input, archive: { ...input.archive, sha256: "wrong" } },
+      { ...input, archive: { ...input.archive, compressedBytes: Number.NaN } },
+      {
+        ...input,
+        samples: {
+          ...input.samples,
+          steadyElapsedMilliseconds: [Number.MIN_VALUE],
+        },
+      },
       {
         ...input,
         environment: { ...input.environment, commit: "d".repeat(40) },

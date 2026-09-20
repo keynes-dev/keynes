@@ -9,7 +9,7 @@ pnpm --filter @keynes/sdk test:package:unit
 pnpm test:pr
 pnpm test:ci:postgresql
 pnpm test:sqlite-postgres -- --output .artifacts/key-121/paired
-pnpm --filter @keynes/sdk pack --pack-destination ../../.artifacts/key-121/package
+pnpm --config.node-linker=hoisted --filter @keynes/sdk pack --pack-destination "$PWD/.artifacts/key-121/package"
 pnpm --filter @keynes/sdk measure:package -- --archive .artifacts/key-121/package/keynes-sdk-0.0.0.tgz --output .artifacts/key-121/measurement.json
 ```
 
