@@ -41,3 +41,17 @@ The user authorized implementation phase by phase, Terra code subagents, Ponytai
 Runtime implementation, behavioral tests and archive qualification remain NOT RUN at this setup checkpoint.
 
 Phase 1 Ponytail review found no unnecessary machinery. The supervisor accepted the inventory and stock-tool repair; no simplification was needed. Focused formatting and `git diff --check` pass. T001 and T002 are complete.
+
+## Phase 2: Foundational red tests
+
+Source candidate `3db9b08`; only tests and this evidence changed. Terra agents authored T003/T004 in disjoint files.
+
+| Command                                                                                                                                  | Result                                                            | Evidence                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `pnpm exec vitest run packages/contracts/test/contract-client.test.ts packages/contracts/test/generate-contracts.test.ts --maxWorkers=1` | Expected FAIL: 12 failed, 27 passed                               | `.artifacts/key-114/phase2/t003-contract-tests.log`                                    |
+| `pnpm --filter @keynes/sdk exec vitest run test/unit/remote/postgresql-command-executor.test.ts --maxWorkers=1`                          | Expected FAIL: 1 failed, 18 passed                                | Generation 3 still passes compatibility before catalog validation                      |
+| `pnpm test:ci:postgresql`                                                                                                                | Expected FAIL: 2 failed, 293 passed; child exit 1, cleanup passed | `.artifacts/key-114/phase2/native-red.log`, run `25bd6df9-ca87-4a81-894e-63676f240f92` |
+
+The contract failures demonstrate retained Policy schema inputs/results/errors and old semantic identity/procedure revisions. Native failures demonstrate the retained `policy_profile_digest` column and raw PostgreSQL `42703` on a missing identity column instead of structured `incompatible_target`. Existing historical-ledger, partial, drifted and profile-mismatched target checks passed. These results prove missing behavior, not feature acceptance.
+
+Ponytail review identified an unnecessary conditional rename/add fixture; accepted and replaced with one fixed missing-column fixture, removing 20 lines. Correctness review corrected the old Policy error test to invoke its matching request operation. The supervisor verified the intended failures and formatting. No runtime source changed. T003/T004 are complete; the tests must turn green in Phase 3.

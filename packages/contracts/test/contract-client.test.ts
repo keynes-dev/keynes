@@ -65,4 +65,57 @@ describe("contract test client", () => {
       /invalid error response for getBudget/i,
     );
   });
+
+  it.each([
+    {
+      name: "Policy ceiling result",
+      wire: {
+        ok: true,
+        replayed: false,
+        result: {
+          kind: "denied",
+          commandId: fixtures.commands.requestChild.commandId,
+          parentBudgetId: fixtures.commands.requestChild.parentBudgetId,
+          reasons: [
+            {
+              code: "policy_ceiling",
+              resourceTypeId:
+                fixtures.commands.requestChild.resources[0].resourceTypeId,
+              requested: 40,
+              ceiling: 40,
+              policyName: "request_limit",
+              policyRevision: 1,
+              reason: "customer_tier_limit",
+            },
+          ],
+          replayed: false,
+        },
+      },
+      error: /invalid result response for requestBudget/i,
+      invoke: (client: ReturnType<typeof createContractClient>) =>
+        client.requestBudget(fixtures.commands.requestChild),
+    },
+    {
+      name: "Policy error envelope",
+      wire: {
+        ok: false,
+        error: {
+          kind: "error",
+          code: "invalid_policy_context",
+          details: {
+            operation: "requestBudget",
+            path: "/context/customer_tier",
+            rule: "required",
+          },
+        },
+      },
+      error: /invalid error response for requestBudget/i,
+      invoke: (client: ReturnType<typeof createContractClient>) =>
+        client.requestBudget(fixtures.commands.requestChild),
+    },
+  ])("rejects a removed $name", async ({ wire, error, invoke }) => {
+    const client = createContractClient({ execute: async () => wire });
+
+    await expect(invoke(client)).rejects.toThrow(error);
+  });
 });

@@ -2,7 +2,7 @@
 
 **Input**: [spec](spec.md), [plan](plan.md), [research](research.md), [model](data-model.md), [contract](contracts/requests.md), [quickstart](quickstart.md).
 
-Implementation is authorized. Phase 1 is complete; subsequent tasks remain unchecked until verified. New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
+Implementation is authorized. Phases 1 and 2 are complete; subsequent tasks remain unchecked until verified. New behavioral tests must fail for the expected reason before implementation; unchanged regression coverage need not fail. Paths are repository-relative unless explicitly feature-local.
 
 ## Phase 1: Setup
 
@@ -13,8 +13,8 @@ Checkpoint: one issue, no added dependency or acceptance gate. These inventory t
 
 ## Phase 2: Foundational contract tests
 
-- [ ] T003 [P] Add failing reduced-schema, removed-output and legacy-input tests in `packages/contracts/test/contract-client.test.ts` and `packages/contracts/test/generate-contracts.test.ts`; cover empty/undefined attachments where representable, strict canonical keys and removed Policy errors/results.
-- [ ] T004 [P] Add failing old/new compatibility and legacy-installed-target tests in `packages/sdk/test/unit/remote/postgresql-command-executor.test.ts`, `packages/postgresql/test/system/installation.test.ts` and `packages/postgresql/test/integration/recheck.test.ts`; cover changed identity columns, historical/partial/drifted/profile-mismatched targets, unchanged rejected targets and read-only exact reinstall.
+- [x] T003 [P] Add failing reduced-schema, removed-output and legacy-input tests in `packages/contracts/test/contract-client.test.ts` and `packages/contracts/test/generate-contracts.test.ts`; cover empty/undefined attachments where representable, strict canonical keys and removed Policy errors/results.
+- [x] T004 [P] Add failing old/new compatibility and legacy-installed-target tests in `packages/sdk/test/unit/remote/postgresql-command-executor.test.ts`, `packages/postgresql/test/system/installation.test.ts` and `packages/postgresql/test/integration/recheck.test.ts`; cover changed identity columns, historical/partial/drifted/profile-mismatched targets, unchanged rejected targets and read-only exact reinstall.
 
 Checkpoint: new tests fail for the intended missing contract, not infrastructure failure. These shared prerequisites protect all stories.
 

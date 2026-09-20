@@ -126,6 +126,26 @@ describe("PostgreSQL remote command executor", () => {
     expect(pool.end).toHaveBeenCalledOnce();
   });
 
+  it("refuses the previous Policy-bearing compatibility contract before catalog validation", async () => {
+    const legacy = compatibilityResult();
+    legacy.semanticGeneration = 3;
+    legacy.minimumSdkGeneration = 3;
+    const pool = createFakePool(async ({ text }) =>
+      text.includes("remote_get_compatibility")
+        ? compatibilityResponse(legacy)
+        : queryResponse({ ok: true, result: { valid: true } }),
+    );
+    pgMock.constructPool.mockReturnValue(pool);
+
+    await expect(createKeynes(configuredOptions)).rejects.toMatchObject({
+      code: "compatibility_error",
+      details: { category: "command_contract" },
+    });
+
+    expect(pool.client.query).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
   it("rejects an invalid configured database URL without opening any authority", async () => {
     await expect(
       createKeynes({ ...configuredOptions, databaseUrl: "invalid-url" }),

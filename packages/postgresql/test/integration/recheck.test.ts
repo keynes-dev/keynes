@@ -117,6 +117,57 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
+  it("rejects an identity missing a required column before reading it", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      await client.query(
+        "alter table keynes_internal.installation_identity rename column contract_digest to legacy_contract_digest",
+      );
+      try {
+        const before = await installationState(client);
+
+        await expect(
+          recheckInstallation({ client, config }),
+        ).rejects.toMatchObject({
+          code: "incompatible_target",
+          check: "installation-identity",
+        });
+        expect(await installationState(client)).toEqual(before);
+      } finally {
+        await client.query(
+          "alter table keynes_internal.installation_identity rename column legacy_contract_digest to contract_digest",
+        );
+      }
+    } finally {
+      await client.end();
+    }
+  });
+
+  it("rejects a profile-mismatched target without changing it", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      await client.query(
+        "update keynes_internal.installation_identity set profile_id = 'legacy-managed-policy-profile' where singleton = true",
+      );
+      const before = await installationState(client);
+
+      await expect(
+        recheckInstallation({ client, config }),
+      ).rejects.toMatchObject({
+        code: "incompatible_target",
+        check: "profile-id",
+      });
+      expect(await installationState(client)).toEqual(before);
+
+      await client.query(
+        "update keynes_internal.installation_identity set profile_id = $1 where singleton = true",
+        [installationRecord.profileId],
+      );
+    } finally {
+      await client.end();
+    }
+  });
+
   it("checks the server, checksums, contract, and complete object inventory", async () => {
     const client = await connect(target.databaseUrl);
     try {

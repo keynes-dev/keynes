@@ -146,6 +146,39 @@ describe("PostgreSQL installation", () => {
     });
   });
 
+  it("installs the reduced identity and leaves its exact reinstall read-only", async () => {
+    const { installDatabase } = await import("./support/migrations.js");
+    await withFreshDatabase(async (database) => {
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+      const columns = await database.query<{ readonly column_name: string }>(
+        `select column_name
+           from information_schema.columns
+          where table_schema = 'keynes_internal'
+            and table_name = 'installation_identity'
+          order by ordinal_position`,
+      );
+      const before = await installationState(database);
+
+      await installDatabase(database, EXPLICIT_INSTALLATION);
+
+      expect(columns.rows.map(({ column_name }) => column_name)).toEqual([
+        "singleton",
+        "profile_id",
+        "server_version_num",
+        "contract_digest",
+        "migration_set_digest",
+        "owner_role",
+        "application_role",
+        "tenant_id",
+        "principal_id",
+        "execution_role",
+        "administration_role",
+        "remote_procedures_digest",
+      ]);
+      expect(await installationState(database)).toEqual(before);
+    });
+  });
+
   it("installs a nullable unique private definition receipt reference", async () => {
     const { installDatabase } = await import("./support/migrations.js");
     await withFreshDatabase(async (database) => {
