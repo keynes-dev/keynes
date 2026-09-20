@@ -474,6 +474,10 @@ These deployment-specific responsibilities do not change a Budget command's
 semantics. Hosted delivery, including managed Cloud, is not a product-readiness
 claim until its own exact-revision evidence exists.
 
+### Later cross-authority accounting
+
+KEY-122 owns the detailed accounting ADR and governing amendment before durable Local or delegation changes the current contract. KEY-123 adds durable Node Local recovery; KEY-124 supplies PostgreSQL-to-local delegation with active partial surrender and final reconciliation required for Cloud. Workers, workflows and steps use one Budget model. This document does not define that protocol or relax current fixed funding and single-authority ownership. First Local remains ephemeral with unchanged toolkit requirements.
+
 ## Security boundary
 
 Database authentication and grants remain below the SDK. Remote wrappers derive

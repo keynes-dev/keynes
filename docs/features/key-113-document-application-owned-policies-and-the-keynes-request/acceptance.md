@@ -16,6 +16,12 @@ All four US2 scenarios passed documentation review. Ordinary customer code and c
 
 The examples extracted from docs/architecture.md passed a local smoke check with Node v26.5.0 and Python SQLite. Cases: pro/25 and pro/100 produce 25 cents; pro/24 and basic/25 reject. TypeScript rejects -1, NaN, Infinity and fractional limits. SQL receives already validated inputs as documented. This is an example check, not Local or PostgreSQL runtime conformance. Ponytail review retained the short customer function and SQL query without adding a helper API or test framework.
 
+## US3 migration and deployment review
+
+All four US3 scenarios passed manual review. Product, architecture and workflow adopt ephemeral SQLite Local, preserve PostgreSQL caller transactions and supported SQL access, and assign later durability/delegation to KEY-122/123/124. Package READMEs retain current executable examples and fresh-baseline limits while naming KEY-114/96 migration owners. No numerical rewrite or automatic database upgrade is promised.
+
+`packages/contracts/README.md` and `docs/README.md` were reviewed and needed no changes: they already retain one canonical contract source and Linear roadmap ownership. Existing workflow commands and required check names are unchanged. Historical ADRs have forward notices only; historical feature evidence and unrelated KEY-118 artifacts are untouched. Ponytail review retained the existing READMEs and installers instead of duplicating their instructions or creating a repository roadmap.
+
 ## Evidence limits
 
 Runtime execution, numeric semantics, SQLite/native conformance, concurrency, permission/security, recovery, provider, performance, package archives and managed Hosted qualification are NOT RUN. Documentation examples are conceptual target usage, not a shipping allocation API. First Local remains ephemeral. No automatic database upgrade or extra SDK language is promised.

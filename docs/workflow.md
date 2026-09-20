@@ -4,33 +4,28 @@ Use stock Spec Kit 1.0.4 with the Codex integration. Linear owns scheduling and
 current issue status; Spec Kit artifacts own requirements, plans, tasks, and
 acceptance evidence; GitHub owns PR review, CI, and merge.
 
-## Adopted PostgreSQL/PGlite transition
+## Adopted request and runtime boundary
 
-[ADR-0012](adr/0012-postgresql-and-pglite.md) and constitution 11.0.0 adopt one
-PostgreSQL implementation, PGlite Local execution and database-owned source/tooling.
-Current source and CI still use SQLite Local. KEY-109 must qualify replacement
-before removing SQLite; KEY-96 owns the subsequent package and naming changes.
+[ADR-0013](adr/0013-application-owned-policies.md) and constitution 12.0.0 adopt customer-owned policy evaluation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests or reject work; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove evaluation or grant authority.
 
-The SQLite/native PostgreSQL commands and required check documented below remain
-the current executable contract until KEY-109 replaces them. That feature must
-retain native concurrency, permission and caller-transaction coverage, fail-closed
-change classification, required-check enforcement and qualification evidence retention. Coordinate
-check-name changes with branch protection. No PGlite test command is available
-merely because the target architecture is adopted.
+Current source still implements managed SQL Policies and combines SQLite/compiler code with the SDK. KEY-114 owns breaking Policy retirement and replacement contract/tests; KEY-96 owns runtime/package separation. Customer evaluation, optional toolkit contracts, configuration and model integration remain separate from allocation. No mandatory policy callback, result type or transaction manager is introduced.
 
-Reconcile affected active feature artifacts when resumed, including KEY-85's
-asynchronous lifecycle specification. Keep historical specs and acceptance records
-bound to their original decisions and revisions. Mark PGlite compatibility,
-performance and package qualification NOT RUN until fresh evidence exists.
+The existing SQLite/native PostgreSQL commands and required CI check names remain the executable contract. Retain native concurrency, permissions, caller-owned transaction coverage, fail-closed change classification and explicit package/deployment qualification. Do not rename checks or drop current managed Policy tests through documentation alone; KEY-114 must replace affected tests with its runtime contract.
+
+First Local remains private, ephemeral Node SQLite. KEY-122 owns later cross-authority accounting amendments; KEY-123 owns durable Node Local recovery and KEY-124 owns delegation/reconciliation required for Cloud. KEY-116/117/118 remain required Local tooling with optional per-workflow use; KEY-119/120 are required Cloud configuration/editor capabilities. KEY-115 model exploration and KEY-125 later shared HTTP evaluation add no first-release gate. See [product commitments](product.md#policy-tooling-and-release-scope) for the capability boundaries and [Linear](https://linear.app/keynes) for current roadmap sequencing.
+
+Reconcile conflicting active feature artifacts when resumed, including KEY-85 lifecycle work, KEY-96 packages and KEY-108 catalog tooling. Preserve historical specifications, ADR bodies and acceptance records at their original revisions. Do not relabel historical PGlite or managed Policy evidence as qualification of this target. Numeric semantics remain unchanged; runtime design must justify range/rounding against product needs.
 
 ## CLI and generated types
 
 The target developer application lives in `apps/cli`, publishes as `@keynes/cli`
 and exposes `keynes`. KEY-96 owns the application/installation boundary; KEY-108
-owns remote catalog discovery, application type generation, definition deployment
+owns remote Resource catalog discovery, application type generation, Resource definition deployment
 and compatibility checks. These commands are not implemented by this documentation.
 The existing `keynes-postgresql` installer remains the executable contract until
 its replacement lands.
+
+Customer policy definitions and hosted evaluator deployments are separate from database Resource provisioning. The target retires managed Policy catalog/compiler/evaluator requirements; current Policy APIs remain implemented until KEY-114. These changes do not authorize automatic database upgrades.
 
 That installer packages one `0001-baseline.sql` for fresh databases. An exact
 reinstall is read-only; historical, partial, drifted, or profile-mismatched

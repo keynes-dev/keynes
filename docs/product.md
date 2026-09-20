@@ -314,6 +314,12 @@ These are required Local-preview capabilities, not allocation prerequisites. A w
 
 [KEY-125](https://linear.app/keynes/issue/KEY-125) owns later versioned HTTP evaluation shared across applications, including Keynes Cloud hosting of customer-owned logic. Initial hosting evaluates only and stays outside authoritative Budget accounting. Mandatory evaluation-and-submission is deferred. This work adds no first Local or first Cloud gate.
 
+## Later durability and delegation
+
+[KEY-122](https://linear.app/keynes/issue/KEY-122) owns the detailed cross-authority accounting ADR and governing amendments. [KEY-123](https://linear.app/keynes/issue/KEY-123) adds durable Node Local recovery later. [KEY-124](https://linear.app/keynes/issue/KEY-124) delivers PostgreSQL-to-local delegation, active partial surrender and final reconciliation as required Cloud capabilities. Workers, workflows and steps use one Budget model.
+
+This is direction for later work, not a distributed protocol defined here. Current fixed funding and one authority per Budget remain in force until the governing amendment. First Local stays ephemeral and its toolkit gates remain unchanged. [Linear](https://linear.app/keynes) owns current sequence and status; this document defines product commitments.
+
 ## Product commitments
 
 - Budget remains the only public stateful governance object. Defining Resources creates no quantity.

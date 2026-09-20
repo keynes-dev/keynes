@@ -4,6 +4,16 @@
 Local and Remote API, portable Policy authoring, generated contracts, one
 private in-memory SQLite runtime, and the direct PostgreSQL client.
 
+## Adopted target and migration
+
+[ADR-0013](../../docs/adr/0013-application-owned-policies.md) adopts customer-computed requests and private Node SQLite Local with separate accounting runtimes outside the SDK. The APIs, dependencies and examples below describe the current combined SDK, including managed SQL Policies; they do not demonstrate that retirement or package separation has shipped.
+
+KEY-114 owns the breaking removal of managed Policy authoring, attachment, compilation and evaluation, including changed request/evidence contracts and tests. Customers will own evaluation, failures, fallback, transactions and recomputation; Keynes will validate requests and enforce Budget authority and quantities atomically. A valid request may still be denied. Caller-supplied evidence is not proof that policy ran. Exact command replay does not rerun customer policy.
+
+KEY-96 owns runtime/package separation and exact new exports. No mandatory Policy result, callback signature or transaction manager belongs to allocation. Optional application helpers may define their own interfaces. See the [conceptual application-code and customer-SQL examples](../../docs/architecture.md#equivalent-customer-code-and-sql) for the target boundary; current runnable usage follows below.
+
+First Local remains ephemeral, with no persistence/database handle, browser support, multi-process coordination or caller-owned PostgreSQL transactions. Later durable Local is KEY-123 under KEY-122. API migration does not imply automatic database upgrades; incompatible PostgreSQL installations require fresh installation under the current baseline contract.
+
 ## Install the private archive
 
 Maintainers build and pack one archive from the repository root:
@@ -70,6 +80,8 @@ Budget, command, executor, or database identifier. You may destructure methods
 because they do not depend on `this`.
 
 ## Add a Policy
+
+This section describes current managed Policy behavior, pending KEY-114 retirement.
 
 Pass the plain definitions object to `definePolicy` or `definePolicySql`.
 Authoring is pure and does not register Resources or contact a database.
