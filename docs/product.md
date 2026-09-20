@@ -1,13 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Target contract. [ADR-0012](adr/0012-postgresql-and-pglite.md) adopts
-> PostgreSQL/PGlite and separate SDK, adapter and Policy tooling distributions.
-> Current Local source still uses SQLite; KEY-109 and KEY-96 remain unimplemented.
-> KEY-78 configured creation is implemented in the
-> current source. [Linear](https://linear.app/keynes) tracks delivery and
-> evidence. Each retained result proves only the source revision and verification
-> lane that it records. Target behavior remains undelivered until its feature
-> retains evidence for the relevant revision.
+> **Status:** Adopted target contract. [ADR-0013](adr/0013-application-owned-policies.md) adopts application-owned policies and private Node SQLite Local with separate SQLite/PostgreSQL accounting implementations. Current source still implements managed SQL Policies and combines SQLite/compiler code with the SDK. KEY-114 owns Policy retirement; KEY-96 owns package separation. This documentation does not ship those changes. [Linear](https://linear.app/keynes) owns delivery and roadmap status; retained evidence proves only its recorded revision and verification lane.
 
 ## Thesis
 
@@ -16,11 +9,7 @@ much to investigate, which tools to use, when to retry, and when to ask for help
 Businesses need a clear way to give agents operating limits without scattering
 those limits through prompts and application code.
 
-Keynes makes those limits explicit. An application defines the Resources and
-Policies that its Budgets can use. A Budget owns quantities of Resources and may
-grant some of that quantity to a child. The application does the work and
-reports usage. Keynes records the accounting outcome and returns unused
-quantity when the Budget settles.
+**Applications decide what work is worth doing. Keynes enforces the quantity they are allowed to use.** Customers compute a typed request or reject an operation. A Budget owns Resource quantities and may grant some to a child. Keynes validates the request and atomically checks Budget authority, constraints and available quantity. A valid request may still be denied. The application does the work and reports usage; Keynes settles the accounting and returns unused quantity.
 
 ```text
 Budget -> request -> child Budget -> settle -> evidence
@@ -61,49 +50,24 @@ Resource definitions. Shared definitions require explicit provisioning.
 Defining a Resource creates no quantity. Live quantity exists only on Budgets.
 Keynes has no tenant Resource pool, inventory account, or unattached balance.
 
-## Policies
+## Application-owned policies
 
-A Policy is one immutable, tenant-scoped rule that constrains a Budget request.
-It declares the canonical Resource names that it reads or limits, an exact
-context schema, stable reasons, and one normalized query program.
+A policy is customer-owned logic that produces a typed Keynes request or rejects an operation. Customers may use ordinary application code, SQL over their own data, or optional policy helpers. Allocation requires no Policy result type, callback signature or transaction manager. The target retires database-managed Policy registration, compilation and evaluation.
 
-`keynes.definePolicies({...})` atomically defines or exact-reuses several
-named Policies and returns typed `PolicyBinding` values. Policy definitions
-refer to Resources by canonical name. The authority rejects a missing Resource.
+Customers own evaluation, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before constructing a request. An assessment or evaluation record is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
 
-One Policy name identifies one definition. Repeating a name with the same
-definition returns the existing binding. Repeating the name with different
-logic, context, reasons, or Resource declarations fails with
-`policy_definition_conflict`. The application gives changed logic a new
-name.
+Customer ownership does not dictate where evaluation runs. It may run inside an application, in a customer-operated service or later in Keynes Cloud. Applications can share one policy deployment. Later hosted evaluation remains outside authoritative accounting and does not restore database-managed Policies.
 
-A Budget attaches an arbitrary list of Policy bindings. Policies do not inherit
-from the parent. Each attached Policy receives context under its own name:
+See the [equivalent application-code and SQL examples](architecture.md#customer-evaluation-and-request-construction) for request construction, rejection and replay boundaries.
 
-```ts
-const result = await budget.request({
-  resources: { usdCents: 25 },
-  context: {
-    spendingLimit: { customerTier: "pro" },
-    riskLimit: { riskScore: 42 },
-  },
-});
-```
+### Current implementation
 
-The authority requires context for every attached Policy and rejects context
-for an unattached Policy. Each Policy sees only its own context, the requested
-Resources, and the Budget's available quantity. A Policy cannot read Keynes
-tables, application tables, secrets, command history, other Budgets, database
-metadata, files, or the network.
-
-The authority evaluates every attached Policy inside the request transaction.
-The lowest ceiling for each Resource wins. A Policy error aborts the request.
-Keynes never converts a Policy error into an approval or an ordinary denial.
+Current source still supports managed SQL Policy authoring, attachment and evaluation inside a Budget command. The [SDK Policy example](../packages/sdk/README.md#add-a-policy) documents that behavior. KEY-114 owns its breaking retirement, including compiler/evaluator paths, generated contracts and affected tests. Do not infer that the new boundary already ships.
 
 ## Budgets
 
 A Budget is the only public stateful governance object. It has immutable
-Resource membership, immutable behavior controls, optional local Policies, one
+Resource membership, immutable behavior controls, one
 structural parent, and one lifecycle.
 
 Every Budget exposes `request`, `settle`, and `inspect`. The immutable
@@ -159,7 +123,7 @@ To use PostgreSQL, an operator first provisions the durable catalog with
 `defineResources`. `createKeynes({ resources, databaseUrl })` then performs
 read-only compatibility validation. The client can create only from its
 configured names. Declarations do not grant permission or create catalog rows.
-Remote creation takes `{ policies?, operationKey? }` as its second argument.
+Current remote creation takes `{ policies?, operationKey? }` as its second argument. Policy attachment is current behavior pending KEY-114 retirement, not part of the adopted target.
 
 Root creation introduces the tree's complete funding. A child's complete grant
 comes from its parent at creation. Existing
@@ -184,8 +148,7 @@ A request proposes the exact Resources and quantities for one child. Its keys
 become the child's complete membership. A key with amount zero belongs to the
 child. A parent Resource omitted from the request does not.
 
-The authority evaluates the parent's Policies, checks available quantity, and
-either records a denial or transfers the requested quantity to a new child.
+The authority validates the submitted request, enforces permissions and Budget constraints, and checks live available quantity. It either records a quantity denial or transfers the requested quantity to a new child; invalid or unauthorized commands reject without allocation.
 Approval removes quantity from the parent and gives it to the child in the same
 transaction. The authority never creates a visible reservation or partially
 created child. That creation grant is the child's complete funding; it may
@@ -238,35 +201,11 @@ applications can report overage, which remains deficit evidence.
 
 ## Loading, types, and history
 
-Durable Budgets have opaque `BudgetReference` values.
-`loadBudget(reference)` sends only that reference. PostgreSQL returns the
-authoritative membership, behavior controls, Policies, balances, lifecycle,
-and lineage. Loading never defines, duplicates, or overwrites state.
+Durable Budgets have opaque `BudgetReference` values. `loadBudget(reference)` sends only that reference. PostgreSQL returns authoritative membership, behavior controls, balances, lifecycle and lineage. Loading never defines, duplicates or overwrites state, and a reference grants no permission.
 
-The development generator reads the supported tenant catalog and emits:
+Catalog generation supplies typed Resource declarations with runtime definition information. Client initialization validates them against the persisted catalog without provisioning. Generated types can become stale; database validation remains authoritative. The target does not generate database-managed Policy bindings or require a Policy catalog. Optional application tooling owns its parameter and helper types.
 
-- typed Resource declarations with runtime definition information;
-- compile-time Policy context and reason types; and
-- immutable runtime Policy descriptors for attachment and narrowing.
-
-It does not emit individual Budget records, balances, behavior controls,
-references, principals, credentials, or replay data. Generated types help local
-development and can become stale after catalog changes. Client initialization
-uses Resource declarations to validate compatibility with the persisted tenant
-catalog. Declarations grant no authorization and perform no provisioning.
-Runtime database validation remains authoritative. KEY-6 owns Hosted catalog
-generation; this tooling is outside KEY-78 and does not block its acceptance.
-
-A loaded Budget exposes its attached Policies as generated descriptors.
-Applications narrow each descriptor by Policy name. Generated types constrain
-request context to known Policy names and their schemas; PostgreSQL checks that
-the supplied keys exactly match the Policies attached to that Budget.
-
-`inspect()` returns one coherent snapshot and one chronological lineage
-history. Every Policy evaluation is a discriminated record keyed by immutable
-Policy name and definition digest. History may contain different Policies on
-ancestors and descendants without claiming that they share one context or
-reason type.
+`inspect()` returns one coherent snapshot and chronological lineage history. Recorded customer decision evidence remains caller-supplied, never a claim that Keynes evaluated a policy. Current managed Policy records retain their historical meaning until KEY-114 revises the contract; documentation does not rewrite existing evidence.
 
 ## Replay and external work
 
@@ -277,19 +216,18 @@ calls. A caller supplies one in `createBudget` options for crash recovery or an
 ambiguous remote response. Recovery checks current permission and the selected
 catalog before it returns a committed creation result.
 
-Replay covers Keynes state only. The application owns provider idempotency,
-workflow recovery, and every external effect.
+Replay covers Keynes state only and never reruns customer policy, queries customer tables or invokes a model. An exact denied command remains that recorded denial even if availability changes. Customers own recomputation and a new attempt under the command identity contract, along with provider idempotency, workflow recovery and external effects.
 
 ## Deployment choices
 
 Keynes is one resource-governance product with three deployment modes. Each
-mode implements the same Budget contract: Resource and Policy definitions,
+mode implements the same Budget contract: Resource definitions,
 requests, settlement, replay, inspection, accounting, and history have the
 same public meaning.
 
 | Mode     | Where a Budget lives                                 | What it is for                                            | Mode-specific capability                                                          |
 | -------- | ---------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Local    | Private in-memory PGlite in one Node.js process      | Fast, isolated development and disposable work            | Requires no service or database setup; state ends with the process                |
+| Local    | Private in-memory Node SQLite in one process         | Fast, isolated development and disposable work            | Requires no service or database setup; state ends with the process                |
 | Hosted   | A PostgreSQL authority separate from the application | Durable shared governance across applications and workers | The operator manages durable access, credentials, capacity, recovery, and support |
 | Embedded | The application's PostgreSQL installation            | Governance that must commit with application data         | The application calls canonical procedures inside its own transaction             |
 
@@ -297,29 +235,9 @@ Hosted may be customer-operated or managed by Keynes. Those choices change who
 operates the service; they do not change Budget behavior. No mode automatically
 moves a live Budget to another authority.
 
-The adopted execution paths use one PostgreSQL implementation:
+The target uses separate SQLite and PostgreSQL accounting implementations outside the SDK, sharing command contracts and conformance scenarios. A shared TypeScript engine is not a prerequisite. KEY-96 owns explicit runtime selection and exact package exports. Today the combined SDK uses `createKeynes({ resources })` for SQLite Local and `createKeynes({ resources, databaseUrl })` for server access; new runtime distributions are not yet implemented.
 
-```text
-TypeScript application
-|
-+-- createKeynes({ resources, runtime: <PGlite adapter> })
-|   `-- private in-memory PGlite, canonical PostgreSQL procedures
-|
-+-- createKeynes({ resources, runtime: <PostgreSQL adapter> })
-|   `-- verified PostgreSQL connection
-|
-`-- application-owned PostgreSQL client
-    `-- Keynes procedures in the caller's transaction
-```
-
-The adapter labels above are schematic, not callable factory names. KEY-96 owns
-the exact exports. Today, the combined SDK uses `createKeynes({ resources })`
-for SQLite Local and `createKeynes({ resources, databaseUrl })` for server access.
-The new adapter packages are not yet implemented.
-
-Local mode is ephemeral and process-owned. PostgreSQL is the only durable
-database implementation. The Hosted SDK currently connects directly to
-PostgreSQL. It does not use an HTTP Budget service or fall back to local state.
+First Local is ephemeral and process-owned. It exposes no persistence or database handle and promises no browser support, multi-process coordination or caller-owned PostgreSQL transactions. PostgreSQL remains the durable implementation under this contract. The Hosted SDK currently connects directly to PostgreSQL, with no HTTP Budget service or fallback to local state.
 
 Keynes TypeScript packages support Node.js 24 and later. The package engine
 range does not exclude an intermediate or end-of-life major. Production
@@ -341,7 +259,7 @@ operational evidence.
 ### Shared behavior and mode-specific capabilities
 
 A change to Budget semantics belongs in the shared contract. That includes
-Resource accounting, Policy evaluation, quantity transfers, settlement, replay,
+Resource accounting, request validation, quantity transfers, settlement, replay,
 and history. It must retain the same meaning in Local, Hosted, and Embedded.
 
 A capability may be mode-specific when it changes how an application reaches
@@ -353,24 +271,20 @@ transaction. These capabilities must not create a separate accounting model.
 
 ## Product ownership
 
-Keynes owns Resource and Policy identity, Budget identity and lineage, quantity
-ownership, request evaluation, atomic transfers, replay, lifecycle,
-settlement, deficit evidence, chronological history, the TypeScript SDK
-contract, and the PostgreSQL procedure contract.
+Keynes owns Resource identity, Budget identity and lineage, quantity ownership, request validation, atomic allocation, replay, lifecycle, settlement, deficit evidence, chronological history and the supported SDK/procedure contracts. Database enforcement applies to supported calls regardless of which application language uses them.
 
-The application owns workflow validity, Policy context facts, external work,
-provider retries, usage observation, business outcomes, application
-transactions, refunds, quota restoration, and any action associated with
-released quantity.
+Customers own workflow validity, evaluation logic and hosting, assessment validation, failures, fallback, parameter selection, recomputation, application transactions, external work, provider retries, usage observations and business outcomes. Released quantity does not perform a refund or restore provider quota.
+
+Customers control their deployments. Keynes does not promise to prevent an owner bypassing controls they administer. Supported SQL access remains available to different application languages; TypeScript remains the only supported SDK.
 
 ## Developer setup and remote onboarding
 
 The adopted `keynes` CLI lets a developer install and verify Keynes in PostgreSQL,
 generate application types from a selected remote catalog, preview and explicitly
-deploy Resource/Policy definitions, and check compatibility. It is a separate
+deploy Resource definitions, and check compatibility. It is a separate
 `@keynes/cli` application; using the SDK does not require installing developer tools.
 
-The remote catalog supplies application-specific Resource names and Policy types.
+The remote catalog supplies application-specific Resource declarations. Optional application policy tooling owns its own typed interfaces and configuration.
 Generated bindings can be committed for offline editing and reproducible builds.
 Keynes generates the SDK's own command types from its central contracts during
 its build. Neither kind of generated type grants database permissions.
@@ -386,28 +300,32 @@ the CLI boundary; KEY-108 delivers the remote developer workflow. Manual declara
 remain supported. Baseline Hosted continuity and complete developer onboarding
 retain separate acceptance, and both are required for the Hosted product experience.
 
+## Policy tooling and release scope
+
+The Local preview includes supported policy tooling while keeping policy use optional in every workflow:
+
+- [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional policy definitions, deterministic composition, prepared requests and evaluation records.
+- [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
+
+These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. Optional helpers can define typed interfaces without imposing a policy language, result type, callback or transaction manager on allocation.
+
+[KEY-119](https://linear.app/keynes/issue/KEY-119) persisted parameters and [KEY-120](https://linear.app/keynes/issue/KEY-120) a schema-driven editor are required Cloud capabilities. Configuration, evaluation tooling and allocation have separate owners. [KEY-115](https://linear.app/keynes/issue/KEY-115) explores model judgments independently; no production provider integration is required for Local or Cloud.
+
+[KEY-125](https://linear.app/keynes/issue/KEY-125) owns later versioned HTTP evaluation shared across applications, including Keynes Cloud hosting of customer-owned logic. Initial hosting evaluates only and stays outside authoritative Budget accounting. Mandatory evaluation-and-submission is deferred. This work adds no first Local or first Cloud gate.
+
+## Later durability and delegation
+
+[KEY-122](https://linear.app/keynes/issue/KEY-122) owns the detailed cross-authority accounting ADR and governing amendments. [KEY-123](https://linear.app/keynes/issue/KEY-123) adds durable Node Local recovery later. [KEY-124](https://linear.app/keynes/issue/KEY-124) delivers PostgreSQL-to-local delegation, active partial surrender and final reconciliation as required Cloud capabilities. Workers, workflows and steps use one Budget model.
+
+This is direction for later work, not a distributed protocol defined here. Current fixed funding and one authority per Budget remain in force until the governing amendment. First Local stays ephemeral and its toolkit gates remain unchanged. [Linear](https://linear.app/keynes) owns current sequence and status; this document defines product commitments.
+
 ## Product commitments
 
-- Resource and Policy definitions are independent, immutable authority state.
-- Live quantity belongs to exactly one non-settled Budget.
-- Root funding and child grants are fixed at creation. Settlement returns restore
-  availability without introducing quantity or increasing original funding.
-- Resource membership and `allows` never change after Budget creation.
-- A child receives exactly the Resource keys in its approved request.
-- Policies constrain child requests.
-- A Budget never becomes settled while any descendant remains non-settled.
-- Settlement leaves every settled Budget with zero live quantity.
-- PostgreSQL owns all durable Budget, replay, and history state.
-- One PostgreSQL implementation owns business rules in PGlite and native PostgreSQL.
-- The SDK carries types and performs actions without business logic. Database-owned
-  Policy authoring tooling retains compilation outside the engine; the database
-  independently validates definitions and evaluates Policies.
-- Local remains Node-only and in-memory; browser and persistent Local support are
-  outside this decision. PGlite Local does not qualify Embedded transactions.
-- Keynes TypeScript packages use one Node.js `>=24` compatibility floor.
-- The SDK contains no fallback authority and no public IAM system.
-- The active PostgreSQL implementation starts from one clean baseline. Existing
-  development databases are recreated. Git history and retained evidence remain
-  unchanged.
-- Current source, historical evidence, and accepted target behavior remain
-  separate until exact-revision qualification proves implementation.
+- Budget remains the only public stateful governance object. Defining Resources creates no quantity.
+- Database validation, permissions, fixed funding, exact accounting, settlement and deterministic replay remain mandatory. A valid request may be denied; customer evidence proves neither evaluation nor authority.
+- The target has no database-managed Policy registration/compiler/evaluator. Customer logic and optional tooling remain separate from allocation.
+- First Local uses private in-memory Node SQLite; PostgreSQL owns Hosted/Embedded accounting through supported procedures. Separate runtime packages belong to KEY-96, with shared contracts and conformance scenarios.
+- Numeric range, decimals and rounding must be justified by product needs during runtime design. PostgreSQL numeric behavior is not a universal policy-language requirement; this documentation changes no numerical semantics.
+- The active PostgreSQL baseline supports fresh install and exact read-only reinstall. Incompatible installations require recreation, not automatic upgrades or state migration.
+- Historical specifications and evidence remain revision-scoped. Reconcile conflicting active artifacts when resumed. Target adoption is distinct from implementation and exact-revision qualification.

@@ -1,5 +1,7 @@
 # ADR-0003: Use an in-memory SQLite runtime locally and PostgreSQL for durable deployments
 
+> **Superseded in part, 2026-09-19:** [ADR-0013](0013-application-owned-policies.md). ADR-0013 adopts SQLite Local again without restoring the obsolete SDK calls or HTTP/API-key routing below.
+
 > **Superseded in part, 2026-09-12:** [ADR-0012](0012-postgresql-and-pglite.md) adopts PostgreSQL/PGlite and central database source ownership. The decision below records its original context and implementation; KEY-109 and KEY-96 own the replacement.
 
 - **Status:** Accepted

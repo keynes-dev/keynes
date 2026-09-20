@@ -1,5 +1,7 @@
 # ADR-0006: Use a product-oriented monorepo
 
+> **Superseded in part, 2026-09-19:** [ADR-0013](0013-application-owned-policies.md). ADR-0013 supersedes the intervening PGlite and managed Policy package requirements. KEY-96 owns the resulting package separation; historical layout decisions below remain revision-scoped.
+
 > **Superseded in part, 2026-09-12:** [ADR-0012](0012-postgresql-and-pglite.md) adopts PostgreSQL/PGlite and central database source ownership. The decision below records its original context and implementation; KEY-109 and KEY-96 own the replacement.
 
 - **Date:** 2026-08-26

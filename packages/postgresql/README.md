@@ -6,6 +6,16 @@ single fresh-install baseline, installation identity, and private durable storag
 package is an installable CLI and PostgreSQL archive, not another SDK or a
 PostgreSQL extension.
 
+## Adopted target and current implementation
+
+[ADR-0013](../../docs/adr/0013-application-owned-policies.md) adopts application-computed requests and retires database-managed Policy registration, compilation and evaluation. Current SQL and generated contracts still implement managed Policies; KEY-114 owns the breaking replacement and its tests. KEY-96 owns package/CLI separation. The commands and installation rules below describe the current archive, not the future package exports.
+
+Customers evaluate policy in any language, including SQL over customer data. Supported Keynes commands retain database validation, permissions, Budget constraints, quantity enforcement, settlement and replay. Valid requests can be denied; caller decision evidence proves neither execution nor authority. SQL access from other application languages does not promise another SDK or prevent a database owner bypassing supported operations.
+
+Customers own evaluation failures, fallback, recomputation and their surrounding transactions. Keynes replay does not rerun customer policy. Supported Embedded calls use the supplied connection without committing, rolling back, replacing or closing it; results remain provisional until caller commit. An evaluation service or a separate customer database does not create a shared atomic transaction.
+
+The baseline remains fresh-install-only with exact read-only rechecks. No automatic upgrade, state transfer or old-Policy migration is promised by the adopted target.
+
 ## Commands
 
 Build and pack the package from the repository root:

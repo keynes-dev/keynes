@@ -1,5 +1,7 @@
 # ADR-0007: Use direct PostgreSQL access for the remote TypeScript SDK
 
+> **Superseded in part, 2026-09-19:** [ADR-0013](0013-application-owned-policies.md). ADR-0013 supersedes database ownership of Policy decisions only. Direct PostgreSQL access, authenticated identity, TLS, accounting and replay remain in force.
+
 - **Status:** Accepted
 - **Date:** 2026-09-02
 - **Deciders:** Keynes maintainers

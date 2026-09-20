@@ -1,28 +1,20 @@
 # Keynes runtime architecture
 
-> **Status:** Adopted target architecture. [ADR-0012](adr/0012-postgresql-and-pglite.md)
-> replaces the SQLite direction. Current source still uses SQLite Local in the
-> combined SDK; KEY-109 owns replacement and KEY-96 owns source/package separation.
-> KEY-78 configured creation is implemented. Other target behavior requires its
-> own feature acceptance. Historical results prove only their recorded revision
-> and verification lane.
+> **Status:** Adopted target architecture under [ADR-0013](adr/0013-application-owned-policies.md). Customers compute requests; SQLite Local and PostgreSQL Hosted/Embedded enforce accounting through separate implementations. Current source still implements managed SQL Policies and combines SQLite/compiler code with the SDK. KEY-114 owns Policy retirement; KEY-96 owns package separation. Documentation adoption is not runtime implementation or qualification. Historical evidence proves only its recorded revision and lane.
 
 ## Purpose
 
-Keynes gives an application one accounting and governance contract for
-Resources, Policies, and Budgets. One canonical PostgreSQL implementation will run in private
-in-memory PGlite for Local and native PostgreSQL for durable deployments.
+Keynes gives applications one Resource and Budget accounting contract. Customer evaluation produces typed requests or rejects work before submission. Supported commands validate requests and enforce permissions, Budget constraints and quantities atomically.
 
 ```text
-application
-  |
-  +-- Local: SDK + PGlite adapter -----------------> private in-memory PGlite
-  |
-  +-- Hosted: SDK + PostgreSQL adapter
-  |                                               --> constrained PostgreSQL procedures
-  |
-  `-- Embedded: application database code ---------> canonical PostgreSQL procedures
+customer code / customer SQL / optional evaluation service
+  | typed request, or customer rejection before submission
+  +-- Local: SDK + SQLite runtime ------------> private Node in-memory SQLite
+  +-- Hosted: SDK + PostgreSQL runtime -------> constrained PostgreSQL procedures
+  `-- Embedded: customer database code -------> procedures in caller transaction
 ```
+
+SQLite and PostgreSQL have separate accounting implementations outside the SDK, with shared command contracts and conformance scenarios. A shared TypeScript engine is not a prerequisite.
 
 The TypeScript SDK adapts calls and types. It contains no business rules or compiler and does not own database state, infer
 server state from caller types, or maintain a second replay ledger.
@@ -35,16 +27,15 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 
 ## Architectural invariants
 
-1. PostgreSQL is the only durable authority for definitions, Budgets,
+1. PostgreSQL is the durable authority under this contract for Resource definitions, Budgets,
    accounting, replay, and history.
-2. PGlite and native PostgreSQL execute one canonical business implementation.
-3. Resource and Policy definitions contain no quantity and exist independently
-   of Budgets.
+2. Separate SQLite and PostgreSQL implementations preserve the same command meaning.
+3. Resource definitions contain no quantity and exist independently of Budgets.
 4. Every live quantity unit belongs to exactly one non-settled Budget.
 5. The append-only quantity movement journal is the only quantity authority.
 6. Budget Resource membership and behavior controls never change.
 7. A command commits one complete result and its evidence or changes no state.
-8. Policies evaluate only Budget requests and only against declared inputs.
+8. Customer policy evaluation is outside authoritative accounting; decision evidence grants no authority.
 9. A settled Budget has zero live quantity and no non-settled descendant.
 10. Application work and external provider effects remain outside Keynes.
 11. Root creation introduces all tree funding; child creation transfers a fixed
@@ -73,8 +64,7 @@ The amounts object has no `initial` field or per-Budget definitions or bindings.
 Configured Resource names drive autocomplete and rejection of unknown amount
 keys, including separately declared variables. Runtime validation also rejects
 unknown keys. Returned Budget types and inspection reflect supplied membership.
-Local creation accepts `{ policies? }` as its second argument. Remote creation
-accepts `{ policies?, operationKey? }`. Neither option belongs in amounts.
+Current Local creation accepts `{ policies? }` as its second argument; current Remote creation accepts `{ policies?, operationKey? }`. Policy attachment is implemented behavior pending KEY-114 retirement. Neither current option belongs in amounts.
 
 Local initialization establishes a private ephemeral catalog from declarations.
 Durable initialization validates all supplied definitions against the persisted
@@ -97,7 +87,7 @@ Every Budget has a stable method surface:
 
 Durable clients also expose `loadBudget(reference)` and operation recovery.
 Loading takes only the opaque reference. Caller-supplied schemas, expected
-memberships, and expected Policies never participate in loading.
+memberships, and customer policy results never participate in loading.
 Recovery rechecks the caller's current permission. Before it returns a committed
 creation result, it validates that creation's selected definitions against the
 current tenant catalog.
@@ -135,27 +125,11 @@ The SDK exports the structural definition type for callers that want a
 `satisfies` check. There is no standalone definition helper outside
 `keynes.defineResources`.
 
-### Policies
+### Customer policies and current managed Policies
 
-`definePolicies` follows the same atomic batch rule. Each immutable
-tenant-scoped Policy contains:
+The adopted target has no database-managed Policy definition, registration, compiler or evaluator. Customers own evaluation in any language, including SQL over their own data. Optional tooling may define typed helper interfaces, but allocation requires no Policy result, callback or transaction manager.
 
-- canonical name and definition digest;
-- canonical Resource names it reads or constrains;
-- exact context schema;
-- stable denial reasons; and
-- one validated compiled Policy definition.
-
-The authority resolves every Resource name when the Policy is defined. A
-missing Resource rejects the batch. Exact reuse returns the existing Policy.
-A changed definition under the same name returns
-`policy_definition_conflict`; changed logic receives a new name.
-
-The result contains immutable typed `PolicyBinding` values. Budget creation
-and child requests attach bindings, not caller-written Policy identifiers.
-Generated Policy descriptors are authority-derived equivalents of those
-bindings. Both forms obey the same authority and tenant scope as Resource
-bindings.
+Current source still has managed SQL Policy authoring and attachment, definition validation and command-transaction evaluation. KEY-114 owns retirement of those paths and generated contracts/tests. The [current SDK example](../packages/sdk/README.md#add-a-policy) remains valid for that implementation. Historical managed Policy evidence keeps its original meaning; it is not rewritten as customer evaluation evidence.
 
 ## Budget state
 
@@ -165,7 +139,6 @@ A Budget owns:
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
 - immutable `allows.createChildren` boolean;
-- an immutable list of locally attached Policies;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
 
@@ -197,34 +170,54 @@ new allowances; conservation within a tree is not a ceiling across separate root
 Zero availability alone changes no lifecycle state. Requests that exceed available
 quantity are denied; outstanding children and missing usage remain unresolved.
 
-## Policy evaluation
+## Customer evaluation and request construction
 
-Policies are local to the Budget that attaches them. They do not inherit to a
-child. A request supplies context under each attached Policy name:
+Customers evaluate business rules, validate inputs and optional structured model assessments, and choose parameters before producing a request or rejecting work. They own evaluation failures, timeout behavior, fallback and recomputation. Keynes does not call their evaluator as part of allocation.
+
+The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle/controls and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
+
+Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
+
+Exact command replay returns the recorded result without reevaluating customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity.
+
+### Equivalent customer code and SQL
+
+These examples construct the same request data. They are customer-owned evaluation, not new Keynes exports or a shipping replacement API. The customer validates its selected inputs first; this example requires a string tier and a non-negative safe-integer limit. The business rule allows only a pro-tier operation whose selected limit covers 25 cents.
 
 ```ts
-context: {
-  spendingLimit: { customerTier: "pro" },
-  riskLimit: { riskScore: 42 },
+function requestFor(
+  tier: string,
+  maxCents: number,
+): { usdCents: number } | null {
+  if (
+    typeof tier !== "string" ||
+    !Number.isSafeInteger(maxCents) ||
+    maxCents < 0
+  ) {
+    throw new Error("Invalid customer policy inputs");
+  }
+  return tier === "pro" && maxCents >= 25 ? { usdCents: 25 } : null;
 }
+
+const request = requestFor("pro", 25);
 ```
 
-The authority requires exactly the attached Policy contexts. An omitted
-attached context or an extra unattached context rejects the request. Each
-Policy receives only:
+A customer SQLite query over those same validated inputs produces equivalent JSON. This query runs on the customer's own connection, not through a Keynes Local database handle. Production callers bind values instead of interpolating them into SQL.
 
-- its own validated context;
-- requested Resource names and quantities; and
-- the parent's available quantity for those Resources.
+```sql
+WITH customer_inputs(tier, max_cents) AS (VALUES ('pro', 25))
+SELECT json_object('usdCents', 25) AS request
+FROM customer_inputs
+WHERE tier = 'pro' AND max_cents >= 25;
+```
 
-A Policy cannot access Keynes tables, application tables, other Budgets,
-secrets, command history, database metadata, files, or the network.
+Both yield `{"usdCents":25}`. A limit of 24 or a non-pro tier yields `null` in customer code and no SQL row; the caller rejects before submitting any allocation command. This customer rejection is not a recorded Keynes denial. A valid 25-cent request submitted to a parent with only 10 cents available is denied by Keynes; customer evaluation cannot reserve quantity.
 
-Request evaluation occurs after the parent and relevant Resource memberships
-are locked and before any child or movement is inserted. All attached Policies
-observe the same snapshot. The lowest ceiling for a Resource wins. A denial is
-a committed domain result with evidence but no child or quantity movement. A
-Policy error aborts the command and never becomes an approval or denial.
+A structured model assessment may supply a fact such as a risk category. Customers validate its schema and allowed values and decide how it affects this rule. Missing or malformed output, timeout and provider failure require customer-owned rejection or an explicit fallback before submission. Confidence is not Budget authority. Neither these examples nor the allocation API requires a model, callback or shared policy result interface.
+
+### Evaluation hosting
+
+Customer-owned logic can run in an application, a customer service or later Keynes Cloud hosting. Shared deployment across apps is allowed; an evaluator per app is not required. KEY-125 owns later versioned HTTP evaluation. Initial hosting evaluates only, outside authoritative accounting; mandatory evaluation-and-submission is deferred. It adds no first Local or first Cloud gate and does not restore managed database Policies.
 
 ## Quantity accounting
 
@@ -311,15 +304,13 @@ from retaining quantity or having a non-settled descendant.
 
 ## Command and replay contract
 
-One generated semantic contract defines the commands implemented by both
-authorities:
+One shared semantic contract defines the target commands for both authorities. KEY-114 owns the breaking change from current managed Policy inputs and generated definitions:
 
 | Command           | Meaning                                                                                        |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
 | `defineResources` | Atomically define or exact-reuse a Resource batch                                              |
-| `definePolicies`  | Atomically define or exact-reuse a Policy batch                                                |
 | `createBudget`    | Validate declared Resources and amounts, then create one root without shared definition writes |
-| `requestBudget`   | Evaluate Policies and transfer quantity to one child                                           |
+| `requestBudget`   | Validate requests and atomically deny or transfer quantity to one child                        |
 | `settleBudget`    | Record usage and finalize every newly ready Budget                                             |
 | `inspectBudget`   | Read one coherent state and lineage-history snapshot                                           |
 
@@ -354,40 +345,28 @@ parent waiting or finalizes it.
 
 Lifecycle compare-and-set and a unique terminal movement per
 Budget/Resource/reason prevent duplicate return or release when descendants
-race. Replay is resolved before mutable state is observed. Command, Policy
-evidence, movements, lifecycle, and history commit in one transaction.
+race. Replay is resolved before mutable state is observed. Command results, submitted evidence, movements, lifecycle and history commit in one transaction. Caller evidence remains untrusted; recording it is not proof of evaluation.
 
 The logical PostgreSQL state owners are:
 
-| State                        | Responsibility                                             |
-| ---------------------------- | ---------------------------------------------------------- |
-| definition catalogs          | Immutable Resource and Policy identity and digests         |
-| Budgets and memberships      | Lineage, lifecycle, controls, attached Policies            |
-| quantity movements           | Sole live-quantity and conservation authority              |
-| usage and deficits           | Direct observations that do not invent quantity            |
-| Policy evaluations           | Inputs, ceilings, reasons, and Policy digest               |
-| commands                     | Canonical replay and recovery result                       |
-| history                      | Ordered domain evidence derived from committed transitions |
-| references and role mappings | Durable lookup and authenticated tenant scope              |
+| State                        | Responsibility                                                    |
+| ---------------------------- | ----------------------------------------------------------------- |
+| definition catalogs          | Immutable Resource identity and digests                           |
+| Budgets and memberships      | Lineage, lifecycle and controls                                   |
+| quantity movements           | Sole live-quantity and conservation authority                     |
+| usage and deficits           | Direct observations that do not invent quantity                   |
+| Submitted decision evidence  | Caller-supplied context, never an attestation of policy execution |
+| commands                     | Canonical replay and recovery result                              |
+| history                      | Ordered domain evidence derived from committed transitions        |
+| references and role mappings | Durable lookup and authenticated tenant scope                     |
 
-## Local PostgreSQL execution
+## Local SQLite execution
 
-The PGlite adapter will own one private Node in-memory instance, install the
-canonical procedures and initialize its ephemeral catalog from declarations.
-The SDK exposes neither the connection nor arbitrary SQL. Methods remain asynchronous.
+First Local uses one private Node in-memory SQLite runtime. It owns transactions, validation, accounting and command replay; its lifecycle code owns admission, isolation and close/drain. Separate Local instances share no state. Process exit discards it. Engine-specific accounting lives outside the SDK in the target package layout owned by KEY-96; current source still contains SQLite code inside the combined SDK.
 
-PGlite and native PostgreSQL execute the same validation, replay, accounting,
-Policy and history procedures. The Local adapter owns admission and close/drain
-behavior around its single connection. Separate Local instances share no state;
-process exit discards it. Single-connection execution does not qualify native
-PostgreSQL row locking, contention or caller-owned transaction behavior.
+Local exposes no persistence option, database handle, public migration API, network listener, browser support, multi-process coordination or caller-owned PostgreSQL transactions. SQLite execution cannot qualify native PostgreSQL locking, permissions, contention or caller transactions. Shared contracts and scenarios preserve public command meaning without requiring a shared accounting engine.
 
-Local has no persistence option, public migration API, network listener, browser
-support, multi-process coordination or recovery after process exit. Internal
-installation of SQL does not create a public Local migration surface.
-
-Current Local still uses SQLite in the SDK. KEY-109 must pass compatibility and
-replacement acceptance before removing it or switching the required CI lane.
+KEY-123 owns later durable Node Local recovery under KEY-122's governing amendment. This direction changes neither first Local nor its qualification requirements.
 
 ## Node.js support
 
@@ -397,8 +376,7 @@ release may remain compatible with Keynes, but the Node.js project no longer
 provides its security fixes. Production deployments should use an
 upstream-supported release.
 
-Package qualification retains exact SDK, selected adapter and applicable Policy
-authoring archives and tests those digests on the minimum supported major and
+Package qualification retains exact SDK, selected runtime and applicable optional tooling archives and tests those digests on the minimum supported major and
 the latest Node.js release across the supported operating systems. A qualification record proves only the versions that it
 names. It does not turn untested future versions into exact-revision evidence.
 When a new Node.js major becomes the latest release, it replaces the previous
@@ -410,51 +388,17 @@ engine exclusion. That transition check is not a permanent Node.js 25 lane.
 
 ## Loading, inspection, and generated code
 
-`loadBudget(reference)` is a read-only PostgreSQL operation. The server
-authorizes the reference and returns membership, controls, attached Policies,
-balances, lifecycle, and lineage from one coherent snapshot. A reference is an
-identifier, not permission.
+`loadBudget(reference)` is a read-only PostgreSQL operation. It authorizes the reference and returns membership, controls, balances, lifecycle and lineage from one coherent snapshot. A reference is an identifier, not permission. Loading does not register definitions or trust caller-declared state.
 
-`inspect` returns the same domain projection in local and durable modes.
-History is one chronological lineage stream. Policy evaluation entries carry
-their immutable Policy name and definition digest, so ancestors and descendants
-may have different context and reason types without a false shared generic.
-PostgreSQL may page history internally through independent, repeatable,
-bounded-lifetime cursors.
+`inspect` returns the same domain view in Local and durable modes. History is chronological lineage evidence; submitted customer decision records do not attest to policy execution. Current managed Policy history remains part of the implemented contract until KEY-114 revises it. PostgreSQL may page history through independent, repeatable, bounded-lifetime cursors.
 
-The development generator reads a supported, read-only tenant catalog
-procedure. It emits:
+The development generator reads the supported tenant catalog and emits typed Resource declarations with immutable runtime definition information. Initialization compares supplied definitions without writing missing or conflicting catalog entries. Generated output grants no permission and contains no Budget rows, balances, lifecycle, controls, references, principals, credentials, operation keys, results or history. The database remains authoritative when generated code is stale.
 
-- typed Resource declarations with immutable runtime definition information;
-- Policy names, context types, reason types, and discriminated unions; and
-- immutable runtime Policy descriptors equivalent to authority-issued
-  bindings.
-
-Generated Resource declarations carry the runtime definition information needed
-for configured-client compatibility validation. Initialization compares supplied
-definitions against the persisted tenant catalog without defining missing names
-or changing conflicting entries. Generated output grants no authorization.
-KEY-108 owns catalog generation and developer onboarding. KEY-6 supplies the
-authenticated catalog/provisioning support and independently qualifies baseline
-continuity. Complete remote onboarding requires KEY-108 as well.
-
-Created handles infer their exact Resources and attached Policies from inputs.
-A reference-loaded handle begins with generated catalog unions and narrows
-attached Policies by descriptor name. PostgreSQL remains authoritative when
-generated code is stale.
-
-Generated output contains no Budget rows, balances, lifecycle, behavior
-controls, references, principals, credentials, operation keys, command
-results, or history. It performs no runtime registration.
+KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authenticated catalog/provisioning support and independently qualifies baseline continuity. Complete remote onboarding needs both. Database-managed Policy descriptors, context/reason types and attachment narrowing are retired target requirements. Optional customer-policy tooling owns its types separately from the Resource catalog and allocation contract.
 
 ## Developer CLI
 
-The adopted `apps/cli` application is distributed as `@keynes/cli` with the
-`keynes` executable. It composes reusable database installation/connection APIs
-from `@keynes/postgres` and authoring tooling from `@keynes/policy`. It does not
-own another schema, validator, accounting implementation or Policy evaluator.
-Installing the SDK or an adapter does not install the CLI. The CLI may depend
-on server and authoring tooling without weakening application dependency isolation.
+The adopted `apps/cli` application publishes as `@keynes/cli` with the `keynes` executable. It composes reusable database installation and connection APIs. It does not own a second schema, accounting implementation or managed Policy evaluator. Runtime consumers do not install the CLI implicitly. KEY-96 owns exact package exports and the CLI boundary; optional application tooling remains separate.
 
 KEY-96 establishes this application boundary and moves the existing installation
 command into it with a documented command migration. KEY-108 delivers the
@@ -464,13 +408,13 @@ remote developer workflow. Both remain unimplemented; the current executable is
 | Operation                      | Direction and responsibility                                                                                                                 |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | Install and verify             | Install canonical Keynes tables/procedures and verify version/profile compatibility                                                          |
-| Generate application types     | Read the selected remote catalog and write deterministic Resource/Policy TypeScript bindings                                                 |
+| Generate application types     | Read the selected remote catalog and write deterministic Resource TypeScript bindings                                                        |
 | Preview and deploy definitions | Compare authored definitions with the selected remote catalog, display changes, then explicitly apply through database provisioning commands |
 | Check compatibility            | Detect conflicting definitions, stale bindings and incompatible database installations without writes                                        |
 
 These are capability names, not finalized CLI subcommand syntax. SDK command and
 result types are generated during the Keynes build from central contracts;
-application-specific Resource and Policy types come from the selected catalog.
+application-specific Resource types come from the selected catalog. Optional policy helper types and configuration are application tooling contracts.
 Generated bindings retain runtime compatibility descriptors, grant no permissions,
 and contain no credentials, Budget rows or balances.
 
@@ -481,11 +425,11 @@ must revalidate the catalog in the database; a prior preview cannot authorize a
 stale or conflicting write. Client initialization remains non-mutating. Supported
 manual declarations remain valid.
 
-Database installation is separate from Resource/Policy deployment. The current
+Database installation is separate from Resource definition deployment and customer policy deployment. The current
 baseline supports fresh installation and exact reinstallation; upgrades require
 a separate migration contract. CLI acceptance must cover selected host and tenant,
 read-only credentials for discovery, separate write permissions, deterministic
-output, mismatch refusal and exact-archive clean consumers. PGlite Local and native
+output, mismatch refusal and exact-archive clean consumers. SQLite Local and native
 fixtures do not establish Hosted onboarding or Embedded readiness.
 
 ## PostgreSQL installation
@@ -530,6 +474,10 @@ These deployment-specific responsibilities do not change a Budget command's
 semantics. Hosted delivery, including managed Cloud, is not a product-readiness
 claim until its own exact-revision evidence exists.
 
+### Later cross-authority accounting
+
+KEY-122 owns the detailed accounting ADR and governing amendment before durable Local or delegation changes the current contract. KEY-123 adds durable Node Local recovery; KEY-124 supplies PostgreSQL-to-local delegation with active partial surrender and final reconciliation required for Cloud. Workers, workflows and steps use one Budget model. This document does not define that protocol or relax current fixed funding and single-authority ownership. First Local remains ephemeral with unchanged toolkit requirements.
+
 ## Security boundary
 
 Database authentication and grants remain below the SDK. Remote wrappers derive
@@ -537,67 +485,37 @@ identity from the authenticated PostgreSQL role. Ordinary remote credentials
 cannot write private tables, administer credentials, override mapped identity,
 or cross tenants.
 
-Budget references and bindings do not grant authority. Policy input and
-application context are untrusted and validated at the procedure boundary.
+Budget references and bindings do not grant authority. Submitted quantities and decision evidence are untrusted and validated at the command boundary. Caller-supplied evidence is not proof that a policy executed; even a valid request may be denied.
 Stable errors must not expose another tenant, private identifiers, SQL text,
 credentials, or database internals.
 
-The application owns end-user authentication, workflow authorization, Policy
-context facts, provider credentials, provider idempotency, refunds, quota
+The application owns end-user authentication, workflow authorization, policy evaluation and facts, provider credentials, provider idempotency, refunds, quota
 restoration, and every external action associated with released quantity.
+
+Customers control their deployments. Guarantees cover supported Keynes operations, not prevention of owner bypass. Customers may call supported SQL from different application languages; this does not promise another language SDK.
 
 ## Module ownership
 
-The adopted source owner is private `packages/database`, organizing Budget,
-Resource and Policy definitions, command contracts, canonical SQL and Policy
-compiler source. Move the existing canonical inputs from `packages/contracts`;
-do not create duplicate schemas or a second business implementation.
+One source owner defines the common command contracts. Separate engine-specific SQLite and PostgreSQL runtime packages own accounting outside the SDK. KEY-96 determines their exact names and exports without duplicating canonical contracts or requiring a shared TypeScript engine. The SDK owns typed handles, inference, encoding, invocation, result mapping and public errors, with no accounting rules, managed Policy compiler or database drivers.
 
-| Distribution       | Responsibility                                                                                  |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| `@keynes/sdk`      | Typed handles, inference, action invocation, encoding, result mapping and public errors         |
-| `@keynes/pglite`   | Private Node in-memory installation, procedure calls and lifecycle                              |
-| `@keynes/postgres` | Server connections, caller-owned connections and reusable installation APIs                     |
-| `@keynes/policy`   | Database-owned Policy authoring compiler                                                        |
-| `@keynes/cli`      | Developer CLI for installation, type generation, definition deployment and compatibility checks |
+Current source keeps SQLite/compiler code in `packages/sdk`, SQL in `packages/postgresql` and canonical inputs in `packages/contracts`. These current paths do not prove the target separation. KEY-114 retires managed Policy definitions, compilation and evaluation rather than relocating them into new runtime packages.
 
-These are targets owned by KEY-96. Current source still places SQLite and compiler
-code in the SDK, SQL in `packages/postgresql`, and canonical inputs in
-`packages/contracts`. No new public distribution is implied by this document.
+Consumer builds produce their own outputs from canonical inputs without writing sibling workspaces, maintaining SQL copies or leaking private workspace imports. Tests stay beside their subject; shared conformance scenarios stay independent of adapters. Local consumers exclude the PostgreSQL driver; SDK-only consumers install neither engine nor compiler.
 
-Consumer builds produce their own artifacts from canonical source without
-writing sibling workspaces, hand-maintained SQL copies or leaked private workspace
-imports. Tests remain beside their subject; shared cases stay adapter-independent.
-Local consumers exclude the server adapter and driver; server consumers exclude
-PGlite. SDK-only consumers install neither engines nor compiler.
+Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. Exact factory exports belong to KEY-96; no new callable shape is introduced here.
 
-Compilation remains outside the engine in database-owned tooling. Preserve the
-existing Kysely/raw SQL profile, parser, canonical identities and type inference.
-The database independently validates submitted definitions and evaluates Policies
-inside command transactions. Generating SDK validators does not justify putting
-business rules into the SDK. Mechanical alias mapping and response checks must
-preserve unknown-key errors, canonical database identity and sound types.
-
-Use explicit `createKeynes({ resources, runtime })` selection without fallback.
-Adapters must not replace, close, commit or roll back borrowed connections or
-retry part of an application transaction. Results remain provisional until caller
-commit. Exact adapter factory exports belong to KEY-96's specification.
-
-Name modules for their function: adapters, CLI, installation, result mapping,
-Policy validation and serialization. A generic storage framework or separate
-service per primitive is not part of this design.
+Numeric range, decimal and rounding requirements must follow product needs in runtime design. PostgreSQL numeric behavior does not define a universal policy language. Exact accounting, deterministic replay and explicit invalid-input handling remain mandatory; no numerical semantic rewrite is bundled into this documentation or KEY-121.
 
 ## Verification model
 
-Implementation is complete only when one shared behavior suite passes against
-PGlite and native PostgreSQL after the KEY-109 transition for:
+Runtime implementation requires shared conformance scenarios to pass against SQLite and native PostgreSQL for:
 
 - definition reuse and conflicts;
 - configured creation, exact amount-key membership, and all-zero Budgets;
 - durable declaration compatibility without shared definition writes;
 - immutable membership and behavior controls;
 - fixed creation funding, settlement returns, and independent successive roots;
-- Policy approval, denial, errors, and namespaced context;
+- request validation, quantity denial, permissions and caller-evidence handling;
 - exact child subsets and atomic transfer;
 - consumable and reusable usage, deficits, return, and root release;
 - parent-first settlement and concurrent descendant finalization;
@@ -610,11 +528,7 @@ tenant isolation, TLS, recovery, and direct and supported pooled connections.
 Local evidence must cover queue ordering, isolation, close/drain behavior,
 package contents, and the declared Node.js qualification lanes.
 
-Until KEY-109 qualifies replacement, `pnpm test:sqlite-postgres` and the
-existing required SQLite/native PostgreSQL CI check remain in force. KEY-109
-must preserve native coverage, fail-closed applicability, required-check
-enforcement and evidence retention while replacing the Local lane. Do not
-rename executable commands or remove gates through documentation alone.
+Existing SQLite/native correctness commands and required CI check names remain unchanged. Preserve native coverage, fail-closed change classification, required-check enforcement and explicit qualification. Existing managed Policy tests remain until KEY-114 replaces the corresponding contracts and tests. `pnpm test:sqlite-postgres` remains the explicit shared qualification command; documentation adoption does not qualify runtime behavior.
 
 Current passing provider-free checks do not prove this target. Native
 PostgreSQL, hosted, package, provider, security, recovery, performance, and
