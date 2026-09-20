@@ -29,7 +29,7 @@ Independent test: dedicated package workflow wiring and complete Local/shared re
 
 ## Phase 5: Verification and delivery
 
-- [ ] T010 Run routine, package and native/paired checks and fresh exact-archive measurement; record results, digests and NOT RUN lanes in acceptance.md (SC-001/002/003).
+- [x] T010 Run routine, package and native/paired checks and fresh exact-archive measurement; record results, digests and NOT RUN lanes in acceptance.md (SC-001/002/003).
 - [ ] T011 Review full diff, publish standalone PR and link spec.md, plan.md, tasks.md and acceptance.md from KEY-121.
 
 ## Dependencies and strategy
