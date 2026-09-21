@@ -25,7 +25,7 @@ Observe failing cases before implementation: missing initial values, schema defa
 
 In `test/snapshot.test.ts`, provision a base, override one whole value and assert the original is unchanged. A partial nested object fails when a required field is absent. Equal-value and empty overrides retain identity. Mutate original input objects after creation and attempt mutations of returned graphs; captured values and identities must stay fixed.
 
-Serialize the fixture in `test/fixtures/snapshot.json`, restore it against the expected declaration and assert canonical bytes and both digests. Run fresh Node child processes from the existing Vitest test to compare canonical output across processes. Reorder object keys and expect equality; change values, schema annotations or array order and expect the relevant identity to change. Changed initials must not affect restoration. Tampered payloads, versions, identities and foreign definitions must reject without repair.
+Use `canonicalize(snapshot)` on a validated snapshot to serialize the fixture in `test/fixtures/snapshot.json`, restore it against the expected declaration and assert canonical bytes and both digests. Run fresh Node child processes from the existing Vitest test to compare canonical output across processes. Reorder object keys and expect equality; change values, schema annotations or array order and expect the relevant identity to change. Changed initials must not affect restoration. Tampered payloads, versions, identities and foreign definitions must reject without repair.
 
 ## Optional Zod authoring
 

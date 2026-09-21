@@ -12,18 +12,7 @@ All entities below are proposed. No database tables or migrations are introduced
 
 Schemas and snapshots use only strict JSON trees. A declaration map is non-empty. Names match `[A-Za-z][A-Za-z0-9_]{0,63}` and reserve `__proto__`, `prototype` and `constructor`; there is no case folding or alias normalization. Unknown and inherited entries do not become declared parameters. Duplicate keys in already parsed JSON cannot be recovered; serialization must originate from validated object maps, not a duplicate-key parser promise.
 
-## Transitions
-
-1. A declaration validates its entire schema/value batch and captures defensive copies, or returns no declaration.
-2. Provisioning creates a snapshot from captured initial values. Schema defaults remain annotations.
-3. An override validates the supplied base against the declaration, replaces selected whole values and validates all effective values before returning a new snapshot.
-4. Restoration validates untrusted snapshot structure, version, definition, values and both identities against the expected declaration. It never provisions missing values or reuses current initials.
-
-There is no shared mutable registry or global current snapshot. Repeated calls with the same definition and effective values produce equal canonical bytes and identities. Reordering object keys has no effect; changing array order does. Mutating the original inputs cannot mutate captured definitions or snapshots. Returned graphs are recursively frozen and expose deep-readonly types.
-
-## Identities
-
-The [interface contract](contracts/parameters.md#portable-identity) defines exact digest inputs. `definitionId` changes with any schema-content or name change after dialect normalization, including annotation changes. Initial values are outside that identity. `snapshotId` binds the definition identity and effective values, excluding itself. Digests detect accidental mismatch; an attacker can recompute them, so validation and expected-definition comparison remain mandatory.
+The [interface contract](contracts/parameters.md) owns transitions, immutability and portable identity rules.
 
 ## Relationships and future consumers
 

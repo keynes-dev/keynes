@@ -10,7 +10,7 @@ Scope: only `docs/features/key-116-declare-typed-policy-parameters/`. No runtime
 
 ## Planning validation
 
-Validated on 2026-09-21 on Darwin arm64 with Node v25.9.0, pnpm 11.21.0 and Spec Kit 1.0.4. Local planning attempt 1, based on the revision above. These results assess document consistency and repository organization only.
+Validated on 2026-09-21 on Darwin arm64 with Node v25.9.0, pnpm 11.21.0 and Spec Kit 1.0.4. Local planning attempt 1 at `0df344de354ee748a1fb68a2406f8f6bbdcede98`, based on the revision above. These results assess document consistency and repository organization only.
 
 | Command or review                                                                                                                                                                    | Result                                                                                                                                                                                                |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -24,6 +24,10 @@ Validated on 2026-09-21 on Darwin arm64 with Node v25.9.0, pnpm 11.21.0 and Spec
 | Prerequisite review                                                                                                                                                                  | PASS; PR #63 merged at `6f765b81cc93824340cfcf2a79a3b4b031af7802`, an ancestor of the planning base.                                                                                                  |
 
 US1 has five tasks, US2 four, US3 four, and setup/foundation/final acceptance seven. Three runtime/type-test pairs can run independently within their phase. US1 is the proposed MVP; full acceptance requires all stories. Checklist syntax and local Markdown links were checked before publication. No extension hooks are installed. Artifacts are published on the issue branch; the draft PR identifies their exact source commit.
+
+## Planning review follow-up
+
+Applied the two Ponytail review findings: use `canonicalize(snapshot)` instead of a separate serialization API, and keep transition/identity rules in the interface contract. Updated the task and validation guide references. Focused formatting, stock prerequisites, local-link/task checks and `git diff --check` pass for this documentation revision; the 64 repository tests above remain evidence for the original planning commit. Feature implementation remains NOT RUN.
 
 ## Feature evidence boundary
 

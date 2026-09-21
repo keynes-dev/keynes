@@ -10,7 +10,6 @@ Proposed source contract for KEY-116. Public distribution and import names belon
 | `createParameterSnapshot(declaration)`                        | Validated declaration                                                           | Immutable snapshot from its captured explicit initials.                                         |
 | `overrideParameterSnapshot(declaration, snapshot, overrides)` | Expected declaration, untrusted base snapshot, explicit partial named value map | New snapshot after full base verification and whole-value replacement.                          |
 | `restoreParameterSnapshot(declaration, input)`                | Expected declaration and unknown parsed JSON                                    | Typed immutable snapshot after complete verification.                                           |
-| `serializeParameterSnapshot(declaration, input)`              | Expected declaration and unknown snapshot                                       | Verified canonical JSON text for fixtures and transport.                                        |
 | `zodParameter(schema, initial)`                               | Supported Zod schema plus explicit initial value                                | Typed descriptor with equivalent portable JSON Schema, from a separate optional adapter import. |
 
 `defineParameters` infers types from literal schemas, never from initials. For raw schemas use `FromSchema<S, { keepDefaultedPropertiesOptional: true }>`; dynamic schema inputs expose `JsonValue`, not a caller-selected arbitrary type. A Zod descriptor preserves its accepted schema's inferred output type, with no transform semantics. Private type metadata on validated descriptors must not serialize or let arbitrary input bypass runtime checks. Initials and overrides must typecheck against their inferred value types; runtime boundaries still accept and validate untrusted input. Compile-only checks cover separately declared excess-key inputs as well as inline literals.
@@ -66,7 +65,7 @@ Let `J` be RFC 8785 canonical JSON, and `H` be SHA-256 of UTF-8 bytes, encoded a
 ```text
 definitionId = "sha256:" + H(J(definition))
 snapshotId = "sha256:" + H(J({ formatVersion: 1, definitionId, values }))
-serializedSnapshot = J({ formatVersion: 1, definition, definitionId, values, snapshotId })
+serializedSnapshot = canonicalize(snapshot) // snapshot returned by creation, override or restoration
 ```
 
 Object-key order is insignificant; array order remains significant. Equivalent schema syntax is not normalized beyond root dialect insertion. Annotation changes therefore change definition identity, and reordering `enum` or `required` arrays can do so too. Identical identities mean identical canonical content, subject to the hash's collision resistance; they do not imply provenance or authority.
