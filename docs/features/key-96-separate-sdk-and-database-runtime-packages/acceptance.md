@@ -157,8 +157,24 @@ Ponytail review accepts the per-handle queue, generated direct-procedure routing
 
 Final `pnpm test:pr` passes with exit 0: 63 repository, 178 runner, 51 database, 189 SQLite, 217 SDK and 164 PostgreSQL assertions; generation, formatting, lint, types and dependency boundaries pass (265 files, five packages). The first post-fix attempt correctly rejected the old pinned SQL hash; the reviewed baseline pin was updated while command/schema pins and historical evidence remained unchanged. Full native and package checks above provide the phase's database and distribution evidence.
 
+## Phase 6: installation CLI
+
+Source base: `aebf39b`. The phase 6 commit contains this record and the checked diff. The CLI moves to `apps/cli`; the PostgreSQL library retains installation ownership through its documented `/install` export. New executable and package-boundary tests precede that implementation.
+
+Two boundary tests fail first for the missing CLI manifest and missing `/install` export. Root workspace assertions also observe the absent CLI before migration. The unchanged installation implementation now exports its public config, result/options types and error through `/install`; the borrowed recheck remains private. CLI argument/config parsing, PostgreSQL environment credentials, JSON output, sanitized stderr and failure exit behavior remain intact.
+
+The exact CLI consumer passes eight package tests, including executable-only contents and resolution of its installer from the selected PostgreSQL archive. Clean installation initially tried the registry for the transitive PostgreSQL dependency despite a companion archive. The existing package helper now reads selected companion identities and writes exact version/file overrides in the isolated consumer; no hidden production dependency was added. A focused helper regression observes failure before the fix. Failed CLI setup now cleans its partially created fixture rather than losing the temporary directory or masking the first error.
+
+The PostgreSQL archive passes 27 package/build/import tests with exit 0, including `/install`, blocked private exports and absence of both CLI binaries. Its tested intermediate archive SHA-256 is `7da6dc0d9a4e24a6aa96be65af031bef3ff7a6e20a88f2974351592b5306b167`; the source was the dirty phase 6 checkout, not the final retained artifact set. Native and external fixture callers now invoke the installed library API. Review caught and restored unrelated runtime-role setup during this migration.
+
+The first full native run passes all 285 assertions and cleanup but exits 1 because two parameterized CLI names include quotes omitted from the required-scenario inventory. This is a failed qualification, not a green native result. The inventory is corrected to match actual names without relaxing report validation.
+
+The final full native rerun passes 285 assertions, strict coverage validation, exit 0 and cleanup. Four CLI cases prove fresh installation, populated exact recheck without authority changes, partial-target refusal, migration drift refusal and profile mismatch refusal with stable sanitized diagnostics. The CLI and library consumers remain separate, and the runner rejects a missing CLI consumer or failed cleanup. Managed external qualification was not run.
+
+Final `pnpm test:pr` passes generation, repository/runner tests, all workspace tests, formatting, lint, types and boundaries (273 files, six packages). Ponytail review accepts the thin installation barrel, direct CLI parsing and reuse of package/distribution helpers. Its one integration finding, a cross-package private test-helper import, was replaced by a small wrapper over the existing generic helper. No CLI framework, SQL copy, public borrowed installer or upgrade command was added.
+
 ## Pending acceptance
 
-Phases 6-7, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Phase 7 and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.

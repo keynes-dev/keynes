@@ -14,8 +14,6 @@ const expectedFiles = [
   "package/README.md",
   "package/dist/adapter.d.ts",
   "package/dist/adapter.js",
-  "package/dist/cli.d.ts",
-  "package/dist/cli.js",
   "package/dist/generated/direct-procedures.d.ts",
   "package/dist/generated/direct-procedures.js",
   "package/dist/generated/resource-definitions.d.ts",
@@ -24,6 +22,8 @@ const expectedFiles = [
   "package/dist/generated/types.js",
   "package/dist/index.d.ts",
   "package/dist/index.js",
+  "package/dist/installation/index.d.ts",
+  "package/dist/installation/index.js",
   "package/dist/installer/config.d.ts",
   "package/dist/installer/config.js",
   "package/dist/installer/install.d.ts",
@@ -122,21 +122,27 @@ describe("@keynes/postgres packed archive", () => {
     ]);
   });
 
-  it("publishes the runtime with the temporary installer CLI", () => {
+  it("publishes runtime and installation API without a CLI", () => {
     const manifest = JSON.parse(
       entry("package/package.json").body.toString("utf8"),
     ) as Record<string, unknown>;
     expect(manifest.exports).toEqual({
       ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+      "./install": {
+        types: "./dist/installation/index.d.ts",
+        import: "./dist/installation/index.js",
+      },
     });
-    expect(manifest.bin).toEqual({ "keynes-postgresql": "dist/cli.js" });
+    expect(manifest.bin).toBeUndefined();
     expect(manifest.dependencies).toEqual({
       "@types/pg": "8.23.1",
       pg: "8.23.0",
       "pg-connection-string": "2.14.0",
     });
     expect(manifest.peerDependencies).toEqual({ "@keynes/sdk": "0.0.0" });
-    expect(entry("package/dist/cli.js").mode & 0o111).not.toBe(0);
+    expect(entries.some(({ path }) => /(?:^|\/)cli(?:[/.]|$)/.test(path))).toBe(
+      false,
+    );
   });
 
   it("excludes SQLite and private workspace dependencies", () => {

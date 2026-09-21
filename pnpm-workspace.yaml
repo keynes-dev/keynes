@@ -1,5 +1,6 @@
 packages:
   - "packages/*"
+  - "apps/*"
 engineStrict: true
 disallowWorkspaceCycles: true
 allowBuilds:

@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { readPackageArchive } from "./archive.ts";
 
 const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
@@ -111,7 +112,7 @@ export async function withPackagePreparationLock<Result>(
 
 export interface InstalledPackage {
   readonly archivePath: string;
-  readonly commandPath: string;
+  readonly commandPath?: string;
   readonly consumerRoot: string;
   close(): Promise<void>;
 }
@@ -120,7 +121,7 @@ export interface InstallPackageArchiveOptions {
   readonly companionArchivePaths?: readonly string[];
   readonly archivePath: string;
   readonly consumerName: string;
-  readonly executable: string;
+  readonly executable?: string;
   readonly environment?: NodeJS.ProcessEnv;
   readonly packageManager?: string;
   readonly workspace?: string;
@@ -135,7 +136,7 @@ export interface PackAndInstallWorkspacePackageOptions {
   }[];
   readonly archiveFileName: string;
   readonly consumerName: string;
-  readonly executable: string;
+  readonly executable?: string;
   readonly packageManager?: string;
   readonly workspaceRoot: string;
   readonly repositoryRoot: string;
@@ -185,6 +186,34 @@ export async function installPackageArchive(
   const consumerRoot = options.consumerRoot ?? join(workspace, "consumer");
   try {
     await mkdir(consumerRoot, { recursive: true });
+    const overrides: Record<string, string> = {};
+    for (const path of options.companionArchivePaths ?? []) {
+      const manifestEntry = (await readPackageArchive(path)).find(
+        (entry) => entry.path === "package/package.json",
+      );
+      const manifest: unknown =
+        manifestEntry === undefined
+          ? undefined
+          : JSON.parse(manifestEntry.body.toString("utf8"));
+      if (
+        typeof manifest !== "object" ||
+        manifest === null ||
+        !("name" in manifest) ||
+        typeof manifest.name !== "string" ||
+        !("version" in manifest) ||
+        typeof manifest.version !== "string"
+      ) {
+        throw new Error(`Selected archive has no package identity: ${path}`);
+      }
+      overrides[`${manifest.name}@${manifest.version}`] =
+        `file:${resolve(path)}`;
+    }
+    if (Object.keys(overrides).length > 0) {
+      await writeFile(
+        join(consumerRoot, "pnpm-workspace.yaml"),
+        `${JSON.stringify({ overrides }, null, 2)}\n`,
+      );
+    }
     await writeFile(
       join(consumerRoot, "package.json"),
       `${JSON.stringify(
@@ -213,15 +242,18 @@ export async function installPackageArchive(
         signal: options.signal,
       },
     );
-    const commandPath = join(
-      consumerRoot,
-      "node_modules",
-      ".bin",
-      process.platform === "win32"
-        ? `${options.executable}.cmd`
-        : options.executable,
-    );
-    await access(commandPath);
+    const commandPath =
+      options.executable === undefined
+        ? undefined
+        : join(
+            consumerRoot,
+            "node_modules",
+            ".bin",
+            process.platform === "win32"
+              ? `${options.executable}.cmd`
+              : options.executable,
+          );
+    if (commandPath !== undefined) await access(commandPath);
     return {
       archivePath,
       commandPath,

@@ -201,6 +201,31 @@ export function requirePostgresqlSystemInstallation(): FixtureInstallation {
     .installation;
 }
 
+export function requirePostgresqlSystemCli(): {
+  readonly commandPath: string;
+  readonly archivePath: string;
+} {
+  const source = requirePostgresqlSystemContext();
+  parsePostgresqlSystemContext(source);
+  const value: unknown = JSON.parse(source);
+  if (
+    !isRecord(value) ||
+    value.scope !== "full" ||
+    !isRecord(value.cli) ||
+    typeof value.cli.commandPath !== "string" ||
+    !value.cli.commandPath.startsWith("/") ||
+    typeof value.cli.archivePath !== "string" ||
+    !value.cli.archivePath.startsWith("/")
+  )
+    throw new Error(
+      "Native CLI tests require a runner-owned exact CLI consumer",
+    );
+  return {
+    commandPath: value.cli.commandPath,
+    archivePath: value.cli.archivePath,
+  };
+}
+
 export function requirePostgresqlSystemTlsRootCertificate(): string {
   const source = requirePostgresqlSystemContext();
   parsePostgresqlSystemContext(source);
@@ -269,12 +294,12 @@ function parsePostgresqlSystemContext(source: string): PostgresqlSystemContext {
   if (
     installation.kind === "packed" &&
     value.scope === "full" &&
-    typeof installation.commandPath === "string" &&
-    installation.commandPath !== ""
+    typeof installation.consumerRoot === "string" &&
+    installation.consumerRoot !== ""
   )
     return {
       administratorUrl: url.toString(),
-      installation: { kind: "packed", commandPath: installation.commandPath },
+      installation: { kind: "packed", consumerRoot: installation.consumerRoot },
     };
   throw new Error("Invalid runner-owned PostgreSQL system context");
 }

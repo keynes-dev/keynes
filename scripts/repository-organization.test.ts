@@ -29,6 +29,7 @@ const targetDirectories = [
   "packages/node-sqlite",
   "packages/postgres",
   "packages/testkit",
+  "apps/cli",
   "packages/sdk/test/contract",
   "packages/sdk/test/package",
   "packages/sdk/test/performance",
@@ -58,6 +59,9 @@ const requiredCommands = [
   "pack:postgresql",
   "test:package:postgresql",
   "test:system:postgresql",
+  "build:cli",
+  "pack:cli",
+  "test:package:cli",
 ] as const;
 
 const removedCommands = [
@@ -205,7 +209,35 @@ describe("repository organization", () => {
       .filter((entry): entry is string => entry !== undefined)
       .sort();
 
-    expect(workspaces).toEqual(['"packages/*"']);
+    expect(workspaces).toEqual(['"apps/*"', '"packages/*"']);
+  });
+
+  it("owns command interaction in the CLI workspace and keeps PostgreSQL a library", () => {
+    const cli = readJsonObject(join(repositoryRoot, "apps/cli/package.json"));
+    const postgres = readJsonObject(
+      join(repositoryRoot, "packages/postgres/package.json"),
+    );
+    expect(cli.name).toBe("@keynes/cli");
+    expect(cli.dependencies).toEqual({ "@keynes/postgres": "workspace:*" });
+    expect(requireObject(cli, "bin")).toEqual({ keynes: "dist/cli.js" });
+    expect(postgres).not.toHaveProperty("bin");
+    expect(Object.keys(requireObject(postgres, "exports")).sort()).toEqual([
+      ".",
+      "./install",
+    ]);
+    const rootScripts = requireObject(
+      readJsonObject(join(repositoryRoot, "package.json")),
+      "scripts",
+    );
+    expect(rootScripts.format).toContain(" apps ");
+    expect(rootScripts["format:fix"]).toContain(" apps ");
+    expect(rootScripts["test:unit"]).toContain(
+      "pnpm --filter @keynes/cli test",
+    );
+    const scripts = requireObject(cli, "scripts");
+    expect(scripts.test).toContain("vitest run");
+    expect(scripts.test).not.toContain("test/package/run.ts");
+    expect(scripts["test:package"]).toContain("test/package");
   });
 
   it("removes every obsolete root owner", () => {

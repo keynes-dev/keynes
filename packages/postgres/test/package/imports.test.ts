@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { access, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,10 +29,24 @@ describe("@keynes/postgres public entrypoint and blocked deep imports", () => {
     ]);
     expect(result.status, result.stderr).toBe(0);
   });
+  it("exposes the reusable installation API and installs no CLI", async () => {
+    const loaded = await loadPublicPostgresql({
+      kind: "packed",
+      consumerRoot: packed.consumerRoot,
+    });
+    expect(typeof loaded.install).toBe("function");
+    expect(packed.commandPath).toBeUndefined();
+    for (const executable of ["keynes", "keynes-postgresql"]) {
+      await expect(
+        access(join(packed.consumerRoot, "node_modules/.bin", executable)),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+    }
+  });
+
   it("loads public modules and matching driver constructors from the exact installed consumer", async () => {
     const installed = await loadPublicPostgresql({
       kind: "packed",
-      commandPath: packed.commandPath,
+      consumerRoot: packed.consumerRoot,
     });
     const source = await loadPublicPostgresql({ kind: "source" });
     expect(installed.postgres).not.toBe(source.postgres);

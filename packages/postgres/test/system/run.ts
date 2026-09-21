@@ -29,6 +29,8 @@ import { isDeepStrictEqual, parseArgs } from "node:util";
 import { Client } from "pg";
 
 import {
+  packAndInstallCli,
+  type PackedCliPackage,
   packAndInstallPostgresql,
   type PackedPostgresqlPackage,
 } from "../support/packed-package.ts";
@@ -58,6 +60,7 @@ export const POSTGRESQL_SYSTEM_TEST_FILES = [
   "packages/postgres/test/system/contention.test.ts",
   "packages/postgres/test/system/embedded-transactions.test.ts",
   "packages/postgres/test/system/installation.test.ts",
+  "packages/postgres/test/system/cli-installation.test.ts",
   "packages/postgres/test/system/remote-connections.test.ts",
   "packages/postgres/test/system/remote-budget.test.ts",
   "packages/postgres/test/system/remote-recovery.test.ts",
@@ -93,6 +96,7 @@ interface NativeContextFields {
   readonly runId: string;
   readonly administratorUrl: string;
   readonly installation: FixtureInstallation;
+  readonly cli?: { readonly commandPath: string; readonly archivePath: string };
   readonly poolers: PoolerUrls;
   readonly tlsRootCertificate: string;
 }
@@ -132,6 +136,7 @@ export interface PostgresqlSystemRuntime {
   spawnTests(environment: NodeJS.ProcessEnv): RunningTestChild;
   probe(connectionUrl: string, signal?: AbortSignal): Promise<string>;
   preparePackage(signal?: AbortSignal): Promise<PackedPostgresqlPackage>;
+  prepareCliPackage?(signal?: AbortSignal): Promise<PackedCliPackage>;
 }
 
 export async function runPostgresqlSystemTests(
@@ -251,17 +256,29 @@ export async function runPostgresqlSystemTests(
   const poolerContainers: string[] = [];
   let child: RunningTestChild | undefined;
   let packed: PackedPostgresqlPackage | undefined;
+  let cli: PackedCliPackage | undefined;
   let testedDistribution: AcceptanceDistribution | undefined;
   let failure: unknown;
 
   try {
     if (selection === undefined) {
+      const prepareCliPackage = runtime.prepareCliPackage?.bind(runtime);
+      if (prepareCliPackage === undefined)
+        throw new Error(
+          "Full native qualification requires an exact CLI consumer",
+        );
       packed = await executeStage(runId, "package-install", () =>
         activeRuntime.preparePackage(),
       );
+      cli = await executeStage(runId, "cli-package-install", () =>
+        prepareCliPackage(options.signal),
+      );
     }
     if (recordWorkspace !== undefined && packed !== undefined) {
-      testedDistribution = await readTestedDistribution(packed.archivePath);
+      testedDistribution = await readTestedDistribution(
+        packed.archivePath,
+        cli?.archivePath,
+      );
     }
     await executeStage(runId, "network-create", () =>
       activeRuntime.run("docker", ["network", "create", runId], environment),
@@ -417,10 +434,15 @@ export async function runPostgresqlSystemTests(
       administratorUrl: connectionUrl,
       poolers,
       tlsRootCertificate: join(tlsRoot, "ca.crt"),
+      ...(cli === undefined
+        ? {}
+        : {
+            cli: { commandPath: cli.commandPath, archivePath: cli.archivePath },
+          }),
       installation:
         packed === undefined
           ? { kind: "source" }
-          : { kind: "packed", commandPath: packed.commandPath },
+          : { kind: "packed", consumerRoot: packed.consumerRoot },
     };
     const context: PostgresqlSystemContext =
       selection === undefined
@@ -502,6 +524,13 @@ export async function runPostgresqlSystemTests(
       await rm(tlsRoot, { recursive: true, force: true });
     } catch (error: unknown) {
       recordCleanupFailure("TLS workspace", error);
+    }
+  }
+  if (cli !== undefined) {
+    try {
+      await cli.close();
+    } catch (error: unknown) {
+      recordCleanupFailure("CLI package workspace", error);
     }
   }
   if (packed !== undefined) {
@@ -790,6 +819,7 @@ interface AcceptanceDistribution {
   readonly version: string;
   readonly archiveSha256: string;
   readonly installationRecordSha256: string;
+  readonly cliArchiveSha256?: string;
 }
 
 async function prepareAcceptanceRecord(
@@ -839,6 +869,7 @@ async function prepareAcceptanceWorkspace(
 
 async function readTestedDistribution(
   archivePath: string,
+  cliArchivePath?: string,
 ): Promise<AcceptanceDistribution> {
   const [archive, installationRecord] = await Promise.all([
     readFile(archivePath),
@@ -851,6 +882,9 @@ async function readTestedDistribution(
   ]);
   return {
     version: POSTGRES_PACKAGE_VERSION,
+    ...(cliArchivePath === undefined
+      ? {}
+      : { cliArchiveSha256: sha256(await readFile(cliArchivePath)) }),
     archiveSha256: sha256(archive),
     installationRecordSha256: sha256(installationRecord),
   };
@@ -1255,6 +1289,7 @@ const productionRuntime: PostgresqlSystemRuntime = {
     new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
   run: runCommand,
   preparePackage: (signal) => packAndInstallPostgresql(REPOSITORY_ROOT, signal),
+  prepareCliPackage: (signal) => packAndInstallCli(REPOSITORY_ROOT, signal),
   spawnTests: (environment) => {
     const context: unknown = JSON.parse(
       environment[POSTGRESQL_SYSTEM_CONTEXT_ENV] ?? "{}",

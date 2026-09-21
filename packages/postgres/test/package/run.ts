@@ -34,7 +34,7 @@ export interface PostgresqlPackageTestResult {
   readonly checks: readonly [
     "exact-archive",
     "failed-build-preservation",
-    "cli-errors",
+    "installation-api",
     "blocked-imports",
   ];
   readonly outcome: "passed";
@@ -63,7 +63,6 @@ export async function runPostgresqlPackageTests(
         "--exclude=**/.claude/worktrees/**",
         "packages/postgres/test/package/archive.test.ts",
         "packages/postgres/test/unit/build.test.ts",
-        "packages/postgres/test/package/cli.test.ts",
         "packages/postgres/test/package/imports.test.ts",
         "packages/postgres/test/package/run.test.ts",
         "--maxWorkers=1",
@@ -112,7 +111,7 @@ export async function runPostgresqlPackageTests(
     checks: [
       "exact-archive",
       "failed-build-preservation",
-      "cli-errors",
+      "installation-api",
       "blocked-imports",
     ],
     outcome: "passed",

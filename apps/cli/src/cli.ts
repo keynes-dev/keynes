@@ -3,10 +3,13 @@
 import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { parseInstallationConfig } from "./installer/config.ts";
-import { InstallationError, install } from "./installer/install.ts";
+import {
+  InstallationError,
+  install,
+  parseInstallationConfig,
+} from "@keynes/postgres/install";
 
-const PACKAGE_NAME = "keynes-postgresql";
+const PACKAGE_NAME = "keynes";
 
 export async function main(
   arguments_: readonly string[] = process.argv.slice(2),

@@ -1,9 +1,6 @@
 import { createHash, X509Certificate } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { isIP } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { TLSSocket } from "node:tls";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +9,7 @@ import { providerFreeEnvironment } from "@keynes/testkit/package";
 
 import {
   installPostgresqlArchive,
-  runPackedPostgresql,
+  loadPublicPostgresql,
 } from "../support/packed-package.ts";
 import type { ExternalPostgresqlProfile } from "./external-profile.ts";
 import type { ExternalPostgresqlAcceptanceRecord } from "./external-record.ts";
@@ -337,35 +334,30 @@ class ExternalQualificationTarget implements DatabaseTarget {
       undefined,
       safeEnvironment,
     );
-    const configRoot = await mkdtemp(join(tmpdir(), "keynes-external-config-"));
     try {
-      const configPath = join(configRoot, "installation.json");
-      await writeFile(
-        configPath,
-        `${JSON.stringify({
+      const { install } = await loadPublicPostgresql({
+        kind: "packed",
+        consumerRoot: installed.consumerRoot,
+      });
+      const result = await install({
+        connectionString: this.#environment.operator.toString(),
+        config: {
           ownerRole: OWNER_ROLE,
           executionRole: EXECUTION_ROLE,
           administrationRole: this.#environment.administrator.username,
           applicationRole: this.#environment.primary.username,
           tenantId: QUALIFICATION_IDENTITIES.primaryTenantId,
           principalId: QUALIFICATION_IDENTITIES.primaryPrincipalId,
-        })}\n`,
-        { mode: 0o600 },
-      );
-      const result = runPackedPostgresql(
-        installed.commandPath,
-        ["install", "--config", configPath],
-        postgresEnvironment(this.#environment.operator, safeEnvironment),
-      );
-      if (result.status !== 0 || !isSuccessfulInstallation(result.stdout)) {
+        },
+      });
+      if (
+        result.outcome !== "installed" &&
+        result.outcome !== "already-installed"
+      )
         throw new Error("exact PostgreSQL archive installation failed");
-      }
       await this.#prepareAdditionalRuntimeRoles();
     } finally {
-      await Promise.all([
-        installed.close(),
-        rm(configRoot, { recursive: true, force: true }),
-      ]);
+      await installed.close();
     }
   }
 
@@ -589,37 +581,6 @@ function qualifySdkArchive(archivePath: string, databaseUrl: URL): void {
     );
     throw new Error(`exact SDK archive qualification failed\n${output}`);
   }
-}
-
-function postgresEnvironment(
-  url: URL,
-  environment: NodeJS.ProcessEnv,
-): NodeJS.ProcessEnv {
-  const rootCertificate = url.searchParams.get("sslrootcert");
-  return {
-    ...environment,
-    PGHOST: url.hostname,
-    PGPORT: url.port || "5432",
-    PGDATABASE: decodeURIComponent(url.pathname.slice(1)),
-    PGUSER: decodeURIComponent(url.username),
-    PGPASSWORD: decodeURIComponent(url.password),
-    PGSSLMODE: "verify-full",
-    ...(rootCertificate === null ? {} : { PGSSLROOTCERT: rootCertificate }),
-  };
-}
-
-function isSuccessfulInstallation(stdout: string): boolean {
-  let value: unknown;
-  try {
-    value = JSON.parse(stdout);
-  } catch {
-    return false;
-  }
-  return (
-    isRecord(value) &&
-    value.ok === true &&
-    (value.outcome === "installed" || value.outcome === "already-installed")
-  );
 }
 
 function invalidEnvironment(): never {

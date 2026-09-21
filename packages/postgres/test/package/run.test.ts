@@ -72,7 +72,7 @@ function result(): PostgresqlPackageTestResult {
     checks: [
       "exact-archive",
       "failed-build-preservation",
-      "cli-errors",
+      "installation-api",
       "blocked-imports",
     ],
     outcome: "passed",

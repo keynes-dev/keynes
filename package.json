@@ -8,12 +8,12 @@
     "bootstrap": "pnpm install --frozen-lockfile",
     "generate": "node scripts/generate.ts",
     "generate:check": "node scripts/generate.ts --check",
-    "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml packages scripts docs",
+    "format": "oxfmt --check package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml packages apps scripts docs",
     "format:check": "pnpm format",
-    "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml packages scripts docs",
+    "format:fix": "oxfmt package.json pnpm-workspace.yaml turbo.json tsconfig.json tsconfig.tests.json .oxlintrc.json .oxfmtrc.json .github/workflows/ci.yml .github/workflows/postgresql-system.yml .github/workflows/sdk-package.yml packages apps scripts docs",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
-    "test:unit": "pnpm --filter @keynes/database test && pnpm --filter @keynes/postgres test && pnpm --filter @keynes/sdk test",
+    "test:unit": "pnpm --filter @keynes/database test && pnpm --filter @keynes/postgres test && pnpm --filter @keynes/sdk test && pnpm --filter @keynes/cli test",
     "test:generator": "pnpm --filter @keynes/database test",
     "test:repository": "vitest run scripts/repository-organization.test.ts scripts/classify-sqlite-postgres-changes.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'",
     "build:sdk": "pnpm --filter @keynes/sdk build",
@@ -38,7 +38,10 @@
     "test:ci:postgresql": "pnpm --filter @keynes/postgres test:ci",
     "format:docs": "oxfmt --check docs .specify/memory AGENTS.md .github/PULL_REQUEST_TEMPLATE.md",
     "build:node-sqlite": "pnpm --filter @keynes/node-sqlite build",
-    "pack:node-sqlite": "pnpm --filter @keynes/node-sqlite pack --pack-destination .artifacts/package-tests/node-sqlite"
+    "pack:node-sqlite": "pnpm --filter @keynes/node-sqlite pack --pack-destination .artifacts/package-tests/node-sqlite",
+    "build:cli": "pnpm --filter @keynes/cli build",
+    "pack:cli": "pnpm --filter @keynes/cli pack --pack-destination .artifacts/package-tests/cli",
+    "test:package:cli": "pnpm --filter @keynes/cli test:package"
   },
   "devDependencies": {
     "@keynes/node-sqlite": "workspace:*",

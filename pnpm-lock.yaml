@@ -33,6 +33,19 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
+  apps/cli:
+    dependencies:
+      '@keynes/postgres':
+        specifier: workspace:*
+        version: link:../../packages/postgres
+    devDependencies:
+      '@keynes/testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+
   packages/database:
     dependencies:
       ajv:

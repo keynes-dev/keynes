@@ -1,7 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 
 import { Client, Pool, type PoolClient, type QueryResultRow } from "pg";
 
@@ -16,7 +13,7 @@ import {
 } from "./migrations.js";
 import { install } from "../../../src/installer/install.js";
 import type { InstallationConfig } from "../../../src/installer/config.js";
-import { runPackedPostgresql } from "../../support/packed-package.js";
+import { loadPublicPostgresql } from "../../support/packed-package.js";
 
 const BOOTSTRAP_PERMISSIONS = [
   "define_resource_type",
@@ -351,7 +348,7 @@ export async function openPostgresDatabase(
 
 export type FixtureInstallation =
   | { readonly kind: "source" }
-  | { readonly kind: "packed"; readonly commandPath: string };
+  | { readonly kind: "packed"; readonly consumerRoot: string };
 
 export async function preparePostgresInstallation(
   administratorUrl: string,
@@ -489,52 +486,8 @@ export async function installPostgresFixture(
       throw new Error(`PostgreSQL installation did not report ${outcome}`);
     return;
   }
-  const configurationRoot = await mkdtemp(
-    join(tmpdir(), "keynes-postgresql-config-"),
-  );
-  try {
-    const configPath = join(configurationRoot, "installation.json");
-    await writeFile(configPath, `${JSON.stringify(config)}\n`, { mode: 0o600 });
-    requireInstallationOutcome(
-      runPackedPostgresql(
-        execution.commandPath,
-        ["install", "--config", configPath],
-        postgresEnvironment(new URL(databaseUrl)),
-      ),
-      outcome,
-    );
-  } finally {
-    await rm(configurationRoot, { recursive: true, force: true });
-  }
-}
-
-function postgresEnvironment(databaseUrl: URL): NodeJS.ProcessEnv {
-  return {
-    ...process.env,
-    PGHOST: databaseUrl.hostname,
-    PGPORT: databaseUrl.port || "5432",
-    PGDATABASE: decodeURIComponent(databaseUrl.pathname.slice(1)),
-    PGUSER: decodeURIComponent(databaseUrl.username),
-    PGPASSWORD: decodeURIComponent(databaseUrl.password),
-  };
-}
-
-function requireInstallationOutcome(
-  result: ReturnType<typeof runPackedPostgresql>,
-  outcome: "installed" | "already-installed",
-): void {
-  if (result.status !== 0) {
-    throw new Error(`Packed PostgreSQL installation failed: ${result.stderr}`);
-  }
-  const value: unknown = JSON.parse(result.stdout);
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("ok" in value) ||
-    value.ok !== true ||
-    !("outcome" in value) ||
-    value.outcome !== outcome
-  ) {
+  const { install: installPacked } = await loadPublicPostgresql(execution);
+  const result = await installPacked({ connectionString: databaseUrl, config });
+  if (result.outcome !== outcome)
     throw new Error(`Packed PostgreSQL installation did not report ${outcome}`);
-  }
 }

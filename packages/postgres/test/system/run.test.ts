@@ -144,7 +144,12 @@ describe("PostgreSQL system-test runner", () => {
     const selection = validateNativeSelection({ kind: "ci" });
     const inventory = selectedScenarioInventory(selection);
     expect(Object.keys(inventory).sort()).toEqual(
-      Object.keys(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).sort(),
+      Object.keys(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS)
+        .filter(
+          (file) =>
+            file !== "packages/postgres/test/system/cli-installation.test.ts",
+        )
+        .sort(),
     );
     expect(Object.values(inventory).flat().join("\n")).not.toMatch(
       /session-pool|transaction-pool|PgBouncer/,
@@ -590,6 +595,35 @@ describe("PostgreSQL system-test runner", () => {
     } finally {
       await managed.terminate();
     }
+  });
+
+  it("refuses full qualification without a CLI consumer", async () => {
+    const fake = fakeRuntime();
+    delete fake.runtime.prepareCliPackage;
+    await expect(runPostgresqlSystemTests(fake.runtime, {})).rejects.toThrow(
+      "requires an exact CLI consumer",
+    );
+    expect(fake.packagePreparations.count).toBe(0);
+  });
+
+  it("preserves a CLI cleanup failure after passing native assertions", async () => {
+    const fake = fakeRuntime();
+    const prepare = fake.runtime.prepareCliPackage;
+    if (prepare === undefined)
+      throw new Error("Missing fixture CLI preparation");
+    fake.runtime.prepareCliPackage = async () => {
+      const cli = await prepare();
+      return {
+        ...cli,
+        async close() {
+          await cli.close();
+          throw new Error("CLI cleanup failed");
+        },
+      };
+    };
+    await expect(runPostgresqlSystemTests(fake.runtime, {})).rejects.toThrow(
+      /cleanup/,
+    );
   });
 
   it("stops after cancellation during package preparation and closes the package", async () => {
@@ -1056,6 +1090,29 @@ describe("PostgreSQL system-test runner", () => {
     ).toBe(false);
   });
 
+  it("accepts Vitest's quoted CLI table-case names and still requires each case", () => {
+    const report = passingVitestReport();
+    const cli = report.testResults.find((file) =>
+      file.name.endsWith("/cli-installation.test.ts"),
+    );
+    if (cli === undefined) throw new Error("Missing CLI report fixture");
+    cli.assertionResults = [
+      "packed keynes installation CLI installs and rechecks an exact target without changing authority",
+      "packed keynes installation CLI refuses a partial target without repair and emits sanitized errors",
+      "packed keynes installation CLI refuses 'migration drift' without changing authority",
+      "packed keynes installation CLI refuses 'profile mismatch' without changing authority",
+    ].map((fullName) => ({
+      fullName,
+      ancestorTitles: [],
+      status: "passed" as const,
+    }));
+    expect(() => validatePostgresqlSystemReport(report)).not.toThrow();
+    cli.assertionResults.pop();
+    expect(() =>
+      validatePostgresqlSystemReport(withReportFiles(report.testResults)),
+    ).toThrow("Incomplete native coverage");
+  });
+
   it("withholds acceptance and cleans fixtures when coverage validation fails", async () => {
     const output = await temporaryOutputPath();
     const report = passingVitestReport();
@@ -1162,7 +1219,19 @@ describe("checkout package preparation lock", () => {
     await mkdir(bin);
     await writeFile(archivePath, "immutable input");
     const companionArchive = join(root, "sdk.tgz");
-    await writeFile(companionArchive, "sdk input");
+    await mkdir(join(root, "package"));
+    await writeFile(
+      join(root, "package/package.json"),
+      JSON.stringify({ name: "@example/library", version: "1.2.3" }),
+    );
+    await promisify(execFile)("tar", [
+      "-czf",
+      companionArchive,
+      "-C",
+      root,
+      "package",
+    ]);
+    const companionBytes = await readFile(companionArchive);
     await writeFile(
       join(bin, "pnpm"),
       `#!${process.execPath}\nconst fs = require('node:fs'); fs.writeFileSync('install-arguments.json', JSON.stringify(process.argv.slice(2))); fs.mkdirSync('node_modules/.bin', { recursive: true }); fs.writeFileSync('node_modules/.bin/example', 'installed');`,
@@ -1191,9 +1260,19 @@ describe("checkout package preparation lock", () => {
         companionArchive,
       ]);
       expect(installed.consumerRoot.startsWith(root)).toBe(false);
+      expect(
+        JSON.parse(
+          await readFile(
+            join(installed.consumerRoot, "pnpm-workspace.yaml"),
+            "utf8",
+          ),
+        ),
+      ).toEqual({
+        overrides: { "@example/library@1.2.3": `file:${companionArchive}` },
+      });
       await installed.close();
       expect(await readFile(archivePath, "utf8")).toBe("immutable input");
-      expect(await readFile(companionArchive, "utf8")).toBe("sdk input");
+      expect(await readFile(companionArchive)).toEqual(companionBytes);
       await expect(stat(installed.consumerRoot)).rejects.toThrow();
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -1487,6 +1566,14 @@ it.each([
       fake.commands.find((command) => command.executable === "pnpm")
         ?.environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT ?? "{}",
     );
+    if (selection !== undefined) {
+      expect(context.cli).toBeUndefined();
+      expect(
+        selectedScenarioInventory(validateNativeSelection(selection)),
+      ).not.toHaveProperty(
+        "packages/postgres/test/system/cli-installation.test.ts",
+      );
+    }
     expect(context.selection).toEqual(selection);
     expect(Object.keys(context.poolers).sort()).toEqual(poolers);
     expect(fake.packagePreparations.count).toBe(
@@ -1752,6 +1839,19 @@ function fakeRuntime(options?: {
           archivePath,
           commandPath: join(packageRoot, "node_modules/.bin/keynes-postgresql"),
           consumerRoot: join(packageRoot, "consumer"),
+          close: () => rm(packageRoot, { recursive: true, force: true }),
+        };
+      },
+      async prepareCliPackage() {
+        const packageRoot = await mkdtemp(
+          join(tmpdir(), "keynes-cli-fake-package-"),
+        );
+        const archivePath = join(packageRoot, "keynes-cli-0.0.0.tgz");
+        await writeFile(archivePath, "cli archive");
+        return {
+          archivePath,
+          commandPath: join(packageRoot, "node_modules/.bin/keynes"),
+          consumerRoot: packageRoot,
           close: () => rm(packageRoot, { recursive: true, force: true }),
         };
       },

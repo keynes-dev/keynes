@@ -316,9 +316,9 @@ describe("PostgreSQL package build promotion", () => {
     expect(failure).toMatchObject({
       errors: [cleanupFailure, restorationFailure],
     });
-    expect(await readFile(join(root, "dist/cli.js"), "utf8")).toBe(
-      "new distribution\n",
-    );
+    expect(
+      await readFile(join(root, "dist/installation/index.js"), "utf8"),
+    ).toBe("new distribution\n");
     expect(
       (await readdir(root)).filter((entry) => entry === "dist.previous"),
     ).toHaveLength(1);
@@ -329,8 +329,8 @@ function compileCompleteDistribution(outputRoot: string): void {
   for (const path of [
     "adapter.d.ts",
     "adapter.js",
-    "cli.d.ts",
-    "cli.js",
+    "installation/index.d.ts",
+    "installation/index.js",
     "generated/direct-procedures.d.ts",
     "generated/direct-procedures.js",
     "generated/resource-definitions.d.ts",

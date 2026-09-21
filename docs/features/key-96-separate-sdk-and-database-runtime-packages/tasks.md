@@ -70,10 +70,10 @@ Checkpoint: public package evidence supplements existing internal SQL transactio
 
 **Independent test**: Packed CLI installs into an empty consumer and passes real fresh/exact/mismatch/failure cases.
 
-- [ ] T022 [US4] Move existing CLI/package assertions into `apps/cli/test/package/`, add and observe failing new executable/install-dependency cases, preserving config/argument errors, nonzero exit and credential redaction of stdout/stderr. FR-012.
-- [ ] T023 [US4] Expose `install`, `parseInstallationConfig`, `InstallationError` and their types through `packages/postgres/src/installation/index.ts` and the `/install` export; keep borrowed-client recheck private and retain install-owned connections, fresh install/exact recheck and fail-closed drift/profile checks. FR-006, FR-012.
-- [ ] T024 [US4] Move command interaction to `apps/cli/src/cli.ts`, add `apps/cli/package.json`/build with the keynes executable and declared PostgreSQL dependency; add apps to `pnpm-workspace.yaml`, formatting and type/build checks without a CLI framework or SQL copy. FR-001, FR-012, FR-013.
-- [ ] T025 [US4] Qualify the exact CLI archive against disposable native fixtures for fresh install, read-only exact recheck, partial/drift/profile refusal and sanitized failures; document executable/config migration in `apps/cli/README.md` and record evidence in the feature acceptance file. FR-012, FR-014, FR-015; SC-004.
+- [x] T022 [US4] Move existing CLI/package assertions into `apps/cli/test/package/`, add and observe failing new executable/install-dependency cases, preserving config/argument errors, nonzero exit and credential redaction of stdout/stderr. FR-012.
+- [x] T023 [US4] Expose `install`, `parseInstallationConfig`, `InstallationError` and their types through `packages/postgres/src/installation/index.ts` and the `/install` export; keep borrowed-client recheck private and retain install-owned connections, fresh install/exact recheck and fail-closed drift/profile checks. FR-006, FR-012.
+- [x] T024 [US4] Move command interaction to `apps/cli/src/cli.ts`, add `apps/cli/package.json`/build with the keynes executable and declared PostgreSQL dependency; add apps to `pnpm-workspace.yaml`, formatting and type/build checks without a CLI framework or SQL copy. FR-001, FR-012, FR-013.
+- [x] T025 [US4] Qualify the exact CLI archive against disposable native fixtures for fresh install, read-only exact recheck, partial/drift/profile refusal and sanitized failures; document executable/config migration in `apps/cli/README.md` and record evidence in the feature acceptance file. FR-012, FR-014, FR-015; SC-004.
 
 Checkpoint: library/adapter consumers do not install CLI implicitly. No catalog/sync/upgrade commands are added.
 

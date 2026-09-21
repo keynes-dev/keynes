@@ -1,11 +1,10 @@
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   installPackageArchive,
   packAndInstallWorkspacePackage,
-  runInstalledCommand,
   type InstalledPackage,
 } from "@keynes/testkit/package";
 
@@ -18,6 +17,15 @@ export async function packAndInstallPostgresql(
   repositoryRoot: string,
   signal?: AbortSignal,
 ): Promise<PackedPostgresqlPackage> {
+  const selected = process.env[POSTGRESQL_PACKAGE_ARCHIVE_ENV];
+  if (selected)
+    return installPostgresqlArchive(
+      selected,
+      undefined,
+      undefined,
+      process.env,
+      signal,
+    );
   return packAndInstallWorkspacePackage({
     workspaceRoot: resolve(repositoryRoot, "packages/postgres"),
     companionPackages: [
@@ -30,7 +38,6 @@ export async function packAndInstallPostgresql(
     signal,
     archiveFileName: "keynes-postgres-0.0.0.tgz",
     consumerName: "keynes-postgresql-consumer",
-    executable: "keynes-postgresql",
   });
 }
 
@@ -45,7 +52,6 @@ export async function installPostgresqlArchive(
     archivePath,
     companionArchivePaths: [requireSdkPackageArchive(environment)],
     consumerName: "keynes-postgresql-consumer",
-    executable: "keynes-postgresql",
     workspace: suppliedWorkspace,
     consumerRoot: suppliedConsumerRoot,
     environment,
@@ -65,16 +71,49 @@ export function requirePostgresqlPackageArchive(
   return path;
 }
 
-export function runPackedPostgresql(
-  commandPath: string,
-  arguments_: readonly string[],
-  environment: NodeJS.ProcessEnv = process.env,
-): {
-  readonly status: number | null;
-  readonly stderr: string;
-  readonly stdout: string;
-} {
-  return runInstalledCommand(commandPath, arguments_, environment);
+export type PackedCliPackage = InstalledPackage & {
+  readonly commandPath: string;
+};
+
+export async function packAndInstallCli(
+  repositoryRoot: string,
+  signal?: AbortSignal,
+): Promise<PackedCliPackage> {
+  const selected = process.env.KEYNES_CLI_PACKAGE_ARCHIVE;
+  const installed = selected
+    ? await installPackageArchive({
+        archivePath: selected,
+        companionArchivePaths: [
+          requireSdkPackageArchive(),
+          requirePostgresqlPackageArchive(),
+        ],
+        consumerName: "keynes-native-cli-consumer",
+        executable: "keynes",
+        signal,
+      })
+    : await packAndInstallWorkspacePackage({
+        workspaceRoot: resolve(repositoryRoot, "apps/cli"),
+        companionPackages: [
+          {
+            workspaceRoot: resolve(repositoryRoot, "packages/sdk"),
+            archiveFileName: "keynes-sdk-0.0.0.tgz",
+          },
+          {
+            workspaceRoot: resolve(repositoryRoot, "packages/postgres"),
+            archiveFileName: "keynes-postgres-0.0.0.tgz",
+          },
+        ],
+        repositoryRoot,
+        signal,
+        archiveFileName: "keynes-cli-0.0.0.tgz",
+        consumerName: "keynes-native-cli-consumer",
+        executable: "keynes",
+      });
+  if (installed.commandPath === undefined) {
+    await installed.close();
+    throw new Error("CLI archive did not provide the keynes command");
+  }
+  return { ...installed, commandPath: installed.commandPath };
 }
 
 function requireSdkPackageArchive(
@@ -89,6 +128,7 @@ function requireSdkPackageArchive(
 }
 
 export interface PublicPostgresqlModules {
+  readonly install: typeof import("../../src/installation/index.js").install;
   readonly createKeynes: typeof import("@keynes/sdk").createKeynes;
   readonly createRemoteKeynesClient: typeof import("@keynes/sdk").createRemoteKeynesClient;
   readonly createOperationKey: typeof import("@keynes/sdk").createOperationKey;
@@ -100,17 +140,19 @@ export interface PublicPostgresqlModules {
 export async function loadPublicPostgresql(
   installation:
     | { readonly kind: "source" }
-    | { readonly kind: "packed"; readonly commandPath: string },
+    | { readonly kind: "packed"; readonly consumerRoot: string },
 ): Promise<PublicPostgresqlModules> {
   if (installation.kind === "source") {
     const [
       { createKeynes, createOperationKey, createRemoteKeynesClient },
       { postgres },
       { Client, Pool },
+      { install },
     ] = await Promise.all([
       import("@keynes/sdk"),
       import("../../src/adapter.js"),
       import("pg"),
+      import("../../src/installation/index.js"),
     ]);
     return {
       createKeynes,
@@ -119,11 +161,10 @@ export async function loadPublicPostgresql(
       postgres,
       Client,
       Pool,
+      install,
     };
   }
-  const consumerRoot = await realpath(
-    dirname(dirname(dirname(installation.commandPath))),
-  );
+  const consumerRoot = await realpath(installation.consumerRoot);
   const loader = join(consumerRoot, "keynes-public-postgres.mjs");
   await writeFile(
     loader,
@@ -132,9 +173,10 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 export { createKeynes, createOperationKey, createRemoteKeynesClient } from "@keynes/sdk";
 export { postgres } from "@keynes/postgres";
+export { install } from "@keynes/postgres/install";
 const require = createRequire(import.meta.resolve("@keynes/postgres"));
 export const { Client, Pool } = require("pg");
-export const paths = [import.meta.resolve("@keynes/sdk"), import.meta.resolve("@keynes/postgres"), pathToFileURL(require.resolve("pg")).href];
+export const paths = [import.meta.resolve("@keynes/sdk"), import.meta.resolve("@keynes/postgres"), import.meta.resolve("@keynes/postgres/install"), pathToFileURL(require.resolve("pg")).href];
 `,
   );
   const modules: PublicPostgresqlModules & {

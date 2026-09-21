@@ -2,6 +2,12 @@ export const POSTGRESQL_BUDGET_AGGREGATE =
   "packages/postgres/test/system/budget.test.ts";
 
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
+  "packages/postgres/test/system/cli-installation.test.ts": [
+    "packed keynes installation CLI installs and rechecks an exact target without changing authority",
+    "packed keynes installation CLI refuses a partial target without repair and emits sanitized errors",
+    "packed keynes installation CLI refuses 'migration drift' without changing authority",
+    "packed keynes installation CLI refuses 'profile mismatch' without changing authority",
+  ],
   [POSTGRESQL_BUDGET_AGGREGATE]: [
     "direct runtime validation rejects malformed validateResources envelopes without state changes",
     "direct runtime validation rejects malformed defineResources envelopes without state changes",
@@ -282,7 +288,12 @@ export function selectedScenarioInventory(
 ): Readonly<Record<string, readonly string[]>> {
   if (selection.kind === "ci") {
     return {
-      ...REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
+      ...Object.fromEntries(
+        Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).filter(
+          ([file]) =>
+            file !== "packages/postgres/test/system/cli-installation.test.ts",
+        ),
+      ),
       ...remoteScenarioInventory({ kind: "remote", modes: ["direct"] }),
     };
   }

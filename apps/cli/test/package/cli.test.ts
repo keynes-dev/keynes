@@ -1,15 +1,25 @@
+import { readPackageArchive } from "@keynes/testkit/archive";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
-  installPostgresqlArchive,
-  requirePostgresqlPackageArchive,
-  runPackedPostgresql,
-  type PackedPostgresqlPackage,
+  installCliArchive,
+  requireCliPackageArchive,
+  runPackedCli,
+  type PackedCliPackage,
 } from "../support/packed-package.ts";
 
 const config = {
@@ -21,33 +31,82 @@ const config = {
   principalId: "00000000-0000-4000-8000-000000000101",
 };
 
-let packed: PackedPostgresqlPackage;
+let packed: PackedCliPackage;
 let testRoot: string;
+let cleanupPacked: PackedCliPackage | undefined;
+let cleanupRoot: string | undefined;
 
 beforeAll(async () => {
-  [packed, testRoot] = await Promise.all([
-    installPostgresqlArchive(requirePostgresqlPackageArchive()),
-    mkdtemp(join(tmpdir(), "keynes-postgresql-cli-")),
-  ]);
+  testRoot = await mkdtemp(join(tmpdir(), "keynes-cli-"));
+  cleanupRoot = testRoot;
+  packed = await installCliArchive(requireCliPackageArchive());
+  cleanupPacked = packed;
 }, 60_000);
 
 afterAll(async () => {
   await Promise.all([
-    packed.close(),
-    rm(testRoot, { force: true, recursive: true }),
+    cleanupPacked?.close(),
+    cleanupRoot === undefined
+      ? undefined
+      : rm(cleanupRoot, { force: true, recursive: true }),
   ]);
 });
 
-describe("@keynes/postgres packed CLI", () => {
+describe("@keynes/cli packed CLI", () => {
+  it("ships only the executable with a declared PostgreSQL dependency", async () => {
+    const packageRoot = join(packed.consumerRoot, "node_modules/@keynes/cli");
+    const resolution = spawnSync(
+      process.execPath,
+      [
+        "--experimental-import-meta-resolve",
+        "--input-type=module",
+        "--eval",
+        `console.log(import.meta.resolve("@keynes/postgres/install", ${JSON.stringify(pathToFileURL(join(packageRoot, "package.json")).href)}))`,
+      ],
+      { encoding: "utf8" },
+    );
+    if (resolution.error !== undefined) throw resolution.error;
+    expect(resolution.status, resolution.stderr).toBe(0);
+    expect(await realpath(fileURLToPath(resolution.stdout.trim()))).toBe(
+      await realpath(
+        join(
+          packed.consumerRoot,
+          "node_modules/@keynes/postgres/dist/installation/index.js",
+        ),
+      ),
+    );
+    const manifest: unknown = JSON.parse(
+      await readFile(join(packageRoot, "package.json"), "utf8"),
+    );
+    expect(manifest).toMatchObject({
+      name: "@keynes/cli",
+      bin: { keynes: "dist/cli.js" },
+      dependencies: { "@keynes/postgres": "0.0.0" },
+    });
+    expect(
+      (await readPackageArchive(packed.archivePath))
+        .map(({ path }) => path)
+        .sort(),
+    ).toEqual([
+      "package/LICENSE",
+      "package/README.md",
+      "package/dist/cli.d.ts",
+      "package/dist/cli.js",
+      "package/package.json",
+    ]);
+    expect((await readdir(join(packageRoot, "dist"))).sort()).toEqual([
+      "cli.d.ts",
+      "cli.js",
+    ]);
+  });
+
   it("invokes the package-manager-installed executable", () => {
     expect(packed.commandPath).toBe(
       join(
         packed.consumerRoot,
         "node_modules",
         ".bin",
-        process.platform === "win32"
-          ? "keynes-postgresql.cmd"
-          : "keynes-postgresql",
+        process.platform === "win32" ? "keynes.cmd" : "keynes",
       ),
     );
   });
@@ -105,7 +164,7 @@ function run(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv = {},
 ) {
-  return runPackedPostgresql(packed.commandPath, arguments_, {
+  return runPackedCli(packed.commandPath, arguments_, {
     ...process.env,
     PGHOST: "127.0.0.1",
     PGPORT: "1",

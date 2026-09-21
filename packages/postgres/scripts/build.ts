@@ -1,13 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { access, chmod, mkdtemp, readdir, rename, rm } from "node:fs/promises";
+import { access, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const EXPECTED_DIST_FILES = [
   "adapter.d.ts",
   "adapter.js",
-  "cli.d.ts",
-  "cli.js",
   "generated/direct-procedures.d.ts",
   "generated/direct-procedures.js",
   "generated/resource-definitions.d.ts",
@@ -16,6 +14,8 @@ const EXPECTED_DIST_FILES = [
   "generated/types.js",
   "index.d.ts",
   "index.js",
+  "installation/index.d.ts",
+  "installation/index.js",
   "installer/config.d.ts",
   "installer/config.js",
   "installer/install.d.ts",
@@ -54,7 +54,6 @@ export async function buildPostgresqlPackage(
   const stagedDist = resolve(stageRoot, "dist");
   try {
     await compileDistribution(stagedDist);
-    await chmod(resolve(stagedDist, "cli.js"), 0o755);
     await validateDist(stagedDist);
     await replaceDistribution(stagedDist, resolve(root, "dist"), fileSystem);
   } finally {
