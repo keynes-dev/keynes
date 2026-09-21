@@ -1395,7 +1395,7 @@ export function spawnTestChild(
 ): RunningTestChild {
   const child = spawn("pnpm", arguments_, {
     cwd: REPOSITORY_ROOT,
-    env: { ...process.env, ...environment },
+    env: environment,
     detached: process.platform !== "win32",
     stdio: "pipe",
   });

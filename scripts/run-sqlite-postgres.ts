@@ -1,3 +1,4 @@
+import { providerFreeEnvironment } from "../packages/testkit/src/package.ts";
 import {
   localTestFiles,
   validateLocalReport,
@@ -110,7 +111,10 @@ export async function runSqlite(
       "exec",
       "vitest",
       "run",
+      "--config",
+      join(ROOT, "packages/sdk/vitest.config.ts"),
       ...files,
+      "--maxWorkers=1",
       "--root=.",
       "--exclude=**/.claude/worktrees/**",
       "--allowOnly=false",
@@ -119,7 +123,7 @@ export async function runSqlite(
       "--reporter=json",
       `--outputFile=${reportPath}`,
     ],
-    process.env,
+    providerFreeEnvironment(process.env),
   );
   let failure: Error | undefined;
   try {

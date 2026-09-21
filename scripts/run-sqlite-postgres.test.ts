@@ -127,10 +127,18 @@ describe("SQLite and PostgreSQL result verification", () => {
       try {
         await writeFile(
           join(temporary, "pnpm"),
-          `#!${process.execPath}\nconst fs = require('node:fs');\nconst output = process.argv.find(arg => arg.startsWith('--outputFile=')).slice('--outputFile='.length);\nif (!process.argv.includes('--allowOnly=false')) process.exit(9);\nfs.writeFileSync(output, ${JSON.stringify(JSON.stringify(complete))});\nprocess.exit(${exitCode});\n`,
+          `#!${process.execPath}\nconst fs = require('node:fs');\nconst output = process.argv.find(arg => arg.startsWith('--outputFile=')).slice('--outputFile='.length);\nif (!process.argv.includes('--allowOnly=false')) process.exit(9);\nconst config = process.argv[process.argv.indexOf('--config') + 1];\nif (!config.endsWith('/packages/sdk/vitest.config.ts') || !process.argv.includes('--maxWorkers=1')) process.exit(9);\nif (['PGHOST', 'PGPASSWORD', 'DATABASE_URL', 'KEYNES_DATABASE_URL', 'KEYNES_EXTERNAL_DATABASE_URL'].some(key => process.env[key] !== undefined)) process.exit(10);\nfs.writeFileSync(output, ${JSON.stringify(JSON.stringify(complete))});\nprocess.exit(${exitCode});\n`,
           { mode: 0o700 },
         );
         vi.stubEnv("PATH", temporary);
+        for (const key of [
+          "PGHOST",
+          "PGPASSWORD",
+          "DATABASE_URL",
+          "KEYNES_DATABASE_URL",
+          "KEYNES_EXTERNAL_DATABASE_URL",
+        ])
+          vi.stubEnv(key, "unrelated-provider-value");
         const result = runSqlite(
           join(temporary, "report.json"),
           new AbortController().signal,

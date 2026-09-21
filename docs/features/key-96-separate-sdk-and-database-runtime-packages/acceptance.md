@@ -193,6 +193,12 @@ Source feedback before the clean candidate passes with exit 0: frozen installati
 
 The first retained split attempt at clean `d8202f512a96f55afafb10daf98d589160c1c35b` fails, exit 1, after SDK-only and SDK/SQLite pass. PostgreSQL package tests pass 26 assertions and fail one new path assertion that compares a canonical installed path with an uncanonicalized temporary root on macOS. The failed attempt is retained at `.artifacts/key-96-packages/d8202f5-attempt-1/result.json`; it is not accepted qualification.
 
-Final retained four-archive combined acceptance is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+The next split attempt at clean `136e4a085be38431b1d1de5dbb02a82e5bf16422` passes all four consumer combinations, including 27 PostgreSQL package checks, eight CLI checks and 285 full native assertions with cleanup. Its record is `.artifacts/key-96-packages/136e4a0-attempt-2/result.json`.
+
+The paired attempt at that revision fails: Local passes 315 assertions and fails 63 because the paired child invocation omits the existing SDK Vitest configuration, mixing source and built modules; native passes all 285 assertions and cleanup. The complete failed record is retained at `.artifacts/key-96/136e4a0-attempt-1/manifest.json`. Passing native assertions do not override the failed paired outcome.
+
+The paired invocation now uses the existing Local configuration, one worker and provider-free environment. Review caught the shared launcher merging removed database variables back into that environment; it now preserves the caller-supplied environment. All callers supply complete environments. The polluted-provider child regression fails before the fix and passes afterward, along with all 197 runner tests and root typechecking. Actual corrected SQLite execution passes all 378 assertions with exit 0 and cleanup. Ponytail review accepts these direct fixes without a new runner abstraction.
+
+Final retained qualification of the corrected paired invocation is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.
