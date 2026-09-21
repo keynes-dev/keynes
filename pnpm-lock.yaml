@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@keynes/node-sqlite':
+        specifier: workspace:*
+        version: link:packages/node-sqlite
+      '@keynes/postgres':
+        specifier: workspace:*
+        version: link:packages/postgres
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -46,21 +52,42 @@ importers:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/postgresql:
-    dependencies:
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
+  packages/node-sqlite:
     devDependencies:
       '@keynes/database':
         specifier: workspace:*
         version: link:../database
+      '@keynes/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@keynes/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+
+  packages/postgres:
+    dependencies:
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
+      pg-connection-string:
+        specifier: 2.14.0
+        version: 2.14.0
+    devDependencies:
+      '@keynes/database':
+        specifier: workspace:*
+        version: link:../database
+      '@keynes/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@keynes/testkit':
         specifier: workspace:*
         version: link:../testkit
       '@types/pg':
-        specifier: 8.15.5
-        version: 8.15.5
+        specifier: 8.23.1
+        version: 8.23.1
       oxfmt:
         specifier: 0.64.0
         version: 0.64.0
@@ -69,49 +96,6 @@ importers:
         version: 4.1.11(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/sdk:
-    dependencies:
-      pg:
-        specifier: 8.23.0
-        version: 8.23.0
-      pg-cloudflare:
-        specifier: 1.4.0
-        version: 1.4.0
-      pg-connection-string:
-        specifier: 2.14.0
-        version: 2.14.0
-      pg-int8:
-        specifier: 1.0.1
-        version: 1.0.1
-      pg-pool:
-        specifier: 3.14.0
-        version: 3.14.0(pg@8.23.0)
-      pg-protocol:
-        specifier: 1.16.0
-        version: 1.16.0
-      pg-types:
-        specifier: 2.2.0
-        version: 2.2.0
-      pgpass:
-        specifier: 1.0.5
-        version: 1.0.5
-      postgres-array:
-        specifier: 2.0.0
-        version: 2.0.0
-      postgres-bytea:
-        specifier: 1.0.1
-        version: 1.0.1
-      postgres-date:
-        specifier: 1.0.7
-        version: 1.0.7
-      postgres-interval:
-        specifier: 1.2.0
-        version: 1.2.0
-      split2:
-        specifier: 4.2.0
-        version: 4.2.0
-      xtend:
-        specifier: 4.0.2
-        version: 4.0.2
     devDependencies:
       '@keynes/database':
         specifier: workspace:*
@@ -762,9 +746,6 @@ packages:
 
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
-
-  '@types/pg@8.15.5':
-    resolution: {integrity: sha512-LF7lF6zWEKxuT3/OR8wAZGzkg4ENGXFNyiV/JeOt9z5B+0ZVwbql9McqX5c/WStFq1GaGso7H1AzP/qSzmlCKQ==}
 
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
@@ -1791,12 +1772,6 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
-  '@types/pg@8.15.5':
-    dependencies:
-      '@types/node': 24.13.3
-      pg-protocol: 1.16.0
-      pg-types: 2.2.0
-
   '@types/pg@8.23.1':
     dependencies:
       '@types/node': 24.13.3
@@ -2181,7 +2156,8 @@ snapshots:
 
   pathe@2.0.3: {}
 
-  pg-cloudflare@1.4.0: {}
+  pg-cloudflare@1.4.0:
+    optional: true
 
   pg-connection-string@2.14.0: {}
 

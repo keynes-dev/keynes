@@ -117,6 +117,7 @@ export interface InstalledPackage {
 }
 
 export interface InstallPackageArchiveOptions {
+  readonly companionArchivePaths?: readonly string[];
   readonly archivePath: string;
   readonly consumerName: string;
   readonly executable: string;
@@ -128,6 +129,10 @@ export interface InstallPackageArchiveOptions {
 }
 
 export interface PackAndInstallWorkspacePackageOptions {
+  readonly companionPackages?: readonly {
+    readonly workspaceRoot: string;
+    readonly archiveFileName: string;
+  }[];
   readonly archiveFileName: string;
   readonly consumerName: string;
   readonly executable: string;
@@ -145,14 +150,19 @@ export async function packAndInstallWorkspacePackage(
   const consumerRoot = join(workspace, "consumer");
   await Promise.all([mkdir(archiveRoot), mkdir(consumerRoot)]);
   try {
-    await withPackagePreparationLock(options, () =>
-      run(PNPM, ["pack", "--pack-destination", archiveRoot], {
-        cwd: options.workspaceRoot,
-        signal: options.signal,
-      }),
-    );
+    await withPackagePreparationLock(options, async () => {
+      for (const selected of [...(options.companionPackages ?? []), options]) {
+        await run(PNPM, ["pack", "--pack-destination", archiveRoot], {
+          cwd: selected.workspaceRoot,
+          signal: options.signal,
+        });
+      }
+    });
     return await installPackageArchive({
       archivePath: join(archiveRoot, options.archiveFileName),
+      companionArchivePaths: options.companionPackages?.map((selected) =>
+        join(archiveRoot, selected.archiveFileName),
+      ),
       consumerName: options.consumerName,
       executable: options.executable,
       packageManager: options.packageManager,
@@ -188,11 +198,21 @@ export async function installPackageArchive(
         2,
       )}\n`,
     );
-    await run(PNPM, ["install", "--ignore-scripts", "--offline", archivePath], {
-      cwd: consumerRoot,
-      environment: options.environment,
-      signal: options.signal,
-    });
+    await run(
+      PNPM,
+      [
+        "install",
+        "--ignore-scripts",
+        "--offline",
+        archivePath,
+        ...(options.companionArchivePaths ?? []).map((path) => resolve(path)),
+      ],
+      {
+        cwd: consumerRoot,
+        environment: options.environment,
+        signal: options.signal,
+      },
+    );
     const commandPath = join(
       consumerRoot,
       "node_modules",

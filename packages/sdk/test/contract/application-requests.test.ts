@@ -1,3 +1,4 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
 import { describe, expect, it } from "vitest";
 
 import { createKeynes } from "../../src/index.js";
@@ -12,6 +13,7 @@ function requestFor(tier: string, limit: number) {
 describe("application-computed requests", () => {
   it("keeps the application decision and evidence outside Keynes", async () => {
     await using keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
       },
@@ -43,6 +45,7 @@ describe("application-computed requests", () => {
 
   it("does not submit application decisions that do not qualify", async () => {
     await using keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
       },
@@ -59,6 +62,7 @@ describe("application-computed requests", () => {
 
   it("returns ordinary availability denial for a valid application request", async () => {
     await using keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         usdCents: { unit: "cent", accountingBehavior: "consumable" },
       },

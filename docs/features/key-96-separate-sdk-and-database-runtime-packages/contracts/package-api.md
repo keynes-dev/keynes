@@ -1,6 +1,6 @@
 # Package API contract: KEY-96
 
-These are proposed signatures, not implemented exports. This contract is normative through [spec.md](../spec.md).
+This contract is normative through [spec.md](../spec.md). Phase 3 implements explicit Local and owned-remote selection; borrowed PostgreSQL and installation exports remain later phase work.
 
 ## Construction
 
@@ -94,3 +94,21 @@ Preserve existing config/result/error fields from `packages/postgresql/src/insta
 `keynes install --config <path>` replaces `keynes-postgresql install --config <path>`. PostgreSQL environment variables continue to carry CLI credentials; do not introduce a URL command-line argument. Successful JSON goes to stdout with exit 0. Failures retain stable JSON plus sanitized stderr and nonzero exit. No raw SQL, connection string, credential, stack or config contents may leak. Repeated exact installation is read-only for definitions/accounting; mismatched assets/profile/roles or partial state refuse without repair.
 
 No other command is promised. KEY-108 owns catalog discovery/generation/deployment; no sync or database upgrade command is added.
+
+## Adapter integration bindings implemented in phase 3
+
+The SDK root exports the driver-free descriptor types `NodeSqliteRuntime`,
+`PostgresRuntime`, `EmbeddedPostgresRuntime` and their `KeynesRuntime` union.
+`initialize(definitions)` returns a `BasicRuntimeSession` for local/embedded or
+`RemoteRuntimeSession` for remote. Basic sessions provide a generated client,
+readonly lifecycle state, admission, mutation invocation and close. Remote
+sessions provide a generated client, owned mutation invocation and close.
+Adapters own lifecycle and retries; SDK handles own mapping and capability selection.
+
+Both adapters use SDK-root `createKeynesClient` or `createRemoteKeynesClient`
+and their client/executor/procedure types. PostgreSQL also imports
+`CONTRACT_DIGEST`, `REMOTE_CONTRACT`, `REMOTE_PROCEDURES_DIGEST`, compatibility
+and error-envelope types. SQLite imports `CommittedResponseLostError` for
+existing response-loss replay. All adapter failures share the SDK's public
+error classes. These are integration bindings for the two packaged adapters,
+not a registration or custom-driver API.

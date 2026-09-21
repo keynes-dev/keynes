@@ -43,3 +43,37 @@ export type {
   KeynesSdkErrorCode,
   KeynesSdkErrorDetails,
 } from "./sdk-errors.js";
+
+export {
+  createKeynesClient,
+  createRemoteKeynesClient,
+  CONTRACT_DIGEST,
+  REMOTE_CONTRACT,
+  REMOTE_PROCEDURES_DIGEST,
+} from "./generated/client.js";
+export type {
+  KeynesClient,
+  RemoteKeynesClient,
+  RemoteCommandExecutor,
+  RemoteProcedureDescriptor,
+} from "./generated/client.js";
+export type {
+  BasicRuntimeSession,
+  RemoteRuntimeSession,
+  NodeSqliteRuntime,
+  PostgresRuntime,
+  EmbeddedPostgresRuntime,
+  KeynesRuntime,
+} from "./generated/runtime.js";
+export type { CommandExecutor } from "./command-executor.js";
+export { CommittedResponseLostError } from "./replay.js";
+export type {
+  RemoteMutationName,
+  GetCompatibilityResult,
+  OperationName,
+} from "./generated/types.js";
+export type {
+  CompatibilityErrorEnvelope,
+  RemoteErrorEnvelope,
+  RemoteSimpleErrorEnvelope,
+} from "./generated/types.js";

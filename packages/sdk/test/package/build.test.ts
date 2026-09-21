@@ -25,16 +25,12 @@ afterEach(async () => {
 });
 
 describe("SDK staged build", () => {
-  it("includes every remote runtime module in the production manifest", () => {
+  it("includes remote handle modules in the production manifest", () => {
     expect(SDK_PRODUCTION_MODULES).toEqual(
       expect.arrayContaining([
         "remote/budget",
-        "remote/connection-options",
-        "remote/errors",
-        "remote/postgresql-command-executor",
         "remote/public-types",
         "remote/references",
-        "remote/retry",
       ]),
     );
   });

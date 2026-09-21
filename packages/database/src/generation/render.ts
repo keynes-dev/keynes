@@ -1,3 +1,4 @@
+export { renderRuntime } from "./runtime.ts";
 import type { ContractSource as Contract, JsonObject } from "../model.ts";
 
 function renderValidatorTemplate(

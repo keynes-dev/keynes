@@ -30,32 +30,6 @@ const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
-const expectedProductionDependencies = {
-  pg: "8.23.0",
-  "pg-cloudflare": "1.4.0",
-  "pg-connection-string": "2.14.0",
-  "pg-int8": "1.0.1",
-  "pg-pool": "3.14.0",
-  "pg-protocol": "1.16.0",
-  "pg-types": "2.2.0",
-  pgpass: "1.0.5",
-  "postgres-array": "2.0.0",
-  "postgres-bytea": "1.0.1",
-  "postgres-date": "1.0.7",
-  "postgres-interval": "1.2.0",
-  split2: "4.2.0",
-  xtend: "4.0.2",
-} as const;
-const expectedBundledDependencies = Object.keys(
-  expectedProductionDependencies,
-).sort();
-const bundledPackageRoots = expectedBundledDependencies.map(
-  (name) => `package/node_modules/${name}`,
-);
-const requiredBundledPackageFiles = expectedBundledDependencies.map(
-  (name) => `package/node_modules/${name}/package.json`,
-);
-
 const allowedPackageFiles = [
   "package/LICENSE",
   "package/README.md",
@@ -68,6 +42,7 @@ const allowedPackageFiles = [
 
 export interface QualificationArguments {
   readonly archivePath: string;
+  readonly nodeSqliteArchivePath?: string;
   readonly outputPath?: string;
   readonly authorizedDatabase?: true;
 }
@@ -83,6 +58,15 @@ const PROVIDER_FREE_PACKAGE_CHECKS = [
   "isolation",
   "closure",
   "process-loss",
+  "deep-imports-blocked",
+] as const;
+
+const SDK_ONLY_PACKAGE_CHECKS = [
+  "public-types",
+  "package-root-import",
+  "remote-exports",
+  "configuration-rejection",
+  "environment-isolation",
   "deep-imports-blocked",
 ] as const;
 
@@ -104,6 +88,11 @@ export interface QualificationResult {
     readonly productionBytes: number;
     readonly packageVersion: string;
     readonly contractDigest: string;
+  };
+  readonly runtimeArchive?: {
+    readonly name: "@keynes/node-sqlite";
+    readonly sha256: string;
+    readonly compressedBytes: number;
   };
   readonly environment: {
     readonly node: string;
@@ -144,6 +133,7 @@ export function parseArguments(
     args: normalized,
     options: {
       archive: { type: "string" },
+      "node-sqlite-archive": { type: "string" },
       output: { type: "string" },
       "authorized-database": { type: "boolean" },
     },
@@ -157,6 +147,7 @@ export function parseArguments(
     if (token.kind !== "option") continue;
     if (
       token.name !== "archive" &&
+      token.name !== "node-sqlite-archive" &&
       token.name !== "output" &&
       token.name !== "authorized-database"
     )
@@ -181,11 +172,20 @@ export function parseArguments(
     throw new Error("--output may be provided only once");
   if (authorizedDatabaseTokens.length > 1)
     throw new Error("--authorized-database may be provided only once");
+  const runtimeTokens = optionTokens.filter(
+    (token) => token.name === "node-sqlite-archive",
+  );
+  if (runtimeTokens.length > 1)
+    throw new Error("--node-sqlite-archive may be provided only once");
+  const nodeSqliteArchive = runtimeTokens[0]?.value;
   const archive = archiveTokens[0]?.value;
   const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
   return {
     archivePath: resolve(repositoryRoot, archive),
+    ...(nodeSqliteArchive === undefined
+      ? {}
+      : { nodeSqliteArchivePath: resolve(repositoryRoot, nodeSqliteArchive) }),
     ...(output === undefined
       ? {}
       : { outputPath: resolve(repositoryRoot, output) }),
@@ -199,21 +199,13 @@ export function validatePackageFilePaths(paths: readonly string[]): void {
   const actual = [...paths].sort();
   const unknown = actual.find(
     (path) =>
-      path.split("/").includes("..") ||
-      (!allowedPackageFiles.includes(path) &&
-        !bundledPackageRoots.some((root) => path.startsWith(`${root}/`))),
+      path.split("/").includes("..") || !allowedPackageFiles.includes(path),
   );
   if (unknown !== undefined)
     throw new Error(`Archive contains forbidden file ${unknown}`);
   const missing = allowedPackageFiles.find((path) => !actual.includes(path));
   if (missing !== undefined)
     throw new Error(`Archive is missing required file ${missing}`);
-  const missingBundledFile = requiredBundledPackageFiles.find(
-    (path) => !actual.includes(path),
-  );
-  if (missingBundledFile !== undefined) {
-    throw new Error(`Archive is missing required file ${missingBundledFile}`);
-  }
   if (new Set(actual).size !== actual.length) {
     throw new Error("Archive contains duplicate file paths");
   }
@@ -256,6 +248,7 @@ export async function qualifyArchive(
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
+    args.nodeSqliteArchivePath,
   );
   const consumer = resolve(external.root, "build/consumer.mjs");
   const execution = await Promise.resolve()
@@ -264,20 +257,24 @@ export async function qualifyArchive(
         resolve(external.root, "build/private-imports.mjs"),
         external.root,
       );
-      for (const name of [
-        "remote-exports",
-        "configuration-rejection",
-        "environment-isolation",
-        "budget-loop",
-        "application-request",
-        "isolation",
-        "closure",
-      ])
+      for (const name of args.nodeSqliteArchivePath === undefined
+        ? ["remote-exports", "configuration-rejection", "environment-isolation"]
+        : [
+            "remote-exports",
+            "configuration-rejection",
+            "environment-isolation",
+            "budget-loop",
+            "application-request",
+            "isolation",
+            "closure",
+          ])
         runConsumer(consumer, name, external.root);
-      assertProcessState(
-        runConsumer(consumer, "write-then-exit", external.root),
-      );
-      runConsumer(consumer, "read-after-restart", external.root);
+      if (args.nodeSqliteArchivePath !== undefined) {
+        assertProcessState(
+          runConsumer(consumer, "write-then-exit", external.root),
+        );
+        runConsumer(consumer, "read-after-restart", external.root);
+      }
       if (args.authorizedDatabase === true)
         runConsumer(consumer, "authorized-database", external.root, true);
     })
@@ -319,6 +316,17 @@ export async function qualifyArchive(
       packageVersion: archive.packageVersion,
       contractDigest: archive.contractDigest,
     },
+    ...(args.nodeSqliteArchivePath === undefined
+      ? {}
+      : {
+          runtimeArchive: {
+            name: "@keynes/node-sqlite" as const,
+            sha256: createHash("sha256")
+              .update(await readFile(args.nodeSqliteArchivePath))
+              .digest("hex"),
+            compressedBytes: (await stat(args.nodeSqliteArchivePath)).size,
+          },
+        }),
     environment: {
       node: process.version,
       pnpm: run(pnpm, ["--version"], repositoryRoot).trim(),
@@ -327,7 +335,9 @@ export async function qualifyArchive(
       architecture: arch(),
     },
     checks: [
-      ...PROVIDER_FREE_PACKAGE_CHECKS,
+      ...(args.nodeSqliteArchivePath === undefined
+        ? SDK_ONLY_PACKAGE_CHECKS
+        : PROVIDER_FREE_PACKAGE_CHECKS),
       ...(args.authorizedDatabase === true
         ? (["authorized-database-walkthrough"] as const)
         : []),
@@ -369,13 +379,17 @@ function readSourceRevision(): {
 export async function installExternalConsumer(
   archivePath: string,
   compressedBytes: number,
+  nodeSqliteArchivePath?: string,
 ): Promise<ExternalConsumer> {
   await mkdir(tmpdir(), { recursive: true });
   const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-package-test-"));
   assertOutsideRepository(repositoryRoot, root);
   try {
     await cp(
-      resolve(installRoot, "consumer.mts"),
+      resolve(
+        installRoot,
+        nodeSqliteArchivePath === undefined ? "sdk-only.mts" : "consumer.mts",
+      ),
       resolve(root, "consumer.mts"),
     );
     await cp(
@@ -400,13 +414,20 @@ export async function installExternalConsumer(
       resolve(root, "compatibility/configured-resources.mts"),
     );
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
+    if (nodeSqliteArchivePath !== undefined)
+      await cp(nodeSqliteArchivePath, resolve(root, "keynes-node-sqlite.tgz"));
     await writeFile(
       resolve(root, "package.json"),
       `${JSON.stringify(
         {
           private: true,
           type: "module",
-          dependencies: { "@keynes/sdk": "file:./keynes-sdk.tgz" },
+          dependencies: {
+            "@keynes/sdk": "file:./keynes-sdk.tgz",
+            ...(nodeSqliteArchivePath === undefined
+              ? {}
+              : { "@keynes/node-sqlite": "file:./keynes-node-sqlite.tgz" }),
+          },
         },
         null,
         2,
@@ -429,17 +450,15 @@ export async function installExternalConsumer(
     const installedPackage = await realpath(
       resolve(root, "node_modules/@keynes/sdk"),
     );
-    const installedPg = await realpath(
-      resolve(installedPackage, "node_modules/pg"),
-    );
-    const installedPgConnectionString = await realpath(
-      resolve(installedPackage, "node_modules/pg-connection-string"),
-    );
     assertOutsideRepository(repositoryRoot, installedPackage);
     const externalRoot = await realpath(root);
     assertWithin(externalRoot, installedPackage);
-    assertWithin(externalRoot, installedPg);
-    assertWithin(externalRoot, installedPgConnectionString);
+    if (nodeSqliteArchivePath !== undefined) {
+      assertWithin(
+        externalRoot,
+        await realpath(resolve(root, "node_modules/@keynes/node-sqlite")),
+      );
+    }
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
     validateSizes({ compressedBytes, productionBytes });
 
@@ -503,26 +522,6 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     hasInvalidPackageDependencies(value)
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
-  }
-  for (const [name, version] of Object.entries(
-    expectedProductionDependencies,
-  )) {
-    const dependencyManifest = entries.find(
-      (entry) => entry.path === `package/node_modules/${name}/package.json`,
-    );
-    if (dependencyManifest === undefined) {
-      throw new Error(`Archive bundled dependency ${name} is missing`);
-    }
-    const dependencyValue: unknown = JSON.parse(
-      dependencyManifest.body.toString("utf8"),
-    );
-    if (
-      !isRecord(dependencyValue) ||
-      dependencyValue.name !== name ||
-      dependencyValue.version !== version
-    ) {
-      throw new Error(`Archive bundled dependency ${name} is invalid`);
-    }
   }
   const generatedClient = entries.find(
     (entry) => entry.path === "package/dist/generated/client.js",
@@ -663,45 +662,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function hasInvalidPackageDependencies(
   manifest: Record<string, unknown>,
 ): boolean {
-  const dependencies = manifest.dependencies;
-  if (!isRecord(dependencies)) return true;
-  const expectedNames = Object.keys(expectedProductionDependencies).sort();
-  const actualNames = Object.keys(dependencies).sort();
-  if (
-    actualNames.length !== expectedNames.length ||
-    actualNames.some((name, index) => name !== expectedNames[index])
-  ) {
-    return true;
-  }
-  for (const [name, version] of Object.entries(
-    expectedProductionDependencies,
-  )) {
-    if (dependencies[name] !== version) {
-      return true;
-    }
-  }
-  for (const field of ["optionalDependencies", "peerDependencies"]) {
-    const value = manifest[field];
-    if (
-      value !== undefined &&
-      (!isRecord(value) || Object.keys(value).length > 0)
-    ) {
-      return true;
-    }
-  }
-  if (manifest.bundleDependencies !== undefined) return true;
-  const bundledDependencies = manifest.bundledDependencies;
-  if (
-    !Array.isArray(bundledDependencies) ||
-    bundledDependencies.some((value) => typeof value !== "string") ||
-    [...bundledDependencies]
-      .sort()
-      .some((name, index) => name !== expectedBundledDependencies[index]) ||
-    bundledDependencies.length !== expectedBundledDependencies.length
-  ) {
-    return true;
-  }
-  return false;
+  return (
+    ["dependencies", "optionalDependencies", "peerDependencies"].some(
+      (field) => {
+        const value = manifest[field];
+        return (
+          value !== undefined &&
+          (!isRecord(value) || Object.keys(value).length !== 0)
+        );
+      },
+    ) ||
+    ["bundleDependencies", "bundledDependencies"].some((field) => {
+      const value = manifest[field];
+      return (
+        value !== undefined && (!Array.isArray(value) || value.length !== 0)
+      );
+    })
+  );
 }
 
 async function main(): Promise<void> {

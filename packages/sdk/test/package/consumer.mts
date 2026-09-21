@@ -1,3 +1,5 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
+import type { PostgresRuntime } from "@keynes/sdk";
 import { createKeynes, createOperationKey } from "@keynes/sdk";
 import type { BudgetReference } from "@keynes/sdk";
 
@@ -5,6 +7,22 @@ declare const process: {
   readonly argv: readonly string[];
   readonly env: Readonly<Record<string, string | undefined>>;
 };
+
+for (const moduleName of ["pg", "@keynes/database", "@keynes/cli"]) {
+  let imported = false;
+  try {
+    await import(moduleName);
+    imported = true;
+  } catch (error: unknown) {
+    if (
+      !(error instanceof Error) ||
+      !("code" in error) ||
+      error.code !== "ERR_MODULE_NOT_FOUND"
+    )
+      throw error;
+  }
+  if (imported) throw new Error(`Unexpected dependency ${moduleName}`);
+}
 
 const mode = process.argv[2] ?? "budget-loop";
 switch (mode) {
@@ -51,13 +69,13 @@ function runRemoteExports(): void {
 
 async function runConfigurationRejection(): Promise<void> {
   await assertRejectsCode(
-    createKeynes({
-      resources: {
-        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    Reflect.apply(createKeynes, undefined, [
+      {
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
       },
-      databaseUrl:
-        "postgresql://application:secret@db.example.test/keynes?sslmode=disable",
-    }),
+    ]),
     "invalid_configuration",
   );
 }
@@ -72,6 +90,11 @@ function runEnvironmentIsolation(): void {
 }
 
 async function runAuthorizedDatabase(): Promise<void> {
+  const moduleName = "@keynes/postgres";
+  const {
+    postgres,
+  }: { postgres(options: { databaseUrl: string }): PostgresRuntime } =
+    await import(moduleName);
   const databaseUrl = process.env.KEYNES_DATABASE_URL;
   if (databaseUrl === undefined) {
     throw new Error("KEYNES_DATABASE_URL is required for authorized-database");
@@ -86,8 +109,8 @@ async function runAuthorizedDatabase(): Promise<void> {
   };
   const rootReference = await createAndClose();
   await using reconnected = await createKeynes({
+    runtime: postgres({ databaseUrl: authorizedDatabaseUrl }),
     resources,
-    databaseUrl: authorizedDatabaseUrl,
   });
   const reopened = await reconnected.openBudget({
     reference: rootReference,
@@ -111,8 +134,8 @@ async function runAuthorizedDatabase(): Promise<void> {
 
   async function createAndClose(): Promise<BudgetReference> {
     await using keynes = await createKeynes({
+      runtime: postgres({ databaseUrl: authorizedDatabaseUrl }),
       resources,
-      databaseUrl: authorizedDatabaseUrl,
     });
     const root = await keynes.createBudget(
       { packageQualificationUnits: 5 },
@@ -163,7 +186,7 @@ async function runBudgetLoop(): Promise<void> {
     usdCents: { unit: "cent", accountingBehavior: "consumable" },
     searchQueries: { unit: "query", accountingBehavior: "consumable" },
   };
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
     const binding = await keynes.defineResources(resources);
     assertEqual(Object.isFrozen(binding), true);
@@ -243,6 +266,7 @@ function requestFor(tier: string, limit: number) {
 
 async function runApplicationRequest(): Promise<void> {
   const keynes = await createKeynes({
+    runtime: nodeSqlite(),
     resources: {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     },
@@ -272,8 +296,8 @@ async function runIsolation(): Promise<void> {
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   };
-  const left = await createKeynes({ resources });
-  const right = await createKeynes({ resources });
+  const left = await createKeynes({ runtime: nodeSqlite(), resources });
+  const right = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
     const [leftRoot, rightRoot] = await Promise.all([
       left.createBudget({ workUnits: 3 }),
@@ -292,7 +316,7 @@ async function runClosure(): Promise<void> {
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   };
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   const root = await keynes.createBudget({ workUnits: 1 });
   const firstClose = keynes.close();
   assertEqual(keynes.close() === firstClose, true);
@@ -307,7 +331,7 @@ async function writeThenExit(): Promise<void> {
   const resources = {
     processMemory: { unit: "item", accountingBehavior: "consumable" },
   };
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   const root = await keynes.createBudget({ processMemory: 1 });
   const [resource] = (await root.inspect()).budget.resources;
   if (resource === undefined)
@@ -319,7 +343,7 @@ async function readAfterRestart(): Promise<void> {
   const resources = {
     processMemory: { unit: "byte", accountingBehavior: "consumable" },
   };
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
     const root = await keynes.createBudget({ processMemory: 2 });
     const [resource] = (await root.inspect()).budget.resources;

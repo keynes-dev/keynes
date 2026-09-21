@@ -1,4 +1,4 @@
-import { KeynesError, type RemoteKeynesClient } from "../generated/client.js";
+import { KeynesError } from "../generated/client.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetProjection as WireBudgetProjection,
@@ -38,7 +38,7 @@ import {
   splitRemoteMutationOptions,
   type BudgetReference,
 } from "./references.js";
-import { invokeRemoteMutation } from "./retry.js";
+import type { RemoteRuntimeSession } from "../generated/runtime.js";
 
 const PRIVATE_UUID = "00000000-0000-4000-8000-000000000000";
 const MAX_HISTORY_PAGES = 128;
@@ -118,17 +118,18 @@ export function createRemoteBudgetHandle<
   Names extends string,
   HistoryNames extends string = Names,
 >(
-  client: RemoteKeynesClient,
+  runtime: RemoteRuntimeSession,
   identity: RemoteBudgetIdentity,
   binding: BudgetResourceBinding<Names, HistoryNames>,
 ): RemoteBudget<Names, HistoryNames> {
+  const { client } = runtime;
   const { budgetReference } = identity;
   const request = <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
     ...options: readonly unknown[]
   ) =>
     requestRemoteBudget<Names, HistoryNames, Resources>(
-      client,
+      runtime,
       identity,
       binding,
       resources,
@@ -144,7 +145,7 @@ export function createRemoteBudgetHandle<
       new Set<string>(),
     );
     const result = await invokeBudgetOperation(binding, () =>
-      invokeRemoteMutation("settleBudget", operationKey, () =>
+      runtime.invokeMutation("settleBudget", operationKey, () =>
         client.settleBudget({
           operationKey,
           budgetReference,
@@ -213,7 +214,7 @@ async function requestRemoteBudget<
   HistoryNames extends string,
   const Resources extends ResourceAmounts<Names>,
 >(
-  client: RemoteKeynesClient,
+  runtime: RemoteRuntimeSession,
   identity: RemoteBudgetIdentity,
   binding: BudgetResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
@@ -221,6 +222,7 @@ async function requestRemoteBudget<
 ): Promise<
   RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
 > {
+  const { client } = runtime;
   const { budgetReference } = identity;
   type RequestedName = Extract<keyof Resources, Names>;
   const resolved = binding.resources<RequestedName>(
@@ -246,7 +248,7 @@ async function requestRemoteBudget<
       })),
     ];
   return invokeBudgetOperation(resolved.binding, async () => {
-    const result = await invokeRemoteMutation(
+    const result = await runtime.invokeMutation(
       "requestBudget",
       operationKey,
       () =>
@@ -274,7 +276,7 @@ async function requestRemoteBudget<
           ? {}
           : { decisionEvidence: resultDecisionEvidence }),
         budget: createRemoteBudgetHandle<RequestedName, HistoryNames>(
-          client,
+          runtime,
           {
             budgetReference: requireBudgetReference(
               result.childBudgetReference,

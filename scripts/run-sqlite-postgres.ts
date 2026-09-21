@@ -20,10 +20,11 @@ import {
   sanitizeVitestReport,
   spawnTestChild,
   validatePostgresqlSystemReport,
-} from "../packages/postgresql/test/system/run.ts";
-import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgresql/test/system/required-scenarios.ts";
+} from "../packages/postgres/test/system/run.ts";
+import { POSTGRESQL_BUDGET_AGGREGATE } from "../packages/postgres/test/system/required-scenarios.ts";
 
-export const SQLITE_AGGREGATE = "packages/sdk/test/contract/budget.test.ts";
+export const SQLITE_AGGREGATE =
+  "packages/node-sqlite/test/contract/budget.test.ts";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -311,7 +312,7 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
         "utf8",
       ),
       readFile(
-        join(ROOT, "packages/postgresql/generated/installation-record.json"),
+        join(ROOT, "packages/postgres/generated/installation-record.json"),
       ),
     ]);
   const contract: unknown = JSON.parse(contractBytes);
@@ -353,10 +354,10 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       pnpm,
       vitest: version(require("vitest/package.json")),
       sdk: version(require("../packages/sdk/package.json")),
-      postgresql: version(require("../packages/postgresql/package.json")),
+      postgresql: version(require("../packages/postgres/package.json")),
       pg: version(sdkRequire("pg/package.json")),
       postgresqlPg: version(
-        createRequire(join(ROOT, "packages/postgresql/package.json"))(
+        createRequire(join(ROOT, "packages/postgres/package.json"))(
           "pg/package.json",
         ),
       ),

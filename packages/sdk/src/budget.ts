@@ -4,7 +4,7 @@ import type {
   RequestBudgetCommand,
   SettleBudgetCommand,
 } from "./generated/types.js";
-import { admit, invokeMutation, type LocalRuntime } from "./local/runtime.js";
+import type { BasicRuntimeSession } from "./generated/runtime.js";
 import {
   compareDenialReasons,
   invokeBudgetOperation,
@@ -155,7 +155,7 @@ export function createBudgetHandle<
   Names extends string,
   HistoryNames extends string = Names,
 >(
-  runtime: LocalRuntime,
+  runtime: BasicRuntimeSession,
   budgetId: string,
   binding: BudgetResourceBinding<Names, HistoryNames>,
 ): Budget<Names, HistoryNames> {
@@ -166,21 +166,21 @@ export function createBudgetHandle<
 
   const settle: Budget<Names, HistoryNames>["settle"] = (usage) => {
     const observedUsage = Object.freeze({ ...usage });
-    return admit(runtime, async () => {
+    return runtime.admit(async () => {
       const command = {
         commandId: randomUUID(),
         budgetId,
         usage: binding.usage(observedUsage),
       } satisfies SettleBudgetCommand;
       const result = await invokeBudgetOperation(binding, () =>
-        invokeMutation(() => runtime.client.settleBudget(command)),
+        runtime.invokeMutation(() => runtime.client.settleBudget(command)),
       );
       return projectSettlement(binding, result);
     });
   };
 
   const inspect = (): Promise<BudgetSnapshot<Names, HistoryNames>> =>
-    admit(runtime, async () => {
+    runtime.admit(async () => {
       const result = await invokeBudgetOperation(binding, () =>
         runtime.client.getBudget({ budgetId }),
       );
@@ -201,7 +201,7 @@ async function requestBudget<
   HistoryNames extends string,
   const Resources extends ResourceAmounts<Names>,
 >(
-  runtime: LocalRuntime,
+  runtime: BasicRuntimeSession,
   budgetId: string,
   binding: BudgetResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
@@ -210,7 +210,7 @@ async function requestBudget<
   type RequestedName = Extract<keyof Resources, Names>;
   const requestedResources = Object.freeze({ ...resources });
   const decisionEvidence = requestDecisionEvidence(options);
-  const pending = admit(runtime, async () => {
+  const pending = runtime.admit(async () => {
     const resolved = binding.resources<RequestedName>(
       requestedResources,
       "requestBudget",
@@ -222,7 +222,7 @@ async function requestBudget<
       ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     };
     const result = await invokeBudgetOperation(resolved.binding, () =>
-      invokeMutation(() => runtime.client.requestBudget(command)),
+      runtime.invokeMutation(() => runtime.client.requestBudget(command)),
     );
     const resultDecisionEvidence = canonicalDecisionEvidence(
       result.decisionEvidence,

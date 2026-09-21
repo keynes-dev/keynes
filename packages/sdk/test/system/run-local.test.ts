@@ -7,9 +7,9 @@ import {
 
 it("selects existing source groups without package or remote suites", () => {
   expect(LOCAL_GROUPS).toEqual([
-    "test/unit/local",
-    "test/unit/public",
-    "test/contract/budget.test.ts",
+    "packages/node-sqlite/test/unit/local",
+    "packages/sdk/test/unit/public",
+    "packages/node-sqlite/test/contract/budget.test.ts",
   ]);
 });
 it("keeps standalone help and rejects acceptance options", async () => {

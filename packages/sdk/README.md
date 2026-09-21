@@ -1,8 +1,8 @@
 # TypeScript SDK
 
 `@keynes/sdk` is a private, unpublished ESM package. It owns the typed
-Local and Remote API, generated contracts, one private in-memory SQLite runtime,
-and the direct PostgreSQL client.
+Local and Remote API and generated runtime bindings. Select the SQLite or
+PostgreSQL adapter explicitly; the SDK contains no database engine or driver.
 
 ## Adopted target and migration
 
@@ -19,7 +19,7 @@ atomically. A valid request may still be denied. Optional caller-supplied
 that evaluation ran and grants no authority. Exact command replay does not
 rerun customer evaluation.
 
-KEY-96 still owns runtime/package separation and exact new exports. No
+KEY-96 separates runtime packages from the SDK. No
 mandatory evaluation result, callback signature, or transaction manager belongs
 to allocation. See the [customer-code and customer-SQL examples](../../docs/architecture.md#equivalent-customer-code-and-sql)
 for the boundary.
@@ -35,24 +35,25 @@ CI=true pnpm pack:sdk
 ```
 
 Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
-The package bundles the complete `pg` runtime closure for direct remote
-PostgreSQL access. It contains no
+For Local, also build and pack `@keynes/node-sqlite` using
+`pnpm pack:node-sqlite` and install both archives. The SDK contains no
 PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
 library. The package remains private and has no registry publication command.
 
 ## Create a local Budget
 
-Applications import only `@keynes/sdk`:
+Applications select the Local adapter:
 
 ```ts
 import { createKeynes } from "@keynes/sdk";
+import { nodeSqlite } from "@keynes/node-sqlite";
 
 const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 };
 
-await using keynes = await createKeynes({ resources });
+await using keynes = await createKeynes({ resources, runtime: nodeSqlite() });
 const root = await keynes.createBudget({
   usdCents: 100,
   searchQueries: 10,
@@ -64,7 +65,7 @@ if (request.status === "approved") {
 }
 ```
 
-`createKeynes({ resources })` configures the local authority with the complete
+`createKeynes({ resources, runtime: nodeSqlite() })` configures the local authority with the complete
 set of Resource declarations. `createBudget(amounts, options?)` takes only
 amounts. Its keys are the Budget's membership. An explicit zero includes a
 Resource without creating a quantity movement. An omitted name is absent. A
@@ -210,3 +211,18 @@ request, and shutdown.
 An authorized external database, provider qualification, broad security
 qualification, managed operations, adopter use, and production readiness need
 their own evidence.
+
+## Adapter integration bindings
+
+The root exports `NodeSqliteRuntime`, `PostgresRuntime`,
+`EmbeddedPostgresRuntime`, `KeynesRuntime`, `BasicRuntimeSession` and
+`RemoteRuntimeSession` for the two adapters. Descriptors initialize a fresh
+session; sessions own execution admission, retry and close. `nodeSqlite()` is
+cold and reusable. Closing one initialized Local instance does not close another.
+
+The adapters share `createKeynesClient`, `createRemoteKeynesClient`,
+`CONTRACT_DIGEST`, `REMOTE_CONTRACT`, `REMOTE_PROCEDURES_DIGEST` and
+`CommittedResponseLostError` with the SDK. Their companion client, executor,
+procedure, compatibility and error-envelope types are driver-free bindings.
+This keeps one public `KeynesError` identity across handles and adapters. These
+bindings support the packaged adapters; they do not add a custom driver registry.

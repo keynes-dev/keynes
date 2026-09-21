@@ -75,8 +75,40 @@ Failed intermediate checks: the mechanical path rewrite initially changed the sc
 
 Ponytail review found an unnecessary replacement-map loop in SDK staging. Replaced it with one `replaceAll` call, then reran generation and type checks. Retained generated copies because each consumer must compile independently; only database files are authored. No additional dependency or packaging framework was added. Final phase review found nothing else to cut.
 
+## Phase 3: explicit SDK and SQLite runtime
+
+### Test-first baseline
+
+Base revision `aee84b0`, with new phase 3 tests only. `pnpm exec vitest run packages/sdk/test/unit/public/runtime-selection.test.ts --maxWorkers=1` failed with 4 failed and 4 passed. The implicit constructor resolved instead of rejecting. The remaining three failures identify the absent SQLite and PostgreSQL adapter modules; descriptor isolation and capability assertions cannot run until those modules exist.
+
+`pnpm exec vitest run packages/sdk/test/package/qualify.test.ts -t 'ships no engine or driver' --maxWorkers=1` built and packed the baseline SDK, then failed its selected test because the manifest still declares pg and 13 supporting packages. The other 17 tests were not selected. This is a failed isolation check, not archive qualification. Temporary package-test files were removed by the suite cleanup.
+
+Additional regressions observed before fixes: an accessor configuration executed its getter; SQLite and PostgreSQL initialization cleanup could replace the original failure. Tests now prove rejection without getter execution and preservation of both failures. Type fixtures cover explicit runtimes, rejected legacy options and union capability inference.
+
+### Implementation and checks
+
+Source base: `aee84b0`. The phase 3 commit contains this record and the checked diff. SDK now requires an explicit cold runtime descriptor and has no production dependencies or engine modules. SQLite owns private stores, queue admission, drain/close and committed-response retry. PostgreSQL owns the existing remote driver integration; borrowed connections and the separate CLI remain later phases. Semantic input validators remain in SDK until phase 4.
+
+SQLite contract tests moved with their engine fixture. SDK tests import public adapters supplied by the root test environment; Turbo records these injected test dependencies without adding a manifest cycle. Public adapter packages share the SDK peer to preserve error and generated-client identity.
+
+| Command                                       | Result                                                                                                                        |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                | PASS, exit 0: generation, 63 repository tests, 174 runner tests, package tests, formatting, lint, typechecking and boundaries |
+| `pnpm test:local`                             | PASS, 359 assertions, complete report and terminal exit 0                                                                     |
+| `pnpm --filter @keynes/sdk test:package:unit` | PASS, 23 tests, exit 0; clean SDK-only and SDK/SQLite archive consumers                                                       |
+| `pnpm build:postgresql`                       | PASS, exit 0, strict output allowlist                                                                                         |
+| `git diff --check`                            | PASS                                                                                                                          |
+
+Final routine package counts: SDK 205, SQLite 181, PostgreSQL 156 and database 39. The 121 shared contract scenarios moved from SDK to SQLite; they were not removed. Boundary checking inspected 244 files in five packages with no issues.
+
+Packed SDK-only checks prove root/declaration imports without drivers, engines, private packages or an adapter. The SDK/SQLite consumer exercises Budget requests, settlement, inspection, isolation, closure and process loss. Tests verify the exact temporary archive hashes and clean external installation/cleanup; these temporary archives are removed by the test harness. A retained final four-package archive set is still pending.
+
+Failed intermediate checks: formatting caught two files; Turbo caught cross-package test ownership; the Local runner rejected duplicate test names even though all assertions passed. Moved the private fixture to its owner, declared injected test dependencies, formatted touched files and made case names unique. The strict report parser was retained. All listed final commands exited successfully.
+
+Ponytail review removed duplicate SDK/SQLite distribution helpers through the existing private testkit and kept staged replacement. Initialization cleanup fixes preserve primary failures. The final review accepts the small runtime contract and temporary owned PostgreSQL extraction as required for explicit runtime selection; no additional abstraction or package framework is needed.
+
 ## Pending acceptance
 
-Phases 3-7, four archive consumer combinations, Local/native behavior, borrowed transactions, CLI qualification and combined checks: NOT RUN. No KEY-96 archives have been produced. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Phases 4-7, native runtime-bypass validation for this split, borrowed transactions, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.

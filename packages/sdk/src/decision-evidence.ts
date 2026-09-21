@@ -1,4 +1,4 @@
-import { canonicalDecisionEvidence } from "./local/decision-evidence.js";
+import { canonicalDecisionEvidence } from "./generated/decision-evidence.js";
 import type { DecisionEvidence as WireDecisionEvidence } from "./generated/types.js";
 import { validateDecisionEvidence } from "./generated/validators.js";
 import { KeynesSdkError } from "./sdk-errors.js";
@@ -59,4 +59,4 @@ function invalidConfiguration(
   });
 }
 
-export { canonicalDecisionEvidence } from "./local/decision-evidence.js";
+export { canonicalDecisionEvidence } from "./generated/decision-evidence.js";

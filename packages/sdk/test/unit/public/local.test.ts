@@ -1,3 +1,4 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
 import { describe, expect, it } from "vitest";
 
 import { KeynesError, createKeynes } from "../../../src/index.js";
@@ -9,7 +10,10 @@ const setupResources = {
 
 describe("local Keynes facade", () => {
   it("attributes empty raw definitions to the invoked operation", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     try {
       for (const operation of ["createBudget", "defineResources"] as const) {
         const pending: unknown = Reflect.apply(keynes[operation], keynes, [
@@ -32,7 +36,10 @@ describe("local Keynes facade", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       extra: { unit: "slot", accountingBehavior: "reusable" },
     };
-    const keynes = await createKeynes({ resources: definitions });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: definitions,
+    });
     const allocation = { workUnits: 10 };
     try {
       const pending = keynes.createBudget(allocation);
@@ -76,10 +83,16 @@ describe("local Keynes facade", () => {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
         ...extra,
       };
-      const pending = createKeynes({ resources: definitions });
+      const pending = createKeynes({
+        runtime: nodeSqlite(),
+        resources: definitions,
+      });
       expect(pending).toBeInstanceOf(Promise);
       await expect(pending).rejects.toMatchObject({ code: "invalid_command" });
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
       try {
         await expect(
           keynes.defineResources({
@@ -93,8 +106,14 @@ describe("local Keynes facade", () => {
   );
 
   it("rejects copied and separate-authority creation bindings safely", async () => {
-    const first = await createKeynes({ resources: setupResources });
-    const second = await createKeynes({ resources: setupResources });
+    const first = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    const second = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     try {
       const binding = await first.defineResources({
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -121,7 +140,10 @@ describe("local Keynes facade", () => {
   });
 
   it("checks raw creation close before touching input getters", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     await keynes.close();
     let reads = 0;
     const input = {
@@ -140,7 +162,10 @@ describe("local Keynes facade", () => {
   });
 
   it("defines an opaque frozen binding without reflective or JSON state", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     try {
       const binding = await keynes.defineResources({
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
@@ -170,7 +195,10 @@ describe("local Keynes facade", () => {
   });
 
   it("snapshots independent definitions before yielding to caller mutation", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     const definitions = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
@@ -277,7 +305,10 @@ describe("local Keynes facade", () => {
   ])(
     "rejects malformed independent definitions asynchronously: %s",
     async (_name, definitions) => {
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
       try {
         const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
           definitions,
@@ -291,7 +322,10 @@ describe("local Keynes facade", () => {
   );
 
   it("rejects independent-definition getter failures through its Promise", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     const failure = new Error("definition getter failed");
     const definitions = {
       get workUnits(): never {
@@ -315,7 +349,10 @@ describe("local Keynes facade", () => {
   });
 
   it("accepts constructor and toString as independent Resource names", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     try {
       await expect(
         keynes.defineResources({
@@ -333,7 +370,7 @@ describe("local Keynes facade", () => {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       searchQueries: { unit: "query", accountingBehavior: "reusable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ usdCents: 5 });
       await expect(root.inspect()).resolves.toMatchObject({
@@ -358,7 +395,10 @@ describe("local Keynes facade", () => {
     const original = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources: original });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: original,
+    });
     try {
       const first = await keynes.createBudget({ usdCents: 5 });
       await expect(keynes.defineResources(original)).resolves.toBeDefined();
@@ -392,6 +432,7 @@ describe("local Keynes facade", () => {
       deferredCapacity: { unit: "minute", accountingBehavior: "consumable" },
     };
     const keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: { ...firstSchema, ...secondSchema },
     });
     try {
@@ -427,7 +468,7 @@ describe("local Keynes facade", () => {
     const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ usdCents: 5 });
       await root.settle({ usdCents: 1 });
@@ -465,7 +506,7 @@ describe("local Keynes facade", () => {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       searchQueries: { unit: "query", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({
         usdCents: 100,
@@ -536,8 +577,14 @@ describe("local Keynes facade", () => {
       usdCents: { unit: "dollar", accountingBehavior: "consumable" },
     };
 
-    const firstKeynes = await createKeynes({ resources: first });
-    const conflictingKeynes = await createKeynes({ resources: conflict });
+    const firstKeynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: first,
+    });
+    const conflictingKeynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: conflict,
+    });
     try {
       const [firstRoot, conflictingRoot] = await Promise.all([
         firstKeynes.createBudget({ usdCents: 1 }),
@@ -557,7 +604,10 @@ describe("local Keynes facade", () => {
   it.each(["invalid_name", "z".repeat(64)])(
     "rejects invalid Resource names at definition: %s",
     async (name) => {
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
       try {
         await expect(
           keynes.defineResources({
@@ -572,7 +622,10 @@ describe("local Keynes facade", () => {
   );
 
   it("rejects definition fields that could override the derived canonical name", async () => {
-    const keynes = await createKeynes({ resources: setupResources });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
     try {
       await expect(
         Reflect.apply(keynes.defineResources, keynes, [
@@ -593,7 +646,10 @@ describe("local Keynes facade", () => {
   it.each([null, { workUnits: null }])(
     "returns a stable error for malformed Resource definitions %#",
     async (definitions) => {
-      const keynes = await createKeynes({ resources: setupResources });
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
       try {
         await expect(
           Reflect.apply(keynes.defineResources, keynes, [definitions]),
@@ -613,7 +669,10 @@ describe("local Keynes facade", () => {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources: definitions });
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: definitions,
+    });
     try {
       const defining = keynes.defineResources(definitions);
       definitions.usdCents.unit = "dollar";
@@ -632,7 +691,7 @@ describe("local Keynes facade", () => {
     const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ usdCents: 5 });
       const returned = await root.settle({ usdCents: 3 });
@@ -673,7 +732,7 @@ describe("local Keynes facade", () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ workUnits: 5 });
       const requested = { workUnits: 1 };
@@ -698,6 +757,7 @@ describe("local Keynes facade", () => {
     ["empty", [{ decisionEvidence: {} }]],
   ])("normalizes %s decision evidence to omission", async (_name, options) => {
     const keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
       },
@@ -718,6 +778,7 @@ describe("local Keynes facade", () => {
 
   it("snapshots decision evidence before queued admission and freezes its projections", async () => {
     const keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
       },
@@ -783,6 +844,7 @@ describe("local Keynes facade", () => {
     "rejects non-JSON decision evidence %s before mutation",
     async (_name, build) => {
       const keynes = await createKeynes({
+        runtime: nodeSqlite(),
         resources: {
           workUnits: { unit: "unit", accountingBehavior: "consumable" },
         },
@@ -806,6 +868,7 @@ describe("local Keynes facade", () => {
 
   it("rejects accessor and option getters without invoking them", async () => {
     const keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         workUnits: { unit: "unit", accountingBehavior: "consumable" },
       },
@@ -846,7 +909,7 @@ describe("local Keynes facade", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({
         workUnits: 5,
@@ -883,7 +946,7 @@ describe("local Keynes facade", () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ workUnits: 5 });
       const approved = await root.request({ workUnits: 3 });
@@ -910,7 +973,7 @@ describe("local Keynes facade", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({
         workUnits: 5,
@@ -936,7 +999,7 @@ describe("local Keynes facade", () => {
     const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ workUnits: 5 });
       const requested: unknown = Reflect.apply(root.request, root, [
@@ -980,7 +1043,7 @@ describe("local Keynes facade", () => {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
       const root = await keynes.createBudget({ workUnits: 5 });
       await expect(
@@ -1079,6 +1142,7 @@ describe("local Keynes facade", () => {
     "rejects %s asynchronously without changing Budget state",
     async (_name, invoke) => {
       const keynes = await createKeynes({
+        runtime: nodeSqlite(),
         resources: {
           workUnits: { unit: "unit", accountingBehavior: "consumable" },
         },

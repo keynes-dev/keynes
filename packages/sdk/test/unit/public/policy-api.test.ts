@@ -1,3 +1,4 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
 import { describe, expect, it } from "vitest";
 
 import { createKeynes } from "../../../src/index.js";
@@ -8,7 +9,7 @@ describe("public API without managed Policy", () => {
     const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     };
-    const keynes = await createKeynes({ resources });
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
 
     try {
       expect(Object.isFrozen(keynes)).toBe(true);
@@ -41,6 +42,7 @@ describe("public API without managed Policy", () => {
 
   it("treats a configured policies name as an amount independently of options", async () => {
     await using keynes = await createKeynes({
+      runtime: nodeSqlite(),
       resources: {
         policies: { unit: "item", accountingBehavior: "consumable" },
       },

@@ -1,3 +1,6 @@
+import type { NodeSqliteRuntime, PostgresRuntime } from "@keynes/sdk";
+declare const localRuntime: NodeSqliteRuntime;
+declare const remoteRuntime: PostgresRuntime;
 import { createKeynes, createOperationKey } from "@keynes/sdk";
 import type {
   Budget,
@@ -32,9 +35,8 @@ const referenceFromOperationKey: BudgetReference = operationKey;
 const operationKeyFromReference: OperationKey = storedReference;
 
 const remotePromise = createKeynes({
+  runtime: remoteRuntime,
   resources: resourceTypes,
-  databaseUrl:
-    "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full",
 });
 expectType<Promise<RemoteKeynes>>(remotePromise);
 await using remote = await remotePromise;
@@ -121,7 +123,10 @@ await remote.openBudget({ reference: operationKey, resourceTypes });
 // @ts-expect-error A raw string is not a validated operation key.
 await remote.recoverOperation("kop_v1_not_a_valid_operation_key");
 
-const localPromise = createKeynes({ resources: importedResources });
+const localPromise = createKeynes({
+  runtime: localRuntime,
+  resources: importedResources,
+});
 expectType<Promise<LocalKeynes>>(localPromise);
 await using local = await localPromise;
 const localRoot = await local.createBudget({ usdCents: 100 });
@@ -145,12 +150,12 @@ void operationKeyFromReference;
 // @ts-expect-error Configured declarations are required.
 createKeynes();
 // @ts-expect-error Connection-only initialization was removed.
-createKeynes({ databaseUrl: "postgresql://example.test/keynes" });
+createKeynes({ runtime: remoteRuntime });
 const extraConfiguration = { resources: resourceTypes, initial: 0 };
 // @ts-expect-error Configuration variables cannot contain unsupported fields.
 createKeynes(extraConfiguration);
 // @ts-expect-error A binding cannot replace declarations.
-createKeynes({ resources: binding });
+createKeynes({ runtime: localRuntime, resources: binding });
 // @ts-expect-error Positional Resource definitions creation was removed.
 await remote.createBudget(resourceTypes, { usdCents: 1 });
 // @ts-expect-error Positional ResourceBinding creation was removed.
@@ -159,6 +164,7 @@ const localExtras = { usdCents: 1, unknownResource: 0 };
 // @ts-expect-error Imported declaration names stay exact for variables.
 await local.createBudget(localExtras);
 const inline = await createKeynes({
+  runtime: localRuntime,
   resources: {
     usdCents: { unit: "cent", accountingBehavior: "consumable" },
     searchQueries: { unit: "query", accountingBehavior: "consumable" },

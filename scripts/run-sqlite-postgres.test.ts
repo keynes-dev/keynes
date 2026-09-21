@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
-} from "../packages/postgresql/test/system/required-scenarios.ts";
+} from "../packages/postgres/test/system/required-scenarios.ts";
 import {
   verifySqlitePostgresResults,
   validateTestReport,
