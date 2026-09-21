@@ -1,6 +1,6 @@
 # KEY-85 validation guide
 
-Behavioral commands below are planned for implementation and are **NOT RUN** for this documentation change. Run from the KEY-85 worktree with Node.js >=24 and pnpm 11.21.0. Native and package-split lanes need the existing local Docker PostgreSQL setup. Use disposable test databases, no production credentials or paid provider.
+Results of the commands below are recorded in [acceptance.md](acceptance.md). Run from the KEY-85 worktree with Node.js >=24 and pnpm 11.21.0. Native and package-split lanes need the existing local Docker PostgreSQL setup. Use disposable test databases, no production credentials or paid provider.
 
 ## Select the feature
 
@@ -15,7 +15,9 @@ pnpm install --frozen-lockfile
 Extend existing tests from the [method inventory](contracts/asynchronous-failures.md), then run relevant files and retain expected failures. Existing passing assertions remain regression coverage.
 
 ```sh
-pnpm exec vitest run packages/sdk/test/unit/public/local.test.ts packages/sdk/test/unit/public/remote.test.ts packages/sdk/test/unit/public/generated-client.test.ts packages/node-sqlite/test/unit/local/local-lifecycle.test.ts packages/postgres/test/unit/adapter.test.ts packages/postgres/test/unit/postgresql-command-executor.test.ts --maxWorkers=1
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/local.test.ts test/unit/public/remote.test.ts test/unit/public/generated-client.test.ts --maxWorkers=1
+pnpm --filter @keynes/node-sqlite exec vitest run test/unit/local/local-lifecycle.test.ts --maxWorkers=1
+pnpm --filter @keynes/postgres exec vitest run test/unit/adapter.test.ts test/unit/postgresql-command-executor.test.ts --maxWorkers=1
 ```
 
 Invoke malformed calls directly, assert invocation does not throw and returns a Promise, then assert rejection. Test open and closing/closed states. Use barriers and controlled input reflection to make races deterministic.
@@ -51,11 +53,11 @@ pnpm test:package:split
 
 The paired lane must retain shared SQLite/native PostgreSQL replay, conflict, rollback and final-state parity plus applicable native concurrency/permission evidence. The package-split runner packs and verifies SDK-only, SDK/SQLite, SDK/PostgreSQL and its established CLI lanes. Extend its existing consumers with focused async/lifecycle assertions rather than introducing another runner. A runner pass qualifies only assertions it actually executes.
 
-Record commands, source revision and dirty state, attempt identifiers, Node/pnpm/OS/database versions, archive/contract hashes, scenario counts, process exit status and native startup/cleanup in the future `acceptance.md`. Link retained reports and identify failures, skips and NOT RUN lanes. Do not borrow evidence from the closed specification PR or KEY-96's earlier candidate.
+Record commands, source revision and dirty state, attempt identifiers, Node/pnpm/OS/database versions, archive/contract hashes, scenario counts, process exit status and native startup/cleanup in `acceptance.md`. Link retained reports and identify failures, skips and NOT RUN lanes. Do not borrow evidence from the closed specification PR or KEY-96's earlier candidate.
 
-## Documentation-only checks
+## Artifact checks
 
-For this planning change, run stock prerequisites, inspect requirement/task coverage and check the feature's Markdown formatting and Git whitespace. No behavioral test is required because no executable code changes. These checks do not establish a KEY-85 runtime pass.
+Run stock prerequisites, inspect requirement/task coverage and check the feature's Markdown formatting and Git whitespace. These checks supplement behavioral qualification. The requirements checklist records the planning checkpoint; its historical NOT RUN entry is superseded by acceptance evidence.
 
 ```sh
 pnpm exec oxfmt --check docs/features/key-85-make-sdk-failures-consistently-asynchronous

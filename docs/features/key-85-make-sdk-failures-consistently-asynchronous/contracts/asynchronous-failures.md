@@ -1,6 +1,6 @@
 # Asynchronous failure and admission contract
 
-Proposed KEY-85 behavior. Implementation and qualification are NOT RUN. This refines the existing API without adding a Budget capability.
+KEY-85 behavior. See [acceptance evidence](../acceptance.md) for implementation and qualification results. This refines the existing API without adding a Budget capability.
 
 ## Public operation inventory
 

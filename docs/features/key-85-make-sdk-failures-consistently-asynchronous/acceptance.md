@@ -35,3 +35,9 @@ Green focused results: basic SDK/lifecycle/projection 110/110 (`basic-green.log`
 Native tests extend existing registered scenarios, so no new scenario-name registration was necessary. Existing shared replay/conflict/rollback and native permissions, tenant isolation, concurrency and caller-owned transactions ran alongside the new assertions.
 
 Phase 3 Ponytail review found four unnecessary reflective calls in the SQLite overload tests. Replaced them with typed direct calls, retaining all assertions; all 39 lifecycle tests passed afterward. No production complexity finding. T005-T018 complete; final archive qualification remains pending.
+
+## Phase 4: Final review and qualification
+
+T019 public documentation now describes rejection timing, invocation snapshots, basic reservation/drain ordering, remote per-procedure closure and custom-session source compatibility. T020 read-only review covered `a0a786fac300e7e3e1f6b7469f3ce15f30008a4c..4d8aff0c0773cd259d7b48cc65f19f48e29710f7` plus the final documentation diff. No material correctness, artifact consistency or complexity findings. The reviewer checked reentrant admission, failed preparation preserving prior work, snapshot timing and remote error projection; tests were not independently rerun by the reviewer. Stock prerequisites, Markdown formatting and Git whitespace checks passed.
+
+This checkpoint is committed before qualification so both acceptance runners can verify a clean, unchanged source revision. Their results and final evidence reconciliation follow.

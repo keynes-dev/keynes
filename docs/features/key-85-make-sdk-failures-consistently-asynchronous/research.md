@@ -1,6 +1,6 @@
 # KEY-85 research
 
-Planning baseline: `3c47555e124a35844b448ba221f01f8a199109df`, the merged KEY-96 change. Findings come from source inspection and read-only lifecycle research. Behavioral reproduction and qualification are NOT RUN.
+Planning baseline: `3c47555e124a35844b448ba221f01f8a199109df`, the merged KEY-96 change. Findings come from source inspection and read-only lifecycle research. At this planning baseline, behavioral reproduction and qualification were NOT RUN. Subsequent implementation evidence is recorded in [acceptance.md](acceptance.md).
 
 ## Reserve before capture without delaying the snapshot
 

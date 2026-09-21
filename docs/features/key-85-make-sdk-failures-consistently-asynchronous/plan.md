@@ -8,7 +8,7 @@
 
 Reserve basic-runtime work before inspecting input, capture input before returning to the caller, and run prepared commands through the existing queue. Keep all Promise-returning SDK failures inside rejection boundaries. Preserve owned PostgreSQL's distinct close and retry contract while checking closure before SDK input processing.
 
-This is documentation-only preparation of KEY-85. Stop before implementation. The source baseline is merged KEY-96, `3c47555e124a35844b448ba221f01f8a199109df`; the old specification remains in Git history at `d32571e7a00b735be641b0acfee0b188ffe79498`. PR #37 is closed without merge. Document publication and KEY-96 evidence do not prove this behavior.
+Implementation is authorized and follows this plan; current results are recorded in [acceptance.md](acceptance.md). The source baseline is merged KEY-96, `3c47555e124a35844b448ba221f01f8a199109df`; the old specification remains in Git history at `d32571e7a00b735be641b0acfee0b188ffe79498`. PR #37 is closed without merge. Document publication and KEY-96 evidence do not prove this behavior.
 
 ## Technical context
 
@@ -41,7 +41,7 @@ Pre-research and post-design checks both PASS for the planned scope against cons
 | Evidence-first delivery                          | Observe failing tests before corresponding code changes; retain already-green coverage without claiming a new failing reproduction              |
 | One feature and acceptance outcome               | Exact branch and existing directory, one future independently accepted PR; no phase issues or scheduling-only blockers                          |
 | Connection ownership                             | Borrowed close drains the handle only; no begin/commit/rollback/release/end/reconnect or retry fragment                                         |
-| Honest evidence boundaries                       | Current work stops at docs; all KEY-85 runtime/package lanes are NOT RUN; future evidence records exact revision and digests                    |
+| Honest evidence boundaries                       | Feature acceptance records exact revisions and digests; historical planning and current implementation evidence remain separate                 |
 
 ## Project structure
 

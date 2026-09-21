@@ -107,4 +107,4 @@ The published specification at `d32571e7a00b735be641b0acfee0b188ffe79498` remain
 
 At the KEY-96 baseline, most public methods already use asynchronous wrappers. Basic-runtime handles still capture or prepare input before `admit`; owned remote handles process input before executor closure checks. Code inspection identifies those ordering gaps but does not qualify runtime behavior.
 
-This revision supplies [planning](plan.md) and [tasks](tasks.md) only. KEY-85 implementation, behavioral reproduction, native PostgreSQL execution and package qualification are **NOT RUN**. No paid provider or production mutation is required.
+Implementation follows [planning](plan.md) and [tasks](tasks.md). [Acceptance evidence](acceptance.md) records behavioral reproduction, native PostgreSQL execution and package qualification at their exact revisions. No paid provider or production mutation is required.

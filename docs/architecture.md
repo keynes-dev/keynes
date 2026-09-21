@@ -99,9 +99,11 @@ Recovery rechecks the caller's current permission. Before it returns a committed
 creation result, it validates that creation's selected definitions against the
 current tenant catalog.
 
-Every public operation shown here is asynchronous. The SDK captures caller input and rejects values that cannot be represented losslessly. Runtimes validate command semantics; the SDK validates returned envelopes and builds typed handles. Input and operation failures reject rather than throw synchronously. After local
-close begins, a new call rejects with `runtime_closed` before malformed input
-can take precedence.
+Promise-returning SDK operations reject input and operation failures without throwing synchronously. They capture supported caller input before returning and reject values that cannot be represented losslessly. Runtimes validate command semantics; the SDK validates returned envelopes and builds typed handles. Descriptor factories, generated-client factories and `createOperationKey` remain synchronous.
+
+Local and borrowed PostgreSQL sessions reserve work before inspecting input, prepare it synchronously and execute it in queue order. Close drains every reservation, including calls whose input reflection starts close. A preparation failure rejects that call without skipping earlier work in the drain. New calls reject with `runtime_closed` before reading input. Borrowed sessions retain caller ownership of transactions and connections.
+
+Owned remote calls check executor state before inspecting input and reject with `client_closed` after close begins. Admission remains per procedure; the existing close deadline and uncertain-outcome rules still apply. Mutation retries use one captured input and operation key. Repeated close calls share one Promise in each mode.
 
 ## Definition authority
 
@@ -516,6 +518,8 @@ Private `packages/database` is the source owner for canonical command schemas, s
 Four private archives form the consumer surface: `@keynes/sdk`, `@keynes/node-sqlite`, `@keynes/postgres` and `@keynes/cli`. SQLite stages only its engine; PostgreSQL stages its installation assets and supplies owned/borrowed adapters plus `/install`. `@keynes/database` and `@keynes/testkit` are build/test dependencies, never production dependencies or declaration imports. KEY-114 retired managed Policy definitions, compilation and evaluation; they are not relocated into these packages.
 
 Consumer builds produce their own outputs from canonical inputs without writing sibling workspaces, maintaining SQL copies or leaking private workspace imports. Tests stay beside their subject; shared conformance scenarios stay independent of adapters. Local consumers exclude the PostgreSQL driver; SDK-only consumers install neither engine nor compiler.
+
+The exported `BasicRuntimeSession` requires both `admit(operation)` and `admit(prepare, execute)`; the latter owns reservation before synchronous preparation and queued execution. `RemoteRuntimeSession.assertOpen()` checks the executor's existing state. Custom session implementations must adopt these source compatibility changes; built-in descriptor call sites are unchanged. Generated clients keep admission and input capture under their supplied executor.
 
 Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. The [package API contract](features/key-96-separate-sdk-and-database-runtime-packages/contracts/package-api.md) defines exact factory options and capability types.
 
