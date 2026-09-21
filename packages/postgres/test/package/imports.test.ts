@@ -49,6 +49,14 @@ describe("@keynes/postgres public entrypoint and blocked deep imports", () => {
       consumerRoot: packed.consumerRoot,
     });
     const source = await loadPublicPostgresql({ kind: "source" });
+    expect(packed.installedArchives?.map((entry) => entry.name)).toEqual([
+      "@keynes/sdk",
+      "@keynes/postgres",
+    ]);
+    for (const entry of packed.installedArchives ?? []) {
+      expect(entry.sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(entry.entrypoint.startsWith(packed.consumerRoot)).toBe(true);
+    }
     expect(installed.postgres).not.toBe(source.postgres);
     expect(installed.createKeynes).not.toBe(source.createKeynes);
     expect(installed.Client).not.toBe(source.Client);

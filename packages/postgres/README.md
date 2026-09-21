@@ -1,6 +1,10 @@
 # `@keynes/postgres`
 
-`@keynes/postgres` supplies the owned PostgreSQL runtime and generated installation assets. The private database package owns the SQL source; this package stages and verifies its PostgreSQL baseline. The existing `keynes-postgresql` installer remains here until the CLI extraction phase.
+`@keynes/postgres` supplies PostgreSQL runtime descriptors and the public installation API. Private `packages/database` owns the SQL source; this package stages and verifies its baseline. It contains no SQLite engine or CLI. Install the separate `@keynes/cli` archive for the `keynes` executable.
+
+## Own a remote connection
+
+Provision the durable Resource catalog before initializing the client. Supply a PostgreSQL URL with exactly one `sslmode=verify-full`; use `sslrootcert` when the server requires a private CA. Certificate verification cannot be disabled.
 
 ```typescript
 import { createKeynes } from "@keynes/sdk";
@@ -10,16 +14,64 @@ const keynes = await createKeynes({
   resources: { tokens: { unit: "token", accountingBehavior: "consumable" } },
   runtime: postgres({ databaseUrl }),
 });
+try {
+  const root = await keynes.createBudget({ tokens: 10 });
+  await root.inspect();
+} finally {
+  await keynes.close();
+}
 ```
 
-`postgres` captures configuration without I/O. Initialization owns its pool, enforces verified TLS, checks compatibility and validates resources. Closing drains admitted work and closes the owned pool. Borrowed-connection construction is implemented in the later Embedded phase.
+`postgres` captures configuration without I/O. Initialization owns the bounded pool, checks compatibility and validates Resources. Closing drains admitted work and closes that pool. Owned remote handles support references, `openBudget`, operation keys and recovery. The adapter preserves bounded retries and reports `uncertain_outcome` when completion cannot be established.
+
+## Borrow a PostgreSQL connection
+
+Pass an already connected `pg.Client` or a checked-out `PoolClient`; a `Pool` and arbitrary query providers are rejected. The caller must provision the catalog and a trusted Embedded role with access to the direct procedures, including `validate_resources`. Remote login grants do not imply that access.
+
+```typescript
+import type { Client } from "pg";
+import { createKeynes } from "@keynes/sdk";
+import { postgres } from "@keynes/postgres";
+
+async function allocate(
+  connection: Client,
+  tenantId: string,
+  principalId: string,
+) {
+  await connection.query("begin");
+  try {
+    await connection.query(
+      "select set_config('keynes.tenant_id', $1, true), set_config('keynes.principal_id', $2, true)",
+      [tenantId, principalId],
+    );
+    {
+      await using keynes = await createKeynes({
+        resources: {
+          tokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+        runtime: postgres({ connection }),
+      });
+      const root = await keynes.createBudget({ tokens: 10 });
+      await root.request({ tokens: 3 });
+      // Application writes on this connection share the transaction.
+    }
+    await connection.query("commit");
+  } catch (error) {
+    await connection.query("rollback");
+    throw error;
+  }
+}
+```
+
+The application supplies tenant/principal context and controls connection lifetime. The inner scope closes the Keynes handle before commit. Results and handles remain provisional until the caller commits; the caller also owns rollback and recovery after errors. Session context supports autocommit, where each command is one atomic statement.
+
+Initialization performs one read-only definition validation. Each later operation invokes one direct procedure. The adapter never begins, commits, rolls back, sets context, retries, reconnects, releases or ends the borrowed connection. `close()` drains admitted work and rejects later calls. The descriptor can be reused while the caller's connection remains connected. Borrowed handles expose basic Keynes/Budget methods, without remote reference or recovery capabilities.
 
 ## Adopted target and current implementation
 
 [ADR-0013](../../docs/adr/0013-application-owned-policies.md) adopts
 application-computed requests and retires database-managed Policy registration,
-compilation, and evaluation. KEY-114 implemented that breaking contract. KEY-96
-still owns package/CLI separation.
+compilation, and evaluation. KEY-114 implemented that breaking contract. KEY-96 separates the SDK, runtimes and CLI.
 
 Customers evaluate policy in any language, including SQL over customer data. Supported Keynes commands retain database validation, permissions, Budget constraints, quantity enforcement, settlement and replay. Valid requests can be denied; caller decision evidence proves neither execution nor authority. SQL access from other application languages does not promise another SDK or prevent a database owner bypassing supported operations.
 
@@ -36,13 +88,14 @@ Build and pack the package from the repository root:
 
 ```sh
 pnpm build:postgresql
-pnpm pack:postgresql --pack-destination <directory>
+pnpm pack:postgresql
+pnpm pack:cli
 ```
 
 Install or exactly recheck a target database with the packed CLI:
 
 ```sh
-keynes-postgresql install --config <path>
+keynes install --config <path>
 ```
 
 The command accepts exactly one readable JSON configuration file containing
@@ -65,9 +118,16 @@ For example:
 }
 ```
 
-The package has no JavaScript import surface. Use only the installed
-`keynes-postgresql` executable. Root, deep, ESM, CommonJS, and TypeScript
-imports are unsupported.
+The root exports `postgres` and the `PostgresConnection` type. The `@keynes/postgres/install` subpath exports `install`, `parseInstallationConfig`, `InstallationError`, `InstallationConfig`, `InstallationOptions` and `InstallationResult`. Deep imports and CommonJS are unsupported. The borrowed-client installation recheck remains private.
+
+```typescript
+import { install, parseInstallationConfig } from "@keynes/postgres/install";
+
+const config = parseInstallationConfig(JSON.parse(configJson));
+const result = await install({ config }); // Uses PostgreSQL connection environment.
+```
+
+The programmatic installer also accepts `connectionString`. It owns its connections and transactions; the runtime borrowed-connection contract does not apply to installation.
 
 ## Connection environment
 
@@ -142,7 +202,7 @@ Independent Resource definition uses `keynes.define_resources(jsonb)` or
 `keynes.remote_define_resources(jsonb)`.
 It validates the complete batch atomically and returns an opaque binding reference.
 It creates no Budget or quantity. Provision the durable catalog before a remote
-SDK client calls `createKeynes({ resources, databaseUrl })`.
+SDK client calls `createKeynes({ resources, runtime: postgres({ databaseUrl }) })`.
 
 Configured SDK creation and canonical direct callers supply selected definitions
 and a non-empty amounts object. The selected definition keys must equal the

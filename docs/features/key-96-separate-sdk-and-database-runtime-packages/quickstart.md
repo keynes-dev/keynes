@@ -1,10 +1,10 @@
 # Validation guide: KEY-96
 
-Implementation and all runtime/package commands below are NOT RUN for KEY-96. Proposed imports and new commands become executable only after implementation. No npm publication is required.
+The APIs and commands below are implemented in this checkout. Final qualification is still tracked in [acceptance.md](acceptance.md); a command listed here is not a claim that it has run successfully. No npm publication is required.
 
 ## Prerequisites
 
-Use a clean feature checkout, supported Node >=24, pnpm 11.21.0, frozen dependencies and local Docker for disposable native PostgreSQL. Record source revision, Node/pnpm/OS/architecture and exact archive hashes. Do not use production credentials or external targets.
+Use a clean feature checkout, supported Node >=24, pnpm 11.21.0, frozen dependencies, local Docker and OpenSSL for disposable native PostgreSQL with its verified-TLS fixture. Record source revision, Node/pnpm/OS/architecture and exact archive hashes. Do not use production credentials or external targets.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -18,7 +18,7 @@ Expected: generation and ownership boundaries pass, Local/shared tests pass, nat
 
 ## Explicit Local consumer
 
-The following is the target public usage. Runtime names and ownership are defined in [package API](contracts/package-api.md).
+The following is the implemented public usage. Runtime names and ownership are defined in [package API](contracts/package-api.md).
 
 ```typescript
 import { createKeynes } from "@keynes/sdk";
@@ -66,7 +66,7 @@ Expected: matched shared results and complete native terminal evidence. Passing 
 pnpm test:package:split -- --output ".artifacts/key-96-packages/$(node -p 'crypto.randomUUID()')"
 ```
 
-The split runner builds/packs once per attempt with existing helpers, creates four empty consumer directories outside the checkout, installs each exact archive set and its declared dependency closure, then performs the following checks. It must not resolve through workspace symlinks, sibling dist trees or undeclared globally installed packages.
+The split runner builds/packs once per attempt with existing helpers, tests four consumer combinations in clean external directories, installing each exact archive set and its declared dependency closure, then performs the following checks. It must not resolve through workspace symlinks, sibling dist trees or undeclared globally installed packages.
 
 | Consumer                    | Required checks                                                                                                                                                  |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,6 +85,18 @@ In a disposable native fixture, run installation twice. First returns installed,
 
 ## Acceptance record
 
-Implementation creates `acceptance.md` in this feature directory with source revision, per-archive hashes, contract/baseline identities, host/tool/dependency versions, exact commands and process/cleanup outcomes. Record failed attempts as failed. Preserve previous feature evidence unchanged. Runtime measurements must resolve both the installed SDK and SQLite archive; changing tooling does not claim a new measurement result.
+Maintain `acceptance.md` in this feature directory with source revision, per-archive hashes, contract/baseline identities, host/tool/dependency versions, exact commands and process/cleanup outcomes. Record failed attempts as failed. Preserve previous feature evidence unchanged. Runtime measurements must resolve both the installed SDK and SQLite archive; changing tooling does not claim a new measurement result.
+
+Use the measurement command with both exact archives:
+
+```sh
+pnpm measure:package:sdk -- --archive <sdk.tgz> --node-sqlite-archive <sqlite.tgz> --output <new-record.json>
+```
+
+SDK-only qualification omits `--node-sqlite-archive`; Local qualification supplies it:
+
+```sh
+pnpm test:package:sdk -- --archive <sdk.tgz> --node-sqlite-archive <sqlite.tgz> --output <new-record.json>
+```
 
 Explicitly retain NOT RUN for any unsupported host/version, full Embedded recovery, managed Hosted, live provider, production operations and performance lanes not executed. KEY-96 package tests do not replace KEY-88's final release matrix.

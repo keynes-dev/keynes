@@ -47,7 +47,7 @@ export interface QualificationArguments {
   readonly authorizedDatabase?: true;
 }
 
-const PROVIDER_FREE_PACKAGE_CHECKS = [
+export const PROVIDER_FREE_PACKAGE_CHECKS = [
   "public-types",
   "package-root-import",
   "remote-exports",
@@ -61,7 +61,7 @@ const PROVIDER_FREE_PACKAGE_CHECKS = [
   "deep-imports-blocked",
 ] as const;
 
-const SDK_ONLY_PACKAGE_CHECKS = [
+export const SDK_ONLY_PACKAGE_CHECKS = [
   "public-types",
   "package-root-import",
   "remote-exports",
@@ -75,7 +75,7 @@ type PackageCheck =
   | "authorized-database-walkthrough";
 
 export interface QualificationResult {
-  readonly schemaVersion: "keynes.package-test.sdk/v1";
+  readonly schemaVersion: "keynes.package-test.sdk/v2";
   readonly subject: "@keynes/sdk";
   readonly sourceRevision: {
     readonly commit: string;
@@ -89,11 +89,12 @@ export interface QualificationResult {
     readonly packageVersion: string;
     readonly contractDigest: string;
   };
-  readonly runtimeArchive?: {
-    readonly name: "@keynes/node-sqlite";
-    readonly sha256: string;
-    readonly compressedBytes: number;
+  readonly runtimeArchive?: RuntimeArchiveInspection;
+  readonly installedPackages: {
+    readonly sdk: string;
+    readonly nodeSqlite?: string;
   };
+  readonly cleanup: "passed";
   readonly environment: {
     readonly node: string;
     readonly pnpm: string;
@@ -119,7 +120,18 @@ export interface ArchiveInspection {
   readonly contractDigest: string;
 }
 
+export interface RuntimeArchiveInspection {
+  readonly name: "@keynes/node-sqlite";
+  readonly sha256: string;
+  readonly compressedBytes: number;
+  readonly packageVersion: string;
+}
+
 export interface ExternalConsumer {
+  readonly installedPackages: {
+    readonly sdk: string;
+    readonly nodeSqlite?: string;
+  };
   readonly root: string;
   readonly productionBytes: number;
   readonly close: () => Promise<void>;
@@ -240,6 +252,10 @@ export async function qualifyArchive(
 ): Promise<QualificationResult> {
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
+  const runtimeArchive =
+    args.nodeSqliteArchivePath === undefined
+      ? undefined
+      : await inspectNodeSqliteArchive(args.nodeSqliteArchivePath);
   validateSizes({
     compressedBytes: archive.compressedBytes,
     productionBytes: 0,
@@ -293,6 +309,14 @@ export async function qualifyArchive(
     throw cleanup;
   }
   if (execution.kind === "failed") throw execution.error;
+  if (
+    (await inspectArchive(args.archivePath)).sha256 !== archive.sha256 ||
+    (args.nodeSqliteArchivePath !== undefined &&
+      (await inspectNodeSqliteArchive(args.nodeSqliteArchivePath)).sha256 !==
+        runtimeArchive?.sha256)
+  ) {
+    throw new Error("Selected archive changed during qualification");
+  }
   const productionBytes = external.productionBytes;
   const sourceAfter = readSourceRevision();
   if (
@@ -302,7 +326,7 @@ export async function qualifyArchive(
     throw new Error("SDK package-test source revision changed");
   }
   return {
-    schemaVersion: "keynes.package-test.sdk/v1",
+    schemaVersion: "keynes.package-test.sdk/v2",
     subject: "@keynes/sdk",
     sourceRevision: {
       commit: sourceBefore.commit,
@@ -316,17 +340,9 @@ export async function qualifyArchive(
       packageVersion: archive.packageVersion,
       contractDigest: archive.contractDigest,
     },
-    ...(args.nodeSqliteArchivePath === undefined
-      ? {}
-      : {
-          runtimeArchive: {
-            name: "@keynes/node-sqlite" as const,
-            sha256: createHash("sha256")
-              .update(await readFile(args.nodeSqliteArchivePath))
-              .digest("hex"),
-            compressedBytes: (await stat(args.nodeSqliteArchivePath)).size,
-          },
-        }),
+    ...(runtimeArchive === undefined ? {} : { runtimeArchive }),
+    installedPackages: external.installedPackages,
+    cleanup: "passed",
     environment: {
       node: process.version,
       pnpm: run(pnpm, ["--version"], repositoryRoot).trim(),
@@ -453,12 +469,12 @@ export async function installExternalConsumer(
     assertOutsideRepository(repositoryRoot, installedPackage);
     const externalRoot = await realpath(root);
     assertWithin(externalRoot, installedPackage);
-    if (nodeSqliteArchivePath !== undefined) {
-      assertWithin(
-        externalRoot,
-        await realpath(resolve(root, "node_modules/@keynes/node-sqlite")),
-      );
-    }
+    const installedRuntime =
+      nodeSqliteArchivePath === undefined
+        ? undefined
+        : await realpath(resolve(root, "node_modules/@keynes/node-sqlite"));
+    if (installedRuntime !== undefined)
+      assertWithin(externalRoot, installedRuntime);
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
     validateSizes({ compressedBytes, productionBytes });
 
@@ -473,6 +489,12 @@ export async function installExternalConsumer(
     );
     return {
       root,
+      installedPackages: {
+        sdk: installedPackage,
+        ...(installedRuntime === undefined
+          ? {}
+          : { nodeSqlite: installedRuntime }),
+      },
       productionBytes,
       close: () => rm(root, { recursive: true, force: true }),
     };
@@ -540,6 +562,34 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     compressedBytes: archiveStat.size,
     packageVersion: value.version,
     contractDigest,
+  };
+}
+
+export async function inspectNodeSqliteArchive(
+  path: string,
+): Promise<RuntimeArchiveInspection> {
+  const bytes = await readFile(path);
+  const entries = readPackageArchiveBytes(bytes);
+  const manifest = entries.find(
+    (entry) => entry.path === "package/package.json",
+  );
+  const value: unknown =
+    manifest === undefined
+      ? undefined
+      : JSON.parse(manifest.body.toString("utf8"));
+  if (
+    !isRecord(value) ||
+    value.name !== "@keynes/node-sqlite" ||
+    typeof value.version !== "string" ||
+    !entries.some((entry) => entry.path === "package/dist/index.js")
+  ) {
+    throw new Error("Selected runtime archive is not @keynes/node-sqlite");
+  }
+  return {
+    name: "@keynes/node-sqlite",
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    compressedBytes: bytes.length,
+    packageVersion: value.version,
   };
 }
 

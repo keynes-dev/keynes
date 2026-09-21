@@ -1,6 +1,6 @@
 # Package API contract: KEY-96
 
-This contract is normative through [spec.md](../spec.md). Phase 3 implements explicit Local and owned-remote selection; borrowed PostgreSQL and installation exports remain later phase work.
+This contract is normative through [spec.md](../spec.md). The checkout implements explicit Local, owned remote and borrowed PostgreSQL selection, plus the installation subpath and separate CLI. Final package qualification is recorded in [acceptance.md](../acceptance.md); the API contract alone does not establish execution evidence.
 
 ## Construction
 
@@ -34,7 +34,7 @@ export function createKeynes<
 }): Promise<RemoteKeynes<Extract<keyof D, string>>>;
 ```
 
-`Client` and `PoolClient` are type imports from `pg` in the PostgreSQL package only. Adapter return types are concrete specializations of the generated, driver-free SDK runtime contract; SDK declarations must not import adapter packages or pg. Add a union overload returning the corresponding Keynes/RemoteKeynes union for callers whose runtime selection is itself a union. Keep exact option-key rejection at compile time and at runtime, as in the existing constructor. No runtime, both connection options, extra arguments, unknown keys or a borrowed pool are invalid configuration.
+`Client` and `PoolClient` are type imports from `pg` in the PostgreSQL package only. Adapter return types are concrete specializations of the generated, driver-free SDK runtime contract; SDK declarations must not import adapter packages or pg. The union overload returns the corresponding Keynes/RemoteKeynes union for callers whose runtime selection is itself a union. Keep exact option-key rejection at compile time and at runtime, as in the existing constructor. No runtime, both connection options, extra arguments, unknown keys or a borrowed pool are invalid configuration.
 
 Factories perform no I/O. Initialization/failure cleanup happens in `createKeynes`. Descriptors are reusable, but every Local initialization opens a new private database. There is no resource-owning object for the application to clean up before createKeynes succeeds. No general third-party adapter registry or custom driver API is introduced.
 
@@ -89,20 +89,19 @@ export function install(input: {
 export { InstallationError };
 ```
 
-Preserve existing config/result/error fields from `packages/postgresql/src/installer/{config,install}.ts`. `install` owns every acquired connection and transaction. It installs an absent database or checks an exact existing target; `outcome` stays `installed` or `already-installed`. Keep the internal borrowed-client recheck helper private because it manages its own transaction. No public borrowed installation API is added.
+The public installation API preserves the config/result/error fields in `packages/postgres/src/installer/{config,install}.ts`. `install` owns every acquired connection and transaction. It installs an absent database or checks an exact existing target; `outcome` stays `installed` or `already-installed`. Keep the internal borrowed-client recheck helper private because it manages its own transaction. No public borrowed installation API is added.
 
 `keynes install --config <path>` replaces `keynes-postgresql install --config <path>`. PostgreSQL environment variables continue to carry CLI credentials; do not introduce a URL command-line argument. Successful JSON goes to stdout with exit 0. Failures retain stable JSON plus sanitized stderr and nonzero exit. No raw SQL, connection string, credential, stack or config contents may leak. Repeated exact installation is read-only for definitions/accounting; mismatched assets/profile/roles or partial state refuse without repair.
 
 No other command is promised. KEY-108 owns catalog discovery/generation/deployment; no sync or database upgrade command is added.
 
-## Adapter integration bindings implemented in phase 3
+## Adapter integration bindings
 
 The SDK root exports the driver-free descriptor types `NodeSqliteRuntime`,
 `PostgresRuntime`, `EmbeddedPostgresRuntime` and their `KeynesRuntime` union.
 `initialize(definitions)` returns a `BasicRuntimeSession` for local/embedded or
 `RemoteRuntimeSession` for remote. Basic sessions provide a generated client,
-readonly lifecycle state, admission, mutation invocation and close. Remote
-sessions provide a generated client, owned mutation invocation and close.
+validated Resource bindings, readonly lifecycle state, admission, mutation invocation and close. Remote sessions provide a generated client, validated Resource bindings, pure `prepareResources` canonicalization, owned mutation invocation and close.
 Adapters own lifecycle and retries; SDK handles own mapping and capability selection.
 
 Both adapters use SDK-root `createKeynesClient` or `createRemoteKeynesClient`

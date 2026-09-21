@@ -214,6 +214,8 @@ const environmentKeys = [
   "pnpm",
   "vitest",
   "sdk",
+  "nodeSqlite",
+  "cli",
   "postgresql",
   "pg",
   "postgresqlPg",
@@ -300,6 +302,29 @@ async function command(executable: string, args: string[]): Promise<string> {
     await managed.terminate();
   }
 }
+export function readRuntimePackageVersions(root: string = ROOT) {
+  const require = createRequire(join(root, "package.json"));
+  const postgresRequire = createRequire(
+    join(root, "packages/postgres/package.json"),
+  );
+  const version = (value: unknown) => {
+    if (!record(value) || typeof value.version !== "string")
+      throw new Error("Missing installed version");
+    return value.version;
+  };
+  const pg = version(postgresRequire("pg/package.json"));
+  return {
+    sdk: version(require(join(root, "packages/sdk/package.json"))),
+    nodeSqlite: version(
+      require(join(root, "packages/node-sqlite/package.json")),
+    ),
+    cli: version(require(join(root, "apps/cli/package.json"))),
+    postgresql: version(require(join(root, "packages/postgres/package.json"))),
+    pg,
+    postgresqlPg: pg,
+  };
+}
+
 async function snapshot(): Promise<SqlitePostgresSnapshot> {
   const [commit, status, pnpm, lock, contractBytes, installation] =
     await Promise.all([
@@ -324,7 +349,6 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
   )
     throw new Error("Invalid input identity");
   const require = createRequire(import.meta.url);
-  const sdkRequire = createRequire(join(ROOT, "packages/sdk/package.json"));
   const version = (value: unknown) => {
     if (!record(value) || typeof value.version !== "string")
       throw new Error("Missing installed version");
@@ -353,14 +377,7 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       node: process.version,
       pnpm,
       vitest: version(require("vitest/package.json")),
-      sdk: version(require("../packages/sdk/package.json")),
-      postgresql: version(require("../packages/postgres/package.json")),
-      pg: version(sdkRequire("pg/package.json")),
-      postgresqlPg: version(
-        createRequire(join(ROOT, "packages/postgres/package.json"))(
-          "pg/package.json",
-        ),
-      ),
+      ...readRuntimePackageVersions(),
     },
   };
 }

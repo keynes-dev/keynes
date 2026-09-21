@@ -1,13 +1,14 @@
 import { localTestFiles } from "../packages/sdk/test/system/run-local.ts";
 import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   POSTGRESQL_BUDGET_AGGREGATE,
   REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS,
 } from "../packages/postgres/test/system/required-scenarios.ts";
 import {
+  readRuntimePackageVersions,
   verifySqlitePostgresResults,
   validateTestReport,
   parseArguments,
@@ -407,6 +408,8 @@ describe("paired evidence", () => {
                 pnpm: "11.21.0",
                 vitest: "4.1.11",
                 sdk: "0.0.0",
+                nodeSqlite: "0.0.0",
+                cli: "0.0.0",
                 postgresql: "0.0.0",
                 pg: "8.23.0",
                 postgresqlPg: "8.23.0",
@@ -455,6 +458,8 @@ function evidenceSnapshot() {
       pnpm: "11.21.0",
       vitest: "4.1.11",
       sdk: "0.0.0",
+      nodeSqlite: "0.0.0",
+      cli: "0.0.0",
       postgresql: "0.0.0",
       pg: "8.23.0",
       postgresqlPg: "8.23.0",
@@ -571,6 +576,8 @@ describe("evidence identity and retention", () => {
     "metadata-secret",
     "startup-failed",
     "version",
+    "sqlite-package-version",
+    "cli-package-version",
     "write",
     "reuse",
     "native-failed",
@@ -593,6 +600,9 @@ describe("evidence identity and retention", () => {
             value.inputs.lockfileSha256 = "f".repeat(64);
           if (mode === "dirty-after" && snapshots > 1) value.clean = false;
           if (mode === "version") value.environment.vitest = "";
+          if (mode === "sqlite-package-version")
+            value.environment.nodeSqlite = "";
+          if (mode === "cli-package-version") value.environment.cli = "";
           if (mode === "node23") value.environment.node = "v23.0.0";
           if (mode === "node24") value.environment.node = "v24.0.0";
           if (mode === "node25") value.environment.node = "v25.9.0";
@@ -730,4 +740,33 @@ it("rejects stale native attempt identity even on the same candidate", () => {
       "99999999-2222-4333-8444-555555555555",
     ),
   ).toThrow();
+});
+
+it("records each runtime owner and resolves pg from PostgreSQL instead of the SDK", async () => {
+  const root = await mkdtemp(join(tmpdir(), "keynes-runtime-owners-"));
+  try {
+    for (const [path, version] of [
+      ["packages/sdk/package.json", "1.0.0"],
+      ["packages/node-sqlite/package.json", "2.0.0"],
+      ["packages/postgres/package.json", "3.0.0"],
+      ["apps/cli/package.json", "4.0.0"],
+      ["packages/postgres/node_modules/pg/package.json", "8.23.0"],
+      ["packages/sdk/node_modules/pg/package.json", "99.0.0"],
+    ]) {
+      if (path === undefined) throw new Error("Missing fixture manifest");
+      const manifest = join(root, path);
+      await mkdir(dirname(manifest), { recursive: true });
+      await writeFile(manifest, JSON.stringify({ version }));
+    }
+    expect(readRuntimePackageVersions(root)).toEqual({
+      sdk: "1.0.0",
+      nodeSqlite: "2.0.0",
+      postgresql: "3.0.0",
+      cli: "4.0.0",
+      pg: "8.23.0",
+      postgresqlPg: "8.23.0",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

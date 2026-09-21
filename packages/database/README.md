@@ -2,7 +2,7 @@
 
 - **Owner:** `@shubsharan`
 - **Functional status:** provider-free contract implemented; KEY-114 request
-  evidence and Policy retirement implemented
+  evidence and Policy retirement implemented; KEY-96 source ownership centralized
 
 ## Responsibility
 
@@ -35,4 +35,4 @@ older one.
 KEY-43 does not provide a general contract catalog, a released package, or a
 compatibility policy. KEY-114 records native source evidence in its
 [acceptance record](../../docs/features/key-114-accept-application-computed-requests-and-retire-managed-sql/acceptance.md);
-cross-host contract equivalence remains `NOT RUN`.
+that evidence applies only to its recorded revision and lanes. KEY-96 package and runtime qualification is tracked in its own [acceptance record](../../docs/features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md).

@@ -1,5 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import { registerHooks } from "node:module";
+import { realpath } from "node:fs/promises";
+import { dirname, relative, isAbsolute, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const mode = process.argv[2];
 if (mode === "cold-first") await runColdFirst();
@@ -20,12 +23,13 @@ async function runColdFirst() {
   // ponytail: sampling misses synchronous spikes; use external RSS tracing if needed.
   const sampler = setInterval(sampleMemory, 1);
   sampler.unref();
-  const { createKeynes } = await importMeasuredSdk();
+  const { createKeynes, nodeSqlite, sdkEntry, nodeSqliteEntry } =
+    await importMeasuredSdk();
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   };
   const createStarted = performance.now();
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ resources, runtime: nodeSqlite() });
   const coldCreateMilliseconds = performance.now() - createStarted;
   const startupMilliseconds = performance.now() - startupStarted;
   sampleMemory();
@@ -50,6 +54,8 @@ async function runColdFirst() {
       kind: "cold-first",
       runtimeEngine: "node:sqlite",
       runtimeObserved: true,
+      sdkEntry,
+      nodeSqliteEntry,
       startupMilliseconds,
       sampledPeakRssBytes,
       memorySampleCount,
@@ -80,11 +86,12 @@ function installedSqliteVersion() {
 }
 
 async function runSteady() {
-  const { createKeynes } = await importMeasuredSdk();
+  const { createKeynes, nodeSqlite, sdkEntry, nodeSqliteEntry } =
+    await importMeasuredSdk();
   const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
   };
-  const keynes = await createKeynes({ resources });
+  const keynes = await createKeynes({ resources, runtime: nodeSqlite() });
   let closed = false;
   try {
     const root = await keynes.createBudget({ workUnits: 110 });
@@ -106,6 +113,8 @@ async function runSteady() {
       warmupCount: 10,
       runtimeEngine: "node:sqlite",
       runtimeObserved: true,
+      sdkEntry,
+      nodeSqliteEntry,
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
       steadyElapsedMilliseconds,
@@ -128,23 +137,41 @@ function write(value) {
 }
 
 async function importMeasuredSdk() {
-  const sdkRoot = new URL("./", import.meta.resolve("@keynes/sdk")).href;
+  const sdkEntry = await realpath(
+    fileURLToPath(import.meta.resolve("@keynes/sdk")),
+  );
+  const nodeSqliteEntry = await realpath(
+    fileURLToPath(import.meta.resolve("@keynes/node-sqlite")),
+  );
+  const consumerRoot = await realpath(dirname(fileURLToPath(import.meta.url)));
+  for (const entry of [sdkEntry, nodeSqliteEntry]) {
+    const path = relative(consumerRoot, entry);
+    if (isAbsolute(path) || path === ".." || path.startsWith(`..${sep}`))
+      throw new Error("Measured package resolved outside installed consumer");
+  }
+  const runtimeRoot = pathToFileURL(dirname(nodeSqliteEntry) + sep).href;
   let observed = false;
   const hooks = registerHooks({
     resolve(specifier, context, nextResolve) {
       if (
-        context.parentURL?.startsWith(sdkRoot) &&
+        context.parentURL?.startsWith(runtimeRoot) &&
         specifier === "node:sqlite"
-      ) {
+      )
         observed = true;
-      }
       return nextResolve(specifier, context);
     },
   });
   try {
     const sdk = await import("@keynes/sdk");
-    if (!observed) throw new Error("Installed SDK did not load node:sqlite");
-    return sdk;
+    const runtime = await import("@keynes/node-sqlite");
+    if (!observed)
+      throw new Error("Installed SQLite adapter did not load node:sqlite");
+    return {
+      createKeynes: sdk.createKeynes,
+      nodeSqlite: runtime.nodeSqlite,
+      sdkEntry,
+      nodeSqliteEntry,
+    };
   } finally {
     hooks.deregister();
   }

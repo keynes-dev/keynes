@@ -173,6 +173,22 @@ The final full native rerun passes 285 assertions, strict coverage validation, e
 
 Final `pnpm test:pr` passes generation, repository/runner tests, all workspace tests, formatting, lint, types and boundaries (273 files, six packages). Ponytail review accepts the thin installation barrel, direct CLI parsing and reuse of package/distribution helpers. Its one integration finding, a cross-package private test-helper import, was replaced by a small wrapper over the existing generic helper. No CLI framework, SQL copy, public borrowed installer or upgrade command was added.
 
+## Phase 7: combined qualification tooling
+
+Source base: `f50d070`. The implementation candidate will be committed before retained qualification so every consumer can attest to clean, immutable source.
+
+The split runner packs SDK, SQLite, PostgreSQL and CLI once, then supplies that archive set to SDK-only, SDK/SQLite, PostgreSQL, CLI and full native checks. It verifies required named checks, archive hashes, external installed paths, source identities and terminal cleanup. Routine PR checks exercise the runner without repeating expensive distribution qualification.
+
+SDK package records now use `keynes.package-test.sdk/v2` and identify the selected SQLite archive and installed paths. Measurement tooling uses v4, requires both Local archives and measures their combined compressed size. This tooling change supplies no new performance result. The existing SDK CI job names remain; its archive and measurement steps now supply both owners.
+
+The complete SDK package/performance test suites pass 40 tests with exit 0. After review removed a duplicate build from the worker fixture, its four tests pass again. The first phase 7 `pnpm test:pr` passes all 16 workspace tasks, generation, repository and runner tests, formatting, lint, types and boundaries (273 files, six packages).
+
+Ponytail review accepts reuse of the existing package lock, consumer installers, process cleanup and strict report validation. Root review replaced CommonJS resolution of import-only exports with the existing ESM loader and replaced a CLI count-only gate with the exact eight required names. Active product, architecture, workflow and package documentation now describes explicit runtimes and the separate CLI. Representative Local and borrowed snippets compile against public declarations.
+
+Review also found the paired runner still resolving pg through the SDK. A real temporary-package regression first selected a hostile SDK pg version and omitted SQLite/CLI identities; after correction, only PostgreSQL owns the driver lookup, all four package versions are required and all 80 paired-runner tests pass. Existing driver-version fields remain truthful aliases of the PostgreSQL-owned dependency.
+
+Source feedback before the clean candidate passes with exit 0: frozen installation, native CI (274 assertions), Local (378), remote (227) and borrowed Embedded (157). Every native lane reports successful cleanup. These source lanes are distinct from the retained installed-archive qualification below.
+
 ## Pending acceptance
 
 Phase 7 and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.

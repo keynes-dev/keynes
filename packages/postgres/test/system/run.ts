@@ -275,10 +275,17 @@ export async function runPostgresqlSystemTests(
       );
     }
     if (recordWorkspace !== undefined && packed !== undefined) {
-      testedDistribution = await readTestedDistribution(
-        packed.archivePath,
-        cli?.archivePath,
-      );
+      testedDistribution = {
+        ...(await readTestedDistribution(packed.archivePath, cli?.archivePath)),
+        ...(packed.installedArchives === undefined
+          ? {}
+          : {
+              installedConsumers: {
+                postgres: packed.installedArchives,
+                cli: cli?.installedArchives,
+              },
+            }),
+      };
     }
     await executeStage(runId, "network-create", () =>
       activeRuntime.run("docker", ["network", "create", runId], environment),
@@ -820,6 +827,10 @@ interface AcceptanceDistribution {
   readonly archiveSha256: string;
   readonly installationRecordSha256: string;
   readonly cliArchiveSha256?: string;
+  readonly installedConsumers?: {
+    readonly postgres: PackedPostgresqlPackage["installedArchives"];
+    readonly cli: PackedCliPackage["installedArchives"];
+  };
 }
 
 async function prepareAcceptanceRecord(
@@ -1380,6 +1391,7 @@ export function spawnTestChild(
   arguments_: readonly string[],
   environment: NodeJS.ProcessEnv,
   secrets: readonly string[] = [],
+  cleanupGraceMs = 2_000,
 ): RunningTestChild {
   const child = spawn("pnpm", arguments_, {
     cwd: REPOSITORY_ROOT,
@@ -1395,7 +1407,7 @@ export function spawnTestChild(
       output.write(`${sanitizeDiagnostic(line, secrets)}\n`),
     );
   }
-  return manageChild(child);
+  return manageChild(child, cleanupGraceMs);
 }
 
 export function sanitizeDiagnostic(

@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { withPackagePreparationLock } from "@keynes/testkit/package";
+
 import { installExternalConsumer } from "../package/qualify.ts";
 
 const performanceRoot = fileURLToPath(new URL(".", import.meta.url));
@@ -20,17 +22,17 @@ let workerPath;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-sdk-worker-test-"));
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  run(pnpm, [
-    "--config.node-linker=hoisted",
-    "--filter",
-    "@keynes/sdk",
-    "pack",
-    "--pack-destination",
-    suiteRoot,
-  ]);
+  await withPackagePreparationLock({ repositoryRoot }, async () => {
+    for (const name of ["@keynes/sdk", "@keynes/node-sqlite"]) {
+      run(pnpm, ["--filter", name, "pack", "--pack-destination", suiteRoot]);
+    }
+  });
   const archive = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
-  external = await installExternalConsumer(archive, (await stat(archive)).size);
+  external = await installExternalConsumer(
+    archive,
+    (await stat(archive)).size,
+    resolve(suiteRoot, "keynes-node-sqlite-0.0.0.tgz"),
+  );
   workerPath = resolve(external.root, "measure-worker.mjs");
   await cp(workerSource, workerPath);
 });
@@ -120,7 +122,17 @@ describe("SDK package measurement worker", () => {
       );
       await writeFile(
         resolve(sdk, "index.mjs"),
-        "export const createKeynes = () => {};\n",
+        'import "node:sqlite"; export const createKeynes = () => {};\n',
+      );
+      const runtime = resolve(root, "node_modules/@keynes/node-sqlite");
+      await mkdir(runtime, { recursive: true });
+      await writeFile(
+        resolve(runtime, "package.json"),
+        JSON.stringify({ type: "module", exports: "./index.mjs" }),
+      );
+      await writeFile(
+        resolve(runtime, "index.mjs"),
+        "export const nodeSqlite = () => {};\n",
       );
       await cp(workerSource, resolve(root, "worker.mjs"));
       const result = spawnSync(
@@ -130,7 +142,9 @@ describe("SDK package measurement worker", () => {
       );
       expect(result.status).not.toBe(0);
       expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("Installed SDK did not load node:sqlite");
+      expect(result.stderr).toContain(
+        "Installed SQLite adapter did not load node:sqlite",
+      );
     } finally {
       await rm(root, { recursive: true, force: true });
     }

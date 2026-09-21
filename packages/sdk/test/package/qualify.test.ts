@@ -19,6 +19,7 @@ import {
 import {
   assertOutsideRepository,
   inspectArchive,
+  inspectNodeSqliteArchive,
   parseArguments,
   qualifyArchive,
   validatePackageFilePaths,
@@ -86,6 +87,11 @@ afterEach(() => {
 });
 
 describe("SDK package-test runner", () => {
+  it("refuses an SDK archive supplied as the selected SQLite runtime", async () => {
+    await expect(inspectNodeSqliteArchive(archivePath)).rejects.toThrow(
+      "not @keynes/node-sqlite",
+    );
+  });
   it("imports and typechecks the SDK-only archive with no adapter or driver installed", async () => {
     const result = await qualifyArchive({ archivePath });
     expect(result.checks).not.toContain("budget-loop");
@@ -357,8 +363,13 @@ describe("SDK package-test runner", () => {
 
     const output: unknown = JSON.parse(result.stdout);
     expect(output).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk/v1",
+      schemaVersion: "keynes.package-test.sdk/v2",
       subject: "@keynes/sdk",
+      cleanup: "passed",
+      installedPackages: {
+        sdk: expect.any(String),
+        nodeSqlite: expect.any(String),
+      },
       archive: {
         sha256: createHash("sha256")
           .update(await readFile(archivePath))
@@ -369,6 +380,7 @@ describe("SDK package-test runner", () => {
       },
       runtimeArchive: {
         name: "@keynes/node-sqlite",
+        packageVersion: "0.0.0",
         sha256: createHash("sha256")
           .update(await readFile(nodeSqliteArchivePath))
           .digest("hex"),
