@@ -15,8 +15,8 @@ One issue, exact existing branch, one acceptance outcome and normally one PR. Ke
 
 ## Phase 2: Foundational checks
 
-- [ ] T003 Audit every public Promise method and all callers of admission/capture against `docs/features/key-85-make-sdk-failures-consistently-asynchronous/contracts/asynchronous-failures.md`, including generated clients and synchronous factory exclusions; update the inventory only for observed drift and assign any reproduced gap to its owning implementation task.
-- [ ] T004 Map existing shared replay/conflict/rollback/validation scenarios and native test registration in `packages/database/contract-tests/scenarios/index.ts` and `packages/postgres/test/system/required-scenarios.ts`; record coverage and any missing registrations in the feature's `acceptance.md`.
+- [x] T003 Audit every public Promise method and all callers of admission/capture against `docs/features/key-85-make-sdk-failures-consistently-asynchronous/contracts/asynchronous-failures.md`, including generated clients and synchronous factory exclusions; update the inventory only for observed drift and assign any reproduced gap to its owning implementation task.
+- [x] T004 Map existing shared replay/conflict/rollback/validation scenarios and native test registration in `packages/database/contract-tests/scenarios/index.ts` and `packages/postgres/test/system/required-scenarios.ts`; record coverage and any missing registrations in the feature's `acceptance.md`.
 
 Checkpoint: the actual method inventory and verification lanes are known. No new runtime abstraction or schema is needed.
 
