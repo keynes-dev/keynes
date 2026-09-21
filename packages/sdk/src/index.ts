@@ -58,6 +58,7 @@ export type {
   RemoteProcedureDescriptor,
 } from "./generated/client.js";
 export type {
+  RuntimeResourceBinding,
   BasicRuntimeSession,
   RemoteRuntimeSession,
   NodeSqliteRuntime,

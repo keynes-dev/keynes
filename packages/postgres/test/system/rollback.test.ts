@@ -293,7 +293,8 @@ describe("PostgreSQL configured root authorization and rollback", () => {
   });
 });
 
-type ResourceBoundRootCommand = Parameters<ContractClient["createBudget"]>[0];
+type ResourceBoundRootCommand =
+  import("@keynes/database/contract-tests").CreateBudgetCommand;
 
 function resourceBoundRoot(
   commandId: string,

@@ -154,6 +154,7 @@ function createRuntime(
   const client = createClient(orderedResources, budgetResources);
   return {
     client,
+    resources: [],
     state: "open",
     admit: (operation) => operation(),
     invokeMutation: (operation) => operation(),

@@ -14,7 +14,7 @@ import { format } from "oxfmt";
 
 import {
   renderClient,
-  renderValidators,
+  renderResultValidators,
   renderRuntime,
 } from "@keynes/database/generation";
 
@@ -43,7 +43,10 @@ export async function generateSdk(options: GenerateSdkOptions): Promise<void> {
   const formattedTypes = await formatSource("types.ts", `${types.trim()}\n`);
   const formattedValidators = await formatSource(
     "validators.ts",
-    renderValidators(options.contract.definitions, options.contract.source),
+    renderResultValidators(
+      options.contract.definitions,
+      options.contract.source,
+    ),
   );
   const formattedClient = await formatSource(
     "client.ts",
@@ -68,10 +71,6 @@ export async function generateSdk(options: GenerateSdkOptions): Promise<void> {
       [
         "src/generated/runtime.ts",
         await formatSource("runtime.ts", renderRuntime()),
-      ],
-      [
-        "src/generated/decision-evidence.ts",
-        stage("src/sqlite/decision-evidence.ts", "../../generated/", "./"),
       ],
     ]),
     generatedDirectories: [{ path: "src/generated", accepts: () => true }],

@@ -1,17 +1,12 @@
 import type {
-  CreateBudgetCommand,
   CreateBudgetResult,
   ValidateResourcesResult,
-  DefineResourceTypeCommand,
   DefineResourceTypeResult,
   DefineResourcesResult,
   ErrorEnvelope,
-  GetBudgetQuery,
   GetBudgetResult,
   OperationName,
-  RequestBudgetCommand,
   RequestBudgetResult,
-  SettleBudgetCommand,
   SettleBudgetResult,
   GetBudgetHistoryPageQuery,
   GetBudgetHistoryPageResult,
@@ -65,13 +60,11 @@ export interface ContractClientOptions {
 export interface ContractClient {
   validateResources(input: unknown): Promise<ValidateResourcesResult>;
   defineResources(input: unknown): Promise<DefineResourcesResult>;
-  defineResource(
-    input: DefineResourceTypeCommand,
-  ): Promise<DefineResourceTypeResult>;
-  createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
-  requestBudget(input: RequestBudgetCommand): Promise<RequestBudgetResult>;
-  settleBudget(input: SettleBudgetCommand): Promise<SettleBudgetResult>;
-  getBudget(input: GetBudgetQuery): Promise<GetBudgetResult>;
+  defineResource(input: unknown): Promise<DefineResourceTypeResult>;
+  createBudget(input: unknown): Promise<CreateBudgetResult>;
+  requestBudget(input: unknown): Promise<RequestBudgetResult>;
+  settleBudget(input: unknown): Promise<SettleBudgetResult>;
+  getBudget(input: unknown): Promise<GetBudgetResult>;
 }
 
 export interface ContractTestHost {

@@ -608,3 +608,25 @@ function contractValidator(definition: string) {
     throw new Error(`missing schema definition ${definition}`);
   return validate;
 }
+
+it("keeps runtime input schemas and validators out of generated SDK", () => {
+  const validators = readFileSync(
+    resolve(packageRoot, "../sdk/src/generated/validators.ts"),
+    "utf8",
+  );
+  const client = readFileSync(
+    resolve(packageRoot, "../sdk/src/generated/client.ts"),
+    "utf8",
+  );
+  expect(validators).not.toContain("validateOperationInputIssues");
+  const contract = loadContract(packageRoot).source;
+  for (const { input } of [
+    ...contract.operations,
+    ...contract.remote.procedures,
+  ]) {
+    expect(validators.includes(`"${input}":`), input).toBe(false);
+    expect(validators.includes(`validate${input}Issues`), input).toBe(false);
+  }
+  expect(client).not.toContain("invalidCommand(");
+  expect(client).not.toContain("invalidRemoteCommand(");
+});

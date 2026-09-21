@@ -73,7 +73,7 @@ describe("remote contract test host", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it("keeps generated validation and safe errors in front of the executor", async () => {
+  it("forwards malformed commands and preserves runtime validation and authorization errors", async () => {
     const execute = vi.fn<RemoteCommandExecutor["execute"]>(async () => ({
       ok: false,
       error: {
@@ -85,6 +85,17 @@ describe("remote contract test host", () => {
         },
       },
     }));
+    execute.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        kind: "error",
+        code: "invalid_command",
+        details: {
+          operation: "createBudget",
+          issues: [{ path: "/definitions", rule: "required" }],
+        },
+      },
+    });
     const host = await openRemoteContractTestHost({ execute });
     const client = host.clientFor("product-fixture");
     const invalidCommand: unknown = { operationKey, resources: [] };
@@ -96,7 +107,8 @@ describe("remote contract test host", () => {
       code: "invalid_command",
       details: { operation: "createBudget" },
     });
-    expect(execute).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute.mock.calls[0]?.[1]).toEqual(invalidCommand);
 
     await expect(client.createBudget(command)).rejects.toMatchObject({
       name: "KeynesError",
@@ -106,6 +118,6 @@ describe("remote contract test host", () => {
         requiredPermission: "remote_access",
       },
     });
-    expect(execute).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledTimes(2);
   });
 });

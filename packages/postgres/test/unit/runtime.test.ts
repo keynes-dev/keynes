@@ -20,6 +20,47 @@ describe("PostgreSQL runtime descriptor", () => {
     expect(runtime.kind).toBe("remote");
     expect(driver.pool).not.toHaveBeenCalled();
   });
+  it("returns runtime bindings only after database validation", async () => {
+    const executor = new executors.PostgresqlCommandExecutor(new Pool());
+    const execute = vi.spyOn(executor, "execute").mockResolvedValue({
+      ok: true,
+      replayed: false,
+      result: { valid: true },
+    });
+    const close = vi.spyOn(executor, "close").mockResolvedValue();
+    const open = vi
+      .spyOn(executors, "openPostgresqlCommandExecutor")
+      .mockResolvedValue(executor);
+    try {
+      const definition = { unit: "token", accountingBehavior: "consumable" };
+      const session = await postgres({
+        databaseUrl: "postgresql://u:p@host/db?sslmode=verify-full",
+      }).initialize({ modelTokens: definition });
+      expect(session).toMatchObject({
+        resources: [
+          { key: "modelTokens", canonicalName: "model_tokens", ...definition },
+        ],
+      });
+      expect(execute).toHaveBeenCalledTimes(1);
+      const prepared = await session.prepareResources({
+        otherTokens: definition,
+      });
+      expect(prepared).toEqual([
+        { key: "otherTokens", canonicalName: "other_tokens", ...definition },
+      ]);
+      await expect(
+        session.prepareResources({ invalid_name: definition }),
+      ).rejects.toMatchObject({
+        code: "invalid_command",
+        details: { operation: "validateResources" },
+      });
+      expect(execute).toHaveBeenCalledTimes(1);
+      await session.close();
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      open.mockRestore();
+    }
+  });
   it("preserves validation and cleanup failures during initialization", async () => {
     const validationFailure = new KeynesError({
       kind: "error",

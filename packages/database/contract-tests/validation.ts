@@ -84,3 +84,12 @@ function validator(definition: string): ValidateFunction {
   validators.set(definition, compiled);
   return compiled;
 }
+
+export const malformedRuntimeInputs: readonly unknown[] = [
+  null,
+  [],
+  "command",
+  1,
+  {},
+  { unexpected: true },
+];

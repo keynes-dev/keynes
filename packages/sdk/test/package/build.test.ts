@@ -28,7 +28,7 @@ describe("SDK staged build", () => {
   it("includes remote handle modules in the production manifest", () => {
     expect(SDK_PRODUCTION_MODULES).toEqual(
       expect.arrayContaining([
-        "remote/budget",
+        "remote/result-mapping",
         "remote/public-types",
         "remote/references",
       ]),

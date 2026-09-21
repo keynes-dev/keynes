@@ -3,7 +3,7 @@ import {
   createKeynesClient,
   CommittedResponseLostError,
   KeynesSdkError,
-  type ResourceDefinitions,
+  type RuntimeResourceBinding,
   type BasicRuntimeSession,
   type NodeSqliteRuntime,
 } from "@keynes/sdk";
@@ -28,7 +28,7 @@ const PRODUCT_INSTALLATION = {
 } as const;
 
 async function openConfiguredRuntime(
-  definitions: ResourceDefinitions,
+  definitions: unknown,
 ): Promise<BasicRuntimeSession> {
   let host: ReturnType<typeof openLocalRuntimeHost>;
   try {
@@ -37,8 +37,18 @@ async function openConfiguredRuntime(
     throw new KeynesSdkError("initialization_failed", {}, { cause });
   }
 
+  let resources: readonly RuntimeResourceBinding[];
   try {
-    await host.client.defineResources({ commandId: randomUUID(), definitions });
+    const result = await host.client.defineResources({
+      commandId: randomUUID(),
+      definitions,
+    });
+    resources = result.resources.map(({ key, resourceType }) => ({
+      key,
+      canonicalName: resourceType.canonicalName,
+      unit: resourceType.unit,
+      accountingBehavior: resourceType.accountingBehavior,
+    }));
   } catch (error: unknown) {
     try {
       await host.close();
@@ -57,6 +67,7 @@ async function openConfiguredRuntime(
   let closePromise: Promise<void> | undefined;
   return {
     client: host.client,
+    resources,
     get state() {
       return state;
     },

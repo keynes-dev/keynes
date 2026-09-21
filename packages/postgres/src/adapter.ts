@@ -1,6 +1,12 @@
 import {
+  canonicalDefinitions,
+  DomainFailure,
+} from "./generated/resource-definitions.js";
+import {
   createRemoteKeynesClient,
   KeynesSdkError,
+  KeynesError,
+  type RuntimeResourceBinding,
   type PostgresRuntime,
 } from "@keynes/sdk";
 import { normalizeDatabaseUrl } from "./remote/connection-options.js";
@@ -35,8 +41,23 @@ export function postgres<
         normalizeDatabaseUrl(databaseUrl),
       );
       const client = createRemoteKeynesClient(executor);
+      const prepareResources = async (
+        definitions: unknown,
+      ): Promise<readonly RuntimeResourceBinding[]> => {
+        try {
+          return canonicalDefinitions(definitions, "validateResources").map(
+            ({ key, definition }) => ({ key, ...definition }),
+          );
+        } catch (error: unknown) {
+          if (error instanceof DomainFailure)
+            throw new KeynesError(error.envelope);
+          throw error;
+        }
+      };
+      let resources: readonly RuntimeResourceBinding[];
       try {
         await client.validateResources({ definitions });
+        resources = await prepareResources(definitions);
       } catch (error: unknown) {
         try {
           await executor.close();
@@ -50,6 +71,8 @@ export function postgres<
         throw error;
       }
       return {
+        resources,
+        prepareResources,
         client,
         invokeMutation: invokeRemoteMutation,
         close: () => executor.close(),

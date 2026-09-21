@@ -1,9 +1,16 @@
 // Generated from packages/database/src/generation/runtime.ts. Do not edit.
 import type { KeynesClient, RemoteKeynesClient } from "./client.js";
-import type { ResourceDefinitions } from "../resources.js";
 import type { RemoteMutationName } from "./types.js";
 
+export interface RuntimeResourceBinding {
+  readonly key: string;
+  readonly canonicalName: string;
+  readonly unit: string;
+  readonly accountingBehavior: "consumable" | "reusable";
+}
+
 export interface BasicRuntimeSession {
+  readonly resources: readonly RuntimeResourceBinding[];
   readonly client: KeynesClient;
   readonly state: "open" | "closing" | "closed";
   admit<Result>(operation: () => Promise<Result>): Promise<Result>;
@@ -12,6 +19,10 @@ export interface BasicRuntimeSession {
 }
 
 export interface RemoteRuntimeSession {
+  readonly resources: readonly RuntimeResourceBinding[];
+  prepareResources(
+    definitions: unknown,
+  ): Promise<readonly RuntimeResourceBinding[]>;
   readonly client: RemoteKeynesClient;
   invokeMutation<Result>(
     operation: RemoteMutationName,
@@ -23,17 +34,17 @@ export interface RemoteRuntimeSession {
 
 export interface NodeSqliteRuntime {
   readonly kind: "local";
-  initialize(definitions: ResourceDefinitions): Promise<BasicRuntimeSession>;
+  initialize(definitions: unknown): Promise<BasicRuntimeSession>;
 }
 
 export interface EmbeddedPostgresRuntime {
   readonly kind: "embedded";
-  initialize(definitions: ResourceDefinitions): Promise<BasicRuntimeSession>;
+  initialize(definitions: unknown): Promise<BasicRuntimeSession>;
 }
 
 export interface PostgresRuntime {
   readonly kind: "remote";
-  initialize(definitions: ResourceDefinitions): Promise<RemoteRuntimeSession>;
+  initialize(definitions: unknown): Promise<RemoteRuntimeSession>;
 }
 
 export type KeynesRuntime =

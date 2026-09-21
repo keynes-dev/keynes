@@ -16,10 +16,7 @@ describe("local Keynes facade", () => {
     });
     try {
       for (const operation of ["createBudget", "defineResources"] as const) {
-        const pending: unknown = Reflect.apply(keynes[operation], keynes, [
-          {},
-          {},
-        ]);
+        const pending: unknown = Reflect.apply(keynes[operation], keynes, [{}]);
         expect(pending).toBeInstanceOf(Promise);
         await expect(pending).rejects.toMatchObject({
           code: "invalid_command",
@@ -121,7 +118,6 @@ describe("local Keynes facade", () => {
       for (const source of [binding, { ...binding }]) {
         const pending: unknown = Reflect.apply(second.createBudget, second, [
           source,
-          { workUnits: 1 },
         ]);
         expect(pending).toBeInstanceOf(Promise);
         await expect(pending).rejects.toMatchObject({
@@ -337,7 +333,7 @@ describe("local Keynes facade", () => {
         definitions,
       ]);
       expect(result).toBeInstanceOf(Promise);
-      await expect(result).rejects.toBe(failure);
+      await expect(result).rejects.toMatchObject({ code: "invalid_command" });
       await expect(
         keynes.defineResources({
           workUnits: { unit: "replacement", accountingBehavior: "reusable" },

@@ -1,3 +1,4 @@
+import { captureRequest, isRecord } from "../request-serialization.js";
 import { KeynesError } from "../generated/client.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
@@ -8,7 +9,6 @@ import type {
   RemoteRequestDenialReason,
   RemoteResourceAmount,
   RemoteSettleBudgetResult,
-  RemoteUsageEnvelope,
   ResourceEnvelope,
   RequestDenialReason,
   SettleBudgetResult,
@@ -19,7 +19,7 @@ import {
   projectDenialReason,
   projectSettlement,
   projectSnapshot,
-} from "../budget-projection.js";
+} from "../result-mapping.js";
 import { budgetBrand } from "../budget.js";
 import { canonicalDecisionEvidence } from "../decision-evidence.js";
 import { requestDecisionEvidence } from "../decision-evidence.js";
@@ -52,10 +52,7 @@ interface RemoteBudgetIdentity {
 }
 
 export function createRemoteResourceBinding<Name extends string>(
-  resources: readonly [
-    PreparedRootResource<Name>,
-    ...PreparedRootResource<Name>[],
-  ],
+  resources: readonly PreparedRootResource<Name>[],
   budget: RemoteBudgetProjection,
 ): BudgetResourceBinding<Name> {
   assertCreatedRoot(resources, budget);
@@ -149,12 +146,10 @@ export function createRemoteBudgetHandle<
         client.settleBudget({
           operationKey,
           budgetReference,
-          usage: binding
-            .usage(Object.freeze({ ...usage }))
-            .map(({ resourceTypeId, amount }) => ({
-              resource: binding.visibleResource(resourceTypeId).canonicalName,
-              amount,
-            })) as RemoteUsageEnvelope,
+          usage: binding.usage(
+            captureRequest(usage, "settleBudget", "$.usage"),
+            "remote",
+          ),
         }),
       ),
     );
@@ -226,27 +221,16 @@ async function requestRemoteBudget<
   const { budgetReference } = identity;
   type RequestedName = Extract<keyof Resources, Names>;
   const resolved = binding.resources<RequestedName>(
-    Object.freeze({ ...resources }),
+    captureRequest(resources, "requestBudget", "$.resources"),
     "requestBudget",
+    "remote",
   );
   const { operationKey, remainingOptions } = splitRemoteMutationOptions(
     options,
     new Set(["decisionEvidence"]),
   );
   const decisionEvidence = requestDecisionEvidence(remainingOptions);
-  const [first, ...rest] = resolved.envelope;
-  if (first === undefined) throw remoteResultMismatch();
-  const requestedResources: [RemoteResourceAmount, ...RemoteResourceAmount[]] =
-    [
-      {
-        resource: binding.visibleResource(first.resourceTypeId).canonicalName,
-        amount: first.amount,
-      },
-      ...rest.map(({ resourceTypeId, amount }) => ({
-        resource: binding.visibleResource(resourceTypeId).canonicalName,
-        amount,
-      })),
-    ];
+  const requestedResources = resolved.envelope;
   return invokeBudgetOperation(resolved.binding, async () => {
     const result = await runtime.invokeMutation(
       "requestBudget",
@@ -447,10 +431,7 @@ function remoteDenialReason(
 }
 
 function assertCreatedRoot<Name extends string>(
-  expected: readonly [
-    PreparedRootResource<Name>,
-    ...PreparedRootResource<Name>[],
-  ],
+  expected: readonly PreparedRootResource<Name>[],
   budget: RemoteBudgetProjection,
 ): void {
   if (
@@ -547,27 +528,30 @@ function assertRemoteBudget<Names extends string, HistoryNames extends string>(
 }
 
 function assertRemoteAmounts(
-  expected: readonly RemoteResourceAmount[],
+  expected: unknown,
   actual: readonly RemoteResourceAmount[],
 ): void {
-  if (actual.length !== expected.length) throw remoteResultMismatch();
-  const returned = [...actual].sort((left, right) =>
-    compareStrings(left.resource, right.resource),
-  );
-  const requested = [...expected].sort((left, right) =>
-    compareStrings(left.resource, right.resource),
-  );
-  for (let index = 0; index < requested.length; index += 1) {
-    const left = requested[index];
-    const right = returned[index];
+  if (!Array.isArray(expected) || actual.length !== expected.length)
+    throw remoteResultMismatch();
+  const requested = new Map<string, unknown>();
+  for (const entry of expected) {
     if (
-      left === undefined ||
-      right === undefined ||
-      left.resource !== right.resource ||
-      left.amount !== right.amount
-    ) {
+      !isRecord(entry) ||
+      typeof entry.resource !== "string" ||
+      requested.has(entry.resource)
+    )
       throw remoteResultMismatch();
-    }
+    requested.set(entry.resource, entry.amount);
+  }
+  const returned = new Set<string>();
+  for (const entry of actual) {
+    if (
+      !requested.has(entry.resource) ||
+      returned.has(entry.resource) ||
+      requested.get(entry.resource) !== entry.amount
+    )
+      throw remoteResultMismatch();
+    returned.add(entry.resource);
   }
 }
 

@@ -1,3 +1,4 @@
+import { KeynesSdkError } from "./sdk-errors.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetProjection as WireBudgetProjection,
@@ -181,7 +182,26 @@ export async function invokeBudgetOperation<
     return await operation();
   } catch (error: unknown) {
     if (!(error instanceof KeynesError)) throw error;
-    Reflect.set(error, "details", projectErrorValue(binding, error.details));
+    const details: unknown = error.details;
+    if (
+      error.code === "invalid_command" &&
+      isRecord(details) &&
+      Array.isArray(details.issues) &&
+      details.issues.some(
+        (issue) =>
+          isRecord(issue) &&
+          typeof issue.path === "string" &&
+          /^(?:\$\.decisionEvidence|\/decisionEvidence)(?:[./]|$)/.test(
+            issue.path,
+          ),
+      )
+    ) {
+      throw new KeynesSdkError("invalid_configuration", {
+        field: "decisionEvidence",
+        reason: "unsupported",
+      });
+    }
+    Reflect.set(error, "details", projectErrorValue(binding, details));
     throw error;
   }
 }

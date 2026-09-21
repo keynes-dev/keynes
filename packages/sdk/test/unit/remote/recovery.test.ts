@@ -362,6 +362,56 @@ describe("remote Budget reopen and operation recovery", () => {
     });
   });
 
+  it("reopens after creation permission is revoked without another validation query", async () => {
+    const methods: string[] = [];
+    const executor: RemoteCommandExecutor & { close(): Promise<void> } = {
+      async execute(procedure) {
+        methods.push(procedure.method);
+        if (procedure.method === "validateResources") {
+          return methods.length === 1
+            ? { ok: true, result: { valid: true } }
+            : {
+                ok: false,
+                error: {
+                  kind: "error",
+                  code: "unauthorized",
+                  details: {
+                    operation: "validateResources",
+                    requiredPermission: "remote_access",
+                  },
+                },
+              };
+        }
+        if (procedure.method !== "openBudget")
+          throw new Error(`unexpected operation ${procedure.method}`);
+        return {
+          ok: true,
+          result: {
+            budgetReference: rootReference,
+            budget: rootBudget("active", null),
+          },
+        };
+      },
+      async close() {},
+    };
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      await expect(
+        remote.openBudget({
+          reference: rootReference,
+          resourceTypes: resources,
+        }),
+      ).resolves.toMatchObject({ reference: rootReference });
+      expect(methods).toEqual(["validateResources", "openBudget"]);
+    } finally {
+      await remote.close();
+    }
+  });
+
   it("reopens only the PostgreSQL-checked Resource binding", async () => {
     const executor = fakeExecutor((method, input) => {
       if (method !== "openBudget") {

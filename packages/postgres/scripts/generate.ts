@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
+import { format } from "oxfmt";
+
 import { applyGeneratedOutputs } from "@keynes/database";
 
 export async function generatePostgresql(options: {
@@ -19,14 +21,39 @@ export async function generatePostgresql(options: {
       (name) => `migrations/${name}`,
     ),
   ];
+  const parser = await format(
+    "resource-definitions.ts",
+    "// Generated from packages/database/src/resource-definitions.ts. Do not edit.\n" +
+      readFileSync(
+        join(source, "../src/resource-definitions.ts"),
+        "utf8",
+      ).replaceAll("../generated/types.js", "./types.js"),
+    { printWidth: 80 },
+  );
+  const formattingError = parser.errors.find(
+    (diagnostic) => diagnostic.severity === "Error",
+  );
+  if (formattingError !== undefined)
+    throw new Error(
+      `cannot format generated resource-definitions.ts: ${formattingError.message ?? "parse error"}`,
+    );
   applyGeneratedOutputs({
     check: options.check,
     outputRoot: join(repositoryRoot, "packages/postgres"),
-    outputs: new Map(
-      paths.map((path) => [path, readFileSync(join(source, path), "utf8")]),
-    ),
+    outputs: new Map([
+      ...paths.map((path): [string, string] => [
+        path,
+        readFileSync(join(source, path), "utf8"),
+      ]),
+      [
+        "src/generated/types.ts",
+        readFileSync(join(source, "../generated/types.ts"), "utf8"),
+      ],
+      ["src/generated/resource-definitions.ts", parser.code],
+    ]),
     generatedDirectories: [
       { path: "generated", accepts: () => true },
+      { path: "src/generated", accepts: () => true },
       { path: "migrations", accepts: () => true },
     ],
   });

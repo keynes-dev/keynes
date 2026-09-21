@@ -286,24 +286,35 @@ describe("configured local startup", () => {
       "invalid_command",
     ],
   ])(
-    "rejects %s asynchronously before acquiring a host",
-    async (_name, args, code) => {
+    "rejects %s asynchronously and closes any acquired host",
+    async (name, args, code) => {
       const hosts = installStartupHosts();
       const { createKeynes: createFreshKeynes } = await import("@keynes/sdk");
+      const { nodeSqlite: freshNodeSqlite } =
+        await import("../../../src/adapter.js");
       let result: unknown;
       try {
         expect(() => {
           result = Reflect.apply(
             createFreshKeynes,
             undefined,
-            args.map((value) => ({ ...value, runtime: nodeSqlite() })),
+            args.map((value) => ({ ...value, runtime: freshNodeSqlite() })),
           );
         }).not.toThrow();
         expect(result).toBeInstanceOf(Promise);
         await expect(result).rejects.toMatchObject({
           code,
         });
-        expect(hosts).toHaveLength(0);
+        const runtimeValidated = [
+          "empty declarations",
+          "unknown definition field",
+          "invalid accounting",
+          "invalid unit",
+          "invalid name",
+          "null declarations",
+        ].includes(name);
+        expect(hosts).toHaveLength(runtimeValidated ? 1 : 0);
+        for (const host of hosts) expect(host.close).toHaveBeenCalledOnce();
       } finally {
         for (const host of hosts) host.close();
       }

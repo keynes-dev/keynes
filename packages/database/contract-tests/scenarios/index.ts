@@ -1,3 +1,4 @@
+import { registerRuntimeValidationContractTests } from "./runtime-validation.ts";
 import type { OpenContractTestHost } from "../host.ts";
 
 import { registerBudgetLifecycleContractTests } from "./budget-lifecycle.ts";
@@ -25,6 +26,7 @@ export {
 export function registerBudgetContractTests(
   openHost: OpenContractTestHost,
 ): void {
+  registerRuntimeValidationContractTests(openHost);
   registerBudgetLifecycleContractTests(openHost);
   registerReplayContractTests(openHost);
   registerRequestDenialContractTests(openHost);

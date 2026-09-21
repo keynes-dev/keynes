@@ -27,7 +27,7 @@ const BOUND_ROOT_ID = "22000000-0000-4000-8000-000000000001";
 const REDEFINITION_ID = "12000000-0000-4000-8000-000000000001";
 const BOUND_ROOT_DEFINITION_ID = "12000000-0000-4000-8000-000000000002";
 
-type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
+import type { RequestBudgetCommand } from "@keynes/database/contract-tests";
 type RootResourceDefinition = Parameters<
   typeof rootResources
 >[0][number]["definition"];

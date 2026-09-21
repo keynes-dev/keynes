@@ -3,6 +3,14 @@ export const POSTGRESQL_BUDGET_AGGREGATE =
 
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   [POSTGRESQL_BUDGET_AGGREGATE]: [
+    "direct runtime validation rejects malformed validateResources envelopes without state changes",
+    "direct runtime validation rejects malformed defineResources envelopes without state changes",
+    "direct runtime validation rejects malformed defineResource envelopes without state changes",
+    "direct runtime validation rejects malformed createBudget envelopes without state changes",
+    "direct runtime validation rejects malformed requestBudget envelopes without state changes",
+    "direct runtime validation rejects malformed settleBudget envelopes without state changes",
+    "direct runtime validation rejects malformed getBudget envelopes without state changes",
+    "direct runtime validation rejects invalid names, quantities and evidence without changing existing authority",
     "command replay replays reordered definitions and amounts with the original result",
     "command replay rejects omitted explicit-zero membership under the same command identity",
     "command replay creates independent roots for new identities and replays the original result after settlement",

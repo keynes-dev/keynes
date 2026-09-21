@@ -1,9 +1,6 @@
+import { captureRequest } from "./request-serialization.js";
 import { randomUUID } from "node:crypto";
 
-import type {
-  RequestBudgetCommand,
-  SettleBudgetCommand,
-} from "./generated/types.js";
 import type { BasicRuntimeSession } from "./generated/runtime.js";
 import {
   compareDenialReasons,
@@ -11,7 +8,7 @@ import {
   projectDenialReason,
   projectSettlement,
   projectSnapshot,
-} from "./budget-projection.js";
+} from "./result-mapping.js";
 import {
   canonicalDecisionEvidence,
   requestDecisionEvidence,
@@ -164,14 +161,14 @@ export function createBudgetHandle<
     ...options
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
-  const settle: Budget<Names, HistoryNames>["settle"] = (usage) => {
-    const observedUsage = Object.freeze({ ...usage });
+  const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
+    const observedUsage = captureRequest(usage, "settleBudget", "$.usage");
     return runtime.admit(async () => {
       const command = {
         commandId: randomUUID(),
         budgetId,
         usage: binding.usage(observedUsage),
-      } satisfies SettleBudgetCommand;
+      };
       const result = await invokeBudgetOperation(binding, () =>
         runtime.invokeMutation(() => runtime.client.settleBudget(command)),
       );
@@ -208,14 +205,18 @@ async function requestBudget<
   options: readonly unknown[],
 ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
   type RequestedName = Extract<keyof Resources, Names>;
-  const requestedResources = Object.freeze({ ...resources });
+  const requestedResources = captureRequest(
+    resources,
+    "requestBudget",
+    "$.resources",
+  );
   const decisionEvidence = requestDecisionEvidence(options);
   const pending = runtime.admit(async () => {
     const resolved = binding.resources<RequestedName>(
       requestedResources,
       "requestBudget",
     );
-    const command: RequestBudgetCommand = {
+    const command = {
       commandId: randomUUID(),
       parentBudgetId: budgetId,
       resources: resolved.envelope,

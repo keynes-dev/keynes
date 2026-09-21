@@ -22,3 +22,8 @@ export {
   registerRemoteContractTests,
 } from "./scenarios/index.ts";
 export { rootResources } from "./scenarios/root-resource.ts";
+
+export type {
+  RequestBudgetCommand,
+  CreateBudgetCommand,
+} from "../generated/types.ts";

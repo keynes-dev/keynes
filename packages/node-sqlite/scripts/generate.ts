@@ -24,10 +24,15 @@ export async function generateNodeSqlite(
         "src/command-executor.ts",
         stage("src/command-executor.ts", "../generated/", "./generated/"),
       ],
+      [
+        "src/resource-definitions.ts",
+        stage("src/resource-definitions.ts", "../generated/", "./generated/"),
+      ],
       ...[
         "sqlite-command-executor.ts",
         "sqlite-store.ts",
         "decision-evidence.ts",
+        "request-validation.ts",
       ].map((name): [string, string] => [
         `src/local/${name}`,
         stage(`src/sqlite/${name}`, "../../generated/", "../generated/"),

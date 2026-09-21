@@ -107,8 +107,34 @@ Failed intermediate checks: formatting caught two files; Turbo caught cross-pack
 
 Ponytail review removed duplicate SDK/SQLite distribution helpers through the existing private testkit and kept staged replacement. Initialization cleanup fixes preserve primary failures. The final review accepts the small runtime contract and temporary owned PostgreSQL extraction as required for explicit runtime selection; no additional abstraction or package framework is needed.
 
+## Phase 4: runtime validation
+
+Source base: `e24c1ce`. The phase 4 commit contains this record and the checked diff.
+
+The SDK-output boundary test failed because the generated SDK contained `validateOperationInputIssues`; it passes after retaining only result/error schema dependencies. New SDK serialization tests observed semantic rejection before runtime invocation, getter execution and silently omitted request fields before the fixes. PostgreSQL session binding metadata was absent in its new regression, then passed after adapter initialization returned canonical bindings.
+
+Eight new shared direct-command cases extend preservation coverage across malformed envelopes, names, finite invalid quantities and nested evidence. They pass the existing runtime rules; initial fixture mistakes were not product regressions. All shared host methods now send `unknown` directly to runtime execution and validate only replies. The native required-scenario list includes the new cases.
+
+`pnpm --filter @keynes/postgres test:embedded` passed with 148 assertions (129 shared scenarios and 19 existing caller-transaction tests), exit 0 and successful PostgreSQL cleanup. This is source feedback against the pinned PostgreSQL 18.6 fixture, not installed public Embedded qualification. SQLite's 129 matching shared scenarios also pass. The canonical contract, schema and baseline SQL remain byte-identical to phase 3.
+
+Review found and fixed three additional regressions with observed failing tests: cleanup replacing an invalid binding result, settlement capture throwing before returning a Promise, and public wire-shaped arrays bypassing alias mapping. The SDK now rejects containers it cannot map as named-resource objects, while empty objects and representable invalid member amounts reach runtime validation. Eleven existing input-validator tests moved intact to database ownership.
+
+The first remote binding implementation added a second `validateResources` database call before `openBudget`. That incorrectly required creation permission after initialization even when read permission remained. A failing public-operation trace demonstrated `unauthorized`. Runtime alias preparation now uses one shared database-owned parser, and existing `openBudget` retains authoritative compatibility/read checks. The passing trace is exactly initialization validation followed by open; no extra SQL, wire change or duplicate authored name grammar remains.
+
+| Final command                                  | Result                                                                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                 | PASS, exit 0: 63 repository, 174 runner, database 51, SQLite 189, SDK 217 and PostgreSQL 157 tests; generation, formatting, lint and types pass |
+| `pnpm test:local`                              | PASS, 378 assertions, complete report and exit 0                                                                                                |
+| `pnpm --filter @keynes/sdk test:package:unit`  | PASS, 23 tests, clean SDK-only/SQLite consumers and exit 0                                                                                      |
+| `pnpm --filter @keynes/postgres test:embedded` | PASS, 148 assertions, exit 0 and cleanup passed, as scoped above                                                                                |
+| `pnpm --filter @keynes/postgres build`         | PASS, parser and canonical types included in strict output allowlist                                                                            |
+
+Boundary checks cover 261 files in five packages with no issues. Intermediate formatting failures identified a touched test and the staged parser; the PostgreSQL generator now formats the parser before writing or checking it. No generated file needs a manual formatting repair.
+
+Ponytail review accepts the single capture helper, shared owner parser and small runtime binding protocol. Removed SDK input validation, retained result validation, and reused existing packaging/report helpers. Shared scenarios establish SQLite/native agreement for errors, replay, history and final state. Exact installed public borrowed-connection and four-archive acceptance remain pending.
+
 ## Pending acceptance
 
-Phases 4-7, native runtime-bypass validation for this split, borrowed transactions, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Phases 5-7, installed public borrowed transactions, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.
