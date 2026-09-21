@@ -1,0 +1,9 @@
+{
+  "migrations": [
+    {
+      "id": "0001-baseline",
+      "path": "0001-baseline.sql",
+      "contract": true
+    }
+  ]
+}

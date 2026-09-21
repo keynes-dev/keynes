@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "postgres/scripts/**/*.ts",
+    "src/**/*.ts",
+    "contract-tests/**/*.ts",
+    "test/**/*.ts"
+  ]
+}

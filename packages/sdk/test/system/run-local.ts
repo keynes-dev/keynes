@@ -8,10 +8,11 @@ import { manageChild, waitWithCancellation } from "@keynes/testkit/process";
 import { parsePassingReport } from "@keynes/testkit/report";
 
 const SDK = fileURLToPath(new URL("../..", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 export const LOCAL_GROUPS = [
-  "test/unit/local",
-  "test/unit/public",
-  "test/contract/budget.test.ts",
+  "packages/node-sqlite/test/unit/local",
+  "packages/sdk/test/unit/public",
+  "packages/node-sqlite/test/contract/budget.test.ts",
 ];
 
 export function validateLocalReport(
@@ -35,9 +36,9 @@ export async function localTestFiles(): Promise<string[]> {
     const selected: string[] = [];
     for await (const file of glob(
       group.endsWith(".ts") ? group : `${group}/**/*.test.ts`,
-      { cwd: SDK },
+      { cwd: ROOT },
     ))
-      selected.push(join(SDK, file));
+      selected.push(join(ROOT, file));
     if (selected.length === 0)
       throw new Error(`Local test group is empty: ${group}`);
     files.push(...selected);
@@ -76,6 +77,8 @@ export async function runLocalTests(
           ),
         ),
         "run",
+        "--config",
+        join(SDK, "vitest.config.ts"),
         ...files,
         "--maxWorkers=1",
         "--allowOnly=false",
@@ -85,7 +88,7 @@ export async function runLocalTests(
         `--outputFile=${report}`,
       ],
       {
-        cwd: SDK,
+        cwd: ROOT,
         env: providerFreeEnvironment(process.env),
         stdio: "inherit",
         detached: process.platform !== "win32",

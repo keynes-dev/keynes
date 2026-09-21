@@ -13,7 +13,7 @@ import type {
   ResourceAmount,
   SettleBudgetResult,
 } from "../../../src/generated/types.js";
-import type { LocalRuntime } from "../../../src/local/runtime.js";
+import type { BasicRuntimeSession } from "../../../src/generated/runtime.js";
 import { createResourceBinding } from "../../../src/resource-binding.js";
 import type { PreparedRootResource } from "../../../src/resources.js";
 
@@ -147,17 +147,18 @@ async function exerciseNarrowedProjection(
 function createRuntime(
   resources: readonly InstalledResource[],
   budgetResources: readonly InstalledResource[] = resources,
-): LocalRuntime {
+): BasicRuntimeSession {
   const orderedResources = [...resources].sort((left, right) =>
     left.resourceTypeId.localeCompare(right.resourceTypeId),
   );
   const client = createClient(orderedResources, budgetResources);
   return {
     client,
+    resources: [],
     state: "open",
-    tail: Promise.resolve(),
-    closePromise: undefined,
-    closeHost: async () => undefined,
+    admit: (operation) => operation(),
+    invokeMutation: (operation) => operation(),
+    close: async () => undefined,
   };
 }
 

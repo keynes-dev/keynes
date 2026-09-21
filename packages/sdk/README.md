@@ -1,8 +1,8 @@
 # TypeScript SDK
 
 `@keynes/sdk` is a private, unpublished ESM package. It owns the typed
-Local and Remote API, generated contracts, one private in-memory SQLite runtime,
-and the direct PostgreSQL client.
+Local and Remote API and generated runtime bindings. Select the SQLite or
+PostgreSQL adapter explicitly; the SDK contains no database engine or driver.
 
 ## Adopted target and migration
 
@@ -19,9 +19,9 @@ atomically. A valid request may still be denied. Optional caller-supplied
 that evaluation ran and grants no authority. Exact command replay does not
 rerun customer evaluation.
 
-KEY-96 still owns runtime/package separation and exact new exports. No
+KEY-96 separates runtime packages from the SDK. No
 mandatory evaluation result, callback signature, or transaction manager belongs
-to allocation. See the [customer-code and customer-SQL examples](../../docs/architecture.md#equivalent-customer-code-and-sql)
+to allocation. See the [customer-code and customer-SQL examples](../../docs/architecture.md#customer-evaluation-and-request-construction)
 for the boundary.
 
 First Local remains ephemeral, with no persistence/database handle, browser support, multi-process coordination or caller-owned PostgreSQL transactions. Later durable Local is KEY-123 under KEY-122. API migration does not imply automatic database upgrades; incompatible PostgreSQL installations require fresh installation under the current baseline contract.
@@ -35,24 +35,25 @@ CI=true pnpm pack:sdk
 ```
 
 Install the resulting `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` file.
-The package bundles the complete `pg` runtime closure for direct remote
-PostgreSQL access. It contains no
+For Local, also build and pack `@keynes/node-sqlite` using
+`pnpm pack:node-sqlite` and install both archives. The SDK contains no
 PGlite file, PostgreSQL migration, database server, daemon, or native Keynes
 library. The package remains private and has no registry publication command.
 
 ## Create a local Budget
 
-Applications import only `@keynes/sdk`:
+Applications select the Local adapter:
 
 ```ts
 import { createKeynes } from "@keynes/sdk";
+import { nodeSqlite } from "@keynes/node-sqlite";
 
 const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   searchQueries: { unit: "query", accountingBehavior: "consumable" },
 };
 
-await using keynes = await createKeynes({ resources });
+await using keynes = await createKeynes({ resources, runtime: nodeSqlite() });
 const root = await keynes.createBudget({
   usdCents: 100,
   searchQueries: 10,
@@ -64,7 +65,7 @@ if (request.status === "approved") {
 }
 ```
 
-`createKeynes({ resources })` configures the local authority with the complete
+`createKeynes({ resources, runtime: nodeSqlite() })` configures the local authority with the complete
 set of Resource declarations. `createBudget(amounts, options?)` takes only
 amounts. Its keys are the Budget's membership. An explicit zero includes a
 Resource without creating a quantity movement. An omitted name is absent. A
@@ -93,8 +94,7 @@ because they do not depend on `this`.
 
 Compute the request in application code, then optionally attach a compact,
 flat explanation. Evidence keys are lower-case ASCII identifiers; values are
-strings, booleans, `null`, or nonnegative safe integers. The SDK copies and
-canonicalizes the map before admission. An empty map is omitted.
+strings, booleans, `null`, or nonnegative safe integers. The SDK captures the map without losing representable fields. The runtime validates and canonicalizes evidence; an empty map has no recorded evidence.
 
 ```ts
 function requestFor(tier: string, limit: number) {
@@ -139,13 +139,9 @@ or credential. It provides no durable storage, daemon, socket server, or public
 database interface. Deep imports, package metadata imports, and replay controls
 are private.
 
-Remote mode accepts one `postgresql:` URL with exactly one
-`sslmode=verify-full`, owns a bounded pool, and invokes only generated remote
-procedures. PostgreSQL derives identity from the authenticated login role.
-Remote handles expose durable references, reopen, caller-owned operation keys,
-and read-only operation recovery. Embedded PostgreSQL uses the separate
-`@keynes/postgresql` installer and caller-owned `keynes.*(jsonb)` transactions;
-it is not a `createKeynes(...)` mode.
+`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys and read-only operation recovery.
+
+`postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or recovery methods. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
 
 ## Create and recover a Remote Budget
 
@@ -154,8 +150,12 @@ argument when you must recover a creation after a lost response:
 
 ```ts
 import { createKeynes, createOperationKey } from "@keynes/sdk";
+import { postgres } from "@keynes/postgres";
 
-await using remote = await createKeynes({ resources, databaseUrl });
+await using remote = await createKeynes({
+  resources,
+  runtime: postgres({ databaseUrl }),
+});
 const operationKey = createOperationKey();
 const root = await remote.createBudget({ usdCents: 100 }, { operationKey });
 
@@ -171,7 +171,7 @@ against the selected durable catalog without provisioning missing names.
 Repeating the same creation with the same operation key returns its committed
 result. Changing its amounts, zero-membership, or another canonical input
 rejects with `command_conflict`.
-The SDK bounds automatic retries and preserves `uncertain_outcome` when it
+The PostgreSQL adapter bounds automatic retries and preserves `uncertain_outcome` when it
 cannot establish completion.
 
 Recovery checks the caller's current authorization. For a committed creation,
@@ -186,7 +186,7 @@ This API requires semantic generation 4 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the
-[PostgreSQL package instructions](../postgresql/README.md#preview-support-limits).
+[PostgreSQL package instructions](../postgres/README.md#preview-support-limits).
 
 The preview supports ESM consumers on Node.js 24 and later, including Node.js
 25, for Linux x64, macOS arm64, and Windows x64. The declared range has no upper
@@ -194,19 +194,30 @@ bound or excluded intermediate majors. Browsers, bundlers, CommonJS,
 Bun, Deno, other architectures, and registry publication are outside the
 package contract.
 
-Package qualification tests one archive on Node.js 24 and the latest release
+Package qualification tests the selected exact archive set on Node.js 24 and the latest release
 across those operating systems. Each record proves only the exact versions it
 names; future versions are not already verified. Upstream end-of-life status
 does not exclude a major from the compatibility range. Production deployments
 should use an upstream-supported release.
 
 Provider-free source tests do not qualify an archive. The package lane installs
-one exact archive outside the workspace, imports its package root, and
-exercises the public Local Budget, remote-export, and fail-closed
-configuration API. The separate
-measurement lane records archive and install bytes, ready RSS, creation,
-request, and shutdown.
+the exact SDK archive outside the workspace. SDK-only qualification checks the driver-free root and declarations; adding the exact SQLite archive exercises the public Local Budget and fail-closed configuration API. The separate measurement lane records both archive identities, installed paths, archive/install bytes, ready RSS, creation, request and shutdown.
 
 An authorized external database, provider qualification, broad security
 qualification, managed operations, adopter use, and production readiness need
 their own evidence.
+
+## Adapter integration bindings
+
+The root exports `NodeSqliteRuntime`, `PostgresRuntime`,
+`EmbeddedPostgresRuntime`, `KeynesRuntime`, `BasicRuntimeSession` and
+`RemoteRuntimeSession` for the two adapters. Descriptors initialize a fresh
+session; adapters own execution admission and close. Owned remote execution uses bounded retries; borrowed PostgreSQL execution never retries. `nodeSqlite()` is
+cold and reusable. Closing one initialized Local instance does not close another.
+
+The adapters share `createKeynesClient`, `createRemoteKeynesClient`,
+`CONTRACT_DIGEST`, `REMOTE_CONTRACT`, `REMOTE_PROCEDURES_DIGEST` and
+`CommittedResponseLostError` with the SDK. Their companion client, executor,
+procedure, compatibility and error-envelope types are driver-free bindings.
+This keeps one public `KeynesError` identity across handles and adapters. These
+bindings support the packaged adapters; they do not add a custom driver registry.

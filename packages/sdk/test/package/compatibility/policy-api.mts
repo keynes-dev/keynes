@@ -1,3 +1,5 @@
+import type { NodeSqliteRuntime } from "@keynes/sdk";
+declare const localRuntime: NodeSqliteRuntime;
 import { createKeynes } from "@keynes/sdk";
 import type {
   Budget,
@@ -21,7 +23,7 @@ const resources = {
   searchQueries: { unit: "query", accountingBehavior: "reusable" },
 };
 
-await using keynes = await createKeynes({ resources });
+await using keynes = await createKeynes({ runtime: localRuntime, resources });
 expectType<Keynes>(keynes);
 expectType<LocalKeynes>(keynes);
 expectType<AsyncDisposable>(keynes);
@@ -76,7 +78,7 @@ const extraConfiguration = { resources, initial: 0 };
 // @ts-expect-error Configuration variables cannot contain unsupported fields.
 await createKeynes(extraConfiguration);
 // @ts-expect-error A binding cannot replace configured declarations.
-await createKeynes({ resources: binding });
+await createKeynes({ runtime: localRuntime, resources: binding });
 // @ts-expect-error Positional Resource definitions creation was removed.
 await createBudget(resources, allocation);
 // @ts-expect-error Positional ResourceBinding creation was removed.

@@ -1,3 +1,4 @@
+import { postgres } from "@keynes/postgres";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,13 +14,16 @@ const remoteMocks = vi.hoisted(() => ({
   openPostgresqlCommandExecutor: vi.fn(),
 }));
 
-vi.mock("../../../src/remote/connection-options.js", () => ({
+vi.mock("../../../../postgres/src/remote/connection-options.js", () => ({
   normalizeDatabaseUrl: remoteMocks.normalizeDatabaseUrl,
 }));
 
-vi.mock("../../../src/remote/postgresql-command-executor.js", () => ({
-  openPostgresqlCommandExecutor: remoteMocks.openPostgresqlCommandExecutor,
-}));
+vi.mock(
+  "../../../../postgres/src/remote/postgresql-command-executor.js",
+  () => ({
+    openPostgresqlCommandExecutor: remoteMocks.openPostgresqlCommandExecutor,
+  }),
+);
 
 const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
@@ -60,7 +64,10 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const recovered = await remote.recoverOperation(operationKey);
     expect(recovered).toMatchObject({
       kind: "committed",
@@ -95,7 +102,10 @@ describe("remote Budget reopen and operation recovery", () => {
       return definedResponse();
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const binding = await remote.defineResources(resources, { operationKey });
     expect(executor.inputs.map(inputOperationKey)).toEqual([
       operationKey,
@@ -134,11 +144,11 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
     const first = await createKeynes({
-      databaseUrl,
+      runtime: postgres({ databaseUrl }),
       resources: selectedResources,
     });
     const replaying = await createKeynes({
-      databaseUrl,
+      runtime: postgres({ databaseUrl }),
       resources: {
         unusedCredits: { unit: "credit", accountingBehavior: "consumable" },
         ...selectedResources,
@@ -214,7 +224,10 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     await expect(
       remote.defineResources(resources, { operationKey }),
     ).rejects.toMatchObject({
@@ -261,7 +274,10 @@ describe("remote Budget reopen and operation recovery", () => {
             },
       );
       openWith(executor);
-      const remote = await createKeynes({ databaseUrl, resources });
+      const remote = await createKeynes({
+        runtime: postgres({ databaseUrl }),
+        resources,
+      });
       await expect(
         remote.defineResources(resources, { operationKey }),
       ).rejects.toMatchObject({ code });
@@ -284,7 +300,10 @@ describe("remote Budget reopen and operation recovery", () => {
     openWith(executor);
     const key = createOperationKey();
 
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const root = await remote.createBudget(
       { workUnits: 10 },
       { operationKey: key },
@@ -319,7 +338,10 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const root = await remote.createBudget({ workUnits: 10 });
     const requestOptions = { operationKey, decisionEvidence };
     const requested = await root.request({ workUnits: 3 }, requestOptions);
@@ -338,6 +360,56 @@ describe("remote Budget reopen and operation recovery", () => {
       operationKey,
       decisionEvidence,
     });
+  });
+
+  it("reopens after creation permission is revoked without another validation query", async () => {
+    const methods: string[] = [];
+    const executor: RemoteCommandExecutor & { close(): Promise<void> } = {
+      async execute(procedure) {
+        methods.push(procedure.method);
+        if (procedure.method === "validateResources") {
+          return methods.length === 1
+            ? { ok: true, result: { valid: true } }
+            : {
+                ok: false,
+                error: {
+                  kind: "error",
+                  code: "unauthorized",
+                  details: {
+                    operation: "validateResources",
+                    requiredPermission: "remote_access",
+                  },
+                },
+              };
+        }
+        if (procedure.method !== "openBudget")
+          throw new Error(`unexpected operation ${procedure.method}`);
+        return {
+          ok: true,
+          result: {
+            budgetReference: rootReference,
+            budget: rootBudget("active", null),
+          },
+        };
+      },
+      async close() {},
+    };
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      await expect(
+        remote.openBudget({
+          reference: rootReference,
+          resourceTypes: resources,
+        }),
+      ).resolves.toMatchObject({ reference: rootReference });
+      expect(methods).toEqual(["validateResources", "openBudget"]);
+    } finally {
+      await remote.close();
+    }
   });
 
   it("reopens only the PostgreSQL-checked Resource binding", async () => {
@@ -375,7 +447,10 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const reopened = await remote.openBudget({
       reference: rootReference,
       resourceTypes: resources,
@@ -420,7 +495,10 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const recovered = [];
     for (let call = 0; call < results.length; call += 1) {
       recovered.push(await remote.recoverOperation(operationKey));
@@ -456,7 +534,10 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
       remote.createBudget({ workUnits: 10 }, { operationKey }),
@@ -484,7 +565,10 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
       remote.createBudget({ workUnits: 10 }, { operationKey }),
@@ -514,7 +598,10 @@ describe("remote Budget reopen and operation recovery", () => {
           };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
       remote.createBudget({ workUnits: 10 }, { operationKey }),
@@ -554,7 +641,10 @@ describe("remote Budget reopen and operation recovery", () => {
       });
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     const pending = remote.createBudget({ workUnits: 10 }, { operationKey });
     const expected = expect(pending).rejects.toMatchObject({
@@ -597,7 +687,10 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl, resources });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const root = await remote.createBudget({ workUnits: 10 });
 
     const snapshot = await root.inspect();

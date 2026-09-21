@@ -129,7 +129,7 @@ describe("path classification", () => {
 
   it.each([
     "packages/sdk/src/keynes.ts",
-    "packages/contracts/contract-tests/scenarios/create.ts",
+    "packages/database/contract-tests/scenarios/create.ts",
     "scripts/run-sqlite-postgres.ts",
     "scripts/classify-sqlite-postgres-changes.ts",
     ".github/workflows/ci.yml",

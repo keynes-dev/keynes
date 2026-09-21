@@ -8,7 +8,8 @@
     "./archive": "./src/archive.ts",
     "./package": "./src/package.ts",
     "./process": "./src/process.ts",
-    "./report": "./src/report.ts"
+    "./report": "./src/report.ts",
+    "./distribution": "./src/distribution.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit"

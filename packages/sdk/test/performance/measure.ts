@@ -10,7 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { arch, platform, release, tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -18,6 +18,8 @@ import {
   ARCHIVE_LIMIT_BYTES,
   PRODUCTION_LIMIT_BYTES,
   inspectArchive,
+  inspectNodeSqliteArchive,
+  type RuntimeArchiveInspection,
   installExternalConsumer,
 } from "../package/qualify.ts";
 
@@ -31,10 +33,17 @@ const COLD_WARMUP_PROCESSES = 3;
 
 export interface MeasurementArguments {
   readonly archivePath: string;
+  readonly nodeSqliteArchivePath: string;
   readonly outputPath: string;
 }
 
 export interface QualificationRecordInput {
+  readonly runtimeArchive: RuntimeArchiveInspection;
+  readonly installedPackages: {
+    readonly sdk: string;
+    readonly nodeSqlite: string;
+  };
+  readonly cleanup: "passed";
   readonly sourceRevision: {
     readonly commit: string;
     readonly cleanBefore: boolean;
@@ -92,7 +101,11 @@ export function parseMeasurementArguments(
   const normalized = args[0] === "--" ? args.slice(1) : args;
   const { tokens } = parseArgs({
     args: normalized,
-    options: { archive: { type: "string" }, output: { type: "string" } },
+    options: {
+      archive: { type: "string" },
+      output: { type: "string" },
+      "node-sqlite-archive": { type: "string" },
+    },
     allowPositionals: true,
     strict: false,
     tokens: true,
@@ -101,7 +114,11 @@ export function parseMeasurementArguments(
     if (token.kind === "positional")
       throw new Error(`Unknown argument ${token.value}`);
     if (token.kind !== "option") continue;
-    if (token.name !== "archive" && token.name !== "output")
+    if (
+      token.name !== "archive" &&
+      token.name !== "output" &&
+      token.name !== "node-sqlite-archive"
+    )
       throw new Error(`Unknown argument ${token.rawName}`);
     if (token.inlineValue === true)
       throw new Error(`Unknown argument ${normalized[token.index]}`);
@@ -117,11 +134,20 @@ export function parseMeasurementArguments(
     throw new Error("--archive may be provided only once");
   if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
+  const runtimeTokens = optionTokens.filter(
+    (token) => token.name === "node-sqlite-archive",
+  );
+  if (runtimeTokens.length > 1)
+    throw new Error("--node-sqlite-archive may be provided only once");
+  const runtime = runtimeTokens[0]?.value;
   const archive = archiveTokens[0]?.value;
   const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
   if (output === undefined) throw new Error("--output is required");
+  if (runtime === undefined)
+    throw new Error("--node-sqlite-archive is required");
   return {
+    nodeSqliteArchivePath: resolve(repositoryRoot, runtime),
     archivePath: resolve(repositoryRoot, archive),
     outputPath: resolve(repositoryRoot, output),
   };
@@ -151,6 +177,16 @@ export function nearestRankPercentile(
 
 export function createQualificationRecord(input: QualificationRecordInput) {
   if (
+    input.runtimeArchive?.name !== "@keynes/node-sqlite" ||
+    !/^[a-f0-9]{64}$/.test(input.runtimeArchive.sha256) ||
+    !Number.isSafeInteger(input.runtimeArchive.compressedBytes) ||
+    input.runtimeArchive.compressedBytes <= 0 ||
+    !input.runtimeArchive.packageVersion ||
+    !input.installedPackages ||
+    !isAbsolute(input.installedPackages.sdk) ||
+    !isAbsolute(input.installedPackages.nodeSqlite) ||
+    input.installedPackages.sdk === input.installedPackages.nodeSqlite ||
+    input.cleanup !== "passed" ||
     !/^[a-f0-9]{40}$/.test(input.sourceRevision.commit) ||
     typeof input.sourceRevision.cleanBefore !== "boolean" ||
     typeof input.sourceRevision.cleanAfter !== "boolean" ||
@@ -233,9 +269,12 @@ export function createQualificationRecord(input: QualificationRecordInput) {
     shutdownMilliseconds: [...input.samples.shutdownMilliseconds],
   };
   return {
-    schemaVersion: "keynes.package-test.sdk-measurement/v3" as const,
+    schemaVersion: "keynes.package-test.sdk-measurement/v4" as const,
     subject: "@keynes/sdk" as const,
     sourceRevision: { ...input.sourceRevision },
+    runtimeArchive: { ...input.runtimeArchive },
+    installedPackages: { ...input.installedPackages },
+    cleanup: input.cleanup,
     archive: {
       sha256: input.archive.sha256,
       compressedBytes: input.archive.compressedBytes,
@@ -243,6 +282,8 @@ export function createQualificationRecord(input: QualificationRecordInput) {
       packageVersion: input.archive.packageVersion,
       contractDigest: input.archive.contractDigest,
     },
+    selectedArchiveBytes:
+      input.archive.compressedBytes + input.runtimeArchive.compressedBytes,
     environment: { ...input.environment },
     method: { ...input.method },
     samples,
@@ -281,11 +322,7 @@ export function createQualificationRecord(input: QualificationRecordInput) {
 
 export function assertWithinLimits(record: SdkPackageMeasurementRecord): void {
   const inclusiveChecks = [
-    [
-      "archiveBytes",
-      record.archive.compressedBytes,
-      record.limits.archiveBytes,
-    ],
+    ["archiveBytes", record.selectedArchiveBytes, record.limits.archiveBytes],
     [
       "productionBytes",
       record.archive.productionBytes,
@@ -324,12 +361,17 @@ async function measure(
   await assertNewOutputPath(args.outputPath);
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
+  const runtimeArchive = await inspectNodeSqliteArchive(
+    args.nodeSqliteArchivePath,
+  );
   const offlineInstallMilliseconds = await measureFreshInstallations(
     args.archivePath,
+    args.nodeSqliteArchivePath,
   );
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
+    args.nodeSqliteArchivePath,
   );
   let measured: Omit<QualificationRecordInput, "sourceRevision"> | undefined;
   try {
@@ -366,6 +408,12 @@ async function measure(
     }
     const steady = runSteadyWorker(worker, external.root, runtimeIdentity);
     measured = {
+      runtimeArchive,
+      installedPackages: {
+        sdk: runtimeIdentity.sdkEntry,
+        nodeSqlite: runtimeIdentity.nodeSqliteEntry,
+      },
+      cleanup: "passed",
       archive: {
         sha256: archive.sha256,
         compressedBytes: archive.compressedBytes,
@@ -419,6 +467,11 @@ async function measure(
   ) {
     throw new Error("SDK archive changed during measurement");
   }
+  if (
+    (await inspectNodeSqliteArchive(args.nodeSqliteArchivePath)).sha256 !==
+    runtimeArchive.sha256
+  )
+    throw new Error("SQLite archive changed during measurement");
   const sourceAfter = readSourceRevision();
   if (
     sourceAfter.commit !== sourceBefore.commit ||
@@ -452,6 +505,7 @@ export async function writeMeasurementRecord(
 
 async function measureFreshInstallations(
   archivePath: string,
+  nodeSqliteArchivePath: string,
 ): Promise<number[]> {
   const root = await mkdtemp(
     resolve(tmpdir(), "keynes-sdk-install-measurement-"),
@@ -464,11 +518,18 @@ async function measureFreshInstallations(
       const consumer = resolve(root, String(index));
       await mkdir(consumer);
       await cp(archivePath, resolve(consumer, "keynes-sdk.tgz"));
+      await cp(
+        nodeSqliteArchivePath,
+        resolve(consumer, "keynes-node-sqlite.tgz"),
+      );
       await writeFile(
         resolve(consumer, "package.json"),
         JSON.stringify({
           private: true,
-          dependencies: { "@keynes/sdk": "file:./keynes-sdk.tgz" },
+          dependencies: {
+            "@keynes/sdk": "file:./keynes-sdk.tgz",
+            "@keynes/node-sqlite": "file:./keynes-node-sqlite.tgz",
+          },
         }),
       );
       const started = performance.now();
@@ -546,6 +607,8 @@ function runColdWorker(
     value.runtimeEngine !== "node:sqlite" ||
     typeof value.nodeVersion !== "string" ||
     typeof value.sqliteVersion !== "string" ||
+    typeof value.sdkEntry !== "string" ||
+    typeof value.nodeSqliteEntry !== "string" ||
     value.closed !== true
   ) {
     throw new Error("Cold measurement worker returned invalid output");
@@ -562,11 +625,15 @@ function runColdWorker(
       runtimeEngine: value.runtimeEngine,
       nodeVersion: value.nodeVersion,
       sqliteVersion: value.sqliteVersion,
+      sdkEntry: value.sdkEntry,
+      nodeSqliteEntry: value.nodeSqliteEntry,
     },
   };
 }
 
 interface RuntimeIdentity {
+  readonly sdkEntry: string;
+  readonly nodeSqliteEntry: string;
   readonly runtimeEngine: "node:sqlite";
   readonly nodeVersion: string;
   readonly sqliteVersion: string;
@@ -577,6 +644,8 @@ function assertSameRuntimeIdentity(
   actual: RuntimeIdentity,
 ): void {
   if (
+    actual.sdkEntry !== expected.sdkEntry ||
+    actual.nodeSqliteEntry !== expected.nodeSqliteEntry ||
     actual.runtimeEngine !== expected.runtimeEngine ||
     actual.nodeVersion !== expected.nodeVersion ||
     actual.sqliteVersion !== expected.sqliteVersion
@@ -593,6 +662,8 @@ function runSteadyWorker(path: string, cwd: string, identity: RuntimeIdentity) {
     value.runtimeEngine !== identity.runtimeEngine ||
     value.nodeVersion !== identity.nodeVersion ||
     value.sqliteVersion !== identity.sqliteVersion ||
+    value.sdkEntry !== identity.sdkEntry ||
+    value.nodeSqliteEntry !== identity.nodeSqliteEntry ||
     !isFiniteNonNegative(value.steadyElapsedMilliseconds) ||
     value.steadyElapsedMilliseconds <= 0 ||
     value.warmupCount !== 10 ||

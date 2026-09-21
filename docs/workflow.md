@@ -9,7 +9,7 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
 [ADR-0013](adr/0013-application-owned-policies.md) and constitution 12.0.0 adopt customer-owned policy evaluation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests or reject work; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove evaluation or grant authority.
 
 KEY-114 retired managed SQL Policies and added bounded caller evidence to the
-request contract. KEY-96 owns runtime/package separation. Customer evaluation,
+request contract. KEY-96 implements explicit runtime/package separation; its acceptance record tracks final qualification. Customer evaluation,
 optional toolkit contracts, configuration, and model integration remain
 separate from allocation. No mandatory policy callback, result type, or
 transaction manager is introduced.
@@ -26,12 +26,7 @@ Reconcile conflicting active feature artifacts when resumed, including KEY-85 li
 
 ## CLI and generated types
 
-The target developer application lives in `apps/cli`, publishes as `@keynes/cli`
-and exposes `keynes`. KEY-96 owns the application/installation boundary; KEY-108
-owns remote Resource catalog discovery, application type generation, Resource definition deployment
-and compatibility checks. These commands are not implemented by this documentation.
-The existing `keynes-postgresql` installer remains the executable contract until
-its replacement lands.
+The private `apps/cli` archive is `@keynes/cli` and exposes `keynes install --config <path>`. It replaces `keynes-postgresql` and delegates installation to `@keynes/postgres/install`. KEY-108 still owns Resource catalog discovery, application type generation, definition deployment and catalog compatibility commands.
 
 Customer evaluation and hosted evaluator deployments are separate from database
 Resource provisioning. The runtime has no managed Policy
@@ -159,22 +154,11 @@ KEY-91 provides focused feedback using existing tests and runners. The reduction
 preparation or services. Native selections reuse the existing PostgreSQL runner.
 Remote defaults to all modes and permits explicit `--mode` selection; Embedded
 starts zero poolers. Results use ordinary test output and state their scope.
-No new selected-manifest or TLS fixture system belongs in these commands.
+These are feedback commands, not a substitute for exact-archive acceptance.
 
-KEY-60 removes package preparation from Remote and Embedded feedback. These
-commands use the existing source PostgreSQL installer and install each ordinary
-fixture once. Full native acceptance still prepares one archive and installed
-consumer, exercises the existing packed CLI callers, and checks packed no-op
-behavior in the dedicated installation test. Both paths use the existing Docker
-runner with explicit loopback publication. The Testcontainers pilot was rejected
-and removed; no new dependency or Docker daemon configuration is required.
+Remote and Embedded feedback use source adapters and the source PostgreSQL installer, installing each ordinary fixture once. Full native acceptance uses the selected SDK/PostgreSQL archives for public owned and borrowed calls, plus a separately installed CLI archive for executable tests. It covers verified TLS, caller transactions and installation refusal/no-op behavior. Both paths reuse the Docker runner with explicit loopback publication. OpenSSL creates certificates for its disposable TLS fixture. The historical Testcontainers pilot remains removed.
 
-Existing SDK package qualification and the full paired gate remain separate
-acceptance commands with their current evidence requirements. Installed remote
-SDK acceptance beyond existing qualification is deferred. Installed Embedded
-remains NOT RUN pending KEY-10/KEY-11; actual Hosted remains NOT RUN pending its
-product environment and operating contract. The Hosted command only
-prints its unavailable reason and exits 1, acquiring no resources.
+SDK package qualification and the paired gate remain separate acceptance commands. KEY-96 adds exact installed public owned/borrowed PostgreSQL coverage; that does not qualify full Embedded recovery or a managed Hosted product. Actual Hosted remains NOT RUN pending its product environment and operating contract. The Hosted command prints its unavailable reason and exits 1 without acquiring resources.
 
 See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md)
 for target selection and the [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md)
@@ -238,13 +222,21 @@ Run qualification explicitly when making package or deployment acceptance claims
 pnpm test:sqlite-postgres -- --output ".artifacts/sqlite-postgres/$(node -p 'crypto.randomUUID()')"
 ```
 
-Use a clean checkout, frozen dependencies, supported Node.js, pnpm and Docker. The
+Use a clean checkout, frozen dependencies, supported Node.js, pnpm, Docker and OpenSSL. The
 output directory must be new. The paired manifest identifies the revision, attempt,
 environment and retained file hashes. SQLite and PostgreSQL reports record scenario
 results; native observations include startup and cleanup. Failed attempts cannot
 qualify. The manual workflow retains the five evidence files for 14 days and checks
 its upload receipt. Retain durable acceptance copies before expiry. Native-only
 qualification remains `pnpm test:system:postgresql -- --output <new-result-file>`.
+
+For package separation, run the four consumer combinations against one selected archive set:
+
+```sh
+pnpm test:package:split -- --output ".artifacts/key-96-packages/$(node -p 'crypto.randomUUID()')"
+```
+
+The runner builds and packs the SDK, SQLite runtime, PostgreSQL runtime and CLI once per attempt. Existing lanes install those exact archives in clean external directories; SDK-only, SDK+SQLite, SDK+PostgreSQL and CLI+dependencies are separate consumer combinations. Native public calls and CLI installation use the same archive set. Retain the attempt's archive hashes, installed realpaths and terminal cleanup results. See the [KEY-96 validation guide](features/key-96-separate-sdk-and-database-runtime-packages/quickstart.md) and its [acceptance record](features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md) for executed evidence and outstanding lanes.
 
 Branch protection still requires both historical check names and up-to-date
 candidates. Workflow YAML does not prove hosted enforcement. Shared behavior features

@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   validateErrorEnvelope,
   validateGetBudgetHistoryPageResult,
-  validateOpenBudgetQueryIssues,
   validateRecoverOperationResult,
   validateRemoteErrorEnvelope,
-  validateRemoteRequestBudgetCommandIssues,
 } from "../../../src/generated/validators.js";
 
 describe("generated remote validators", () => {
@@ -96,33 +94,8 @@ describe("generated remote validators", () => {
     ).toBe(false);
   });
 
-  it("enforces bounded remote inputs and history pages", () => {
-    const operationKey = `kop_v1_${"a".repeat(43)}`;
+  it("enforces bounded history-page replies", () => {
     const budgetReference = `kbr_v1_${"b".repeat(43)}`;
-    const request = {
-      operationKey,
-      parentBudgetReference: budgetReference,
-      resources: [{ resource: "model_tokens", amount: 1 }],
-    };
-    const definitions = Array.from({ length: 65 }, (_, index) => ({
-      canonicalName: `resource_${index}`,
-      unit: "token",
-      accountingBehavior: "consumable",
-    }));
-
-    expect(
-      validateOpenBudgetQueryIssues({
-        budgetReference,
-        expectedResources: definitions,
-      }),
-    ).toContainEqual({ path: "/expectedResources", rule: "maxItems" });
-    expect(
-      validateRemoteRequestBudgetCommandIssues({
-        ...request,
-        context: { Invalid: true },
-      }),
-    ).toContainEqual({ path: "/context", rule: "additionalProperties" });
-
     const entry = {
       kind: "budget_created",
       sequence: 1,

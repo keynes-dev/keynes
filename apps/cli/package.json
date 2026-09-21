@@ -1,0 +1,32 @@
+{
+  "name": "@keynes/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "bin": {
+    "keynes": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "prepack": "pnpm build",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run test/package/entrypoints.test.ts --maxWorkers=1",
+    "test:package": "node test/package/run.ts"
+  },
+  "dependencies": {
+    "@keynes/postgres": "workspace:*"
+  },
+  "devDependencies": {
+    "@keynes/testkit": "workspace:*",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

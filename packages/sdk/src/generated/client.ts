@@ -2,42 +2,25 @@
 
 import type { CommandExecutor } from "../command-executor.js";
 import type {
-  DefineResourceTypeCommand,
   DefineResourceTypeResult,
-  DefineResourcesCommand,
   DefineResourcesResult,
-  ValidateResourcesQuery,
   ValidateResourcesResult,
-  CreateBudgetCommand,
   CreateBudgetResult,
-  RequestBudgetCommand,
   RequestBudgetResult,
-  SettleBudgetCommand,
   SettleBudgetResult,
-  GetBudgetQuery,
   GetBudgetResult,
-  RemoteDefineResourcesCommand,
   RemoteDefineResourcesResult,
-  RemoteCreateBudgetCommand,
   RemoteCreateBudgetResult,
-  RemoteRequestBudgetCommand,
   RemoteRequestBudgetResult,
-  RemoteSettleBudgetCommand,
   RemoteSettleBudgetResult,
-  RemoteGetBudgetQuery,
   RemoteGetBudgetResult,
-  GetBudgetHistoryPageQuery,
   GetBudgetHistoryPageResult,
-  OpenBudgetQuery,
   OpenBudgetResult,
-  RecoverOperationQuery,
   RecoverOperationResult,
-  GetCompatibilityQuery,
   GetCompatibilityResult,
   ErrorEnvelope,
   OperationName,
   RemoteErrorEnvelope,
-  RemoteProcedureName,
 } from "./types.js";
 import {
   validateDefineResourceTypeResult,
@@ -47,30 +30,18 @@ import {
   validateRequestBudgetResult,
   validateSettleBudgetResult,
   validateGetBudgetResult,
-  validateRemoteDefineResourcesCommandIssues,
   validateRemoteDefineResourcesResult,
-  validateValidateResourcesQueryIssues,
-  validateRemoteCreateBudgetCommandIssues,
   validateRemoteCreateBudgetResult,
-  validateRemoteRequestBudgetCommandIssues,
   validateRemoteRequestBudgetResult,
-  validateRemoteSettleBudgetCommandIssues,
   validateRemoteSettleBudgetResult,
-  validateRemoteGetBudgetQueryIssues,
   validateRemoteGetBudgetResult,
-  validateGetBudgetHistoryPageQueryIssues,
   validateGetBudgetHistoryPageResult,
-  validateOpenBudgetQueryIssues,
   validateOpenBudgetResult,
-  validateRecoverOperationQueryIssues,
   validateRecoverOperationResult,
-  validateGetCompatibilityQueryIssues,
   validateGetCompatibilityResult,
-  validateOperationInputIssues,
   validateRemoteErrorEnvelope,
   validateErrorEnvelope,
 } from "./validators.js";
-import type { ValidationIssue } from "./validators.js";
 
 export const CONTRACT_DIGEST =
   "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766";
@@ -242,19 +213,13 @@ const resultFieldRank = new Map(
 );
 
 export interface KeynesClient {
-  defineResource(
-    input: DefineResourceTypeCommand,
-  ): Promise<DefineResourceTypeResult>;
-  defineResources(
-    input: DefineResourcesCommand,
-  ): Promise<DefineResourcesResult>;
-  validateResources(
-    input: ValidateResourcesQuery,
-  ): Promise<ValidateResourcesResult>;
-  createBudget(input: CreateBudgetCommand): Promise<CreateBudgetResult>;
-  requestBudget(input: RequestBudgetCommand): Promise<RequestBudgetResult>;
-  settleBudget(input: SettleBudgetCommand): Promise<SettleBudgetResult>;
-  getBudget(input: GetBudgetQuery): Promise<GetBudgetResult>;
+  defineResource(input: unknown): Promise<DefineResourceTypeResult>;
+  defineResources(input: unknown): Promise<DefineResourcesResult>;
+  validateResources(input: unknown): Promise<ValidateResourcesResult>;
+  createBudget(input: unknown): Promise<CreateBudgetResult>;
+  requestBudget(input: unknown): Promise<RequestBudgetResult>;
+  settleBudget(input: unknown): Promise<SettleBudgetResult>;
+  getBudget(input: unknown): Promise<GetBudgetResult>;
 }
 
 export class KeynesError extends Error {
@@ -281,20 +246,6 @@ interface Invocation<Output> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function invalidCommand(
-  operation: OperationName,
-  issues: readonly ValidationIssue[],
-): KeynesError {
-  const [first, ...rest] = issues;
-  if (first === undefined)
-    throw new Error("invalid command has no validation issues");
-  return new KeynesError({
-    kind: "error",
-    code: "invalid_command",
-    details: { operation, issues: [first, ...rest] },
-  });
 }
 
 function orderResult<Value>(value: Value, preserveAsciiOrder = false): Value {
@@ -354,14 +305,8 @@ async function invoke<Output>(invocation: Invocation<Output>): Promise<Output> {
 
 export function createKeynesClient(executor: CommandExecutor): KeynesClient {
   return {
-    async defineResource(
-      input: DefineResourceTypeCommand,
-    ): Promise<DefineResourceTypeResult> {
+    async defineResource(input: unknown): Promise<DefineResourceTypeResult> {
       const operation = "defineResource";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -370,14 +315,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async defineResources(
-      input: DefineResourcesCommand,
-    ): Promise<DefineResourcesResult> {
+    async defineResources(input: unknown): Promise<DefineResourcesResult> {
       const operation = "defineResources";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -386,14 +325,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async validateResources(
-      input: ValidateResourcesQuery,
-    ): Promise<ValidateResourcesResult> {
+    async validateResources(input: unknown): Promise<ValidateResourcesResult> {
       const operation = "validateResources";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -402,14 +335,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: false,
       });
     },
-    async createBudget(
-      input: CreateBudgetCommand,
-    ): Promise<CreateBudgetResult> {
+    async createBudget(input: unknown): Promise<CreateBudgetResult> {
       const operation = "createBudget";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -418,14 +345,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async requestBudget(
-      input: RequestBudgetCommand,
-    ): Promise<RequestBudgetResult> {
+    async requestBudget(input: unknown): Promise<RequestBudgetResult> {
       const operation = "requestBudget";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -434,14 +355,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async settleBudget(
-      input: SettleBudgetCommand,
-    ): Promise<SettleBudgetResult> {
+    async settleBudget(input: unknown): Promise<SettleBudgetResult> {
       const operation = "settleBudget";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -450,12 +365,8 @@ export function createKeynesClient(executor: CommandExecutor): KeynesClient {
         replay: true,
       });
     },
-    async getBudget(input: GetBudgetQuery): Promise<GetBudgetResult> {
+    async getBudget(input: unknown): Promise<GetBudgetResult> {
       const operation = "getBudget";
-      const issues = validateOperationInputIssues(operation, input);
-      if (issues.length > 0) {
-        throw invalidCommand(operation, issues);
-      }
       return invoke({
         executor,
         operation,
@@ -478,32 +389,16 @@ export interface RemoteCommandExecutor {
 }
 
 export interface RemoteKeynesClient {
-  defineResources(
-    input: RemoteDefineResourcesCommand,
-  ): Promise<RemoteDefineResourcesResult>;
-  validateResources(
-    input: ValidateResourcesQuery,
-  ): Promise<ValidateResourcesResult>;
-  createBudget(
-    input: RemoteCreateBudgetCommand,
-  ): Promise<RemoteCreateBudgetResult>;
-  requestBudget(
-    input: RemoteRequestBudgetCommand,
-  ): Promise<RemoteRequestBudgetResult>;
-  settleBudget(
-    input: RemoteSettleBudgetCommand,
-  ): Promise<RemoteSettleBudgetResult>;
-  getBudget(input: RemoteGetBudgetQuery): Promise<RemoteGetBudgetResult>;
-  getBudgetHistoryPage(
-    input: GetBudgetHistoryPageQuery,
-  ): Promise<GetBudgetHistoryPageResult>;
-  openBudget(input: OpenBudgetQuery): Promise<OpenBudgetResult>;
-  recoverOperation(
-    input: RecoverOperationQuery,
-  ): Promise<RecoverOperationResult>;
-  getCompatibility(
-    input: GetCompatibilityQuery,
-  ): Promise<GetCompatibilityResult>;
+  defineResources(input: unknown): Promise<RemoteDefineResourcesResult>;
+  validateResources(input: unknown): Promise<ValidateResourcesResult>;
+  createBudget(input: unknown): Promise<RemoteCreateBudgetResult>;
+  requestBudget(input: unknown): Promise<RemoteRequestBudgetResult>;
+  settleBudget(input: unknown): Promise<RemoteSettleBudgetResult>;
+  getBudget(input: unknown): Promise<RemoteGetBudgetResult>;
+  getBudgetHistoryPage(input: unknown): Promise<GetBudgetHistoryPageResult>;
+  openBudget(input: unknown): Promise<OpenBudgetResult>;
+  recoverOperation(input: unknown): Promise<RecoverOperationResult>;
+  getCompatibility(input: unknown): Promise<GetCompatibilityResult>;
 }
 
 interface RemoteInvocation<Output> {
@@ -511,21 +406,6 @@ interface RemoteInvocation<Output> {
   readonly procedure: RemoteProcedureDescriptor;
   readonly input: unknown;
   readonly validateOutput: OutputValidator<Output>;
-}
-
-function invalidRemoteCommand(
-  operation: RemoteProcedureName,
-  issues: readonly ValidationIssue[],
-): KeynesError {
-  const [first, ...rest] = issues;
-  if (first === undefined) {
-    throw new Error("invalid remote command has no validation issues");
-  }
-  return new KeynesError({
-    kind: "error",
-    code: "invalid_command",
-    details: { operation, issues: [first, ...rest] },
-  });
 }
 
 async function invokeRemote<Output>(
@@ -561,13 +441,9 @@ export function createRemoteKeynesClient(
 ): RemoteKeynesClient {
   return {
     async defineResources(
-      input: RemoteDefineResourcesCommand,
+      input: unknown,
     ): Promise<RemoteDefineResourcesResult> {
       const procedure = REMOTE_CONTRACT.procedures[0];
-      const issues = validateRemoteDefineResourcesCommandIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -575,14 +451,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateRemoteDefineResourcesResult,
       });
     },
-    async validateResources(
-      input: ValidateResourcesQuery,
-    ): Promise<ValidateResourcesResult> {
+    async validateResources(input: unknown): Promise<ValidateResourcesResult> {
       const procedure = REMOTE_CONTRACT.procedures[1];
-      const issues = validateValidateResourcesQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -590,14 +460,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateValidateResourcesResult,
       });
     },
-    async createBudget(
-      input: RemoteCreateBudgetCommand,
-    ): Promise<RemoteCreateBudgetResult> {
+    async createBudget(input: unknown): Promise<RemoteCreateBudgetResult> {
       const procedure = REMOTE_CONTRACT.procedures[2];
-      const issues = validateRemoteCreateBudgetCommandIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -605,14 +469,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateRemoteCreateBudgetResult,
       });
     },
-    async requestBudget(
-      input: RemoteRequestBudgetCommand,
-    ): Promise<RemoteRequestBudgetResult> {
+    async requestBudget(input: unknown): Promise<RemoteRequestBudgetResult> {
       const procedure = REMOTE_CONTRACT.procedures[3];
-      const issues = validateRemoteRequestBudgetCommandIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -620,14 +478,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateRemoteRequestBudgetResult,
       });
     },
-    async settleBudget(
-      input: RemoteSettleBudgetCommand,
-    ): Promise<RemoteSettleBudgetResult> {
+    async settleBudget(input: unknown): Promise<RemoteSettleBudgetResult> {
       const procedure = REMOTE_CONTRACT.procedures[4];
-      const issues = validateRemoteSettleBudgetCommandIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -635,14 +487,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateRemoteSettleBudgetResult,
       });
     },
-    async getBudget(
-      input: RemoteGetBudgetQuery,
-    ): Promise<RemoteGetBudgetResult> {
+    async getBudget(input: unknown): Promise<RemoteGetBudgetResult> {
       const procedure = REMOTE_CONTRACT.procedures[5];
-      const issues = validateRemoteGetBudgetQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -651,13 +497,9 @@ export function createRemoteKeynesClient(
       });
     },
     async getBudgetHistoryPage(
-      input: GetBudgetHistoryPageQuery,
+      input: unknown,
     ): Promise<GetBudgetHistoryPageResult> {
       const procedure = REMOTE_CONTRACT.procedures[6];
-      const issues = validateGetBudgetHistoryPageQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -665,12 +507,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateGetBudgetHistoryPageResult,
       });
     },
-    async openBudget(input: OpenBudgetQuery): Promise<OpenBudgetResult> {
+    async openBudget(input: unknown): Promise<OpenBudgetResult> {
       const procedure = REMOTE_CONTRACT.procedures[7];
-      const issues = validateOpenBudgetQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -678,14 +516,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateOpenBudgetResult,
       });
     },
-    async recoverOperation(
-      input: RecoverOperationQuery,
-    ): Promise<RecoverOperationResult> {
+    async recoverOperation(input: unknown): Promise<RecoverOperationResult> {
       const procedure = REMOTE_CONTRACT.procedures[8];
-      const issues = validateRecoverOperationQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,
@@ -693,14 +525,8 @@ export function createRemoteKeynesClient(
         validateOutput: validateRecoverOperationResult,
       });
     },
-    async getCompatibility(
-      input: GetCompatibilityQuery,
-    ): Promise<GetCompatibilityResult> {
+    async getCompatibility(input: unknown): Promise<GetCompatibilityResult> {
       const procedure = REMOTE_CONTRACT.procedures[9];
-      const issues = validateGetCompatibilityQueryIssues(input);
-      if (issues.length > 0) {
-        throw invalidRemoteCommand(procedure.method, issues);
-      }
       return invokeRemote({
         executor,
         procedure,

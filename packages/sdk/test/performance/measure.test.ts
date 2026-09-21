@@ -25,6 +25,35 @@ afterEach(async () => {
 });
 
 describe("SDK package measurement controller", () => {
+  it("requires an explicitly selected SQLite archive for measurement", () => {
+    expect(() =>
+      parseMeasurementArguments([
+        "--archive",
+        "sdk.tgz",
+        "--output",
+        "result.json",
+      ]),
+    ).toThrow("--node-sqlite-archive");
+  });
+
+  it("refuses a measurement without its selected runtime archive identity", () => {
+    expect(() =>
+      Reflect.apply(createQualificationRecord, undefined, [
+        { ...validRecordInput(), runtimeArchive: undefined },
+      ]),
+    ).toThrow("identity");
+  });
+  it("applies the archive ceiling to the selected SDK and SQLite total", () => {
+    const input = validRecordInput();
+    const record = createQualificationRecord({
+      ...input,
+      runtimeArchive: { ...input.runtimeArchive, compressedBytes: 1024 * 1024 },
+    });
+    expect(record.selectedArchiveBytes).toBe(
+      input.archive.compressedBytes + 1024 * 1024,
+    );
+    expect(() => assertWithinLimits(record)).toThrow("archiveBytes");
+  });
   it("requires one archive and one output and rejects unknown arguments", () => {
     expect(() => parseMeasurementArguments([])).toThrow("--archive");
     expect(() => parseMeasurementArguments(["--archive", "sdk.tgz"])).toThrow(
@@ -58,7 +87,7 @@ describe("SDK package measurement controller", () => {
     const input = validRecordInput();
     const record = createQualificationRecord(input);
     expect(record).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk-measurement/v3",
+      schemaVersion: "keynes.package-test.sdk-measurement/v4",
       subject: "@keynes/sdk",
       outcome: "passed",
       exclusions: {
@@ -198,6 +227,17 @@ describe("SDK package measurement controller", () => {
   it("rejects invalid or inconsistent evidence identity and method", () => {
     const input = validRecordInput();
     for (const changed of [
+      {
+        ...input,
+        runtimeArchive: { ...input.runtimeArchive, sha256: "wrong" },
+      },
+      {
+        ...input,
+        installedPackages: {
+          ...input.installedPackages,
+          nodeSqlite: input.installedPackages.sdk,
+        },
+      },
       { ...input, archive: { ...input.archive, sha256: "wrong" } },
       { ...input, archive: { ...input.archive, compressedBytes: Number.NaN } },
       {
@@ -262,6 +302,20 @@ describe("SDK package measurement controller", () => {
 
 function validRecordInput(): QualificationRecordInput {
   return {
+    runtimeArchive: {
+      name: "@keynes/node-sqlite",
+      sha256: "b".repeat(64),
+      compressedBytes: 100,
+      packageVersion: "0.0.0",
+    },
+    installedPackages: {
+      sdk: resolve(tmpdir(), "consumer/node_modules/@keynes/sdk/dist/index.js"),
+      nodeSqlite: resolve(
+        tmpdir(),
+        "consumer/node_modules/@keynes/node-sqlite/dist/index.js",
+      ),
+    },
+    cleanup: "passed",
     sourceRevision: {
       commit: "c".repeat(40),
       cleanBefore: true,

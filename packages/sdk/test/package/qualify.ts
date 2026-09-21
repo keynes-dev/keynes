@@ -30,32 +30,6 @@ const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 export const ARCHIVE_LIMIT_BYTES = 1024 * 1024;
 export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 
-const expectedProductionDependencies = {
-  pg: "8.23.0",
-  "pg-cloudflare": "1.4.0",
-  "pg-connection-string": "2.14.0",
-  "pg-int8": "1.0.1",
-  "pg-pool": "3.14.0",
-  "pg-protocol": "1.16.0",
-  "pg-types": "2.2.0",
-  pgpass: "1.0.5",
-  "postgres-array": "2.0.0",
-  "postgres-bytea": "1.0.1",
-  "postgres-date": "1.0.7",
-  "postgres-interval": "1.2.0",
-  split2: "4.2.0",
-  xtend: "4.0.2",
-} as const;
-const expectedBundledDependencies = Object.keys(
-  expectedProductionDependencies,
-).sort();
-const bundledPackageRoots = expectedBundledDependencies.map(
-  (name) => `package/node_modules/${name}`,
-);
-const requiredBundledPackageFiles = expectedBundledDependencies.map(
-  (name) => `package/node_modules/${name}/package.json`,
-);
-
 const allowedPackageFiles = [
   "package/LICENSE",
   "package/README.md",
@@ -68,11 +42,11 @@ const allowedPackageFiles = [
 
 export interface QualificationArguments {
   readonly archivePath: string;
+  readonly nodeSqliteArchivePath?: string;
   readonly outputPath?: string;
-  readonly authorizedDatabase?: true;
 }
 
-const PROVIDER_FREE_PACKAGE_CHECKS = [
+export const PROVIDER_FREE_PACKAGE_CHECKS = [
   "public-types",
   "package-root-import",
   "remote-exports",
@@ -86,12 +60,19 @@ const PROVIDER_FREE_PACKAGE_CHECKS = [
   "deep-imports-blocked",
 ] as const;
 
-type PackageCheck =
-  | (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number]
-  | "authorized-database-walkthrough";
+export const SDK_ONLY_PACKAGE_CHECKS = [
+  "public-types",
+  "package-root-import",
+  "remote-exports",
+  "configuration-rejection",
+  "environment-isolation",
+  "deep-imports-blocked",
+] as const;
+
+type PackageCheck = (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number];
 
 export interface QualificationResult {
-  readonly schemaVersion: "keynes.package-test.sdk/v1";
+  readonly schemaVersion: "keynes.package-test.sdk/v2";
   readonly subject: "@keynes/sdk";
   readonly sourceRevision: {
     readonly commit: string;
@@ -105,6 +86,12 @@ export interface QualificationResult {
     readonly packageVersion: string;
     readonly contractDigest: string;
   };
+  readonly runtimeArchive?: RuntimeArchiveInspection;
+  readonly installedPackages: {
+    readonly sdk: string;
+    readonly nodeSqlite?: string;
+  };
+  readonly cleanup: "passed";
   readonly environment: {
     readonly node: string;
     readonly pnpm: string;
@@ -130,7 +117,18 @@ export interface ArchiveInspection {
   readonly contractDigest: string;
 }
 
+export interface RuntimeArchiveInspection {
+  readonly name: "@keynes/node-sqlite";
+  readonly sha256: string;
+  readonly compressedBytes: number;
+  readonly packageVersion: string;
+}
+
 export interface ExternalConsumer {
+  readonly installedPackages: {
+    readonly sdk: string;
+    readonly nodeSqlite?: string;
+  };
   readonly root: string;
   readonly productionBytes: number;
   readonly close: () => Promise<void>;
@@ -144,8 +142,8 @@ export function parseArguments(
     args: normalized,
     options: {
       archive: { type: "string" },
+      "node-sqlite-archive": { type: "string" },
       output: { type: "string" },
-      "authorized-database": { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -157,13 +155,12 @@ export function parseArguments(
     if (token.kind !== "option") continue;
     if (
       token.name !== "archive" &&
-      token.name !== "output" &&
-      token.name !== "authorized-database"
+      token.name !== "node-sqlite-archive" &&
+      token.name !== "output"
     )
       throw new Error(`Unknown argument ${token.rawName}`);
     if (token.inlineValue === true)
       throw new Error(`Unknown argument ${normalized[token.index]}`);
-    if (token.name === "authorized-database") continue;
     if (token.value === undefined || token.value.startsWith("--"))
       throw new Error(`${token.rawName} requires a path`);
   }
@@ -172,26 +169,27 @@ export function parseArguments(
     (token) => token.name === "archive",
   );
   const outputTokens = optionTokens.filter((token) => token.name === "output");
-  const authorizedDatabaseTokens = optionTokens.filter(
-    (token) => token.name === "authorized-database",
-  );
   if (archiveTokens.length > 1)
     throw new Error("--archive may be provided only once");
   if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
-  if (authorizedDatabaseTokens.length > 1)
-    throw new Error("--authorized-database may be provided only once");
+  const runtimeTokens = optionTokens.filter(
+    (token) => token.name === "node-sqlite-archive",
+  );
+  if (runtimeTokens.length > 1)
+    throw new Error("--node-sqlite-archive may be provided only once");
+  const nodeSqliteArchive = runtimeTokens[0]?.value;
   const archive = archiveTokens[0]?.value;
   const output = outputTokens[0]?.value;
   if (archive === undefined) throw new Error("--archive is required");
   return {
     archivePath: resolve(repositoryRoot, archive),
+    ...(nodeSqliteArchive === undefined
+      ? {}
+      : { nodeSqliteArchivePath: resolve(repositoryRoot, nodeSqliteArchive) }),
     ...(output === undefined
       ? {}
       : { outputPath: resolve(repositoryRoot, output) }),
-    ...(authorizedDatabaseTokens.length === 0
-      ? {}
-      : { authorizedDatabase: true as const }),
   };
 }
 
@@ -199,21 +197,13 @@ export function validatePackageFilePaths(paths: readonly string[]): void {
   const actual = [...paths].sort();
   const unknown = actual.find(
     (path) =>
-      path.split("/").includes("..") ||
-      (!allowedPackageFiles.includes(path) &&
-        !bundledPackageRoots.some((root) => path.startsWith(`${root}/`))),
+      path.split("/").includes("..") || !allowedPackageFiles.includes(path),
   );
   if (unknown !== undefined)
     throw new Error(`Archive contains forbidden file ${unknown}`);
   const missing = allowedPackageFiles.find((path) => !actual.includes(path));
   if (missing !== undefined)
     throw new Error(`Archive is missing required file ${missing}`);
-  const missingBundledFile = requiredBundledPackageFiles.find(
-    (path) => !actual.includes(path),
-  );
-  if (missingBundledFile !== undefined) {
-    throw new Error(`Archive is missing required file ${missingBundledFile}`);
-  }
   if (new Set(actual).size !== actual.length) {
     throw new Error("Archive contains duplicate file paths");
   }
@@ -248,6 +238,10 @@ export async function qualifyArchive(
 ): Promise<QualificationResult> {
   const sourceBefore = readSourceRevision();
   const archive = await inspectArchive(args.archivePath);
+  const runtimeArchive =
+    args.nodeSqliteArchivePath === undefined
+      ? undefined
+      : await inspectNodeSqliteArchive(args.nodeSqliteArchivePath);
   validateSizes({
     compressedBytes: archive.compressedBytes,
     productionBytes: 0,
@@ -256,6 +250,7 @@ export async function qualifyArchive(
   const external = await installExternalConsumer(
     args.archivePath,
     archive.compressedBytes,
+    args.nodeSqliteArchivePath,
   );
   const consumer = resolve(external.root, "build/consumer.mjs");
   const execution = await Promise.resolve()
@@ -264,22 +259,24 @@ export async function qualifyArchive(
         resolve(external.root, "build/private-imports.mjs"),
         external.root,
       );
-      for (const name of [
-        "remote-exports",
-        "configuration-rejection",
-        "environment-isolation",
-        "budget-loop",
-        "application-request",
-        "isolation",
-        "closure",
-      ])
+      for (const name of args.nodeSqliteArchivePath === undefined
+        ? ["remote-exports", "configuration-rejection", "environment-isolation"]
+        : [
+            "remote-exports",
+            "configuration-rejection",
+            "environment-isolation",
+            "budget-loop",
+            "application-request",
+            "isolation",
+            "closure",
+          ])
         runConsumer(consumer, name, external.root);
-      assertProcessState(
-        runConsumer(consumer, "write-then-exit", external.root),
-      );
-      runConsumer(consumer, "read-after-restart", external.root);
-      if (args.authorizedDatabase === true)
-        runConsumer(consumer, "authorized-database", external.root, true);
+      if (args.nodeSqliteArchivePath !== undefined) {
+        assertProcessState(
+          runConsumer(consumer, "write-then-exit", external.root),
+        );
+        runConsumer(consumer, "read-after-restart", external.root);
+      }
     })
     .then(
       () => ({ kind: "passed" }) as const,
@@ -296,6 +293,14 @@ export async function qualifyArchive(
     throw cleanup;
   }
   if (execution.kind === "failed") throw execution.error;
+  if (
+    (await inspectArchive(args.archivePath)).sha256 !== archive.sha256 ||
+    (args.nodeSqliteArchivePath !== undefined &&
+      (await inspectNodeSqliteArchive(args.nodeSqliteArchivePath)).sha256 !==
+        runtimeArchive?.sha256)
+  ) {
+    throw new Error("Selected archive changed during qualification");
+  }
   const productionBytes = external.productionBytes;
   const sourceAfter = readSourceRevision();
   if (
@@ -305,7 +310,7 @@ export async function qualifyArchive(
     throw new Error("SDK package-test source revision changed");
   }
   return {
-    schemaVersion: "keynes.package-test.sdk/v1",
+    schemaVersion: "keynes.package-test.sdk/v2",
     subject: "@keynes/sdk",
     sourceRevision: {
       commit: sourceBefore.commit,
@@ -319,6 +324,9 @@ export async function qualifyArchive(
       packageVersion: archive.packageVersion,
       contractDigest: archive.contractDigest,
     },
+    ...(runtimeArchive === undefined ? {} : { runtimeArchive }),
+    installedPackages: external.installedPackages,
+    cleanup: "passed",
     environment: {
       node: process.version,
       pnpm: run(pnpm, ["--version"], repositoryRoot).trim(),
@@ -327,10 +335,9 @@ export async function qualifyArchive(
       architecture: arch(),
     },
     checks: [
-      ...PROVIDER_FREE_PACKAGE_CHECKS,
-      ...(args.authorizedDatabase === true
-        ? (["authorized-database-walkthrough"] as const)
-        : []),
+      ...(args.nodeSqliteArchivePath === undefined
+        ? SDK_ONLY_PACKAGE_CHECKS
+        : PROVIDER_FREE_PACKAGE_CHECKS),
     ],
     outcome: "passed",
     exclusions: {
@@ -369,13 +376,17 @@ function readSourceRevision(): {
 export async function installExternalConsumer(
   archivePath: string,
   compressedBytes: number,
+  nodeSqliteArchivePath?: string,
 ): Promise<ExternalConsumer> {
   await mkdir(tmpdir(), { recursive: true });
   const root = await mkdtemp(resolve(tmpdir(), "keynes-sdk-package-test-"));
   assertOutsideRepository(repositoryRoot, root);
   try {
     await cp(
-      resolve(installRoot, "consumer.mts"),
+      resolve(
+        installRoot,
+        nodeSqliteArchivePath === undefined ? "sdk-only.mts" : "consumer.mts",
+      ),
       resolve(root, "consumer.mts"),
     );
     await cp(
@@ -400,13 +411,20 @@ export async function installExternalConsumer(
       resolve(root, "compatibility/configured-resources.mts"),
     );
     await cp(archivePath, resolve(root, "keynes-sdk.tgz"));
+    if (nodeSqliteArchivePath !== undefined)
+      await cp(nodeSqliteArchivePath, resolve(root, "keynes-node-sqlite.tgz"));
     await writeFile(
       resolve(root, "package.json"),
       `${JSON.stringify(
         {
           private: true,
           type: "module",
-          dependencies: { "@keynes/sdk": "file:./keynes-sdk.tgz" },
+          dependencies: {
+            "@keynes/sdk": "file:./keynes-sdk.tgz",
+            ...(nodeSqliteArchivePath === undefined
+              ? {}
+              : { "@keynes/node-sqlite": "file:./keynes-node-sqlite.tgz" }),
+          },
         },
         null,
         2,
@@ -429,17 +447,15 @@ export async function installExternalConsumer(
     const installedPackage = await realpath(
       resolve(root, "node_modules/@keynes/sdk"),
     );
-    const installedPg = await realpath(
-      resolve(installedPackage, "node_modules/pg"),
-    );
-    const installedPgConnectionString = await realpath(
-      resolve(installedPackage, "node_modules/pg-connection-string"),
-    );
     assertOutsideRepository(repositoryRoot, installedPackage);
     const externalRoot = await realpath(root);
     assertWithin(externalRoot, installedPackage);
-    assertWithin(externalRoot, installedPg);
-    assertWithin(externalRoot, installedPgConnectionString);
+    const installedRuntime =
+      nodeSqliteArchivePath === undefined
+        ? undefined
+        : await realpath(resolve(root, "node_modules/@keynes/node-sqlite"));
+    if (installedRuntime !== undefined)
+      assertWithin(externalRoot, installedRuntime);
     const productionBytes = await directoryBytes(resolve(root, "node_modules"));
     validateSizes({ compressedBytes, productionBytes });
 
@@ -454,6 +470,12 @@ export async function installExternalConsumer(
     );
     return {
       root,
+      installedPackages: {
+        sdk: installedPackage,
+        ...(installedRuntime === undefined
+          ? {}
+          : { nodeSqlite: installedRuntime }),
+      },
       productionBytes,
       close: () => rm(root, { recursive: true, force: true }),
     };
@@ -504,26 +526,6 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
   ) {
     throw new Error("Archive package metadata does not match @keynes/sdk");
   }
-  for (const [name, version] of Object.entries(
-    expectedProductionDependencies,
-  )) {
-    const dependencyManifest = entries.find(
-      (entry) => entry.path === `package/node_modules/${name}/package.json`,
-    );
-    if (dependencyManifest === undefined) {
-      throw new Error(`Archive bundled dependency ${name} is missing`);
-    }
-    const dependencyValue: unknown = JSON.parse(
-      dependencyManifest.body.toString("utf8"),
-    );
-    if (
-      !isRecord(dependencyValue) ||
-      dependencyValue.name !== name ||
-      dependencyValue.version !== version
-    ) {
-      throw new Error(`Archive bundled dependency ${name} is invalid`);
-    }
-  }
   const generatedClient = entries.find(
     (entry) => entry.path === "package/dist/generated/client.js",
   );
@@ -541,6 +543,34 @@ export async function inspectArchive(path: string): Promise<ArchiveInspection> {
     compressedBytes: archiveStat.size,
     packageVersion: value.version,
     contractDigest,
+  };
+}
+
+export async function inspectNodeSqliteArchive(
+  path: string,
+): Promise<RuntimeArchiveInspection> {
+  const bytes = await readFile(path);
+  const entries = readPackageArchiveBytes(bytes);
+  const manifest = entries.find(
+    (entry) => entry.path === "package/package.json",
+  );
+  const value: unknown =
+    manifest === undefined
+      ? undefined
+      : JSON.parse(manifest.body.toString("utf8"));
+  if (
+    !isRecord(value) ||
+    value.name !== "@keynes/node-sqlite" ||
+    typeof value.version !== "string" ||
+    !entries.some((entry) => entry.path === "package/dist/index.js")
+  ) {
+    throw new Error("Selected runtime archive is not @keynes/node-sqlite");
+  }
+  return {
+    name: "@keynes/node-sqlite",
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    compressedBytes: bytes.length,
+    packageVersion: value.version,
   };
 }
 
@@ -597,40 +627,17 @@ function run(command: string, args: readonly string[], cwd: string): string {
   return result.stdout;
 }
 
-function runConsumer(
-  modulePath: string,
-  mode: string,
-  cwd: string,
-  authorized = false,
-): string {
-  const databaseUrl = authorized ? process.env.KEYNES_DATABASE_URL : undefined;
-  const qualificationTarget = authorized
-    ? process.env.KEYNES_QUALIFICATION_TARGET
-    : undefined;
+function runConsumer(modulePath: string, mode: string, cwd: string): string {
   const result = spawnSync(process.execPath, [modulePath, mode], {
     cwd,
     encoding: "utf8",
-    env: {
-      CI: "true",
-      ...(databaseUrl === undefined
-        ? {}
-        : { KEYNES_DATABASE_URL: databaseUrl }),
-      ...(qualificationTarget === undefined
-        ? {}
-        : { KEYNES_QUALIFICATION_TARGET: qualificationTarget }),
-    },
+    env: { CI: "true" },
     maxBuffer: 10 * 1024 * 1024,
     timeout: 60_000,
   });
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) {
-    const output =
-      databaseUrl === undefined
-        ? result.stderr || result.stdout
-        : `${result.stderr || result.stdout}`.replaceAll(
-            databaseUrl,
-            "[REDACTED]",
-          );
+    const output = result.stderr || result.stdout;
     throw new Error(`SDK consumer ${mode} failed\n${output}`);
   }
   return result.stdout;
@@ -663,45 +670,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function hasInvalidPackageDependencies(
   manifest: Record<string, unknown>,
 ): boolean {
-  const dependencies = manifest.dependencies;
-  if (!isRecord(dependencies)) return true;
-  const expectedNames = Object.keys(expectedProductionDependencies).sort();
-  const actualNames = Object.keys(dependencies).sort();
-  if (
-    actualNames.length !== expectedNames.length ||
-    actualNames.some((name, index) => name !== expectedNames[index])
-  ) {
-    return true;
-  }
-  for (const [name, version] of Object.entries(
-    expectedProductionDependencies,
-  )) {
-    if (dependencies[name] !== version) {
-      return true;
-    }
-  }
-  for (const field of ["optionalDependencies", "peerDependencies"]) {
-    const value = manifest[field];
-    if (
-      value !== undefined &&
-      (!isRecord(value) || Object.keys(value).length > 0)
-    ) {
-      return true;
-    }
-  }
-  if (manifest.bundleDependencies !== undefined) return true;
-  const bundledDependencies = manifest.bundledDependencies;
-  if (
-    !Array.isArray(bundledDependencies) ||
-    bundledDependencies.some((value) => typeof value !== "string") ||
-    [...bundledDependencies]
-      .sort()
-      .some((name, index) => name !== expectedBundledDependencies[index]) ||
-    bundledDependencies.length !== expectedBundledDependencies.length
-  ) {
-    return true;
-  }
-  return false;
+  return (
+    ["dependencies", "optionalDependencies", "peerDependencies"].some(
+      (field) => {
+        const value = manifest[field];
+        return (
+          value !== undefined &&
+          (!isRecord(value) || Object.keys(value).length !== 0)
+        );
+      },
+    ) ||
+    ["bundleDependencies", "bundledDependencies"].some((field) => {
+      const value = manifest[field];
+      return (
+        value !== undefined && (!Array.isArray(value) || value.length !== 0)
+      );
+    })
+  );
 }
 
 async function main(): Promise<void> {

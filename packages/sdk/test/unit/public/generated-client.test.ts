@@ -1,11 +1,7 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
-import { stripTypeScriptTypes } from "node:module";
-import { fileURLToPath } from "node:url";
+import { rootResources } from "@keynes/database/contract-tests";
 
-import { loadContract } from "@keynes/contracts";
 import { describe, expect, it } from "vitest";
 
-import { renderValidators } from "../../../scripts/render.js";
 import { createKeynesClient } from "../../../src/generated/client.js";
 import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
@@ -17,7 +13,6 @@ import type {
   SettleBudgetCommand,
   ValidateResourcesQuery,
 } from "../../../src/generated/types.js";
-import { validateCreateBudgetCommandIssues } from "../../../src/generated/validators.js";
 
 const commands = {
   defineResources: {
@@ -87,88 +82,6 @@ const EXPECTED_OPERATIONS = [
   "getBudget",
 ] satisfies readonly OperationName[];
 
-describe("generated own-property validation", () => {
-  const packageRoot = fileURLToPath(
-    new URL("../../../../contracts/", import.meta.url),
-  );
-  const definitions = {
-    NamedDefinitions: {
-      type: "object",
-      propertyNames: { type: "string", pattern: "^[a-z][A-Za-z0-9]*$" },
-      additionalProperties: {
-        type: "object",
-        required: ["unit", "accountingBehavior"],
-        properties: {
-          unit: { type: "string", minLength: 1 },
-          accountingBehavior: { enum: ["consumable", "reusable"] },
-        },
-        additionalProperties: false,
-      },
-    },
-  };
-  const source = renderValidators(
-    definitions,
-    loadContract(packageRoot).source,
-  );
-  const validate: unknown = new Function(
-    `${stripTypeScriptTypes(source).replaceAll("export ", "")}\nreturn validateDefinition;`,
-  )();
-  if (typeof validate !== "function")
-    throw new Error("Missing generated validator");
-  const valid = { unit: "token", accountingBehavior: "consumable" };
-
-  it.each(Object.entries(valid))(
-    "rejects inherited required %s",
-    (field, value) => {
-      const entry = Object.assign(
-        Object.create({ [field]: value }),
-        Object.fromEntries(
-          Object.entries(valid).filter(([name]) => name !== field),
-        ),
-      );
-      expect(validate("NamedDefinitions", { modelTokens: entry })).toEqual([
-        { path: `/modelTokens/${field}`, rule: "required" },
-      ]);
-    },
-  );
-
-  it("rejects an unknown own constructor field even when undefined", () => {
-    expect(
-      validate("NamedDefinitions", {
-        modelTokens: { ...valid, constructor: undefined },
-      }),
-    ).toEqual([
-      { path: "/modelTokens/constructor", rule: "additionalProperties" },
-    ]);
-  });
-
-  it.each(["constructor", "toString"])(
-    "validates malformed named %s entries",
-    (name) => {
-      expect(validate("NamedDefinitions", { [name]: undefined })).toEqual([
-        { path: `/${name}`, rule: "type" },
-      ]);
-    },
-  );
-
-  it.each(["constructor", "toString"])(
-    "rejects invalid behavior for named %s entries",
-    (name) => {
-      expect(
-        validate("NamedDefinitions", {
-          [name]: { ...valid, accountingBehavior: "invalid" },
-        }),
-      ).toEqual([{ path: `/${name}/accountingBehavior`, rule: "enum" }]);
-    },
-  );
-
-  it("accepts valid prototype-like Resource names", () => {
-    expect(
-      validate("NamedDefinitions", { constructor: valid, toString: valid }),
-    ).toEqual([]);
-  });
-});
-
 describe("generated client bindings", () => {
   it("binds every concrete method to its deployment-neutral operation", async () => {
     const calls: OperationName[] = [];
@@ -200,12 +113,12 @@ describe("generated client bindings", () => {
     expect(calls).toEqual(EXPECTED_OPERATIONS);
   });
 
-  it("validates input before dispatch", async () => {
+  it("forwards malformed input for runtime validation", async () => {
     let calls = 0;
     const executor: CommandExecutor = {
       async execute() {
         calls += 1;
-        throw new Error("invalid input reached the executor");
+        throw new Error("runtime validation reached");
       },
     };
     const client = createKeynesClient(executor);
@@ -214,11 +127,8 @@ describe("generated client bindings", () => {
       Reflect.apply(client.createBudget, client, [
         { commandId: "not-a-uuid", resources: [] },
       ]),
-    ).rejects.toMatchObject({
-      code: "invalid_command",
-      details: { operation: "createBudget" },
-    });
-    expect(calls).toBe(0);
+    ).rejects.toThrow("runtime validation reached");
+    expect(calls).toBe(1);
   });
 
   it.each([
@@ -273,42 +183,5 @@ describe("generated client bindings", () => {
 
     wireResult.resourceType.unit = "mutated";
     expect(result.resourceType.unit).toBe("token");
-  });
-
-  it("sorts validation issues independently of property insertion order", () => {
-    const common = {
-      commandId: "NOT-A-UUID",
-      resources: [],
-    };
-    const first = { zeta: true, ...common, alpha: true };
-    const second = { alpha: true, ...common, zeta: true };
-    const expected = [
-      { path: "/alpha", rule: "additionalProperties" },
-      { path: "/amounts", rule: "required" },
-      { path: "/commandId", rule: "pattern" },
-      { path: "/definitions", rule: "required" },
-      { path: "/resources", rule: "additionalProperties" },
-      { path: "/zeta", rule: "additionalProperties" },
-    ];
-
-    expect(validateCreateBudgetCommandIssues(first)).toEqual(expected);
-    expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
-  });
-
-  it("rejects retired Resource-source fields", () => {
-    expect(
-      validateCreateBudgetCommandIssues({
-        commandId: "20000000-0000-0000-0000-000000000001",
-        definitions: {
-          modelTokens: { unit: "token", accountingBehavior: "consumable" },
-        },
-        amounts: { modelTokens: 1 },
-        resources: [],
-        allocation: { modelTokens: 1 },
-      }),
-    ).toEqual([
-      { path: "/allocation", rule: "additionalProperties" },
-      { path: "/resources", rule: "additionalProperties" },
-    ]);
   });
 });

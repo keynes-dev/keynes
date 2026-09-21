@@ -1,0 +1,15 @@
+{
+  "extends": ["//"],
+  "boundaries": {
+    "implicitDependencies": ["@keynes/node-sqlite", "@keynes/postgres"]
+  },
+  "tasks": {
+    "typecheck": {
+      "dependsOn": [
+        "^build",
+        "@keynes/node-sqlite#build",
+        "@keynes/postgres#build"
+      ]
+    }
+  }
+}

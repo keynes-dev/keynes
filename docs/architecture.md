@@ -4,8 +4,7 @@
 > for the request boundary: customers compute requests, optional caller evidence
 > is bounded and recorded, and SQLite Local and PostgreSQL Hosted/Embedded
 > enforce accounting through separate implementations. KEY-114 retired managed
-> SQL Policies. KEY-96 still owns package separation. Historical evidence proves
-> only its recorded revision and lane.
+> SQL Policies. KEY-96 implements package separation; its [acceptance record](features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md) tracks final qualification. Historical evidence proves only its recorded revision and lane.
 
 ## Purpose
 
@@ -16,7 +15,7 @@ customer code / customer SQL / optional evaluation service
   | typed request, or customer rejection before submission
   +-- Local: SDK + SQLite runtime ------------> private Node in-memory SQLite
   +-- Hosted: SDK + PostgreSQL runtime -------> constrained PostgreSQL procedures
-  `-- Embedded: customer database code -------> procedures in caller transaction
+  `-- Embedded: direct SQL or SDK + borrowed PG client -> caller transaction
 ```
 
 SQLite and PostgreSQL have separate accounting implementations outside the SDK, with shared command contracts and conformance scenarios. A shared TypeScript engine is not a prerequisite.
@@ -48,16 +47,18 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 
 ## Public contract
 
-The current combined SDK configures Resource declarations once and creates
-Budgets from amounts. KEY-96 adds explicit `runtime` selection to this call:
+The SDK configures Resource declarations once and creates Budgets from amounts. Every client selects a runtime explicitly:
 
 ```ts
+import { createKeynes } from "@keynes/sdk";
+import { nodeSqlite } from "@keynes/node-sqlite";
+
 const resources = {
   usdCents: { unit: "cent", accountingBehavior: "consumable" },
   reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
 };
 
-const keynes = await createKeynes({ resources });
+const keynes = await createKeynes({ resources, runtime: nodeSqlite() });
 
 const root = await keynes.createBudget({
   usdCents: 1_000,
@@ -93,16 +94,12 @@ Every Budget has a stable method surface:
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
 
-Durable clients also expose `loadBudget(reference)` and operation recovery.
-Loading takes only the opaque reference. Caller-supplied schemas, expected
-memberships, and customer policy results never participate in loading.
+Owned remote clients also expose `openBudget({ reference, resourceTypes })` and operation recovery. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
 Recovery rechecks the caller's current permission. Before it returns a committed
 creation result, it validates that creation's selected definitions against the
 current tenant catalog.
 
-Every public operation shown here is asynchronous. The SDK copies caller
-input, crosses the runtime admission boundary, and then validates it, so input
-and operation failures reject rather than throw synchronously. After local
+Every public operation shown here is asynchronous. The SDK captures caller input and rejects values that cannot be represented losslessly. Runtimes validate command semantics; the SDK validates returned envelopes and builds typed handles. Input and operation failures reject rather than throw synchronously. After local
 close begins, a new call rejects with `runtime_closed` before malformed input
 can take precedence.
 
@@ -393,8 +390,7 @@ The logical PostgreSQL state owners are:
 First Local uses one private Node in-memory SQLite runtime. It owns
 transactions, validation, accounting and command replay; its lifecycle code owns
 admission, isolation and close/drain. Separate Local instances share no state.
-Process exit discards it. KEY-96 owns the future engine-package layout; current
-source keeps the SQLite runtime in the combined SDK.
+Process exit discards it. `@keynes/node-sqlite` stages the engine from `packages/database/src/sqlite` and owns the private connection. `nodeSqlite()` performs no I/O; each initialization of the reusable descriptor creates an independent database.
 
 Local exposes no persistence option, database handle, public migration API, network listener, browser support, multi-process coordination or caller-owned PostgreSQL transactions. SQLite execution cannot qualify native PostgreSQL locking, permissions, contention or caller transactions. Shared contracts and scenarios preserve public command meaning without requiring a shared accounting engine.
 
@@ -420,7 +416,7 @@ engine exclusion. That transition check is not a permanent Node.js 25 lane.
 
 ## Loading, inspection, and generated code
 
-`loadBudget(reference)` is a read-only PostgreSQL operation. It authorizes the reference and returns membership, controls, balances, lifecycle and lineage from one coherent snapshot. A reference is an identifier, not permission. Loading does not register definitions or trust caller-declared state.
+`openBudget({ reference, resourceTypes })` is a read-only owned-remote operation. The runtime prepares canonical declarations without an extra database preflight; the existing open procedure checks authorization and catalog compatibility. A reference is an identifier, not permission. Reopening does not register definitions or trust caller-declared state.
 
 `inspect` returns the same domain view in Local and durable modes. History is
 chronological lineage evidence; submitted customer decision records do not
@@ -433,12 +429,9 @@ KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authent
 
 ## Developer CLI
 
-The adopted `apps/cli` application publishes as `@keynes/cli` with the `keynes` executable. It composes reusable database installation and connection APIs. It does not own a second schema, accounting implementation or managed Policy evaluator. Runtime consumers do not install the CLI implicitly. KEY-96 owns exact package exports and the CLI boundary; optional application tooling remains separate.
+`apps/cli` builds the private `@keynes/cli` archive with the `keynes` executable. It calls `@keynes/postgres/install` and owns command interaction. SQL, schema, installation checks and accounting stay outside the CLI. Runtime consumers do not install developer tooling implicitly.
 
-KEY-96 establishes this application boundary and moves the existing installation
-command into it with a documented command migration. KEY-108 delivers the
-remote developer workflow. Both remain unimplemented; the current executable is
-`keynes-postgresql` and supports installation only.
+`keynes install --config <path>` replaces `keynes-postgresql install --config <path>` with the same JSON configuration and PostgreSQL environment credentials. It supports fresh installation and exact recheck. The remaining catalog workflow belongs to KEY-108.
 
 | Operation                      | Direction and responsibility                                                                                                                 |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -447,7 +440,7 @@ remote developer workflow. Both remain unimplemented; the current executable is
 | Preview and deploy definitions | Compare authored definitions with the selected remote catalog, display changes, then explicitly apply through database provisioning commands |
 | Check compatibility            | Detect conflicting definitions, stale bindings and incompatible database installations without writes                                        |
 
-These are capability names, not finalized CLI subcommand syntax. SDK command and
+Only installation is implemented. The other rows describe future catalog capabilities, not finalized CLI subcommands. SDK command and
 result types are generated during the Keynes build from central contracts;
 application-specific Resource types come from the selected catalog. Optional policy helper types and configuration are application tooling contracts.
 Generated bindings retain runtime compatibility descriptors, grant no permissions,
@@ -475,35 +468,22 @@ graph are recreated. Keynes ships no upgrade path, compatibility views, old
 procedures, or state rewrite for the greenfield baseline. Git history and
 retained evidence remain intact.
 
-Installation selects exactly one profile:
+The current installer accepts one fixed PostgreSQL 18.6 preview profile and the documented role/identity configuration; there is no CLI profile selector. It installs constrained remote wrappers with login-role identity mappings. Trusted Embedded callers separately need the direct procedure grants and caller-supplied context described in the [PostgreSQL package guide](../packages/postgres/README.md#borrow-a-postgresql-connection).
 
-- `embedded` grants the canonical procedure surface to an application role
-  for use inside caller-owned transactions.
-- `remote` grants only the versioned constrained Hosted wrappers to login roles and
-  derives tenant and principal identity from protected `session_user`
-  mappings.
-
-The selected profile determines grants, not Budget behavior. There is no public
-user, role, grant, or IAM API. Reinstallation succeeds only on an absent target
-or an exact matching baseline and profile; incompatible or drifted state fails
-closed.
+Access grants change how an application reaches the same Budget contract. There is no public user, role, grant or IAM API. Reinstallation succeeds only on an absent target or an exact matching baseline and profile; incompatible or drifted state fails closed.
 
 ## Deployment ownership
 
 Local owns a private authority for one process. It offers no persistence,
 multi-process coordination, or recovery after the process exits.
 
-Hosted uses PostgreSQL as a separate durable authority. The current combined SDK owns a
-bounded PostgreSQL pool and strict `sslmode=verify-full` normalization. KEY-96
-moves this connection work into the PostgreSQL adapter. It
+Hosted uses PostgreSQL as a separate durable authority. `postgres({ databaseUrl })` owns a bounded PostgreSQL pool, strict `sslmode=verify-full` normalization, compatibility checks and bounded remote retries. It
 invokes only supported wrappers and never falls back to Local state or another
 database. A customer-operated Hosted deployment and Keynes Cloud use the same
 command contract; they differ in who owns credentials, upgrades, backups,
 recovery, monitoring, capacity, incidents, and support.
 
-Embedded applications own their PostgreSQL connection, surrounding transaction,
-application-table reads and writes, backup, recovery, and operations. Keynes
-procedures neither begin nor commit the caller's transaction.
+Embedded applications pass an already connected `pg.Client` or checked-out `PoolClient` to `postgres({ connection })`. A `Pool` is rejected. The application sets tenant/principal context, owns the transaction and decides recovery after failure. Initialization validates Resource compatibility read-only; each command invokes one direct procedure. The adapter does not begin, commit, roll back, set context, retry, reconnect, release or end the connection. Close the Keynes handle before caller commit or rollback: close drains admitted work and rejects new work, while results remain provisional until commit.
 
 These deployment-specific responsibilities do not change a Budget command's
 semantics. Hosted delivery, including managed Cloud, is not a product-readiness
@@ -531,17 +511,13 @@ Customers control their deployments. Guarantees cover supported Keynes operation
 
 ## Module ownership
 
-One source owner defines the common command contracts. Separate engine-specific SQLite and PostgreSQL runtime packages own accounting outside the SDK. KEY-96 determines their exact names and exports without duplicating canonical contracts or requiring a shared TypeScript engine. The SDK owns typed handles, inference, encoding, invocation, result mapping and public errors, with no accounting rules, managed Policy compiler or database drivers.
+Private `packages/database` is the source owner for canonical command schemas, shared conformance scenarios, the SQLite engine and PostgreSQL SQL. The SDK owns typed handles, inference, lossless serialization, alias mapping, result validation and public errors. It contains no accounting rules, managed Policy compiler or database drivers.
 
-Current source keeps the SQLite runtime in `packages/sdk`, SQL in
-`packages/postgresql`, and canonical inputs in `packages/contracts`. These
-paths do not prove the target separation. KEY-114 has retired managed Policy
-definitions, compilation, and evaluation rather than relocating them into new
-runtime packages.
+Four private archives form the consumer surface: `@keynes/sdk`, `@keynes/node-sqlite`, `@keynes/postgres` and `@keynes/cli`. SQLite stages only its engine; PostgreSQL stages its installation assets and supplies owned/borrowed adapters plus `/install`. `@keynes/database` and `@keynes/testkit` are build/test dependencies, never production dependencies or declaration imports. KEY-114 retired managed Policy definitions, compilation and evaluation; they are not relocated into these packages.
 
 Consumer builds produce their own outputs from canonical inputs without writing sibling workspaces, maintaining SQL copies or leaking private workspace imports. Tests stay beside their subject; shared conformance scenarios stay independent of adapters. Local consumers exclude the PostgreSQL driver; SDK-only consumers install neither engine nor compiler.
 
-Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. Exact factory exports belong to KEY-96; no new callable shape is introduced here.
+Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. The [package API contract](features/key-96-separate-sdk-and-database-runtime-packages/contracts/package-api.md) defines exact factory options and capability types.
 
 Numeric range, decimal and rounding requirements must follow product needs in runtime design. PostgreSQL numeric behavior does not define a universal policy language. Exact accounting, deterministic replay and explicit invalid-input handling remain mandatory; no numerical semantic rewrite is bundled into this documentation or KEY-121.
 

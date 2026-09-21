@@ -1,3 +1,4 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
@@ -47,11 +48,17 @@ type RemovedPolicyPublicTypes = readonly [
 describe("package-root exports", () => {
   it("exports ordinary allocation types and no managed Policy API", () => {
     expect(Object.keys(sdk).sort()).toEqual([
+      "CONTRACT_DIGEST",
+      "CommittedResponseLostError",
       "KeynesError",
       "KeynesSdkError",
+      "REMOTE_CONTRACT",
+      "REMOTE_PROCEDURES_DIGEST",
       "ResourceDefinitionError",
       "createKeynes",
+      "createKeynesClient",
       "createOperationKey",
+      "createRemoteKeynesClient",
     ]);
     expectTypeOf<ResourceDefinitions>().toBeObject();
     expectTypeOf<BudgetRequestAvailabilityReason<"usdCents">>().toBeObject();
@@ -72,6 +79,7 @@ describe("package-root exports", () => {
   it("keeps Budget request and root Resource inference", () => {
     async function checkInference() {
       const keynes = await createKeynes({
+        runtime: nodeSqlite(),
         resources: {
           usdCents: { unit: "cent", accountingBehavior: "consumable" },
           searchQueries: { unit: "query", accountingBehavior: "reusable" },
