@@ -307,7 +307,7 @@ async function snapshot(): Promise<SqlitePostgresSnapshot> {
       command("pnpm", ["--version"]),
       readFile(join(ROOT, "pnpm-lock.yaml")),
       readFile(
-        join(ROOT, "packages/contracts/generated/contract-digest.json"),
+        join(ROOT, "packages/database/generated/contract-digest.json"),
         "utf8",
       ),
       readFile(

@@ -9,6 +9,7 @@ export const SDK_PRODUCTION_MODULES = [
   "generated/validators",
   "index",
   "keynes",
+  "local/decision-evidence",
   "local/runtime",
   "local/sqlite-command-executor",
   "local/sqlite-store",

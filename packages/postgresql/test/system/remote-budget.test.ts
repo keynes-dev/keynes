@@ -1,4 +1,4 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";

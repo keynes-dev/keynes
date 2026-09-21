@@ -1,12 +1,14 @@
 {
-  "name": "@keynes/contracts",
+  "name": "@keynes/database",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contract-tests": "./contract-tests/index.ts"
+    "./generation": "./src/generation/render.ts",
+    "./contract-tests": "./contract-tests/index.ts",
+    "./postgres-generation": "./postgres/scripts/generate.ts"
   },
   "scripts": {
     "generate": "node scripts/generate.ts",

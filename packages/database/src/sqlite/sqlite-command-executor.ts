@@ -1,4 +1,3 @@
-// Generated from packages/database/src/sqlite/sqlite-command-executor.ts. Do not edit.
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { CommandExecutor } from "../command-executor.js";
@@ -24,11 +23,11 @@ import type {
   SettleBudgetCommand,
   UsageAmount,
   ValidateResourcesQuery,
-} from "../generated/types.js";
+} from "../../generated/types.js";
 import {
   validateCreateBudgetResult,
   validateOperationInputIssues,
-} from "../generated/validators.js";
+} from "../../generated/validators.js";
 import { canonicalDecisionEvidence } from "./decision-evidence.js";
 import {
   SqliteStore,

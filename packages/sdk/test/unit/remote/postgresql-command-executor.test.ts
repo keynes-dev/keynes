@@ -1,4 +1,4 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

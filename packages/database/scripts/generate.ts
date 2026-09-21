@@ -6,6 +6,8 @@ import { format } from "oxfmt";
 import { applyGeneratedOutputs, jsonFile } from "../src/generation.ts";
 import { loadContract } from "../src/load.ts";
 import type { LoadedContract } from "../src/model.ts";
+import { renderValidators } from "../src/generation/render.ts";
+import { generatePostgresql } from "../postgres/scripts/generate.ts";
 
 export interface ContractGenerationOptions {
   readonly check: boolean;
@@ -16,13 +18,13 @@ export async function generateContracts(
   options: ContractGenerationOptions,
 ): Promise<LoadedContract> {
   const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
-  const packageRoot = resolve(repositoryRoot, "packages/contracts");
+  const packageRoot = resolve(repositoryRoot, "packages/database");
   const contract = loadContract(packageRoot);
   if (!isSchemaDocument(contract.schema)) {
     throw new Error("schema must be a JSON Schema document");
   }
   const types = await compile(contract.schema, "KeynesBudgetContract", {
-    bannerComment: "// Generated from @keynes/contracts. Do not edit.",
+    bannerComment: "// Generated from @keynes/database. Do not edit.",
     maxItems: 4,
     style: { singleQuote: false },
     unreachableDefinitions: true,
@@ -34,7 +36,7 @@ export async function generateContracts(
   );
   const contractIdentity = await formatSource(
     "contract.ts",
-    `// Generated from packages/contracts. Do not edit.\n\nexport const CONTRACT_DIGEST = ${JSON.stringify(contract.digest)};\nexport const REMOTE_PROCEDURES_DIGEST = ${JSON.stringify(contract.remoteDigest)};\nexport const REMOTE_CONTRACT = ${JSON.stringify(contract.source.remote, null, 2)} as const;\n`,
+    `// Generated from packages/database. Do not edit.\n\nexport const CONTRACT_DIGEST = ${JSON.stringify(contract.digest)};\nexport const REMOTE_PROCEDURES_DIGEST = ${JSON.stringify(contract.remoteDigest)};\nexport const REMOTE_CONTRACT = ${JSON.stringify(contract.source.remote, null, 2)} as const;\n`,
   );
   applyGeneratedOutputs({
     check: options.check,
@@ -51,9 +53,17 @@ export async function generateContracts(
         jsonFile({ algorithm: "sha256", digest: contract.remoteDigest }),
       ],
       ["generated/types.ts", formattedTypes],
+      [
+        "generated/validators.ts",
+        await formatSource(
+          "validators.ts",
+          renderValidators(contract.definitions, contract.source),
+        ),
+      ],
     ]),
     generatedDirectories: [{ path: "generated", accepts: (_fileName) => true }],
   });
+  await generatePostgresql({ check: options.check, contract, repositoryRoot });
   return contract;
 }
 

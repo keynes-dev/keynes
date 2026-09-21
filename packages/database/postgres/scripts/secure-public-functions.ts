@@ -1,4 +1,4 @@
-import type { ContractSource, JsonObject } from "@keynes/contracts";
+import type { ContractSource, JsonObject } from "../../src/index.ts";
 
 export function renderSecurePublicFunctions(contract: ContractSource): string {
   const statements = contract.operations.map((operation) => {

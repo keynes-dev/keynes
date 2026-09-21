@@ -1,7 +1,7 @@
 import type {
   ContractExecutor,
   RollbackCheckpoint,
-} from "@keynes/contracts/contract-tests";
+} from "@keynes/database/contract-tests";
 import type { DatabaseConnection, TransactionalDatabase } from "./database.js";
 import { CommittedResponseLostError } from "./test-controls.js";
 

@@ -1,8 +1,8 @@
 import { setTimeout } from "node:timers/promises";
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import { describe, expect, it } from "vitest";
 
-import type { ContractClient } from "@keynes/contracts/contract-tests";
+import type { ContractClient } from "@keynes/database/contract-tests";
 import {
   openNativeTestKeynes,
   type NativeTestKeynes,

@@ -34,7 +34,7 @@
     "pg": "8.23.0"
   },
   "devDependencies": {
-    "@keynes/contracts": "workspace:*",
+    "@keynes/database": "workspace:*",
     "@keynes/testkit": "workspace:*",
     "@types/pg": "8.15.5",
     "oxfmt": "0.64.0",

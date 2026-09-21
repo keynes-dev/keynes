@@ -1,4 +1,4 @@
-// Generated from packages/contracts. Do not edit.
+// Generated from packages/database. Do not edit.
 
 export const CONTRACT_DIGEST =
   "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766";

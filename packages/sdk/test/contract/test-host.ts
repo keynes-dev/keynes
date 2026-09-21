@@ -4,8 +4,8 @@ import type {
   FixturePrincipal,
   RemoteContractTestHost,
   RollbackCheckpoint,
-} from "@keynes/contracts/contract-tests";
-import { createContractClient } from "@keynes/contracts/contract-tests";
+} from "@keynes/database/contract-tests";
+import { createContractClient } from "@keynes/database/contract-tests";
 
 import {
   createKeynesClient,

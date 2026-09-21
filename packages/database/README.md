@@ -1,4 +1,4 @@
-# Contracts
+# Database
 
 - **Owner:** `@shubsharan`
 - **Functional status:** provider-free contract implemented; KEY-114 request
@@ -6,11 +6,11 @@
 
 ## Responsibility
 
-`packages/contracts/` owns the ordered logical contract shared by PostgreSQL, the TypeScript SDK, and Cloud. `contract.json` and `schema.json` are hand-authored inputs. The package is private and used only by repository build and test tasks.
+`packages/database/` owns the ordered command contract and separate SQLite/PostgreSQL accounting sources. `contract.json` and `schema.json` are hand-authored inputs. The package is private and used only by repository build and test tasks.
 
 ## Allowed and public edges
 
-The contract source is the build-time generator input. Its checked-in consumers under `generated/` are the digest and test-only schema types; generated product files live with their owners.
+`src/sqlite/` owns SQLite accounting and `postgres/migrations/` owns the authored PostgreSQL baseline. Consumers generate or stage selected copies in their own directories. The contract source is the build-time generator input. Its checked-in consumers under `generated/` are the digest and test-only schema types; generated product files live with their owners.
 
 A consumer must not infer the contract from private database tables or SDK implementation details.
 

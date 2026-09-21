@@ -1,4 +1,4 @@
-import type { ContractSource as Contract, JsonObject } from "@keynes/contracts";
+import type { ContractSource as Contract, JsonObject } from "../model.ts";
 
 function renderValidatorTemplate(
   sourceDefinitions: JsonObject,

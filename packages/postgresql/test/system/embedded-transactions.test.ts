@@ -1,11 +1,11 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createContractClient,
   KeynesError,
   type ContractClient,
-} from "@keynes/contracts/contract-tests";
+} from "@keynes/database/contract-tests";
 import { openInstalledPostgresDatabase } from "./support/postgres-database.js";
 import type { PostgresTransaction } from "./support/postgres-database.js";
 import type { TransactionalDatabase } from "./support/database.js";

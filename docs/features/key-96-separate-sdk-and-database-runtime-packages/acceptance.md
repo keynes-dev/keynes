@@ -53,8 +53,30 @@ Ignore configuration covers dependencies, dist/build, environment files and arti
 
 Phase 1 Ponytail review: lean already. No implementation abstractions were added; the record contains the requested baseline and relocation map.
 
+## Phase 2: source ownership
+
+Source base: phase 1 commit `1db2179`. The phase 2 commit contains this record and the checked diff. `packages/database` now owns the unchanged canonical contracts, shared scenarios, SQLite engine sources and PostgreSQL baseline/generation. Consumers stage their selected files with existing generated-output checks. SQLite remains temporarily in SDK distribution output until phase 3; this is source ownership, not final package isolation.
+
+New repository checks retain baseline SHA-256 identities and compare PostgreSQL assets against their owner. An isolated generation test snapshots every owner and SDK file, including SQL, to prove SDK and PostgreSQL generators do not write siblings. Turbo reports no dependency-boundary violations.
+
+| Command                                      | Result                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`             | PASS after workspace rename, no dependency version changes                      |
+| `pnpm generate` and `pnpm generate:check`    | PASS                                                                            |
+| `pnpm test:repository`                       | PASS, 63 tests in 2 files                                                       |
+| `pnpm build:sdk` and `pnpm build:postgresql` | PASS, both strict distribution allowlists                                       |
+| `pnpm typecheck`                             | PASS, four workspace packages and root test configuration                       |
+| `pnpm test:unit`                             | PASS, database 39, PostgreSQL 77, SDK 450; all processes exit 0                 |
+| `pnpm check:deps`                            | PASS, 211 files in four packages                                                |
+| `pnpm format` and `pnpm lint`                | PASS                                                                            |
+| Byte comparison against `1db2179`            | PASS, contract/schema, SQL baseline, command digest and remote digest unchanged |
+
+Failed intermediate checks: the mechanical path rewrite initially changed the schema URI and therefore the digest; restoring the original canonical schema fixed it. Initial type checking found stale generator imports and a relative cross-package test import; package exports corrected both. No changed command or SQL identity is accepted.
+
+Ponytail review found an unnecessary replacement-map loop in SDK staging. Replaced it with one `replaceAll` call, then reran generation and type checks. Retained generated copies because each consumer must compile independently; only database files are authored. No additional dependency or packaging framework was added. Final phase review found nothing else to cut.
+
 ## Pending acceptance
 
-Phases 2-7, four archive consumer combinations, Local/native behavior, borrowed transactions, CLI qualification and combined checks: NOT RUN. No KEY-96 archives have been produced. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Phases 3-7, four archive consumer combinations, Local/native behavior, borrowed transactions, CLI qualification and combined checks: NOT RUN. No KEY-96 archives have been produced. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.

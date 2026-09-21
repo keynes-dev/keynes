@@ -5,6 +5,7 @@
   },
   "include": [
     "scripts/**/*.ts",
+    "postgres/scripts/**/*.ts",
     "src/**/*.ts",
     "contract-tests/**/*.ts",
     "test/**/*.ts"

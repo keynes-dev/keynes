@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { loadContract } from "@keynes/contracts";
+import { loadContract } from "@keynes/database";
 import { fileURLToPath } from "node:url";
 import installationRecord from "../../generated/installation-record.json" with { type: "json" };
 import migrationManifest from "../../migrations/manifest.json" with { type: "json" };
@@ -21,7 +21,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildPostgresqlPackage } from "../../scripts/build.ts";
-import { generatePostgresql } from "../../scripts/generate.ts";
+import { generatePostgresql } from "@keynes/database/postgres-generation";
 
 const roots: string[] = [];
 
@@ -34,7 +34,7 @@ afterEach(async () => {
 describe("PostgreSQL package build promotion", () => {
   it("publishes configured creation with generation four compatibility", () => {
     const { source: contract } = loadContract(
-      fileURLToPath(new URL("../../../contracts/", import.meta.url)),
+      fileURLToPath(new URL("../../../database/", import.meta.url)),
     );
     expect(contract.remote.semanticGeneration).toBe(4);
     expect(contract.remote.minimumSdkGeneration).toBe(4);
@@ -112,7 +112,7 @@ describe("PostgreSQL package build promotion", () => {
       },
     ]);
     const contract = loadContract(
-      fileURLToPath(new URL("../../../contracts/", import.meta.url)),
+      fileURLToPath(new URL("../../../database/", import.meta.url)),
     );
     expect(
       installationRecord.migrations
@@ -126,7 +126,7 @@ describe("PostgreSQL package build promotion", () => {
       join(tmpdir(), "keynes-postgresql-generation-"),
     );
     roots.push(repositoryRoot);
-    const packageRoot = join(repositoryRoot, "packages/postgresql");
+    const packageRoot = join(repositoryRoot, "packages/database/postgres");
     await mkdir(packageRoot, { recursive: true });
     await cp(
       new URL("../../migrations/", import.meta.url),
@@ -134,7 +134,7 @@ describe("PostgreSQL package build promotion", () => {
       { recursive: true },
     );
     const contractRoot = fileURLToPath(
-      new URL("../../../contracts/", import.meta.url),
+      new URL("../../../database/", import.meta.url),
     );
     const options = {
       check: false,

@@ -15,9 +15,9 @@
 
 ## Phase 2: Foundational source ownership
 
-- [ ] T003 Move `packages/contracts` to private `packages/database`, updating consumers and workspace imports, and retain canonical schemas, generated identities and `contract-tests/` without a second authored owner. FR-002.
-- [ ] T004 Move SQLite executor/store into `packages/database/src/sqlite/` and PostgreSQL baseline/generation into `packages/database/postgres/`; redirect existing build consumers to generated/staged copies and verify unchanged SQL bytes and command identities. FR-002, FR-009.
-- [ ] T005 Update `scripts/generate.ts`, `packages/database/package.json`, current consumer generation/build scripts and `scripts/repository-organization.test.ts` for per-consumer outputs, no sibling writes and no dependency cycles; run generation/digest/build checks. FR-002, FR-013, FR-015.
+- [x] T003 Move `packages/contracts` to private `packages/database`, updating consumers and workspace imports, and retain canonical schemas, generated identities and `contract-tests/` without a second authored owner. FR-002.
+- [x] T004 Move SQLite executor/store into `packages/database/src/sqlite/` and PostgreSQL baseline/generation into `packages/database/postgres/`; redirect existing build consumers to generated/staged copies and verify unchanged SQL bytes and command identities. FR-002, FR-009.
+- [x] T005 Update `scripts/generate.ts`, `packages/database/package.json`, current consumer generation/build scripts and `scripts/repository-organization.test.ts` for per-consumer outputs, no sibling writes and no dependency cycles; run generation/digest/build checks. FR-002, FR-013, FR-015.
 
 Checkpoint: one private owner, separate engine sources, unchanged accounting. Foundation alone does not complete package isolation.
 

@@ -4,7 +4,7 @@ import {
   type ContractClientOptions,
   type ContractTestHost,
   type FixturePrincipal,
-} from "@keynes/contracts/contract-tests";
+} from "@keynes/database/contract-tests";
 
 import type { DatabaseInstallation } from "./migrations.js";
 import {

@@ -1,4 +1,4 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import { randomUUID } from "node:crypto";
 
 import type { Client } from "pg";

@@ -1,4 +1,4 @@
-// Generated from @keynes/contracts. Do not edit.
+// Generated from @keynes/database. Do not edit.
 
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema

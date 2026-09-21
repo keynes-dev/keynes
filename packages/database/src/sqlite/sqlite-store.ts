@@ -1,7 +1,6 @@
-// Generated from packages/database/src/sqlite/sqlite-store.ts. Do not edit.
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 
-import type { PermissionName } from "../generated/types.js";
+import type { PermissionName } from "../../generated/types.js";
 
 export interface SqlitePrincipalPermissions {
   readonly principalId: string;

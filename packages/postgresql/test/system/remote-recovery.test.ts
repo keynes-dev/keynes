@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import type { Client } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 

@@ -1,11 +1,11 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 
-import { loadContract } from "@keynes/contracts";
+import { loadContract } from "@keynes/database";
 import { describe, expect, it } from "vitest";
 
-import { renderValidators } from "../../../scripts/render.js";
+import { renderValidators } from "@keynes/database/generation";
 import { createKeynesClient } from "../../../src/generated/client.js";
 import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
@@ -89,7 +89,7 @@ const EXPECTED_OPERATIONS = [
 
 describe("generated own-property validation", () => {
   const packageRoot = fileURLToPath(
-    new URL("../../../../contracts/", import.meta.url),
+    new URL("../../../../database/", import.meta.url),
   );
   const definitions = {
     NamedDefinitions: {

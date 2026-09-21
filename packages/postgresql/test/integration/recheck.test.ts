@@ -1,4 +1,4 @@
-import { rootResources } from "@keynes/contracts/contract-tests";
+import { rootResources } from "@keynes/database/contract-tests";
 import {
   preparePostgresInstallation,
   dropPostgresFixture,

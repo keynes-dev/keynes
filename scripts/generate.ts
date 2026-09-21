@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { generateContracts } from "../packages/contracts/scripts/generate.ts";
+import { generateContracts } from "../packages/database/scripts/generate.ts";
 import { generatePostgresql } from "../packages/postgresql/scripts/generate.ts";
 import { generateSdk } from "../packages/sdk/scripts/generate.ts";
 
@@ -16,8 +16,4 @@ const check = values.check === true;
 
 const contract = await generateContracts({ check, repositoryRoot });
 await generateSdk({ check, contract, repositoryRoot });
-await generatePostgresql({
-  check,
-  contract,
-  repositoryRoot,
-});
+await generatePostgresql({ check, repositoryRoot });
