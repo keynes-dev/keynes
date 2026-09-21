@@ -4,14 +4,14 @@
 
 **Prerequisites**: [spec](spec.md), [plan](plan.md), [research](research.md), [data model](data-model.md), [contract](contracts/package-api.md), [validation guide](quickstart.md).
 
-**State**: All tasks are proposed and unchecked. Implementation and qualification are NOT RUN.
+**State**: Implementation is in progress. See [acceptance.md](acceptance.md) for phase checks and outstanding qualification.
 
 **Tests**: Required by the specification and constitution. Observe each new behavioral test failing for its intended reason before implementation. Mechanical relocations preserve existing behavior and use digest/generation/build checks; they do not need artificial red tests.
 
 ## Phase 1: Setup
 
-- [ ] T001 Record baseline revision, landed KEY-114/113/121 ancestry, tool versions, clean-checkout state and existing command/SQL digests in `docs/features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md`; run baseline generation/repository checks and identify retained historical evidence separately. FR-015.
-- [ ] T002 Map the current production dependency graph and exact module allowlists in `packages/sdk/scripts/production-modules.ts`, `packages/postgresql/scripts/build.ts` and `scripts/repository-organization.test.ts` against the package contract before relocating sources. FR-001, FR-002, FR-003.
+- [x] T001 Record baseline revision, landed KEY-114/113/121 ancestry, tool versions, clean-checkout state and existing command/SQL digests in `docs/features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md`; run baseline generation/repository checks and identify retained historical evidence separately. FR-015.
+- [x] T002 Map the current production dependency graph and exact module allowlists in `packages/sdk/scripts/production-modules.ts`, `packages/postgresql/scripts/build.ts` and `scripts/repository-organization.test.ts` against the package contract before relocating sources. FR-001, FR-002, FR-003.
 
 ## Phase 2: Foundational source ownership
 
@@ -94,4 +94,4 @@ Within each story, new tests must fail before corresponding code. T006/T007, T01
 
 ## Implementation strategy
 
-Complete the source foundation, then demonstrate US1 as the first useful consumer increment. Validate each remaining story before advancing. All four stories and combined qualification are required for issue acceptance; no phase earns a release or deployment readiness claim. Keep phases in this file, review each coherent diff, and preserve failed/NOT RUN evidence. Stop after planning for the current user request; do not execute these tasks until implementation is authorized.
+Complete the source foundation, then demonstrate US1 as the first useful consumer increment. Validate each remaining story before advancing. All four stories and combined qualification are required for issue acceptance; no phase earns a release or deployment readiness claim. Keep phases in this file, review each coherent diff, and preserve failed/NOT RUN evidence. Implementation is authorized phase by phase, with Ponytail review and a commit after each phase. Stop before opening a PR.
