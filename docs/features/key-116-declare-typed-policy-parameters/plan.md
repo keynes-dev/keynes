@@ -65,6 +65,7 @@ packages/policy-parameters/
   src/schema.ts
   src/snapshot.ts
   src/zod.ts
+  test/core-consumer.test.ts
   test/parameters.test.ts
   test/snapshot.test.ts
   test/zod.test.ts

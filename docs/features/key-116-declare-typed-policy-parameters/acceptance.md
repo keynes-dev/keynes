@@ -58,3 +58,11 @@ Added private workspace metadata, optional Zod peer and exact dependency pins. `
 T003-T004 complete. Before implementation, `pnpm --filter @keynes/policy-parameters test` failed because `src/schema.ts` was absent; no assertions ran in that red attempt. After implementation, all 32 boundary cases pass. The same package typecheck, focused oxlint/oxfmt and diff checks pass. Tests cover strict JSON copying, inert annotations/defaults, malformed/unsupported schemas and sanitized errors. Compiled object schemas are removed from Ajv cache after compilation.
 
 Read-only Ponytail review: Lean already. Ship. Independent correctness review found no actionable issues. Public declarations, snapshots and Zod remain NOT RUN at this checkpoint.
+
+### Phase 3: declarations and provisioning
+
+T005-T009 complete. Initial runtime/type checks failed on absent core exports. Subsequent behavioral red cases exposed invalid-name/error classification and prototype-forged declarations; compile red exposed valid array initials rejected by excess-key checks. All were corrected before acceptance. Private declaration branding prevents prototype forgery. Array inference preserves valid readonly initial inputs.
+
+`pnpm --filter @keynes/policy-parameters test` passes 44 cases; package typecheck, focused lint/format and diff checks pass. The isolated consumer test copies installed core dependencies and TypeScript offline into a temporary directory, verifies no parent dependencies/Zod, runs the core and typechecks it, then removes the directory. It is source-consumer evidence, not an archive claim.
+
+Ponytail review removed redundant shape predicates after validated field extraction. Re-review: Lean already. Ship. Independent correctness re-review verified both regression fixes. Restoration/overrides and Zod remain NOT RUN at this checkpoint.

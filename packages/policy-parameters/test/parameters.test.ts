@@ -166,3 +166,109 @@ describe("schema profile and value validation", () => {
     ).toThrowError(expect.objectContaining({ rule: "keyword", path: "" }));
   });
 });
+
+import { defineParameters, createParameterSnapshot } from "../src/index.ts";
+import canonicalize from "canonicalize";
+import { createHash } from "node:crypto";
+
+describe("declaration and provisioning", () => {
+  it("validates explicit initials and produces reproducible frozen snapshots", () => {
+    const input = {
+      threshold: {
+        schema: { type: "integer" as const, minimum: 0 },
+        initial: 4,
+      },
+      mode: {
+        schema: { enum: ["fast", "slow"] as const },
+        initial: "fast" as const,
+      },
+    };
+    const declaration = defineParameters(input);
+    input.threshold.initial = 99;
+    const snapshot = createParameterSnapshot(declaration);
+    expect(snapshot.values).toEqual({ threshold: 4, mode: "fast" });
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.definition.parameters.threshold)).toBe(
+      true,
+    );
+    expect(Object.isFrozen(snapshot.values)).toBe(true);
+    expect(Object.isFrozen(declaration)).toBe(true);
+    expect(snapshot).toEqual(createParameterSnapshot(declaration));
+    const hash = (input: unknown) =>
+      "sha256:" +
+      createHash("sha256").update(canonicalize(input)!).digest("hex");
+    expect(snapshot.definitionId).toBe(hash(snapshot.definition));
+    expect(snapshot.snapshotId).toBe(
+      hash({
+        formatVersion: 1,
+        definitionId: snapshot.definitionId,
+        values: snapshot.values,
+      }),
+    );
+    expect(snapshot.definition).not.toHaveProperty("initial");
+  });
+  it.each([
+    {},
+    { "": { schema: true, initial: 1 } },
+    { x: { schema: true } },
+    { x: { schema: true, initial: 1, extra: 2 } },
+    { x: { schema: true, initial: undefined } },
+    { x: { schema: { type: "integer" }, initial: "secret" } },
+  ])("rejects invalid declarations or initials %#", (input) => {
+    expect(() => defineParameters(input as never)).toThrow(ParameterError);
+  });
+  it("requires initials and never provisions defaults", () => {
+    const declaration = defineParameters({
+      config: {
+        schema: {
+          type: "object",
+          properties: { x: { type: "number", default: 7 } },
+          additionalProperties: false,
+        },
+        initial: {},
+      },
+    });
+    expect(createParameterSnapshot(declaration).values.config).toEqual({});
+    expect(() =>
+      defineParameters({
+        x: { schema: { type: "number", default: 7 } },
+      } as never),
+    ).toThrow(ParameterError);
+  });
+  it("does not invoke getters and rejects forged declarations", () => {
+    let reads = 0;
+    const input = {
+      x: {
+        schema: true,
+        get initial() {
+          reads++;
+          return 1;
+        },
+      },
+    };
+    expect(() => defineParameters(input)).toThrow(ParameterError);
+    expect(reads).toBe(0);
+    expect(() => createParameterSnapshot({} as never)).toThrow(ParameterError);
+  });
+});
+
+it("enforces portable names and classifies supplied invalid initials", () => {
+  for (const name of ["bad-name", "a b", "1bad", "a".repeat(65), "constructor"])
+    expect(() =>
+      defineParameters({ [name]: { schema: true, initial: 1 } }),
+    ).toThrow(ParameterError);
+  expect(() =>
+    defineParameters({ x: { schema: true, initial: undefined } } as never),
+  ).toThrowError(expect.objectContaining({ code: "invalid_parameter_value" }));
+});
+
+it("rejects a forged declaration with the legitimate prototype", () => {
+  const valid = defineParameters({
+    x: { schema: { type: "number" }, initial: 1 },
+  });
+  const forged = Object.assign(Object.create(Object.getPrototypeOf(valid)), {
+    definition: valid.definition,
+    initials: { x: "invalid" },
+  });
+  expect(() => createParameterSnapshot(forged)).toThrow(ParameterError);
+});
