@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { checkServerIdentity } from "node:tls";
 import { createKeynes, createOperationKey } from "@keynes/sdk";
 import { postgres } from "@keynes/postgres";
 
@@ -18,9 +19,19 @@ assert.equal(url.searchParams.get("sslmode"), "verify-full");
 const resources = {
   packageQualificationUnits: { unit: "unit", accountingBehavior: "consumable" },
 };
-const { Client } = createRequire(import.meta.resolve("@keynes/postgres"))("pg");
+const require = createRequire(import.meta.resolve("@keynes/postgres"));
+const { Client } = require("pg");
+const { parse } = require("pg-connection-string");
+const connection = parse(databaseUrl);
 const provisioner = new Client({
-  connectionString: databaseUrl,
+  ...connection,
+  ssl: {
+    ...connection.ssl,
+    rejectUnauthorized: true,
+    minVersion: "TLSv1.2",
+    checkServerIdentity: (_servername, certificate) =>
+      checkServerIdentity(connection.host, certificate),
+  },
   connectionTimeoutMillis: 5_000,
 });
 try {

@@ -269,3 +269,9 @@ Pre-commit verification on the remediation checkout:
 The first PR check attempt exposed a report-test assumption about files with one assertion; the fixture now omits an empty file and still proves missing native coverage is rejected. A later typecheck caught calling a union of generic Budget methods in the borrowed regression; explicit request and settle calls fixed it. Both failed attempts remain failures; the final PR command exited 0.
 
 Exact remediation archive qualification is pending T033. Managed external databases, hosted CI on this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. No push or merge is authorized.
+
+### First remediation archive attempt
+
+Commit fad22cf ran pnpm test:package:split -- --output .artifacts/key-96-review/fad22cf-attempt-1. SDK-only, SDK/SQLite, PostgreSQL package and CLI stages passed; native qualification failed with 285 assertions passing and the new walkthrough failing. Cleanup passed. This attempt does not qualify. The retained result and observations remain in that directory.
+
+The provisioning pg client used default TLS hostname checking, which compared the loopback IP certificate against localhost. The consumer now uses the installed pg-connection-string parser and node:tls checkServerIdentity against the configured host, retaining CA verification and TLS 1.2 minimum. The focused native walkthrough then passed its assertion, but the deliberately reduced diagnostic invocation omitted the full runner report and exited nonzero; it is diagnostic evidence only, not qualification. Logs are retained in .artifacts/key-96-review/walkthrough-diagnosis.log and walkthrough-fixed.log. No production runtime change was needed.
