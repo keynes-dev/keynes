@@ -1,1 +1,1 @@
-export { postgres } from "./adapter.js";
+export { postgres, type PostgresConnection } from "./adapter.js";

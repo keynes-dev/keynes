@@ -1,7 +1,7 @@
 import { parsePassingReport } from "@keynes/testkit/report";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
+import { createHash, X509Certificate } from "node:crypto";
 import {
   chmod,
   mkdir,
@@ -39,8 +39,107 @@ import {
   selectedScenarioInventory,
   validateNativeSelection,
 } from "./required-scenarios.js";
+import { requirePostgresqlSystemTlsRootCertificate } from "./support/test-keynes.js";
 
 describe("PostgreSQL system-test runner", () => {
+  it("rejects absent TLS trust information in otherwise valid runner context", () => {
+    vi.stubEnv(
+      "KEYNES_POSTGRESQL_SYSTEM_CONTEXT",
+      JSON.stringify({
+        runId: RUN_ID,
+        administratorUrl: `postgresql://postgres:${PASSWORD}@127.0.0.1:49152/postgres`,
+        scope: "selected",
+        installation: { kind: "source" },
+      }),
+    );
+    try {
+      expect(() => requirePostgresqlSystemTlsRootCertificate()).toThrow(
+        "TLS root certificate",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("issues a loopback server certificate signed by its temporary root", async () => {
+    const fake = fakeRuntime();
+    const run = fake.runtime.run;
+    let verified = false;
+    fake.runtime.run = async (executable, args, env, signal) => {
+      if (executable === "openssl")
+        await promisify(execFile)(executable, [...args]);
+      if (args.includes(POSTGRES_IMAGE)) {
+        const mount = args[args.indexOf("--volume") + 1];
+        if (mount === undefined) throw new Error("Missing TLS mount");
+        const root = mount.split(":/keynes-tls:ro")[0];
+        if (root === undefined) throw new Error("Missing TLS root");
+        const ca = new X509Certificate(await readFile(join(root, "ca.crt")));
+        const server = new X509Certificate(
+          await readFile(join(root, "server.crt")),
+        );
+        expect(ca.ca).toBe(true);
+        expect(server.ca).toBe(false);
+        expect(server.verify(ca.publicKey)).toBe(true);
+        expect(server.checkIP("127.0.0.1")).toBe("127.0.0.1");
+        verified = true;
+      }
+      return run(executable, args, env, signal);
+    };
+    await runPostgresqlSystemTests(
+      fake.runtime,
+      {},
+      { selection: { kind: "ci" } },
+    );
+    expect(verified).toBe(true);
+  });
+
+  it("removes the TLS workspace when certificate generation fails", async () => {
+    const fake = fakeRuntime();
+    const run = fake.runtime.run;
+    let config = "";
+    fake.runtime.run = async (executable, args, env, signal) => {
+      if (executable === "openssl") {
+        config = args[args.indexOf("-config") + 1] ?? "";
+        throw new Error("certificate fixture failure");
+      }
+      return run(executable, args, env, signal);
+    };
+    await expect(
+      runPostgresqlSystemTests(fake.runtime, {}, { selection: { kind: "ci" } }),
+    ).rejects.toThrow("tls-certificates");
+    expect(config).not.toBe("");
+    await expect(stat(dirname(config))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("provides a verified TLS fixture and removes its certificates after tests", async () => {
+    const fake = fakeRuntime();
+    await runPostgresqlSystemTests(
+      fake.runtime,
+      {},
+      { selection: { kind: "ci" } },
+    );
+    const context = JSON.parse(
+      fake.commands.find((command) => command.executable === "pnpm")
+        ?.environment?.KEYNES_POSTGRESQL_SYSTEM_CONTEXT ?? "{}",
+    );
+    expect(context.tlsRootCertificate).toEqual(expect.any(String));
+    const server = fake.commands.find((command) =>
+      command.arguments.includes(POSTGRES_IMAGE),
+    );
+    expect(server?.arguments.join(" ")).toContain("ssl=on");
+    expect(server?.arguments.join(" ")).toContain(
+      "chmod 600 /tmp/keynes-server.key",
+    );
+    expect(
+      fake.commands.filter((command) => command.executable === "openssl"),
+    ).toHaveLength(3);
+    await expect(
+      stat(dirname(context.tlsRootCertificate)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("keeps native correctness coverage in CI without packed installation or poolers", () => {
     const selection = validateNativeSelection({ kind: "ci" });
     const inventory = selectedScenarioInventory(selection);

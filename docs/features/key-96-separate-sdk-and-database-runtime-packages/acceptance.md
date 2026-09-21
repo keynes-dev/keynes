@@ -133,8 +133,32 @@ Boundary checks cover 261 files in five packages with no issues. Intermediate fo
 
 Ponytail review accepts the single capture helper, shared owner parser and small runtime binding protocol. Removed SDK input validation, retained result validation, and reused existing packaging/report helpers. Shared scenarios establish SQLite/native agreement for errors, replay, history and final state. Exact installed public borrowed-connection and four-archive acceptance remain pending.
 
+## Phase 5: PostgreSQL borrowed connection
+
+Source base: `932cd0e`. The phase 5 commit contains this record and the checked diff.
+
+Test-first evidence: six of seven new adapter unit cases fail because borrowed construction is unsupported. Two new packed-consumer checks fail for the missing borrowed overload/connection type and rejected real `Client`; four existing import checks pass. Consumers use the adapter's declared pg closure, without a hidden pg/type installation.
+
+`pnpm --filter @keynes/postgres test:embedded` then fails with 9 new public borrowed cases failed and 148 existing cases passed. Failure occurs at unsupported factory configuration; PostgreSQL cleanup passes and the command exits 1. These are intended missing-feature failures, not passing native acceptance. Implementation starts after this baseline.
+
+The public borrowed lane subsequently passes 157 assertions with exit 0 and successful cleanup. It proves supplied Client/PoolClient identity, read-only initialization, autocommit, provisional visibility, caller commit/rollback with application writes, failed-transaction recovery, context refusal, and close/drain without connection or transaction ownership. Driver interruptions retain their cause and are not retried.
+
+Packed checks pass 15 tests. Strict clean-consumer declaration checking exposed a missing production type dependency; `@types/pg` now belongs to PostgreSQL's declared dependency closure. An initial offline attempt lacked cached metadata for that newly required closure. After warming only the declared dependencies, strict offline installation passed without fixture-only packages. Installed native modules resolve inside the external consumer, including the same pg constructor used by the adapter.
+
+The first full installed native run passes 278 tests but fails both new public owned-adapter history checks; exit 1, cleanup passed. Verified TLS worked. Investigation found a pre-existing SQL response-contract mismatch, independently confirmed against the pre-phase-4 schema and validator: history replies added Budget reference fields that the canonical remote history schema excludes. A third native strict-response regression fails alongside those two, with 217 existing cases passing and cleanup passing. The plan was revised before changing SQL. The fix removes only four top-level internal identity fields from history projection, leaving stored history, pagination, accounting, valid decision evidence and schema/command identities unchanged. All four history kinds are checked through the strict public client.
+
+This wire correction is distinct from source relocation. The new baseline SHA-256 is `87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca`; migration-set digest is `71a32dd66d2397ac75f4d2e4af8328d15e2fbc7843b15c5105bbbe0b275f48ed`. Existing targets with different installation bytes still refuse exact recheck; no upgrade or repair path was added.
+
+Source remote/direct qualification passes 220 tests after the correction. Rebuilt exact SDK/PostgreSQL archives then pass the full native suite: 281 assertions, exit 0, complete report and successful cleanup. This includes public owned TLS/lifecycle/history/recovery, public borrowed transactions and the retained contention, security, tenant, installation and recovery scenarios. Temporary archives are removed by the runner; retained final archive evidence remains phase 7 work.
+
+The native fixture uses an ephemeral signed loopback certificate and strict verification through the public adapter. Direct connections reject an untrusted root; existing pooler endpoints retain plaintext rejection. Certificate failure/success cleanup is covered by runner tests. Production TLS options were not relaxed. Source and archive fixture selection follow the runner context.
+
+Ponytail review accepts the per-handle queue, generated direct-procedure routing, installed-module loader and linear TLS fixture. Extracting a generic lifecycle would add coupling. Root review removed a redundant assertion and fixed fixture failure cleanup; the history correction remains confined to its projection. PostgreSQL still temporarily contains the legacy executable until phase 6; final no-CLI archive isolation is not claimed yet.
+
+Final `pnpm test:pr` passes with exit 0: 63 repository, 178 runner, 51 database, 189 SQLite, 217 SDK and 164 PostgreSQL assertions; generation, formatting, lint, types and dependency boundaries pass (265 files, five packages). The first post-fix attempt correctly rejected the old pinned SQL hash; the reviewed baseline pin was updated while command/schema pins and historical evidence remained unchanged. Full native and package checks above provide the phase's database and distribution evidence.
+
 ## Pending acceptance
 
-Phases 5-7, installed public borrowed transactions, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Phases 6-7, separate CLI qualification and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.

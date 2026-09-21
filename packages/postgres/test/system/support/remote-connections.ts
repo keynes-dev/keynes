@@ -48,9 +48,10 @@ export async function poolerMode(
 export async function connectWithVerifiedTls(
   databaseUrl: string,
   login: Pick<RemoteLogin, "role" | "password">,
+  profile: RemoteConnectionProfile = "direct",
 ): Promise<Client> {
   const client = new Client({
-    connectionString: loginUrl(databaseUrl, login),
+    connectionString: loginUrl(profileUrl(databaseUrl, profile), login),
     connectionTimeoutMillis: 2_000,
     ssl: { minVersion: "TLSv1.2", rejectUnauthorized: true },
   });

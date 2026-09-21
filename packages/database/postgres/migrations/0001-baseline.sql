@@ -2316,7 +2316,11 @@ BEGIN
     END IF;
     SELECT count(*)::integer,
            coalesce(jsonb_agg(
-             keynes_internal.remote_project_json_v0006(tenant, page.payload)
+             keynes_internal.remote_project_json_v0006(
+               tenant, page.payload - ARRAY[
+                 'budgetId', 'parentBudgetId', 'rootBudgetId', 'childBudgetId'
+               ]::text[]
+             )
              ORDER BY page.sequence
            ) FILTER (WHERE page.ordinal <= 256), '[]'::jsonb)
       INTO entry_count, entries

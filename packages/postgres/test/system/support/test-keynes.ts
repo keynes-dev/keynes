@@ -201,6 +201,20 @@ export function requirePostgresqlSystemInstallation(): FixtureInstallation {
     .installation;
 }
 
+export function requirePostgresqlSystemTlsRootCertificate(): string {
+  const source = requirePostgresqlSystemContext();
+  parsePostgresqlSystemContext(source);
+  const value: unknown = JSON.parse(source);
+  if (
+    !isRecord(value) ||
+    typeof value.tlsRootCertificate !== "string" ||
+    !value.tlsRootCertificate.startsWith("/")
+  ) {
+    throw new Error("Invalid runner-owned PostgreSQL TLS root certificate");
+  }
+  return value.tlsRootCertificate;
+}
+
 function requirePostgresqlSystemContext(): string {
   const source = process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV];
   if (source === undefined) {

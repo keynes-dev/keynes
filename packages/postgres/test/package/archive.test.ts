@@ -16,6 +16,8 @@ const expectedFiles = [
   "package/dist/adapter.js",
   "package/dist/cli.d.ts",
   "package/dist/cli.js",
+  "package/dist/generated/direct-procedures.d.ts",
+  "package/dist/generated/direct-procedures.js",
   "package/dist/generated/resource-definitions.d.ts",
   "package/dist/generated/resource-definitions.js",
   "package/dist/generated/types.d.ts",
@@ -129,11 +131,26 @@ describe("@keynes/postgres packed archive", () => {
     });
     expect(manifest.bin).toEqual({ "keynes-postgresql": "dist/cli.js" });
     expect(manifest.dependencies).toEqual({
+      "@types/pg": "8.23.1",
       pg: "8.23.0",
       "pg-connection-string": "2.14.0",
     });
     expect(manifest.peerDependencies).toEqual({ "@keynes/sdk": "0.0.0" });
     expect(entry("package/dist/cli.js").mode & 0o111).not.toBe(0);
+  });
+
+  it("excludes SQLite and private workspace dependencies", () => {
+    const manifest = JSON.parse(
+      entry("package/package.json").body.toString("utf8"),
+    );
+    for (const name of Object.keys({
+      ...manifest.dependencies,
+      ...manifest.peerDependencies,
+    })) {
+      expect(name).not.toMatch(
+        /@keynes\/(?:database|testkit|node-sqlite)|sqlite|typescript|vitest/,
+      );
+    }
   });
 
   it("documents the current six-key, four-role installation and ten remote procedures", () => {
@@ -173,7 +190,9 @@ describe("@keynes/postgres packed archive", () => {
         .map(({ body }) => body),
     ).toString("utf8");
     expect(content).not.toContain("node:sqlite");
-    expect(content).not.toContain("@keynes/database");
+    expect(content).not.toMatch(
+      /(?:from\s+|import\s+|import\s*\(\s*|require\s*\(\s*)["']@keynes\/(?:database|testkit|node-sqlite)/,
+    );
     expect(content).not.toContain("packages/sdk");
   });
 

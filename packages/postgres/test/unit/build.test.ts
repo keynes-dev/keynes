@@ -331,6 +331,8 @@ function compileCompleteDistribution(outputRoot: string): void {
     "adapter.js",
     "cli.d.ts",
     "cli.js",
+    "generated/direct-procedures.d.ts",
+    "generated/direct-procedures.js",
     "generated/resource-definitions.d.ts",
     "generated/resource-definitions.js",
     "generated/types.d.ts",

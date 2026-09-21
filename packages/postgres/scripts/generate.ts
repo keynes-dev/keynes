@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 
 import { format } from "oxfmt";
 
-import { applyGeneratedOutputs } from "@keynes/database";
+import { applyGeneratedOutputs, loadContract } from "@keynes/database";
 
 export async function generatePostgresql(options: {
   readonly check: boolean;
@@ -37,6 +37,29 @@ export async function generatePostgresql(options: {
     throw new Error(
       `cannot format generated resource-definitions.ts: ${formattingError.message ?? "parse error"}`,
     );
+  const direct = await format(
+    "direct-procedures.ts",
+    "// Generated from packages/database/contract.json. Do not edit.\nexport const DIRECT_PROCEDURES = " +
+      JSON.stringify(
+        Object.fromEntries(
+          loadContract(join(source, "..")).source.operations.map(
+            ({ method, target, permissions }) => [
+              method,
+              { target, permission: permissions[0] },
+            ],
+          ),
+        ),
+      ) +
+      " as const;\n",
+    { printWidth: 80 },
+  );
+  const directError = direct.errors.find(
+    (diagnostic) => diagnostic.severity === "Error",
+  );
+  if (directError !== undefined)
+    throw new Error(
+      `cannot format generated direct-procedures.ts: ${directError.message ?? "parse error"}`,
+    );
   applyGeneratedOutputs({
     check: options.check,
     outputRoot: join(repositoryRoot, "packages/postgres"),
@@ -50,6 +73,7 @@ export async function generatePostgresql(options: {
         readFileSync(join(source, "../generated/types.ts"), "utf8"),
       ],
       ["src/generated/resource-definitions.ts", parser.code],
+      ["src/generated/direct-procedures.ts", direct.code],
     ]),
     generatedDirectories: [
       { path: "generated", accepts: () => true },

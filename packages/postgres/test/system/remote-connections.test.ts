@@ -97,14 +97,25 @@ describe("remote PostgreSQL connection profiles", () => {
     },
   );
 
-  it("rejects the native plaintext endpoint when verified TLS is required", async () => {
+  it("rejects the native TLS endpoint without its trusted root", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
 
     await expect(
       connectWithVerifiedTls(fixture.databaseUrl, fixture.primary),
-    ).rejects.toThrow(/ssl/iu);
+    ).rejects.toThrow(/certificate/iu);
   });
+
+  it.each(CONNECTION_PROFILES.filter((profile) => profile !== "direct"))(
+    "rejects the plaintext %s endpoint when verified TLS is required",
+    async (profile) => {
+      fixture = await openRemoteIdentityFixture();
+      await fixture.register(fixture.primary);
+      await expect(
+        connectWithVerifiedTls(fixture.databaseUrl, fixture.primary, profile),
+      ).rejects.toThrow(/ssl/iu);
+    },
+  );
 
   it("fails closed when the database is unavailable", async () => {
     fixture = await openRemoteIdentityFixture();

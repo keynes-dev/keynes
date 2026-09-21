@@ -1,3 +1,8 @@
+import { loadPublicPostgresql } from "../support/packed-package.js";
+import {
+  requirePostgresqlSystemInstallation,
+  requirePostgresqlSystemTlsRootCertificate,
+} from "./support/test-keynes.js";
 import { rootResources } from "@keynes/database/contract-tests";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -468,3 +473,180 @@ function requireResultReference(value: unknown, field: string): string {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+describe("public owned PostgreSQL adapter", () => {
+  const resources = {
+    modelTokens: { unit: "token", accountingBehavior: "consumable" },
+  };
+
+  async function openPublicFixture() {
+    const modules = await loadPublicPostgresql(
+      requirePostgresqlSystemInstallation(),
+    );
+    const fixture = await openRemoteIdentityFixture();
+    try {
+      await fixture.register(fixture.primary);
+      const bootstrap = await fixture.connect(fixture.primary);
+      try {
+        expect(
+          await queryResponse(bootstrap, "keynes.remote_define_resources", {
+            operationKey: modules.createOperationKey(),
+            definitions: resources,
+          }),
+        ).toMatchObject({ ok: true });
+      } finally {
+        await bootstrap.end();
+      }
+      const url = new URL(fixture.databaseUrl);
+      url.username = fixture.primary.role;
+      url.password = fixture.primary.password;
+      url.searchParams.set("sslmode", "verify-full");
+      url.searchParams.set(
+        "sslrootcert",
+        requirePostgresqlSystemTlsRootCertificate(),
+      );
+      const keynes = await modules.createKeynes({
+        resources,
+        runtime: modules.postgres({ databaseUrl: url.toString() }),
+      });
+      return {
+        fixture,
+        keynes,
+        createOperationKey: modules.createOperationKey,
+      };
+    } catch (error: unknown) {
+      await fixture.close();
+      throw error;
+    }
+  }
+
+  it("executes the public lifecycle over verified TLS and closes its owned pool", async () => {
+    const { fixture, keynes, createOperationKey } = await openPublicFixture();
+    try {
+      await keynes.defineResources(resources);
+      const root = await keynes.createBudget({ modelTokens: 10 });
+      const requestKey = createOperationKey();
+      const requested = await root.request(
+        { modelTokens: 3 },
+        { operationKey: requestKey, decisionEvidence: { source: "native" } },
+      );
+      expect(requested.status).toBe("approved");
+      if (requested.status !== "approved")
+        throw new Error("Expected approved native public request");
+      await expect(
+        requested.budget.settle({ modelTokens: 2 }),
+      ).resolves.toMatchObject({ kind: "settled" });
+      const inspection = await root.inspect();
+      expect(inspection.budget.resources).toEqual([
+        expect.objectContaining({
+          resource: "modelTokens",
+          allocated: 10,
+          subtreeObservedUsage: 2,
+        }),
+      ]);
+      expect(inspection.history.entries.length).toBeGreaterThan(1);
+      const opened = await keynes.openBudget({
+        reference: root.reference,
+        resourceTypes: resources,
+      });
+      expect(await opened.inspect()).toEqual(inspection);
+      await expect(keynes.recoverOperation(requestKey)).resolves.toMatchObject({
+        kind: "committed",
+        operation: "requestBudget",
+        result: { decisionEvidence: { source: "native" } },
+      });
+      const tls = await fixture.administrator.query<{ ssl: boolean }>(
+        "select s.ssl from pg_stat_ssl s join pg_stat_activity a using (pid) where a.usename = $1",
+        [fixture.primary.role],
+      );
+      expect(tls.rows.length).toBeGreaterThan(0);
+      expect(tls.rows.every(({ ssl }) => ssl)).toBe(true);
+      const closing = keynes.close();
+      expect(keynes.close()).toBe(closing);
+      await closing;
+      await expect(root.inspect()).rejects.toMatchObject({
+        code: "client_closed",
+      });
+    } finally {
+      await keynes.close();
+      await fixture.close();
+    }
+  });
+
+  it("projects all public history kinds without internal identity fields", async () => {
+    const { fixture, keynes } = await openPublicFixture();
+    try {
+      const wire = await fixture.connect(fixture.primary);
+      const { createRemoteKeynesClient } = await loadPublicPostgresql(
+        requirePostgresqlSystemInstallation(),
+      );
+      const client = createRemoteKeynesClient({
+        execute: (procedure, input) =>
+          queryResponse(wire, procedure.target, input),
+      });
+      const root = await keynes.createBudget({ modelTokens: 10 });
+      const decisionEvidence = {
+        budget_id: "application-label",
+        command_id: "opaque",
+        root_budget_id: "x",
+      };
+      const requested = await root.request(
+        { modelTokens: 3 },
+        { decisionEvidence },
+      );
+      if (requested.status !== "approved")
+        throw new Error("Expected history fixture approval");
+      await expect(
+        root.request({ modelTokens: 20 }, { decisionEvidence }),
+      ).resolves.toMatchObject({ status: "denied" });
+      await requested.budget.settle({ modelTokens: 2 });
+      const page = await client.getBudgetHistoryPage({
+        budgetReference: root.reference,
+      });
+      expect(page.entries.map(({ kind }) => kind)).toEqual([
+        "budget_created",
+        "request_approved",
+        "request_denied",
+        "budget_settlement_recorded",
+      ]);
+      expect(page.entries.slice(1, 3)).toEqual([
+        expect.objectContaining({ decisionEvidence }),
+        expect.objectContaining({ decisionEvidence }),
+      ]);
+      for (const entry of page.entries) {
+        for (const key of [
+          "budgetReference",
+          "parentBudgetReference",
+          "childBudgetReference",
+          "rootBudgetReference",
+        ])
+          expect(entry).not.toHaveProperty(key);
+      }
+    } finally {
+      await keynes.close();
+      await fixture.close();
+    }
+  });
+
+  it("reopens with read permission after creation permission is revoked", async () => {
+    const { fixture, keynes } = await openPublicFixture();
+    try {
+      const root = await keynes.createBudget({ modelTokens: 10 });
+      await fixture.administrator.query(
+        "delete from keynes_internal.principal_permissions where tenant_id = $1 and principal_id = $2 and permission = 'create_root_budget'",
+        [fixture.primary.tenantId, fixture.primary.principalId],
+      );
+      await expect(
+        keynes.createBudget({ modelTokens: 1 }),
+      ).rejects.toMatchObject({ code: "unauthorized" });
+      const reopened = await keynes.openBudget({
+        reference: root.reference,
+        resourceTypes: resources,
+      });
+      expect(await reopened.inspect()).toEqual(await root.inspect());
+    } finally {
+      await keynes.close();
+      await fixture.close();
+    }
+  });
+});

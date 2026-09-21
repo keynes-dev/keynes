@@ -45,6 +45,8 @@ Gate evaluated before research and again after design against constitution 12.0.
 
 Affected Budgets remain entirely in their selected database. Application outbox writes exist only in focused borrowed-transaction fixtures. Shared commands retain their semantic identities; relocation alone must not change SQL bytes or contract digests. If implementation discovers a required semantic change, stop and revise these artifacts rather than silently adding it.
 
+Phase 5 native public-adapter qualification exposed an existing remote history response mismatch: SQL projects internal Budget identity fields into references that the canonical remote history schema excludes. Correct only that history-page projection to conform to the existing schema, with a failing native response-validation regression before the fix. Preserve stored history, arbitrary decision evidence, accounting, permissions, pagination and command/schema identities. This necessary wire correction changes baseline SQL and installation asset hashes; acceptance must distinguish it from byte-preserving source relocation and record the new identities. No installer upgrade or repair behavior is added.
+
 ## Project Structure
 
 ### Documentation (this feature)

@@ -76,7 +76,13 @@ describe("repository organization", () => {
     try {
       const owner = join(root, "packages/database");
       mkdirSync(owner, { recursive: true });
-      for (const path of ["src", "postgres", "generated"]) {
+      for (const path of [
+        "src",
+        "postgres",
+        "generated",
+        "contract.json",
+        "schema.json",
+      ]) {
         cpSync(
           join(repositoryRoot, "packages/database", path),
           join(owner, path),
@@ -117,7 +123,7 @@ describe("repository organization", () => {
     }
   });
 
-  it("preserves command and SQL identities under the private database owner", () => {
+  it("pins unchanged command and schema identities and the reviewed PostgreSQL baseline", () => {
     const database = readJsonObject(
       join(repositoryRoot, "packages/database/package.json"),
     );
@@ -135,8 +141,9 @@ describe("repository organization", () => {
         "7d96d41d1eeb87e89b75a13872fcf9f9d7dbea233413d9bb6becbdf6975e83cf",
       ],
       [
+        // Phase 5 removes internal Budget IDs from public history; command and schema bytes remain unchanged.
         "postgres/migrations/0001-baseline.sql",
-        "38822568b10faefe596d98b556576bf7114e2c2c63b4f128c52b906f0ab7e1d9",
+        "87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca",
       ],
     ]) {
       expect(
@@ -248,7 +255,14 @@ describe("repository organization", () => {
     const subjects = [
       ["packages/sdk", {}],
       ["packages/node-sqlite", {}],
-      ["packages/postgres", { pg: "8.23.0", "pg-connection-string": "2.14.0" }],
+      [
+        "packages/postgres",
+        {
+          "@types/pg": "8.23.1",
+          pg: "8.23.0",
+          "pg-connection-string": "2.14.0",
+        },
+      ],
     ] as const;
 
     for (const [directory, expectedDependencies] of subjects) {

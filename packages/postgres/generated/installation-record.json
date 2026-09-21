@@ -20,12 +20,12 @@
   },
   "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766",
   "remoteProceduresDigest": "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd",
-  "migrationSetDigest": "30540496ee33f92b48449cc35d027c53aa018483d05f706a546d3dbd251e06f1",
+  "migrationSetDigest": "71a32dd66d2397ac75f4d2e4af8328d15e2fbc7843b15c5105bbbe0b275f48ed",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
-      "sha256": "38822568b10faefe596d98b556576bf7114e2c2c63b4f128c52b906f0ab7e1d9",
+      "sha256": "87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca",
       "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
     }
   ],

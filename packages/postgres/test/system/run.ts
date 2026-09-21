@@ -94,6 +94,7 @@ interface NativeContextFields {
   readonly administratorUrl: string;
   readonly installation: FixtureInstallation;
   readonly poolers: PoolerUrls;
+  readonly tlsRootCertificate: string;
 }
 export type PostgresqlSystemContext =
   | (NativeContextFields & {
@@ -246,6 +247,7 @@ export async function runPostgresqlSystemTests(
   let containerStarted = false;
   let networkCreated = false;
   let poolerWorkspace: PoolerWorkspace | undefined;
+  let tlsRoot: string | undefined;
   const poolerContainers: string[] = [];
   let child: RunningTestChild | undefined;
   let packed: PackedPostgresqlPackage | undefined;
@@ -265,6 +267,79 @@ export async function runPostgresqlSystemTests(
       activeRuntime.run("docker", ["network", "create", runId], environment),
     );
     networkCreated = true;
+    tlsRoot = await mkdtemp(join(tmpdir(), "keynes-native-tls-"));
+    await executeStage(runId, "tls-certificates", async () => {
+      const root = tlsRoot;
+      if (root === undefined) throw new Error("Missing TLS workspace");
+      const config = join(root, "certificate.cnf");
+      await writeFile(
+        config,
+        "[req]\ndistinguished_name=dn\nprompt=no\n[dn]\nCN=Keynes native fixture\n[ca]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\n[server]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=IP:127.0.0.1\n",
+      );
+      await activeRuntime.run(
+        "openssl",
+        [
+          "req",
+          "-x509",
+          "-newkey",
+          "rsa:2048",
+          "-nodes",
+          "-days",
+          "2",
+          "-config",
+          config,
+          "-extensions",
+          "ca",
+          "-keyout",
+          join(root, "ca.key"),
+          "-out",
+          join(root, "ca.crt"),
+        ],
+        environment,
+      );
+      await activeRuntime.run(
+        "openssl",
+        [
+          "req",
+          "-new",
+          "-subj",
+          "/CN=127.0.0.1",
+          "-newkey",
+          "rsa:2048",
+          "-nodes",
+          "-config",
+          config,
+          "-keyout",
+          join(root, "server.key"),
+          "-out",
+          join(root, "server.csr"),
+        ],
+        environment,
+      );
+      await activeRuntime.run(
+        "openssl",
+        [
+          "x509",
+          "-req",
+          "-in",
+          join(root, "server.csr"),
+          "-CA",
+          join(root, "ca.crt"),
+          "-CAkey",
+          join(root, "ca.key"),
+          "-CAcreateserial",
+          "-days",
+          "2",
+          "-extfile",
+          config,
+          "-extensions",
+          "server",
+          "-out",
+          join(root, "server.crt"),
+        ],
+        environment,
+      );
+    });
     await executeStage(runId, "container-start", () =>
       activeRuntime.run(
         "docker",
@@ -282,7 +357,13 @@ export async function runPostgresqlSystemTests(
           "POSTGRES_PASSWORD",
           "--publish",
           "127.0.0.1::5432",
+          "--volume",
+          `${tlsRoot}:/keynes-tls:ro`,
+          "--entrypoint",
+          "bash",
           POSTGRES_IMAGE,
+          "-ec",
+          "cp /keynes-tls/server.key /tmp/keynes-server.key; chown postgres:postgres /tmp/keynes-server.key; chmod 600 /tmp/keynes-server.key; cp /keynes-tls/server.crt /tmp/keynes-server.crt; exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/keynes-server.crt -c ssl_key_file=/tmp/keynes-server.key",
         ],
         { ...environment, POSTGRES_PASSWORD: password },
       ),
@@ -335,6 +416,7 @@ export async function runPostgresqlSystemTests(
       runId,
       administratorUrl: connectionUrl,
       poolers,
+      tlsRootCertificate: join(tlsRoot, "ca.crt"),
       installation:
         packed === undefined
           ? { kind: "source" }
@@ -413,6 +495,13 @@ export async function runPostgresqlSystemTests(
       await rm(poolerWorkspace.root, { recursive: true, force: true });
     } catch (error: unknown) {
       recordCleanupFailure("pooler workspace", error);
+    }
+  }
+  if (tlsRoot !== undefined) {
+    try {
+      await rm(tlsRoot, { recursive: true, force: true });
+    } catch (error: unknown) {
+      recordCleanupFailure("TLS workspace", error);
     }
   }
   if (packed !== undefined) {

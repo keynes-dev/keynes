@@ -17,7 +17,8 @@ import {
 
 const pgMock = vi.hoisted(() => ({ constructPool: vi.fn() }));
 
-vi.mock("pg", () => ({
+vi.mock("pg", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("pg")>()),
   Pool: function Pool(config: PoolConfig): unknown {
     return pgMock.constructPool(config);
   },

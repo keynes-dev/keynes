@@ -191,6 +191,7 @@ export class PostgresDatabase {
   async createApplicationRole(): Promise<{
     readonly role: string;
     readonly password: string;
+    readonly connectionString: string;
   }> {
     const role = `keynes_app_${randomUUID().replaceAll("-", "")}`;
     const password = randomUUID();
@@ -201,6 +202,7 @@ export class PostgresDatabase {
     for (const functionName of [
       "define_resource_type",
       "define_resources",
+      "validate_resources",
       "create_budget",
       "request",
       "settle",
@@ -211,7 +213,10 @@ export class PostgresDatabase {
       );
     }
     this.#createdRoles.add(role);
-    return { role, password };
+    const url = new URL(this.#databaseUrl);
+    url.username = role;
+    url.password = password;
+    return { role, password, connectionString: url.toString() };
   }
 
   async beginTransactionAs(

@@ -36,6 +36,7 @@
     "test:ci": "node test/system/run.ts ci"
   },
   "dependencies": {
+    "@types/pg": "8.23.1",
     "pg": "8.23.0",
     "pg-connection-string": "2.14.0"
   },
@@ -43,7 +44,6 @@
     "@keynes/database": "workspace:*",
     "@keynes/sdk": "workspace:*",
     "@keynes/testkit": "workspace:*",
-    "@types/pg": "8.23.1",
     "oxfmt": "0.64.0",
     "vitest": "4.1.11"
   },

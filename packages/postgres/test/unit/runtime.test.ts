@@ -9,7 +9,10 @@ const driver = vi.hoisted(() => ({
     return { on() {} };
   }),
 }));
-vi.mock("pg", () => ({ Pool: driver.pool }));
+vi.mock("pg", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("pg")>()),
+  Pool: driver.pool,
+}));
 
 describe("PostgreSQL runtime descriptor", () => {
   it("captures the URL without opening a pool or reading a certificate", () => {

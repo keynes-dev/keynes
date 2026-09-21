@@ -9,7 +9,10 @@ import {
   installPostgresFixture,
 } from "./postgres-database.js";
 import type { InstallationConfig } from "../../../src/installer/config.js";
-import { requirePostgresqlSystemAdministratorUrl } from "./test-keynes.js";
+import {
+  requirePostgresqlSystemAdministratorUrl,
+  requirePostgresqlSystemInstallation,
+} from "./test-keynes.js";
 
 export const REMOTE_TENANT_A = "00000000-0000-4000-8000-000000000021";
 export const REMOTE_PRINCIPAL_A = "00000000-0000-4000-8000-000000000121";
@@ -114,7 +117,7 @@ export async function openRemoteIdentityFixture(): Promise<RemoteIdentityFixture
     await installPostgresFixture(
       databaseUrl,
       config,
-      { kind: "source" },
+      requirePostgresqlSystemInstallation(),
       "installed",
     );
     databaseAdministrator = new Client({ connectionString: databaseUrl });
