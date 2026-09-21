@@ -59,10 +59,10 @@ Goal: optional authoring produces the core portable contract without lost checks
 
 Independent test: compare accepted Zod and raw-schema fixtures and reject unsupported nested declarations.
 
-- [ ] T014 [P] [US3] Add and observe failing conversion/parity cases in `packages/policy-parameters/test/zod.test.ts` covering the allowlist, nested refinements, transforms, coercion/defaults, stripping objects, regex flags, repeated bounds and metadata overrides. Compare positive/negative value corpora and normalized schema identities. Cover FR-008 and SC-004.
-- [ ] T015 [P] [US3] Extend `packages/policy-parameters/test/types.ts` with failing Zod descriptor inference and raw-consumer independence checks. Cover FR-003 and FR-009.
-- [ ] T016 [US3] Implement the recursive node/check allowlist and stock Zod converter calls in `packages/policy-parameters/src/zod.ts`, rejecting unknown or lossy declarations before producing a descriptor. Feed converted schemas through the same core validation.
-- [ ] T017 [US3] Run `packages/policy-parameters/test/zod.test.ts` and the core-only consumer after adapter integration; prove fixture restoration without Zod and record the exact supported Zod version in `packages/policy-parameters/README.md`. Cover FR-008, FR-009, FR-012 and SC-003/SC-004.
+- [x] T014 [P] [US3] Add and observe failing conversion/parity cases in `packages/policy-parameters/test/zod.test.ts` covering the allowlist, nested refinements, transforms, coercion/defaults, stripping objects, regex flags, repeated bounds and metadata overrides. Compare positive/negative value corpora and normalized schema identities. Cover FR-008 and SC-004.
+- [x] T015 [P] [US3] Extend `packages/policy-parameters/test/types.ts` with failing Zod descriptor inference and raw-consumer independence checks. Cover FR-003 and FR-009.
+- [x] T016 [US3] Implement the recursive node/check allowlist and stock Zod converter calls in `packages/policy-parameters/src/zod.ts`, rejecting unknown or lossy declarations before producing a descriptor. Feed converted schemas through the same core validation.
+- [x] T017 [US3] Run `packages/policy-parameters/test/zod.test.ts` and the core-only consumer after adapter integration; prove fixture restoration without Zod and record the exact supported Zod version in `packages/policy-parameters/README.md`. Cover FR-008, FR-009, FR-012 and SC-003/SC-004.
 
 Checkpoint: supported authoring retains types and semantics; unsupported behavior fails explicitly. No separate validator or converter fallback is allowed.
 

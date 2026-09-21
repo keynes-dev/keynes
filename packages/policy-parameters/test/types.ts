@@ -94,3 +94,52 @@ overrideParameterSnapshot(
   {} as unknown,
   { a: [2] },
 );
+
+import { z } from "zod";
+import { zodParameter } from "../src/zod.ts";
+const authored = zodParameter(
+  z.strictObject({ name: z.string(), optional: z.number().optional() }),
+  { name: "a" },
+);
+const authoredSnapshot = createParameterSnapshot(
+  defineParameters({ author: authored }),
+);
+const authorName: string = authoredSnapshot.values.author.name;
+void authorName;
+// @ts-expect-error invalid Zod initial
+zodParameter(z.number(), "bad");
+const replacedSchema = {
+  ...zodParameter(z.string(), "a"),
+  schema: { type: "number" as const },
+  initial: 2,
+};
+const replacedNumber: number = createParameterSnapshot(
+  defineParameters({ x: replacedSchema }),
+).values.x;
+void replacedNumber;
+const spreadWitness = {
+  schema: { ...authored.schema },
+  initial: { name: "a" },
+};
+const forgedSnapshot = createParameterSnapshot(
+  defineParameters({ x: spreadWitness }),
+);
+// @ts-expect-error spreading wrapper does not preserve inferred output
+const forgedName: string = forgedSnapshot.values.x.name;
+void forgedName;
+
+const dynamicChoices: { type: "number" | "string" }[] = [
+  { type: "number" },
+  { type: "string" },
+];
+const dynamicUnion = createParameterSnapshot(
+  defineParameters({ x: { schema: { anyOf: dynamicChoices }, initial: 1 } }),
+);
+const uncertainUnion: ReadonlyJsonValue = dynamicUnion.values.x;
+void uncertainUnion;
+// @ts-expect-error dynamically assembled combinators cannot promise a number
+const assumedUnion: number = dynamicUnion.values.x;
+void assumedUnion;
+const spreadDescriptor = { ...zodParameter(z.number(), 1), initial: "wrong" };
+// @ts-expect-error changing an adapter descriptor initial retains schema-derived type checking
+defineParameters({ x: spreadDescriptor });

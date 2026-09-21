@@ -21,13 +21,23 @@ export type DeepReadonly<T> = JsonValue extends T
   : T extends object
     ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
     : T;
-export type SchemaValue<S> = JSONSchema extends S
-  ? JsonValue
-  : S extends JSONSchema
-    ? unknown extends FromSchema<S, { keepDefaultedPropertiesOptional: true }>
+export type SchemaValue<S> =
+  S extends TypedSchema<infer T>
+    ? T
+    : JSONSchema extends S
       ? JsonValue
-      : FromSchema<S, { keepDefaultedPropertiesOptional: true }>
-    : JsonValue;
+      : S extends JSONSchema
+        ? [FromSchema<S, { keepDefaultedPropertiesOptional: true }>] extends [
+            never,
+          ]
+          ? JsonValue
+          : unknown extends FromSchema<
+                S,
+                { keepDefaultedPropertiesOptional: true }
+              >
+            ? JsonValue
+            : FromSchema<S, { keepDefaultedPropertiesOptional: true }>
+        : JsonValue;
 type Descriptors = Record<string, { schema: unknown; initial: unknown }>;
 type Values<D extends Descriptors> = {
   [K in keyof D]: SchemaValue<D[K]["schema"]>;
@@ -94,6 +104,27 @@ function fields(input: unknown, path: string): Record<string, unknown> {
   return Object.fromEntries(entries);
 }
 
+class TypedSchema<T> {
+  declare private output: T;
+  #valid = true;
+  readonly schema: ReadonlyJsonValue;
+  constructor(schema: JsonValue) {
+    this.schema = freeze(schema);
+    Object.freeze(this);
+  }
+  static unwrap(input: unknown): unknown {
+    return input !== null &&
+      typeof input === "object" &&
+      #valid in input &&
+      input.#valid
+      ? input.schema
+      : input;
+  }
+}
+export function typedSchema<T>(schema: JsonValue): TypedSchema<T> {
+  return new TypedSchema<T>(schema);
+}
+
 class Declaration<V> {
   #valid = true;
   static is(value: unknown): boolean {
@@ -131,7 +162,7 @@ class Declaration<V> {
           "descriptor",
         );
       const compiled = compileParameterSchema(
-        descriptor.schema,
+        TypedSchema.unwrap(descriptor.schema),
         "invalid_parameter_declaration",
         pointer(path, "schema"),
       );

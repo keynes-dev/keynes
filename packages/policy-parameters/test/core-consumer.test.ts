@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { zodParameter } from "../src/zod.ts";
+import { defineParameters, createParameterSnapshot } from "../src/index.ts";
 import { it, expect } from "vitest";
 import {
   cpSync,
@@ -77,11 +80,12 @@ it("resolves and runs a core consumer without Zod or ancestor dependencies", () 
       join(consumer, "consumer.ts"),
       `
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createParameterSnapshot, defineParameters, restoreParameterSnapshot } from '@keynes/policy-parameters';
 const snapshot = createParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 3 } }));
 const limit: number = snapshot.values.limit;
 assert.equal(limit, 3);
-const restored = restoreParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 99 } }), JSON.parse(JSON.stringify(snapshot)));
+const restored = restoreParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 99 } }), JSON.parse(readFileSync(new URL('./authored.json', import.meta.url), 'utf8')));
 const restoredLimit: number = restored.values.limit;
 assert.equal(restoredLimit, 3);
 assert.throws(() => import.meta.resolve('zod'));
@@ -101,6 +105,14 @@ assert.throws(() => import.meta.resolve('zod'));
         },
         include: ["consumer.ts"],
       }),
+    );
+    writeFileSync(
+      join(consumer, "authored.json"),
+      JSON.stringify(
+        createParameterSnapshot(
+          defineParameters({ limit: zodParameter(z.number(), 3) }),
+        ),
+      ),
     );
     const options = {
       cwd: consumer,

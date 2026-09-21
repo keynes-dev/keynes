@@ -72,3 +72,11 @@ Ponytail review removed redundant shape predicates after validated field extract
 T010-T013 complete. The red run reported nine failing snapshot tests for missing APIs/fixture; compile checks also failed on absent exports and unused negative assertions. After implementation, 55 package tests and typecheck pass, along with focused lint/format and diff checks. Tests cover whole-value overrides, tampering/error ordering, exact definitions, changed initials, frozen copies, reordered object/schema keys, significant array order, fixed canonical fixture bytes in a fresh Node process, and core-only restoration without Zod.
 
 Read-only Ponytail review: Lean already. Ship. Independent correctness review found no actionable issues. Zod remains NOT RUN at this checkpoint.
+
+### Phase 5: optional Zod authoring
+
+T014-T017 complete. Initial tests/typecheck failed on missing adapter exports. A later compile regression reproduced dynamic combinator arrays inferred as `never`; the conservative fallback now returns JSON-value types while runtime validation remains authoritative, including for impossible schemas.
+
+`pnpm --filter @keynes/policy-parameters test` passes 81 cases, including pinned Zod 4.6.5 parity and rejected nested refinements/defaults/transforms/conditional callbacks/converter hooks, repeated bounds, exact lengths, metadata isolation, opaque-schema forgery and schema replacement. The isolated core consumer restores an actual Zod-authored fixture without Zod installed. Package typecheck, focused lint/format and diff checks pass.
+
+Zod types use an internal opaque schema wrapper; callers cannot retain its type witness while replacing its portable schema. The adapter projects stock converter output to enumerable JSON because Zod attaches a non-enumerable runtime helper. Raw caller schemas still undergo strict JSON capture. Read-only Ponytail review: Lean already. Ship. Independent correctness review found no actionable issues.

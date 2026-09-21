@@ -1,6 +1,6 @@
 # Parameter declaration and snapshot contract
 
-Proposed source contract for KEY-116. Public distribution and import names belong to KEY-117. All operations here are synchronous, local and side-effect-free; errors throw before a result is returned. They are not Promise-returning SDK methods.
+Source contract for KEY-116. Public distribution and import names belong to KEY-117. All operations here are synchronous, local and side-effect-free; errors throw before a result is returned. They are not Promise-returning SDK methods.
 
 ## Operations
 
@@ -12,7 +12,7 @@ Proposed source contract for KEY-116. Public distribution and import names belon
 | `restoreParameterSnapshot(declaration, input)`                | Expected declaration and unknown parsed JSON                                    | Typed immutable snapshot after complete verification.                                           |
 | `zodParameter(schema, initial)`                               | Supported Zod schema plus explicit initial value                                | Typed descriptor with equivalent portable JSON Schema, from a separate optional adapter import. |
 
-`defineParameters` infers types from literal schemas, never from initials. For raw schemas use `FromSchema<S, { keepDefaultedPropertiesOptional: true }>`; dynamic schema inputs expose `JsonValue`, not a caller-selected arbitrary type. A Zod descriptor preserves its accepted schema's inferred output type, with no transform semantics. Private type metadata on validated descriptors must not serialize or let arbitrary input bypass runtime checks. Initials and overrides must typecheck against their inferred value types; runtime boundaries still accept and validate untrusted input. Compile-only checks cover separately declared excess-key inputs as well as inline literals.
+`defineParameters` infers types from literal schemas, never from initials. For raw schemas use `FromSchema<S, { keepDefaultedPropertiesOptional: true }>`; dynamic schema inputs expose `JsonValue`, not a caller-selected arbitrary type. Inference results of `never` also fall back conservatively to `JsonValue`; impossible schemas still reject every value at runtime. A Zod descriptor preserves its accepted schema's inferred output type, with no transform semantics. Private type metadata on validated descriptors must not serialize or let arbitrary input bypass runtime checks. Initials and overrides must typecheck against their inferred value types; runtime boundaries still accept and validate untrusted input. Compile-only checks cover separately declared excess-key inputs as well as inline literals.
 
 The declaration and snapshot expose deep-readonly values. No public mutation API or ambient current configuration exists. An empty override returns an equivalent snapshot; an override equal to the existing value preserves content identity. Supplying undefined rejects, even for a schema whose nested properties are optional. Optional nested properties are represented by omission, not undefined.
 
@@ -46,7 +46,7 @@ Errors have `invalid_parameter_declaration`, `invalid_parameter_value`, `invalid
 
 ## Zod authoring profile
 
-The optional adapter accepts non-coercing strings without checks, booleans, null, JSON literals/enums, finite numbers with bounds, safe integers, homogeneous arrays with length bounds, strict objects, unions, nullable wrappers and optional object properties. Required parameter values themselves cannot be optional. Traverse every node and check before calling `z.toJSONSchema`, including nested branches and repeated checks. Only supported built-in node/check kinds pass.
+The optional adapter accepts non-coercing strings without checks, booleans, null, JSON literals/enums, finite numbers with bounds, safe integers, homogeneous arrays with length bounds, strict objects, unions, nullable wrappers and optional object properties. Required parameter values themselves cannot be optional. Optional branches inside unions reject; wrap the complete object-property union in `.optional()` instead. Discriminated and XOR unions are not supported. Traverse every node and check before calling `z.toJSONSchema`, including nested branches and repeated checks. Only supported built-in node/check kinds pass.
 
 Reject custom refinements and checks, transforms, preprocessors, pipes/codecs, coercion, defaults/prefaults/catches, overwrite/trim/normalization, stripping or passthrough objects, string regex/format/length checks, numeric `multipleOf`, non-JSON types, lazy/cyclic schemas and unknown constructs. This conservative authoring subset does not assert that all rejected features are inherently unrepresentable.
 
