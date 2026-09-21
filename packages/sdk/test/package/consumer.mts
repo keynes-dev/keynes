@@ -1,7 +1,5 @@
 import { nodeSqlite } from "@keynes/node-sqlite";
-import type { PostgresRuntime } from "@keynes/sdk";
 import { createKeynes, createOperationKey } from "@keynes/sdk";
-import type { BudgetReference } from "@keynes/sdk";
 
 declare const process: {
   readonly argv: readonly string[];
@@ -40,9 +38,6 @@ switch (mode) {
     break;
   case "environment-isolation":
     runEnvironmentIsolation();
-    break;
-  case "authorized-database":
-    await runAuthorizedDatabase();
     break;
   case "isolation":
     await runIsolation();
@@ -86,98 +81,6 @@ function runEnvironmentIsolation(): void {
     process.env.KEYNES_QUALIFICATION_TARGET !== undefined
   ) {
     throw new Error("provider-free consumer received authorized credentials");
-  }
-}
-
-async function runAuthorizedDatabase(): Promise<void> {
-  const moduleName = "@keynes/postgres";
-  const {
-    postgres,
-  }: { postgres(options: { databaseUrl: string }): PostgresRuntime } =
-    await import(moduleName);
-  const databaseUrl = process.env.KEYNES_DATABASE_URL;
-  if (databaseUrl === undefined) {
-    throw new Error("KEYNES_DATABASE_URL is required for authorized-database");
-  }
-  const authorizedDatabaseUrl = databaseUrl;
-  requireQualificationTarget(authorizedDatabaseUrl);
-  const resources = {
-    packageQualificationUnits: {
-      unit: "unit",
-      accountingBehavior: "consumable",
-    },
-  };
-  const rootReference = await createAndClose();
-  await using reconnected = await createKeynes({
-    runtime: postgres({ databaseUrl: authorizedDatabaseUrl }),
-    resources,
-  });
-  const reopened = await reconnected.openBudget({
-    reference: rootReference,
-    resourceTypes: resources,
-  });
-  const [resource] = (await reopened.inspect()).budget.resources;
-  assertEqual(
-    {
-      resource: resource?.resource,
-      allocated: resource?.allocated,
-      available: resource?.available,
-      subtreeObservedUsage: resource?.subtreeObservedUsage,
-    },
-    {
-      resource: "packageQualificationUnits",
-      allocated: 5,
-      available: 3,
-      subtreeObservedUsage: 2,
-    },
-  );
-
-  async function createAndClose(): Promise<BudgetReference> {
-    await using keynes = await createKeynes({
-      runtime: postgres({ databaseUrl: authorizedDatabaseUrl }),
-      resources,
-    });
-    const root = await keynes.createBudget(
-      { packageQualificationUnits: 5 },
-      { operationKey: createOperationKey() },
-    );
-    const request = await root.request(
-      { packageQualificationUnits: 2 },
-      { operationKey: createOperationKey() },
-    );
-    if (request.status !== "approved") {
-      throw new Error("authorized package request was denied");
-    }
-    assertEqual(
-      (await request.budget.inspect()).budget.resources[0]?.allocated,
-      2,
-    );
-    await request.budget.settle(
-      { packageQualificationUnits: 2 },
-      { operationKey: createOperationKey() },
-    );
-    return root.reference;
-  }
-}
-
-function requireQualificationTarget(databaseUrl: string): void {
-  const expected = process.env.KEYNES_QUALIFICATION_TARGET;
-  if (expected === undefined) {
-    throw new Error(
-      "KEYNES_QUALIFICATION_TARGET is required for authorized-database",
-    );
-  }
-  let url: URL;
-  try {
-    url = new URL(databaseUrl);
-  } catch {
-    throw new Error("authorized-database target is invalid");
-  }
-  const actual = `${decodeURIComponent(url.username)}@${url.hostname}:${url.port || "5432"}${decodeURIComponent(url.pathname)}`;
-  if (actual !== expected) {
-    throw new Error(
-      "authorized-database does not match the dedicated qualification target",
-    );
   }
 }
 

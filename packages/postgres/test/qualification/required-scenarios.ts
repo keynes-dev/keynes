@@ -25,8 +25,8 @@ export const QUALIFICATION_IDENTITIES = {
 } as const;
 
 export interface DatabaseTarget {
-  prepare(postgresqlArchivePath: string): Promise<void>;
-  qualifySdkArchive(sdkArchivePath: string): Promise<void>;
+  prepare(postgresqlArchivePath: string, sdkArchivePath: string): Promise<void>;
+  qualifySdkArchive(): Promise<void>;
   inspect(): Promise<{
     readonly target: ExternalPostgresqlAcceptanceRecord["target"];
     readonly semantics: ExternalPostgresqlAcceptanceRecord["semantics"];
@@ -76,9 +76,9 @@ export async function runRequiredScenarios(
       throw new Error("missing exact archive");
     }
 
-    await target.prepare(postgresqlArchivePath);
+    await target.prepare(postgresqlArchivePath, sdkArchivePath);
     const inspection = await target.inspect();
-    await target.qualifySdkArchive(sdkArchivePath);
+    await target.qualifySdkArchive();
     await runBudgetLifecycle(target);
     await runTenantIsolation(target);
     await runDisableEnable(target);

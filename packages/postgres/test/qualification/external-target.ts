@@ -1,8 +1,7 @@
+import { runPackedPostgresqlWalkthrough } from "./packed-walkthrough.ts";
 import { createHash, X509Certificate } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { isIP } from "node:net";
 import { TLSSocket } from "node:tls";
-import { fileURLToPath } from "node:url";
 
 import { Client } from "pg";
 import { providerFreeEnvironment } from "@keynes/testkit/package";
@@ -10,6 +9,7 @@ import { providerFreeEnvironment } from "@keynes/testkit/package";
 import {
   installPostgresqlArchive,
   loadPublicPostgresql,
+  type PackedPostgresqlPackage,
 } from "../support/packed-package.ts";
 import type { ExternalPostgresqlProfile } from "./external-profile.ts";
 import type { ExternalPostgresqlAcceptanceRecord } from "./external-record.ts";
@@ -52,10 +52,6 @@ type TargetStage =
 const OWNER_ROLE = "keynes_owner";
 const EXECUTION_ROLE = "keynes_execution";
 const ROLE = /^[a-z_][a-z0-9_$]{0,62}$/u;
-const REPOSITORY_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
-const SDK_QUALIFIER = fileURLToPath(
-  new URL("../../../sdk/test/package/qualify.ts", import.meta.url),
-);
 const REMOTE_RUNTIME_PROCEDURES = [
   "keynes.remote_create_budget(jsonb)",
   "keynes.remote_request(jsonb)",
@@ -154,6 +150,7 @@ class ExternalQualificationTarget implements DatabaseTarget {
   readonly #profile: ExternalPostgresqlProfile;
   readonly #environment: ExternalTargetEnvironment;
   #closed = false;
+  #installed: PackedPostgresqlPackage | undefined;
 
   constructor(
     profile: ExternalPostgresqlProfile,
@@ -163,17 +160,25 @@ class ExternalQualificationTarget implements DatabaseTarget {
     this.#environment = environment;
   }
 
-  prepare(postgresqlArchivePath: string): Promise<void> {
+  prepare(
+    postgresqlArchivePath: string,
+    sdkArchivePath: string,
+  ): Promise<void> {
     return this.#protect("preparation", async () => {
       this.#requireOpen();
-      await this.#installAndPrepare(postgresqlArchivePath);
+      await this.#installAndPrepare(postgresqlArchivePath, sdkArchivePath);
     });
   }
 
-  qualifySdkArchive(sdkArchivePath: string): Promise<void> {
+  qualifySdkArchive(): Promise<void> {
     return this.#protect("SDK archive qualification", async () => {
       this.#requireOpen();
-      qualifySdkArchive(sdkArchivePath, this.#environment.primary);
+      if (this.#installed === undefined)
+        throw new Error("Target has not been prepared");
+      await runPackedPostgresqlWalkthrough(
+        this.#installed.consumerRoot,
+        this.#environment.primary,
+      );
     });
   }
 
@@ -326,39 +331,40 @@ class ExternalQualificationTarget implements DatabaseTarget {
     });
   }
 
-  async #installAndPrepare(postgresqlArchivePath: string): Promise<void> {
+  async #installAndPrepare(
+    postgresqlArchivePath: string,
+    sdkArchivePath: string,
+  ): Promise<void> {
     const safeEnvironment = providerFreeEnvironment(process.env);
+    if (this.#installed !== undefined)
+      throw new Error("Target already prepared");
     const installed = await installPostgresqlArchive(
       postgresqlArchivePath,
-      undefined,
-      undefined,
+      sdkArchivePath,
       safeEnvironment,
     );
-    try {
-      const { install } = await loadPublicPostgresql({
-        kind: "packed",
-        consumerRoot: installed.consumerRoot,
-      });
-      const result = await install({
-        connectionString: this.#environment.operator.toString(),
-        config: {
-          ownerRole: OWNER_ROLE,
-          executionRole: EXECUTION_ROLE,
-          administrationRole: this.#environment.administrator.username,
-          applicationRole: this.#environment.primary.username,
-          tenantId: QUALIFICATION_IDENTITIES.primaryTenantId,
-          principalId: QUALIFICATION_IDENTITIES.primaryPrincipalId,
-        },
-      });
-      if (
-        result.outcome !== "installed" &&
-        result.outcome !== "already-installed"
-      )
-        throw new Error("exact PostgreSQL archive installation failed");
-      await this.#prepareAdditionalRuntimeRoles();
-    } finally {
-      await installed.close();
-    }
+    this.#installed = installed;
+    const { install } = await loadPublicPostgresql({
+      kind: "packed",
+      consumerRoot: installed.consumerRoot,
+    });
+    const result = await install({
+      connectionString: this.#environment.operator.toString(),
+      config: {
+        ownerRole: OWNER_ROLE,
+        executionRole: EXECUTION_ROLE,
+        administrationRole: this.#environment.administrator.username,
+        applicationRole: this.#environment.primary.username,
+        tenantId: QUALIFICATION_IDENTITIES.primaryTenantId,
+        principalId: QUALIFICATION_IDENTITIES.primaryPrincipalId,
+      },
+    });
+    if (
+      result.outcome !== "installed" &&
+      result.outcome !== "already-installed"
+    )
+      throw new Error("exact PostgreSQL archive installation failed");
+    await this.#prepareAdditionalRuntimeRoles();
   }
 
   async #prepareAdditionalRuntimeRoles(): Promise<void> {
@@ -424,7 +430,15 @@ class ExternalQualificationTarget implements DatabaseTarget {
     return this.#protect("cleanup", async () => {
       if (this.#closed) return "passed" as const;
       this.#closed = true;
-      await Promise.all([...this.#clients].map((client) => client.end()));
+      const cleanup = await Promise.allSettled([
+        ...[...this.#clients].map((client) => client.end()),
+        this.#installed?.close(),
+      ]);
+      const failures = cleanup.flatMap((result) =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      if (failures.length > 0)
+        throw new AggregateError(failures, "External target cleanup failed");
       this.#clients.clear();
       return "passed" as const;
     });
@@ -549,38 +563,6 @@ function parseStrictDatabaseUrl(value: string | undefined): URL {
     invalidEnvironment();
   }
   return url;
-}
-
-function qualificationTarget(url: URL): string {
-  return `${url.username}@${url.hostname}:${url.port || "5432"}${decodeURIComponent(url.pathname)}`;
-}
-
-function qualifySdkArchive(archivePath: string, databaseUrl: URL): void {
-  const secret = databaseUrl.toString();
-  const result = spawnSync(
-    process.execPath,
-    [SDK_QUALIFIER, "--archive", archivePath, "--authorized-database"],
-    {
-      cwd: REPOSITORY_ROOT,
-      encoding: "utf8",
-      env: {
-        ...providerFreeEnvironment(process.env),
-        CI: "true",
-        KEYNES_DATABASE_URL: secret,
-        KEYNES_QUALIFICATION_TARGET: qualificationTarget(databaseUrl),
-      },
-      maxBuffer: 10 * 1024 * 1024,
-      timeout: 120_000,
-    },
-  );
-  if (result.error !== undefined) throw result.error;
-  if (result.status !== 0) {
-    const output = `${result.stderr || result.stdout}`.replaceAll(
-      secret,
-      "[REDACTED]",
-    );
-    throw new Error(`exact SDK archive qualification failed\n${output}`);
-  }
 }
 
 function invalidEnvironment(): never {

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as packages from "../support/packed-package.ts";
 
 import type { ExternalPostgresqlProfile } from "./external-profile.js";
 import {
@@ -19,6 +20,42 @@ const profile: ExternalPostgresqlProfile = {
 };
 
 describe("attach-only external PostgreSQL target", () => {
+  it("passes both selected archives and cleans up when preparation fails", async () => {
+    const close = vi.fn(async () => undefined);
+    const install = vi
+      .spyOn(packages, "installPostgresqlArchive")
+      .mockResolvedValue({
+        archivePath: "/selected/postgres.tgz",
+        consumerRoot: "/selected/consumer",
+        close,
+      });
+    const load = vi
+      .spyOn(packages, "loadPublicPostgresql")
+      .mockRejectedValue(new Error("stop before connecting"));
+    const target = openExternalQualificationTarget({
+      profile,
+      environment: validEnvironment(),
+    });
+    try {
+      await expect(
+        target.prepare("/selected/postgres.tgz", "/selected/sdk.tgz"),
+      ).rejects.toThrow();
+      expect(install).toHaveBeenCalledWith(
+        "/selected/postgres.tgz",
+        "/selected/sdk.tgz",
+        expect.any(Object),
+      );
+      expect(close).not.toHaveBeenCalled();
+      await expect(target.close()).resolves.toBe("passed");
+      await expect(target.close()).resolves.toBe("passed");
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      await target.close();
+      install.mockRestore();
+      load.mockRestore();
+    }
+  });
+
   it("parses the seven strict-TLS credentials without connecting", () => {
     const environment = validEnvironment();
     const parsed = parseExternalTargetEnvironment(environment);

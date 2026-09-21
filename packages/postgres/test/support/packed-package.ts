@@ -75,8 +75,7 @@ export async function packAndInstallPostgresql(
   if (selected)
     return installPostgresqlArchive(
       selected,
-      undefined,
-      undefined,
+      requireSdkPackageArchive(),
       process.env,
       signal,
     );
@@ -104,22 +103,19 @@ export async function packAndInstallPostgresql(
 
 export async function installPostgresqlArchive(
   archivePath: string,
-  suppliedWorkspace?: string,
-  suppliedConsumerRoot?: string,
+  sdkArchivePath: string,
   environment?: NodeJS.ProcessEnv,
   signal?: AbortSignal,
 ): Promise<PackedPostgresqlPackage> {
   const installed = await installPackageArchive({
     archivePath,
-    companionArchivePaths: [requireSdkPackageArchive(environment)],
+    companionArchivePaths: [sdkArchivePath],
     consumerName: "keynes-postgresql-consumer",
-    workspace: suppliedWorkspace,
-    consumerRoot: suppliedConsumerRoot,
     environment,
     signal,
   });
   return identifyInstalled(installed, [
-    { name: "@keynes/sdk", path: requireSdkPackageArchive(environment) },
+    { name: "@keynes/sdk", path: sdkArchivePath },
     { name: "@keynes/postgres", path: archivePath },
   ]);
 }
@@ -196,7 +192,7 @@ export async function packAndInstallCli(
   return { ...identified, commandPath: installed.commandPath };
 }
 
-function requireSdkPackageArchive(
+export function requireSdkPackageArchive(
   environment: NodeJS.ProcessEnv = process.env,
 ): string {
   const archive = environment.KEYNES_SDK_PACKAGE_ARCHIVE;

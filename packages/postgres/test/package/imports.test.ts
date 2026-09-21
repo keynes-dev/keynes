@@ -1,14 +1,16 @@
 import { spawnSync } from "node:child_process";
-import { access, realpath, writeFile } from "node:fs/promises";
+import { access, copyFile, realpath, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runPackedPostgresqlWalkthrough } from "../qualification/packed-walkthrough.ts";
 
 import {
   installPostgresqlArchive,
   loadPublicPostgresql,
   requirePostgresqlPackageArchive,
+  requireSdkPackageArchive,
   type PackedPostgresqlPackage,
 } from "../support/packed-package.ts";
 
@@ -16,11 +18,67 @@ const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 let packed: PackedPostgresqlPackage;
 
 beforeAll(async () => {
-  packed = await installPostgresqlArchive(requirePostgresqlPackageArchive());
+  packed = await installPostgresqlArchive(
+    requirePostgresqlPackageArchive(),
+    requireSdkPackageArchive(),
+    { ...process.env, KEYNES_SDK_PACKAGE_ARCHIVE: "/wrong-ambient-sdk.tgz" },
+  );
 }, 60_000);
 afterAll(async () => packed.close());
 
 describe("@keynes/postgres public entrypoint and blocked deep imports", () => {
+  it("uses the explicit SDK archive despite a conflicting ambient path", () => {
+    expect(packed.installedArchives?.map(({ name }) => name)).toEqual([
+      "@keynes/sdk",
+      "@keynes/postgres",
+    ]);
+  });
+
+  it.each(["missing credentials", "wrong target"])(
+    "rejects walkthrough %s before connecting",
+    async (scenario) => {
+      const script = join(packed.consumerRoot, "negative-walkthrough.mjs");
+      await copyFile(
+        new URL("../qualification/consumer.mjs", import.meta.url),
+        script,
+      );
+      const result = spawnSync(process.execPath, [script], {
+        cwd: packed.consumerRoot,
+        encoding: "utf8",
+        env:
+          scenario === "missing credentials"
+            ? { CI: "true" }
+            : {
+                CI: "true",
+                KEYNES_DATABASE_URL:
+                  "postgresql://user:secret@127.0.0.1:1/db?sslmode=verify-full",
+                KEYNES_QUALIFICATION_TARGET: "wrong-target",
+              },
+        timeout: 5_000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).not.toContain("walkthrough passed");
+      expect(result.stderr).toContain(
+        scenario === "missing credentials"
+          ? "credentials and qualification target are required"
+          : "does not match",
+      );
+      expect(result.stderr).not.toContain("secret");
+    },
+  );
+
+  it("fails and sanitizes the packed walkthrough when PostgreSQL is unreachable", async () => {
+    await expect(
+      runPackedPostgresqlWalkthrough(
+        packed.consumerRoot,
+        new URL(
+          "postgresql://user:private-password@127.0.0.1:1/db?sslmode=verify-full",
+        ),
+      ),
+    ).rejects.toThrow(/^PostgreSQL archive walkthrough failed$/);
+  });
+
   it("imports the runtime from the installed archive without opening PostgreSQL", () => {
     const result = node([
       "--input-type=module",

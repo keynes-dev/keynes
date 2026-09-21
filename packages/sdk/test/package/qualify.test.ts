@@ -158,12 +158,9 @@ describe("SDK package-test runner", () => {
     expect(() =>
       parseArguments(["--archive", "first.tgz", "--archive", "second.tgz"]),
     ).toThrow("once");
-    expect(
+    expect(() =>
       parseArguments(["--archive", "sdk.tgz", "--authorized-database"]),
-    ).toEqual({
-      archivePath: resolve(repositoryRoot, "sdk.tgz"),
-      authorizedDatabase: true,
-    });
+    ).toThrow("Unknown argument --authorized-database");
     expect(() =>
       parseArguments(["--archive", "sdk.tgz", "--authorized-database=false"]),
     ).toThrow("Unknown argument");

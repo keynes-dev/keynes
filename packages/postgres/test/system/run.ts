@@ -56,6 +56,7 @@ const READINESS_INTERVAL_MS = 100;
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 
 export const POSTGRESQL_SYSTEM_TEST_FILES = [
+  "packages/postgres/test/system/packed-walkthrough.test.ts",
   POSTGRESQL_BUDGET_AGGREGATE,
   "packages/postgres/test/system/contention.test.ts",
   "packages/postgres/test/system/embedded-transactions.test.ts",

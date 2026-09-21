@@ -2,6 +2,9 @@ export const POSTGRESQL_BUDGET_AGGREGATE =
   "packages/postgres/test/system/budget.test.ts";
 
 export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
+  "packages/postgres/test/system/packed-walkthrough.test.ts": [
+    "packed PostgreSQL walkthrough settles and reopens through the selected archives over verified TLS",
+  ],
   "packages/postgres/test/system/cli-installation.test.ts": [
     "packed keynes installation CLI installs and rechecks an exact target without changing authority",
     "packed keynes installation CLI refuses a partial target without repair and emits sanitized errors",
@@ -291,7 +294,8 @@ export function selectedScenarioInventory(
       ...Object.fromEntries(
         Object.entries(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS).filter(
           ([file]) =>
-            file !== "packages/postgres/test/system/cli-installation.test.ts",
+            file !== "packages/postgres/test/system/cli-installation.test.ts" &&
+            file !== "packages/postgres/test/system/packed-walkthrough.test.ts",
         ),
       ),
       ...remoteScenarioInventory({ kind: "remote", modes: ["direct"] }),

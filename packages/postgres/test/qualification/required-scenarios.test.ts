@@ -27,7 +27,7 @@ describe("provider-neutral database qualification scenarios", () => {
         "postgresql.tgz",
       ),
     ).rejects.toThrow("required database qualification scenarios failed");
-    expect(events).toEqual(["prepare:postgresql.tgz"]);
+    expect(events).toEqual(["prepare:postgresql.tgz:sdk.tgz"]);
   });
 
   it("does not depend on the external environment adapter", async () => {
@@ -47,8 +47,8 @@ function fakeTarget(
   failures: { readonly prepare?: Error } = {},
 ): DatabaseTarget {
   return {
-    prepare: async (archivePath) => {
-      events.push(`prepare:${archivePath}`);
+    prepare: async (archivePath, sdkArchivePath) => {
+      events.push(`prepare:${archivePath}:${sdkArchivePath}`);
       if (failures.prepare !== undefined) throw failures.prepare;
     },
     qualifySdkArchive: async () => undefined,

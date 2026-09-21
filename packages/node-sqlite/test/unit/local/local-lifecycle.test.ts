@@ -14,6 +14,42 @@ const workUnitResources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
 } as const;
 
+it.each(["request", "settle"] as const)(
+  "rejects late %s before capturing malformed input",
+  async (operation) => {
+    const keynes = await createKeynes({
+      resources: workUnitResources,
+      runtime: nodeSqlite(),
+    });
+    const root = await keynes.createBudget({ workUnits: 3 });
+    const admitted = root.request({ workUnits: 1 });
+    const closing = keynes.close();
+    const getter = vi.fn(() => 1);
+    const inputs = [
+      { workUnits: NaN },
+      { workUnits: undefined },
+      Object.defineProperty({}, "workUnits", { enumerable: true, get: getter }),
+    ];
+    try {
+      for (const input of inputs) {
+        await expect(
+          Reflect.apply(root[operation], root, [input]),
+        ).rejects.toMatchObject({ code: "runtime_closed" });
+      }
+      await expect(admitted).resolves.toMatchObject({ status: "approved" });
+      await closing;
+      for (const input of inputs) {
+        await expect(
+          Reflect.apply(root[operation], root, [input]),
+        ).rejects.toMatchObject({ code: "runtime_closed" });
+      }
+      expect(getter).not.toHaveBeenCalled();
+    } finally {
+      await closing;
+    }
+  },
+);
+
 afterEach(() => {
   vi.doUnmock("../../../src/adapter.js");
   vi.doUnmock("../../../src/local/sqlite-command-executor.js");

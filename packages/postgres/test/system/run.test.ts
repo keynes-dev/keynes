@@ -148,7 +148,8 @@ describe("PostgreSQL system-test runner", () => {
       Object.keys(REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS)
         .filter(
           (file) =>
-            file !== "packages/postgres/test/system/cli-installation.test.ts",
+            file !== "packages/postgres/test/system/cli-installation.test.ts" &&
+            file !== "packages/postgres/test/system/packed-walkthrough.test.ts",
         )
         .sort(),
     );
@@ -735,23 +736,25 @@ describe("PostgreSQL system-test runner", () => {
         for (const change of ["missing", "renamed"]) {
           const report = passingVitestReport();
           const candidate = withReportFiles(
-            report.testResults.map((result) => ({
-              ...result,
-              assertionResults: result.name.endsWith(`/${file}`)
-                ? result.assertionResults
-                    .filter(
-                      (assertion) =>
-                        change !== "missing" || assertion.fullName !== name,
-                    )
-                    .map((assertion) => ({
-                      ...assertion,
-                      fullName:
-                        assertion.fullName === name
-                          ? "unexpected scenario"
-                          : assertion.fullName,
-                    }))
-                : result.assertionResults,
-            })),
+            report.testResults
+              .map((result) => ({
+                ...result,
+                assertionResults: result.name.endsWith(`/${file}`)
+                  ? result.assertionResults
+                      .filter(
+                        (assertion) =>
+                          change !== "missing" || assertion.fullName !== name,
+                      )
+                      .map((assertion) => ({
+                        ...assertion,
+                        fullName:
+                          assertion.fullName === name
+                            ? "unexpected scenario"
+                            : assertion.fullName,
+                      }))
+                  : result.assertionResults,
+              }))
+              .filter((result) => result.assertionResults.length > 0),
           );
           expect(
             () => parsePassingReport(candidate),

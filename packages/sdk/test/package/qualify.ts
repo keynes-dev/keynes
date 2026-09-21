@@ -44,7 +44,6 @@ export interface QualificationArguments {
   readonly archivePath: string;
   readonly nodeSqliteArchivePath?: string;
   readonly outputPath?: string;
-  readonly authorizedDatabase?: true;
 }
 
 export const PROVIDER_FREE_PACKAGE_CHECKS = [
@@ -70,9 +69,7 @@ export const SDK_ONLY_PACKAGE_CHECKS = [
   "deep-imports-blocked",
 ] as const;
 
-type PackageCheck =
-  | (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number]
-  | "authorized-database-walkthrough";
+type PackageCheck = (typeof PROVIDER_FREE_PACKAGE_CHECKS)[number];
 
 export interface QualificationResult {
   readonly schemaVersion: "keynes.package-test.sdk/v2";
@@ -147,7 +144,6 @@ export function parseArguments(
       archive: { type: "string" },
       "node-sqlite-archive": { type: "string" },
       output: { type: "string" },
-      "authorized-database": { type: "boolean" },
     },
     allowPositionals: true,
     strict: false,
@@ -160,13 +156,11 @@ export function parseArguments(
     if (
       token.name !== "archive" &&
       token.name !== "node-sqlite-archive" &&
-      token.name !== "output" &&
-      token.name !== "authorized-database"
+      token.name !== "output"
     )
       throw new Error(`Unknown argument ${token.rawName}`);
     if (token.inlineValue === true)
       throw new Error(`Unknown argument ${normalized[token.index]}`);
-    if (token.name === "authorized-database") continue;
     if (token.value === undefined || token.value.startsWith("--"))
       throw new Error(`${token.rawName} requires a path`);
   }
@@ -175,15 +169,10 @@ export function parseArguments(
     (token) => token.name === "archive",
   );
   const outputTokens = optionTokens.filter((token) => token.name === "output");
-  const authorizedDatabaseTokens = optionTokens.filter(
-    (token) => token.name === "authorized-database",
-  );
   if (archiveTokens.length > 1)
     throw new Error("--archive may be provided only once");
   if (outputTokens.length > 1)
     throw new Error("--output may be provided only once");
-  if (authorizedDatabaseTokens.length > 1)
-    throw new Error("--authorized-database may be provided only once");
   const runtimeTokens = optionTokens.filter(
     (token) => token.name === "node-sqlite-archive",
   );
@@ -201,9 +190,6 @@ export function parseArguments(
     ...(output === undefined
       ? {}
       : { outputPath: resolve(repositoryRoot, output) }),
-    ...(authorizedDatabaseTokens.length === 0
-      ? {}
-      : { authorizedDatabase: true as const }),
   };
 }
 
@@ -291,8 +277,6 @@ export async function qualifyArchive(
         );
         runConsumer(consumer, "read-after-restart", external.root);
       }
-      if (args.authorizedDatabase === true)
-        runConsumer(consumer, "authorized-database", external.root, true);
     })
     .then(
       () => ({ kind: "passed" }) as const,
@@ -354,9 +338,6 @@ export async function qualifyArchive(
       ...(args.nodeSqliteArchivePath === undefined
         ? SDK_ONLY_PACKAGE_CHECKS
         : PROVIDER_FREE_PACKAGE_CHECKS),
-      ...(args.authorizedDatabase === true
-        ? (["authorized-database-walkthrough"] as const)
-        : []),
     ],
     outcome: "passed",
     exclusions: {
@@ -646,40 +627,17 @@ function run(command: string, args: readonly string[], cwd: string): string {
   return result.stdout;
 }
 
-function runConsumer(
-  modulePath: string,
-  mode: string,
-  cwd: string,
-  authorized = false,
-): string {
-  const databaseUrl = authorized ? process.env.KEYNES_DATABASE_URL : undefined;
-  const qualificationTarget = authorized
-    ? process.env.KEYNES_QUALIFICATION_TARGET
-    : undefined;
+function runConsumer(modulePath: string, mode: string, cwd: string): string {
   const result = spawnSync(process.execPath, [modulePath, mode], {
     cwd,
     encoding: "utf8",
-    env: {
-      CI: "true",
-      ...(databaseUrl === undefined
-        ? {}
-        : { KEYNES_DATABASE_URL: databaseUrl }),
-      ...(qualificationTarget === undefined
-        ? {}
-        : { KEYNES_QUALIFICATION_TARGET: qualificationTarget }),
-    },
+    env: { CI: "true" },
     maxBuffer: 10 * 1024 * 1024,
     timeout: 60_000,
   });
   if (result.error !== undefined) throw result.error;
   if (result.status !== 0) {
-    const output =
-      databaseUrl === undefined
-        ? result.stderr || result.stdout
-        : `${result.stderr || result.stdout}`.replaceAll(
-            databaseUrl,
-            "[REDACTED]",
-          );
+    const output = result.stderr || result.stdout;
     throw new Error(`SDK consumer ${mode} failed\n${output}`);
   }
   return result.stdout;

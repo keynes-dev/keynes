@@ -975,6 +975,12 @@ describe("public borrowed PostgreSQL adapter", () => {
         const end = vi.spyOn(connection, "end");
         const admitted = root.request({ modelTokens: 1 });
         const closing = keynes.close();
+        await expect(root.request({ modelTokens: NaN })).rejects.toMatchObject({
+          code: "runtime_closed",
+        });
+        await expect(root.settle({ modelTokens: NaN })).rejects.toMatchObject({
+          code: "runtime_closed",
+        });
         let closed = false;
         void closing.then(() => {
           closed = true;

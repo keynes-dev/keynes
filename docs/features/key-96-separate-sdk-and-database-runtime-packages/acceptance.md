@@ -250,3 +250,22 @@ NOT RUN: hosted CI matrix and other supported Node/OS combinations, KEY-88 final
 Selected native runs now use the existing SDK Vitest source aliases. Full installed-archive qualification receives no aliases and retains exact installed-module resolution. An actual-child regression first failed for missing source configuration, then passed for both selected and full modes. A source-loader smoke check reproduced failure with SDK `dist` absent and passed with the configuration, after which the original ignored output was restored. No build or package preparation was added to routine CI.
 
 The fix passes all 107 native-runner tests, PostgreSQL typechecking, `pnpm test:ci:postgresql` with 274 assertions and successful child exit/cleanup, and `pnpm test:pr` with all 16 workspace tasks and dependency boundaries. Read-only Ponytail review found no blockers. The earlier four-archive evidence remains scoped to its recorded revision; this follow-up changes test invocation only. Fresh hosted verification is tracked by the PR checks on the pushed fix commit.
+
+## PR 65 review remediation
+
+The review reproduced false database qualification from the SDK-only consumer, a missing SDK archive during external preparation, and invalid-input errors taking precedence over closed Budget handles. The regressions failed before implementation: the retired flag was accepted, preparation received an undefined SDK path, and late request/settle returned invalid_command instead of runtime_closed.
+
+PostgreSQL qualification now owns the standalone remote walkthrough. Preparation receives both staged archives explicitly and retains one installed consumer until target cleanup. The walkthrough provisions its Resource through the public procedure, requires the dedicated target and verified TLS, creates and settles a child, closes and reconnects, then asserts the reopened root state. A bounded child must exit successfully and emit its completion marker. Diagnostics crossing the runner boundary do not expose child output or credentials. The SDK qualifier rejects the retired --authorized-database option and cannot claim database qualification.
+
+Local and borrowed Budget request/settle now check lifecycle state before capturing input. Admission still drains earlier work and rejects late calls. Ponytail review removed two unused workspace override parameters and their forwarding, plus a redundant scope block, eliminating 14 lines without removing validation or cleanup.
+
+Pre-commit verification on the remediation checkout:
+
+- pnpm test:local: PASS, 380 assertions.
+- Focused SDK package, external target and scenario suites: PASS, 44 assertions before the added cleanup regression; the external target suite then passed all 22 assertions.
+- Packed PostgreSQL import/negative walkthrough suite: PASS, 12 assertions against retained prior archives; this is tooling regression coverage, not remediation archive qualification.
+- pnpm test:pr: PASS, repository checks, 200 runner assertions, all 16 workspace tasks, TypeScript and dependency boundaries.
+
+The first PR check attempt exposed a report-test assumption about files with one assertion; the fixture now omits an empty file and still proves missing native coverage is rejected. A later typecheck caught calling a union of generic Budget methods in the borrowed regression; explicit request and settle calls fixed it. Both failed attempts remain failures; the final PR command exited 0.
+
+Exact remediation archive qualification is pending T033. Managed external databases, hosted CI on this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. No push or merge is authorized.

@@ -95,3 +95,10 @@ Within each story, new tests must fail before corresponding code. T006/T007, T01
 ## Implementation strategy
 
 Complete the source foundation, then demonstrate US1 as the first useful consumer increment. Validate each remaining story before advancing. All four stories and combined qualification are required for issue acceptance; no phase earns a release or deployment readiness claim. Keep phases in this file, review each coherent diff, and preserve failed/NOT RUN evidence. Implementation is authorized phase by phase, with Ponytail review and a commit after each phase. Stop before opening a PR.
+
+## PR 65 review remediation
+
+- [x] T030 Observe failing regressions for retired database qualification, missing staged SDK propagation and closed Budget input precedence.
+- [x] T031 Move the remote walkthrough to PostgreSQL qualification, pass both archives explicitly, retain consumer cleanup, and restore closed-handle precedence.
+- [x] T032 Apply Ponytail review to the remediation and pass source, package regression, type and repository checks.
+- [ ] T033 Qualify the exact four-archive set from a clean remediation revision and record results and NOT RUN boundaries.

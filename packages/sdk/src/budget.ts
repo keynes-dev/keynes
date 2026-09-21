@@ -1,4 +1,5 @@
 import { captureRequest } from "./request-serialization.js";
+import { KeynesSdkError } from "./sdk-errors.js";
 import { randomUUID } from "node:crypto";
 
 import type { BasicRuntimeSession } from "./generated/runtime.js";
@@ -162,6 +163,8 @@ export function createBudgetHandle<
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
   const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
+    if (runtime.state !== "open")
+      throw new KeynesSdkError("runtime_closed", {});
     const observedUsage = captureRequest(usage, "settleBudget", "$.usage");
     return runtime.admit(async () => {
       const command = {
@@ -205,6 +208,7 @@ async function requestBudget<
   options: readonly unknown[],
 ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
   type RequestedName = Extract<keyof Resources, Names>;
+  if (runtime.state !== "open") throw new KeynesSdkError("runtime_closed", {});
   const requestedResources = captureRequest(
     resources,
     "requestBudget",
