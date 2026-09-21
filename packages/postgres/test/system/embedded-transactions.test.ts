@@ -1,6 +1,6 @@
 import { rootResources } from "@keynes/database/contract-tests";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Client as PgClient, PoolClient } from "pg";
+import { Client, Pool, type Client as PgClient, type PoolClient } from "pg";
 import { loadPublicPostgresql } from "../support/packed-package.js";
 
 import {
@@ -47,9 +47,11 @@ if (process.env[POSTGRESQL_SYSTEM_CONTEXT_ENV] === undefined) {
   );
 }
 
-const { createKeynes, postgres, Client, Pool } = await loadPublicPostgresql(
-  requirePostgresqlSystemInstallation(),
-);
+const {
+  createKeynes,
+  postgres,
+  Client: RuntimeClient,
+} = await loadPublicPostgresql(requirePostgresqlSystemInstallation());
 
 describe("embedded PostgreSQL caller-owned transactions", () => {
   let database: EmbeddedFixture;
@@ -715,6 +717,9 @@ const PUBLIC_RESOURCES = {
 } as const;
 
 describe("public borrowed PostgreSQL adapter", () => {
+  if (requirePostgresqlSystemInstallation().kind === "packed") {
+    expect(Client).not.toBe(RuntimeClient);
+  }
   let database: EmbeddedFixture;
   afterEach(async () => {
     await database?.close();

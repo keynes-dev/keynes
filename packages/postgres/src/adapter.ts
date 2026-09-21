@@ -1,4 +1,4 @@
-import { Client, type PoolClient, type QueryResult } from "pg";
+import type { Client, PoolClient, QueryResult } from "pg";
 import { DIRECT_PROCEDURES } from "./generated/direct-procedures.js";
 import {
   canonicalDefinitions,
@@ -52,7 +52,7 @@ export function postgres(
     throw invalidOptions();
   if (key === "connection") {
     const connection: unknown = descriptor.value;
-    if (!(connection instanceof Client)) throw invalidOptions();
+    if (!isPostgresConnection(connection)) throw invalidOptions();
     return Object.freeze({
       kind: "embedded",
       initialize: (definitions: unknown) =>
@@ -95,6 +95,26 @@ export function postgres(
   } satisfies PostgresRuntime);
 }
 
+// Client constructor identity differs when the application installs its own pg copy.
+function isPostgresConnection(value: unknown): value is Pick<Client, "query"> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "query" in value &&
+    typeof value.query === "function" &&
+    "connect" in value &&
+    typeof value.connect === "function" &&
+    "end" in value &&
+    typeof value.end === "function" &&
+    "_connected" in value &&
+    typeof value._connected === "boolean" &&
+    "_ending" in value &&
+    typeof value._ending === "boolean" &&
+    "_queryable" in value &&
+    typeof value._queryable === "boolean"
+  );
+}
+
 function invalidOptions(): KeynesSdkError<"invalid_configuration"> {
   return new KeynesSdkError("invalid_configuration", {
     field: "runtime",
@@ -116,10 +136,10 @@ async function prepareResources(
 }
 
 async function openBorrowedRuntime(
-  connection: PostgresConnection,
+  connection: Pick<Client, "query">,
   definitions: unknown,
 ): Promise<BasicRuntimeSession> {
-  // pg queues queries on a never-connected Client; inspect the pinned driver's state without acquiring a connection.
+  // pg queues queries on a never-connected Client; inspect the driver's state without acquiring a connection.
   if (
     !("_connected" in connection) ||
     connection._connected !== true ||

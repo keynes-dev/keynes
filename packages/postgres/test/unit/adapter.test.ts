@@ -40,6 +40,7 @@ describe("borrowed PostgreSQL adapter", () => {
       for (const options of [
         { connection: pool },
         { connection: { query() {} } },
+        { connection: { query() {}, connect() {}, end() {} } },
         { connection, databaseUrl: "url" },
         { connection, extra: true },
         { connection, [Symbol()]: true },

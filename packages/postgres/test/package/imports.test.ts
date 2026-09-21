@@ -123,6 +123,9 @@ describe("@keynes/postgres public entrypoint and blocked deep imports", () => {
     expect(installed.postgres).not.toBe(source.postgres);
     expect(installed.createKeynes).not.toBe(source.createKeynes);
     expect(installed.Client).not.toBe(source.Client);
+    expect(installed.postgres({ connection: new source.Client() }).kind).toBe(
+      "embedded",
+    );
     expect(installed.postgres({ databaseUrl: "unused" }).kind).toBe("remote");
   });
 
