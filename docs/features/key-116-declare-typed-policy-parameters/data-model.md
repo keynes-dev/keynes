@@ -1,6 +1,6 @@
 # Data model: parameter declarations and snapshots
 
-All entities below are proposed. No database tables or migrations are introduced.
+These entities form the source contract. No database tables or migrations are introduced.
 
 | Entity          | Fields                                                                                                          | Validation and ownership                                                                              |
 | --------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |

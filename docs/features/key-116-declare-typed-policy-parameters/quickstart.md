@@ -1,10 +1,10 @@
 # Validation guide: typed policy parameters
 
-This is the implementation acceptance guide. Planned APIs, files and package commands below are NOT RUN and are not available from this planning PR. KEY-117 owns the eventual public import path.
+KEY-116 implements a private source contract in `packages/policy-parameters`. [The package README](../../../packages/policy-parameters/README.md) contains raw-schema and Zod examples. KEY-117 owns public tooling distribution; this guide makes no archive or publication claim.
 
-## Prerequisites
+## Run the source checks
 
-Use Node.js >=24, pnpm 11.21.0 and the KEY-116 branch. After implementation, install frozen dependencies and run the private source package through the repository's existing tools:
+Use Node.js >=24, pnpm 11.21.0 and the KEY-116 branch. From the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -13,36 +13,51 @@ pnpm --filter @keynes/policy-parameters typecheck
 pnpm test:pr
 ```
 
-No Docker, Cloud credentials or provider account is needed for these feature checks. Record the exact commit, host, dependency versions, command outcomes and fixture hashes in [acceptance.md](acceptance.md).
+No Docker, Cloud credentials or provider account is needed. Results belong in [acceptance.md](acceptance.md), with the exact commit, host, dependency versions, command outcomes and fixture hashes. Read that record for executed evidence; commands listed here are not themselves proof of a passing run.
 
 ## Local declaration and typed access
 
-In `packages/policy-parameters/test/parameters.test.ts`, declare a numeric `reviewThreshold` and an enum `reviewMode` using the operations in [the contract](contracts/parameters.md). Supply both initials explicitly, create a snapshot and assert values. In `test/types.ts`, verify inferred numbers and enum alternatives and expected compile errors for unknown names, wrong values and nested mutation. Exercise separate variable inputs, not only object literals. Verify a defaulted optional nested property remains optional in types.
+Run this from `packages/policy-parameters` after installing dependencies:
 
-Observe failing cases before implementation: missing initial values, schema defaults that must not fill them, unknown names, wrong values, unsupported dialects/keywords/references and non-JSON inputs. After implementation, the same cases pass by asserting the specified errors and no mutation. Dynamic schemas cannot confer an arbitrary caller-selected type.
+```sh
+node --input-type=module <<'JS'
+import assert from "node:assert/strict";
+import { createParameterSnapshot, defineParameters } from "./src/index.ts";
+const declaration = defineParameters({
+  reviewThreshold: { schema: { type: "number", minimum: 0 }, initial: 100 },
+  reviewMode: { schema: { enum: ["manual", "automatic"] }, initial: "manual" },
+});
+const snapshot = createParameterSnapshot(declaration);
+assert.equal(snapshot.values.reviewThreshold, 100);
+assert.equal(snapshot.values.reviewMode, "manual");
+assert.ok(Object.isFrozen(snapshot.values));
+JS
+```
+
+`test/parameters.test.ts` covers strict JSON capture, schema restrictions, explicit initials, typed declaration provisioning and frozen snapshots. Invalid cases include missing initials, wrong values, unsupported dialects/keywords/references and non-JSON data. Defaults remain annotations and never provision values.
+
+`test/types.ts` compiles inferred numbers and enums, defaulted optional properties, array values and dynamic-schema uncertainty. Expected errors cover wrong values, unknown names, separately declared excess-key inputs and nested mutation. It also covers overrides and adapter descriptors whose schema or initial value is replaced.
 
 ## Explicit overrides and fixtures
 
-In `test/snapshot.test.ts`, provision a base, override one whole value and assert the original is unchanged. A partial nested object fails when a required field is absent. Equal-value and empty overrides retain identity. Mutate original input objects after creation and attempt mutations of returned graphs; captured values and identities must stay fixed.
+`test/snapshot.test.ts` verifies whole-value replacement, rejection of incomplete required objects, equal/empty override identities and mutation isolation. It restores the fixed `test/fixtures/snapshot.json` and compares canonical bytes and digests in a fresh Node process. Object-key reordering preserves identity. Array order, values and schema annotations can change it.
 
-Use `canonicalize(snapshot)` on a validated snapshot to serialize the fixture in `test/fixtures/snapshot.json`, restore it against the expected declaration and assert canonical bytes and both digests. Run fresh Node child processes from the existing Vitest test to compare canonical output across processes. Reorder object keys and expect equality; change values, schema annotations or array order and expect the relevant identity to change. Changed initials must not affect restoration. Tampered payloads, versions, identities and foreign definitions must reject without repair.
+Restoration validates the envelope, schemas and identities before comparing the expected definition and validating values. Changed initials have no effect. Tampered payloads, incompatible versions, foreign definitions and hostile JavaScript inputs reject without repair or fallback. Serialize a validated snapshot with `canonicalize(snapshot)`; the helpers perform no file I/O.
 
-## Optional Zod authoring
+## Optional Zod authoring and core isolation
 
-In `test/zod.test.ts`, compare accepted Zod descriptors with equivalent normalized raw schemas and run a shared value corpus through Zod and the core validator. Include nested branches and repeated bounds. Negative declarations must cover custom refinements, transforms, defaults, coercion, plain stripping objects, regex flags and unsupported checks.
+`test/zod.test.ts` compares accepted Zod 4.6.5 declarations with normalized raw schemas and runs value corpora through both validators. Cases cover repeated and exclusive bounds, exact array lengths, Unicode, optional properties and strict object behavior. Unsupported nested refinements, transforms, defaults, coercion, stripping objects, string checks and converter callbacks reject.
 
-In `test/parameters.test.ts`, create an isolated temporary core consumer containing only the core files and declared core dependencies, with no Zod package or parent node_modules fallback. Execute declaration/provision/restore and verify that the core type graph also resolves without Zod. Cleanup belongs to the test's normal finally path. This proves source dependency isolation; archive qualification remains KEY-117/KEY-88 work.
+`test/core-consumer.test.ts` creates an isolated temporary source consumer from installed dependencies. It checks that no ancestor `node_modules` can provide a fallback and that Zod is absent. The consumer executes declaration/provisioning and restores an actual Zod-authored snapshot using only core imports; its TypeScript program resolves and typechecks there too. A `finally` block removes the temporary directory. This is source dependency isolation, not archive qualification.
 
-## Planning-only checks
-
-These commands apply to this PR:
+## Repository and Spec Kit checks
 
 ```sh
 SPECIFY_FEATURE_DIRECTORY=docs/features/key-116-declare-typed-policy-parameters .specify/scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
 specify integration status --json
-pnpm exec oxfmt --check docs/features/key-116-declare-typed-policy-parameters
+pnpm exec oxfmt --check packages/policy-parameters docs/features/key-116-declare-typed-policy-parameters
 pnpm test:repository
 git diff --check
 ```
 
-Native PostgreSQL, shared Budget conformance, installed archives, Cloud behavior and performance qualification are NOT RUN. No result here qualifies Local preview publication.
+The acceptance record retains earlier planning-only results separately from implementation evidence. Native PostgreSQL, shared Budget conformance, installed archives, Cloud behavior and performance qualification remain separate lanes. No provider-free result here qualifies Local preview publication.

@@ -1,8 +1,28 @@
 # Acceptance evidence: KEY-116
 
-Historical planning evidence is retained below. Implementation progress and verification are recorded by phase; unfinished behavior and qualification remain NOT RUN.
+Historical planning evidence is retained below. Source implementation, documentation and review are complete. Qualification remains separate.
 
-## Planning candidate
+## Source verification
+
+Verified source revision: `4d3b27be97659088193c330868348a679917f61e`. Attempt: local source acceptance 1 on 2026-09-21. Host: Darwin arm64, Node v25.9.0, pnpm 11.21.0, TypeScript 7.0.2, Vitest 4.1.11. Dependencies: Ajv 8.20.0, canonicalize 4.0.0, json-schema-to-ts 3.1.1 and optional Zod 4.6.5.
+
+| Lane                                                                       | Result          | Scope                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`                                           | PASS            | Eight workspace projects; lockfile unchanged.                                                                                                                                                                   |
+| `pnpm --filter @keynes/policy-parameters test`                             | PASS            | 81 tests across declaration/JSON validation, snapshots, Zod parity and isolated consumer files.                                                                                                                 |
+| `pnpm --filter @keynes/policy-parameters typecheck`                        | PASS            | Inferred schema/Zod types, dynamic fallback, arrays, readonly values and compile-time rejection cases.                                                                                                          |
+| `pnpm test:pr`                                                             | PASS            | 1,002 tests: repository 64, runner 200, database 51, SDK 241, SQLite 194, PostgreSQL provider-free 169, CLI 2 and parameters 81. Generation, formatting, lint, all typechecks and dependency boundaries passed. |
+| Isolated consumer without Zod                                              | PASS            | Offline copied core dependencies, no ancestor node_modules; source runtime/type resolution and Zod-authored snapshot restoration.                                                                               |
+| Fixed fixture and fresh process                                            | PASS            | Canonical bytes and SHA-256 identities reproduced in a separate Node process.                                                                                                                                   |
+| Native PostgreSQL behavior                                                 | NOT RUN locally | No Budget command or runtime implementation change. PR CI evidence must identify its own revision.                                                                                                              |
+| Installed archive, full paired qualification and Local preview publication | NOT RUN         | KEY-117 owns tooling distribution; KEY-88/KEY-105 own qualification/publication.                                                                                                                                |
+| Cloud, providers, editor, performance, durability and migration            | NOT RUN         | Outside this feature's contract.                                                                                                                                                                                |
+
+The provider-free gate reported three pre-existing lint warnings outside this feature and zero errors. They concern an unused PostgreSQL test import, an intentional sparse-array SDK fixture and an escaped slash in the database generator. No unrelated warning cleanup is included.
+
+Fixture `packages/policy-parameters/test/fixtures/snapshot.json` SHA-256: `c983c1bd204d023c38f4dde5374310ed514e7865f67fde3a5fc0f6eacd9bdb92`. The final documentation commit leaves this verified source unchanged; the draft PR records final-head CI and any subsequent checks. Source tests do not qualify a public archive or a deployment.
+
+## Historical planning candidate
 
 Base revision: `dc58120`, containing landed KEY-113 governance, KEY-114 request retirement, KEY-96 package separation and KEY-85 asynchronous SDK failures. The planning commit and exact CI results are recorded in the draft PR. The final commit cannot contain its own hash; its Git tree identifies these documents.
 
@@ -29,7 +49,7 @@ US1 has five tasks, US2 four, US3 four, and setup/foundation/final acceptance se
 
 Applied the two Ponytail review findings: use `canonicalize(snapshot)` instead of a separate serialization API, and keep transition/identity rules in the interface contract. Updated the task and validation guide references. Focused formatting, stock prerequisites, local-link/task checks and `git diff --check` pass for this documentation revision; the 64 repository tests above remain evidence for the original planning commit. Feature implementation remains NOT RUN.
 
-## Feature evidence boundary
+## Historical planning-only evidence boundary
 
 | Lane                                            | Result  | Meaning                                                                        |
 | ----------------------------------------------- | ------- | ------------------------------------------------------------------------------ |
@@ -80,3 +100,11 @@ T014-T017 complete. Initial tests/typecheck failed on missing adapter exports. A
 `pnpm --filter @keynes/policy-parameters test` passes 81 cases, including pinned Zod 4.6.5 parity and rejected nested refinements/defaults/transforms/conditional callbacks/converter hooks, repeated bounds, exact lengths, metadata isolation, opaque-schema forgery and schema replacement. The isolated core consumer restores an actual Zod-authored fixture without Zod installed. Package typecheck, focused lint/format and diff checks pass.
 
 Zod types use an internal opaque schema wrapper; callers cannot retain its type witness while replacing its portable schema. The adapter projects stock converter output to enumerable JSON because Zod attaches a non-enumerable runtime helper. Raw caller schemas still undergo strict JSON capture. Read-only Ponytail review: Lean already. Ship. Independent correctness review found no actionable issues.
+
+### Phase 6: documentation and acceptance
+
+Completed T018-T020. Both README TypeScript examples ran and typechecked; the quickstart Node assertions passed. These documentation checks used temporary files, which were removed. The final documentation changes do not alter the verified source revision above.
+
+Final read-only Spec Kit analysis: 12 functional requirements, four success criteria and 20 tasks; 100% requirement coverage, zero unmapped tasks, zero ambiguity/duplication findings and zero constitution conflicts. The coverage map in tasks.md identifies each mapping. Exact-directory prerequisites passed, with no extension hooks. Managed integration status reports zero missing or modified files.
+
+Independent final correctness and Ponytail reviews found no remaining actionable findings across the complete core, adapter and documentation. Earlier phase findings were fixed and checked before their commits. All six phases received review and separate commits. Linear remains In Progress pending merge; the existing PR remains draft. Native and publication evidence boundaries above still apply.

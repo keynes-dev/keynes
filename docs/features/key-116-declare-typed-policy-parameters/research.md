@@ -44,7 +44,7 @@ Sources: existing canonicalize 4.0.0 use in `packages/database/src/generation/ge
 
 ## Delivery boundary
 
-**Decision**: Implement a private source workspace for the shared contract and keep all runtime, CLI and SDK exports unchanged. KEY-117 owns optional tooling distribution. No runnable feature code is part of this planning PR.
+**Decision**: Implement a private source workspace for the shared contract and keep all runtime, CLI and SDK exports unchanged. KEY-117 owns optional tooling distribution. Implementation follows these decisions in the private source workspace; see acceptance.md for executed evidence.
 
 **Rationale**: KEY-116 can establish and test the contract independently without adding a competing public package or waiting for policy composition. The source owner remains separate from allocation.
 

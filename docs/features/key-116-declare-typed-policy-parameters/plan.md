@@ -8,13 +8,13 @@
 
 Define a small, provider-free parameter contract outside the SDK and database runtimes. Literal JSON Schema declarations retain inferred types, explicit initial values produce immutable snapshots, and overrides replace whole parameter values. A separate Zod adapter accepts only declarations whose checks survive portable conversion.
 
-Implementation is proceeding phase by phase; acceptance records executed checks and remaining NOT RUN lanes. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) own the proposed implementation. [Acceptance](acceptance.md) separates planning checks from future feature evidence.
+Implementation is complete; acceptance records executed checks and remaining NOT RUN lanes. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) describe the implemented source contract. [Acceptance](acceptance.md) separates historical planning checks from source verification.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 7.0.2, Node.js >=24, pnpm 11.21.0, matching the repository.
 
-**Primary Dependencies**: Reuse Ajv 8.20.0 and canonicalize 4.0.0 already pinned in this repository. Add json-schema-to-ts for schema-derived types and Zod 4 only for the optional authoring adapter and its tests during implementation. Pin exact compatible releases in the lockfile.
+**Primary Dependencies**: Reuse Ajv 8.20.0 and canonicalize 4.0.0 already pinned in this repository. Use json-schema-to-ts 3.1.1 for schema-derived types and Zod 4.6.5 only for the optional authoring adapter and its tests. Exact releases are pinned in the lockfile.
 
 **Storage**: In-memory immutable JSON values. Applications may serialize fixtures; the helper performs no I/O or persistence.
 
@@ -44,7 +44,7 @@ Pre-research gate: PASS against constitution 12.0.0. The specification supplies 
 | Security and portability           | Strict JSON boundaries, sanitized error paths, defensive copies and versioned content identities. Fixtures contain no secrets.     | PASS        |
 | One issue and PR                   | Exact Linear branch and explicit directory; phases stay in tasks.md. No phase issues or stack.                                     | PASS        |
 
-Post-design gate: PASS. No constitutional exception. Shared Budget conformance is N/A to feature semantics because no command or runtime behavior changes. Future implementation still runs repository provider-free checks; native PostgreSQL and package qualification are NOT RUN and cannot be inferred from them. If implementation touches shared commands or either runtime, revise scope and add Local/native failing tests before that change.
+Post-design gate: PASS. No constitutional exception. Shared Budget conformance is N/A to feature semantics because no command or runtime behavior changes. Implementation passed repository provider-free checks; native PostgreSQL and package qualification remain separate evidence lanes and cannot be inferred from them. If implementation touches shared commands or either runtime, revise scope and add Local/native failing tests before that change.
 
 ## Project Structure
 

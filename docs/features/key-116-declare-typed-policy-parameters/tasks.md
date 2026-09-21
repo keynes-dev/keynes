@@ -70,9 +70,9 @@ Checkpoint: supported authoring retains types and semantics; unsupported behavio
 
 Purpose: finish the source contract and retain exact-revision evidence without claiming publication.
 
-- [ ] T018 Document application facts versus parameters, explicit provisioning/defaults, whole-value overrides, snapshot sensitivity and KEY-117 distribution ownership in `packages/policy-parameters/README.md`; reconcile runnable examples in `docs/features/key-116-declare-typed-policy-parameters/quickstart.md`. Cover FR-001, FR-004, FR-011.
-- [ ] T019 Execute the provider-free guide and `pnpm test:pr`, review dependency boundaries and all FR/SC coverage, and record exact source revision, commands/results, tool versions, host/attempt and fixture digests in `docs/features/key-116-declare-typed-policy-parameters/acceptance.md`. Keep native, archive, Cloud and performance lanes explicit. Cover FR-012 and SC-001 through SC-004.
-- [ ] T020 Perform final read-only Spec Kit analysis and code review, resolve accepted findings with focused checks, and update `docs/features/key-116-declare-typed-policy-parameters/acceptance.md` and `docs/features/key-116-declare-typed-policy-parameters/tasks.md`. Do not mark Linear Done before merge and required acceptance.
+- [x] T018 Document application facts versus parameters, explicit provisioning/defaults, whole-value overrides, snapshot sensitivity and KEY-117 distribution ownership in `packages/policy-parameters/README.md`; reconcile runnable examples in `docs/features/key-116-declare-typed-policy-parameters/quickstart.md`. Cover FR-001, FR-004, FR-011.
+- [x] T019 Execute the provider-free guide and `pnpm test:pr`, review dependency boundaries and all FR/SC coverage, and record exact source revision, commands/results, tool versions, host/attempt and fixture digests in `docs/features/key-116-declare-typed-policy-parameters/acceptance.md`. Keep native, archive, Cloud and performance lanes explicit. Cover FR-012 and SC-001 through SC-004.
+- [x] T020 Perform final read-only Spec Kit analysis and code review, resolve accepted findings with focused checks, and update `docs/features/key-116-declare-typed-policy-parameters/acceptance.md` and `docs/features/key-116-declare-typed-policy-parameters/tasks.md`. Do not mark Linear Done before merge and required acceptance.
 
 ## Dependencies and execution order
 
