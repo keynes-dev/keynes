@@ -46,10 +46,10 @@ Goal: explicit local replacements and portable fixtures retain the exact configu
 
 Independent test: override a provisioned snapshot and restore it in a fresh process; reject mismatches without consulting current initials.
 
-- [ ] T010 [P] [US2] Add and observe failing runtime cases in `packages/policy-parameters/test/snapshot.test.ts` for whole-value overrides, unknown names, invalid nested replacement, empty/equal overrides, frozen outputs, changed initials, version/digest/schema mismatch and full restore validation. Cover FR-005, FR-007 and FR-010.
-- [ ] T011 [P] [US2] Extend `packages/policy-parameters/test/types.ts` with failing cases for override value inference, unknown keys and typed restored values. Cover FR-003 and FR-005.
-- [ ] T012 [US2] Implement `overrideParameterSnapshot` and `restoreParameterSnapshot` in `packages/policy-parameters/src/snapshot.ts`, including exact expected-definition comparison and explicit errors. Export through `packages/policy-parameters/src/index.ts`.
-- [ ] T013 [US2] Add a fixed fixture at `packages/policy-parameters/test/fixtures/snapshot.json` and fresh-process canonical-byte/digest assertions in `packages/policy-parameters/test/snapshot.test.ts`; observe any new unmet assertion fail before correcting code. Cover FR-006, FR-007, FR-012 and SC-002 with object reorder, array changes, schema annotation changes and tampering.
+- [x] T010 [P] [US2] Add and observe failing runtime cases in `packages/policy-parameters/test/snapshot.test.ts` for whole-value overrides, unknown names, invalid nested replacement, empty/equal overrides, frozen outputs, changed initials, version/digest/schema mismatch and full restore validation. Cover FR-005, FR-007 and FR-010.
+- [x] T011 [P] [US2] Extend `packages/policy-parameters/test/types.ts` with failing cases for override value inference, unknown keys and typed restored values. Cover FR-003 and FR-005.
+- [x] T012 [US2] Implement `overrideParameterSnapshot` and `restoreParameterSnapshot` in `packages/policy-parameters/src/snapshot.ts`, including exact expected-definition comparison and explicit errors. Export through `packages/policy-parameters/src/index.ts`.
+- [x] T013 [US2] Add a fixed fixture at `packages/policy-parameters/test/fixtures/snapshot.json` and fresh-process canonical-byte/digest assertions in `packages/policy-parameters/test/snapshot.test.ts`; observe any new unmet assertion fail before correcting code. Cover FR-006, FR-007, FR-012 and SC-002 with object reorder, array changes, schema annotation changes and tampering.
 
 Checkpoint: a fixture reproduces the same definition and effective values without provisioning fallback, network access or policy execution.
 

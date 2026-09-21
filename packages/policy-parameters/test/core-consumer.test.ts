@@ -77,10 +77,13 @@ it("resolves and runs a core consumer without Zod or ancestor dependencies", () 
       join(consumer, "consumer.ts"),
       `
 import assert from 'node:assert/strict';
-import { createParameterSnapshot, defineParameters } from '@keynes/policy-parameters';
+import { createParameterSnapshot, defineParameters, restoreParameterSnapshot } from '@keynes/policy-parameters';
 const snapshot = createParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 3 } }));
 const limit: number = snapshot.values.limit;
 assert.equal(limit, 3);
+const restored = restoreParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 99 } }), JSON.parse(JSON.stringify(snapshot)));
+const restoredLimit: number = restored.values.limit;
+assert.equal(restoredLimit, 3);
 assert.throws(() => import.meta.resolve('zod'));
 `,
     );

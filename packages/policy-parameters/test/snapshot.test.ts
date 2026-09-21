@@ -1,0 +1,237 @@
+import { describe, expect, it } from "vitest";
+import canonicalize from "canonicalize";
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  defineParameters,
+  createParameterSnapshot,
+  restoreParameterSnapshot,
+  overrideParameterSnapshot,
+  ParameterError,
+} from "../src/index.ts";
+import { contentId } from "../src/snapshot.ts";
+const declaration = defineParameters({
+  threshold: { schema: { type: "number" }, initial: 4 },
+  config: {
+    schema: {
+      type: "object",
+      properties: {
+        x: { type: "number" },
+        optional: { type: "number", default: 7 },
+      },
+      required: ["x"],
+      additionalProperties: false,
+    },
+    initial: { x: 1 },
+  },
+});
+const original = createParameterSnapshot(declaration);
+const portable = () => JSON.parse(JSON.stringify(original));
+const resign = (snapshot: ReturnType<typeof portable>) => {
+  snapshot.definitionId = contentId(snapshot.definition);
+  snapshot.snapshotId = contentId({
+    formatVersion: 1,
+    definitionId: snapshot.definitionId,
+    values: snapshot.values,
+  });
+  return snapshot;
+};
+describe("snapshot restoration and overrides", () => {
+  it("replaces a whole value and preserves identities for equal and empty overrides", () => {
+    const input = { x: 2 };
+    const changed = overrideParameterSnapshot(declaration, original, {
+      config: input,
+    });
+    input.x = 99;
+    expect(changed.values.config).toEqual({ x: 2 });
+    expect(changed.definitionId).toBe(original.definitionId);
+    expect(changed.snapshotId).not.toBe(original.snapshotId);
+    expect(original.values.config).toEqual({ x: 1 });
+    expect(Object.isFrozen(changed.values.config)).toBe(true);
+    expect(overrideParameterSnapshot(declaration, original, {})).toEqual(
+      original,
+    );
+    expect(
+      overrideParameterSnapshot(declaration, original, { threshold: 4 }),
+    ).toEqual(original);
+    expect(() =>
+      overrideParameterSnapshot(declaration, original, { config: {} } as never),
+    ).toThrow(ParameterError);
+  });
+  it.each([
+    { unknown: 1 },
+    { threshold: undefined },
+    { threshold: "bad" },
+    { config: { x: 1, extra: true } },
+  ])("rejects invalid overrides %#", (overrides) => {
+    expect(() =>
+      overrideParameterSnapshot(declaration, original, overrides as never),
+    ).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_value" }),
+    );
+  });
+  it("restores captured values regardless of changed initials and freezes copies", () => {
+    const changedInitials = defineParameters({
+      threshold: { schema: { type: "number" }, initial: 999 },
+      config: {
+        schema: {
+          type: "object",
+          properties: {
+            x: { type: "number" },
+            optional: { type: "number", default: 7 },
+          },
+          required: ["x"],
+          additionalProperties: false,
+        },
+        initial: { x: 100 },
+      },
+    });
+    const input = portable();
+    const restored = restoreParameterSnapshot(changedInitials, input);
+    input.values.config.x = 55;
+    expect(restored).toEqual(original);
+    expect(Object.isFrozen(restored.definition.parameters)).toBe(true);
+    expect(Object.isFrozen(restored.values.config)).toBe(true);
+  });
+  it("rejects malformed envelopes, versions, digests, schemas and values", () => {
+    const invalid = [
+      { ...portable(), extra: 1 },
+      { ...portable(), formatVersion: 2 },
+      { ...portable(), snapshotId: "sha256:bad" },
+      { ...portable(), definitionId: "sha256:" + "0".repeat(64) },
+      { ...portable(), values: { threshold: 4 } },
+      {
+        ...portable(),
+        values: { threshold: 4, config: { x: 1 }, extra: true },
+      },
+    ];
+    for (const input of invalid)
+      expect(() => restoreParameterSnapshot(declaration, input)).toThrowError(
+        expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+      );
+    const invalidValue = portable();
+    invalidValue.values.threshold = "bad";
+    expect(() =>
+      restoreParameterSnapshot(declaration, resign(invalidValue)),
+    ).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+    );
+    const invalidSchema = portable();
+    invalidSchema.definition.parameters.threshold.format = "secret";
+    expect(() =>
+      restoreParameterSnapshot(declaration, resign(invalidSchema)),
+    ).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+    );
+    const invalidVersion = portable();
+    invalidVersion.definition.formatVersion = 2;
+    expect(() =>
+      restoreParameterSnapshot(declaration, resign(invalidVersion)),
+    ).toThrow(ParameterError);
+  });
+  it("reports identity failures before definition mismatch and mismatch before values", () => {
+    const changed = portable();
+    changed.definition.parameters.threshold.description = "changed";
+    expect(() => restoreParameterSnapshot(declaration, changed)).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+    );
+    changed.values.threshold = "bad";
+    expect(() =>
+      restoreParameterSnapshot(declaration, resign(changed)),
+    ).toThrowError(
+      expect.objectContaining({ code: "parameter_definition_mismatch" }),
+    );
+    expect(() =>
+      overrideParameterSnapshot(declaration, changed, {}),
+    ).toThrowError(
+      expect.objectContaining({ code: "parameter_definition_mismatch" }),
+    );
+  });
+  it("reproduces a fixed fixture and canonical bytes in a fresh process", () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        new URL("./fixtures/snapshot.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const restored = restoreParameterSnapshot(declaration, fixture);
+    expect(restored).toEqual(original);
+    const code = `import { restoreParameterSnapshot, defineParameters } from './src/index.ts'; import canonicalize from 'canonicalize'; import { readFileSync } from 'node:fs'; const d = defineParameters(${JSON.stringify({ threshold: { schema: { type: "number" }, initial: 99 }, config: { schema: { type: "object", properties: { x: { type: "number" }, optional: { type: "number", default: 7 } }, required: ["x"], additionalProperties: false }, initial: { x: 99 } } })}); process.stdout.write(canonicalize(restoreParameterSnapshot(d, JSON.parse(readFileSync('./test/fixtures/snapshot.json','utf8')))));`;
+    expect(
+      execFileSync(process.execPath, ["--input-type=module", "-e", code], {
+        cwd: new URL("../", import.meta.url),
+        encoding: "utf8",
+      }),
+    ).toBe(canonicalize(original));
+    const reordered = portable();
+    reordered.values = { config: { x: 1 }, threshold: 4 };
+    expect(restoreParameterSnapshot(declaration, reordered)).toEqual(original);
+  });
+});
+
+it("ignores schema object order but preserves array and schema-array order", () => {
+  const reordered = portable();
+  reordered.definition = {
+    parameters: {
+      config: {
+        additionalProperties: false,
+        required: ["x"],
+        properties: {
+          optional: { default: 7, type: "number" },
+          x: { type: "number" },
+        },
+        type: "object",
+        $schema: "http://json-schema.org/draft-07/schema#",
+      },
+      threshold: {
+        $schema: "http://json-schema.org/draft-07/schema#",
+        type: "number",
+      },
+    },
+    dialect: reordered.definition.dialect,
+    formatVersion: 1,
+  };
+  expect(restoreParameterSnapshot(declaration, reordered)).toEqual(original);
+  const arrayDeclaration = defineParameters({
+    list: {
+      schema: { type: "array", items: { type: "number" } },
+      initial: [1, 2],
+    },
+  });
+  const list = createParameterSnapshot(arrayDeclaration);
+  expect(
+    overrideParameterSnapshot(arrayDeclaration, list, { list: [2, 1] })
+      .snapshotId,
+  ).not.toBe(list.snapshotId);
+  const first = createParameterSnapshot(
+    defineParameters({
+      mode: { schema: { enum: ["fast", "slow"] }, initial: "fast" },
+    }),
+  );
+  const second = createParameterSnapshot(
+    defineParameters({
+      mode: { schema: { enum: ["slow", "fast"] }, initial: "fast" },
+    }),
+  );
+  expect(first.definitionId).not.toBe(second.definitionId);
+});
+it("rejects hostile restored values without running getters or modifying a snapshot", () => {
+  let reads = 0;
+  const input = portable();
+  Object.defineProperty(input.values, "threshold", {
+    enumerable: true,
+    get() {
+      reads++;
+      return 4;
+    },
+  });
+  expect(() => restoreParameterSnapshot(declaration, input)).toThrowError(
+    expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+  );
+  expect(reads).toBe(0);
+  const invalid = portable();
+  invalid.values.threshold = undefined;
+  expect(() => restoreParameterSnapshot(declaration, invalid)).toThrowError(
+    expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+  );
+});

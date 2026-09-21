@@ -69,3 +69,28 @@ const arrays = createParameterSnapshot(
 );
 const first: number = arrays.values.a[0];
 void first;
+
+import {
+  overrideParameterSnapshot,
+  restoreParameterSnapshot,
+} from "../src/index.ts";
+const overridden = overrideParameterSnapshot(declaration, snapshot, {
+  threshold: 8,
+});
+const restoredNumber: number = restoreParameterSnapshot(
+  declaration,
+  {} as unknown,
+).values.threshold;
+void [overridden, restoredNumber];
+// @ts-expect-error wrong override value
+overrideParameterSnapshot(declaration, snapshot, { threshold: "wrong" });
+const extraOverride = { threshold: 1, extra: true };
+// @ts-expect-error separately declared unknown override name
+overrideParameterSnapshot(declaration, snapshot, extraOverride);
+overrideParameterSnapshot(
+  defineParameters({
+    a: { schema: { type: "array", items: { type: "number" } }, initial: [1] },
+  }),
+  {} as unknown,
+  { a: [2] },
+);

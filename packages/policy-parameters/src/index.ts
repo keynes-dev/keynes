@@ -5,7 +5,12 @@ export {
   type ParameterDeclaration,
   type ParameterDefinition,
 } from "./parameters.ts";
-export { createParameterSnapshot, type ParameterSnapshot } from "./snapshot.ts";
+export {
+  createParameterSnapshot,
+  overrideParameterSnapshot,
+  restoreParameterSnapshot,
+  type ParameterSnapshot,
+} from "./snapshot.ts";
 export {
   ParameterError,
   type ParameterErrorCode,

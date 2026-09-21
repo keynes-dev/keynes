@@ -32,7 +32,7 @@ type Descriptors = Record<string, { schema: unknown; initial: unknown }>;
 type Values<D extends Descriptors> = {
   [K in keyof D]: SchemaValue<D[K]["schema"]>;
 };
-type Exact<Input, Expected> =
+export type Exact<Input, Expected> =
   Input extends DeepReadonly<Expected>
     ? Input extends readonly unknown[]
       ? Input
