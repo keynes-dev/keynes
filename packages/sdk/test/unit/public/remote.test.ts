@@ -1057,7 +1057,7 @@ describe("public remote Keynes facade", () => {
     expect(remote.close()).toBe(closing);
     expect(remote[Symbol.asyncDispose]()).toBe(closing);
     await closing;
-    expect(executor.close).toHaveBeenCalledTimes(3);
+    expect(executor.close).toHaveBeenCalledOnce();
   });
 
   it.each([

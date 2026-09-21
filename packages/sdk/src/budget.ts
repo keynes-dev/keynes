@@ -178,7 +178,7 @@ export function createBudgetHandle<
     );
   };
 
-  const inspect = (): Promise<BudgetSnapshot<Names, HistoryNames>> =>
+  const inspect = async (): Promise<BudgetSnapshot<Names, HistoryNames>> =>
     runtime.admit(async () => {
       const result = await invokeBudgetOperation(binding, () =>
         runtime.client.getBudget({ budgetId }),

@@ -236,7 +236,7 @@ export async function createKeynes(
     );
     return createResourceDefinitionBinding();
   };
-  const close = (): Promise<void> => runtime.close();
+  const close = sessionCloser(runtime);
   return Object.freeze({
     [keynesBrand]: undefined,
     defineResources,
@@ -267,7 +267,7 @@ function createKeynesHandle(runtime: BasicRuntimeSession): LocalKeynes {
   };
   const createBudget: RootBudgetCreator<string> = (allocation, ...options) =>
     createRootBudget(runtime, allocation, options);
-  const close = (): Promise<void> => runtime.close();
+  const close = sessionCloser(runtime);
   return Object.freeze({
     [keynesBrand]: undefined,
     defineResources,
@@ -412,4 +412,19 @@ async function validateInitializedBindings(
     }
     throw error;
   }
+}
+
+function sessionCloser(
+  runtime: BasicRuntimeSession | RemoteRuntimeSession,
+): () => Promise<void> {
+  let closing: Promise<void> | undefined;
+  return () => {
+    if (closing !== undefined) return closing;
+    try {
+      closing = runtime.close();
+    } catch (error: unknown) {
+      closing = Promise.reject(error);
+    }
+    return closing;
+  };
 }
