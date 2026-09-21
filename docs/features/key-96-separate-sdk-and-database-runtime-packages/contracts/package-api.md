@@ -48,7 +48,7 @@ Public errors remain the existing SDK classes. Runtime failures map to the same 
 
 ## Borrowed PostgreSQL contract
 
-The supplied connection is an already connected `pg.Client` or a checked-out `PoolClient`, not a `Pool`, connection URL, ORM transaction facade or arbitrary query provider. No implicit checkout/reconnect occurs. The application must not concurrently repurpose its security context while a Keynes command runs.
+The supplied connection is an already connected `pg.Client` or a checked-out `PoolClient`, not a `Pool`, connection URL, ORM transaction facade or arbitrary query provider. Separate application and adapter installations of pg must not cause constructor-identity rejection. No implicit checkout/reconnect occurs. The application must not concurrently repurpose its security context while a Keynes command runs.
 
 A trusted Embedded application role needs schema usage and execute on the existing direct command procedures, including `validate_resources`; it gets no new private-table write grants. The application sets `keynes.tenant_id` and `keynes.principal_id` using its established session context for autocommit, or transaction-local context after its own BEGIN. PostgreSQL still validates identity and principal permissions. Missing/wrong context fails through existing authorization errors. Hosted role-derived identity and grants remain unchanged.
 

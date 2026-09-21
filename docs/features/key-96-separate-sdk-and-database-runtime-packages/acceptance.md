@@ -296,3 +296,24 @@ Retained evidence is under `.artifacts/key-96-review/5095143-attempt-2/`: `resul
 Verified host: Darwin 25.5.0 arm64, Node v25.9.0, pnpm 11.21.0, Docker 29.6.2, PostgreSQL 18.6 and PgBouncer 1.25.2. Contract, installation-record and lockfile identities match the earlier final acceptance values and are recorded again in this result.
 
 T030-T033 are complete. Ponytail review removed unused helper options and redundant scope without adding a dependency or weakening validation. Managed external qualification, hosted CI for this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. Remediation commits are local; no push or merge was performed.
+
+## Borrowed client review fix
+
+The PR review identified constructor identity as an accidental restriction on borrowed connections. A package regression passed a genuine Client from a separate pg installation to the installed adapter and failed with invalid_configuration before the fix. The failing log is retained at `.artifacts/key-96-review/borrowed-red.log`.
+
+The adapter now checks the client methods and pg lifecycle fields it requires without comparing constructors. Pools, generic query providers and unusable connections remain rejected. Public connection types and dependency ownership are unchanged. The native borrowed tests now use the application's driver and explicitly assert that its Client differs from the installed adapter's driver in packed mode. Existing tests cover Client and checked-out PoolClient use, caller commit/rollback, failed application writes, drain/close and no adapter-owned connection close, release or retry.
+
+Ponytail review found no unnecessary abstraction or dependency. `pnpm test:pr` passed all 16 workspace tasks, 200 runner assertions, types and dependency checks; log: `.artifacts/key-96-review/borrowed-pr.log`.
+
+Verified implementation revision: `3c28851596de883d4b837a80ac14ec62d1ecb05c`, clean before and after `pnpm test:package:split -- --output .artifacts/key-96-review/borrowed-client-attempt-1`. All nine stages passed, including 31 PostgreSQL package assertions, eight CLI assertions and 286 native assertions. Child exit, cleanup and report retention passed. The package regression that failed before the fix now passes.
+
+Retained result: `.artifacts/key-96-review/borrowed-client-attempt-1/result.json`, with consumer reports, native observations and archives alongside it. Archive hashes:
+
+| Package               | SHA-256                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `@keynes/sdk`         | `b264788afe365c0ce3a1e141c60035d9de9fc9d602c56015a7c02e1f868392b0` |
+| `@keynes/node-sqlite` | `1d66ec14a035b70c84423c4b00b82576721ca4e6d836ab55d99df9bae01d8936` |
+| `@keynes/postgres`    | `a420a81da3a88e04c666a91b0da1ba3c5b796197835d1285b0cdf89929c05db1` |
+| `@keynes/cli`         | `59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380` |
+
+The host remains Darwin 25.5.0 arm64, Node v25.9.0 and pnpm 11.21.0. This verifies separate pg 8.23.0 installations; a broader pg version matrix is NOT RUN. Managed external qualification, current-revision hosted CI, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. The following evidence commit changes documentation only.
