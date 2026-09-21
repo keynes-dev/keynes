@@ -268,10 +268,31 @@ Pre-commit verification on the remediation checkout:
 
 The first PR check attempt exposed a report-test assumption about files with one assertion; the fixture now omits an empty file and still proves missing native coverage is rejected. A later typecheck caught calling a union of generic Budget methods in the borrowed regression; explicit request and settle calls fixed it. Both failed attempts remain failures; the final PR command exited 0.
 
-Exact remediation archive qualification is pending T033. Managed external databases, hosted CI on this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. No push or merge is authorized.
+Exact remediation archive qualification passed T033 at the revision recorded below. Managed external databases, hosted CI on this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. No push or merge is authorized.
 
 ### First remediation archive attempt
 
 Commit fad22cf ran pnpm test:package:split -- --output .artifacts/key-96-review/fad22cf-attempt-1. SDK-only, SDK/SQLite, PostgreSQL package and CLI stages passed; native qualification failed with 285 assertions passing and the new walkthrough failing. Cleanup passed. This attempt does not qualify. The retained result and observations remain in that directory.
 
 The provisioning pg client used default TLS hostname checking, which compared the loopback IP certificate against localhost. The consumer now uses the installed pg-connection-string parser and node:tls checkServerIdentity against the configured host, retaining CA verification and TLS 1.2 minimum. The focused native walkthrough then passed its assertion, but the deliberately reduced diagnostic invocation omitted the full runner report and exited nonzero; it is diagnostic evidence only, not qualification. Logs are retained in .artifacts/key-96-review/walkthrough-diagnosis.log and walkthrough-fixed.log. No production runtime change was needed.
+
+### Accepted remediation qualification
+
+Verified implementation revision: `509514385b2821b56015cbe7190ac2085d558485`, clean before and after qualification. The closing evidence commit changes only this document and the task checklist.
+
+`pnpm test:package:split -- --output .artifacts/key-96-review/5095143-attempt-2` passed with exit 0: all nine stages, SDK-only and SDK/SQLite consumers, 31 PostgreSQL package assertions, eight CLI assertions and 286 full native assertions. The native lane includes the installed-archive TLS walkthrough and borrowed-runtime lifecycle regression. Child exit, cleanup and report retention all passed.
+
+The final source checks also passed: `pnpm test:pr` (all 16 workspace tasks and 200 runner assertions) and `pnpm --filter @keynes/sdk test:package:unit` (24 assertions). Logs are retained at `.artifacts/key-96-review/pr-checks-final.log` and `.artifacts/key-96-review/sdk-package-final.log`. The Local run recorded above passed 380 assertions.
+
+Retained evidence is under `.artifacts/key-96-review/5095143-attempt-2/`: `result.json`, SDK consumer records, PostgreSQL and CLI package reports, `native.json` and `native.json.observations.json`. These ignored local artifacts record source identities, selected archive hashes, installed consumer paths and terminal cleanup. Each archive was packed once and its hash rechecked after qualification.
+
+| Package (version 0.0.0) | SHA-256                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| `@keynes/sdk`           | `b264788afe365c0ce3a1e141c60035d9de9fc9d602c56015a7c02e1f868392b0` |
+| `@keynes/node-sqlite`   | `1d66ec14a035b70c84423c4b00b82576721ca4e6d836ab55d99df9bae01d8936` |
+| `@keynes/postgres`      | `56acfc925eed63f8acbe29b1acb8c0187d1f9d3f411527824f7d17a3d3195019` |
+| `@keynes/cli`           | `59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380` |
+
+Verified host: Darwin 25.5.0 arm64, Node v25.9.0, pnpm 11.21.0, Docker 29.6.2, PostgreSQL 18.6 and PgBouncer 1.25.2. Contract, installation-record and lockfile identities match the earlier final acceptance values and are recorded again in this result.
+
+T030-T033 are complete. Ponytail review removed unused helper options and redundant scope without adding a dependency or weakening validation. Managed external qualification, hosted CI for this revision, other Node/OS combinations, performance, publication and production readiness remain NOT RUN. Remediation commits are local; no push or merge was performed.

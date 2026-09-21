@@ -101,4 +101,4 @@ Complete the source foundation, then demonstrate US1 as the first useful consume
 - [x] T030 Observe failing regressions for retired database qualification, missing staged SDK propagation and closed Budget input precedence.
 - [x] T031 Move the remote walkthrough to PostgreSQL qualification, pass both archives explicitly, retain consumer cleanup, and restore closed-handle precedence.
 - [x] T032 Apply Ponytail review to the remediation and pass source, package regression, type and repository checks.
-- [ ] T033 Qualify the exact four-archive set from a clean remediation revision and record results and NOT RUN boundaries.
+- [x] T033 Qualify the exact four-archive set from a clean remediation revision and record results and NOT RUN boundaries.
