@@ -4,16 +4,16 @@
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/parameters.md).
 
-**Tests**: Required by FR-012 and constitution V. Observe every behavioral test failing for the expected reason before its implementation. All tasks below remain unchecked because the requested delivery stops at planning.
+**Tests**: Required by FR-012 and constitution V. Observe every behavioral test failing for the expected reason before its implementation. Task markers track completed implementation phases.
 
-**Organization**: One issue, one PR and internal phases. Paths below are proposed implementation paths. No phase sub-issues or implementation in this planning PR.
+**Organization**: One issue, one PR and internal phases. Paths below identify the source owner. No phase sub-issues.
 
 ## Phase 1: Setup
 
 Purpose: prepare the private source owner without changing runtime or distribution contracts.
 
-- [ ] T001 Reconfirm the exact branch, landed KEY-113 prerequisite and source-only boundary in `docs/features/key-116-declare-typed-policy-parameters/plan.md`; inspect current consumers before editing.
-- [ ] T002 Add private workspace metadata in `packages/policy-parameters/package.json` and `packages/policy-parameters/tsconfig.json`, pin compatible dependencies in `pnpm-lock.yaml`, keep Zod an optional peer plus development dependency, and wire test/typecheck into existing Turbo tasks. No runtime implementation yet.
+- [x] T001 Reconfirm the exact branch, landed KEY-113 prerequisite and source-only boundary in `docs/features/key-116-declare-typed-policy-parameters/plan.md`; inspect current consumers before editing.
+- [x] T002 Add private workspace metadata in `packages/policy-parameters/package.json` and `packages/policy-parameters/tsconfig.json`, pin compatible dependencies in `pnpm-lock.yaml`, keep Zod an optional peer plus development dependency, and wire test/typecheck into existing Turbo tasks. No runtime implementation yet.
 
 Checkpoint: workspace configuration resolves; no SDK/runtime production dependency changed. Setup is mechanical and has no behavioral test of its own.
 
@@ -82,7 +82,7 @@ US1 parallel example: T005 runtime tests and T006 type assertions use different 
 
 ## Implementation strategy
 
-Deliver US1 as the smallest working increment, then snapshot restoration/overrides, then optional Zod authoring. Full issue acceptance requires all three stories. Validate and commit each coherent phase before advancing. Keep source tests beside their implementation and reuse existing runners. This planning PR stops before T001; it adds no feature code, dependencies or behavioral tests.
+Deliver US1 as the smallest working increment, then snapshot restoration/overrides, then optional Zod authoring. Full issue acceptance requires all three stories. Validate and commit each coherent phase before advancing. Keep source tests beside their implementation and reuse existing runners. Run read-only Ponytail review and commit after each phase before advancing.
 
 ## Coverage map
 

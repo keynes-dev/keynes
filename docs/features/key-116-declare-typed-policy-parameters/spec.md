@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-20
 
-**Document stage**: Proposed specification. Implementation and qualification are NOT RUN.
+**Document stage**: Implementation specification. See acceptance.md for revision-scoped verification.
 
 **Linear issue**: [KEY-116 Declare typed policy parameters](https://linear.app/keynes/issue/KEY-116/declare-typed-policy-parameters)
 
@@ -104,6 +104,6 @@ An application author uses supported Zod declarations and retains inferred types
 - TypeScript is the supported application language. JSON Schema and Zod are explicit issue requirements, not a new schema language or a new SDK commitment.
 - KEY-113's boundary has landed in PR #63. This feature has one acceptance outcome and does not depend on KEY-117 shipping first.
 - KEY-116 owns the source declaration/snapshot contract. KEY-117 owns its optional tooling distribution; KEY-118 consumes snapshots for fixtures and KEY-119 later owns Cloud persistence.
-- This planning PR changes documentation only. Runtime behavior, database migration, recovery, model integration, editor UI and performance qualification are N/A because no such capability is changed or promised.
+- Budget runtime behavior, database migration, recovery, model integration, editor UI and performance qualification are N/A because no such capability is changed or promised.
 - Budget storage remains private ephemeral Node SQLite for Local and PostgreSQL for Hosted/Embedded. Snapshot validation touches neither. Application effects, evaluation and retries remain customer-owned; command replay never re-evaluates policy.
 - Snapshots intentionally contain values. Applications must not commit secrets in fixtures or attach snapshots automatically to decision evidence. Digests identify content and provide no authentication or proof of policy execution.

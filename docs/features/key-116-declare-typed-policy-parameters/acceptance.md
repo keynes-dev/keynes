@@ -1,6 +1,6 @@
 # Acceptance evidence: KEY-116
 
-This planning record is not feature acceptance. Implementation tasks are unchecked. Implementation and qualification are NOT RUN.
+Historical planning evidence is retained below. Implementation progress and verification are recorded by phase; unfinished behavior and qualification remain NOT RUN.
 
 ## Planning candidate
 
@@ -44,3 +44,11 @@ Applied the two Ponytail review findings: use `canonicalize(snapshot)` instead o
 | Performance/recovery/migration qualification    | NOT RUN | No such capability or guarantee is introduced.                                 |
 
 During implementation, retain exact revision, attempt, host/tool versions, selected dependency versions, command exit results and fixture digests here. Never relabel planning checks as behavioral evidence.
+
+## Implementation phases
+
+### Phase 1: setup
+
+T001-T002 complete. The exact branch and landed KEY-113 prerequisite were reconfirmed; the requirements checklist passed 16/16. Existing Git/Docker ignores cover generated files and secrets. No publishing ignore is needed for the private source workspace.
+
+Added private workspace metadata, optional Zod peer and exact dependency pins. `pnpm install --frozen-lockfile`, Turbo test/typecheck dry-run discovery, focused formatting and diff checks passed. Behavior tests/typecheck are NOT RUN because this mechanical phase adds no source or tests. Read-only Ponytail review: Lean already. Ship. Correctness review found no setup issues.
