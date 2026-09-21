@@ -189,7 +189,7 @@ Review also found the paired runner still resolving pg through the SDK. A real t
 
 Source feedback before the clean candidate passes with exit 0: frozen installation, native CI (274 assertions), Local (378), remote (227) and borrowed Embedded (157). Every native lane reports successful cleanup. These source lanes are distinct from the retained installed-archive qualification below.
 
-## Pending acceptance
+## Retained qualification attempts
 
 The first retained split attempt at clean `d8202f512a96f55afafb10daf98d589160c1c35b` fails, exit 1, after SDK-only and SDK/SQLite pass. PostgreSQL package tests pass 26 assertions and fail one new path assertion that compares a canonical installed path with an uncanonicalized temporary root on macOS. The failed attempt is retained at `.artifacts/key-96-packages/d8202f5-attempt-1/result.json`; it is not accepted qualification.
 
@@ -201,6 +201,44 @@ The paired invocation now uses the existing Local configuration, one worker and 
 
 The second paired attempt at clean `e1fbd3e0efaf3d647252830798eca428671c75e4` passes all 378 Local and 285 native assertions with both child exits and cleanup successful, but fails retained coverage validation. One runtime-selection test name interpolates a configuration containing a PostgreSQL URL; the existing sanitizer correctly removes that identity. Record: `.artifacts/key-96/e1fbd3e-attempt-2/manifest.json`. The correction removes payload interpolation from that name, retaining its unique case index; redaction and strict validation remain unchanged.
 
-Final retained qualification is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+Final retained qualification passes as recorded below. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.
+
+## Final acceptance
+
+Verified implementation revision: `2ca693a0034b7d95ed0ce99ae95c150da8c2e3e1`. Both retained runs record this exact commit with clean source before and after. The closing acceptance commit changes only this evidence and the task checklist; it does not claim a new executable qualification revision.
+
+| Command                                                                            | Result                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm install --frozen-lockfile`                                                   | PASS, unchanged lockfile, exit 0                                                                                                                 |
+| `pnpm generate:check`                                                              | PASS, exit 0                                                                                                                                     |
+| `pnpm test:repository`                                                             | PASS, 64 assertions, exit 0                                                                                                                      |
+| `pnpm test:pr`                                                                     | PASS, 197 runner assertions, all 16 workspace tasks, formatting, lint, types and boundaries; exit 0                                              |
+| `pnpm test:ci:postgresql`                                                          | PASS, 274 assertions, child exit 0, cleanup passed                                                                                               |
+| `pnpm test:local`                                                                  | PASS, 378 assertions, complete report, exit 0                                                                                                    |
+| `pnpm test:remote`                                                                 | PASS, 227 assertions, child exit 0, cleanup passed                                                                                               |
+| `pnpm test:embedded`                                                               | PASS, 157 assertions, child exit 0, cleanup passed; source borrowed integration only                                                             |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-96/2ca693a-attempt-3`        | PASS, 378 Local and 285 native assertions, matching 129 shared scenarios, both child exits 0 and cleanup passed                                  |
+| `pnpm test:package:split -- --output .artifacts/key-96-packages/2ca693a-attempt-4` | PASS, all nine stages, exact four-archive consumer set, 27 PostgreSQL package checks, eight CLI checks, 285 native assertions and cleanup passed |
+
+Routine workspace assertions: database 51, SQLite 189, SDK 217, PostgreSQL 164 and CLI 2. Boundary checking covers 273 files in six packages. The SDK package/performance tooling tests passed 40 assertions earlier in phase 7; the final retained split proves current SDK-only and Local installation behavior without claiming a performance measurement.
+
+Retained paired evidence: `.artifacts/key-96/2ca693a-attempt-3/manifest.json`, its Local/native reports and native observations. Retained package evidence: `.artifacts/key-96-packages/2ca693a-attempt-4/result.json`, `sdk-only.json`, `sdk-sqlite.json`, `postgres-package.json`, `cli-package.vitest.json`, `native.json` and native observations. Exact installed realpaths are recorded in the SDK records and native distribution identities; they resolve inside external temporary consumers and were checked before successful cleanup. These local ignored artifacts and archives remain available; the temporary consumers are removed.
+
+Each archive was packed once for the final split attempt. Every consumer used the selected archive set and declared dependencies; the runner rechecked the hashes after qualification. Archives remain under `.artifacts/key-96-packages/2ca693a-attempt-4/archives/`.
+
+| Package (version 0.0.0) | SHA-256                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| `@keynes/sdk`           | `d997d56f77bcc6592d2333fa318f6218f547d509a19d470cb5313fdc20f84429` |
+| `@keynes/node-sqlite`   | `1d66ec14a035b70c84423c4b00b82576721ca4e6d836ab55d99df9bae01d8936` |
+| `@keynes/postgres`      | `2f92407bcfa981501e36f63fa191cca538eb335a8e2ef68cbe3cd5a83a08bec9` |
+| `@keynes/cli`           | `59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380` |
+
+Final identities: command contract digest `046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766`; installation-record SHA-256 `697d33397996f6f38a860a4e50e5105d753b82f068a0bfe8d903e2c8689f60b9`; lockfile SHA-256 `8b41bae2ceb5a512d858f0eeabe6738ae8b43117c5db9392a3c85720a4cb2235`. The phase 5 baseline and migration-set identities above remain current; no later SQL change was made.
+
+Verified host: Darwin 25.5.0 arm64, Node v25.9.0, pnpm 11.21.0, Vitest 4.1.11, pg 8.23.0, SQLite 3.53.0, Docker 29.6.2, PostgreSQL 18.6 (`180006`) and PgBouncer 1.25.2. Native image identity: `sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941`; PgBouncer image identity: `sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340`.
+
+Final Ponytail review accepts the explicit adapters, single database owner, thin CLI and reuse of existing qualification helpers. All reported blockers were fixed and checked, including canonical consumer paths, paired source configuration, environment preservation and safe test identities. No qualification parser or redaction rule was weakened. All T001-T029 tasks are complete.
+
+NOT RUN: hosted CI matrix and other supported Node/OS combinations, KEY-88 final release matrix, managed external Hosted qualification, full Embedded recovery/readiness, live providers, production operations, performance measurements and npm publication. No readiness or performance claim follows from this package split. No PR was opened or updated, no commits pushed and no Linear issue marked Done.
