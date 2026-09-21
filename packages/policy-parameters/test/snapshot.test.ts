@@ -235,3 +235,47 @@ it("rejects hostile restored values without running getters or modifying a snaps
     expect.objectContaining({ code: "invalid_parameter_snapshot" }),
   );
 });
+
+it("validates only own properties when names match Object.prototype", () => {
+  const required = {
+    type: "object",
+    properties: { toString: true },
+    required: ["toString"],
+    additionalProperties: false,
+  } as const;
+  expect(() =>
+    defineParameters({ x: { schema: required, initial: {} as never } }),
+  ).toThrow(ParameterError);
+  const declaration = defineParameters({
+    x: { schema: required, initial: { toString: "owned" } },
+  });
+  const original = createParameterSnapshot(declaration);
+  expect(() =>
+    overrideParameterSnapshot(declaration, original, { x: {} } as never),
+  ).toThrow(ParameterError);
+  const missing = JSON.parse(JSON.stringify(original));
+  missing.values.x = {};
+  expect(() =>
+    restoreParameterSnapshot(declaration, resign(missing)),
+  ).toThrowError(
+    expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+  );
+  const optional = defineParameters({
+    x: {
+      schema: {
+        type: "object",
+        properties: { toString: { type: "string" } },
+        additionalProperties: false,
+      },
+      initial: {} as never,
+    },
+  });
+  const empty = createParameterSnapshot(optional);
+  expect(
+    overrideParameterSnapshot(optional, empty, { x: {} } as never).values.x,
+  ).toEqual({});
+  expect(
+    restoreParameterSnapshot(optional, JSON.parse(JSON.stringify(empty))).values
+      .x,
+  ).toEqual({});
+});

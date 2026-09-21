@@ -108,3 +108,9 @@ Completed T018-T020. Both README TypeScript examples ran and typechecked; the qu
 Final read-only Spec Kit analysis: 12 functional requirements, four success criteria and 20 tasks; 100% requirement coverage, zero unmapped tasks, zero ambiguity/duplication findings and zero constitution conflicts. The coverage map in tasks.md identifies each mapping. Exact-directory prerequisites passed, with no extension hooks. Managed integration status reports zero missing or modified files.
 
 Independent final correctness and Ponytail reviews found no remaining actionable findings across the complete core, adapter and documentation. Earlier phase findings were fixed and checked before their commits. All six phases received review and separate commits. Linear remains In Progress pending merge; the existing PR remains draft. Native and publication evidence boundaries above still apply.
+
+## Review fix: own JSON properties
+
+The review found that Ajv treated inherited Object.prototype properties as JSON data. The shared validator now sets `ownProperties: true`. One public-API regression checks missing required `toString` and omitted optional `toString` during declaration, override and restoration, including a snapshot with recomputed identities.
+
+Observed red: one failed test and 81 passed before the configuration change. Green: 82 feature tests, package typecheck, lint and `pnpm test:pr` pass (1,003 provider-free tests). Correctness and Ponytail review found no further issues. This fix was checked on the same host/tool versions above, based on `da77e0442f2b2d79e54667e2fceb32c81cfba276`; the PR identifies the resulting fix commit and its CI separately. Earlier source/native evidence remains scoped to its recorded revision. Archive and release qualification remain NOT RUN.

@@ -131,6 +131,7 @@ const ajv = new Ajv({
   useDefaults: false,
   coerceTypes: false,
   removeAdditional: false,
+  ownProperties: true,
   addUsedSchema: false,
 });
 function profile(
