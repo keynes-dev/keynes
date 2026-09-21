@@ -1292,7 +1292,7 @@ function postgresqlSystemFailure(runId: string, stageName: string): Error {
   return new Error(`PostgreSQL system run ${runId} failed during ${stageName}`);
 }
 
-const productionRuntime: PostgresqlSystemRuntime = {
+export const productionRuntime: PostgresqlSystemRuntime = {
   randomUUID,
   randomPassword: () => randomBytes(24).toString("base64url"),
   now: Date.now,
@@ -1316,6 +1316,9 @@ const productionRuntime: PostgresqlSystemRuntime = {
         "exec",
         "vitest",
         "run",
+        ...(selected
+          ? ["--config", join(REPOSITORY_ROOT, "packages/sdk/vitest.config.ts")]
+          : []),
         "--passWithNoTests=false",
         "--allowOnly=false",
         "--root=.",

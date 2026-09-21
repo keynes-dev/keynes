@@ -31,6 +31,7 @@ import {
   sanitizeVitestReport,
   sanitizeDiagnostic,
   POSTGRES_IMAGE,
+  productionRuntime,
   runPostgresqlSystemTests,
   validatePostgresqlSystemReport,
 } from "./run.js";
@@ -1944,3 +1945,40 @@ function withReportFiles(
     numPassedTestSuites: testResults.length,
   };
 }
+
+it.each(["selected", "full"])(
+  "uses source aliases only for actual %s native test children",
+  async (scope) => {
+    const directory = await mkdtemp(join(tmpdir(), "keynes-native-arguments-"));
+    const output = join(directory, "arguments.json");
+    try {
+      await writeFile(
+        join(directory, "pnpm"),
+        `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(output)}, JSON.stringify(process.argv.slice(2)));\n`,
+        { mode: 0o700 },
+      );
+      const child = productionRuntime.spawnTests({
+        ...process.env,
+        PATH: directory,
+        KEYNES_POSTGRESQL_SYSTEM_CONTEXT: JSON.stringify({
+          scope,
+          ...(scope === "selected" ? { selection: { kind: "ci" } } : {}),
+        }),
+      });
+      try {
+        await child.wait();
+      } finally {
+        await child.terminate();
+      }
+      const args: string[] = JSON.parse(await readFile(output, "utf8"));
+      if (scope === "selected") {
+        expect(args).toContain("--config");
+        expect(args[args.indexOf("--config") + 1]).toMatch(
+          /packages\/sdk\/vitest.config.ts$/,
+        );
+      } else expect(args).not.toContain("--config");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);

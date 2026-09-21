@@ -242,3 +242,11 @@ Verified host: Darwin 25.5.0 arm64, Node v25.9.0, pnpm 11.21.0, Vitest 4.1.11, p
 Final Ponytail review accepts the explicit adapters, single database owner, thin CLI and reuse of existing qualification helpers. All reported blockers were fixed and checked, including canonical consumer paths, paired source configuration, environment preservation and safe test identities. No qualification parser or redaction rule was weakened. All T001-T029 tasks are complete.
 
 NOT RUN: hosted CI matrix and other supported Node/OS combinations, KEY-88 final release matrix, managed external Hosted qualification, full Embedded recovery/readiness, live providers, production operations, performance measurements and npm publication. No readiness or performance claim follows from this package split. No PR was opened or updated, no commits pushed and no Linear issue marked Done.
+
+## CI follow-up: fresh source checkout
+
+[CI run 35559653418](https://github.com/keynes-dev/keynes/actions/runs/35559653418) at `760b16372113095e3f848addabc6df472e53aab1` failed native correctness because selected source tests resolved `@keynes/sdk` through absent built output. Local qualification had existing build output and did not expose this dependency. Cleanup passed, but the hosted run is failed evidence.
+
+Selected native runs now use the existing SDK Vitest source aliases. Full installed-archive qualification receives no aliases and retains exact installed-module resolution. An actual-child regression first failed for missing source configuration, then passed for both selected and full modes. A source-loader smoke check reproduced failure with SDK `dist` absent and passed with the configuration, after which the original ignored output was restored. No build or package preparation was added to routine CI.
+
+The fix passes all 107 native-runner tests, PostgreSQL typechecking, `pnpm test:ci:postgresql` with 274 assertions and successful child exit/cleanup, and `pnpm test:pr` with all 16 workspace tasks and dependency boundaries. Read-only Ponytail review found no blockers. The earlier four-archive evidence remains scoped to its recorded revision; this follow-up changes test invocation only. Fresh hosted verification is tracked by the PR checks on the pushed fix commit.
