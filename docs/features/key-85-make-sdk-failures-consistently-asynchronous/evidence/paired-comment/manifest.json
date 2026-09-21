@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "keynes.sqlite-postgres/v1",
+  "candidate": {
+    "commit": "c3f64a833857c902fc87dadfa5113bb166d4b0b0",
+    "event": "local",
+    "pullRequest": {},
+    "cleanBefore": true,
+    "cleanAfter": true,
+    "afterCommit": "c3f64a833857c902fc87dadfa5113bb166d4b0b0"
+  },
+  "attempt": {
+    "id": "3f86035a-157d-4567-b0d3-02cf60f5b77b"
+  },
+  "host": {
+    "os": "darwin",
+    "release": "25.5.0",
+    "architecture": "arm64",
+    "identity": "571a26261ad83163"
+  },
+  "environment": {
+    "node": "v25.9.0",
+    "pnpm": "11.21.0",
+    "vitest": "4.1.11",
+    "sdk": "0.0.0",
+    "nodeSqlite": "0.0.0",
+    "cli": "0.0.0",
+    "postgresql": "0.0.0",
+    "pg": "8.23.0",
+    "postgresqlPg": "8.23.0"
+  },
+  "inputs": {
+    "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766",
+    "lockfileSha256": "8b41bae2ceb5a512d858f0eeabe6738ae8b43117c5db9392a3c85720a4cb2235",
+    "installationRecordSha256": "697d33397996f6f38a860a4e50e5105d753b82f068a0bfe8d903e2c8689f60b9"
+  },
+  "startedAt": "2026-09-21T06:45:47.487Z",
+  "finishedAt": "2026-09-21T06:46:23.599Z",
+  "runtimes": [
+    {
+      "authority": "sqlite",
+      "environment": {
+        "sqliteVersion": "3.53.0"
+      },
+      "execution": {
+        "status": "completed",
+        "exitStatus": 0
+      },
+      "cleanup": "passed",
+      "report": {
+        "path": "sqlite.vitest.json",
+        "sha256": "e717395af037157519e4613b2271a11dd4befa8d6b843ccc774e259ed8b1d8f1"
+      }
+    },
+    {
+      "authority": "postgresql",
+      "environment": {
+        "runId": "ade1db1e-665c-4845-b498-c1d53af11002",
+        "dockerVersion": "29.6.2",
+        "postgresVersion": "180006",
+        "pgbouncerVersion": "1.25.2",
+        "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+        "pgbouncerImageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340"
+      },
+      "execution": {
+        "status": "completed",
+        "exitStatus": 0
+      },
+      "cleanup": "passed",
+      "report": {
+        "path": "postgresql.json.vitest.json",
+        "sha256": "7ccda11e5901f46f23ab39a6b08a3d34b41dfbb06bd89bb8462e7b8cfbb22056"
+      },
+      "nativeAcceptance": {
+        "path": "postgresql.json",
+        "sha256": "d4eef1738b4578883fd128197d212ffff297bc5b09607ae201bf5c883256a8db"
+      }
+    }
+  ],
+  "outcome": "passed",
+  "failures": []
+}

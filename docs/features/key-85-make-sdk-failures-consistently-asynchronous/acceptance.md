@@ -62,3 +62,16 @@ There were no failed final paired/package attempts. Earlier red and diagnostic a
 NOT RUN: managed Hosted readiness; installed Embedded recovery beyond the focused consumer assertions; registry publication; full release/platform matrix; performance qualification; durable reopen/crash campaigns; delegation; and live-provider behavior. KEY-123 owns durable Local behavior and KEY-124 owns delegation-specific failures. No production resources or paid provider were used. PR #37 and earlier KEY-96 evidence do not qualify this revision.
 
 Phase 4 final Ponytail/evidence review verified all 13 retained JSON reports byte-for-byte, paired report hashes, test counts and clean candidate identities. Corrected the environment label to distinguish Darwin kernel release from macOS product version. No other findings. Final artifact formatting, whitespace and all 64 repository tests passed. Phase 4 is complete.
+
+## PR review correction: custom session Promise boundaries
+
+Addressed [review comment](https://github.com/keynes-dev/keynes/pull/66#discussion_r4059760605) in `c3f64a833857c902fc87dadfa5113bb166d4b0b0`. Public basic inspection now wraps a synchronously throwing custom admission delegate. Basic and remote close/disposal share a cached Promise, including synchronous delegate failure, and invoke cleanup once. Original error identity is preserved.
+
+Three new custom-session regression tests failed before the fix (3 failed/13 passed). After the fix, an existing remote test's expected cleanup delegate count changed from three to one; its repeated-Promise identity assertions remain. `pnpm test:pr` then passed. Read-only Ponytail/correctness review found no further issues.
+
+Fresh clean-revision qualification supersedes the earlier candidate for the current implementation:
+
+- `pnpm test:sqlite-postgres -- --output .artifacts/key-85/paired-comment-1`: passed; [manifest](evidence/paired-comment/manifest.json) retains clean before/after source identity, test report hashes and successful cleanup.
+- `pnpm test:package:split -- --output .artifacts/key-85/package-comment-1`: all nine stages passed; [result](evidence/packages-comment/result.json) retains archive identities, clean source observations and successful cleanup.
+
+The adjacent reports retain every assertion and native observation byte-for-byte. Earlier reports remain historical evidence. This evidence-only follow-up does not change qualified source or package inputs. Existing NOT RUN boundaries remain unchanged.

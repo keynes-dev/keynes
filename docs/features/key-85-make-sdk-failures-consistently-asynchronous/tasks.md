@@ -73,3 +73,7 @@ After T004, T005-T011 can be authored independently in their listed files. Keep 
 ## Implementation strategy
 
 The MVP is US1, the only story. Implement the basic admission slice first, then integrate remote boundaries and qualify the complete outcome. Do not accept a Local-only partial result as KEY-85. Commit coherent implementation groups after their focused verification; retain the failing-before-fix evidence. Record each phase review and commit in acceptance.md.
+
+## Phase 5: PR review correction
+
+- [x] T024 Keep synchronously throwing custom-session close/disposal and inspection delegates inside the public Promise boundary, preserve shared close identity, reproduce the failures, review the fix and refresh clean paired/package qualification.
