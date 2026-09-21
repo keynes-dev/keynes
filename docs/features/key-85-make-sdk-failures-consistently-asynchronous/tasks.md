@@ -4,14 +4,14 @@
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/asynchronous-failures.md).
 
-These are future implementation tasks. All remain unchecked. The current request stops after documentation, before tests or implementation. No behavioral test applies to the current Markdown-only changes; future behavior changes require observed failing tests first.
+Implementation is authorized. Execute phase by phase with subagents, a read-only Ponytail review after each phase, and a commit before advancing. Behavioral changes require observed failing tests first.
 
 One issue, exact existing branch, one acceptance outcome and normally one PR. Keep phases here; do not publish sub-issues. Paths are relative to the repository root.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the candidate includes merged KEY-96 and the selected feature directory; record source revision, dependency/tool versions and attempt paths in `docs/features/key-85-make-sdk-failures-consistently-asynchronous/acceptance.md` without claiming test results.
-- [ ] T002 Install frozen dependencies and verify local/native prerequisites using `docs/features/key-85-make-sdk-failures-consistently-asynchronous/quickstart.md`; retain unavailable lanes as NOT RUN in the feature's `acceptance.md`.
+- [x] T001 Confirm the candidate includes merged KEY-96 and the selected feature directory; record source revision, dependency/tool versions and attempt paths in `docs/features/key-85-make-sdk-failures-consistently-asynchronous/acceptance.md` without claiming test results.
+- [x] T002 Install frozen dependencies and verify local/native prerequisites using `docs/features/key-85-make-sdk-failures-consistently-asynchronous/quickstart.md`; retain unavailable lanes as NOT RUN in the feature's `acceptance.md`.
 
 ## Phase 2: Foundational checks
 
@@ -72,4 +72,4 @@ After T004, T005-T011 can be authored independently in their listed files. Keep 
 
 ## Implementation strategy
 
-The MVP is US1, the only story. Implement the basic admission slice first, then integrate remote boundaries and qualify the complete outcome. Do not accept a Local-only partial result as KEY-85. Commit coherent implementation groups after their focused verification; retain the failing-before-fix evidence. The present documentation request authorizes none of these implementation tasks to start.
+The MVP is US1, the only story. Implement the basic admission slice first, then integrate remote boundaries and qualify the complete outcome. Do not accept a Local-only partial result as KEY-85. Commit coherent implementation groups after their focused verification; retain the failing-before-fix evidence. Record each phase review and commit in acceptance.md.
