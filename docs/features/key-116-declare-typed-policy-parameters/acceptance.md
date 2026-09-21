@@ -52,3 +52,9 @@ During implementation, retain exact revision, attempt, host/tool versions, selec
 T001-T002 complete. The exact branch and landed KEY-113 prerequisite were reconfirmed; the requirements checklist passed 16/16. Existing Git/Docker ignores cover generated files and secrets. No publishing ignore is needed for the private source workspace.
 
 Added private workspace metadata, optional Zod peer and exact dependency pins. `pnpm install --frozen-lockfile`, Turbo test/typecheck dry-run discovery, focused formatting and diff checks passed. Behavior tests/typecheck are NOT RUN because this mechanical phase adds no source or tests. Read-only Ponytail review: Lean already. Ship. Correctness review found no setup issues.
+
+### Phase 2: foundational validation
+
+T003-T004 complete. Before implementation, `pnpm --filter @keynes/policy-parameters test` failed because `src/schema.ts` was absent; no assertions ran in that red attempt. After implementation, all 32 boundary cases pass. The same package typecheck, focused oxlint/oxfmt and diff checks pass. Tests cover strict JSON copying, inert annotations/defaults, malformed/unsupported schemas and sanitized errors. Compiled object schemas are removed from Ajv cache after compilation.
+
+Read-only Ponytail review: Lean already. Ship. Independent correctness review found no actionable issues. Public declarations, snapshots and Zod remain NOT RUN at this checkpoint.

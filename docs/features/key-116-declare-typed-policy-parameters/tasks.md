@@ -21,8 +21,8 @@ Checkpoint: workspace configuration resolves; no SDK/runtime production dependen
 
 Purpose: establish the shared boundary needed by all stories.
 
-- [ ] T003 Write and observe failing strict JSON, schema-profile and sanitized-error cases in `packages/policy-parameters/test/parameters.test.ts`, including unsupported dialects/keywords/references, nested unsafe values, accessors, Unicode and prototype-sensitive keys. Cover FR-002, FR-009 and FR-010.
-- [ ] T004 Implement those boundary checks and Ajv configuration in `packages/policy-parameters/src/schema.ts`; reuse Ajv rather than writing a validator. Prove the declared profile's annotations and strict options against the pinned release before accepting declarations.
+- [x] T003 Write and observe failing strict JSON, schema-profile and sanitized-error cases in `packages/policy-parameters/test/parameters.test.ts`, including unsupported dialects/keywords/references, nested unsafe values, accessors, Unicode and prototype-sensitive keys. Cover FR-002, FR-009 and FR-010.
+- [x] T004 Implement those boundary checks and Ajv configuration in `packages/policy-parameters/src/schema.ts`; reuse Ajv rather than writing a validator. Prove the declared profile's annotations and strict options against the pinned release before accepting declarations.
 
 Checkpoint: boundary tests pass with no mutation, coercion, default application or partial result. All story implementation waits for this phase.
 
