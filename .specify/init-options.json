@@ -1,10 +1,9 @@
 {
   "ai": "codex",
   "ai_skills": true,
-  "branch_source": "linear",
   "context_file": "AGENTS.md",
   "here": true,
   "integration": "codex",
   "script": "sh",
-  "speckit_version": "0.8.8"
+  "speckit_version": "1.0.4"
 }

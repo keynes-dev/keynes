@@ -1,4 +1,4 @@
-name: PostgreSQL System
+name: Database qualification
 
 on:
   workflow_dispatch:
@@ -6,14 +6,11 @@ on:
 permissions:
   contents: read
 
-env:
-  RECORD_PATH: .artifacts/system-tests/postgresql/feat-0011-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}.json
-
 jobs:
   system:
-    name: PostgreSQL System
+    name: Database qualification
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -32,18 +29,36 @@ jobs:
         with:
           node-version-file: package.json
           check-latest: false
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Test PostgreSQL system
-        run: pnpm test:system:postgresql -- --output "${{ env.RECORD_PATH }}"
+        run: pnpm test:sqlite-postgres -- --output "$RUNNER_TEMP/sqlite-postgres"
 
       - name: Retain system-test record
-        if: success()
+        id: upload
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: postgresql-system-test-record
-          path: ${{ env.RECORD_PATH }}
+          name: postgresql-system-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          path: |
+            ${{ runner.temp }}/sqlite-postgres/manifest.json
+            ${{ runner.temp }}/sqlite-postgres/sqlite.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.vitest.json
+            ${{ runner.temp }}/sqlite-postgres/postgresql.json.observations.json
           if-no-files-found: error
+          overwrite: false
           retention-days: 14
+
+      - name: Confirm artifact retention
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || exit 1
+          [[ "$ARTIFACT_DIGEST" =~ ^[0-9a-fA-F]{64}$ ]] || exit 1
+          printf 'PostgreSQL artifact ID: `%s`\n\nSHA-256: `%s`\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"

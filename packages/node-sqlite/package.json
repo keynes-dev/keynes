@@ -1,0 +1,38 @@
+{
+  "name": "@keynes/node-sqlite",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "node scripts/generate.ts",
+    "generate:check": "node scripts/generate.ts --check",
+    "build": "node scripts/build.ts",
+    "prepack": "pnpm build",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run test --maxWorkers=1"
+  },
+  "devDependencies": {
+    "@keynes/database": "workspace:*",
+    "@keynes/sdk": "workspace:*",
+    "@keynes/testkit": "workspace:*",
+    "vitest": "4.1.11"
+  },
+  "peerDependencies": {
+    "@keynes/sdk": "0.0.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

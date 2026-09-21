@@ -1,42 +1,377 @@
+import { nodeSqlite } from "@keynes/node-sqlite";
 import { describe, expect, it } from "vitest";
 
-import {
-  KeynesError,
-  createKeynes,
-  defineResources,
-} from "../../../src/index.js";
+import { KeynesError, createKeynes } from "../../../src/index.js";
+import type { LocalKeynes } from "../../../src/keynes.js";
 
-const setupResources = defineResources({
-  workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+const setupResources = {
+  setupUnits: { unit: "unit", accountingBehavior: "consumable" },
+};
 
 describe("local Keynes facade", () => {
-  it("opens without setup Resources and binds only allocated schema entries", async () => {
-    const resources = defineResources({
+  it("attributes empty raw definitions to the invoked operation", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      for (const operation of ["createBudget", "defineResources"] as const) {
+        const pending: unknown = Reflect.apply(keynes[operation], keynes, [{}]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+          details: { operation },
+        });
+      }
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots raw creation definitions and allocations before await", async () => {
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      extra: { unit: "slot", accountingBehavior: "reusable" },
+    };
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: definitions,
+    });
+    const allocation = { workUnits: 10 };
+    try {
+      const pending = keynes.createBudget(allocation);
+      definitions.workUnits.unit = "changed";
+      allocation.workUnits = 99;
+      const root = await pending;
+      const snapshot = await root.inspect();
+      expect(snapshot.budget.resources).toMatchObject([
+        { resource: "workUnits", allocated: 10 },
+      ]);
+      await expect(
+        keynes.defineResources({
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each<Readonly<Record<string, unknown>>>([
+    { bad: undefined },
+    { constructor: undefined },
+    { toString: undefined },
+    {
+      extra: {
+        unit: "unit",
+        accountingBehavior: "consumable",
+        unknown: undefined,
+      },
+    },
+    {
+      extra: Object.assign(Object.create({ unit: "unit" }), {
+        accountingBehavior: "consumable",
+      }),
+    },
+  ])(
+    "rejects complete configured declarations asynchronously, case %#",
+    async (extra) => {
+      const definitions = {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        ...extra,
+      };
+      const pending = createKeynes({
+        runtime: nodeSqlite(),
+        resources: definitions,
+      });
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({ code: "invalid_command" });
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
+      try {
+        await expect(
+          keynes.defineResources({
+            workUnits: { unit: "different", accountingBehavior: "reusable" },
+          }),
+        ).resolves.toBeDefined();
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects copied and separate-authority creation bindings safely", async () => {
+    const first = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    const second = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      const binding = await first.defineResources({
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      });
+      for (const source of [binding, { ...binding }]) {
+        const pending: unknown = Reflect.apply(second.createBudget, second, [
+          source,
+        ]);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_command",
+        });
+      }
+      await expect(
+        second.defineResources({
+          workUnits: { unit: "different", accountingBehavior: "reusable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await first.close();
+      await second.close();
+    }
+  });
+
+  it("checks raw creation close before touching input getters", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    await keynes.close();
+    let reads = 0;
+    const input = {
+      get workUnits() {
+        reads += 1;
+        throw new Error("input read");
+      },
+    };
+    const pending: unknown = Reflect.apply(keynes.createBudget, keynes, [
+      input,
+      { workUnits: 1 },
+    ]);
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toMatchObject({ code: "runtime_closed" });
+    expect(reads).toBe(0);
+  });
+
+  it("defines an opaque frozen binding without reflective or JSON state", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      const binding = await keynes.defineResources({
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      });
+      expect(Object.isFrozen(binding)).toBe(true);
+      expect(Object.keys(binding)).toEqual([]);
+      expect(JSON.stringify(binding)).toBe("{}");
+      for (const key of Reflect.ownKeys(binding)) {
+        expect(Object.getOwnPropertyDescriptor(binding, key)).toMatchObject({
+          value: undefined,
+          writable: false,
+          configurable: false,
+        });
+      }
+      expect(Reflect.set(binding, "bindingReference", "forged")).toBe(false);
+      for (const copy of [
+        { ...binding },
+        JSON.parse(JSON.stringify(binding)),
+      ]) {
+        await expect(
+          Reflect.apply(keynes.defineResources, keynes, [copy]),
+        ).rejects.toMatchObject({ code: "invalid_command" });
+      }
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots independent definitions before yielding to caller mutation", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    const definitions = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+    };
+    try {
+      const defining = keynes.defineResources(definitions);
+      definitions.workUnits.unit = "changed";
+      definitions.workUnits.accountingBehavior = "reusable";
+      await defining;
+      await expect(
+        keynes.defineResources({
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        }),
+      ).resolves.toBeDefined();
+      await expect(keynes.defineResources(definitions)).rejects.toMatchObject({
+        code: "resource_type_conflict",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([
+    ["empty batch", {}],
+    ["undefined entry", { workUnits: undefined }],
+    [
+      "undefined constructor entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        constructor: undefined,
+      },
+    ],
+    [
+      "undefined toString entry",
+      {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        toString: undefined,
+      },
+    ],
+    [
+      "undefined unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          unknown: undefined,
+        },
+      },
+    ],
+    [
+      "undefined constructor field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          constructor: undefined,
+        },
+      },
+    ],
+    [
+      "nonenumerable constructor entry",
+      Object.defineProperty(
+        { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+        "constructor",
+        { value: undefined },
+      ),
+    ],
+    [
+      "nonenumerable unknown field",
+      {
+        workUnits: Object.defineProperty(
+          { unit: "unit", accountingBehavior: "consumable" },
+          "unknown",
+          { value: undefined },
+        ),
+      },
+    ],
+    [
+      "symbol unknown field",
+      {
+        workUnits: {
+          unit: "unit",
+          accountingBehavior: "consumable",
+          [Symbol("unknown")]: undefined,
+        },
+      },
+    ],
+    [
+      "inherited unit",
+      {
+        workUnits: Object.assign(Object.create({ unit: "unit" }), {
+          accountingBehavior: "consumable",
+        }),
+      },
+    ],
+    [
+      "inherited behavior",
+      {
+        workUnits: Object.assign(
+          Object.create({ accountingBehavior: "consumable" }),
+          { unit: "unit" },
+        ),
+      },
+    ],
+  ])(
+    "rejects malformed independent definitions asynchronously: %s",
+    async (_name, definitions) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
+      try {
+        const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
+          definitions,
+        ]);
+        expect(result).toBeInstanceOf(Promise);
+        await expect(result).rejects.toMatchObject({ code: "invalid_command" });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects independent-definition getter failures through its Promise", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    const failure = new Error("definition getter failed");
+    const definitions = {
+      get workUnits(): never {
+        throw failure;
+      },
+    };
+    try {
+      const result: unknown = Reflect.apply(keynes.defineResources, keynes, [
+        definitions,
+      ]);
+      expect(result).toBeInstanceOf(Promise);
+      await expect(result).rejects.toMatchObject({ code: "invalid_command" });
+      await expect(
+        keynes.defineResources({
+          workUnits: { unit: "replacement", accountingBehavior: "reusable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("accepts constructor and toString as independent Resource names", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      await expect(
+        keynes.defineResources({
+          constructor: { unit: "unit", accountingBehavior: "consumable" },
+          toString: { unit: "slot", accountingBehavior: "reusable" },
+        }),
+      ).resolves.toBeDefined();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("binds only supplied amounts from configured declarations", async () => {
+    const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       searchQueries: { unit: "query", accountingBehavior: "reusable" },
-    });
-    const keynes = requireRecord(
-      await invokeAsync(createKeynes, undefined, []),
-      "Keynes handle",
-    );
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = requireRecord(
-        await invokeAsync(keynes.createBudget, keynes, [
-          resources,
-          { usdCents: 5 },
-        ]),
-        "Budget handle",
-      );
-      await expect(invokeAsync(root.inspect, root, [])).resolves.toMatchObject({
+      const root = await keynes.createBudget({ usdCents: 5 });
+      await expect(root.inspect()).resolves.toMatchObject({
         budget: {
-          resources: [
-            {
-              resource: "usdCents",
-              unit: "cent",
-              allocated: 5,
-            },
-          ],
+          resources: [{ resource: "usdCents", unit: "cent", allocated: 5 }],
         },
         history: {
           entries: [
@@ -48,89 +383,57 @@ describe("local Keynes facade", () => {
         },
       });
     } finally {
-      await invokeAsync(keynes.close, keynes, []);
+      await keynes.close();
     }
   });
 
-  it("reuses exact definitions and rolls back a conflicting root", async () => {
-    const original = defineResources({
+  it("reuses configured definitions and rejects conflicting explicit definitions without changing roots", async () => {
+    const original = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
+    };
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: original,
     });
-    const repeated = defineResources({
-      usdCents: { unit: "cent", accountingBehavior: "consumable" },
-    });
-    const conflicting = defineResources({
-      usdCents: { unit: "dollar", accountingBehavior: "consumable" },
-    });
-    const conflictingBehavior = defineResources({
-      usdCents: { unit: "cent", accountingBehavior: "reusable" },
-    });
-    const keynes = requireRecord(
-      await invokeAsync(createKeynes, undefined, []),
-      "Keynes handle",
-    );
     try {
-      const first = requireRecord(
-        await invokeAsync(keynes.createBudget, keynes, [
-          original,
-          { usdCents: 5 },
-        ]),
-        "first Budget handle",
-      );
-      const second = requireRecord(
-        await invokeAsync(keynes.createBudget, keynes, [
-          repeated,
-          { usdCents: 7 },
-        ]),
-        "second Budget handle",
-      );
-
-      await expect(
-        invokeAsync(keynes.createBudget, keynes, [
-          conflicting,
-          { usdCents: 9 },
-        ]),
-      ).rejects.toMatchObject({
-        name: "KeynesError",
-        code: "resource_type_conflict",
-      });
-      await expect(
-        invokeAsync(keynes.createBudget, keynes, [
-          conflictingBehavior,
-          { usdCents: 11 },
-        ]),
-      ).rejects.toMatchObject({
-        name: "KeynesError",
-        code: "resource_type_conflict",
-      });
-      await expect(
-        invokeAsync(first.inspect, first, []),
-      ).resolves.toMatchObject({
+      const first = await keynes.createBudget({ usdCents: 5 });
+      await expect(keynes.defineResources(original)).resolves.toBeDefined();
+      const second = await keynes.createBudget({ usdCents: 7 });
+      for (const conflicting of [
+        { usdCents: { unit: "dollar", accountingBehavior: "consumable" } },
+        { usdCents: { unit: "cent", accountingBehavior: "reusable" } },
+      ]) {
+        await expect(keynes.defineResources(conflicting)).rejects.toMatchObject(
+          { name: "KeynesError", code: "resource_type_conflict" },
+        );
+      }
+      await expect(first.inspect()).resolves.toMatchObject({
         budget: { resources: [{ unit: "cent", allocated: 5 }] },
       });
-      await expect(
-        invokeAsync(second.inspect, second, []),
-      ).resolves.toMatchObject({
+      await expect(second.inspect()).resolves.toMatchObject({
         budget: { resources: [{ unit: "cent", allocated: 7 }] },
       });
     } finally {
-      await invokeAsync(keynes.close, keynes, []);
+      await keynes.close();
     }
   });
 
   it("keeps independent roots isolated and ignores unallocated schema entries", async () => {
-    const firstSchema = defineResources({
+    const firstSchema = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
-      deferredCapacity: { unit: "seat", accountingBehavior: "reusable" },
-    });
-    const secondSchema = defineResources({
+      deferredCapacity: { unit: "minute", accountingBehavior: "consumable" },
+    };
+    const secondSchema = {
       modelTokens: { unit: "token", accountingBehavior: "consumable" },
       deferredCapacity: { unit: "minute", accountingBehavior: "consumable" },
+    };
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: { ...firstSchema, ...secondSchema },
     });
-    const keynes = await createKeynes();
     try {
-      const first = await keynes.createBudget(firstSchema, { usdCents: 5 });
-      const second = await keynes.createBudget(secondSchema, {
+      const first = await keynes.createBudget({ usdCents: 5 });
+      const second = await keynes.createBudget({
         modelTokens: 7,
         deferredCapacity: 3,
       });
@@ -158,12 +461,12 @@ describe("local Keynes facade", () => {
   });
 
   it("projects double-settlement conflicts without private identities", async () => {
-    const resources = defineResources({
+    const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { usdCents: 5 });
+      const root = await keynes.createBudget({ usdCents: 5 });
       await root.settle({ usdCents: 1 });
 
       let conflict: unknown;
@@ -195,13 +498,13 @@ describe("local Keynes facade", () => {
   });
 
   it("runs approval, denial, settlement, overage, and inspection through Budget handles", async () => {
-    const resources = defineResources({
+    const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       searchQueries: { unit: "query", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, {
+      const root = await keynes.createBudget({
         usdCents: 100,
         searchQueries: 10,
       });
@@ -258,25 +561,30 @@ describe("local Keynes facade", () => {
     }
   });
 
-  it("gives repeated schemas one identity and isolates conflicting definitions across runtimes", async () => {
+  it("isolates conflicting definitions across runtimes", async () => {
     const definition = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
     } as const;
-    const first = defineResources(definition);
-    const repeated = defineResources(definition);
+    const first = definition;
+    const repeated = { ...definition };
     expect(repeated).toEqual(first);
 
-    const conflict = defineResources({
+    const conflict = {
       usdCents: { unit: "dollar", accountingBehavior: "consumable" },
-    });
-    expect(conflict.digest).not.toBe(first.digest);
+    };
 
-    const firstKeynes = await createKeynes();
-    const conflictingKeynes = await createKeynes();
+    const firstKeynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: first,
+    });
+    const conflictingKeynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: conflict,
+    });
     try {
       const [firstRoot, conflictingRoot] = await Promise.all([
-        firstKeynes.createBudget(first, { usdCents: 1 }),
-        conflictingKeynes.createBudget(conflict, { usdCents: 1 }),
+        firstKeynes.createBudget({ usdCents: 1 }),
+        conflictingKeynes.createBudget({ usdCents: 1 }),
       ]);
       expect((await firstRoot.inspect()).budget.resources[0]?.unit).toBe(
         "cent",
@@ -289,84 +597,83 @@ describe("local Keynes facade", () => {
     }
   });
 
-  it("validates every Resource name before opening a runtime", () => {
-    expect(() =>
-      defineResources({
-        validName: { unit: "item", accountingBehavior: "reusable" },
-        invalid_name: { unit: "item", accountingBehavior: "reusable" },
-      }),
-    ).toThrowError(
-      expect.objectContaining({
-        name: "KeynesSdkError",
-        code: "invalid_resource_name",
-        details: { resource: "invalid_name" },
-      }),
-    );
-
-    const overlongName = "z".repeat(64);
-    expect(() =>
-      defineResources({
-        validName: { unit: "item", accountingBehavior: "reusable" },
-        [overlongName]: {
-          unit: "item",
-          accountingBehavior: "reusable",
-        },
-      }),
-    ).toThrowError(
-      expect.objectContaining({
-        name: "KeynesSdkError",
-        code: "invalid_resource_name",
-        details: { resource: overlongName },
-      }),
-    );
-  });
-
-  it("rejects definition fields that could override the derived canonical name", () => {
-    const definition = {
-      unit: "cent",
-      accountingBehavior: "consumable" as const,
-      canonicalName: "tokens",
-    };
-    expect(() => defineResources({ usdCents: definition })).toThrowError(
-      expect.objectContaining({
-        name: "KeynesError",
-        code: "invalid_command",
-      }),
-    );
-  });
-
-  it.each([
-    [null, "$.definitions"],
-    [{ workUnits: null }, "$.definitions.workUnits"],
-  ])(
-    "returns a stable error for malformed Resource definitions %#",
-    (definitions, path) => {
-      expect(() =>
-        Reflect.apply(defineResources, undefined, [definitions]),
-      ).toThrowError(
-        expect.objectContaining({
-          name: "KeynesError",
-          code: "invalid_command",
-          details: {
-            operation: "defineResource",
-            issues: [{ path, rule: "type" }],
-          },
-        }),
-      );
+  it.each(["invalid_name", "z".repeat(64)])(
+    "rejects invalid Resource names at definition: %s",
+    async (name) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
+      try {
+        await expect(
+          keynes.defineResources({
+            validName: { unit: "item", accountingBehavior: "reusable" },
+            [name]: { unit: "item", accountingBehavior: "reusable" },
+          }),
+        ).rejects.toMatchObject({ code: "invalid_command" });
+      } finally {
+        await keynes.close();
+      }
     },
   );
 
-  it("keeps the installed Resource catalog detached from source definitions", async () => {
+  it("rejects definition fields that could override the derived canonical name", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      await expect(
+        Reflect.apply(keynes.defineResources, keynes, [
+          {
+            usdCents: {
+              unit: "cent",
+              accountingBehavior: "consumable",
+              canonicalName: "tokens",
+            },
+          },
+        ]),
+      ).rejects.toMatchObject({ code: "invalid_command" });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([null, { workUnits: null }])(
+    "returns a stable error for malformed Resource definitions %#",
+    async (definitions) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
+      try {
+        await expect(
+          Reflect.apply(keynes.defineResources, keynes, [definitions]),
+        ).rejects.toMatchObject({
+          name: "KeynesError",
+          code: "invalid_command",
+          details: { operation: "defineResources" },
+        });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("keeps Resource registration detached from source definitions", async () => {
     const definitions = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
-    } as const;
-    const resources = defineResources(definitions);
-    Reflect.set(definitions.usdCents, "unit", "dollar");
-
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: definitions,
+    });
     try {
-      const root = await keynes.createBudget(resources, { usdCents: 5 });
+      const defining = keynes.defineResources(definitions);
+      definitions.usdCents.unit = "dollar";
+      await defining;
+      const root = await keynes.createBudget({ usdCents: 5 });
       expect((await root.inspect()).budget.resources[0]).toMatchObject({
         resource: "usdCents",
         unit: "cent",
@@ -377,12 +684,12 @@ describe("local Keynes facade", () => {
   });
 
   it("keeps returned mutation results detached from retained local state", async () => {
-    const resources = defineResources({
+    const resources = {
       usdCents: { unit: "cent", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { usdCents: 5 });
+      const root = await keynes.createBudget({ usdCents: 5 });
       const returned = await root.settle({ usdCents: 3 });
       const returnedResource = returned.budget.resources[0];
       const returnedUsage = returned.newlyKnown[0];
@@ -418,12 +725,12 @@ describe("local Keynes facade", () => {
   });
 
   it("snapshots requested amounts before asynchronous admission", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const root = await keynes.createBudget({ workUnits: 5 });
       const requested = { workUnits: 1 };
       const pending = root.request(requested);
       requested.workUnits = 2;
@@ -440,14 +747,167 @@ describe("local Keynes facade", () => {
     }
   });
 
+  it.each([
+    ["omitted", []],
+    ["explicit undefined", [{ decisionEvidence: undefined }]],
+    ["empty", [{ decisionEvidence: {} }]],
+  ])("normalizes %s decision evidence to omission", async (_name, options) => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        ...options,
+      ]);
+      await expect(requested).resolves.toMatchObject({
+        status: "approved",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("snapshots decision evidence before queued admission and freezes its projections", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 3 });
+      const evidence = { note: "before" };
+      const first = root.request({ workUnits: 1 });
+      const pending: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        { decisionEvidence: evidence },
+      ]);
+      evidence.note = "after";
+      await first;
+      const approved = await pending;
+      expect(approved).toMatchObject({ status: "approved" });
+      if (
+        typeof approved !== "object" ||
+        approved === null ||
+        !("budget" in approved)
+      ) {
+        throw new Error("expected approved request");
+      }
+      const budget = approved.budget;
+      if (
+        typeof budget !== "object" ||
+        budget === null ||
+        !("inspect" in budget) ||
+        typeof budget.inspect !== "function"
+      ) {
+        throw new Error("expected Budget projection");
+      }
+      const snapshot = await budget.inspect();
+      const entry = snapshot.history.entries.find(
+        (entry: { readonly kind: string; readonly sequence: number }) =>
+          entry.kind === "request_approved" && entry.sequence === 3,
+      );
+      expect(entry).toMatchObject({
+        kind: "request_approved",
+        decisionEvidence: { note: "before" },
+      });
+      expect(Object.isFrozen(entry)).toBe(true);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each([
+    ["undefined member", () => ({ note: undefined })],
+    ["bigint", () => ({ amount: BigInt(1) })],
+    ["NaN", () => ({ amount: Number.NaN })],
+    ["infinite number", () => ({ amount: Number.POSITIVE_INFINITY })],
+    ["symbol", () => ({ [Symbol("evidence")]: true })],
+    [
+      "non-enumerable member",
+      () => {
+        const evidence = { note: "value" };
+        Object.defineProperty(evidence, "hidden", { value: true });
+        return evidence;
+      },
+    ],
+  ])(
+    "rejects non-JSON decision evidence %s before mutation",
+    async (_name, build) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 2 });
+        const requested: unknown = Reflect.apply(root.request, root, [
+          { workUnits: 1 },
+          { decisionEvidence: build() },
+        ]);
+        await expect(requested).rejects.toMatchObject({
+          code: "invalid_configuration",
+          details: { field: "decisionEvidence", reason: "unsupported" },
+        });
+        expect((await root.inspect()).history.entries).toHaveLength(1);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects accessor and option getters without invoking them", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 2 });
+      let reads = 0;
+      const evidence = Object.defineProperty({}, "note", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return "never read";
+        },
+      });
+      const options = Object.defineProperty({}, "decisionEvidence", {
+        enumerable: true,
+        get() {
+          reads += 1;
+          return evidence;
+        },
+      });
+      const requested: unknown = Reflect.apply(root.request, root, [
+        { workUnits: 1 },
+        options,
+      ]);
+      await expect(requested).rejects.toMatchObject({
+        code: "invalid_configuration",
+        details: { field: "options", reason: "unsupported" },
+      });
+      expect(reads).toBe(0);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("does not widen child Resource names from a later input mutation", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, {
+      const root = await keynes.createBudget({
         workUnits: 5,
         tokens: 5,
       });
@@ -479,12 +939,12 @@ describe("local Keynes facade", () => {
   });
 
   it("snapshots settlement usage before asynchronous admission", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const root = await keynes.createBudget({ workUnits: 5 });
       const approved = await root.request({ workUnits: 3 });
       if (approved.status !== "approved") {
         throw new Error("expected approved request");
@@ -505,13 +965,13 @@ describe("local Keynes facade", () => {
   });
 
   it("does not widen settlement Resources from a later input mutation", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, {
+      const root = await keynes.createBudget({
         workUnits: 5,
         tokens: 5,
       });
@@ -532,12 +992,12 @@ describe("local Keynes facade", () => {
   });
 
   it("keeps malformed child inputs inside the asynchronous error boundary", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const root = await keynes.createBudget({ workUnits: 5 });
       const requested: unknown = Reflect.apply(root.request, root, [
         { workUnits: () => 1 },
       ]);
@@ -575,13 +1035,13 @@ describe("local Keynes facade", () => {
   });
 
   it("rejects Resources outside the root binding", async () => {
-    const resources = defineResources({
+    const resources = {
       workUnits: { unit: "unit", accountingBehavior: "consumable" },
       tokens: { unit: "token", accountingBehavior: "consumable" },
-    });
-    const keynes = await createKeynes();
+    };
+    const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
     try {
-      const root = await keynes.createBudget(resources, { workUnits: 5 });
+      const root = await keynes.createBudget({ workUnits: 5 });
       await expect(
         Reflect.apply(root.request, root, [{ workUnits: 1, tokens: 1 }]),
       ).rejects.toMatchObject({
@@ -605,10 +1065,102 @@ describe("local Keynes facade", () => {
   });
 
   it.each([
+    [
+      "empty root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          {
+            policies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined root Policy attachment",
+      (keynes: LocalKeynes<"workUnits">) =>
+        Reflect.apply(keynes.createBudget, keynes, [
+          { workUnits: 1 },
+          { policies: undefined },
+        ]),
+    ],
+    [
+      "Policy context",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { context: {} },
+        ]),
+    ],
+    [
+      "empty child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {
+            childPolicies: {
+              definitions: [],
+              contextSchemaDigest: null,
+              setDigest: "a".repeat(64),
+            },
+          },
+        ]),
+    ],
+    [
+      "undefined child Policy attachment",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { childPolicies: undefined },
+        ]),
+    ],
+    [
+      "undefined Policy evidence",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          { policyEvidence: undefined },
+        ]),
+    ],
+    [
+      "an excess argument",
+      (keynes: LocalKeynes<"workUnits">, root: unknown) =>
+        Reflect.apply(requireBudget(root).request, root, [
+          { workUnits: 1 },
+          {},
+          undefined,
+        ]),
+    ],
+  ])(
+    "rejects %s asynchronously without changing Budget state",
+    async (_name, invoke) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      });
+      try {
+        const root = await keynes.createBudget({ workUnits: 5 });
+        const before = await root.inspect();
+        const pending: unknown = invoke(keynes, root);
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({
+          code: "invalid_configuration",
+        });
+        await expect(root.inspect()).resolves.toEqual(before);
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it.each([
     ["explicit undefined", undefined],
     ["an empty object", {}],
-    ["an undefined Resource schema", { resources: undefined }],
-    ["a Resource schema", { resources: setupResources }],
     [
       "a PostgreSQL URL",
       { databaseUrl: "postgresql://example.invalid/keynes" },
@@ -674,4 +1226,19 @@ function requireRecord(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireBudget(value: unknown): {
+  readonly request: (...arguments_: readonly unknown[]) => unknown;
+} {
+  if (!isRecord(value) || !isCallable(value.request)) {
+    throw new TypeError("expected Budget handle");
+  }
+  return { request: value.request };
+}
+
+function isCallable(
+  value: unknown,
+): value is (...arguments_: readonly unknown[]) => unknown {
+  return typeof value === "function";
 }

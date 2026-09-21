@@ -1,0 +1,89 @@
+test_extra_name (test_greet.GreetingTests.test_extra_name) ... FAIL
+test_missing_name (test_greet.GreetingTests.test_missing_name) ... FAIL
+test_one_name (test_greet.GreetingTests.test_one_name) ... FAIL
+test_spaced_name (test_greet.GreetingTests.test_spaced_name) ... FAIL
+
+======================================================================
+FAIL: test_extra_name (test_greet.GreetingTests.test_extra_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/test_greet.py", line 24, in test_extra_name
+    self.assertEqual((p.returncode, p.stdout, p.stderr), (2, "", "usage: greet.py NAME\n"))
+AssertionError: Tuples differ: (2, '', "/Library/Frameworks/Python.framework/Ver[211 chars]y\n") != (2, '', 'usage: greet.py NAME\n')
+
+First differing element 2:
+"/Library/Frameworks/Python.framework/Ver[210 chars]ry\n"
+'usage: greet.py NAME\n'
+
++ (2, '', 'usage: greet.py NAME\n')
+- (2,
+-  '',
+-  '/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: '
+-  "can't open file "
+-  "'/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/greet.py': "
+-  '[Errno 2] No such file or directory\n')
+
+======================================================================
+FAIL: test_missing_name (test_greet.GreetingTests.test_missing_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/test_greet.py", line 20, in test_missing_name
+    self.assertEqual((p.returncode, p.stdout, p.stderr), (2, "", "usage: greet.py NAME\n"))
+AssertionError: Tuples differ: (2, '', "/Library/Frameworks/Python.framework/Ver[211 chars]y\n") != (2, '', 'usage: greet.py NAME\n')
+
+First differing element 2:
+"/Library/Frameworks/Python.framework/Ver[210 chars]ry\n"
+'usage: greet.py NAME\n'
+
++ (2, '', 'usage: greet.py NAME\n')
+- (2,
+-  '',
+-  '/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: '
+-  "can't open file "
+-  "'/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/greet.py': "
+-  '[Errno 2] No such file or directory\n')
+
+======================================================================
+FAIL: test_one_name (test_greet.GreetingTests.test_one_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/test_greet.py", line 12, in test_one_name
+    self.assertEqual((p.returncode, p.stdout, p.stderr), (0, "Hello, Ada!\n", ""))
+AssertionError: Tuples differ: (2, '', "/Library/Frameworks/Python.framew[218 chars]y\n") != (0, 'Hello, Ada!\n', '')
+
+First differing element 0:
+2
+0
+
++ (0, 'Hello, Ada!\n', '')
+- (2,
+-  '',
+-  '/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: '
+-  "can't open file "
+-  "'/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/greet.py': "
+-  '[Errno 2] No such file or directory\n')
+
+======================================================================
+FAIL: test_spaced_name (test_greet.GreetingTests.test_spaced_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/test_greet.py", line 16, in test_spaced_name
+    self.assertEqual((p.returncode, p.stdout, p.stderr), (0, "Hello, Ada Lovelace!\n", ""))
+AssertionError: Tuples differ: (2, '', "/Library/Frameworks/Python.framew[218 chars]y\n") != (0, 'Hello, Ada Lovelace!\n', '')
+
+First differing element 0:
+2
+0
+
++ (0, 'Hello, Ada Lovelace!\n', '')
+- (2,
+-  '',
+-  '/Library/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: '
+-  "can't open file "
+-  "'/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-speckit-89-gudj4wi1/feature-a/greet.py': "
+-  '[Errno 2] No such file or directory\n')
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.044s
+
+FAILED (failures=4)

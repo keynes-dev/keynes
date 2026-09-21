@@ -19,12 +19,14 @@ import {
 import {
   assertOutsideRepository,
   inspectArchive,
+  inspectNodeSqliteArchive,
   parseArguments,
   qualifyArchive,
   validatePackageFilePaths,
   validateSizes,
   writeQualificationResult,
 } from "./qualify.js";
+import { withPackagePreparationLock } from "@keynes/testkit/package";
 import { CONTRACT_DIGEST } from "../../src/generated/client.js";
 import { SDK_PRODUCTION_MODULES } from "../../scripts/production-modules.ts";
 
@@ -32,50 +34,44 @@ const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const runnerPath = fileURLToPath(new URL("qualify.ts", import.meta.url));
 const distRoot = resolve(repositoryRoot, "packages/sdk/dist");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const expectedProductionDependencies = {
-  "@pgsql/types": "18.0.0",
-  "decimal.js": "10.6.0",
-  kysely: "0.29.5",
-  "libpg-query": "18.1.4",
-  pg: "8.23.0",
-  "pg-cloudflare": "1.4.0",
-  "pg-connection-string": "2.14.0",
-  "pg-int8": "1.0.1",
-  "pg-pool": "3.14.0",
-  "pg-protocol": "1.16.0",
-  "pg-types": "2.2.0",
-  pgpass: "1.0.5",
-  "postgres-array": "2.0.0",
-  "postgres-bytea": "1.0.1",
-  "postgres-date": "1.0.7",
-  "postgres-interval": "1.2.0",
-  split2: "4.2.0",
-  xtend: "4.0.2",
-} as const;
+const expectedProductionDependencies = {};
 const expectedBundledDependencies = Object.keys(
   expectedProductionDependencies,
 ).sort();
 
 let suiteRoot: string;
 let archivePath: string;
+let nodeSqliteArchivePath: string;
 let firstBuild: Map<string, Buffer>;
 let secondBuild: Map<string, Buffer>;
 let archiveEntries: Map<string, Buffer>;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-package-test-"));
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  firstBuild = await readTree(distRoot);
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  secondBuild = await readTree(distRoot);
-  run(pnpm, [
-    "--config.node-linker=hoisted",
-    "--filter",
-    "@keynes/sdk",
-    "pack",
-    "--pack-destination",
-    suiteRoot,
-  ]);
+  await withPackagePreparationLock({ repositoryRoot }, async () => {
+    run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+    firstBuild = await readTree(distRoot);
+    run(pnpm, ["--filter", "@keynes/sdk", "build"]);
+    secondBuild = await readTree(distRoot);
+    run(pnpm, [
+      "--config.node-linker=hoisted",
+      "--filter",
+      "@keynes/sdk",
+      "pack",
+      "--pack-destination",
+      suiteRoot,
+    ]);
+  });
+  await withPackagePreparationLock({ repositoryRoot }, async () => {
+    run(pnpm, [
+      "--filter",
+      "@keynes/node-sqlite",
+      "pack",
+      "--pack-destination",
+      suiteRoot,
+    ]);
+  });
+  nodeSqliteArchivePath = resolve(suiteRoot, "keynes-node-sqlite-0.0.0.tgz");
   archivePath = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
   archiveEntries = readArchiveEntries(await readFile(archivePath));
 }, 30_000);
@@ -91,6 +87,39 @@ afterEach(() => {
 });
 
 describe("SDK package-test runner", () => {
+  it("refuses an SDK archive supplied as the selected SQLite runtime", async () => {
+    await expect(inspectNodeSqliteArchive(archivePath)).rejects.toThrow(
+      "not @keynes/node-sqlite",
+    );
+  });
+  it("imports and typechecks the SDK-only archive with no adapter or driver installed", async () => {
+    const result = await qualifyArchive({ archivePath });
+    expect(result.checks).not.toContain("budget-loop");
+    expect(result.checks).toContain("public-types");
+  }, 30_000);
+
+  it("ships no engine or driver in the SDK-only archive", () => {
+    const manifest: unknown = JSON.parse(
+      archiveEntries.get("package/package.json")?.toString("utf8") ?? "null",
+    );
+    if (!isRecord(manifest)) throw new Error("package manifest is invalid");
+    expect(manifest.dependencies ?? {}).toEqual({});
+    expect(manifest.bundledDependencies ?? []).toEqual([]);
+    expect(
+      [...archiveEntries.keys()].filter((path) =>
+        /node_modules\/|sqlite|postgresql-command-executor|remote\/connection-options|remote\/retry/.test(
+          path,
+        ),
+      ),
+    ).toEqual([]);
+    for (const [path, bytes] of archiveEntries) {
+      if (!/\.d\.ts$|\.js$/.test(path)) continue;
+      expect(bytes.toString("utf8"), path).not.toMatch(
+        /(?:from\s+|import\s*)["'](?:node:sqlite|pg|@keynes\/(?:database|contracts|node-sqlite|postgres))["']/,
+      );
+    }
+  });
+
   it("packs the distribution from the shared production manifest", () => {
     const paths = [...archiveEntries.keys()];
     for (const module of SDK_PRODUCTION_MODULES) {
@@ -129,12 +158,9 @@ describe("SDK package-test runner", () => {
     expect(() =>
       parseArguments(["--archive", "first.tgz", "--archive", "second.tgz"]),
     ).toThrow("once");
-    expect(
+    expect(() =>
       parseArguments(["--archive", "sdk.tgz", "--authorized-database"]),
-    ).toEqual({
-      archivePath: resolve(repositoryRoot, "sdk.tgz"),
-      authorizedDatabase: true,
-    });
+    ).toThrow("Unknown argument --authorized-database");
     expect(() =>
       parseArguments(["--archive", "sdk.tgz", "--authorized-database=false"]),
     ).toThrow("Unknown argument");
@@ -142,7 +168,7 @@ describe("SDK package-test runner", () => {
 
   it("writes an immutable secret-safe evidence record", async () => {
     const outputPath = resolve(suiteRoot, "records", "sdk.json");
-    const result = await qualifyArchive({ archivePath });
+    const result = await qualifyArchive({ archivePath, nodeSqliteArchivePath });
 
     expect(result).not.toHaveProperty("archivePath");
     await writeQualificationResult(outputPath, result);
@@ -184,7 +210,7 @@ describe("SDK package-test runner", () => {
     ).toThrow("workspace");
   });
 
-  it("packs the exact supported Node lines and production dependencies", () => {
+  it("packs the minimum-only Node range and production dependencies", () => {
     const manifestBytes = archiveEntries.get("package/package.json");
     expect(manifestBytes).toBeDefined();
     const manifest: unknown = JSON.parse(
@@ -193,7 +219,7 @@ describe("SDK package-test runner", () => {
     expect(manifest).toMatchObject({
       name: "@keynes/sdk",
       license: "Apache-2.0",
-      engines: { node: ">=24 <25 || >=26 <27" },
+      engines: { node: ">=24" },
       dependencies: expectedProductionDependencies,
     });
     if (!isRecord(manifest)) throw new Error("package manifest is invalid");
@@ -201,35 +227,18 @@ describe("SDK package-test runner", () => {
     expect(manifest).not.toHaveProperty("optionalDependencies");
     expect(manifest).not.toHaveProperty("peerDependencies");
     expect(manifest).not.toHaveProperty("bundleDependencies");
-    expect(manifest.bundledDependencies).toEqual(expectedBundledDependencies);
+    expect(manifest.bundledDependencies ?? []).toEqual(
+      expectedBundledDependencies,
+    );
   });
 
-  it("packs only the reachable schema-first and Policy API modules", () => {
+  it("packs the reduced application-request module set", () => {
     const paths = [...archiveEntries.keys()];
-    for (const module of [
-      "budget",
-      "resources",
-      "generated/policy-profile",
-      "generated/policy-types",
-      "policy/authoring",
-      "policy/canonicalize",
-      "policy/compile",
-      "policy/normalize",
-      "policy/parse",
-      "policy/validate",
-    ]) {
+    for (const module of SDK_PRODUCTION_MODULES) {
       expect(paths).toContain(`package/dist/${module}.d.ts`);
       expect(paths).toContain(`package/dist/${module}.js`);
     }
-  });
-
-  it("bundles the parser runtime and WASM in the archive", () => {
-    const paths = [...archiveEntries.keys()];
-    expect(paths).toContain(
-      "package/node_modules/libpg-query/wasm/libpg-query.wasm",
-    );
-    expect(paths).toContain("package/node_modules/libpg-query/wasm/index.js");
-    expect(paths).toContain("package/node_modules/@pgsql/types/package.json");
+    expect(paths.filter((path) => /policy/i.test(path))).toEqual([]);
   });
 
   it("contains no PGlite or copied database archive path", () => {
@@ -307,11 +316,34 @@ describe("SDK package-test runner", () => {
     });
   });
 
+  it("propagates an installed consumer failure and preserves the supplied archive", async () => {
+    const bytes = gunzipSync(await readFile(archivePath));
+    const entry = archiveEntries.get("package/dist/index.js");
+    if (!entry) throw new Error("Missing SDK entrypoint");
+    const offset = bytes.indexOf(entry);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    bytes.fill(32, offset, offset + entry.length);
+    bytes.write('throw new Error("fixture consumer failure");', offset);
+    const supplied = resolve(suiteRoot, "failed-consumer.tgz");
+    await writeFile(supplied, gzipSync(bytes));
+    const original = await readFile(supplied);
+    await expect(qualifyArchive({ archivePath: supplied })).rejects.toThrow(
+      /SDK consumer remote-exports failed/,
+    );
+    expect(await readFile(supplied)).toEqual(original);
+  }, 30_000);
+
   it("retains the exact archive identity, installs externally, and cleans up", async () => {
     const consumerRoot = resolve(suiteRoot, "consumers");
     const result = spawnSync(
       process.execPath,
-      [runnerPath, "--archive", archivePath],
+      [
+        runnerPath,
+        "--archive",
+        archivePath,
+        "--node-sqlite-archive",
+        nodeSqliteArchivePath,
+      ],
       {
         cwd: repositoryRoot,
         encoding: "utf8",
@@ -328,8 +360,13 @@ describe("SDK package-test runner", () => {
 
     const output: unknown = JSON.parse(result.stdout);
     expect(output).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk/v1",
+      schemaVersion: "keynes.package-test.sdk/v2",
       subject: "@keynes/sdk",
+      cleanup: "passed",
+      installedPackages: {
+        sdk: expect.any(String),
+        nodeSqlite: expect.any(String),
+      },
       archive: {
         sha256: createHash("sha256")
           .update(await readFile(archivePath))
@@ -338,15 +375,22 @@ describe("SDK package-test runner", () => {
         productionBytes: expect.any(Number),
         contractDigest: CONTRACT_DIGEST,
       },
+      runtimeArchive: {
+        name: "@keynes/node-sqlite",
+        packageVersion: "0.0.0",
+        sha256: createHash("sha256")
+          .update(await readFile(nodeSqliteArchivePath))
+          .digest("hex"),
+        compressedBytes: expect.any(Number),
+      },
       checks: [
-        "parser-wasm",
         "public-types",
         "package-root-import",
         "remote-exports",
         "configuration-rejection",
         "environment-isolation",
         "budget-loop",
-        "policy-runtime",
+        "application-request",
         "isolation",
         "closure",
         "process-loss",

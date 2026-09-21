@@ -1,0 +1,220 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { requirePostgresqlPackageArchive } from "../support/packed-package.ts";
+import { readPackageArchive, type ArchiveEntry } from "@keynes/testkit/archive";
+
+const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
+const expectedFiles = [
+  "package/LICENSE",
+  "package/README.md",
+  "package/dist/adapter.d.ts",
+  "package/dist/adapter.js",
+  "package/dist/generated/direct-procedures.d.ts",
+  "package/dist/generated/direct-procedures.js",
+  "package/dist/generated/resource-definitions.d.ts",
+  "package/dist/generated/resource-definitions.js",
+  "package/dist/generated/types.d.ts",
+  "package/dist/generated/types.js",
+  "package/dist/index.d.ts",
+  "package/dist/index.js",
+  "package/dist/installation/index.d.ts",
+  "package/dist/installation/index.js",
+  "package/dist/installer/config.d.ts",
+  "package/dist/installer/config.js",
+  "package/dist/installer/install.d.ts",
+  "package/dist/installer/install.js",
+  "package/dist/installer/run-installation.d.ts",
+  "package/dist/installer/run-installation.js",
+  "package/dist/remote/connection-options.d.ts",
+  "package/dist/remote/connection-options.js",
+  "package/dist/remote/errors.d.ts",
+  "package/dist/remote/errors.js",
+  "package/dist/remote/postgresql-command-executor.d.ts",
+  "package/dist/remote/postgresql-command-executor.js",
+  "package/dist/remote/retry.d.ts",
+  "package/dist/remote/retry.js",
+  "package/generated/installation-record.json",
+  "package/migrations/0001-baseline.sql",
+  "package/migrations/manifest.json",
+  "package/package.json",
+] as const;
+
+let entries: ArchiveEntry[];
+
+beforeAll(async () => {
+  entries = await readPackageArchive(requirePostgresqlPackageArchive());
+});
+
+describe("@keynes/postgres packed archive", () => {
+  it("contains exactly the declared public artifact", () => {
+    expect(entries.map(({ path }) => path).sort()).toEqual(expectedFiles);
+  });
+
+  it("keeps generated and migration bytes identical to canonical sources", async () => {
+    for (const path of expectedFiles.filter(
+      (candidate) =>
+        candidate.startsWith("package/migrations/") ||
+        candidate.startsWith("package/generated/"),
+    )) {
+      expect(entry(path).body).toEqual(
+        await readFile(join(packageRoot, path.slice("package/".length))),
+      );
+    }
+
+    const record = JSON.parse(
+      entry("package/generated/installation-record.json").body.toString("utf8"),
+    ) as {
+      readonly migrations: readonly {
+        readonly path: string;
+        readonly sha256: string;
+      }[];
+    };
+    for (const migration of record.migrations) {
+      expect(
+        createHash("sha256")
+          .update(entry(`package/migrations/${migration.path}`).body)
+          .digest("hex"),
+      ).toBe(migration.sha256);
+    }
+  });
+
+  it("publishes one contract-bearing baseline", () => {
+    const manifest: unknown = JSON.parse(
+      entry("package/migrations/manifest.json").body.toString("utf8"),
+    );
+    expect(manifest).toEqual({
+      migrations: [
+        {
+          id: "0001-baseline",
+          path: "0001-baseline.sql",
+          contract: true,
+        },
+      ],
+    });
+
+    const record = JSON.parse(
+      entry("package/generated/installation-record.json").body.toString("utf8"),
+    ) as {
+      readonly migrations: readonly {
+        readonly id: string;
+        readonly path: string;
+        readonly sha256: string;
+        readonly contractDigest?: string;
+      }[];
+    };
+    expect(
+      record.migrations.map(({ id, path, contractDigest }) => [
+        id,
+        path,
+        contractDigest ?? null,
+      ]),
+    ).toEqual([
+      [
+        "0001-baseline",
+        "0001-baseline.sql",
+        expect.stringMatching(/^[a-f0-9]{64}$/u),
+      ],
+    ]);
+  });
+
+  it("publishes runtime and installation API without a CLI", () => {
+    const manifest = JSON.parse(
+      entry("package/package.json").body.toString("utf8"),
+    ) as Record<string, unknown>;
+    expect(manifest.exports).toEqual({
+      ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+      "./install": {
+        types: "./dist/installation/index.d.ts",
+        import: "./dist/installation/index.js",
+      },
+    });
+    expect(manifest.bin).toBeUndefined();
+    expect(manifest.dependencies).toEqual({
+      "@types/pg": "8.23.1",
+      pg: "8.23.0",
+      "pg-connection-string": "2.14.0",
+    });
+    expect(manifest.peerDependencies).toEqual({ "@keynes/sdk": "0.0.0" });
+    expect(entries.some(({ path }) => /(?:^|\/)cli(?:[/.]|$)/.test(path))).toBe(
+      false,
+    );
+  });
+
+  it("excludes SQLite and private workspace dependencies", () => {
+    const manifest = JSON.parse(
+      entry("package/package.json").body.toString("utf8"),
+    );
+    for (const name of Object.keys({
+      ...manifest.dependencies,
+      ...manifest.peerDependencies,
+    })) {
+      expect(name).not.toMatch(
+        /@keynes\/(?:database|testkit|node-sqlite)|sqlite|typescript|vitest/,
+      );
+    }
+  });
+
+  it("documents the current six-key, four-role installation and ten remote procedures", () => {
+    const readme = entry("package/README.md").body.toString("utf8");
+
+    for (const key of [
+      "ownerRole",
+      "executionRole",
+      "administrationRole",
+      "applicationRole",
+      "tenantId",
+      "principalId",
+    ]) {
+      expect(readme).toContain(`\`${key}\``);
+    }
+    for (const procedure of [
+      "remote_define_resources",
+      "remote_validate_resources",
+      "remote_create_budget",
+      "remote_request",
+      "remote_settle",
+      "remote_get_budget",
+      "remote_get_budget_history_page",
+      "remote_open_budget",
+      "remote_recover_operation",
+      "remote_get_compatibility",
+    ]) {
+      expect(readme).toContain(`keynes.${procedure}(jsonb)`);
+    }
+    expect(readme).not.toContain("exactly the five supported functions");
+  });
+
+  it("contains no SQLite implementation or private source import", () => {
+    const content = Buffer.concat(
+      entries
+        .filter(({ path }) => path.startsWith("package/dist/"))
+        .map(({ body }) => body),
+    ).toString("utf8");
+    expect(content).not.toContain("node:sqlite");
+    expect(content).not.toMatch(
+      /(?:from\s+|import\s+|import\s*\(\s*|require\s*\(\s*)["']@keynes\/(?:database|testkit|node-sqlite)/,
+    );
+    expect(content).not.toContain("packages/sdk");
+  });
+
+  it("contains no retired Policy runtime or assets", () => {
+    expect(entries.some(({ path }) => /policy/iu.test(path))).toBe(false);
+    const runtime = Buffer.concat(
+      entries
+        .filter(({ path }) => path !== "package/README.md")
+        .map(({ body }) => body),
+    ).toString("utf8");
+    expect(runtime).not.toMatch(/\bpolicy\b/iu);
+  });
+});
+
+function entry(path: string): ArchiveEntry {
+  const found = entries.find((candidate) => candidate.path === path);
+  if (found === undefined) throw new Error(`Missing archive entry ${path}`);
+  return found;
+}

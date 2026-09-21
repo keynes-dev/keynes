@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, rm, stat } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { withPackagePreparationLock } from "@keynes/testkit/package";
 
 import { installExternalConsumer } from "../package/qualify.ts";
 
@@ -20,17 +22,17 @@ let workerPath;
 
 beforeAll(async () => {
   suiteRoot = await mkdtemp(resolve(tmpdir(), "keynes-sdk-worker-test-"));
-  run(pnpm, ["--filter", "@keynes/sdk", "build"]);
-  run(pnpm, [
-    "--config.node-linker=hoisted",
-    "--filter",
-    "@keynes/sdk",
-    "pack",
-    "--pack-destination",
-    suiteRoot,
-  ]);
+  await withPackagePreparationLock({ repositoryRoot }, async () => {
+    for (const name of ["@keynes/sdk", "@keynes/node-sqlite"]) {
+      run(pnpm, ["--filter", name, "pack", "--pack-destination", suiteRoot]);
+    }
+  });
   const archive = resolve(suiteRoot, "keynes-sdk-0.0.0.tgz");
-  external = await installExternalConsumer(archive, (await stat(archive)).size);
+  external = await installExternalConsumer(
+    archive,
+    (await stat(archive)).size,
+    resolve(suiteRoot, "keynes-node-sqlite-0.0.0.tgz"),
+  );
   workerPath = resolve(external.root, "measure-worker.mjs");
   await cp(workerSource, workerPath);
 });
@@ -61,15 +63,26 @@ describe("SDK package measurement worker", () => {
       runtimeEngine: "node:sqlite",
       nodeVersion: process.version,
       sqliteVersion: installedSqliteVersion(),
-      parserInitializationMilliseconds: expect.any(Number),
+      runtimeObserved: true,
+      startupMilliseconds: expect.any(Number),
+      sampledPeakRssBytes: expect.any(Number),
+      memorySampleCount: expect.any(Number),
       readyRssBytes: expect.any(Number),
       coldCreateMilliseconds: expect.any(Number),
       firstRequestMilliseconds: expect.any(Number),
       shutdownMilliseconds: expect.any(Number),
       closed: true,
     });
+    expect(output.sampledPeakRssBytes).toBeGreaterThanOrEqual(
+      output.readyRssBytes,
+    );
+    expect(output.memorySampleCount).toBeGreaterThanOrEqual(2);
+    expect(output.startupMilliseconds).toBeGreaterThanOrEqual(
+      output.coldCreateMilliseconds,
+    );
     expect(output).not.toHaveProperty("emptyRssBytes");
     expect(output).not.toHaveProperty("readyRssDeltaBytes");
+    expect(output).not.toHaveProperty("parserInitializationMilliseconds");
     for (const value of Object.values(output)) {
       if (typeof value === "number") {
         expect(Number.isFinite(value)).toBe(true);
@@ -86,6 +99,8 @@ describe("SDK package measurement worker", () => {
     expect(output).toMatchObject({
       kind: "steady",
       warmupCount: 10,
+      runtimeObserved: true,
+      steadyElapsedMilliseconds: expect.any(Number),
       steadyRequestMilliseconds: expect.any(Array),
       closed: true,
     });
@@ -95,6 +110,45 @@ describe("SDK package measurement worker", () => {
       expect(sample).toBeGreaterThanOrEqual(0);
     }
   }, 15_000);
+
+  it("refuses to label a consumer without SQLite as SQLite", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "keynes-wrong-runtime-"));
+    try {
+      const sdk = resolve(root, "node_modules/@keynes/sdk");
+      await mkdir(sdk, { recursive: true });
+      await writeFile(
+        resolve(sdk, "package.json"),
+        JSON.stringify({ type: "module", exports: "./index.mjs" }),
+      );
+      await writeFile(
+        resolve(sdk, "index.mjs"),
+        'import "node:sqlite"; export const createKeynes = () => {};\n',
+      );
+      const runtime = resolve(root, "node_modules/@keynes/node-sqlite");
+      await mkdir(runtime, { recursive: true });
+      await writeFile(
+        resolve(runtime, "package.json"),
+        JSON.stringify({ type: "module", exports: "./index.mjs" }),
+      );
+      await writeFile(
+        resolve(runtime, "index.mjs"),
+        "export const nodeSqlite = () => {};\n",
+      );
+      await cp(workerSource, resolve(root, "worker.mjs"));
+      const result = spawnSync(
+        process.execPath,
+        [resolve(root, "worker.mjs"), "steady"],
+        { cwd: root, encoding: "utf8", timeout: 15000 },
+      );
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(
+        "Installed SQLite adapter did not load node:sqlite",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 
   it("rejects unknown modes without a structured success message", () => {
     const result = runWorker("unknown");

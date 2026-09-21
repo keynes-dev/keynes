@@ -6,6 +6,11 @@ parts work, and what the evidence proves. Do not reduce a substantial feature
 to a file list. Delete prompts and sections that do not apply.
 -->
 
+**Linear issue:** <!-- Link the owning KEY-N feature issue. -->
+**Specification:** <!-- Link the owning spec.md. -->
+**Prerequisites:** <!-- Link required landed PRs, or write "None." -->
+**Acceptance:** <!-- Link exact feature acceptance evidence; keep task details in Git. -->
+
 ## Why this change exists
 
 <!--
@@ -13,11 +18,6 @@ What problem, limitation, or product decision caused this work?
 What could a user or maintainer not do before?
 Why does this belong in the current feature or maintenance change?
 -->
-
-**Parent Linear issue:** <!-- Link the owning KEY-N feature issue. -->
-**Phase Linear issue:** <!-- Link the owning phase issue. Phase 1 reuses the parent. -->
-**Preceding PR:** <!-- Link the lower stack layer, or write "Bottom layer." -->
-**Phase checkpoint:** <!-- Copy the review boundary from tasks.md. -->
 
 ## What changed
 

@@ -1,25 +1,34 @@
-import {
-  createKeynes,
-  createOperationKey,
-  definePolicySql,
-  defineResources,
-  policySet,
-  policyValue,
-} from "@keynes/sdk";
-import type { BudgetReference } from "@keynes/sdk";
+import { nodeSqlite } from "@keynes/node-sqlite";
+import { createKeynes, createOperationKey } from "@keynes/sdk";
 
 declare const process: {
   readonly argv: readonly string[];
   readonly env: Readonly<Record<string, string | undefined>>;
 };
 
+for (const moduleName of ["pg", "@keynes/database", "@keynes/cli"]) {
+  let imported = false;
+  try {
+    await import(moduleName);
+    imported = true;
+  } catch (error: unknown) {
+    if (
+      !(error instanceof Error) ||
+      !("code" in error) ||
+      error.code !== "ERR_MODULE_NOT_FOUND"
+    )
+      throw error;
+  }
+  if (imported) throw new Error(`Unexpected dependency ${moduleName}`);
+}
+
 const mode = process.argv[2] ?? "budget-loop";
 switch (mode) {
   case "budget-loop":
     await runBudgetLoop();
     break;
-  case "policy-runtime":
-    await runPolicyRuntime();
+  case "application-request":
+    await runApplicationRequest();
     break;
   case "remote-exports":
     runRemoteExports();
@@ -29,9 +38,6 @@ switch (mode) {
     break;
   case "environment-isolation":
     runEnvironmentIsolation();
-    break;
-  case "authorized-database":
-    await runAuthorizedDatabase();
     break;
   case "isolation":
     await runIsolation();
@@ -58,10 +64,13 @@ function runRemoteExports(): void {
 
 async function runConfigurationRejection(): Promise<void> {
   await assertRejectsCode(
-    createKeynes({
-      databaseUrl:
-        "postgresql://application:secret@db.example.test/keynes?sslmode=disable",
-    }),
+    Reflect.apply(createKeynes, undefined, [
+      {
+        resources: {
+          workUnits: { unit: "unit", accountingBehavior: "consumable" },
+        },
+      },
+    ]),
     "invalid_configuration",
   );
 }
@@ -75,100 +84,34 @@ function runEnvironmentIsolation(): void {
   }
 }
 
-async function runAuthorizedDatabase(): Promise<void> {
-  const databaseUrl = process.env.KEYNES_DATABASE_URL;
-  if (databaseUrl === undefined) {
-    throw new Error("KEYNES_DATABASE_URL is required for authorized-database");
-  }
-  const authorizedDatabaseUrl = databaseUrl;
-  requireQualificationTarget(authorizedDatabaseUrl);
-  const resources = defineResources({
-    packageQualificationUnits: {
-      unit: "unit",
-      accountingBehavior: "consumable",
-    },
-  });
-  const rootReference = await createAndClose();
-  await using reconnected = await createKeynes({
-    databaseUrl: authorizedDatabaseUrl,
-  });
-  const reopened = await reconnected.openBudget({
-    reference: rootReference,
-    resourceTypes: resources,
-  });
-  const [resource] = (await reopened.inspect()).budget.resources;
-  assertEqual(
-    {
-      resource: resource?.resource,
-      allocated: resource?.allocated,
-      available: resource?.available,
-      subtreeObservedUsage: resource?.subtreeObservedUsage,
-    },
-    {
-      resource: "packageQualificationUnits",
-      allocated: 5,
-      available: 3,
-      subtreeObservedUsage: 2,
-    },
-  );
-
-  async function createAndClose(): Promise<BudgetReference> {
-    await using keynes = await createKeynes({
-      databaseUrl: authorizedDatabaseUrl,
-    });
-    const root = await keynes.createBudget(
-      resources,
-      { packageQualificationUnits: 5 },
-      { operationKey: createOperationKey() },
-    );
-    const request = await root.request(
-      { packageQualificationUnits: 2 },
-      { operationKey: createOperationKey() },
-    );
-    if (request.status !== "approved") {
-      throw new Error("authorized package request was denied");
-    }
-    assertEqual(
-      (await request.budget.inspect()).budget.resources[0]?.allocated,
-      2,
-    );
-    await request.budget.settle(
-      { packageQualificationUnits: 2 },
-      { operationKey: createOperationKey() },
-    );
-    return root.reference;
-  }
-}
-
-function requireQualificationTarget(databaseUrl: string): void {
-  const expected = process.env.KEYNES_QUALIFICATION_TARGET;
-  if (expected === undefined) {
-    throw new Error(
-      "KEYNES_QUALIFICATION_TARGET is required for authorized-database",
-    );
-  }
-  let url: URL;
-  try {
-    url = new URL(databaseUrl);
-  } catch {
-    throw new Error("authorized-database target is invalid");
-  }
-  const actual = `${decodeURIComponent(url.username)}@${url.hostname}:${url.port || "5432"}${decodeURIComponent(url.pathname)}`;
-  if (actual !== expected) {
-    throw new Error(
-      "authorized-database does not match the dedicated qualification target",
-    );
-  }
-}
-
 async function runBudgetLoop(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     usdCents: { unit: "cent", accountingBehavior: "consumable" },
     searchQueries: { unit: "query", accountingBehavior: "consumable" },
-  });
-  const keynes = await createKeynes();
+  };
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
-    const root = await keynes.createBudget(resources, {
+    const binding = await keynes.defineResources(resources);
+    assertEqual(Object.isFrozen(binding), true);
+    assertEqual(Reflect.ownKeys(binding), []);
+    assertEqual(JSON.stringify(binding), "{}");
+    const raw = await keynes.createBudget({ usdCents: 7 });
+    assertEqual(
+      (await raw.inspect()).budget.resources.map(({ resource }) => resource),
+      ["usdCents"],
+    );
+    const zero = await keynes.createBudget({ searchQueries: 0 });
+    assertEqual(
+      (await zero.inspect()).budget.resources.map(
+        ({ resource, allocated }) => ({
+          resource,
+          allocated,
+        }),
+      ),
+      [{ resource: "searchQueries", allocated: 0 }],
+    );
+    assertEqual((await zero.settle({ searchQueries: 0 })).kind, "settled");
+    const root = await keynes.createBudget({
       usdCents: 100,
       searchQueries: 10,
     });
@@ -217,60 +160,51 @@ async function runBudgetLoop(): Promise<void> {
   }
 }
 
-async function runPolicyRuntime(): Promise<void> {
-  const resources = defineResources({
-    modelTokens: { unit: "token", accountingBehavior: "consumable" },
-  });
-  const limit = definePolicySql(resources, {
-    name: "package_limit",
-    revision: 1,
-    inputs: ["modelTokens"],
-    outputs: ["modelTokens"],
-    context: { limit: policyValue.integer() },
-    reasons: ["package_limit"],
-    sql: `
-      SELECT requested.resource AS resource,
-             least(available.amount, context.limit) AS ceiling,
-             'package_limit' AS reason
-        FROM requested_resources AS requested
-        INNER JOIN available_resources AS available USING (resource)
-        CROSS JOIN policy_context AS context
-    `,
-  });
-  const keynes = await createKeynes();
-  try {
-    const root = await keynes.createBudget(
-      resources,
-      { modelTokens: 10 },
-      { policies: policySet(limit) },
-    );
-    const approved = await root.request(
-      { modelTokens: 4 },
-      { context: { limit: 5 } },
-    );
-    assertEqual(approved.status, "approved");
+function requestFor(tier: string, limit: number) {
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new Error("Invalid limit");
+  }
+  return tier === "pro" && limit >= 25 ? { usdCents: 25 } : null;
+}
 
-    const denied = await root.request(
-      { modelTokens: 6 },
-      { context: { limit: 5 } },
-    );
-    assertEqual(denied.status, "denied");
-    assertEqual(denied.policyEvidence?.decision, "denied");
+async function runApplicationRequest(): Promise<void> {
+  const keynes = await createKeynes({
+    runtime: nodeSqlite(),
+    resources: {
+      usdCents: { unit: "cent", accountingBehavior: "consumable" },
+    },
+  });
+  try {
+    const root = await keynes.createBudget({ usdCents: 100 });
+    const amounts = requestFor("pro", 25);
+    if (amounts === null) throw new Error("expected application request");
+    const request = await root.request(amounts, {
+      decisionEvidence: { rule: "pro", revision: 1 },
+    });
+    if (request.status !== "approved") {
+      throw new Error("application request was denied");
+    }
+    assertEqual(request.decisionEvidence, { revision: 1, rule: "pro" });
+    assertEqual((await root.inspect()).budget.resources[0]?.available, 75);
+    await request.budget.settle({ usdCents: 20 });
+    assertEqual((await root.inspect()).budget.resources[0]?.available, 80);
+    assertEqual(requestFor("basic", 25), null);
+    assertEqual(requestFor("pro", 24), null);
   } finally {
     await keynes.close();
   }
 }
 
 async function runIsolation(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
-  const left = await createKeynes();
-  const right = await createKeynes();
+  };
+  const left = await createKeynes({ runtime: nodeSqlite(), resources });
+  const right = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
     const [leftRoot, rightRoot] = await Promise.all([
-      left.createBudget(resources, { workUnits: 3 }),
-      right.createBudget(resources, { workUnits: 9 }),
+      left.createBudget({ workUnits: 3 }),
+      right.createBudget({ workUnits: 9 }),
     ]);
     assertEqual((await leftRoot.inspect()).budget.resources[0].allocated, 3);
     assertEqual((await rightRoot.inspect()).budget.resources[0].allocated, 9);
@@ -282,29 +216,26 @@ async function runIsolation(): Promise<void> {
 }
 
 async function runClosure(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     workUnits: { unit: "unit", accountingBehavior: "consumable" },
-  });
-  const keynes = await createKeynes();
-  const root = await keynes.createBudget(resources, { workUnits: 1 });
+  };
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
+  const root = await keynes.createBudget({ workUnits: 1 });
   const firstClose = keynes.close();
   assertEqual(keynes.close() === firstClose, true);
   await Promise.all([
-    assertRejectsCode(
-      keynes.createBudget(resources, { workUnits: 1 }),
-      "runtime_closed",
-    ),
+    assertRejectsCode(keynes.createBudget({ workUnits: 1 }), "runtime_closed"),
     assertRejectsCode(root.inspect(), "runtime_closed"),
   ]);
   await firstClose;
 }
 
 async function writeThenExit(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     processMemory: { unit: "item", accountingBehavior: "consumable" },
-  });
-  const keynes = await createKeynes();
-  const root = await keynes.createBudget(resources, { processMemory: 1 });
+  };
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
+  const root = await keynes.createBudget({ processMemory: 1 });
   const [resource] = (await root.inspect()).budget.resources;
   if (resource === undefined)
     throw new Error("expected processMemory Resource");
@@ -312,12 +243,12 @@ async function writeThenExit(): Promise<void> {
 }
 
 async function readAfterRestart(): Promise<void> {
-  const resources = defineResources({
+  const resources = {
     processMemory: { unit: "byte", accountingBehavior: "consumable" },
-  });
-  const keynes = await createKeynes();
+  };
+  const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   try {
-    const root = await keynes.createBudget(resources, { processMemory: 2 });
+    const root = await keynes.createBudget({ processMemory: 2 });
     const [resource] = (await root.inspect()).budget.resources;
     assertEqual(resource?.resource, "processMemory");
     assertEqual(resource?.unit, "byte");

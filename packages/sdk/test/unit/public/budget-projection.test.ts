@@ -3,7 +3,6 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createBudgetHandle,
   type BudgetSnapshot,
-  type NoPolicyContext,
 } from "../../../src/budget.js";
 import type { KeynesClient } from "../../../src/generated/client.js";
 import type {
@@ -14,7 +13,7 @@ import type {
   ResourceAmount,
   SettleBudgetResult,
 } from "../../../src/generated/types.js";
-import type { LocalRuntime } from "../../../src/local/runtime.js";
+import type { BasicRuntimeSession } from "../../../src/generated/runtime.js";
 import { createResourceBinding } from "../../../src/resource-binding.js";
 import type { PreparedRootResource } from "../../../src/resources.js";
 
@@ -74,7 +73,7 @@ describe("public Budget projections", () => {
       { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
     ]);
     expectTypeOf(narrowed).toEqualTypeOf<
-      BudgetSnapshot<"alpha", never, NoPolicyContext, ResourceName>
+      BudgetSnapshot<"alpha", ResourceName>
     >();
     expect(narrowed.budget.resources.map(({ resource }) => resource)).toEqual([
       "alpha",
@@ -83,6 +82,34 @@ describe("public Budget projections", () => {
       kind: "budget_created",
       resources: [{ resource: "alpha" }, { resource: "zebra" }],
     });
+  });
+
+  it("projects frozen decision evidence in ASCII order without applying contract field ranks", async () => {
+    const resources = [
+      { key: "alpha" as const, resourceTypeId: LOW_RESOURCE_ID },
+      { key: "zebra" as const, resourceTypeId: HIGH_RESOURCE_ID },
+    ];
+    const runtime = createRuntime(resources);
+    const binding = createResourceBinding(
+      preparedResources(resources),
+      budgetProjection(resources, "initial"),
+    );
+    const budget = createBudgetHandle<ResourceName>(
+      runtime,
+      BUDGET_ID,
+      binding,
+    );
+
+    const result: unknown = await budget.request({ alpha: 1, zebra: 2 });
+
+    expect(result).toMatchObject({
+      status: "denied",
+      decisionEvidence: { a: 0, kind: true, resources: "application" },
+    });
+    expect(JSON.stringify(result)).toContain(
+      '"decisionEvidence":{"a":0,"kind":true,"resources":"application"}',
+    );
+    expect(Object.isFrozen(result)).toBe(true);
   });
 });
 
@@ -120,17 +147,18 @@ async function exerciseNarrowedProjection(
 function createRuntime(
   resources: readonly InstalledResource[],
   budgetResources: readonly InstalledResource[] = resources,
-): LocalRuntime {
+): BasicRuntimeSession {
   const orderedResources = [...resources].sort((left, right) =>
     left.resourceTypeId.localeCompare(right.resourceTypeId),
   );
   const client = createClient(orderedResources, budgetResources);
   return {
     client,
+    resources: [],
     state: "open",
-    tail: Promise.resolve(),
-    closePromise: undefined,
-    closeHost: async () => undefined,
+    admit: (operation) => operation(),
+    invokeMutation: (operation) => operation(),
+    close: async () => undefined,
   };
 }
 
@@ -184,20 +212,29 @@ function createClient(
   ];
 
   return {
+    async validateResources() {
+      return { valid: true } as const;
+    },
+    async defineResources() {
+      throw new Error("unexpected defineResources call");
+    },
     async defineResource() {
       throw new Error("unexpected defineResource call");
     },
     async createBudget() {
       throw new Error("unexpected createBudget call");
     },
-    async requestBudget(): Promise<RequestDenied> {
-      return {
+    async requestBudget() {
+      const denied: RequestDenied = {
         kind: "denied",
         commandId: "00000000-0000-4000-8000-000000000204",
         parentBudgetId: BUDGET_ID,
         reasons,
         replayed: false,
       };
+      return Object.assign(denied, {
+        decisionEvidence: { resources: "application", kind: true, a: 0 },
+      });
     },
     async settleBudget(): Promise<SettleBudgetResult> {
       return {
@@ -264,7 +301,6 @@ function preparedResources(
         accountingBehavior: "consumable",
       },
       amount: amountFor(resource.key),
-      definitionDigest: "a".repeat(64),
     })),
   );
 }

@@ -1,3 +1,5 @@
+import { rootResources } from "@keynes/database/contract-tests";
+
 import { describe, expect, it } from "vitest";
 
 import { createKeynesClient } from "../../../src/generated/client.js";
@@ -5,13 +7,25 @@ import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
   CreateBudgetCommand,
   DefineResourceTypeCommand,
+  DefineResourcesCommand,
   OperationName,
   RequestBudgetCommand,
   SettleBudgetCommand,
+  ValidateResourcesQuery,
 } from "../../../src/generated/types.js";
-import { validateCreateBudgetCommandIssues } from "../../../src/generated/validators.js";
 
 const commands = {
+  defineResources: {
+    commandId: "10000000-0000-0000-0000-000000000002",
+    definitions: {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+  } satisfies DefineResourcesCommand,
+  validateResources: {
+    definitions: {
+      modelTokens: { unit: "token", accountingBehavior: "consumable" },
+    },
+  } satisfies ValidateResourcesQuery,
   defineResource: {
     commandId: "10000000-0000-0000-0000-000000000001",
     definition: {
@@ -22,7 +36,7 @@ const commands = {
   } satisfies DefineResourceTypeCommand,
   createBudget: {
     commandId: "20000000-0000-0000-0000-000000000001",
-    resources: [
+    ...rootResources([
       {
         definition: {
           canonicalName: "model_tokens",
@@ -31,7 +45,7 @@ const commands = {
         },
         amount: 100,
       },
-    ],
+    ]),
   } satisfies CreateBudgetCommand,
   requestBudget: {
     commandId: "30000000-0000-0000-0000-000000000001",
@@ -60,6 +74,8 @@ const commands = {
 
 const EXPECTED_OPERATIONS = [
   "defineResource",
+  "defineResources",
+  "validateResources",
   "createBudget",
   "requestBudget",
   "settleBudget",
@@ -81,6 +97,12 @@ describe("generated client bindings", () => {
     await expect(client.defineResource(commands.defineResource)).rejects.toBe(
       stop,
     );
+    await expect(client.defineResources(commands.defineResources)).rejects.toBe(
+      stop,
+    );
+    await expect(
+      client.validateResources(commands.validateResources),
+    ).rejects.toBe(stop);
     await expect(client.createBudget(commands.createBudget)).rejects.toBe(stop);
     await expect(client.requestBudget(commands.requestBudget)).rejects.toBe(
       stop,
@@ -91,12 +113,12 @@ describe("generated client bindings", () => {
     expect(calls).toEqual(EXPECTED_OPERATIONS);
   });
 
-  it("validates input before dispatch", async () => {
+  it("forwards malformed input for runtime validation", async () => {
     let calls = 0;
     const executor: CommandExecutor = {
       async execute() {
         calls += 1;
-        throw new Error("invalid input reached the executor");
+        throw new Error("runtime validation reached");
       },
     };
     const client = createKeynesClient(executor);
@@ -105,11 +127,8 @@ describe("generated client bindings", () => {
       Reflect.apply(client.createBudget, client, [
         { commandId: "not-a-uuid", resources: [] },
       ]),
-    ).rejects.toMatchObject({
-      code: "invalid_command",
-      details: { operation: "createBudget" },
-    });
-    expect(calls).toBe(0);
+    ).rejects.toThrow("runtime validation reached");
+    expect(calls).toBe(1);
   });
 
   it.each([
@@ -119,18 +138,21 @@ describe("generated client bindings", () => {
     { ok: "yes" },
     { ok: true },
     { ok: false, error: null },
-  ])("rejects an invalid wire envelope before returning it", async (wire) => {
-    const executor: CommandExecutor = {
-      async execute() {
-        return wire;
-      },
-    };
-    const client = createKeynesClient(executor);
+  ])(
+    "rejects an invalid wire envelope before returning it, case %#",
+    async (wire) => {
+      const executor: CommandExecutor = {
+        async execute() {
+          return wire;
+        },
+      };
+      const client = createKeynesClient(executor);
 
-    await expect(
-      client.defineResource(commands.defineResource),
-    ).rejects.toThrow(/invalid .*response for defineResource/);
-  });
+      await expect(
+        client.defineResource(commands.defineResource),
+      ).rejects.toThrow(/invalid .*response for defineResource/);
+    },
+  );
 
   it("detaches validated output from the executor wire value", async () => {
     const digest = `sha256:${"a".repeat(64)}`;
@@ -161,41 +183,5 @@ describe("generated client bindings", () => {
 
     wireResult.resourceType.unit = "mutated";
     expect(result.resourceType.unit).toBe("token");
-  });
-
-  it("sorts validation issues independently of property insertion order", () => {
-    const common = {
-      commandId: "NOT-A-UUID",
-      resources: [],
-    };
-    const first = { zeta: true, ...common, alpha: true };
-    const second = { alpha: true, ...common, zeta: true };
-    const expected = [
-      { path: "/alpha", rule: "additionalProperties" },
-      { path: "/commandId", rule: "pattern" },
-      { path: "/resources", rule: "minItems" },
-      { path: "/zeta", rule: "additionalProperties" },
-    ];
-
-    expect(validateCreateBudgetCommandIssues(first)).toEqual(expected);
-    expect(validateCreateBudgetCommandIssues(second)).toEqual(expected);
-  });
-
-  it("rejects structurally duplicate resource entries regardless of property order", () => {
-    const definition = {
-      canonicalName: "model_tokens",
-      unit: "token",
-      accountingBehavior: "consumable",
-    };
-
-    expect(
-      validateCreateBudgetCommandIssues({
-        commandId: "20000000-0000-0000-0000-000000000001",
-        resources: [
-          { definition, amount: 1 },
-          { amount: 1, definition },
-        ],
-      }),
-    ).toEqual([{ path: "/resources", rule: "uniqueItems" }]);
   });
 });

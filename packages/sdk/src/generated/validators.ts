@@ -2,10 +2,13 @@
 
 import type {
   DefineResourceTypeResult,
+  DefineResourcesResult,
+  ValidateResourcesResult,
   CreateBudgetResult,
   RequestBudgetResult,
   SettleBudgetResult,
   GetBudgetResult,
+  RemoteDefineResourcesResult,
   RemoteCreateBudgetResult,
   RemoteRequestBudgetResult,
   RemoteSettleBudgetResult,
@@ -16,7 +19,6 @@ import type {
   GetCompatibilityResult,
   ErrorEnvelope,
   RemoteErrorEnvelope,
-  OperationName,
 } from "./types.js";
 
 export interface ValidationIssue {
@@ -85,55 +87,6 @@ const definitions: Readonly<Record<string, Schema>> = {
     uniqueItems: true,
     items: {
       $ref: "#/$defs/ResourceAmount",
-    },
-  },
-  RootResourceInput: {
-    type: "object",
-    additionalProperties: false,
-    required: ["definition", "amount"],
-    properties: {
-      definition: {
-        $ref: "#/$defs/ResourceDefinition",
-      },
-      amount: {
-        $ref: "#/$defs/Amount",
-      },
-    },
-  },
-  RootResourceEnvelope: {
-    type: "array",
-    minItems: 1,
-    uniqueItems: true,
-    items: {
-      $ref: "#/$defs/RootResourceInput",
-    },
-  },
-  UsageAmount: {
-    type: "object",
-    additionalProperties: false,
-    required: ["resourceTypeId", "amount"],
-    properties: {
-      resourceTypeId: {
-        $ref: "#/$defs/Uuid",
-      },
-      amount: {
-        oneOf: [
-          {
-            $ref: "#/$defs/Amount",
-          },
-          {
-            type: "null",
-          },
-        ],
-      },
-    },
-  },
-  UsageEnvelope: {
-    type: "array",
-    minItems: 1,
-    uniqueItems: true,
-    items: {
-      $ref: "#/$defs/UsageAmount",
     },
   },
   ResourceDefinition: {
@@ -305,9 +258,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       {
         $ref: "#/$defs/AvailabilityDenialReason",
       },
-      {
-        $ref: "#/$defs/PolicyCeilingReasonV1",
-      },
     ],
   },
   BudgetCreatedHistoryEntry: {
@@ -384,8 +334,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
-      policyEvidence: {
-        $ref: "#/$defs/PolicyEvidenceV1",
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -428,8 +378,8 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/RequestDenialReason",
         },
       },
-      policyEvidence: {
-        $ref: "#/$defs/PolicyEvidenceV1",
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -525,19 +475,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  DefineResourceTypeCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["commandId", "definition"],
-    properties: {
-      commandId: {
-        $ref: "#/$defs/Uuid",
-      },
-      definition: {
-        $ref: "#/$defs/ResourceDefinition",
-      },
-    },
-  },
   DefineResourceTypeResult: {
     type: "object",
     additionalProperties: false,
@@ -573,27 +510,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  CreateBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["commandId", "resources"],
-    properties: {
-      commandId: {
-        $ref: "#/$defs/Uuid",
-      },
-      resources: {
-        $ref: "#/$defs/RootResourceEnvelope",
-      },
-      policies: {
-        type: "array",
-        maxItems: 16,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
-        },
-      },
-    },
-  },
   CreateBudgetResult: {
     type: "object",
     additionalProperties: false,
@@ -607,33 +523,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       replayed: {
         type: "boolean",
-      },
-    },
-  },
-  RequestBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["commandId", "parentBudgetId", "resources"],
-    properties: {
-      commandId: {
-        $ref: "#/$defs/Uuid",
-      },
-      parentBudgetId: {
-        $ref: "#/$defs/Uuid",
-      },
-      resources: {
-        $ref: "#/$defs/ResourceEnvelope",
-      },
-      context: {
-        $ref: "#/$defs/PolicyContextV1",
-      },
-      childPolicies: {
-        type: "array",
-        maxItems: 16,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
-        },
       },
     },
   },
@@ -664,11 +553,11 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/ResourceEnvelope",
       },
-      policyEvidence: {
-        $ref: "#/$defs/PolicyEvidenceV1",
-      },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -694,11 +583,11 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/RequestDenialReason",
         },
       },
-      policyEvidence: {
-        $ref: "#/$defs/PolicyEvidenceV1",
-      },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -711,22 +600,6 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/RequestDenied",
       },
     ],
-  },
-  SettleBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["commandId", "budgetId", "usage"],
-    properties: {
-      commandId: {
-        $ref: "#/$defs/Uuid",
-      },
-      budgetId: {
-        $ref: "#/$defs/Uuid",
-      },
-      usage: {
-        $ref: "#/$defs/UsageEnvelope",
-      },
-    },
   },
   SettleBudgetResult: {
     type: "object",
@@ -764,16 +637,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  GetBudgetQuery: {
-    type: "object",
-    additionalProperties: false,
-    required: ["budgetId"],
-    properties: {
-      budgetId: {
-        $ref: "#/$defs/Uuid",
-      },
-    },
-  },
   GetBudgetResult: {
     type: "object",
     additionalProperties: false,
@@ -800,10 +663,12 @@ const definitions: Readonly<Record<string, Schema>> = {
     pattern: "^khc_v1_[A-Za-z0-9_-]{43}$",
   },
   RemoteMutationName: {
-    enum: ["createBudget", "requestBudget", "settleBudget"],
+    enum: ["defineResources", "createBudget", "requestBudget", "settleBudget"],
   },
   RemoteProcedureName: {
     enum: [
+      "defineResources",
+      "validateResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -835,36 +700,6 @@ const definitions: Readonly<Record<string, Schema>> = {
     uniqueItems: true,
     items: {
       $ref: "#/$defs/RemoteResourceAmount",
-    },
-  },
-  RemoteUsageAmount: {
-    type: "object",
-    additionalProperties: false,
-    required: ["resource", "amount"],
-    properties: {
-      resource: {
-        type: "string",
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      amount: {
-        oneOf: [
-          {
-            $ref: "#/$defs/Amount",
-          },
-          {
-            type: "null",
-          },
-        ],
-      },
-    },
-  },
-  RemoteUsageEnvelope: {
-    type: "array",
-    minItems: 1,
-    maxItems: 64,
-    uniqueItems: true,
-    items: {
-      $ref: "#/$defs/RemoteUsageAmount",
     },
   },
   RemoteBudgetResourceProjection: {
@@ -980,167 +815,12 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  RemotePolicyCeilingReason: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "code",
-      "resource",
-      "requested",
-      "ceiling",
-      "policyName",
-      "policyRevision",
-      "reason",
-    ],
-    properties: {
-      code: {
-        const: "policy_ceiling",
-      },
-      resource: {
-        type: "string",
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      requested: {
-        $ref: "#/$defs/Amount",
-      },
-      ceiling: {
-        $ref: "#/$defs/Amount",
-      },
-      policyName: {
-        type: "string",
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      policyRevision: {
-        type: "integer",
-        minimum: 1,
-        maximum: 9007199254740991,
-      },
-      reason: {
-        type: "string",
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-    },
-  },
   RemoteRequestDenialReason: {
     oneOf: [
       {
         $ref: "#/$defs/RemoteAvailabilityDenialReason",
       },
-      {
-        $ref: "#/$defs/RemotePolicyCeilingReason",
-      },
     ],
-  },
-  RemotePolicyEvidence: {
-    type: "object",
-    additionalProperties: false,
-    required: ["context", "policies", "effectiveCeilings", "decision"],
-    properties: {
-      context: {
-        $ref: "#/$defs/PolicyContextV1",
-      },
-      policies: {
-        type: "array",
-        minItems: 1,
-        maxItems: 16,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: [
-            "name",
-            "revision",
-            "sourceDigest",
-            "definitionDigest",
-            "rows",
-          ],
-          properties: {
-            name: {
-              type: "string",
-              pattern: "^[a-z][a-z0-9_]{0,62}$",
-            },
-            revision: {
-              type: "integer",
-              minimum: 1,
-              maximum: 9007199254740991,
-            },
-            sourceDigest: {
-              $ref: "#/$defs/PolicyDigest",
-            },
-            definitionDigest: {
-              $ref: "#/$defs/PolicyDigest",
-            },
-            rows: {
-              type: "array",
-              maxItems: 64,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["resource", "ceiling", "reason"],
-                properties: {
-                  resource: {
-                    type: "string",
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                  ceiling: {
-                    $ref: "#/$defs/Amount",
-                  },
-                  reason: {
-                    type: "string",
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      effectiveCeilings: {
-        type: "array",
-        maxItems: 64,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["resource", "ceiling", "reasons"],
-          properties: {
-            resource: {
-              type: "string",
-              pattern: "^[a-z][a-z0-9_]{0,62}$",
-            },
-            ceiling: {
-              $ref: "#/$defs/Amount",
-            },
-            reasons: {
-              type: "array",
-              minItems: 1,
-              maxItems: 16,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["policyName", "policyRevision", "reason"],
-                properties: {
-                  policyName: {
-                    type: "string",
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                  policyRevision: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 9007199254740991,
-                  },
-                  reason: {
-                    type: "string",
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      decision: {
-        enum: ["approved", "denied"],
-      },
-    },
   },
   RemoteBudgetCreatedHistoryEntry: {
     type: "object",
@@ -1172,8 +852,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
       },
-      policyEvidence: {
-        $ref: "#/$defs/RemotePolicyEvidence",
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -1196,8 +876,8 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/RemoteRequestDenialReason",
         },
       },
-      policyEvidence: {
-        $ref: "#/$defs/RemotePolicyEvidence",
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -1262,27 +942,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     ],
   },
-  RemoteCreateBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["operationKey", "resources"],
-    properties: {
-      operationKey: {
-        $ref: "#/$defs/OperationKey",
-      },
-      resources: {
-        $ref: "#/$defs/RootResourceEnvelope",
-      },
-      policies: {
-        type: "array",
-        maxItems: 16,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
-        },
-      },
-    },
-  },
   RemoteCreateBudgetResult: {
     type: "object",
     additionalProperties: false,
@@ -1296,33 +955,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       replayed: {
         type: "boolean",
-      },
-    },
-  },
-  RemoteRequestBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["operationKey", "parentBudgetReference", "resources"],
-    properties: {
-      operationKey: {
-        $ref: "#/$defs/OperationKey",
-      },
-      parentBudgetReference: {
-        $ref: "#/$defs/BudgetReference",
-      },
-      resources: {
-        $ref: "#/$defs/RemoteResourceEnvelope",
-      },
-      context: {
-        $ref: "#/$defs/PolicyContextV1",
-      },
-      childPolicies: {
-        type: "array",
-        maxItems: 16,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/PolicyDefinitionV1",
-        },
       },
     },
   },
@@ -1349,11 +981,11 @@ const definitions: Readonly<Record<string, Schema>> = {
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
       },
-      policyEvidence: {
-        $ref: "#/$defs/RemotePolicyEvidence",
-      },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -1376,11 +1008,11 @@ const definitions: Readonly<Record<string, Schema>> = {
           $ref: "#/$defs/RemoteRequestDenialReason",
         },
       },
-      policyEvidence: {
-        $ref: "#/$defs/RemotePolicyEvidence",
-      },
       replayed: {
         type: "boolean",
+      },
+      decisionEvidence: {
+        $ref: "#/$defs/DecisionEvidence",
       },
     },
   },
@@ -1393,22 +1025,6 @@ const definitions: Readonly<Record<string, Schema>> = {
         $ref: "#/$defs/RemoteRequestDeniedResult",
       },
     ],
-  },
-  RemoteSettleBudgetCommand: {
-    type: "object",
-    additionalProperties: false,
-    required: ["operationKey", "budgetReference", "usage"],
-    properties: {
-      operationKey: {
-        $ref: "#/$defs/OperationKey",
-      },
-      budgetReference: {
-        $ref: "#/$defs/BudgetReference",
-      },
-      usage: {
-        $ref: "#/$defs/RemoteUsageEnvelope",
-      },
-    },
   },
   RemoteSettleBudgetResult: {
     type: "object",
@@ -1447,16 +1063,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  RemoteGetBudgetQuery: {
-    type: "object",
-    additionalProperties: false,
-    required: ["budgetReference"],
-    properties: {
-      budgetReference: {
-        $ref: "#/$defs/BudgetReference",
-      },
-    },
-  },
   RemoteGetBudgetResult: {
     type: "object",
     additionalProperties: false,
@@ -1464,19 +1070,6 @@ const definitions: Readonly<Record<string, Schema>> = {
     properties: {
       budget: {
         $ref: "#/$defs/RemoteBudgetProjection",
-      },
-    },
-  },
-  GetBudgetHistoryPageQuery: {
-    type: "object",
-    additionalProperties: false,
-    required: ["budgetReference"],
-    properties: {
-      budgetReference: {
-        $ref: "#/$defs/BudgetReference",
-      },
-      cursor: {
-        $ref: "#/$defs/HistoryCursor",
       },
     },
   },
@@ -1507,25 +1100,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  OpenBudgetQuery: {
-    type: "object",
-    additionalProperties: false,
-    required: ["budgetReference", "expectedResources"],
-    properties: {
-      budgetReference: {
-        $ref: "#/$defs/BudgetReference",
-      },
-      expectedResources: {
-        type: "array",
-        minItems: 1,
-        maxItems: 64,
-        uniqueItems: true,
-        items: {
-          $ref: "#/$defs/ResourceDefinition",
-        },
-      },
-    },
-  },
   OpenBudgetResult: {
     type: "object",
     additionalProperties: false,
@@ -1539,28 +1113,24 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
-  RecoverOperationQuery: {
+  RecoveredCommittedDefineResources: {
     type: "object",
     additionalProperties: false,
-    required: ["operationKey"],
+    required: ["kind", "operationKey", "operation", "result"],
     properties: {
+      kind: {
+        const: "committed",
+      },
       operationKey: {
         $ref: "#/$defs/OperationKey",
       },
+      operation: {
+        const: "defineResources",
+      },
+      result: {
+        $ref: "#/$defs/RemoteDefineResourcesResult",
+      },
     },
-  },
-  RemoteMutationResult: {
-    oneOf: [
-      {
-        $ref: "#/$defs/RemoteCreateBudgetResult",
-      },
-      {
-        $ref: "#/$defs/RemoteRequestBudgetResult",
-      },
-      {
-        $ref: "#/$defs/RemoteSettleBudgetResult",
-      },
-    ],
   },
   RecoveredCommittedCreateBudget: {
     type: "object",
@@ -1621,6 +1191,9 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   RecoveredCommittedOperation: {
     oneOf: [
+      {
+        $ref: "#/$defs/RecoveredCommittedDefineResources",
+      },
       {
         $ref: "#/$defs/RecoveredCommittedCreateBudget",
       },
@@ -1695,11 +1268,6 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     ],
   },
-  GetCompatibilityQuery: {
-    type: "object",
-    additionalProperties: false,
-    properties: {},
-  },
   RemoteProcedureCapability: {
     type: "object",
     additionalProperties: false,
@@ -1725,7 +1293,6 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: [
       "installationId",
       "contractDigest",
-      "policyProfileDigest",
       "remoteProceduresDigest",
       "semanticGeneration",
       "minimumSdkGeneration",
@@ -1738,9 +1305,6 @@ const definitions: Readonly<Record<string, Schema>> = {
         maxLength: 128,
       },
       contractDigest: {
-        $ref: "#/$defs/Sha256Digest",
-      },
-      policyProfileDigest: {
         $ref: "#/$defs/Sha256Digest",
       },
       remoteProceduresDigest: {
@@ -1758,8 +1322,8 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       procedures: {
         type: "array",
-        minItems: 8,
-        maxItems: 8,
+        minItems: 10,
+        maxItems: 10,
         uniqueItems: true,
         items: {
           $ref: "#/$defs/RemoteProcedureCapability",
@@ -1868,9 +1432,6 @@ const definitions: Readonly<Record<string, Schema>> = {
           "budget_not_active",
           "usage_conflict",
           "arithmetic_error",
-          "invalid_policy",
-          "invalid_policy_context",
-          "policy_evaluation_failed",
         ],
       },
       details: {
@@ -1914,7 +1475,6 @@ const definitions: Readonly<Record<string, Schema>> = {
             enum: [
               "installation",
               "command_contract",
-              "policy_profile",
               "remote_procedures",
               "sdk_generation",
             ],
@@ -2076,6 +1636,8 @@ const definitions: Readonly<Record<string, Schema>> = {
   OperationName: {
     enum: [
       "defineResource",
+      "defineResources",
+      "validateResources",
       "createBudget",
       "requestBudget",
       "settleBudget",
@@ -2238,14 +1800,29 @@ const definitions: Readonly<Record<string, Schema>> = {
             const: "resource_type_not_found",
           },
           details: {
-            type: "object",
-            additionalProperties: false,
-            required: ["resourceTypeId"],
-            properties: {
-              resourceTypeId: {
-                $ref: "#/$defs/Uuid",
+            oneOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["resourceTypeId"],
+                properties: {
+                  resourceTypeId: {
+                    $ref: "#/$defs/Uuid",
+                  },
+                },
               },
-            },
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["canonicalName"],
+                properties: {
+                  canonicalName: {
+                    type: "string",
+                    pattern: "^[a-z][a-z0-9_]{0,62}$",
+                  },
+                },
+              },
+            ],
           },
         },
       },
@@ -2412,1192 +1989,127 @@ const definitions: Readonly<Record<string, Schema>> = {
           },
         },
       },
-      {
-        $ref: "#/$defs/InvalidPolicyErrorEnvelope",
-      },
-      {
-        $ref: "#/$defs/InvalidPolicyContextErrorEnvelope",
-      },
-      {
-        $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
-      },
     ],
   },
-  PolicyDigest: {
+  ResourceBindingReference: {
     type: "string",
-    pattern: "^[0-9a-f]{64}$",
+    pattern: "^krs_v1_[A-Za-z0-9_-]{43}$",
   },
-  CanonicalIdentifier: {
-    type: "string",
-    minLength: 1,
-    maxLength: 63,
-    pattern: "^[a-z][a-z0-9_]{0,62}$",
-  },
-  PolicyScalarV1: {
-    oneOf: [
-      {
-        type: "string",
-        maxLength: 256,
-        maxUtf8Bytes: 256,
-        pattern: "^[^\\u0000]*$",
-      },
-      {
-        type: "boolean",
-      },
-      {
-        type: "integer",
-        minimum: 0,
-        maximum: 9007199254740991,
-      },
-      {
-        type: "null",
-      },
-    ],
-  },
-  PolicyContextV1: {
-    type: "object",
-    maxProperties: 32,
-    maxCanonicalUtf8Bytes: 8192,
-    propertyNames: {
-      type: "string",
-      minLength: 1,
-      maxLength: 63,
-      pattern: "^[a-z][a-z0-9_]{0,62}$",
-    },
-    additionalProperties: {
-      $ref: "#/$defs/PolicyScalarV1",
-    },
-  },
-  PolicyContextFieldV1: {
+  DefinedResourceMember: {
     type: "object",
     additionalProperties: false,
-    required: ["name", "type", "nullable"],
+    required: ["key", "resourceType", "definitionEvidence"],
     properties: {
-      name: {
+      key: {
         type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
+        pattern: "^[a-z][A-Za-z0-9]*$",
       },
-      type: {
-        enum: ["text", "boolean", "integer"],
+      resourceType: {
+        $ref: "#/$defs/ResourceTypeProjection",
       },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  PolicyResultRowV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["resource", "ceiling", "reason"],
-    properties: {
-      resource: {
-        type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      ceiling: {
-        type: "integer",
-        minimum: 0,
-        maximum: 9007199254740991,
-      },
-      reason: {
-        type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-    },
-  },
-  SelectNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "kind",
-      "availabilityJoin",
-      "resource",
-      "ceiling",
-      "reason",
-      "where",
-      "groupBy",
-      "orderBy",
-    ],
-    properties: {
-      kind: {
-        const: "select",
-      },
-      availabilityJoin: {
-        $ref: "#/$defs/JoinNodeV1",
-      },
-      resource: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      ceiling: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      reason: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      where: {
-        oneOf: [
-          {
-            $ref: "#/$defs/ExpressionNodeV1",
+      definitionEvidence: {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "commandId", "principalId", "definitionDigest"],
+        properties: {
+          kind: {
+            const: "resource_type_defined",
           },
-          {
-            type: "null",
+          commandId: {
+            $ref: "#/$defs/Uuid",
           },
-        ],
-      },
-      groupBy: {
-        type: "array",
-        items: {
-          $ref: "#/$defs/ExpressionNodeV1",
+          principalId: {
+            $ref: "#/$defs/Uuid",
+          },
+          definitionDigest: {
+            $ref: "#/$defs/Digest",
+          },
         },
-        maxItems: 32,
-      },
-      orderBy: {
-        const: ["resource", "reason", "ceiling"],
       },
     },
   },
-  InnerJoinNodeV1: {
+  DefineResourcesResult: {
     type: "object",
     additionalProperties: false,
-    required: ["kind"],
+    required: ["kind", "bindingReference", "resources", "replayed"],
     properties: {
       kind: {
-        const: "inner_join",
+        const: "defined",
       },
-    },
-  },
-  CrossJoinNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind"],
-    properties: {
-      kind: {
-        const: "cross_join",
+      bindingReference: {
+        $ref: "#/$defs/ResourceBindingReference",
       },
-    },
-  },
-  DecimalLiteralNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "value", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "decimal_literal",
+      resources: {
+        type: "array",
+        minItems: 1,
+        items: {
+          $ref: "#/$defs/DefinedResourceMember",
+        },
       },
-      value: {
-        type: "string",
-        pattern: "^-?(?:0|[1-9][0-9]{0,19})(?:\\.[0-9]{1,18})?$",
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        const: false,
-      },
-    },
-  },
-  TextLiteralNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "value", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "text_literal",
-      },
-      value: {
-        type: "string",
-        pattern: "^[^\\u0000]*$",
-        maxLength: 256,
-        maxUtf8Bytes: 256,
-      },
-      valueType: {
-        const: "text",
-      },
-      nullable: {
-        const: false,
-      },
-    },
-  },
-  BooleanLiteralNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "value", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "boolean_literal",
-      },
-      value: {
+      replayed: {
         type: "boolean",
       },
-      valueType: {
-        const: "boolean",
+    },
+  },
+  RemoteDefineResourcesResult: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "bindingReference", "resources", "replayed"],
+    properties: {
+      kind: {
+        const: "defined",
       },
-      nullable: {
-        const: false,
+      bindingReference: {
+        $ref: "#/$defs/ResourceBindingReference",
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        items: {
+          $ref: "#/$defs/DefinedResourceMember",
+        },
+      },
+      replayed: {
+        type: "boolean",
       },
     },
   },
-  NullLiteralNodeV1: {
+  ValidateResourcesResult: {
     type: "object",
     additionalProperties: false,
-    required: ["kind", "value", "valueType", "nullable"],
+    required: ["valid"],
     properties: {
-      kind: {
-        const: "null_literal",
-      },
-      value: {
-        const: null,
-      },
-      valueType: {
-        enum: ["numeric", "text", "boolean"],
-      },
-      nullable: {
+      valid: {
         const: true,
       },
     },
   },
-  ReferenceNodeV1: {
+  DecisionEvidence: {
     type: "object",
-    additionalProperties: false,
-    required: ["kind", "source", "field", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "reference",
-      },
-      source: {
-        enum: ["requested", "available", "context"],
-      },
-      field: {
-        type: "string",
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      valueType: {
-        enum: ["numeric", "text", "boolean"],
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  UnaryNumericNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operator", "operand", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "unary_numeric",
-      },
-      operator: {
-        enum: ["+", "-"],
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  BinaryNumericNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "binary_numeric",
-      },
-      operator: {
-        enum: ["+", "-", "*", "/", "%"],
-      },
-      left: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      right: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  ComparisonNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "comparison",
-      },
-      operator: {
-        enum: ["=", "<>", "<", "<=", ">", ">="],
-      },
-      left: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      right: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "boolean",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  TextInNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operand", "values", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "text_in",
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      values: {
-        type: "array",
-        items: {
+    additionalProperties: {
+      oneOf: [
+        {
           type: "string",
-          pattern: "^[^\\u0000]*$",
-          maxLength: 256,
           maxUtf8Bytes: 256,
+          pattern: "^[^\\u0000\\ud800-\\udfff]*$",
         },
-        minItems: 1,
-        maxItems: 64,
-      },
-      valueType: {
-        const: "boolean",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  IsNullNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operator", "operand", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "is_null",
-      },
-      operator: {
-        enum: ["is_null", "is_not_null"],
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "boolean",
-      },
-      nullable: {
-        const: false,
-      },
-    },
-  },
-  BooleanBinaryNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operator", "left", "right", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "boolean_binary",
-      },
-      operator: {
-        enum: ["and", "or"],
-      },
-      left: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      right: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "boolean",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  BooleanNotNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "operand", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "boolean_not",
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "boolean",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  CaseNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "branches", "else", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "case",
-      },
-      branches: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["when", "then"],
-          properties: {
-            when: {
-              $ref: "#/$defs/ExpressionNodeV1",
-            },
-            then: {
-              $ref: "#/$defs/ExpressionNodeV1",
-            },
-          },
+        {
+          type: "boolean",
         },
-        minItems: 1,
-        maxItems: 32,
-      },
-      else: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        enum: ["numeric", "text", "boolean"],
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  VariadicNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "function", "arguments", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "variadic",
-      },
-      function: {
-        enum: ["coalesce", "least", "greatest"],
-      },
-      arguments: {
-        type: "array",
-        items: {
-          $ref: "#/$defs/ExpressionNodeV1",
+        {
+          type: "null",
         },
-        minItems: 1,
-        maxItems: 64,
-      },
-      valueType: {
-        enum: ["numeric", "text", "boolean"],
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  NumericFunctionNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "function", "operand", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "numeric_function",
-      },
-      function: {
-        enum: ["abs", "ceil", "floor", "sqrt"],
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  ScaleFunctionNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "function", "operand", "scale", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "scale_function",
-      },
-      function: {
-        enum: ["round", "trunc"],
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      scale: {
-        type: "integer",
-        minimum: 0,
-        maximum: 18,
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  PowerNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "base", "exponent", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "power",
-      },
-      base: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      exponent: {
-        type: "integer",
-        minimum: 0,
-        maximum: 18,
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  AggregateNodeV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "function", "operand", "valueType", "nullable"],
-    properties: {
-      kind: {
-        const: "aggregate",
-      },
-      function: {
-        enum: ["sum", "avg", "min", "max", "count"],
-      },
-      operand: {
-        $ref: "#/$defs/ExpressionNodeV1",
-      },
-      valueType: {
-        const: "numeric",
-      },
-      nullable: {
-        type: "boolean",
-      },
-    },
-  },
-  PolicyNodeV1: {
-    oneOf: [
-      {
-        $ref: "#/$defs/SelectNodeV1",
-      },
-      {
-        $ref: "#/$defs/InnerJoinNodeV1",
-      },
-      {
-        $ref: "#/$defs/CrossJoinNodeV1",
-      },
-      {
-        $ref: "#/$defs/DecimalLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/TextLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/NullLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/ReferenceNodeV1",
-      },
-      {
-        $ref: "#/$defs/UnaryNumericNodeV1",
-      },
-      {
-        $ref: "#/$defs/BinaryNumericNodeV1",
-      },
-      {
-        $ref: "#/$defs/ComparisonNodeV1",
-      },
-      {
-        $ref: "#/$defs/TextInNodeV1",
-      },
-      {
-        $ref: "#/$defs/IsNullNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanBinaryNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanNotNodeV1",
-      },
-      {
-        $ref: "#/$defs/CaseNodeV1",
-      },
-      {
-        $ref: "#/$defs/VariadicNodeV1",
-      },
-      {
-        $ref: "#/$defs/NumericFunctionNodeV1",
-      },
-      {
-        $ref: "#/$defs/ScaleFunctionNodeV1",
-      },
-      {
-        $ref: "#/$defs/PowerNodeV1",
-      },
-      {
-        $ref: "#/$defs/AggregateNodeV1",
-      },
-    ],
-  },
-  ExpressionNodeV1: {
-    oneOf: [
-      {
-        $ref: "#/$defs/DecimalLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/TextLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/NullLiteralNodeV1",
-      },
-      {
-        $ref: "#/$defs/ReferenceNodeV1",
-      },
-      {
-        $ref: "#/$defs/UnaryNumericNodeV1",
-      },
-      {
-        $ref: "#/$defs/BinaryNumericNodeV1",
-      },
-      {
-        $ref: "#/$defs/ComparisonNodeV1",
-      },
-      {
-        $ref: "#/$defs/TextInNodeV1",
-      },
-      {
-        $ref: "#/$defs/IsNullNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanBinaryNodeV1",
-      },
-      {
-        $ref: "#/$defs/BooleanNotNodeV1",
-      },
-      {
-        $ref: "#/$defs/CaseNodeV1",
-      },
-      {
-        $ref: "#/$defs/VariadicNodeV1",
-      },
-      {
-        $ref: "#/$defs/NumericFunctionNodeV1",
-      },
-      {
-        $ref: "#/$defs/ScaleFunctionNodeV1",
-      },
-      {
-        $ref: "#/$defs/PowerNodeV1",
-      },
-      {
-        $ref: "#/$defs/AggregateNodeV1",
-      },
-    ],
-  },
-  JoinNodeV1: {
-    oneOf: [
-      {
-        $ref: "#/$defs/InnerJoinNodeV1",
-      },
-      {
-        $ref: "#/$defs/CrossJoinNodeV1",
-      },
-    ],
-  },
-  PolicyProgramV1: {
-    $ref: "#/$defs/SelectNodeV1",
-  },
-  PolicyDefinitionV1: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "kind",
-      "name",
-      "revision",
-      "inputResources",
-      "outputResources",
-      "contextSchema",
-      "reasons",
-      "programVersion",
-      "queryProfileVersion",
-      "validatorVersion",
-      "limitsVersion",
-      "policyProfileDigest",
-      "program",
-      "canonicalSql",
-      "sourceDigest",
-      "definitionDigest",
-    ],
-    properties: {
-      kind: {
-        const: "keynes.policy",
-      },
-      name: {
-        type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      revision: {
-        type: "integer",
-        minimum: 1,
-        maximum: 9007199254740991,
-      },
-      inputResources: {
-        type: "array",
-        minItems: 1,
-        maxItems: 64,
-        uniqueItems: true,
-        items: {
-          type: "string",
-          minLength: 1,
-          maxLength: 63,
-          pattern: "^[a-z][a-z0-9_]{0,62}$",
+        {
+          $ref: "#/$defs/Amount",
         },
-      },
-      outputResources: {
-        type: "array",
-        minItems: 1,
-        maxItems: 64,
-        uniqueItems: true,
-        items: {
-          type: "string",
-          minLength: 1,
-          maxLength: 63,
-          pattern: "^[a-z][a-z0-9_]{0,62}$",
-        },
-      },
-      contextSchema: {
-        type: "array",
-        maxItems: 32,
-        items: {
-          $ref: "#/$defs/PolicyContextFieldV1",
-        },
-      },
-      reasons: {
-        type: "array",
-        minItems: 1,
-        maxItems: 64,
-        uniqueItems: true,
-        items: {
-          type: "string",
-          minLength: 1,
-          maxLength: 63,
-          pattern: "^[a-z][a-z0-9_]{0,62}$",
-        },
-      },
-      programVersion: {
-        const: "keynes-policy-program/v1",
-      },
-      queryProfileVersion: {
-        const: "keynes-policy-query/v1",
-      },
-      validatorVersion: {
-        const: "keynes-policy-validator/v1",
-      },
-      limitsVersion: {
-        const: "keynes-policy-limits/v1",
-      },
-      policyProfileDigest: {
-        $ref: "#/$defs/PolicyDigest",
-      },
-      program: {
-        $ref: "#/$defs/PolicyProgramV1",
-      },
-      canonicalSql: {
-        type: "string",
-        minLength: 1,
-        maxLength: 16384,
-        maxUtf8Bytes: 16384,
-      },
-      sourceDigest: {
-        $ref: "#/$defs/PolicyDigest",
-      },
-      definitionDigest: {
-        $ref: "#/$defs/PolicyDigest",
-      },
+      ],
     },
-  },
-  PolicySetV1: {
-    oneOf: [
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["definitions", "contextSchemaDigest", "setDigest"],
-        properties: {
-          definitions: {
-            type: "array",
-            maxItems: 0,
-          },
-          contextSchemaDigest: {
-            type: "null",
-          },
-          setDigest: {
-            type: "string",
-            pattern: "^[0-9a-f]{64}$",
-          },
-        },
-      },
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["definitions", "contextSchemaDigest", "setDigest"],
-        properties: {
-          definitions: {
-            type: "array",
-            minItems: 1,
-            maxItems: 16,
-            items: {
-              $ref: "#/$defs/PolicyDefinitionV1",
-            },
-          },
-          contextSchemaDigest: {
-            type: "string",
-            pattern: "^[0-9a-f]{64}$",
-          },
-          setDigest: {
-            type: "string",
-            pattern: "^[0-9a-f]{64}$",
-          },
-        },
-      },
-    ],
-  },
-  PolicyEvidenceV1: {
-    type: "object",
-    additionalProperties: false,
-    required: ["context", "policies", "effectiveCeilings", "decision"],
-    properties: {
-      context: {
-        $ref: "#/$defs/PolicyContextV1",
-      },
-      policies: {
-        type: "array",
-        minItems: 1,
-        maxItems: 16,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: [
-            "name",
-            "revision",
-            "sourceDigest",
-            "definitionDigest",
-            "rows",
-          ],
-          properties: {
-            name: {
-              type: "string",
-              minLength: 1,
-              maxLength: 63,
-              pattern: "^[a-z][a-z0-9_]{0,62}$",
-            },
-            revision: {
-              type: "integer",
-              minimum: 1,
-              maximum: 9007199254740991,
-            },
-            sourceDigest: {
-              type: "string",
-              pattern: "^[0-9a-f]{64}$",
-            },
-            definitionDigest: {
-              type: "string",
-              pattern: "^[0-9a-f]{64}$",
-            },
-            rows: {
-              type: "array",
-              maxItems: 64,
-              items: {
-                $ref: "#/$defs/PolicyResultRowV1",
-              },
-            },
-          },
-        },
-      },
-      effectiveCeilings: {
-        type: "array",
-        maxItems: 64,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["resourceTypeId", "ceiling", "reasons"],
-          properties: {
-            resourceTypeId: {
-              type: "string",
-              pattern:
-                "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            },
-            ceiling: {
-              type: "integer",
-              minimum: 0,
-              maximum: 9007199254740991,
-            },
-            reasons: {
-              type: "array",
-              minItems: 1,
-              maxItems: 16,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["policyName", "policyRevision", "reason"],
-                properties: {
-                  policyName: {
-                    type: "string",
-                    minLength: 1,
-                    maxLength: 63,
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                  policyRevision: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 9007199254740991,
-                  },
-                  reason: {
-                    type: "string",
-                    minLength: 1,
-                    maxLength: 63,
-                    pattern: "^[a-z][a-z0-9_]{0,62}$",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      decision: {
-        enum: ["approved", "denied"],
-      },
+    propertyNames: {
+      type: "string",
+      pattern: "^[a-z][a-z0-9_]{0,62}$",
     },
-  },
-  PolicyCeilingReasonV1: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "code",
-      "resourceTypeId",
-      "requested",
-      "ceiling",
-      "policyName",
-      "policyRevision",
-      "reason",
-    ],
-    properties: {
-      code: {
-        const: "policy_ceiling",
-      },
-      resourceTypeId: {
-        type: "string",
-        pattern:
-          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-      },
-      requested: {
-        type: "integer",
-        minimum: 0,
-        maximum: 9007199254740991,
-      },
-      ceiling: {
-        type: "integer",
-        minimum: 0,
-        maximum: 9007199254740991,
-      },
-      policyName: {
-        type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-      policyRevision: {
-        type: "integer",
-        minimum: 1,
-        maximum: 9007199254740991,
-      },
-      reason: {
-        type: "string",
-        minLength: 1,
-        maxLength: 63,
-        pattern: "^[a-z][a-z0-9_]{0,62}$",
-      },
-    },
-  },
-  InvalidPolicyErrorEnvelope: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "code", "details"],
-    properties: {
-      kind: {
-        const: "error",
-      },
-      code: {
-        const: "invalid_policy",
-      },
-      details: {
-        type: "object",
-        additionalProperties: false,
-        required: ["operation", "path", "rule"],
-        properties: {
-          operation: {
-            enum: ["createBudget", "requestBudget"],
-          },
-          policyName: {
-            type: "string",
-            minLength: 1,
-            maxLength: 63,
-            pattern: "^[a-z][a-z0-9_]{0,62}$",
-          },
-          policyRevision: {
-            type: "integer",
-            minimum: 1,
-            maximum: 9007199254740991,
-          },
-          path: {
-            type: "string",
-            minLength: 1,
-          },
-          rule: {
-            type: "string",
-            minLength: 1,
-          },
-        },
-      },
-    },
-  },
-  InvalidPolicyContextErrorEnvelope: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "code", "details"],
-    properties: {
-      kind: {
-        const: "error",
-      },
-      code: {
-        const: "invalid_policy_context",
-      },
-      details: {
-        type: "object",
-        additionalProperties: false,
-        required: ["operation", "path", "rule"],
-        properties: {
-          operation: {
-            const: "requestBudget",
-          },
-          path: {
-            type: "string",
-            minLength: 1,
-          },
-          rule: {
-            enum: [
-              "required",
-              "additionalProperties",
-              "type",
-              "null",
-              "encoding",
-              "limit",
-            ],
-          },
-        },
-      },
-    },
-  },
-  PolicyEvaluationFailedErrorEnvelope: {
-    type: "object",
-    additionalProperties: false,
-    required: ["kind", "code", "details"],
-    properties: {
-      kind: {
-        const: "error",
-      },
-      code: {
-        const: "policy_evaluation_failed",
-      },
-      details: {
-        type: "object",
-        additionalProperties: false,
-        required: ["operation", "policyName", "policyRevision", "category"],
-        properties: {
-          operation: {
-            const: "requestBudget",
-          },
-          policyName: {
-            type: "string",
-            minLength: 1,
-            maxLength: 63,
-            pattern: "^[a-z][a-z0-9_]{0,62}$",
-          },
-          policyRevision: {
-            type: "integer",
-            minimum: 1,
-            maximum: 9007199254740991,
-          },
-          category: {
-            enum: [
-              "limit_exceeded",
-              "arithmetic_overflow",
-              "numeric_domain",
-              "numeric_precision",
-              "invalid_result",
-              "execution_failed",
-            ],
-          },
-        },
-      },
-    },
-  },
-  PolicyErrorEnvelopeV1: {
-    oneOf: [
-      {
-        $ref: "#/$defs/InvalidPolicyErrorEnvelope",
-      },
-      {
-        $ref: "#/$defs/InvalidPolicyContextErrorEnvelope",
-      },
-      {
-        $ref: "#/$defs/PolicyEvaluationFailedErrorEnvelope",
-      },
-    ],
+    maxProperties: 32,
+    maxCanonicalUtf8Bytes: 8192,
   },
 };
 
@@ -3607,6 +2119,21 @@ function issue(path: string, rule: string): ValidationIssue[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPlainDataObject(value: Record<string, unknown>): boolean {
+  if (
+    (Object.getPrototypeOf(value) !== Object.prototype &&
+      Object.getPrototypeOf(value) !== null) ||
+    Object.getOwnPropertySymbols(value).length > 0
+  )
+    return false;
+  return Object.getOwnPropertyNames(value).every((name) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, name);
+    return (
+      descriptor !== undefined && descriptor.enumerable && "value" in descriptor
+    );
+  });
 }
 
 function sameJson(left: unknown, right: unknown): boolean {
@@ -3660,7 +2187,11 @@ function validate(
     return issue(path, "enum");
 
   if (schema.type === "object") {
-    if (!isRecord(value)) return issue(path, "type");
+    if (
+      !isRecord(value) ||
+      (schema.maxCanonicalUtf8Bytes !== undefined && !isPlainDataObject(value))
+    )
+      return issue(path, "type");
     const properties = schema.properties ?? {};
     const names = Object.keys(value);
     const issues: ValidationIssue[] = [];
@@ -3669,13 +2200,8 @@ function validate(
       names.length > schema.maxProperties
     )
       issues.push(...issue(path, "maxProperties"));
-    if (
-      schema.maxCanonicalUtf8Bytes !== undefined &&
-      utf8Length(JSON.stringify(value)) > schema.maxCanonicalUtf8Bytes
-    )
-      issues.push(...issue(path, "maxCanonicalUtf8Bytes"));
     for (const name of schema.required ?? []) {
-      if (!(name in value))
+      if (!Object.hasOwn(value, name))
         issues.push(...issue(`${path}/${name}`, "required"));
     }
     for (const name of names) {
@@ -3684,7 +2210,7 @@ function validate(
         validate(schema.propertyNames, name, `${path}/${name}`).length > 0
       )
         issues.push(...issue(`${path}/${name}`, "propertyNames"));
-      if (!(name in properties)) {
+      if (!Object.hasOwn(properties, name)) {
         if (schema.additionalProperties === false)
           issues.push(...issue(`${path}/${name}`, "additionalProperties"));
         else if (typeof schema.additionalProperties === "object")
@@ -3698,9 +2224,15 @@ function validate(
       }
     }
     for (const [name, child] of Object.entries(properties)) {
-      if (name in value)
+      if (Object.hasOwn(value, name))
         issues.push(...validate(child, value[name], `${path}/${name}`));
     }
+    if (
+      issues.length === 0 &&
+      schema.maxCanonicalUtf8Bytes !== undefined &&
+      utf8Length(JSON.stringify(value)) > schema.maxCanonicalUtf8Bytes
+    )
+      issues.push(...issue(path, "maxCanonicalUtf8Bytes"));
     return issues;
   }
   if (schema.type === "array") {
@@ -3779,6 +2311,18 @@ export function validateDefineResourceTypeResult(
   return validateDefinition("DefineResourceTypeResult", value).length === 0;
 }
 
+export function validateDefineResourcesResult(
+  value: unknown,
+): value is DefineResourcesResult {
+  return validateDefinition("DefineResourcesResult", value).length === 0;
+}
+
+export function validateValidateResourcesResult(
+  value: unknown,
+): value is ValidateResourcesResult {
+  return validateDefinition("ValidateResourcesResult", value).length === 0;
+}
+
 export function validateCreateBudgetResult(
   value: unknown,
 ): value is CreateBudgetResult {
@@ -3801,6 +2345,12 @@ export function validateGetBudgetResult(
   value: unknown,
 ): value is GetBudgetResult {
   return validateDefinition("GetBudgetResult", value).length === 0;
+}
+
+export function validateRemoteDefineResourcesResult(
+  value: unknown,
+): value is RemoteDefineResourcesResult {
+  return validateDefinition("RemoteDefineResourcesResult", value).length === 0;
 }
 
 export function validateRemoteCreateBudgetResult(
@@ -3859,104 +2409,4 @@ export function validateRemoteErrorEnvelope(
   value: unknown,
 ): value is RemoteErrorEnvelope {
   return validateDefinition("RemoteErrorEnvelope", value).length === 0;
-}
-
-export function validateDefineResourceTypeCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("DefineResourceTypeCommand", value);
-}
-
-export function validateCreateBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("CreateBudgetCommand", value);
-}
-
-export function validateRequestBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RequestBudgetCommand", value);
-}
-
-export function validateSettleBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("SettleBudgetCommand", value);
-}
-
-export function validateGetBudgetQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("GetBudgetQuery", value);
-}
-
-export function validateRemoteCreateBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RemoteCreateBudgetCommand", value);
-}
-
-export function validateRemoteRequestBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RemoteRequestBudgetCommand", value);
-}
-
-export function validateRemoteSettleBudgetCommandIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RemoteSettleBudgetCommand", value);
-}
-
-export function validateRemoteGetBudgetQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RemoteGetBudgetQuery", value);
-}
-
-export function validateGetBudgetHistoryPageQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("GetBudgetHistoryPageQuery", value);
-}
-
-export function validateOpenBudgetQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("OpenBudgetQuery", value);
-}
-
-export function validateRecoverOperationQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("RecoverOperationQuery", value);
-}
-
-export function validateGetCompatibilityQueryIssues(
-  value: unknown,
-): ValidationIssue[] {
-  return validateDefinition("GetCompatibilityQuery", value);
-}
-
-export function validateOperationInputIssues(
-  operation: OperationName,
-  value: unknown,
-): ValidationIssue[] {
-  switch (operation) {
-    case "defineResource":
-      return validateDefineResourceTypeCommandIssues(value);
-    case "createBudget":
-      return validateCreateBudgetCommandIssues(value);
-    case "requestBudget":
-      return validateRequestBudgetCommandIssues(value);
-    case "settleBudget":
-      return validateSettleBudgetCommandIssues(value);
-    case "getBudget":
-      return validateGetBudgetQueryIssues(value);
-    default: {
-      const exhaustive: never = operation;
-      throw new Error(`unknown operation: ${exhaustive}`);
-    }
-  }
 }

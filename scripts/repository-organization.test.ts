@@ -1,29 +1,47 @@
 /// <reference types="node" />
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { generateNodeSqlite } from "../packages/node-sqlite/scripts/generate.ts";
+import { generateSdk } from "../packages/sdk/scripts/generate.ts";
+import { generatePostgresql } from "../packages/postgres/scripts/generate.ts";
+import { loadContract } from "../packages/database/src/load.ts";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 
 const targetDirectories = [
-  "packages/contracts",
+  "packages/database",
+  "packages/database/src/sqlite",
+  "packages/database/postgres/migrations",
   "packages/sdk",
-  "packages/postgresql",
+  "packages/node-sqlite",
+  "packages/postgres",
   "packages/testkit",
-  "packages/sdk/test/conformance",
+  "apps/cli",
+  "packages/sdk/test/contract",
   "packages/sdk/test/package",
   "packages/sdk/test/performance",
-  "packages/postgresql/test/integration",
-  "packages/postgresql/test/package",
-  "packages/postgresql/test/system",
+  "packages/postgres/test/integration",
+  "packages/postgres/test/package",
+  "packages/postgres/test/system",
   "scripts",
   ".specify/scripts",
-  ".specify/tests",
 ] as const;
 
 const removedRootOwners = [
+  "packages/contracts",
   "artifacts",
   "contracts",
   "package-tests",
@@ -41,6 +59,9 @@ const requiredCommands = [
   "pack:postgresql",
   "test:package:postgresql",
   "test:system:postgresql",
+  "build:cli",
+  "pack:cli",
+  "test:package:cli",
 ] as const;
 
 const removedCommands = [
@@ -54,13 +75,130 @@ const removedCommands = [
 ] as const;
 
 describe("repository organization", () => {
+  it("generates each distribution without writing the source owner or sibling consumer", async () => {
+    const root = mkdtempSync(join(tmpdir(), "keynes-generation-"));
+    try {
+      const owner = join(root, "packages/database");
+      mkdirSync(owner, { recursive: true });
+      for (const path of [
+        "src",
+        "postgres",
+        "generated",
+        "contract.json",
+        "schema.json",
+      ]) {
+        cpSync(
+          join(repositoryRoot, "packages/database", path),
+          join(owner, path),
+          { recursive: true },
+        );
+      }
+      const snapshot = (directory: string) =>
+        readdirSync(directory, { recursive: true, withFileTypes: true })
+          .filter((entry) => entry.isFile())
+          .map((entry) => join(entry.parentPath, entry.name))
+          .sort()
+          .map((path) => [path, readFileSync(path, "utf8")]);
+      const before = snapshot(owner);
+      await generateSdk({
+        check: false,
+        contract: loadContract(join(repositoryRoot, "packages/database")),
+        repositoryRoot: root,
+      });
+      expect(readdirSync(join(root, "packages")).sort()).toEqual([
+        "database",
+        "sdk",
+      ]);
+      expect(snapshot(owner)).toEqual(before);
+      const sdk = snapshot(join(root, "packages/sdk"));
+      await generateNodeSqlite({
+        check: false,
+        repositoryRoot: root,
+      });
+      expect(snapshot(owner)).toEqual(before);
+      expect(snapshot(join(root, "packages/sdk"))).toEqual(sdk);
+      const sqlite = snapshot(join(root, "packages/node-sqlite"));
+      await generatePostgresql({ check: false, repositoryRoot: root });
+      expect(snapshot(join(root, "packages/node-sqlite"))).toEqual(sqlite);
+      expect(snapshot(owner)).toEqual(before);
+      expect(snapshot(join(root, "packages/sdk"))).toEqual(sdk);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("pins unchanged command and schema identities and the reviewed PostgreSQL baseline", () => {
+    const database = readJsonObject(
+      join(repositoryRoot, "packages/database/package.json"),
+    );
+    expect(database.private).toBe(true);
+    expect(Object.keys(requireObject(database, "dependencies"))).not.toContain(
+      "@keynes/sdk",
+    );
+    for (const [path, digest] of [
+      [
+        "contract.json",
+        "17c11670dbaf042f29a8f546beab401a3c76b920c4100cf07b01c26164b18e5d",
+      ],
+      [
+        "schema.json",
+        "7d96d41d1eeb87e89b75a13872fcf9f9d7dbea233413d9bb6becbdf6975e83cf",
+      ],
+      [
+        // Phase 5 removes internal Budget IDs from public history; command and schema bytes remain unchanged.
+        "postgres/migrations/0001-baseline.sql",
+        "87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca",
+      ],
+    ]) {
+      expect(
+        createHash("sha256")
+          .update(readFile(`packages/database/${path}`))
+          .digest("hex"),
+        path,
+      ).toBe(digest);
+    }
+    for (const path of [
+      "migrations/0001-baseline.sql",
+      "migrations/manifest.json",
+      "generated/installation-record.json",
+    ]) {
+      expect(readFile(`packages/postgres/${path}`), path).toBe(
+        readFile(`packages/database/postgres/${path}`),
+      );
+    }
+  });
+
+  it("runs contracts through Turbo without a duplicate generator test invocation", () => {
+    const scripts = requireObject(
+      readJsonObject(join(repositoryRoot, "package.json")),
+      "scripts",
+    );
+    expect(scripts["test:pr"]).not.toContain("pnpm test:generator");
+    expect(scripts["test:pr"]).toContain("turbo run quality typecheck test");
+    expect(scripts["test:generator"]).toBe(
+      "pnpm --filter @keynes/database test",
+    );
+  });
+
+  it("keeps package qualification out of routine SDK tests", () => {
+    const scripts = requireObject(
+      readJsonObject(join(repositoryRoot, "packages/sdk/package.json")),
+      "scripts",
+    );
+    expect(scripts.test).not.toContain("test/package");
+    expect(scripts["test:package:unit"]).toContain("vitest run test/package");
+    expect(readFile(".github/workflows/sdk-package.yml")).toContain(
+      "pnpm --filter @keynes/sdk test:package:unit",
+    );
+  });
+
   it("materializes every target owner", () => {
     for (const directory of targetDirectories) {
       expect(existsSync(join(repositoryRoot, directory)), directory).toBe(true);
     }
   });
 
-  it("uses conventional application and package workspace globs", () => {
+  it("uses the package workspace glob", () => {
     const workspaceSource = readFile("pnpm-workspace.yaml");
     const packagesBlock = /^packages:\n((?: {2}- .+\n)+)/mu.exec(
       workspaceSource,
@@ -72,6 +210,34 @@ describe("repository organization", () => {
       .sort();
 
     expect(workspaces).toEqual(['"apps/*"', '"packages/*"']);
+  });
+
+  it("owns command interaction in the CLI workspace and keeps PostgreSQL a library", () => {
+    const cli = readJsonObject(join(repositoryRoot, "apps/cli/package.json"));
+    const postgres = readJsonObject(
+      join(repositoryRoot, "packages/postgres/package.json"),
+    );
+    expect(cli.name).toBe("@keynes/cli");
+    expect(cli.dependencies).toEqual({ "@keynes/postgres": "workspace:*" });
+    expect(requireObject(cli, "bin")).toEqual({ keynes: "dist/cli.js" });
+    expect(postgres).not.toHaveProperty("bin");
+    expect(Object.keys(requireObject(postgres, "exports")).sort()).toEqual([
+      ".",
+      "./install",
+    ]);
+    const rootScripts = requireObject(
+      readJsonObject(join(repositoryRoot, "package.json")),
+      "scripts",
+    );
+    expect(rootScripts.format).toContain(" apps ");
+    expect(rootScripts["format:fix"]).toContain(" apps ");
+    expect(rootScripts["test:unit"]).toContain(
+      "pnpm --filter @keynes/cli test",
+    );
+    const scripts = requireObject(cli, "scripts");
+    expect(scripts.test).toContain("vitest run");
+    expect(scripts.test).not.toContain("test/package/run.ts");
+    expect(scripts["test:package"]).toContain("test/package");
   });
 
   it("removes every obsolete root owner", () => {
@@ -119,30 +285,16 @@ describe("repository organization", () => {
 
   it("keeps production products independent", () => {
     const subjects = [
+      ["packages/sdk", {}],
+      ["packages/node-sqlite", {}],
       [
-        "packages/sdk",
+        "packages/postgres",
         {
-          "@pgsql/types": "18.0.0",
-          "decimal.js": "10.6.0",
-          kysely: "0.29.5",
-          "libpg-query": "18.1.4",
+          "@types/pg": "8.23.1",
           pg: "8.23.0",
-          "pg-cloudflare": "1.4.0",
           "pg-connection-string": "2.14.0",
-          "pg-int8": "1.0.1",
-          "pg-pool": "3.14.0",
-          "pg-protocol": "1.16.0",
-          "pg-types": "2.2.0",
-          pgpass: "1.0.5",
-          "postgres-array": "2.0.0",
-          "postgres-bytea": "1.0.1",
-          "postgres-date": "1.0.7",
-          "postgres-interval": "1.2.0",
-          split2: "4.2.0",
-          xtend: "4.0.2",
         },
       ],
-      ["packages/postgresql", { pg: "8.23.0" }],
     ] as const;
 
     for (const [directory, expectedDependencies] of subjects) {
@@ -157,9 +309,15 @@ describe("repository organization", () => {
         join(repositoryRoot, directory, "src"),
       )) {
         const source = readFileSync(sourcePath, "utf8");
-        expect(source, sourcePath).not.toMatch(
-          /(?:from\s+|import\s*)["']@keynes\//u,
-        );
+        const imports = [
+          ...source.matchAll(/(?:from\s+|import\s*)["'](@keynes\/[^"']+)/gu),
+        ].map((match) => match[1]);
+        expect(
+          imports.filter(
+            (name) => directory === "packages/sdk" || name !== "@keynes/sdk",
+          ),
+          sourcePath,
+        ).toEqual([]);
       }
     }
   });

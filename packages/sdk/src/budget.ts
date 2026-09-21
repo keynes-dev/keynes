@@ -1,30 +1,24 @@
+import { captureRequest } from "./request-serialization.js";
+import { KeynesSdkError } from "./sdk-errors.js";
 import { randomUUID } from "node:crypto";
 
-import type {
-  RequestBudgetCommand,
-  SettleBudgetCommand,
-} from "./generated/types.js";
-import type {
-  PolicyDefinitionV1,
-  PolicyScalarV1,
-} from "./generated/policy-types.js";
-import { admit, invokeMutation, type LocalRuntime } from "./local/runtime.js";
+import type { BasicRuntimeSession } from "./generated/runtime.js";
 import {
   compareDenialReasons,
   invokeBudgetOperation,
   projectDenialReason,
-  projectPolicyEvidence,
   projectSettlement,
   projectSnapshot,
-} from "./budget-projection.js";
-import { prepareRequestPolicyOptions } from "./budget-request-options.js";
-import type { ResourceBinding } from "./resource-binding.js";
-
-export { attachedPolicyDefinitions } from "./budget-request-options.js";
+} from "./result-mapping.js";
+import {
+  canonicalDecisionEvidence,
+  requestDecisionEvidence,
+  type BudgetRequestOptions,
+  type DecisionEvidence,
+} from "./decision-evidence.js";
+import type { BudgetResourceBinding } from "./resource-binding.js";
 
 export const budgetBrand: unique symbol = Symbol("Budget");
-declare const noPolicyContextBrand: unique symbol;
-declare const policyDefinitionBrand: unique symbol;
 
 export type ResourceAmounts<Names extends string = string> = Readonly<
   Partial<Record<Names, number>>
@@ -34,41 +28,6 @@ export type ResourceUsage<Names extends string = string> = Readonly<
   Partial<Record<Names, number | null>>
 >;
 
-export interface PolicyDefinition<
-  Names extends string,
-  Context,
-  Reasons extends string,
-> extends PolicyDefinitionV1 {
-  readonly [policyDefinitionBrand]: {
-    readonly names: Names;
-    readonly context: Context;
-    readonly reasons: Reasons;
-  };
-}
-
-export type PolicySet<Names extends string, Context, Reasons extends string> =
-  | {
-      readonly definitions: readonly [];
-      readonly contextSchemaDigest: null;
-      readonly setDigest: string;
-    }
-  | {
-      readonly definitions: readonly [
-        PolicyDefinition<Names, Context, Reasons>,
-        ...PolicyDefinition<Names, Context, Reasons>[],
-      ];
-      readonly contextSchemaDigest: string;
-      readonly setDigest: string;
-    };
-
-type AnyPolicyDefinition = PolicyDefinition<string, unknown, string>;
-
-export type PolicySetInput = {
-  readonly definitions: readonly AnyPolicyDefinition[];
-  readonly contextSchemaDigest: string | null;
-  readonly setDigest: string;
-};
-
 export interface BudgetRequestAvailabilityReason<Name extends string = string> {
   readonly code: "insufficient_available";
   readonly resource: Name;
@@ -76,131 +35,23 @@ export interface BudgetRequestAvailabilityReason<Name extends string = string> {
   readonly available: number;
 }
 
-export interface BudgetRequestPolicyReason<
-  Name extends string = string,
-  Reason extends string = string,
-> {
-  readonly code: "policy_ceiling";
-  readonly resource: Name;
-  readonly requested: number;
-  readonly ceiling: number;
-  readonly policyName: string;
-  readonly policyRevision: number;
-  readonly reason: Reason;
-}
-
-export type BudgetRequestDenialReason<
-  Name extends string = string,
-  Reason extends string = never,
-> =
-  | BudgetRequestAvailabilityReason<Name>
-  | BudgetRequestPolicyReason<Name, Reason>;
-
-type CanonicalContextKey<Value extends string> =
-  Value extends `${infer Head}${infer Tail}`
-    ? Head extends Lowercase<Head>
-      ? `${Head}${CanonicalContextKey<Tail>}`
-      : `_${Lowercase<Head>}${CanonicalContextKey<Tail>}`
-    : Value;
-
-export type CanonicalPolicyContext<Context> =
-  string extends Extract<keyof Context, string>
-    ? Readonly<Record<string, PolicyScalarV1>>
-    : Readonly<{
-        [
-          Key in Extract<keyof Context, string> as CanonicalContextKey<Key>
-        ]: Context[Key];
-      }>;
-
-export interface PolicyEvidence<
-  Name extends string = string,
-  Context = Readonly<Record<string, PolicyScalarV1>>,
-  Reason extends string = string,
-> {
-  readonly context: CanonicalPolicyContext<Context>;
-  readonly policies: readonly {
-    readonly name: string;
-    readonly revision: number;
-    readonly sourceDigest: string;
-    readonly definitionDigest: string;
-    readonly rows: readonly {
-      readonly resource: Name;
-      readonly ceiling: number;
-      readonly reason: Reason;
-    }[];
-  }[];
-  readonly effectiveCeilings: readonly {
-    readonly resource: Name;
-    readonly ceiling: number;
-    readonly reasons: readonly {
-      readonly policyName: string;
-      readonly policyRevision: number;
-      readonly reason: Reason;
-    }[];
-  }[];
-  readonly decision: "approved" | "denied";
-}
+export type BudgetRequestDenialReason<Name extends string = string> =
+  BudgetRequestAvailabilityReason<Name>;
 
 export type BudgetRequestResult<
   Names extends string = string,
-  Reasons extends string = never,
-  ChildContext = NoPolicyContext,
-  ChildReasons extends string = never,
-  ParentContext = Readonly<Record<string, PolicyScalarV1>>,
   HistoryNames extends string = Names,
-> = [Reasons] extends [never]
-  ?
-      | {
-          readonly status: "approved";
-          readonly budget: Budget<
-            Names,
-            ChildContext,
-            ChildReasons,
-            HistoryNames
-          >;
-        }
-      | {
-          readonly status: "denied";
-          readonly reasons: readonly BudgetRequestDenialReason<
-            Names,
-            Reasons
-          >[];
-        }
-  :
-      | {
-          readonly status: "approved";
-          readonly budget: Budget<
-            Names,
-            ChildContext,
-            ChildReasons,
-            HistoryNames
-          >;
-          readonly policyEvidence: PolicyEvidence<
-            Names,
-            ParentContext,
-            Reasons
-          >;
-        }
-      | {
-          readonly status: "denied";
-          readonly reasons: readonly BudgetRequestDenialReason<
-            Names,
-            Reasons
-          >[];
-          readonly policyEvidence: PolicyEvidence<
-            Names,
-            ParentContext,
-            Reasons
-          >;
-        };
-
-type PolicyEvidenceField<
-  Names extends string,
-  Reasons extends string,
-  Context,
-> = [Reasons] extends [never]
-  ? object
-  : { readonly policyEvidence: PolicyEvidence<Names, Context, Reasons> };
+> =
+  | {
+      readonly status: "approved";
+      readonly budget: Budget<Names, HistoryNames>;
+      readonly decisionEvidence?: DecisionEvidence;
+    }
+  | {
+      readonly status: "denied";
+      readonly reasons: readonly BudgetRequestDenialReason<Names>[];
+      readonly decisionEvidence?: DecisionEvidence;
+    };
 
 export interface BudgetResourceSnapshot<Name extends string = string> {
   readonly resource: Name;
@@ -226,26 +77,24 @@ export interface NamedResourceAmount<Name extends string = string> {
   readonly amount: number;
 }
 
-export type BudgetHistoryEntry<
-  Names extends string = string,
-  Reasons extends string = never,
-  Context = Readonly<Record<string, PolicyScalarV1>>,
-> =
+export type BudgetHistoryEntry<Names extends string = string> =
   | {
       readonly kind: "budget_created";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
     }
-  | ({
+  | {
       readonly kind: "request_approved";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
-    } & PolicyEvidenceField<Names, Reasons, Context>)
-  | ({
+      readonly decisionEvidence?: DecisionEvidence;
+    }
+  | {
       readonly kind: "request_denied";
       readonly sequence: number;
-      readonly reasons: readonly BudgetRequestDenialReason<Names, Reasons>[];
-    } & PolicyEvidenceField<Names, Reasons, Context>)
+      readonly reasons: readonly BudgetRequestDenialReason<Names>[];
+      readonly decisionEvidence?: DecisionEvidence;
+    }
   | {
       readonly kind: "budget_settlement_recorded";
       readonly sequence: number;
@@ -257,17 +106,11 @@ export type BudgetHistoryEntry<
 
 export interface BudgetSnapshot<
   Names extends string = string,
-  Reasons extends string = never,
-  Context = Readonly<Record<string, PolicyScalarV1>>,
   HistoryNames extends string = Names,
 > {
   readonly budget: BudgetState<Names>;
   readonly history: {
-    readonly entries: readonly BudgetHistoryEntry<
-      HistoryNames,
-      Reasons,
-      Context
-    >[];
+    readonly entries: readonly BudgetHistoryEntry<HistoryNames>[];
   };
 }
 
@@ -279,45 +122,21 @@ export interface Settlement<Names extends string = string> {
   readonly replayed: boolean;
 }
 
-export interface NoPolicyContext {
-  readonly [noPolicyContextBrand]: never;
-}
-
 export interface Budget<
   Names extends string,
-  Context = NoPolicyContext,
-  Reasons extends string = never,
   HistoryNames extends string = Names,
 > {
   readonly [budgetBrand]: undefined;
-  readonly request: <
-    const Resources extends ResourceAmounts<Names>,
-    const SuppliedContext extends Context = Context,
-    const ChildPolicies extends PolicySetInput | undefined = undefined,
-  >(
+  readonly request: <const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
-    ...options: RequestArguments<
-      Context,
-      SuppliedContext,
-      Extract<keyof Resources, Names>,
-      ChildPolicies
-    >
+    ...options: [] | [BudgetRequestOptions]
   ) => Promise<
-    BudgetRequestResult<
-      Extract<keyof Resources, Names>,
-      Reasons,
-      ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>,
-      Context,
-      HistoryNames
-    >
+    BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
   >;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
-  readonly inspect: () => Promise<
-    BudgetSnapshot<Names, Reasons, Context, HistoryNames>
-  >;
+  readonly inspect: () => Promise<BudgetSnapshot<Names, HistoryNames>>;
 }
 
 export type ExactResourceAmounts<
@@ -330,137 +149,42 @@ export type ExactResourceUsage<
   Usage extends ResourceUsage<Names>,
 > = Usage & Readonly<Record<Exclude<keyof Usage, Names>, never>>;
 
-export type ContextOfPolicySet<Policies> = [
-  PolicyDefinitionOf<Policies>,
-] extends [never]
-  ? NoPolicyContext
-  : PolicyDefinitionOf<Policies> extends PolicyDefinition<
-        string,
-        infer Context,
-        string
-      >
-    ? Context
-    : NoPolicyContext;
-
-export type ReasonsOfPolicySet<Policies> = [
-  PolicyDefinitionOf<Policies>,
-] extends [never]
-  ? never
-  : PolicyDefinitionOf<Policies> extends PolicyDefinition<
-        string,
-        unknown,
-        infer Reasons
-      >
-    ? Reasons
-    : never;
-
-export type AttachPolicyArguments<
-  Names extends string,
-  Policies extends PolicySetInput | undefined,
-> = [Policies] extends [undefined]
-  ? readonly []
-  : Exclude<PolicyNames<Policies>, Names> extends never
-    ? readonly [{ readonly policies: Policies }]
-    : readonly [never];
-
-type PolicyDefinitionOf<Policies> = Policies extends {
-  readonly definitions: readonly (infer Definition)[];
-}
-  ? Definition
-  : never;
-
-export type PolicyNames<Policies> =
-  PolicyDefinitionOf<Policies> extends PolicyDefinition<
-    infer Names,
-    unknown,
-    string
-  >
-    ? Names
-    : never;
-
-export type ExactObject<Expected, Supplied extends Expected> = Supplied &
-  Readonly<Record<Exclude<keyof Supplied, keyof Expected>, never>>;
-
-export type CompatiblePolicySet<
-  Names extends string,
-  Policies extends PolicySetInput | undefined,
-> = [Policies] extends [undefined]
-  ? undefined
-  : Exclude<PolicyNames<Policies>, Names> extends never
-    ? Policies
-    : never;
-
-export type RequestArguments<
-  Context,
-  SuppliedContext extends Context,
-  ChildNames extends string,
-  ChildPolicies extends PolicySetInput | undefined,
-> = [Context] extends [NoPolicyContext]
-  ? [ChildPolicies] extends [undefined]
-    ? readonly []
-    : readonly [
-        {
-          readonly childPolicies: CompatiblePolicySet<
-            ChildNames,
-            ChildPolicies
-          >;
-        },
-      ]
-  : [ChildPolicies] extends [undefined]
-    ? readonly [{ readonly context: ExactObject<Context, SuppliedContext> }]
-    : readonly [
-        {
-          readonly context: ExactObject<Context, SuppliedContext>;
-          readonly childPolicies: CompatiblePolicySet<
-            ChildNames,
-            ChildPolicies
-          >;
-        },
-      ];
-
 export function createBudgetHandle<
   Names extends string,
-  Context = NoPolicyContext,
-  Reasons extends string = never,
   HistoryNames extends string = Names,
 >(
-  runtime: LocalRuntime,
+  runtime: BasicRuntimeSession,
   budgetId: string,
-  binding: ResourceBinding<Names, HistoryNames>,
-): Budget<Names, Context, Reasons, HistoryNames> {
-  const request: Budget<Names, Context, Reasons, HistoryNames>["request"] = (
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): Budget<Names, HistoryNames> {
+  const request: Budget<Names, HistoryNames>["request"] = (
     resources,
     ...options
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
-  const settle: Budget<Names, Context, Reasons, HistoryNames>["settle"] = (
-    usage,
-  ) => {
-    const observedUsage = Object.freeze({ ...usage });
-    return admit(runtime, async () => {
+  const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
+    if (runtime.state !== "open")
+      throw new KeynesSdkError("runtime_closed", {});
+    const observedUsage = captureRequest(usage, "settleBudget", "$.usage");
+    return runtime.admit(async () => {
       const command = {
         commandId: randomUUID(),
         budgetId,
         usage: binding.usage(observedUsage),
-      } satisfies SettleBudgetCommand;
+      };
       const result = await invokeBudgetOperation(binding, () =>
-        invokeMutation(() => runtime.client.settleBudget(command)),
+        runtime.invokeMutation(() => runtime.client.settleBudget(command)),
       );
       return projectSettlement(binding, result);
     });
   };
 
-  const inspect = (): Promise<
-    BudgetSnapshot<Names, Reasons, Context, HistoryNames>
-  > =>
-    admit(runtime, async () => {
+  const inspect = (): Promise<BudgetSnapshot<Names, HistoryNames>> =>
+    runtime.admit(async () => {
       const result = await invokeBudgetOperation(binding, () =>
         runtime.client.getBudget({ budgetId }),
       );
-      return projectSnapshot<Names, Reasons, Context, HistoryNames>(
-        binding,
-        result,
-      );
+      return projectSnapshot<Names, HistoryNames>(binding, result);
     });
 
   const handle = Object.freeze({
@@ -472,71 +196,53 @@ export function createBudgetHandle<
   return handle;
 }
 
-function requestBudget<
+async function requestBudget<
   Names extends string,
   HistoryNames extends string,
-  Context,
-  Reasons extends string,
   const Resources extends ResourceAmounts<Names>,
-  const SuppliedContext extends Context = Context,
-  const ChildPolicies extends PolicySetInput | undefined = undefined,
 >(
-  runtime: LocalRuntime,
+  runtime: BasicRuntimeSession,
   budgetId: string,
-  binding: ResourceBinding<Names, HistoryNames>,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
   resources: ExactResourceAmounts<Names, Resources>,
-  options: RequestArguments<
-    Context,
-    SuppliedContext,
-    Extract<keyof Resources, Names>,
-    ChildPolicies
-  >,
-): Promise<
-  BudgetRequestResult<
-    Extract<keyof Resources, Names>,
-    Reasons,
-    ContextOfPolicySet<ChildPolicies>,
-    ReasonsOfPolicySet<ChildPolicies>,
-    Context,
-    HistoryNames
-  >
-> {
+  options: readonly unknown[],
+): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
   type RequestedName = Extract<keyof Resources, Names>;
-  const preparedOptions = prepareRequestPolicyOptions(options);
-  const requestedResources = Object.freeze({ ...resources });
-  const pending = admit(runtime, async () => {
+  if (runtime.state !== "open") throw new KeynesSdkError("runtime_closed", {});
+  const requestedResources = captureRequest(
+    resources,
+    "requestBudget",
+    "$.resources",
+  );
+  const decisionEvidence = requestDecisionEvidence(options);
+  const pending = runtime.admit(async () => {
     const resolved = binding.resources<RequestedName>(
       requestedResources,
       "requestBudget",
     );
-    const command: RequestBudgetCommand = {
+    const command = {
       commandId: randomUUID(),
       parentBudgetId: budgetId,
       resources: resolved.envelope,
-      ...preparedOptions,
+      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
     };
     const result = await invokeBudgetOperation(resolved.binding, () =>
-      invokeMutation(() => runtime.client.requestBudget(command)),
+      runtime.invokeMutation(() => runtime.client.requestBudget(command)),
+    );
+    const resultDecisionEvidence = canonicalDecisionEvidence(
+      result.decisionEvidence,
     );
     if (result.kind === "approved") {
       return Object.freeze({
         status: "approved" as const,
-        budget: createBudgetHandle<
-          RequestedName,
-          ContextOfPolicySet<ChildPolicies>,
-          ReasonsOfPolicySet<ChildPolicies>,
-          HistoryNames
-        >(runtime, result.childBudgetId, resolved.binding),
-        ...(result.policyEvidence === undefined
+        budget: createBudgetHandle<RequestedName, HistoryNames>(
+          runtime,
+          result.childBudgetId,
+          resolved.binding,
+        ),
+        ...(resultDecisionEvidence === undefined
           ? {}
-          : {
-              policyEvidence: projectPolicyEvidence<
-                RequestedName,
-                Context,
-                Reasons,
-                HistoryNames
-              >(resolved.binding, result.policyEvidence),
-            }),
+          : { decisionEvidence: resultDecisionEvidence }),
       });
     }
     return Object.freeze({
@@ -544,33 +250,17 @@ function requestBudget<
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
-            projectDenialReason<RequestedName, Reasons, HistoryNames>(
+            projectDenialReason<RequestedName, HistoryNames>(
               resolved.binding,
               reason,
             ),
           )
           .sort(compareDenialReasons),
       ),
-      ...(result.policyEvidence === undefined
+      ...(resultDecisionEvidence === undefined
         ? {}
-        : {
-            policyEvidence: projectPolicyEvidence<
-              RequestedName,
-              Context,
-              Reasons,
-              HistoryNames
-            >(resolved.binding, result.policyEvidence),
-          }),
+        : { decisionEvidence: resultDecisionEvidence }),
     });
   });
-  return pending as Promise<
-    BudgetRequestResult<
-      RequestedName,
-      Reasons,
-      ContextOfPolicySet<ChildPolicies>,
-      ReasonsOfPolicySet<ChildPolicies>,
-      Context,
-      HistoryNames
-    >
-  >;
+  return pending;
 }

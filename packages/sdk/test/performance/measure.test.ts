@@ -25,6 +25,35 @@ afterEach(async () => {
 });
 
 describe("SDK package measurement controller", () => {
+  it("requires an explicitly selected SQLite archive for measurement", () => {
+    expect(() =>
+      parseMeasurementArguments([
+        "--archive",
+        "sdk.tgz",
+        "--output",
+        "result.json",
+      ]),
+    ).toThrow("--node-sqlite-archive");
+  });
+
+  it("refuses a measurement without its selected runtime archive identity", () => {
+    expect(() =>
+      Reflect.apply(createQualificationRecord, undefined, [
+        { ...validRecordInput(), runtimeArchive: undefined },
+      ]),
+    ).toThrow("identity");
+  });
+  it("applies the archive ceiling to the selected SDK and SQLite total", () => {
+    const input = validRecordInput();
+    const record = createQualificationRecord({
+      ...input,
+      runtimeArchive: { ...input.runtimeArchive, compressedBytes: 1024 * 1024 },
+    });
+    expect(record.selectedArchiveBytes).toBe(
+      input.archive.compressedBytes + 1024 * 1024,
+    );
+    expect(() => assertWithinLimits(record)).toThrow("archiveBytes");
+  });
   it("requires one archive and one output and rejects unknown arguments", () => {
     expect(() => parseMeasurementArguments([])).toThrow("--archive");
     expect(() => parseMeasurementArguments(["--archive", "sdk.tgz"])).toThrow(
@@ -58,7 +87,7 @@ describe("SDK package measurement controller", () => {
     const input = validRecordInput();
     const record = createQualificationRecord(input);
     expect(record).toMatchObject({
-      schemaVersion: "keynes.package-test.sdk-measurement/v1",
+      schemaVersion: "keynes.package-test.sdk-measurement/v4",
       subject: "@keynes/sdk",
       outcome: "passed",
       exclusions: {
@@ -114,24 +143,44 @@ describe("SDK package measurement controller", () => {
     const record = createQualificationRecord(input);
     expect(record.samples).toEqual(input.samples);
     expect(record.method).toMatchObject({ coldWarmup: 3 });
-    expect(Object.keys(record.samples).sort()).toEqual([
-      "coldCreateMilliseconds",
-      "firstRequestMilliseconds",
-      "parserInitializationMilliseconds",
-      "readyRssBytes",
-      "shutdownMilliseconds",
-      "steadyRequestMilliseconds",
-    ]);
-    expect(Object.keys(record.observed).sort()).toEqual([
-      "coldCreateMilliseconds",
-      "firstRequestMilliseconds",
-      "parserInitializationMilliseconds",
-      "readyRssBytes",
-      "shutdownMilliseconds",
-      "steadyRequestMilliseconds",
-    ]);
+    expect(Object.keys(record.samples)).toEqual(
+      expect.arrayContaining([
+        "coldCreateMilliseconds",
+        "memorySampleCount",
+        "offlineInstallMilliseconds",
+        "sampledPeakRssBytes",
+        "startupMilliseconds",
+        "steadyElapsedMilliseconds",
+        "firstRequestMilliseconds",
+        "readyRssBytes",
+        "shutdownMilliseconds",
+        "steadyRequestMilliseconds",
+      ]),
+    );
+    expect(Object.keys(record.observed)).toEqual(
+      expect.arrayContaining([
+        "coldCreateMilliseconds",
+        "memorySampleCount",
+        "offlineInstallMilliseconds",
+        "sampledPeakRssBytes",
+        "startupMilliseconds",
+        "steadyElapsedMilliseconds",
+        "firstRequestMilliseconds",
+        "readyRssBytes",
+        "shutdownMilliseconds",
+        "steadyRequestMilliseconds",
+      ]),
+    );
+    expect(record.observed.requestsPerSecond).toBeCloseTo(100_000 / 5050);
     expect(record.samples).not.toHaveProperty("readyRssDeltaBytes");
     expect(record.observed).not.toHaveProperty("readyRssDeltaBytes");
+    expect(record.method).not.toHaveProperty("parserInitializationProcesses");
+    expect(record.samples).not.toHaveProperty(
+      "parserInitializationMilliseconds",
+    );
+    expect(record.observed).not.toHaveProperty(
+      "parserInitializationMilliseconds",
+    );
     expect(record.observed.steadyRequestMilliseconds).toEqual({
       count: 100,
       p95: 95,
@@ -163,7 +212,7 @@ describe("SDK package measurement controller", () => {
           firstRequestMilliseconds: Array(29).fill(1),
         },
       }),
-    ).toThrow("at least 30");
+    ).toThrow("exactly 30");
 
     const record = createQualificationRecord({
       ...input,
@@ -173,6 +222,51 @@ describe("SDK package measurement controller", () => {
       },
     });
     expect(() => assertWithinLimits(record)).toThrow("coldCreateMilliseconds");
+  });
+
+  it("rejects invalid or inconsistent evidence identity and method", () => {
+    const input = validRecordInput();
+    for (const changed of [
+      {
+        ...input,
+        runtimeArchive: { ...input.runtimeArchive, sha256: "wrong" },
+      },
+      {
+        ...input,
+        installedPackages: {
+          ...input.installedPackages,
+          nodeSqlite: input.installedPackages.sdk,
+        },
+      },
+      { ...input, archive: { ...input.archive, sha256: "wrong" } },
+      { ...input, archive: { ...input.archive, compressedBytes: Number.NaN } },
+      {
+        ...input,
+        samples: {
+          ...input.samples,
+          steadyElapsedMilliseconds: [Number.MIN_VALUE],
+        },
+      },
+      {
+        ...input,
+        environment: { ...input.environment, commit: "d".repeat(40) },
+      },
+      { ...input, environment: { ...input.environment, sqliteVersion: "" } },
+      { ...input, method: { ...input.method, steadySamples: 99 } },
+      {
+        ...input,
+        samples: { ...input.samples, steadyElapsedMilliseconds: [0] },
+      },
+      {
+        ...input,
+        samples: { ...input.samples, memorySampleCount: Array(30).fill(0) },
+      },
+      {
+        ...input,
+        samples: { ...input.samples, offlineInstallMilliseconds: [] },
+      },
+    ])
+      expect(() => createQualificationRecord(changed)).toThrow();
   });
 
   it("rejects ready RSS equal to 512 MiB but accepts every inclusive ceiling", () => {
@@ -208,6 +302,20 @@ describe("SDK package measurement controller", () => {
 
 function validRecordInput(): QualificationRecordInput {
   return {
+    runtimeArchive: {
+      name: "@keynes/node-sqlite",
+      sha256: "b".repeat(64),
+      compressedBytes: 100,
+      packageVersion: "0.0.0",
+    },
+    installedPackages: {
+      sdk: resolve(tmpdir(), "consumer/node_modules/@keynes/sdk/dist/index.js"),
+      nodeSqlite: resolve(
+        tmpdir(),
+        "consumer/node_modules/@keynes/node-sqlite/dist/index.js",
+      ),
+    },
+    cleanup: "passed",
     sourceRevision: {
       commit: "c".repeat(40),
       cleanBefore: true,
@@ -233,17 +341,20 @@ function validRecordInput(): QualificationRecordInput {
     method: {
       coldWarmup: 3,
       coldProcesses: 30,
-      parserInitializationProcesses: 30,
       firstRequestProcesses: 30,
       steadyWarmup: 10,
       steadySamples: 100,
       percentile: "nearest-rank",
+      offlineInstalls: 5,
+      memorySamplingIntervalMilliseconds: 1,
+      installCache: "prefilled-offline",
     },
     samples: {
-      parserInitializationMilliseconds: Array.from(
-        { length: 30 },
-        (_, index) => index + 1,
-      ),
+      startupMilliseconds: Array(30).fill(10),
+      sampledPeakRssBytes: Array(30).fill(100),
+      memorySampleCount: Array(30).fill(2),
+      offlineInstallMilliseconds: Array(5).fill(100),
+      steadyElapsedMilliseconds: [5050],
       readyRssBytes: Array.from({ length: 30 }, (_, index) => index + 1),
       coldCreateMilliseconds: Array.from(
         { length: 30 },

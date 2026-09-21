@@ -6,7 +6,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./archive": "./src/archive.ts",
-    "./package": "./src/package.ts"
+    "./package": "./src/package.ts",
+    "./process": "./src/process.ts",
+    "./report": "./src/report.ts",
+    "./distribution": "./src/distribution.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit"
@@ -16,6 +19,6 @@
     "typescript": "7.0.2"
   },
   "engines": {
-    "node": ">=24 <27"
+    "node": ">=24"
   }
 }

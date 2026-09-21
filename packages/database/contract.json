@@ -1,0 +1,152 @@
+{
+  "schema": "schema.json",
+  "operations": [
+    {
+      "method": "defineResource",
+      "target": "keynes.define_resource_type",
+      "permissions": ["define_resource_type"],
+      "replay": true,
+      "input": "DefineResourceTypeCommand",
+      "output": "DefineResourceTypeResult"
+    },
+    {
+      "method": "defineResources",
+      "target": "keynes.define_resources",
+      "permissions": ["define_resource_type"],
+      "replay": true,
+      "input": "DefineResourcesCommand",
+      "output": "DefineResourcesResult"
+    },
+    {
+      "method": "validateResources",
+      "target": "keynes.validate_resources",
+      "permissions": ["create_root_budget"],
+      "replay": false,
+      "input": "ValidateResourcesQuery",
+      "output": "ValidateResourcesResult"
+    },
+    {
+      "method": "createBudget",
+      "target": "keynes.create_budget",
+      "permissions": ["create_root_budget"],
+      "replay": true,
+      "input": "CreateBudgetCommand",
+      "output": "CreateBudgetResult"
+    },
+    {
+      "method": "requestBudget",
+      "target": "keynes.request",
+      "permissions": ["request_budget"],
+      "replay": true,
+      "input": "RequestBudgetCommand",
+      "output": "RequestBudgetResult"
+    },
+    {
+      "method": "settleBudget",
+      "target": "keynes.settle",
+      "permissions": ["settle_budget"],
+      "replay": true,
+      "input": "SettleBudgetCommand",
+      "output": "SettleBudgetResult"
+    },
+    {
+      "method": "getBudget",
+      "target": "keynes.get_budget",
+      "permissions": ["read_budget"],
+      "replay": false,
+      "input": "GetBudgetQuery",
+      "output": "GetBudgetResult"
+    }
+  ],
+  "remote": {
+    "semanticGeneration": 4,
+    "minimumSdkGeneration": 4,
+    "semanticIdentities": [
+      "installation",
+      "command_contract",
+      "remote_procedures"
+    ],
+    "procedures": [
+      {
+        "method": "defineResources",
+        "target": "keynes.remote_define_resources",
+        "revision": 1,
+        "mode": "mutation",
+        "input": "RemoteDefineResourcesCommand",
+        "output": "RemoteDefineResourcesResult"
+      },
+      {
+        "method": "validateResources",
+        "target": "keynes.remote_validate_resources",
+        "revision": 1,
+        "mode": "read",
+        "input": "ValidateResourcesQuery",
+        "output": "ValidateResourcesResult"
+      },
+      {
+        "method": "createBudget",
+        "target": "keynes.remote_create_budget",
+        "revision": 4,
+        "mode": "mutation",
+        "input": "RemoteCreateBudgetCommand",
+        "output": "RemoteCreateBudgetResult"
+      },
+      {
+        "method": "requestBudget",
+        "target": "keynes.remote_request",
+        "revision": 2,
+        "mode": "mutation",
+        "input": "RemoteRequestBudgetCommand",
+        "output": "RemoteRequestBudgetResult"
+      },
+      {
+        "method": "settleBudget",
+        "target": "keynes.remote_settle",
+        "revision": 1,
+        "mode": "mutation",
+        "input": "RemoteSettleBudgetCommand",
+        "output": "RemoteSettleBudgetResult"
+      },
+      {
+        "method": "getBudget",
+        "target": "keynes.remote_get_budget",
+        "revision": 2,
+        "mode": "read",
+        "input": "RemoteGetBudgetQuery",
+        "output": "RemoteGetBudgetResult"
+      },
+      {
+        "method": "getBudgetHistoryPage",
+        "target": "keynes.remote_get_budget_history_page",
+        "revision": 2,
+        "mode": "read",
+        "input": "GetBudgetHistoryPageQuery",
+        "output": "GetBudgetHistoryPageResult"
+      },
+      {
+        "method": "openBudget",
+        "target": "keynes.remote_open_budget",
+        "revision": 2,
+        "mode": "read",
+        "input": "OpenBudgetQuery",
+        "output": "OpenBudgetResult"
+      },
+      {
+        "method": "recoverOperation",
+        "target": "keynes.remote_recover_operation",
+        "revision": 2,
+        "mode": "read",
+        "input": "RecoverOperationQuery",
+        "output": "RecoverOperationResult"
+      },
+      {
+        "method": "getCompatibility",
+        "target": "keynes.remote_get_compatibility",
+        "revision": 2,
+        "mode": "read",
+        "input": "GetCompatibilityQuery",
+        "output": "GetCompatibilityResult"
+      }
+    ]
+  }
+}

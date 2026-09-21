@@ -9,6 +9,13 @@ import type {
   RemoteSettleBudgetResult as WireRemoteSettleBudgetResult,
 } from "../generated/types.js";
 import { KeynesSdkError } from "../sdk-errors.js";
+import { canonicalDecisionEvidence } from "../decision-evidence.js";
+import type { DecisionEvidence } from "../decision-evidence.js";
+
+import {
+  createResourceDefinitionBinding,
+  type ResourceBinding,
+} from "../resource-definition-binding.js";
 
 declare const operationKeyBrand: unique symbol;
 declare const budgetReferenceBrand: unique symbol;
@@ -44,8 +51,12 @@ type RemoteRequestBudgetResult =
         readonly parentBudgetReference: string;
         readonly childBudgetReference?: string;
       }
-      ? Omit<Result, "parentBudgetReference" | "childBudgetReference"> & {
+      ? Omit<
+          Result,
+          "parentBudgetReference" | "childBudgetReference" | "decisionEvidence"
+        > & {
           readonly parentBudgetReference: BudgetReference;
+          readonly decisionEvidence?: DecisionEvidence;
         } & (Result extends { readonly childBudgetReference: string }
             ? { readonly childBudgetReference: BudgetReference }
             : object)
@@ -57,6 +68,12 @@ type RemoteSettleBudgetResult = Omit<WireRemoteSettleBudgetResult, "budget"> & {
 };
 
 export type RecoverOperationResult =
+  | {
+      readonly kind: "committed";
+      readonly operationKey: OperationKey;
+      readonly operation: "defineResources";
+      readonly result: ResourceBinding<string>;
+    }
   | {
       readonly kind: "committed";
       readonly operationKey: OperationKey;
@@ -103,6 +120,13 @@ export function projectRecoverOperationResult(
   const operationKey = requireOperationKey(result.operationKey);
   if (result.kind !== "committed") return { ...result, operationKey };
   switch (result.operation) {
+    case "defineResources":
+      return {
+        kind: "committed",
+        operationKey,
+        operation: "defineResources",
+        result: createResourceDefinitionBinding(),
+      };
     case "createBudget":
       return {
         ...result,
@@ -112,32 +136,41 @@ export function projectRecoverOperationResult(
           budget: projectBudget(result.result.budget),
         },
       };
-    case "requestBudget":
+    case "requestBudget": {
       if (result.result.kind === "approved") {
+        const { decisionEvidence: rawDecisionEvidence, ...requestResult } =
+          result.result;
+        const decisionEvidence = canonicalDecisionEvidence(rawDecisionEvidence);
         return {
           ...result,
           operationKey,
           result: {
-            ...result.result,
+            ...requestResult,
             parentBudgetReference: requireBudgetReference(
               result.result.parentBudgetReference,
             ),
             childBudgetReference: requireBudgetReference(
               result.result.childBudgetReference,
             ),
+            ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
           },
         };
       }
+      const { decisionEvidence: rawDecisionEvidence, ...requestResult } =
+        result.result;
+      const decisionEvidence = canonicalDecisionEvidence(rawDecisionEvidence);
       return {
         ...result,
         operationKey,
         result: {
-          ...result.result,
+          ...requestResult,
           parentBudgetReference: requireBudgetReference(
             result.result.parentBudgetReference,
           ),
+          ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
         },
       };
+    }
     case "settleBudget":
       return {
         ...result,
@@ -175,23 +208,45 @@ export function splitRemoteMutationOptions(
     return { operationKey: createOperationKey(), remainingOptions: [] };
   }
   const option = options[0];
-  if (options.length !== 1 || !isRecord(option)) {
+  if (
+    options.length !== 1 ||
+    !isRecord(option) ||
+    (Object.getPrototypeOf(option) !== Object.prototype &&
+      Object.getPrototypeOf(option) !== null)
+  ) {
     throw invalidConfiguration("options");
   }
-  const unknownField = Object.keys(option).find(
+  if (Object.getOwnPropertySymbols(option).length > 0) {
+    throw invalidConfiguration("options");
+  }
+  const fields = Object.getOwnPropertyNames(option);
+  const unknownField = fields.find(
     (field) => field !== "operationKey" && !allowedFields.has(field),
   );
   if (unknownField !== undefined) throw invalidConfiguration(unknownField);
+  for (const field of fields) {
+    if (field === "operationKey") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(option, field);
+    if (
+      descriptor === undefined ||
+      !descriptor.enumerable ||
+      !("value" in descriptor)
+    ) {
+      throw invalidConfiguration(field);
+    }
+  }
 
   const operationKey = Object.hasOwn(option, "operationKey")
     ? requireOperationKey(option.operationKey)
     : createOperationKey();
-  const remaining = Object.fromEntries(
-    Object.entries(option).filter(([field]) => field !== "operationKey"),
-  );
+  const remaining: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field !== "operationKey") remaining[field] = option[field];
+  }
   return {
     operationKey,
-    remainingOptions: Object.keys(remaining).length === 0 ? [] : [remaining],
+    remainingOptions:
+      Object.keys(remaining).length === 0 ? [] : [Object.freeze(remaining)],
   };
 }
 

@@ -21,63 +21,26 @@
     "generate:check": "node scripts/generate.ts --check",
     "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test/unit test/conformance --maxWorkers=1",
+    "test": "vitest run test/unit test/contract test/system --maxWorkers=1",
     "test:unit": "vitest run test/unit --maxWorkers=1",
-    "test:conformance": "vitest run test/conformance --maxWorkers=1",
+    "test:contract": "vitest run test/contract --maxWorkers=1",
     "test:package:unit": "vitest run test/package --maxWorkers=1",
     "test:package": "pnpm test:package:unit && node test/package/qualify.ts",
     "test:performance": "vitest run test/performance --maxWorkers=1",
-    "measure:package": "node test/performance/measure.ts"
+    "measure:package": "node test/performance/measure.ts",
+    "test:local": "node test/system/run-local.ts",
+    "test:hosted": "node test/system/run-hosted.ts"
   },
-  "dependencies": {
-    "@pgsql/types": "18.0.0",
-    "decimal.js": "10.6.0",
-    "kysely": "0.29.5",
-    "libpg-query": "18.1.4",
-    "pg": "8.23.0",
-    "pg-cloudflare": "1.4.0",
-    "pg-connection-string": "2.14.0",
-    "pg-int8": "1.0.1",
-    "pg-pool": "3.14.0",
-    "pg-protocol": "1.16.0",
-    "pg-types": "2.2.0",
-    "pgpass": "1.0.5",
-    "postgres-array": "2.0.0",
-    "postgres-bytea": "1.0.1",
-    "postgres-date": "1.0.7",
-    "postgres-interval": "1.2.0",
-    "split2": "4.2.0",
-    "xtend": "4.0.2"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@keynes/contracts": "workspace:*",
+    "@keynes/database": "workspace:*",
     "@keynes/testkit": "workspace:*",
     "@types/pg": "8.23.1",
     "json-schema-to-typescript": "15.0.4",
     "oxfmt": "0.64.0",
     "vitest": "4.1.11"
   },
-  "bundledDependencies": [
-    "@pgsql/types",
-    "decimal.js",
-    "kysely",
-    "libpg-query",
-    "pg",
-    "pg-cloudflare",
-    "pg-connection-string",
-    "pg-int8",
-    "pg-pool",
-    "pg-protocol",
-    "pg-types",
-    "pgpass",
-    "postgres-array",
-    "postgres-bytea",
-    "postgres-date",
-    "postgres-interval",
-    "split2",
-    "xtend"
-  ],
   "engines": {
-    "node": ">=24 <25 || >=26 <27"
+    "node": ">=24"
   }
 }

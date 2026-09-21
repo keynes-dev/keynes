@@ -1,9 +1,10 @@
-# Implementation plan: [EXACT LINEAR ACTION TITLE]
+# Implementation Plan: [FEATURE]
 
-**Linear issue**: `[KEY-N]` | **Branch**: `[EXACT LINEAR GIT BRANCH NAME]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/docs/features/[LINEAR BRANCH FINAL SEGMENT]/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 
-**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `$speckit-plan` command; its definition describes the execution workflow.
 
 ## Summary
 
@@ -18,57 +19,44 @@
 -->
 
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+
 **Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+
 **Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **One source of truth per Budget**: Identify where each affected Budget is
-  stored and which component owns its committed state and transitions. Show that
-  clients and services cannot bypass it or fall back to another store.
-- **Effect boundary**: Identify every external effect and confirm that the host
-  application owns execution, idempotency, retry, observation, outcomes, and
-  fallback behavior.
-- **Policy and security**: Describe Policy context, Kysely and raw-SQL
-  authoring, parser and normalized Policy-program behavior, semantic ownership,
-  transaction-local authority, selected execution backends, cross-backend
-  conformance, accessible inputs, failure behavior, permissions, tenant
-  isolation, and secret handling when Policy or durable storage is in scope.
-- **Consistent behavior across deployments**: Identify which runtime or
-  deployment changes, the affected database procedure, schema, SDK, service,
-  migration, and compatibility contracts, the shared Budget behavior tests, and
-  the deployment-specific tests that must pass.
-- **Evidence-first delivery**: Name the behavioral tests that will be observed
-  failing before implementation, the deterministic provider-free verification
-  lane, any separately authorized live, paid, fault, or benchmark lane, and all
-  claims that remain untested.
-- Mark a gate `N/A` only with a concrete rationale. Record every unavoidable
-  violation in Complexity Tracking with a migration or removal path.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-docs/features/[LINEAR BRANCH FINAL SEGMENT]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+specs/[###-feature]/
+├── plan.md              # This file ($speckit-plan command output)
+├── research.md          # Phase 0 output ($speckit-plan command)
+├── data-model.md        # Phase 1 output ($speckit-plan command)
+├── quickstart.md        # Phase 1 output ($speckit-plan command)
+├── contracts/           # Phase 1 output ($speckit-plan command)
+└── tasks.md             # Phase 2 output ($speckit-tasks command - NOT created by $speckit-plan)
 ```
 
 ### Source Code (repository root)
-
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -119,7 +107,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
-| -------------------------- | ------------------ | ------------------------------------ |
-| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

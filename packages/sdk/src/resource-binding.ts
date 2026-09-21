@@ -1,10 +1,6 @@
+import { isRecord } from "./request-serialization.js";
 import { KeynesError } from "./generated/client.js";
-import type {
-  BudgetProjection,
-  OperationName,
-  ResourceEnvelope,
-  UsageEnvelope,
-} from "./generated/types.js";
+import type { BudgetProjection } from "./generated/types.js";
 import type { PreparedRootResource } from "./resources.js";
 import { KeynesSdkError } from "./sdk-errors.js";
 
@@ -21,8 +17,8 @@ export interface BoundResources<
   Name extends string,
   HistoryNames extends string = Name,
 > {
-  readonly envelope: ResourceEnvelope;
-  readonly binding: ResourceBinding<Name, HistoryNames>;
+  readonly envelope: unknown;
+  readonly binding: BudgetResourceBinding<Name, HistoryNames>;
 }
 
 interface BindingIndexes<Names extends string> {
@@ -30,7 +26,7 @@ interface BindingIndexes<Names extends string> {
   readonly byCanonicalName: ReadonlyMap<string, BoundResource<Names>>;
 }
 
-export class ResourceBinding<
+export class BudgetResourceBinding<
   Names extends string,
   HistoryNames extends string = Names,
 > {
@@ -103,72 +99,87 @@ export class ResourceBinding<
   }
 
   resources<Name extends Names>(
-    input: Readonly<Partial<Record<Name, number>>>,
+    input: unknown,
     operation: "requestBudget",
+    target: "local" | "remote" = "local",
   ): BoundResources<Name, HistoryNames> {
     const resolved: BoundResource<Name>[] = [];
-    const amounts: {
-      readonly resourceTypeId: string;
-      readonly amount: number;
-    }[] = [];
-    for (const key in input) {
-      if (!Object.hasOwn(input, key)) continue;
-      const resource = this.#byKey.get(key);
-      if (resource === undefined) {
-        const details = Object.freeze({ operation, resource: key });
-        throw new KeynesSdkError("resource_not_defined", details);
-      }
-      const amount = requireAmount(input[key], operation, `$.resources.${key}`);
-      const narrowed = Object.freeze({ ...resource, key });
-      resolved.push(narrowed);
-      amounts.push({ resourceTypeId: resource.resourceTypeId, amount });
-    }
-    resolved.sort((left, right) =>
-      compareStrings(left.resourceTypeId, right.resourceTypeId),
-    );
-    amounts.sort((left, right) =>
-      compareStrings(left.resourceTypeId, right.resourceTypeId),
-    );
-    return Object.freeze({
-      envelope: requireEnvelope(amounts, operation, "$.resources"),
-      binding: new ResourceBinding<Name, HistoryNames>(this.#indexes, resolved),
-    });
+    if (!isRecord(input))
+      throw new KeynesError({
+        kind: "error",
+        code: "invalid_command",
+        details: { operation, issues: [{ path: "$.resources", rule: "type" }] },
+      });
+    const amounts = Object.entries(input)
+      .map(([key, amount]) => {
+        const resource = this.#byKey.get(key);
+        if (resource === undefined) {
+          const details = { operation, resource: key };
+          throw new KeynesSdkError("resource_not_defined", details);
+        }
+        resolved.push(Object.freeze({ ...resource, key: key as Name }));
+        return { resourceTypeId: resource.resourceTypeId, amount };
+      })
+      .sort((left, right) =>
+        compareStrings(left.resourceTypeId, right.resourceTypeId),
+      );
+    return {
+      envelope:
+        target === "local"
+          ? amounts
+          : amounts.map(({ resourceTypeId, amount }) => ({
+              resource: this.visibleResource(resourceTypeId).canonicalName,
+              amount,
+            })),
+      binding: new BudgetResourceBinding<Name, HistoryNames>(
+        this.#indexes,
+        resolved,
+      ),
+    };
   }
 
-  usage(input: Readonly<Partial<Record<Names, number | null>>>): UsageEnvelope {
-    const resolved: {
-      readonly resourceTypeId: string;
-      readonly amount: number | null;
-    }[] = [];
-    for (const key in input) {
-      if (!Object.hasOwn(input, key)) continue;
-      const resource = this.#byKey.get(key);
-      if (resource === undefined) {
-        throw invalidCommand(
-          "settleBudget",
-          `$.usage.${key}`,
-          "resource_not_defined",
-        );
-      }
-      resolved.push({
-        resourceTypeId: resource.resourceTypeId,
-        amount: requireUsage(input[key], `$.usage.${key}`),
+  usage(input: unknown, target: "local" | "remote" = "local"): unknown {
+    if (!isRecord(input))
+      throw new KeynesError({
+        kind: "error",
+        code: "invalid_command",
+        details: {
+          operation: "settleBudget",
+          issues: [{ path: "$.usage", rule: "type" }],
+        },
       });
-    }
-    resolved.sort((left, right) =>
-      compareStrings(left.resourceTypeId, right.resourceTypeId),
-    );
-    return requireEnvelope(resolved, "settleBudget", "$.usage");
+    const amounts = Object.entries(input)
+      .map(([key, amount]) => {
+        const resource = this.#byKey.get(key);
+        if (resource === undefined)
+          throw new KeynesError({
+            kind: "error",
+            code: "invalid_command",
+            details: {
+              operation: "settleBudget",
+              issues: [
+                { path: `$.usage.${key}`, rule: "resource_not_defined" },
+              ],
+            },
+          });
+        return { resourceTypeId: resource.resourceTypeId, amount };
+      })
+      .sort((left, right) =>
+        compareStrings(left.resourceTypeId, right.resourceTypeId),
+      );
+    return target === "local"
+      ? amounts
+      : amounts.map(({ resourceTypeId, amount }) => ({
+          resource: this.visibleResource(resourceTypeId).canonicalName,
+          amount,
+        }));
   }
 }
 
 export function createResourceBinding<Name extends string>(
-  prepared: readonly [
-    PreparedRootResource<Name>,
-    ...PreparedRootResource<Name>[],
-  ],
+  prepared: readonly PreparedRootResource<Name>[],
   budget: BudgetProjection,
-): ResourceBinding<Name> {
+): BudgetResourceBinding<Name> {
   if (
     budget.parentBudgetId !== null ||
     budget.rootBudgetId !== budget.budgetId ||
@@ -194,10 +205,10 @@ export function createResourceBinding<Name extends string>(
       expected === undefined ||
       actual === undefined ||
       actual.resourceType.canonicalName !== expected.canonicalName ||
-      actual.resourceType.unit !== expected.definition.unit ||
-      actual.resourceType.accountingBehavior !==
-        expected.definition.accountingBehavior ||
-      actual.resourceType.definitionDigest !== expected.definitionDigest ||
+      (expected.definition !== undefined &&
+        (actual.resourceType.unit !== expected.definition.unit ||
+          actual.resourceType.accountingBehavior !==
+            expected.definition.accountingBehavior)) ||
       actual.allocated !== expected.amount ||
       actual.available !== expected.amount ||
       actual.committed !== 0 ||
@@ -229,55 +240,13 @@ export function createResourceBinding<Name extends string>(
       visible.map((resource) => [resource.canonicalName, resource]),
     ),
   });
-  return new ResourceBinding(indexes, visible);
+  return new BudgetResourceBinding(indexes, visible);
 }
 
 function bindingMismatch(): Error {
   return new Error(
     "Created Budget Resource binding does not match its request",
   );
-}
-
-function requireAmount(
-  value: unknown,
-  operation: OperationName,
-  path: string,
-): number {
-  if (typeof value !== "number") {
-    throw invalidCommand(operation, path, "type");
-  }
-  return value;
-}
-
-function requireUsage(value: unknown, path: string): number | null {
-  if (value !== null && typeof value !== "number") {
-    throw invalidCommand("settleBudget", path, "type");
-  }
-  return value;
-}
-
-function requireEnvelope<Item>(
-  items: readonly Item[],
-  operation: OperationName,
-  path: string,
-): [Item, ...Item[]] {
-  const [first, ...rest] = items;
-  if (first === undefined) {
-    throw invalidCommand(operation, path, "minItems");
-  }
-  return [first, ...rest];
-}
-
-function invalidCommand(
-  operation: OperationName,
-  path: string,
-  rule: string,
-): KeynesError {
-  return new KeynesError({
-    kind: "error",
-    code: "invalid_command",
-    details: { operation, issues: [{ path, rule }] },
-  });
 }
 
 function compareStrings(left: string, right: string): number {

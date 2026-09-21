@@ -1,0 +1,357 @@
+{
+  "success": true,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "numPassedTests": 37,
+  "numTotalTests": 37,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numPassedTestSuites": 7,
+  "numTotalTestSuites": 7,
+  "startTime": 1788649406822,
+  "testResults": [
+    {
+      "name": "./packages/sdk/test/contract/budget.test.ts",
+      "status": "passed",
+      "message": "",
+      "startTime": 1788649407041,
+      "endTime": 1788649407104.662,
+      "assertionResults": [
+        {
+          "fullName": "Budget lifecycle defines a Resource type without creating Budget quantity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 2.293875000000014,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle preserves definition identity and distinguishes replay from redefinition",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 0.5710410000000081,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle returns canonical Resource definition errors",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 0.7357910000000061,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget lifecycle completes one funded child lifecycle and reads its root-lineage history",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget lifecycle"
+          ],
+          "duration": 1.771708000000018,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers all four canonical results across principals without duplicate history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.9887919999999895,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay replays a structurally equal command across principals despite object key order",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.33662499999999795,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers Resource definition after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.5607080000000053,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers root allocation after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.7011249999999905,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers an approved request after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.6553749999999923,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay recovers settlement after its committed response is lost",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.6494590000000073,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects changed bodies for each mutation, including across principals",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 1.171416999999991,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects reuse by a different operation",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.5828329999999937,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command replay rejects reuse against a different target",
+          "status": "passed",
+          "ancestorTitles": [
+            "command replay"
+          ],
+          "duration": 0.724583000000024,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial denies one unavailable Resource without changing the parent",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.6686660000000018,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial denies a multi-Resource envelope without reserving its fundable part",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.6007089999999948,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial conserves 100 sibling overlaps through public serialization, not multi-connection contention",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 33.65908299999998,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects malformed, duplicate, and caller-selected funding envelopes",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.5890419999999779,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects a Resource type that has not been defined before evaluating funding",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.36804200000000264,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial rejects a request after its parent becomes inactive",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.4538750000000107,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget request denial keeps request, settlement, and read permissions independent",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget request denial"
+          ],
+          "duration": 0.4002920000000074,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation binds Resource definitions, allocations, and creation history in one root command",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.7534579999999949,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation replays an identical combined root command without duplicating history",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.39125000000001364,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rejects a changed definition-bearing root body under the same command identity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.3029579999999896,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation commits an attached Policy with the Resource-bound root",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 2.3153330000000096,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Resource-bound root creation rolls back definitions, root state, and history after Resource insertion",
+          "status": "passed",
+          "ancestorTitles": [
+            "Resource-bound root creation"
+          ],
+          "duration": 0.5236670000000174,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back Resource definition checkpoints",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 0.4625830000000235,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back root allocation facts, result, and history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 1.1687909999999988,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back child reservation, result, and history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 1.5542920000000322,
+          "failureMessages": []
+        },
+        {
+          "fullName": "command rollback rolls back usage, result, and settlement history",
+          "status": "passed",
+          "ancestorTitles": [
+            "command rollback"
+          ],
+          "duration": 1.9315839999999866,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement keeps a sealed parent settling until its open descendant settles",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.8362079999999992,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement resolves missing usage and records an exact known repeat as a no-op",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.8338330000000269,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement returns a reusable child allocation in full after settlement",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.6339579999999501,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement isolates child overage without charging its parent or sibling",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.7044159999999806,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement bounds settled nested charges before returning them to an ancestor",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.6446250000000191,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement settles a subset while keeping an omitted Resource unresolved",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.5778750000000059,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement sorts multiple isolated deficits by Resource identity",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.4653329999999869,
+          "failureMessages": []
+        },
+        {
+          "fullName": "Budget settlement rejects derived arithmetic overflow without committing settlement",
+          "status": "passed",
+          "ancestorTitles": [
+            "Budget settlement"
+          ],
+          "duration": 0.6621670000000108,
+          "failureMessages": []
+        }
+      ]
+    }
+  ]
+}

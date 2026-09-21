@@ -13,6 +13,7 @@
     "consumer.mts",
     "compatibility/policy-api.mts",
     "compatibility/remote-api.mts",
-    "private-imports.mts"
+    "private-imports.mts",
+    "compatibility/configured-resources.mts"
   ]
 }

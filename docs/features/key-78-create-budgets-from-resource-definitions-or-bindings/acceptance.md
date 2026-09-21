@@ -1,0 +1,594 @@
+# KEY-78 acceptance evidence
+
+## Phase 1: setup
+
+Inspected on September 6, 2026 at source
+`7d6b88d1fd66d25899c5213bafa162e73630803a`, with a clean worktree.
+The current Linear issue is [KEY-78 Create Budgets from Resource definitions or bindings](https://linear.app/keynes/issue/KEY-78/create-budgets-from-resource-definitions-or-bindings).
+Its exact `gitBranchName` matches this checkout,
+`key-78-create-budgets-from-resource-definitions-or-bindings`.
+GitHub reports prerequisite [PR #48](https://github.com/keynes-dev/keynes/pull/48)
+merged at `abd1e189ac577efed1160de2cf494bb93adadc24`; ancestry checking passes.
+No PR exists for this branch at inspection time.
+
+Read spec, plan, research, data model, configured-creation contract, quickstart,
+tasks, governing product/architecture documents, constitution, and workflow.
+Stock prerequisite resolution with explicit
+`SPECIFY_FEATURE_DIRECTORY=docs/features/key-78-create-budgets-from-resource-definitions-or-bindings`
+passes. The requirements checklist has 16 checked items and no unchecked items.
+Extension hooks are empty. Existing Git and Docker ignore rules cover dependency,
+build, environment, and evidence output; no ignore changes are needed.
+
+Environment: Darwin arm64, Node.js 26.5.0, pnpm 11.21.0, Docker server 29.6.2.
+Docker availability is not native runtime acceptance.
+
+| Command or lane                                               | Result                                       |
+| ------------------------------------------------------------- | -------------------------------------------- |
+| `pnpm install --frozen-lockfile`                              | PASS, already up to date, no lockfile change |
+| `pnpm test:pr`                                                | PASS, exit 0, 11 Turbo tasks successful      |
+| Repository tests                                              | PASS, 9 tests                                |
+| Paired/native runner unit tests                               | PASS, 166 tests                              |
+| Web tests                                                     | PASS, 24 tests                               |
+| Contract tests                                                | PASS, 51 tests                               |
+| PostgreSQL unit/qualification/support tests                   | PASS, 85 tests                               |
+| SDK tests, including existing private SQLite behavior         | PASS, 467 tests                              |
+| Lint                                                          | PASS, 29 warnings and 0 errors               |
+| Configured startup/creation and new type assertions           | NOT RUN                                      |
+| Native PostgreSQL feature acceptance and paired qualification | NOT RUN                                      |
+| Feature package consumers                                     | NOT RUN                                      |
+
+The baseline log is local at `/tmp/key-78-phase1-baseline.log`. These results
+qualify the existing source only; they do not prove the planned KEY-78 behavior.
+Hosted, paid-provider, performance qualification, production readiness, and
+installed database upgrades are outside this feature.
+
+## Caller and generation inventory
+
+T003 subagent inspection identifies these adaptation owners. Braced paths name
+existing files with the same directory and suffix.
+
+| Area                | Files and required adaptation                                                                                                                                                                                                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public SDK          | `packages/sdk/src/{keynes,resources,index}.ts`, `src/remote/public-types.ts`: configured declarations, exact names, amounts/options creators                                                                                                                                              |
+| Local authority     | `packages/sdk/src/local/{runtime,sqlite-command-executor,sqlite-store}.ts`: private catalog initialization and read-only validation                                                                                                                                                       |
+| Shared adapters     | `packages/contracts/contract-tests/host.ts`, `scenarios/root-resource.ts`, `packages/sdk/test/contract/test-host.ts`, `packages/postgresql/test/system/support/{test-keynes,procedure-caller}.ts`: validation operation and explicit durable provisioning                                 |
+| Shared scenarios    | `packages/contracts/contract-tests/scenarios/{budget-lifecycle,request-denial,resource-bound-root,replay,rollback,settlement,remote,resource-definitions}.ts`: new creation input and behavior coverage                                                                                   |
+| SDK public tests    | `packages/sdk/test/unit/public/{local,remote,policy-api,public-exports,generated-client,remote-validators,budget-projection}.test.ts`: configured setup, amounts/options and wire/projection assertions                                                                                   |
+| SDK local tests     | `packages/sdk/test/unit/local/{local-lifecycle,local-replay,sqlite-command-executor,policy-request,policy-replay,policy-fail-closed}.test.ts`: preserve lifecycle, replay and Policy assertions after adaptation                                                                          |
+| SDK remote tests    | `packages/sdk/test/unit/remote/{recovery,postgresql-command-executor,errors}.test.ts`, `packages/sdk/test/contract/remote.test.ts`: startup handshake, selected definitions and recovery                                                                                                  |
+| Package consumers   | `packages/sdk/test/package/consumer.mts`, `compatibility/{remote-api,policy-api}.mts`, `tsconfig.json`: exact member and Policy inference, negative cases                                                                                                                                 |
+| Performance caller  | `packages/sdk/test/performance/measure-worker.mjs`: mechanical API adaptation only                                                                                                                                                                                                        |
+| Native consumers    | `packages/postgresql/test/system/{remote-budget,remote-security,remote-recovery,contention,rollback,embedded-transactions,policy-request,policy-replay,policy-security}.test.ts`: explicit provisioning and revised commands, permissions and zero behavior                               |
+| Native installation | `packages/postgresql/test/system/installation.test.ts`, `test/integration/{installation,recheck,remote-identity}.test.ts`, `test/system/support/{remote-identity,postgres-database}.ts`, `test/qualification/external-target.ts`: inventory, grants, compatibility and fresh installation |
+| Fixtures/docs       | `packages/contracts/fixtures/{source,expectations}.json`, SDK/PostgreSQL READMEs, `docs/{product,architecture}.md`, ADR-0011: current contract adoption                                                                                                                                   |
+
+Contract sources `schema.json`, `contract.json`, `src/load.ts`, and
+`src/generation/` feed `packages/contracts/scripts/generate.ts`.
+`packages/sdk/scripts/{generate,render}.ts` own generated client, types,
+validators, Policy types and profile. PostgreSQL `scripts/generate.ts` owns SQL
+and installation metadata. Freeze current 0007 bytes before moving current
+contract interpolation to 0008. Shared `contract-tests/host.ts` needs explicit
+validation wiring after generated clients acquire the operation.
+
+Both SQLite and PostgreSQL `budget.test.ts` call `registerBudgetContractTests`.
+Its seven canonical groups cover lifecycle, replay, request denial, Resource-bound
+roots, Resource definitions, rollback, and settlement. The baseline executes
+64 SQLite cases in `packages/sdk/test/contract/budget.test.ts`. Native execution
+remains NOT RUN. The native required inventory has 194 explicit titles across
+15 files, separate from the shared aggregate and dynamic connection profile titles.
+Update inventory alongside added cases. Replace superseded zero-refusal,
+binding-creation, nine-wrapper, and creation-time definition assertions while
+preserving explicit definition/reuse/conflict coverage.
+
+## Phase 1 review
+
+Independent `ponytail-review` completed after the inventory and task updates.
+Result: "Lean already. Ship." No changes requested. Focused formatting and
+`git diff --check` pass. T001-T003 are complete; no behavioral implementation
+belongs to this setup phase.
+
+## Phase 2: contract and generation
+
+Executed against Phase 1 commit `dc702c7` plus the Phase 2 worktree changes on
+September 6, 2026, using the same Node/pnpm host. Separate subagents authored
+T004 and T005 before production changes.
+
+| Check                                                                                                                                   | Result                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T004 red: `pnpm --filter @keynes/contracts exec vitest run test/generate-contracts.test.ts test/contract-client.test.ts --maxWorkers=1` | 14 expected failures, 15 passes. Missing validation descriptor/schema/client, rejected new creation shapes, accepted old shapes, generation 2 and creation revision 2 |
+| T005 red: `pnpm --filter @keynes/postgresql exec vitest run test/unit/build.test.ts --maxWorkers=1`                                     | 4 expected failures, 5 passes. Generation 3 and 0008/current-marker expectations fail; immutable historical hashes pass                                               |
+| T004 green, same command                                                                                                                | PASS, 29 tests                                                                                                                                                        |
+| Final `pnpm --filter @keynes/contracts test`                                                                                            | PASS, 63 tests in 5 files                                                                                                                                             |
+| Final T005 green, same command                                                                                                          | PASS, 9 tests; two generations and check mode agree in an isolated migration tree                                                                                     |
+| `pnpm generate` and `pnpm generate:check`                                                                                               | PASS                                                                                                                                                                  |
+| Focused formatting and `git diff --check`                                                                                               | PASS                                                                                                                                                                  |
+| `pnpm typecheck`                                                                                                                        | FAILED, remaining SDK/shared-scenario integration is incomplete                                                                                                       |
+
+The contract now declares read-only validation, definitions/amounts creation,
+semantic/minimum SDK generation 3, creation revision 3, and validation revision 1.
+Generated outputs come from their existing owners. The shared test client exposes
+validation without mutation replay fields. The generator deduplicates imports
+when canonical and remote procedures share a result type.
+
+0007 is now read from its immutable file instead of rendered from the current
+contract. Its SHA-256 remains
+`dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6`.
+All 0001-0007 hash assertions pass. The sole current contract marker is 0008,
+whose Phase 2 SHA-256 is
+`75c8df12d0270f96978537607e6afcf235dc6b36f4353ccafbf9d1f446e2bfc0`.
+The current contract digest is
+`dbf303b6db6468735e1fcecb0cb3ed746e938b183847501e68b7f58900b7fa04`.
+The preview installation profile is unchanged.
+
+0008 currently carries compatibility metadata. Runtime validation and creation
+procedures are not implemented in this phase; native installation and runtime
+qualification remain NOT RUN. No permissive procedure stubs were added.
+
+The typecheck first exposed a duplicate generated validation import, which was
+fixed in the renderer, and a widened test declaration, fixed with `satisfies`.
+The final run still reports 247 diagnostics from the incompatible creation
+transition, including old `resources`/`allocation` callers, removed ResourceSource
+imports, and missing validation implementations/test doubles. These are feature
+integration failures, not unrelated baseline failures or expected behavioral red
+evidence. Phases 3-7 must resolve them before final acceptance. The final typecheck
+log is local at `/tmp/key-78-phase2-typecheck-final.log`; T004 red output is at
+`/tmp/key-78-t004-red.log`.
+
+Two small T042 fixture adaptations were brought forward because T008 validates
+canonical fixtures: creation now uses definitions/amounts, and the expected
+operation list includes validation. Remaining caller adoption stays in T042.
+The shared client wiring was also required for T004 green. No production startup
+or creation behavior was moved ahead of its tests.
+
+Independent `ponytail-review` found redundant test method guards and duplicated
+AJV setup. Both were simplified. The follow-up review reports "Lean already.
+Ship." T004-T008 are complete as a generation checkpoint only.
+
+## Phase 3: configured startup
+
+Executed on September 6, 2026 against `eb4964018651311746326eeea89ebae17d41ff36`
+plus the Phase 3 changes. Subagents authored local startup, remote startup,
+package type, and native security assertions before their implementations.
+
+| Check                                                                                                                                                                                                                 | Result                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| T009 SQLite red, `pnpm --filter @keynes/sdk exec vitest run test/contract/budget.test.ts -t 'catalog validation\|validates exact and subset' --maxWorkers=1`                                                          | 8 failed, 8 passed, 64 filtered. Validation lacked an executor permission/dispatch entry; valid calls and semantic errors could not return their required results  |
+| T010 red, `pnpm --filter @keynes/sdk exec vitest run test/unit/local/local-lifecycle.test.ts -t 'configured local startup' --maxWorkers=1`                                                                            | Initial 5 failures; expanded strict-input run had 15 failures, 3 passes, 11 filtered. Configured startup was absent and no-argument startup remained accepted      |
+| T012 red, `pnpm --filter @keynes/sdk exec vitest run test/unit/remote/postgresql-command-executor.test.ts -t configured --maxWorkers=1`                                                                               | 5 failed, 13 filtered; factory rejected configured resources before initialization                                                                                 |
+| T013 red, `node node_modules/typescript/bin/tsc --ignoreConfig --strict --skipLibCheck --noEmit --module NodeNext --moduleResolution NodeNext --target ESNext packages/sdk/test/package/compatibility/remote-api.mts` | Existing dist declarations reject configured factories with TS2353 and amounts-only calls with TS2555; removed factories produce unused expected-error diagnostics |
+| T011 native red on isolated `dc702c7` checkout                                                                                                                                                                        | 4 failed, 12 filtered. Installation and explicit provisioning passed; calls and privilege inspection failed because the validation procedure was absent            |
+| SQLite definition/validation green, `pnpm --filter @keynes/sdk exec vitest run test/contract/budget.test.ts -t 'Independent Resource definitions' --maxWorkers=1`                                                     | PASS, 30 tests, 50 filtered, including existing definition/reuse/conflict regressions                                                                              |
+| Configured local startup green, same T010 command                                                                                                                                                                     | PASS, 18 tests, 11 filtered                                                                                                                                        |
+| Full remote executor suite, `pnpm --filter @keynes/sdk exec vitest run test/unit/remote/postgresql-command-executor.test.ts --maxWorkers=1`                                                                           | PASS, 18 tests                                                                                                                                                     |
+| Combined local/remote startup with `-t configured`                                                                                                                                                                    | PASS, 23 tests, 24 filtered after final test simplification and type fixes                                                                                         |
+| Native focused startup assertions                                                                                                                                                                                     | PASS, 30 shared definition/validation tests and 4 security tests; 62 other tests filtered. Broader runner inventory gate fails, as explained below                 |
+| Isolated public factory declaration checks                                                                                                                                                                            | PASS for local/remote inferred names, inline/imported schemas, missing resources, binding input, and extra configuration variables                                 |
+| `pnpm generate:check`, contract package tests, PostgreSQL build tests                                                                                                                                                 | PASS; 63 contract tests and 9 build tests                                                                                                                          |
+| Focused formatting and `git diff --check`                                                                                                                                                                             | PASS                                                                                                                                                               |
+| `pnpm typecheck` and subsequent SDK typecheck                                                                                                                                                                         | FAILED; old creation signatures, ResourceSource imports, factory callers, and test adapters remain to be replaced                                                  |
+
+Local startup captures and validates declarations before suspension, provisions
+one private catalog, and closes an acquired host on failure. Remote startup
+handshakes first, validates every declaration, and closes its pool on rejection.
+Invalid database URLs never choose local mode. Both canonical authorities now
+validate tenant definitions using existing lookups, with no catalog, binding,
+command, Budget, quantity, or history writes. PostgreSQL runtime roles receive
+only the new remote wrapper; the canonical wrapper remains profile-controlled.
+Explicit definition behavior remains separate.
+
+The startup tests exposed two contract details missing from Phase 2. Compatibility
+responses now allow exactly ten procedure entries. Missing-name errors carry a
+caller-supplied canonical name instead of fabricating a Resource UUID; existing
+UUID-based errors remain valid. Remote domain errors retain empty safe details.
+The shared client passes malformed inputs to both authorities for independent
+validation. Existing store lookups suffice; no new storage layer was needed.
+
+The factory declaration check emits declarations into
+`/tmp/key-78-phase3-declarations` with `tsc --project tsconfig.build.json --noCheck
+--emitDeclarationOnly`, then checks `.artifacts/key-78-phase3/factory-types.mts`
+with strict NodeNext compilation. This isolates public factory inference while
+creator integration is unfinished. It is not a source build or packed-consumer
+qualification. The complete T013 creator assertions remain for US1/US2 green.
+The imported declaration fixture is included in the package qualification copier.
+
+### Native focused evidence boundary
+
+T011 red used a detached preimplementation checkout at
+`/tmp/keynes-key78-native-red`, frozen dependencies, and the existing native
+runner with its pinned PostgreSQL 18.6 fixture. Attempt
+`6f2cc7e0-b609-4889-90e5-92e0e365eb30` reached all four intended missing-API
+assertions. Docker container and network cleanup passed.
+
+The post-review focused run used `node /tmp/key78-native-validation.mts`, a
+temporary adapter around the existing runner selecting the Resource-definition
+group and configured-security cases on the current source installation. Attempt
+`21f73a76-1660-48da-be66-91e496ad6dd4` passed all 34 selected assertions on real
+PostgreSQL 18.6. No-write triggers and full protected-table snapshots cover
+catalogs, command binding receipts, remote operations, Budgets, holdings, and
+history. Existing identity authorization locks are preserved. Docker container
+and network cleanup passed.
+
+The native runner exits 1 when its broader required inventory rejects this
+deliberately filtered report. That runner gate is not green. The retained
+[focused report](evidence/phase3-native.vitest.json) records 34 passed, zero
+failed, and 62 filtered assertions. It qualifies those startup assertions only;
+the full selected and paired native lanes remain NOT RUN for this candidate.
+Report SHA-256:
+`04b0b25bd6c806f3562a3a2f1793717e417ec79764f5646d813e8a199c01bb76`.
+Generated 0008 SHA-256:
+`c7a5cd15154964d68d78d62ecb5c5118cb211b689b16c62c4dd5f5e3c1446fdd`.
+Contract digest:
+`a5358725f9c0b194ae5def0146b4a5c0964de2e0a9aa3b860b5aee3612d21921`.
+
+`ponytail-review` requested typed direct calls in valid startup tests and a SQL
+wrapper for the remote validation delegate. Both changes were applied and checked.
+The follow-up review reports "Lean already. Ship."
+T009-T018 are complete as the startup checkpoint. Creation-side US3 guarantees,
+all creator types, full typechecking, packages, and paired acceptance remain open.
+
+## Phase 4: Configured creation
+
+The local and remote public creators accept amounts and separate options. Each
+call selects definitions from the captured client catalog using the exact amount
+keys, including zero. Creation resolves existing catalog entries and requires
+creation permission; it does not define Resources or create binding receipts.
+Existing Budget projections and bindings preserve zero members without edits.
+
+### Tests before implementation
+
+- T019/T022 shared SQLite creation: 17 failed, 9 passed, 69 filtered. Startup and
+  explicit provisioning succeeded before the old creation permission and
+  ResourceSource paths failed. The SQLite adapter was then changed to call the
+  authority directly so malformed commands do not stop at generated validation.
+- T020/T023 remote creation: 6 failed, 8 passed, 40 filtered. Configured validation
+  succeeded before the old positional creator rejected the amounts-only calls.
+  Log: `/tmp/key-78-t020-t023-red.log`.
+- T021 Policy consumers: 4 failed at the old creator after startup succeeded.
+  Log: `/tmp/key-78-t021-red.log`.
+- T023 local lifecycle: 6 failed, 7 passed, 18 filtered. The tests cover captured
+  amounts, draining creation, asynchronous errors, and close precedence.
+  Log: `/tmp/key-78-t023-local-red.log`.
+- The complete early creator declaration fixture produced 20 TypeScript
+  diagnostics against declarations emitted before the creator signature change.
+  The same fixture passes against the updated declarations, including expected
+  errors for extra finite keys and removed positional/binding APIs. This uses
+  `--noCheck --emitDeclarationOnly` followed by strict NodeNext compilation; it
+  does not qualify a source build or packed package. Logs:
+  `/tmp/key-78-t023-types-red.log`, `/tmp/key-78-t024-types.log`.
+
+### Current focused results
+
+`pnpm --filter @keynes/sdk exec vitest run test/unit/public/remote.test.ts
+test/unit/public/policy-api.test.ts test/unit/local/local-lifecycle.test.ts
+test/contract/budget.test.ts test/contract/remote.test.ts --maxWorkers=1`
+passes 186 tests across five files. The shared SQLite suite contributes 95 tests,
+including all 26 configured creation cases. Catalog-write prohibition, create-only
+permission, exact membership, invalid command atomicity, zero settlement, and
+independent roots are covered. Log: `/tmp/key-78-phase4-focused.log`.
+
+`pnpm --filter @keynes/sdk exec vitest run test/unit/policy
+test/unit/local/policy-replay.test.ts test/unit/local/policy-request.test.ts
+test/unit/local/policy-fail-closed.test.ts --maxWorkers=1` passes 136 tests across
+eight files after explicit provisioning and public-call adaptations.
+
+The local rollback checkpoint now injects after command binding, replacing the
+obsolete expectation that creation inserts a Resource. The shared rollback case
+uses the same existing checkpoint and still proves unchanged state after failure.
+
+The combined SDK command adds `test/unit/public/local.test.ts`,
+`test/unit/public/public-exports.test.ts`, and
+`test/unit/public/generated-client.test.ts` to the two lists above and passes
+398 tests across 16 files. Log: `/tmp/key-78-phase4-combined-sdk.log`.
+`pnpm --filter @keynes/contracts test` passes 63 tests; the PostgreSQL
+`test/unit/build.test.ts` suite passes nine. `pnpm build:sdk` passes, and strict
+NodeNext compilation of `test/package/compatibility/remote-api.mts` against that
+built SDK passes. This supersedes the isolated declaration-only green for creator
+inference; packed-consumer qualification remains separate.
+
+The complexity review removed the unused ResourceBinding lookup and WeakMap,
+which no caller can use after binding-based creation was removed. Definition and
+recovery results still return frozen opaque bindings. The follow-up Terra
+`ponytail-review` reports "Lean already. Ship."
+
+### Native creation checkpoint
+
+`node /tmp/key78-native-creation.mts` uses the existing PostgreSQL system runner
+with its pinned PostgreSQL 18.6 source/direct fixture. The temporary adapter
+selects the current checkout explicitly and excludes `.claude/**`; an earlier
+invocation had discovered stale worktrees. The final combined report passes
+130 assertions: 56 shared definition/creation cases, seven remote Budget cases,
+15 Policy request cases, five Policy replay cases, and 47 Policy security cases.
+There are zero failures and 39 filtered cases. The Policy security fixture drops
+its obsolete fixture-only `resources` field before sending definitions/amounts;
+all existing assertions remain. Docker container cleanup was verified.
+
+The existing runner exits 1 after these successful assertions because its full
+remote inventory is intentionally absent from the filtered report. This is
+focused native feedback, not a passing full runner or paired acceptance gate.
+The required inventory reflects the updated remote creation titles; the earlier
+red runs did not establish a passing full inventory gate.
+
+Retained [native report](evidence/phase4-native.vitest.json), SHA-256
+`76fb9e26dd5fb8d39e8a7dbadf964f8ba586eca8cf34f989cb34da25f853c685`. Generated 0008 SHA-256:
+`e3a6e2efe70c3c8c5a30353962ce3c50a584065f0347f9c245a059f26813aa5d`.
+Immutable 0007 remains
+`dd76aa422b53f5c8b171523465c886e87516476a887b1a48acde8d4a4dd72af6`.
+`pnpm generate:check` passed for these generated bytes.
+
+Final shared-test type corrections preserve literal definition types and
+non-empty resource envelopes. `pnpm --filter @keynes/contracts typecheck` passes;
+`pnpm --filter @keynes/sdk test:contract` passes all 97 assertions. The final
+review found no further complexity cuts after the dead binding-state removal.
+T019-T029 are complete. Full repository typechecking still has feature-related
+caller adaptations; packed consumers, recovery qualification, and paired
+acceptance remain open for later phases.
+
+## Phase 5: Consumer integration
+
+The packed runtime and Policy consumers use configured startup and amounts-only
+creation. Positive and negative type assertions retain exact configured names,
+selected membership, Policy context/reasons, opaque definition results, and
+rejection of removed binding/positional creation. The packed runtime also checks
+an explicit zero member and ordinary zero settlement. Existing public type
+exports required no change.
+
+`pnpm typecheck` passes repository-wide. To reach that checkpoint, the remaining
+current SDK local/recovery fixtures and PostgreSQL embedded/rollback fixtures
+were mechanically adapted from the T003/T042 inventory. This pulls their API
+adaptation forward; it does not replace Phase 6's new recovery assertions.
+The focused SDK suites pass 51 tests, and PostgreSQL procedure-caller tests pass
+nine. No production code changed in this phase.
+
+The packed-consumer check uses the required archive argument:
+
+```sh
+pnpm pack:sdk
+pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/key-78-phase5.json
+```
+
+All 22 package unit assertions pass. The isolated archive consumer then passes
+public type compilation, Budget and Policy runtime loops, zero membership,
+isolation, closure, process loss, parser WASM, environment isolation, and blocked
+deep imports. An earlier attempt stopped at the source-revision guard while
+parallel callers were changing; the stable-input retry passes.
+
+Retained [package report](evidence/phase5-sdk-package.json) identifies archive
+SHA-256 `d7a46ad9ff924bbeb8974a0de2eea91ac8df35c6855417fdffec4570d9f5883e`
+and source HEAD `973d40d08b7990f3983075fe59c2b419d6db1ef4` with uncommitted
+consumer/test adaptations. This is the Phase 5 archive, not final candidate
+qualification. The authorized remote database, hosted matrix, registry,
+security qualification, and production readiness remain NOT RUN.
+
+The Phase 5 `ponytail-review` reports "Lean already. Ship."
+The final native source/direct check passes all 21 rollback and embedded
+transaction assertions on PostgreSQL 18.6. The malformed-projection fixture now
+provisions a separate definition first and verifies that failed creation retains
+that definition while leaving zero Budget, holding, command, and history effects.
+Docker cleanup was verified. The runner's full-inventory guard remains unpassed
+for this deliberately focused run. Retained [native report](evidence/phase5-native.vitest.json),
+SHA-256 `b59653221fbe4ec42d6191cd766435f06e7e27ffecc609f73dd019d48632bc7b`. T030-T031 are complete;
+recovery qualification and final paired acceptance remain open.
+
+## Phase 6: Recovery and atomicity
+
+The new local lost-response and queued-failure assertions pass against the existing
+creation implementation: mixed-zero membership is retained, one successful command
+and funding effect exist after retry, and a failed queued creation changes neither
+an unrelated root nor the later successful root. Shared replay covers key order,
+zero-member omission conflicts, absent versus empty Policy sets, new identities,
+and the original creation result after settlement. These cases were initially
+green; no artificial failing implementation was introduced. The first three shared
+SQLite cases ran before explicit native inventory registration; all four required
+replay titles were registered before their native run.
+
+T033 found a real failing boundary: native recovery returned a committed creation
+result after `create_root_budget` was revoked. The new 0008 recovery wrapper keeps
+the existing identity, lock, expiry, known-failure, and projection behavior, then
+validates the stored selected definitions before disclosing a committed creation.
+This rechecks current creation permission and catalog compatibility without writing
+state. The native test also changes and restores a catalog unit, proving refusal
+on mismatch and exact recovery after restoration. Other operation recovery paths
+retain their existing behavior. The original native test had two fixture errors
+(invalid operation-key lengths and unused definitions sent directly on the wire);
+those were corrected before the genuine 10-pass/one-fail authorization result.
+
+Existing canonicalization and transaction ownership satisfy T036-T038. No new
+local recovery API, retry loop, ledger, storage abstraction, or caller transaction
+commit was introduced. Native exact and conflicting contenders prove a real lock
+wait, then one creation result and unchanged allowance totals. Distinct identities
+create separate roots without an obsolete catalog-insertion wait. The injected
+partial-creation rollback keeps the unrelated root's allowance and creation
+history intact. Existing embedded application-transaction rollback is retained.
+
+### Focused verification
+
+- SDK local replay, remote recovery, and shared contracts: 120 passed across three
+  files (`pnpm --filter @keynes/sdk exec vitest run test/unit/local/local-replay.test.ts test/unit/remote/recovery.test.ts test/contract/budget.test.ts --maxWorkers=1`).
+- `pnpm typecheck`: passes repository-wide. PostgreSQL build and procedure-caller
+  suites pass 18 assertions.
+- Native shared replay: 13 passed; [report](evidence/phase6-shared-native.vitest.json),
+  SHA-256 `afa7d4034f3faf45420e3fe0d07556b45e7f0f0c01e258c34d30033827f7746a`.
+- Direct, session-pool, and transaction-pool connection profiles: nine passed;
+  [report](evidence/phase6-connections-native.vitest.json), SHA-256
+  `e1a4a3ecf07a9309f9cd6bb2acf0cf790ed6428fd1306d04f10cb6e66dedf2bd`.
+- [phase6-contention-native.vitest.json](evidence/phase6-contention-native.vitest.json): 34 passed; SHA-256 `d49d1273f6f152dea74389753975487c450a91bfa3aa82a7e5a0005d50204055`.
+- [phase6-rollback-native.vitest.json](evidence/phase6-rollback-native.vitest.json): 4 passed; SHA-256 `2f655c42c2c3f2ba66476dd7282b4dcc2133bef7fddced87dc0e410b1d464a6c`.
+- [phase6-recovery-native.vitest.json](evidence/phase6-recovery-native.vitest.json): 11 passed; SHA-256 `a4b38aba078c30a68a28083c49366de3e4618c2daf766531cd487895397e73af`.
+
+These native reports use PostgreSQL 18.6 through the existing runner and temporary
+focused adapters. Docker container/network cleanup was observed. Each adapter
+exits 1 after successful assertions because the complete native inventory was
+not selected. The 34-case concurrency/embedded report predates the strengthened
+four-case rollback assertion and the narrow recovery wrapper; the separate
+rollback and final recovery reports verify those changes. Final paired acceptance
+must still qualify the complete candidate.
+
+The final recovery report was captured by `node /tmp/key78-phase6-recovery-final.mts`
+with JSON reporting enabled, after an earlier test-only adapter omitted the JSON
+artifact. The final generated 0008 SHA-256 is `3e5127fd6502a170cdcc4e7d5dceb46f793e552eb9a9832fbeb8eed740a4bb46`.
+
+The runner now enforces the required shared replay names as a subset of the full
+shared aggregate while retaining exact native-only inventories. Updating its
+fixtures exposed six initial runner test failures; after completing enforcement
+and the fixtures, all 167 runner assertions pass. The guard was strengthened,
+not bypassed to accept the focused reports.
+
+The Phase 6 `ponytail-review` found no complexity cuts in the recovery wrapper or
+required tests. The final inventory review also reports "Lean already. Ship."
+T032-T040 are complete; final candidate qualification remains open.
+
+## Phase 7: final candidate preparation
+
+Terra agents completed current documentation, native installation assertions, and
+remote security callers. The T003 caller inventory is reconciled: shared fixtures
+and adapters, SDK public/lifecycle/Policy consumers, package type consumers,
+native callers, installation expectations, and the performance worker now use
+configured creation. Historical feature documents and migrations retain their
+original contracts. The performance worker passed `cold-first` and `steady`
+smoke invocations; performance qualification remains NOT RUN.
+
+The provider-free `pnpm test:pr` gate passed with 9 repository tests, 167 runner
+tests, 24 web tests, 63 contract tests, 88 PostgreSQL tests, and 545 SDK tests.
+All 11 Turbo tasks, repository type checking, and dependency boundaries passed.
+The gate includes generation checking. `pnpm format` also passed. Earlier attempts
+found ignored worktree test discovery and formatting in three Phase 6 test files;
+root runners now exclude `.claude/worktrees`, and those files are formatted.
+No ignored worktrees were removed. These preparation results precede the fixed
+candidate qualification below.
+
+The remote-security focused native child passed all 16 assertions on PostgreSQL
+18.6 with `node /tmp/key78-phase7-remote-security.mts`. The adapter retained no
+JSON report and exited when the stock runner requested its missing full report.
+This is focused assertion feedback only. Its container and network inspection
+was empty after cleanup. The final paired run must supply retained native proof.
+
+Installation preparation passed all 57 native assertions (14 system installation,
+18 integration installation, 10 exact recheck, and 15 remote identity). The initial
+run passed 56/57: a legacy assertion expected `apply_command` for the new
+`validate_resources_v0008` delegate. Updating that assertion produced green.
+No installer production defect was found. The bounded runner still rejected
+incomplete global coverage after the green child. Its retained
+[report](evidence/phase7-installation-native.vitest.json) has SHA-256
+`55e2448efffe84ee6ae2a6dc4d165c51b4729214a5c65e6654a7cec59801e4e2`.
+Docker cleanup found no containers or matching networks. The existing SDK
+assertion refuses generation two before validation and closes its pool; it
+passed in the provider-free gate. Migrations 0001-0007 remain immutable.
+
+The Phase 7 `ponytail-review` reports "Lean already. Ship." No complexity cuts
+were identified. A candidate checkpoint precedes package and paired execution
+so their source revision guards observe a clean, fixed checkout.
+
+## Final qualification
+
+The qualified source is `04a9142f5de3d6315328c68068b3af1f73bf3ca2`.
+Both package records and the paired manifest report that exact commit with a
+clean checkout before and after execution. The subsequent acceptance commit
+adds evidence and completes this audit; it changes no implementation or tests.
+
+The first PostgreSQL archive check passed 24/26 assertions: it still expected
+seven migrations. Terra updated its inventory for 0008, pinned historical 0007
+bytes and digest, and required all ten documented remote wrappers. The repaired
+suite passed 26/26. The final documentation also states generation 3 and minimum
+SDK generation 3. A runner evidence label now correctly names ten wrappers.
+The repair's `ponytail-review` reports "Lean already. Ship." Formatting of the
+archive assertion required one follow-up commit before final qualification.
+
+### Commands and outcomes
+
+| Command                                                                                                                                                                        | Final outcome                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                                                                                                                                                 | PASS on qualified source: 9 repository, 167 runner, 24 web, 63 contracts, 88 PostgreSQL, 545 SDK tests; 11 Turbo tasks; typecheck, generation check and dependency boundaries pass. [Log](evidence/final-test-pr.log). |
+| `pnpm format`                                                                                                                                                                  | PASS. [Log](evidence/final-format.log).                                                                                                                                                                                |
+| `pnpm test:package:sdk -- --archive .artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz --output .artifacts/package-tests/sdk/key-78-qualified.json`                             | PASS: 22 package tests; compiled positive/negative public type consumers and all 12 isolated runtime/package checks. [Record](evidence/final-sdk-package.json), [log](evidence/final-sdk-package.log).                 |
+| `pnpm test:package:postgresql -- --archive .artifacts/package-tests/postgresql/keynes-postgresql-0.0.0.tgz --output .artifacts/package-tests/postgresql/key-78-qualified.json` | PASS: 26 package tests, exact archive, failed-build preservation, CLI errors and blocked imports. [Record](evidence/final-postgresql-package.json), [log](evidence/final-postgresql-package.log).                      |
+| `pnpm test:sqlite-postgres -- --output .artifacts/sqlite-postgres/key-78-final-04a9142`                                                                                        | PASS: SQLite 99/99; native PostgreSQL 302/302, including the identical 99 shared scenarios. Exact native inventories and all cleanup guards pass. [Manifest](evidence/final-paired/manifest.json).                     |
+
+Archives were built with `pnpm pack:sdk` and `pnpm pack:postgresql` before their
+qualification. SDK archive SHA-256:
+`cd7a5283b6dc76f1deaaa108b3bb1e8f7eb662f51ca2e9e989d957c4a678fa73`.
+PostgreSQL package archive SHA-256:
+`953d2d792d55a9fa3a2b62d6eddb7c8dd4d9773dd92f2f27881643c50e76cf00`.
+The paired runner independently packs and installs its PostgreSQL distribution;
+that archive SHA-256 is
+`650a73c73de2ed9d636bfab8d20c728f3aed70a56a880c10068bdc306a0bda2d`.
+Its installation record digest is
+`39de8dfeb3b87c26571cdc2b0bb648182de5f9c1f05e7061e5402d8c72c619d2`.
+These are separate retained archive identities, not interchangeable artifacts.
+
+Environment: Darwin 25.5.0 arm64; Node 26.5.0; pnpm 11.21.0; Vitest 4.1.11;
+SQLite 3.53.3; PostgreSQL 18.6; Docker 29.6.2; PgBouncer 1.25.2. The paired
+attempt `08100576-4fdb-4c07-989c-9af1ad80bf88` completed on September 8, 2026
+01:25:45 UTC (September 7 locally). Native run ID:
+`3cd2dd00-443b-483c-8c89-458d00ef753c`.
+
+Retained authority evidence:
+
+- [SQLite assertions](evidence/final-paired/sqlite.vitest.json).
+- [Native assertions](evidence/final-paired/postgresql.json.vitest.json).
+- [Native acceptance and migration hashes](evidence/final-paired/postgresql.json).
+- [Native stages and cleanup observations](evidence/final-paired/postgresql.json.observations.json).
+- [SHA-256 inventory](evidence/final-sha256.txt) for every final report and log.
+
+Raw logs preserve command output bytes, including trailing whitespace emitted
+by Turbo. Authored files pass formatting and the diff whitespace check excluding
+those raw logs. The final acceptance review reconciled counts, hashes, source
+revision, all 47 tasks and evidence limits; its documentation `ponytail-review`
+reports "Lean already. Ship."
+
+The native run covers 57 installation/recheck/identity assertions, 99 shared
+Budget scenarios, 13 contention, 17 Embedded transaction, 69 Policy, 7 remote
+Budget, 9 connection profile, 11 remote recovery, 16 remote security, and 4
+rollback assertions. Both report sets contain zero failures, skipped tests or
+todos. Direct, session-pool and transaction-pool connections all ran. Both
+runtime cleanup records pass. A final Docker inspection found no containers and
+no network matching the native run ID; unrelated pre-existing networks remain.
+
+### Requirement audit
+
+All rows refer to the qualified source and its final records above. Earlier
+phase reports explain development red/green results; they are not substituted
+for final qualification.
+
+| Requirement | Verified behavior and evidence                                                                                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | Configured local/remote factories and amounts/options-only creation pass SDK public tests and compiled package consumers. Shared/native creation passes.                                                             |
+| FR-002      | Exact supplied membership, omitted names, mixed-zero and all-zero roots pass all 99 shared scenarios on both authorities and remote Budget tests.                                                                    |
+| FR-003      | Package positive/negative consumers enforce inline and separately declared exact keys without explicit generics; SDK/shared runtime cases reject unknown keys, including zero.                                       |
+| FR-004      | SDK startup/lifecycle tests establish one private catalog with no Budget or quantity, capture declarations, and preserve independent runtime isolation.                                                              |
+| FR-005      | Native catalog/security and SDK remote executor cases cover complete validation, extra compatible names, missing/conflicting entries, creation-only permission and zero catalog writes.                              |
+| FR-006      | Explicit definition scenarios remain green. Portable metadata resolves against the current installation's own catalog; bindings grant no creation rights and are rejected as creation inputs.                        |
+| FR-007      | Both shared authorities plus native authorization, rollback and Embedded suites prove atomic membership, funding, history and replay with no partial effects.                                                        |
+| FR-008      | Shared replay and remote recovery cover exact identity, reordered keys, explicit-zero conflicts and unused declarations; repeated results do not duplicate funding and recovery rechecks current permission/catalog. |
+| FR-009      | Native contention proves exact/conflicting concurrent creation; Embedded and rollback tests preserve caller-owned atomic rollback and unrelated state.                                                               |
+| FR-010      | Shared funding, settlement and independent-root scenarios preserve fixed original funding, exact membership and isolated balances. No top-up or membership extension API was added.                                  |
+| FR-011      | SDK lifecycle/input tests and native security/recovery cover capture, asynchronous errors, close precedence, cleanup and private-safe errors.                                                                        |
+| FR-012      | Compiled consumers retain member and Policy inference; both shared authorities plus 69 native Policy assertions preserve request, settlement and inspection behavior.                                                |
+| FR-013      | Full paired manifest proves identical 99-scenario shared inventories with real SQLite and native PostgreSQL; native-only inventory and all cleanup guards pass.                                                      |
+| FR-014      | Current docs/callers use configured creation, package inventory includes 0008, old creation forms have negative type/runtime tests, generation-two refusal passes, and immutable 0001-0007 hashes are retained.      |
+| SC-001      | Public/shared configured clients create funded, partly funded and all-zero roots without repeated declarations/bindings.                                                                                             |
+| SC-002      | Shared membership scenarios show exact selected keys/amounts; unused declarations change no membership or balance.                                                                                                   |
+| SC-003      | Final compiled type consumers reject known extra keys and runtime cases reject dynamic invalid keys without mutation.                                                                                                |
+| SC-004      | Remote startup/native catalog assertions accept compatible supersets, reject missing/mismatched declarations and prove no catalog writes during startup/creation.                                                    |
+| SC-005      | Shared replay, local fault recovery, native remote recovery/contention/rollback and Embedded tests prove one result per identity and no partial or duplicate effects.                                                |
+| SC-006      | The paired gate enforces the same 99 observable shared scenarios, including all-zero fixed funding and independent roots.                                                                                            |
+
+T001-T047 are complete. The feature is one locally accepted implementation on
+its exact Linear branch after the merged KEY-77 prerequisite. No phase issues or
+PR stack were created. Linear is not marked Done: merge and its workflow gates
+remain separate publication steps.
+
+### Evidence limits
+
+This is local candidate acceptance. Remote native tests use the runner's local
+PostgreSQL authority; package qualification does not prove an installed SDK
+connected to an authorized external database or verified external TLS. Live
+Hosted, managed/paid provider matrices, registry publication, production
+readiness, performance qualification and installed database upgrades remain
+NOT RUN or unsupported. Focused security assertions passed; neither package
+record claims broad security qualification. No GitHub CI run, protected-merge
+observation, deployment or public release is claimed by these local records.
+
+## Publication
+
+Implementation evidence is local-only. No push, PR creation, or Linear attachment
+update has been performed by this implementation run.

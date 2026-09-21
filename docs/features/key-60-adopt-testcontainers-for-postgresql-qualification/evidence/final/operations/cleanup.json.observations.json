@@ -1,0 +1,60 @@
+{
+  "runId": "323c0632-31a4-4006-852a-2fb72d99638e",
+  "environment": {
+    "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+    "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+    "postgresVersion": "180006",
+    "dockerVersion": "29.6.2",
+    "pgbouncerVersion": "1.25.2",
+    "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+    "pgbouncerImageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340"
+  },
+  "distribution": {
+    "version": "0.0.0",
+    "archiveSha256": "fa9c0bfd2d63a38859d17aa2cf3379296a9f5dd4871672bf9b6f46d1c838f94e",
+    "installationRecordSha256": "9832e7ddc790119cccb4a4e349fa16994eaa831d5732d9d902027f6b6b6bc89b"
+  },
+  "stages": [
+    {
+      "stage": "package-install",
+      "status": "passed"
+    },
+    {
+      "stage": "network-create",
+      "status": "passed"
+    },
+    {
+      "stage": "container-start",
+      "status": "passed"
+    },
+    {
+      "stage": "port-discovery",
+      "status": "passed"
+    },
+    {
+      "stage": "readiness",
+      "status": "passed"
+    },
+    {
+      "stage": "poolers",
+      "status": "passed"
+    },
+    {
+      "stage": "runtime-observations",
+      "status": "passed"
+    },
+    {
+      "stage": "tests",
+      "status": "passed"
+    },
+    {
+      "stage": "cleanup",
+      "status": "failed"
+    },
+    {
+      "stage": "report-retention",
+      "status": "passed"
+    }
+  ],
+  "cleanup": "failed"
+}

@@ -1,3 +1,4 @@
+import { postgres } from "@keynes/postgres";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -5,11 +6,7 @@ import type {
   RemoteCommandExecutor,
   RemoteProcedureDescriptor,
 } from "../../../src/generated/client.js";
-import {
-  createKeynes,
-  createOperationKey,
-  defineResources,
-} from "../../../src/index.js";
+import { createKeynes, createOperationKey } from "../../../src/index.js";
 import type { BudgetReference, OperationKey } from "../../../src/index.js";
 
 const remoteMocks = vi.hoisted(() => ({
@@ -17,21 +14,24 @@ const remoteMocks = vi.hoisted(() => ({
   openPostgresqlCommandExecutor: vi.fn(),
 }));
 
-vi.mock("../../../src/remote/connection-options.js", () => ({
+vi.mock("../../../../postgres/src/remote/connection-options.js", () => ({
   normalizeDatabaseUrl: remoteMocks.normalizeDatabaseUrl,
 }));
 
-vi.mock("../../../src/remote/postgresql-command-executor.js", () => ({
-  openPostgresqlCommandExecutor: remoteMocks.openPostgresqlCommandExecutor,
-}));
+vi.mock(
+  "../../../../postgres/src/remote/postgresql-command-executor.js",
+  () => ({
+    openPostgresqlCommandExecutor: remoteMocks.openPostgresqlCommandExecutor,
+  }),
+);
 
 const databaseUrl =
   "postgresql://application:secret@db.example.test/keynes?sslmode=verify-full";
 const rootReference = `kbr_v1_${"r".repeat(43)}` as BudgetReference;
 const operationKey = `kop_v1_${"o".repeat(43)}` as OperationKey;
-const resources = defineResources({
+const resources = {
   workUnits: { unit: "unit", accountingBehavior: "consumable" },
-});
+};
 
 beforeEach(() => {
   remoteMocks.normalizeDatabaseUrl.mockReset();
@@ -48,6 +48,248 @@ afterEach(() => {
 });
 
 describe("remote Budget reopen and operation recovery", () => {
+  it("recovers a definition as an opaque binding usable for creation", async () => {
+    const executor = fakeExecutor((method) => {
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "defineResources",
+            result: definedResponse().result,
+          },
+        };
+      if (method === "createBudget") return createdResponse();
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const recovered = await remote.recoverOperation(operationKey);
+    expect(recovered).toMatchObject({
+      kind: "committed",
+      operation: "defineResources",
+      operationKey,
+    });
+    expect(record(recovered).result).toEqual({});
+    expect(JSON.stringify(recovered)).not.toMatch(
+      /krs_v1_|resourceTypeId|principalId|definitionDigest|00000000/,
+    );
+    const root = await remote.createBudget({ workUnits: 10 });
+    expect(root.reference).toBe(rootReference);
+    expect(record(executor.inputs[1]).definitions).toEqual(resources);
+  });
+
+  it("retries a lost definition response with the same key and returns an opaque binding", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let attempts = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") return createdResponse();
+      if (method !== "defineResources")
+        throw new Error(`unexpected operation ${method}`);
+      if (++attempts === 1)
+        return {
+          ok: false,
+          error: {
+            kind: "error",
+            code: "uncertain_outcome",
+            details: { operation: "defineResources", operationKey },
+          },
+        };
+      return definedResponse();
+    });
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const binding = await remote.defineResources(resources, { operationKey });
+    expect(executor.inputs.map(inputOperationKey)).toEqual([
+      operationKey,
+      operationKey,
+    ]);
+    expect(executor.inputs[0]).toEqual(executor.inputs[1]);
+    expect(Reflect.ownKeys(binding)).toEqual([]);
+    expect(Object.isFrozen(binding)).toBe(true);
+    await remote.createBudget({ workUnits: 10 });
+  });
+
+  it("replays configured creation from expanded compatible declarations with zero membership", async () => {
+    const selectedResources = {
+      workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      zeroSeats: { unit: "seat", accountingBehavior: "reusable" },
+    };
+    const result = configuredCreatedResponse(false);
+    let creates = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") {
+        creates += 1;
+        return configuredCreatedResponse(creates === 2);
+      }
+      if (method === "recoverOperation") {
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "createBudget",
+            result: result.result,
+          },
+        };
+      }
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const first = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources: selectedResources,
+    });
+    const replaying = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources: {
+        unusedCredits: { unit: "credit", accountingBehavior: "consumable" },
+        ...selectedResources,
+      },
+    });
+
+    const original = await first.createBudget(
+      { workUnits: 10, zeroSeats: 0 },
+      { operationKey },
+    );
+    const replay = await replaying.createBudget(
+      { workUnits: 10, zeroSeats: 0 },
+      { operationKey },
+    );
+    const recovered = await replaying.recoverOperation(operationKey);
+
+    expect(replay.reference).toBe(original.reference);
+    expect(recovered).toEqual({
+      kind: "committed",
+      operationKey,
+      operation: "createBudget",
+      result: result.result,
+    });
+    expect(
+      executor.inputs.filter(
+        (_input, index) => executor.methods[index] === "createBudget",
+      ),
+    ).toEqual([
+      {
+        operationKey,
+        definitions: selectedResources,
+        amounts: { workUnits: 10, zeroSeats: 0 },
+      },
+      {
+        operationKey,
+        definitions: selectedResources,
+        amounts: { workUnits: 10, zeroSeats: 0 },
+      },
+    ]);
+  });
+
+  it("keeps definition uncertainty distinct from expired and unresolved recovery", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    let attempts = 0;
+    let recoveries = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "defineResources")
+        return ++attempts === 1
+          ? {
+              ok: false,
+              error: {
+                kind: "error",
+                code: "uncertain_outcome",
+                details: { operation: "defineResources", operationKey },
+              },
+            }
+          : {
+              ok: false,
+              error: { kind: "error", code: "client_closed", details: {} },
+            };
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result:
+            ++recoveries === 1
+              ? {
+                  kind: "unresolved",
+                  operationKey,
+                  retryAfterMilliseconds: 100,
+                }
+              : { kind: "expired", operationKey },
+        };
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    await expect(
+      remote.defineResources(resources, { operationKey }),
+    ).rejects.toMatchObject({
+      code: "uncertain_outcome",
+      details: { operation: "defineResources", operationKey },
+    });
+    expect(await remote.recoverOperation(operationKey)).toEqual({
+      kind: "unresolved",
+      operationKey,
+      retryAfterMilliseconds: 100,
+    });
+    expect(await remote.recoverOperation(operationKey)).toEqual({
+      kind: "expired",
+      operationKey,
+    });
+    expect(executor.methods).toEqual([
+      "defineResources",
+      "defineResources",
+      "recoverOperation",
+      "recoverOperation",
+    ]);
+  });
+
+  it.each(["command_conflict", "invalid_command"] as const)(
+    "keeps definition %s failures definitive without fabricating a binding",
+    async (code) => {
+      const details =
+        code === "invalid_command"
+          ? {
+              operation: "defineResources",
+              issues: [{ path: "$.definitions", rule: "type" }],
+            }
+          : {};
+      const executor = fakeExecutor((method) =>
+        method === "defineResources"
+          ? { ok: false, error: { kind: "error", code, details } }
+          : {
+              ok: true,
+              result: {
+                kind: "known_failure",
+                operationKey,
+                error: { kind: "error", code, details },
+              },
+            },
+      );
+      openWith(executor);
+      const remote = await createKeynes({
+        runtime: postgres({ databaseUrl }),
+        resources,
+      });
+      await expect(
+        remote.defineResources(resources, { operationKey }),
+      ).rejects.toMatchObject({ code });
+      expect(executor.inputs).toHaveLength(1);
+      expect(await remote.recoverOperation(operationKey)).toEqual({
+        kind: "known_failure",
+        operationKey,
+        error: { kind: "error", code, details },
+      });
+    },
+  );
+
   it("uses caller-created keys unchanged for every remote mutation", async () => {
     const executor = fakeExecutor((method) => {
       if (method === "createBudget") return createdResponse();
@@ -58,9 +300,11 @@ describe("remote Budget reopen and operation recovery", () => {
     openWith(executor);
     const key = createOperationKey();
 
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
       resources,
+    });
+    const root = await remote.createBudget(
       { workUnits: 10 },
       { operationKey: key },
     );
@@ -69,6 +313,103 @@ describe("remote Budget reopen and operation recovery", () => {
 
     expect(executor.inputs.map(inputOperationKey)).toEqual([key, key, key]);
     expect(key).toMatch(/^kop_v1_[A-Za-z0-9_-]{43}$/u);
+  });
+
+  it("preserves request evidence through committed recovery", async () => {
+    const decisionEvidence = { rule: "pro", revision: 1 };
+    const requestResult = {
+      ...approvedResponse().result,
+      decisionEvidence,
+    };
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") return createdResponse();
+      if (method === "requestBudget")
+        return { ok: true, result: requestResult };
+      if (method === "recoverOperation")
+        return {
+          ok: true,
+          result: {
+            kind: "committed",
+            operationKey,
+            operation: "requestBudget",
+            result: requestResult,
+          },
+        };
+      throw new Error(`unexpected operation ${method}`);
+    });
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    const requestOptions = { operationKey, decisionEvidence };
+    const requested = await root.request({ workUnits: 3 }, requestOptions);
+
+    expect(requested).toMatchObject({
+      status: "approved",
+      decisionEvidence,
+    });
+    expect(await remote.recoverOperation(operationKey)).toMatchObject({
+      kind: "committed",
+      operationKey,
+      operation: "requestBudget",
+      result: { decisionEvidence },
+    });
+    expect(executor.inputs[1]).toMatchObject({
+      operationKey,
+      decisionEvidence,
+    });
+  });
+
+  it("reopens after creation permission is revoked without another validation query", async () => {
+    const methods: string[] = [];
+    const executor: RemoteCommandExecutor & { close(): Promise<void> } = {
+      async execute(procedure) {
+        methods.push(procedure.method);
+        if (procedure.method === "validateResources") {
+          return methods.length === 1
+            ? { ok: true, result: { valid: true } }
+            : {
+                ok: false,
+                error: {
+                  kind: "error",
+                  code: "unauthorized",
+                  details: {
+                    operation: "validateResources",
+                    requiredPermission: "remote_access",
+                  },
+                },
+              };
+        }
+        if (procedure.method !== "openBudget")
+          throw new Error(`unexpected operation ${procedure.method}`);
+        return {
+          ok: true,
+          result: {
+            budgetReference: rootReference,
+            budget: rootBudget("active", null),
+          },
+        };
+      },
+      async close() {},
+    };
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      await expect(
+        remote.openBudget({
+          reference: rootReference,
+          resourceTypes: resources,
+        }),
+      ).resolves.toMatchObject({ reference: rootReference });
+      expect(methods).toEqual(["validateResources", "openBudget"]);
+    } finally {
+      await remote.close();
+    }
   });
 
   it("reopens only the PostgreSQL-checked Resource binding", async () => {
@@ -106,7 +447,10 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const reopened = await remote.openBudget({
       reference: rootReference,
       resourceTypes: resources,
@@ -116,9 +460,9 @@ describe("remote Budget reopen and operation recovery", () => {
     await expect(
       remote.openBudget({
         reference: rootReference,
-        resourceTypes: defineResources({
+        resourceTypes: {
           workUnits: { unit: "credit", accountingBehavior: "consumable" },
-        }),
+        },
       }),
     ).rejects.toMatchObject({
       name: "KeynesError",
@@ -151,7 +495,10 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     openWith(executor);
 
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
     const recovered = [];
     for (let call = 0; call < results.length; call += 1) {
       recovered.push(await remote.recoverOperation(operationKey));
@@ -187,10 +534,13 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({ name: "KeynesError", code: "unavailable" });
 
     expect(executor.inputs).toHaveLength(3);
@@ -215,10 +565,13 @@ describe("remote Budget reopen and operation recovery", () => {
       };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({ name: "KeynesError", code: "unavailable" });
     expect(executor.inputs).toHaveLength(1);
   });
@@ -245,10 +598,13 @@ describe("remote Budget reopen and operation recovery", () => {
           };
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
 
     await expect(
-      remote.createBudget(resources, { workUnits: 10 }, { operationKey }),
+      remote.createBudget({ workUnits: 10 }, { operationKey }),
     ).rejects.toMatchObject({
       name: "KeynesError",
       code: "uncertain_outcome",
@@ -285,13 +641,12 @@ describe("remote Budget reopen and operation recovery", () => {
       });
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
-
-    const pending = remote.createBudget(
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
       resources,
-      { workUnits: 10 },
-      { operationKey },
-    );
+    });
+
+    const pending = remote.createBudget({ workUnits: 10 }, { operationKey });
     const expected = expect(pending).rejects.toMatchObject({
       name: "KeynesError",
       code: "uncertain_outcome",
@@ -332,8 +687,11 @@ describe("remote Budget reopen and operation recovery", () => {
       throw new Error(`unexpected operation ${method}`);
     });
     openWith(executor);
-    const remote = await createKeynes({ databaseUrl });
-    const root = await remote.createBudget(resources, { workUnits: 10 });
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
 
     const snapshot = await root.inspect();
 
@@ -377,6 +735,9 @@ function fakeExecutor(
     inputs,
     close: vi.fn(async () => undefined),
     execute: vi.fn(async (procedure, input) => {
+      if (procedure.method === "validateResources") {
+        return { ok: true, result: { valid: true } };
+      }
       methods.push(procedure.method);
       inputs.push(input);
       return respond(procedure.method, input);
@@ -391,6 +752,53 @@ function createdResponse() {
       kind: "created" as const,
       budget: rootBudget("active", null, true),
       replayed: false,
+    },
+  };
+}
+
+function configuredCreatedResponse(replayed: boolean) {
+  return {
+    ok: true as const,
+    result: {
+      kind: "created" as const,
+      budget: {
+        budgetReference: rootReference,
+        parentBudgetReference: null,
+        rootBudgetReference: rootReference,
+        depth: 0,
+        lifecycle: "active" as const,
+        resources: [
+          {
+            resource: {
+              canonicalName: "work_units",
+              unit: "unit",
+              accountingBehavior: "consumable" as const,
+            },
+            allocated: 10,
+            available: 10,
+            committed: 0,
+            directUsage: null,
+            subtreeObservedUsage: 0,
+            unresolved: true,
+            deficit: 0,
+          },
+          {
+            resource: {
+              canonicalName: "zero_seats",
+              unit: "seat",
+              accountingBehavior: "reusable" as const,
+            },
+            allocated: 0,
+            available: 0,
+            committed: 0,
+            directUsage: null,
+            subtreeObservedUsage: 0,
+            unresolved: true,
+            deficit: 0,
+          },
+        ],
+      },
+      replayed,
     },
   };
 }
@@ -460,4 +868,33 @@ function record(value: unknown): Record<string, unknown> {
 
 function inputOperationKey(input: unknown): unknown {
   return record(input).operationKey;
+}
+
+function definedResponse() {
+  return {
+    ok: true,
+    result: {
+      kind: "defined",
+      bindingReference: `krs_v1_${"d".repeat(43)}`,
+      replayed: true,
+      resources: [
+        {
+          key: "workUnits",
+          resourceType: {
+            resourceTypeId: "00000000-0000-4000-8000-000000000001",
+            canonicalName: "work_units",
+            unit: "unit",
+            accountingBehavior: "consumable",
+            definitionDigest: `sha256:${"d".repeat(64)}`,
+          },
+          definitionEvidence: {
+            kind: "resource_type_defined",
+            commandId: "00000000-0000-4000-8000-000000000101",
+            principalId: "00000000-0000-4000-8000-000000000201",
+            definitionDigest: `sha256:${"d".repeat(64)}`,
+          },
+        },
+      ],
+    },
+  };
 }
