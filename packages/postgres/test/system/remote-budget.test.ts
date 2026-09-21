@@ -563,6 +563,27 @@ describe("public owned PostgreSQL adapter", () => {
       expect(tls.rows.every(({ ssl }) => ssl)).toBe(true);
       const closing = keynes.close();
       expect(keynes.close()).toBe(closing);
+      const malformed = new Proxy(
+        { modelTokens: NaN },
+        {
+          ownKeys() {
+            throw new Error("closed input accessed");
+          },
+        },
+      );
+      for (const invoke of [
+        () => keynes.createBudget(malformed),
+        () => root.request(malformed),
+        () => root.settle(malformed),
+      ]) {
+        let pending: Promise<unknown> | undefined;
+        expect(() => {
+          pending = invoke();
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({ code: "client_closed" });
+      }
+
       await closing;
       await expect(root.inspect()).rejects.toMatchObject({
         code: "client_closed",

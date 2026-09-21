@@ -18,7 +18,7 @@ if (request.status === "approved") {
 await root.inspect();
 ```
 
-`nodeSqlite()` takes no options and performs no I/O. Its reusable descriptor opens a fresh private database for each `createKeynes` call. Instances share no state. Close drains admitted operations, rejects new work with `runtime_closed` and discards the database; process exit also loses all state.
+`nodeSqlite()` takes no options and performs no I/O. Its reusable descriptor opens a fresh private database for each `createKeynes` call. Instances share no state. The factory remains synchronous; Promise-returning SDK methods reject input and operation failures. The session reserves work before input capture, captures it before returning to the caller and executes it in queue order. Close drains every reservation, including work whose input reflection starts close. New calls reject with `runtime_closed` before reading input. Repeated close calls share one Promise. Close discards the database; process exit also loses all state.
 
 There is no path, persistence mode, borrowed database, public connection handle, tenant/principal option or credential. The runtime validates command semantics and owns atomic accounting and replay; the SDK validates responses and maps typed handles. Browser execution and durable Local recovery are outside this package contract.
 

@@ -22,7 +22,9 @@ try {
 }
 ```
 
-`postgres` captures configuration without I/O. Initialization owns the bounded pool, checks compatibility and validates Resources. Closing drains admitted work and closes that pool. Owned remote handles support references, `openBudget`, operation keys and recovery. The adapter preserves bounded retries and reports `uncertain_outcome` when completion cannot be established.
+`postgres` captures configuration synchronously without I/O. Promise-returning SDK methods reject validation and operation failures. Initialization owns the bounded pool, checks compatibility and validates Resources. Closing drains admitted procedures within its existing deadline and closes that pool. New SDK calls reject with `client_closed` before inspecting input; closure during a workflow remains subject to per-procedure admission. Repeated close calls share one Promise.
+
+Owned remote handles support references, `openBudget`, operation keys and recovery. The SDK captures command input before returning; mutation retries reuse that input and operation key. The adapter preserves bounded retries and reports `uncertain_outcome` when completion cannot be established.
 
 ## Borrow a PostgreSQL connection
 
@@ -65,7 +67,7 @@ async function allocate(
 
 The application supplies tenant/principal context and controls connection lifetime. The inner scope closes the Keynes handle before commit. Results and handles remain provisional until the caller commits; the caller also owns rollback and recovery after errors. Session context supports autocommit, where each command is one atomic statement.
 
-Initialization performs one read-only definition validation. Each later operation invokes one direct procedure. The adapter never begins, commits, rolls back, sets context, retries, reconnects, releases or ends the borrowed connection. `close()` drains admitted work and rejects later calls. The descriptor can be reused while the caller's connection remains connected. Borrowed handles expose basic Keynes/Budget methods, without remote reference or recovery capabilities.
+Initialization performs one read-only definition validation. Each later operation invokes one direct procedure. The adapter never begins, commits, rolls back, sets context, retries, reconnects, releases or ends the borrowed connection. The session reserves work before inspecting input, captures input synchronously and executes in queue order. `close()` drains every reservation, including calls whose input reflection starts close. Later calls reject with `runtime_closed` before reading input. The descriptor can be reused while the caller's connection remains connected. Borrowed handles expose basic Keynes/Budget methods, without remote reference or recovery capabilities.
 
 ## Adopted target and current implementation
 

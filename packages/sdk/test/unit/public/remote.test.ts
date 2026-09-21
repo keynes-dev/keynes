@@ -3,6 +3,7 @@ import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  KeynesError,
   REMOTE_CONTRACT,
   type RemoteCommandExecutor,
   type RemoteProcedureDescriptor,
@@ -266,6 +267,46 @@ describe("configured remote creation", () => {
 });
 
 describe("public remote Keynes facade", () => {
+  it.each([
+    "defineResources",
+    "createBudget",
+    "openBudget",
+    "recoverOperation",
+    "request",
+    "settle",
+    "inspect",
+  ] as const)(
+    "rejects closed %s before touching malformed input",
+    async (method) => {
+      const executor = createFakeExecutor();
+      openRemoteWith(executor);
+      const remote = await createKeynes({
+        runtime: postgres({ databaseUrl }),
+        resources,
+      });
+      const budget = await remote.createBudget({ workUnits: 10 });
+      const touched = vi.fn(() => {
+        throw new Error("input touched");
+      });
+      const input = new Proxy(
+        {},
+        { get: touched, getPrototypeOf: touched, ownKeys: touched },
+      );
+      const closing = remote.close();
+      let pending: unknown;
+      expect(() => {
+        pending =
+          method === "request" || method === "settle" || method === "inspect"
+            ? Reflect.apply(budget[method], budget, [input])
+            : Reflect.apply(remote[method], remote, [input]);
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({ code: "client_closed" });
+      expect(touched).not.toHaveBeenCalled();
+      await closing;
+    },
+  );
+
   it("snapshots and canonically orders request decision evidence before remote admission", async () => {
     const executor = createFakeExecutor();
     openRemoteWith(executor);
@@ -1016,7 +1057,7 @@ describe("public remote Keynes facade", () => {
     expect(remote.close()).toBe(closing);
     expect(remote[Symbol.asyncDispose]()).toBe(closing);
     await closing;
-    expect(executor.close).toHaveBeenCalledTimes(3);
+    expect(executor.close).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -1270,6 +1311,7 @@ function openRemoteWith(executor: RemoteCommandExecutor): void {
 function createFakeExecutor(
   overrides: RemoteResponseOverrides = {},
 ): RemoteCommandExecutor & {
+  assertOpen(): void;
   readonly close: ReturnType<typeof vi.fn>;
   readonly methods: string[];
   readonly inputs: unknown[];
@@ -1277,13 +1319,27 @@ function createFakeExecutor(
   const methods: string[] = [];
   const inputs: unknown[] = [];
   const closePromise = Promise.resolve();
-  const close = vi.fn(() => closePromise);
+  let closed = false;
+  const assertOpen = () => {
+    if (closed)
+      throw new KeynesError({
+        kind: "error",
+        code: "client_closed",
+        details: {},
+      });
+  };
+  const close = vi.fn(() => {
+    closed = true;
+    return closePromise;
+  });
   return {
     methods,
     inputs,
+    assertOpen,
     close,
     execute: vi.fn(
       async (procedure: RemoteProcedureDescriptor, input: unknown) => {
+        assertOpen();
         methods.push(procedure.method);
         inputs.push(input);
         const override = overrides[procedure.method];

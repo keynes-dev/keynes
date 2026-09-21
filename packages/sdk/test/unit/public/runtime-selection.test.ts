@@ -1,7 +1,8 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
   createKeynes,
+  createRemoteKeynesClient,
   type Keynes,
   type RemoteKeynes,
   type KeynesRuntime,
@@ -12,6 +13,133 @@ const resources = {
 } as const;
 
 describe("explicit runtime selection", () => {
+  it.each(["throw", "reject"] as const)(
+    "rejects synchronous and asynchronous initializer failures: %s",
+    async (mode) => {
+      const failure = new Error("initialization failed");
+      const runtime = {
+        kind: "local" as const,
+        initialize() {
+          if (mode === "throw") throw failure;
+          return Promise.reject(failure);
+        },
+      };
+      let pending: unknown;
+      expect(() => {
+        pending = createKeynes({ runtime, resources });
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toBe(failure);
+    },
+  );
+
+  it.each(["local", "remote"] as const)(
+    "keeps a throwing %s session close inside one shared Promise",
+    async (kind) => {
+      const { nodeSqlite } = await import("@keynes/node-sqlite");
+      const session = await nodeSqlite().initialize(resources);
+      const failure = new Error("custom close failed");
+      const close = vi.fn((): Promise<void> => {
+        throw failure;
+      });
+      try {
+        const keynes = await createKeynes({
+          resources,
+          runtime:
+            kind === "local"
+              ? { kind, initialize: async () => ({ ...session, close }) }
+              : {
+                  kind,
+                  initialize: async () => ({
+                    resources: session.resources,
+                    client: createRemoteKeynesClient({
+                      execute: async () => {
+                        throw new Error("unused");
+                      },
+                    }),
+                    prepareResources: async () => session.resources,
+                    invokeMutation: async (_operation, _key, operation) =>
+                      operation(),
+                    assertOpen() {},
+                    close,
+                  }),
+                },
+        });
+        let pending: Promise<void> | undefined;
+        expect(() => {
+          pending = keynes.close();
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        expect(keynes.close()).toBe(pending);
+        expect(keynes[Symbol.asyncDispose]()).toBe(pending);
+        await expect(pending).rejects.toBe(failure);
+        expect(close).toHaveBeenCalledOnce();
+      } finally {
+        await session.close();
+      }
+    },
+  );
+
+  it("rejects a synchronous custom admission failure during inspection", async () => {
+    const { nodeSqlite } = await import("@keynes/node-sqlite");
+    const session = await nodeSqlite().initialize(resources);
+    try {
+      const keynes = await createKeynes({
+        resources,
+        runtime: { kind: "local", initialize: async () => session },
+      });
+      const budget = await keynes.createBudget({ tokens: 1 });
+      const failure = new Error("custom admission failed");
+      vi.spyOn(session, "admit").mockImplementation(() => {
+        throw failure;
+      });
+      let pending: unknown;
+      expect(() => {
+        pending = budget.inspect();
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toBe(failure);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it.each([false, true])(
+    "cleans up a mismatched initialized runtime; cleanup failure %s",
+    async (failCleanup) => {
+      const { nodeSqlite } = await import("@keynes/node-sqlite");
+      const cleanupFailure = new Error("cleanup failed");
+      const runtime = nodeSqlite();
+      const session = await runtime.initialize(resources);
+      const close = vi.fn(async () => {
+        await session.close();
+        if (failCleanup) throw cleanupFailure;
+      });
+      let pending: unknown;
+      expect(() => {
+        pending = createKeynes({
+          resources,
+          runtime: {
+            kind: "local",
+            async initialize() {
+              return { ...session, resources: [], close };
+            },
+          },
+        });
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      if (failCleanup)
+        await expect(pending).rejects.toMatchObject({
+          errors: [expect.any(Error), cleanupFailure],
+        });
+      else
+        await expect(pending).rejects.toMatchObject({
+          code: "unknown",
+        });
+      expect(close).toHaveBeenCalledOnce();
+    },
+  );
+
   it.each([
     { resources },
     { resources, runtime: undefined },

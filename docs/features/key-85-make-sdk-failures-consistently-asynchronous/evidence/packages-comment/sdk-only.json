@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "keynes.package-test.sdk/v2",
+  "subject": "@keynes/sdk",
+  "sourceRevision": {
+    "commit": "c3f64a833857c902fc87dadfa5113bb166d4b0b0",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "archive": {
+    "sha256": "ecb54571874196c93b03683b23d89464faec3891e552020fd8c6618223b95439",
+    "compressedBytes": 37196,
+    "productionBytes": 234396,
+    "packageVersion": "0.0.0",
+    "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
+  },
+  "installedPackages": {
+    "sdk": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-sdk-package-test-p0LctZ/node_modules/.pnpm/@keynes+sdk@file+keynes-sdk.tgz/node_modules/@keynes/sdk"
+  },
+  "cleanup": "passed",
+  "environment": {
+    "node": "v25.9.0",
+    "pnpm": "11.21.0",
+    "os": "darwin",
+    "osRelease": "25.5.0",
+    "architecture": "arm64"
+  },
+  "checks": [
+    "public-types",
+    "package-root-import",
+    "remote-exports",
+    "configuration-rejection",
+    "environment-isolation",
+    "deep-imports-blocked"
+  ],
+  "outcome": "passed",
+  "exclusions": {
+    "hostedMatrix": "NOT RUN",
+    "authorizedRemoteDatabase": "NOT RUN",
+    "registry": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}

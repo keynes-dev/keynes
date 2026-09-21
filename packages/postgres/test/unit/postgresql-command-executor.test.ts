@@ -49,6 +49,33 @@ describe("PostgreSQL remote command executor", () => {
     },
   };
 
+  it("rejects closed malformed public calls before reading input", async () => {
+    const pool = createFakePool(async ({ text }) =>
+      text.includes("remote_get_compatibility")
+        ? compatibilityResponse()
+        : queryResponse({ ok: true, result: { valid: true } }),
+    );
+    pgMock.constructPool.mockReturnValue(pool);
+    const keynes = await createKeynes(configuredOptions);
+    const closing = keynes.close();
+    const malformed = new Proxy(
+      { workUnits: NaN },
+      {
+        ownKeys() {
+          throw new Error("closed input accessed");
+        },
+      },
+    );
+    let pending: Promise<unknown> | undefined;
+    expect(() => {
+      pending = keynes.createBudget(malformed);
+    }).not.toThrow();
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toMatchObject({ code: "client_closed" });
+    await closing;
+    expect(pool.client.query).toHaveBeenCalledTimes(2);
+  });
+
   it("validates every configured declaration after compatibility before returning a client", async () => {
     const pool = createFakePool(async ({ text }) =>
       text.includes("remote_get_compatibility")

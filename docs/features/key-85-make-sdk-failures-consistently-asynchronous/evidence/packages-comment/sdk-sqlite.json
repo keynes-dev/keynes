@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "keynes.package-test.sdk/v2",
+  "subject": "@keynes/sdk",
+  "sourceRevision": {
+    "commit": "c3f64a833857c902fc87dadfa5113bb166d4b0b0",
+    "cleanBefore": true,
+    "cleanAfter": true
+  },
+  "archive": {
+    "sha256": "ecb54571874196c93b03683b23d89464faec3891e552020fd8c6618223b95439",
+    "compressedBytes": 37196,
+    "productionBytes": 432163,
+    "packageVersion": "0.0.0",
+    "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
+  },
+  "runtimeArchive": {
+    "name": "@keynes/node-sqlite",
+    "sha256": "faa2b3f37ccaeca00ca78d236f7761ada6d7c6e8f9df7b1b43218b8c2d8f142a",
+    "compressedBytes": 28930,
+    "packageVersion": "0.0.0"
+  },
+  "installedPackages": {
+    "sdk": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-sdk-package-test-iUKwl7/node_modules/.pnpm/@keynes+sdk@file+keynes-sdk.tgz/node_modules/@keynes/sdk",
+    "nodeSqlite": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-sdk-package-test-iUKwl7/node_modules/.pnpm/@keynes+node-sqlite@file+keynes-node-sqlite.tgz_@keynes+sdk@file+keynes-sdk.tgz/node_modules/@keynes/node-sqlite"
+  },
+  "cleanup": "passed",
+  "environment": {
+    "node": "v25.9.0",
+    "pnpm": "11.21.0",
+    "os": "darwin",
+    "osRelease": "25.5.0",
+    "architecture": "arm64"
+  },
+  "checks": [
+    "public-types",
+    "package-root-import",
+    "remote-exports",
+    "configuration-rejection",
+    "environment-isolation",
+    "budget-loop",
+    "application-request",
+    "isolation",
+    "closure",
+    "process-loss",
+    "deep-imports-blocked"
+  ],
+  "outcome": "passed",
+  "exclusions": {
+    "hostedMatrix": "NOT RUN",
+    "authorizedRemoteDatabase": "NOT RUN",
+    "registry": "NOT RUN",
+    "securityQualification": "NOT RUN",
+    "productionReadiness": "NOT RUN"
+  }
+}

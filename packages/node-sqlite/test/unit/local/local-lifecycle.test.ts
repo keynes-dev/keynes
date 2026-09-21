@@ -386,6 +386,67 @@ function installStartupHosts(startupFailure?: Error) {
 }
 
 describe("local runtime lifecycle", () => {
+  it("reserves preparation before reentrant close and drains execution", async () => {
+    const runtime = await nodeSqlite().initialize(workUnitResources);
+    let closing: Promise<void> | undefined;
+    const execute = vi.fn(async (prepared: string) => {
+      expect(runtime.state).toBe("closing");
+      return prepared + " executed";
+    });
+    const pending = runtime.admit(() => {
+      closing = runtime.close();
+      return "prepared";
+    }, execute);
+    expect(pending).toBeInstanceOf(Promise);
+    expect(closing).toBeInstanceOf(Promise);
+    await expect(pending).resolves.toBe("prepared executed");
+    await closing;
+    expect(execute).toHaveBeenCalledOnce();
+    expect(runtime.state).toBe("closed");
+  });
+
+  it("keeps earlier work in the drain after preparation rejects", async () => {
+    const runtime = await nodeSqlite().initialize(workUnitResources);
+    const gate = Promise.withResolvers<void>();
+    const first = runtime.admit(() => gate.promise);
+    const failure = new Error("preparation failed");
+    const failed = runtime.admit(
+      () => {
+        throw failure;
+      },
+      async () => "must not execute",
+    );
+    const rejected = expect(failed).rejects.toBe(failure);
+    const closing = runtime.close();
+    let closed = false;
+    void closing.then(() => {
+      closed = true;
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(closed).toBe(false);
+    gate.resolve();
+    await Promise.all([first, rejected, closing]);
+  });
+
+  it("preserves preparation failure and advances its reserved queue slot", async () => {
+    const runtime = await nodeSqlite().initialize(workUnitResources);
+    const failure = new Error("preparation failed");
+    const execute = vi.fn(async () => "must not execute");
+    const pending = runtime.admit(() => {
+      throw failure;
+    }, execute);
+    const next = runtime.admit(async () => "next");
+    await expect(pending).rejects.toBe(failure);
+    await expect(next).resolves.toBe("next");
+    expect(execute).not.toHaveBeenCalled();
+    await runtime.close();
+    const prepare = vi.fn(() => "late");
+    await expect(runtime.admit(prepare, execute)).rejects.toMatchObject({
+      code: "runtime_closed",
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
   it("drains independent definitions admitted before close", async () => {
     const keynes = await createKeynes({
       runtime: nodeSqlite(),

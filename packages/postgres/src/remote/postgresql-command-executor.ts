@@ -164,6 +164,11 @@ export class PostgresqlCommandExecutor implements RemoteCommandExecutor {
     this.#pool.on("error", () => undefined);
   }
 
+  assertOpen(): void {
+    if (this.#state !== "open")
+      throw new KeynesError(simpleRemoteFailure("client_closed").error);
+  }
+
   execute(
     requestedProcedure: RemoteProcedureDescriptor,
     input: unknown,

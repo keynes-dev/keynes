@@ -9,6 +9,107 @@ const setupResources = {
 };
 
 describe("local Keynes facade", () => {
+  it.each(["defineResources", "createBudget", "request", "settle"] as const)(
+    "drains %s when input reflection closes the runtime",
+    async (operation) => {
+      const keynes = await createKeynes({
+        runtime: nodeSqlite(),
+        resources: setupResources,
+      });
+      const root = await keynes.createBudget({ setupUnits: 3 });
+      let closing: Promise<void> | undefined;
+      const input = new Proxy(
+        operation === "defineResources" ? setupResources : { setupUnits: 1 },
+        {
+          getPrototypeOf(target) {
+            closing = keynes.close();
+            return Reflect.getPrototypeOf(target);
+          },
+        },
+      );
+      let pending: unknown;
+      try {
+        expect(() => {
+          pending =
+            operation === "defineResources" || operation === "createBudget"
+              ? Reflect.apply(keynes[operation], keynes, [input])
+              : Reflect.apply(root[operation], root, [input]);
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        expect(closing).toBeInstanceOf(Promise);
+        await expect(pending).resolves.toBeDefined();
+        await closing;
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects failed capture through a Promise and continues valid work", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: setupResources,
+    });
+    try {
+      const root = await keynes.createBudget({ setupUnits: 3 });
+      const failure = new Error("capture failed");
+      const input = new Proxy(
+        {},
+        {
+          getPrototypeOf() {
+            throw failure;
+          },
+        },
+      );
+      for (const operation of [
+        "defineResources",
+        "createBudget",
+        "request",
+        "settle",
+      ] as const) {
+        let pending: unknown;
+        expect(() => {
+          pending =
+            operation === "defineResources" || operation === "createBudget"
+              ? Reflect.apply(keynes[operation], keynes, [input])
+              : Reflect.apply(root[operation], root, [input]);
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toBe(failure);
+      }
+      await expect(root.request({ setupUnits: 1 })).resolves.toMatchObject({
+        status: "approved",
+      });
+      await keynes.close();
+      for (const operation of [
+        "defineResources",
+        "createBudget",
+        "request",
+        "settle",
+      ] as const) {
+        let pending: unknown;
+        expect(() => {
+          pending =
+            operation === "defineResources" || operation === "createBudget"
+              ? Reflect.apply(keynes[operation], keynes, [input])
+              : Reflect.apply(root[operation], root, [input]);
+        }).not.toThrow();
+        expect(pending).toBeInstanceOf(Promise);
+        await expect(pending).rejects.toMatchObject({ code: "runtime_closed" });
+      }
+      let inspection: unknown;
+      expect(() => {
+        inspection = root.inspect();
+      }).not.toThrow();
+      expect(inspection).toBeInstanceOf(Promise);
+      await expect(inspection).rejects.toMatchObject({
+        code: "runtime_closed",
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("attributes empty raw definitions to the invoked operation", async () => {
     const keynes = await createKeynes({
       runtime: nodeSqlite(),

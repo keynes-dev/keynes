@@ -2,9 +2,10 @@ import { postgres } from "@keynes/postgres";
 import type { PoolConfig } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  RemoteCommandExecutor,
-  RemoteProcedureDescriptor,
+import {
+  KeynesError,
+  type RemoteCommandExecutor,
+  type RemoteProcedureDescriptor,
 } from "../../../src/generated/client.js";
 import { createKeynes, createOperationKey } from "../../../src/index.js";
 import type { BudgetReference, OperationKey } from "../../../src/index.js";
@@ -48,6 +49,53 @@ afterEach(() => {
 });
 
 describe("remote Budget reopen and operation recovery", () => {
+  it("reuses captured settlement usage and operation key after caller mutation between attempts", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const usage = { workUnits: 2 };
+    const options = { operationKey };
+    let attempts = 0;
+    const executor = fakeExecutor((method) => {
+      if (method === "createBudget") return createdResponse();
+      if (method !== "settleBudget") throw new Error(`unexpected ${method}`);
+      if (++attempts === 1) {
+        usage.workUnits = 9;
+        options.operationKey = createOperationKey();
+        return {
+          ok: false,
+          error: {
+            kind: "error",
+            code: "unavailable",
+            details: { retryAfterMilliseconds: 0 },
+          },
+        };
+      }
+      return settledResponse();
+    });
+    openWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const budget = await remote.createBudget({ workUnits: 10 });
+      let pending: unknown;
+      expect(() => {
+        pending = budget.settle(usage, options);
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).resolves.toBeDefined();
+      expect(executor.inputs.slice(1)).toEqual(
+        Array.from({ length: 2 }, () => ({
+          budgetReference: rootReference,
+          operationKey,
+          usage: [{ resource: "work_units", amount: 2 }],
+        })),
+      );
+    } finally {
+      await remote.close();
+    }
+  });
+
   it("recovers a definition as an opaque binding usable for creation", async () => {
     const executor = fakeExecutor((method) => {
       if (method === "recoverOperation")
@@ -364,7 +412,11 @@ describe("remote Budget reopen and operation recovery", () => {
 
   it("reopens after creation permission is revoked without another validation query", async () => {
     const methods: string[] = [];
-    const executor: RemoteCommandExecutor & { close(): Promise<void> } = {
+    const executor: RemoteCommandExecutor & {
+      close(): Promise<void>;
+      assertOpen(): void;
+    } = {
+      assertOpen() {},
       async execute(procedure) {
         methods.push(procedure.method);
         if (procedure.method === "validateResources") {
@@ -727,14 +779,28 @@ function fakeExecutor(
   readonly methods: string[];
   readonly inputs: unknown[];
   readonly close: () => Promise<void>;
+  assertOpen(): void;
 } {
   const methods: string[] = [];
   const inputs: unknown[] = [];
+  let closed = false;
+  const assertOpen = () => {
+    if (closed)
+      throw new KeynesError({
+        kind: "error",
+        code: "client_closed",
+        details: {},
+      });
+  };
   return {
     methods,
     inputs,
-    close: vi.fn(async () => undefined),
+    assertOpen,
+    close: vi.fn(async () => {
+      closed = true;
+    }),
     execute: vi.fn(async (procedure, input) => {
+      assertOpen();
       if (procedure.method === "validateResources") {
         return { ok: true, result: { valid: true } };
       }

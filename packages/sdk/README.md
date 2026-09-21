@@ -130,16 +130,16 @@ Local mode opens one private `node:sqlite` in-memory database for each
 `createKeynes(...)` call. State belongs to that runtime and does not survive
 `close()` or process exit. Two runtimes share no state.
 
-Call `close()` when the application finishes, or use `await using`. Closing
-drains admitted work, rejects new work with `runtime_closed`, and returns the
-same promise on repeated calls.
+Promise-returning SDK methods reject validation and operation failures without throwing synchronously. They capture supported input before returning, so later caller mutations cannot change the command. Descriptor factories, generated-client factories and `createOperationKey` remain synchronous.
+
+Call `close()` when the application finishes, or use `await using`. Local and borrowed PostgreSQL sessions reserve work before inspecting input, then prepare it synchronously and execute it in queue order. Close drains these reservations, including calls whose input reflection starts close, and rejects new calls with `runtime_closed` before reading their input. Repeated close calls return the same Promise.
 
 Local mode accepts no database path, connection, extension, tenant, principal,
 or credential. It provides no durable storage, daemon, socket server, or public
 database interface. Deep imports, package metadata imports, and replay controls
 are private.
 
-`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys and read-only operation recovery.
+`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys and read-only operation recovery. Calls after close begins reject with `client_closed` before reading input. Admission remains per procedure, with the existing bounded close deadline and uncertainty handling. Mutation retries reuse the captured input and operation key.
 
 `postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or recovery methods. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
 
@@ -214,6 +214,8 @@ The root exports `NodeSqliteRuntime`, `PostgresRuntime`,
 `RemoteRuntimeSession` for the two adapters. Descriptors initialize a fresh
 session; adapters own execution admission and close. Owned remote execution uses bounded retries; borrowed PostgreSQL execution never retries. `nodeSqlite()` is
 cold and reusable. Closing one initialized Local instance does not close another.
+
+Custom session implementations must support the new `BasicRuntimeSession.admit(prepare, execute)` overload alongside `admit(operation)`. Reserve work before synchronous preparation, reject preparation failures and keep every reservation in the close drain. `RemoteRuntimeSession` now requires `assertOpen()` against the executor's existing state. These are source compatibility changes to session implementations; built-in descriptor call sites are unchanged. Generated clients retain executor-owned admission and capture.
 
 The adapters share `createKeynesClient`, `createRemoteKeynesClient`,
 `CONTRACT_DIGEST`, `REMOTE_CONTRACT`, `REMOTE_PROCEDURES_DIGEST` and

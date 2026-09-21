@@ -156,7 +156,7 @@ function createRuntime(
     client,
     resources: [],
     state: "open",
-    admit: (operation) => operation(),
+    admit,
     invokeMutation: (operation) => operation(),
     close: async () => undefined,
   };
@@ -322,4 +322,17 @@ function requireNonempty<Value>(values: readonly Value[]): [Value, ...Value[]] {
   const [first, ...rest] = values;
   if (first === undefined) throw new Error("test fixture must not be empty");
   return [first, ...rest];
+}
+
+function admit<Result>(operation: () => Promise<Result>): Promise<Result>;
+function admit<Prepared, Result>(
+  prepare: () => Prepared,
+  execute: (prepared: Prepared) => Promise<Result>,
+): Promise<Result>;
+async function admit<Prepared, Result>(
+  prepare: () => Prepared,
+  execute?: (prepared: Prepared) => Promise<Result>,
+): Promise<Prepared | Result> {
+  const prepared = prepare();
+  return execute === undefined ? prepared : execute(prepared);
 }

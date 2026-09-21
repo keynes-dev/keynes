@@ -1,0 +1,100 @@
+{
+  "runId": "4225ace5-b945-4ee1-b2ab-53c327cbd1b9",
+  "environment": {
+    "postgresImage": "postgres:18.6@sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+    "pgbouncerImage": "edoburu/pgbouncer@sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340",
+    "postgresVersion": "180006",
+    "dockerVersion": "29.6.2",
+    "pgbouncerVersion": "1.25.2",
+    "postgresImageId": "sha256:06cad38a5d9f5d24b4d83d86def30795d5e4b757fedbf5281172b576dedcd941",
+    "pgbouncerImageId": "sha256:7d7a27d9e90985cab5cf42256f5c13a3120baa4b055b69df37beb272b89b2340"
+  },
+  "distribution": {
+    "version": "0.0.0",
+    "cliArchiveSha256": "59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380",
+    "archiveSha256": "94165e6c6d2879078f51bb0b604266c9c4a2538b0cf8496df5481f46ac0da5f0",
+    "installationRecordSha256": "697d33397996f6f38a860a4e50e5105d753b82f068a0bfe8d903e2c8689f60b9",
+    "installedConsumers": {
+      "postgres": [
+        {
+          "name": "@keynes/sdk",
+          "entrypoint": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-installed-package-8OiKHO/consumer/node_modules/.pnpm/@keynes+sdk@file+..+..+..+..+..+..+..+..+Users+shubhankarsharan+.codex+worktrees+keynes_ea8f15c2a8854dfa0bb11ec5dfc56a4a/node_modules/@keynes/sdk/dist/index.js",
+          "sha256": "314e8050ca7a197a4df47aeb62d99ca870e7eadab587f017d8232bcc96968630"
+        },
+        {
+          "name": "@keynes/postgres",
+          "entrypoint": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-installed-package-8OiKHO/consumer/node_modules/.pnpm/@keynes+postgres@file+..+..+..+..+..+..+..+..+Users+shubhankarsharan+.codex+worktrees+k_380eb9a3b166b341b865d626f23b2453/node_modules/@keynes/postgres/dist/index.js",
+          "sha256": "94165e6c6d2879078f51bb0b604266c9c4a2538b0cf8496df5481f46ac0da5f0"
+        }
+      ],
+      "cli": [
+        {
+          "name": "@keynes/sdk",
+          "entrypoint": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-installed-package-LkWNyN/consumer/node_modules/.pnpm/@keynes+sdk@file+..+..+..+..+..+..+..+..+Users+shubhankarsharan+.codex+worktrees+keynes_ea8f15c2a8854dfa0bb11ec5dfc56a4a/node_modules/@keynes/sdk/dist/index.js",
+          "sha256": "314e8050ca7a197a4df47aeb62d99ca870e7eadab587f017d8232bcc96968630"
+        },
+        {
+          "name": "@keynes/postgres",
+          "entrypoint": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-installed-package-LkWNyN/consumer/node_modules/.pnpm/@keynes+postgres@file+..+..+..+..+..+..+..+..+Users+shubhankarsharan+.codex+worktrees+k_380eb9a3b166b341b865d626f23b2453/node_modules/@keynes/postgres/dist/index.js",
+          "sha256": "94165e6c6d2879078f51bb0b604266c9c4a2538b0cf8496df5481f46ac0da5f0"
+        },
+        {
+          "name": "@keynes/cli",
+          "entrypoint": "/private/var/folders/n2/z5gzj5hn7vxdxqr14t6xhjdh0000gn/T/keynes-installed-package-LkWNyN/consumer/node_modules/.pnpm/@keynes+cli@file+..+..+..+..+..+..+..+..+Users+shubhankarsharan+.codex+worktrees+keynes_b256d80922fa217ed00e55d520048d7d/node_modules/@keynes/cli/dist/cli.js",
+          "sha256": "59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380"
+        }
+      ]
+    }
+  },
+  "stages": [
+    {
+      "stage": "package-install",
+      "status": "passed"
+    },
+    {
+      "stage": "cli-package-install",
+      "status": "passed"
+    },
+    {
+      "stage": "network-create",
+      "status": "passed"
+    },
+    {
+      "stage": "tls-certificates",
+      "status": "passed"
+    },
+    {
+      "stage": "container-start",
+      "status": "passed"
+    },
+    {
+      "stage": "port-discovery",
+      "status": "passed"
+    },
+    {
+      "stage": "readiness",
+      "status": "passed"
+    },
+    {
+      "stage": "poolers",
+      "status": "passed"
+    },
+    {
+      "stage": "runtime-observations",
+      "status": "passed"
+    },
+    {
+      "stage": "tests",
+      "status": "passed"
+    },
+    {
+      "stage": "cleanup",
+      "status": "passed"
+    },
+    {
+      "stage": "report-retention",
+      "status": "passed"
+    }
+  ],
+  "cleanup": "passed"
+}
