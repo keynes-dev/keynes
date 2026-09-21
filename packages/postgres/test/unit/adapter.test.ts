@@ -1,3 +1,4 @@
+import { createKeynes } from "@keynes/sdk";
 import { Client, Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { postgres } from "../../src/index.js";
@@ -137,6 +138,120 @@ describe("borrowed PostgreSQL adapter", () => {
     expect(end).not.toHaveBeenCalled();
     expect(release).not.toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("keeps earlier work in the drain when later preparation rejects", async () => {
+    const connection = connectedClient();
+    vi.spyOn(connection, "query").mockImplementation(() =>
+      Promise.resolve(validated),
+    );
+    const session = await borrowed(connection).initialize(definitions);
+    const earlier = Promise.withResolvers<void>();
+    const admitted = session.admit(() => earlier.promise);
+    const failure = new Error("preparation failed");
+    const execute = vi.fn(async () => undefined);
+    const failed = session.admit(() => {
+      throw failure;
+    }, execute);
+    await expect(failed).rejects.toBe(failure);
+    const continued = session.admit(
+      () => "prepared",
+      async (value) => value,
+    );
+    const closing = session.close();
+    let closed = false;
+    void closing.then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    expect(execute).not.toHaveBeenCalled();
+    const latePrepare = vi.fn(() => undefined);
+    await expect(session.admit(latePrepare, execute)).rejects.toMatchObject({
+      code: "runtime_closed",
+    });
+    expect(latePrepare).not.toHaveBeenCalled();
+    earlier.resolve();
+    await admitted;
+    await expect(continued).resolves.toBe("prepared");
+    await closing;
+    expect(session.state).toBe("closed");
+  });
+
+  it("dispatches admitted preparation after reentrant close", async () => {
+    const connection = connectedClient();
+    const failure = new Error("query failed");
+    const query = vi
+      .spyOn(connection, "query")
+      .mockImplementationOnce(() => Promise.resolve(validated))
+      .mockRejectedValueOnce(failure);
+    const end = vi.spyOn(connection, "end");
+    const keynes = await createKeynes({
+      resources: definitions,
+      runtime: borrowed(connection),
+    });
+    let closing: Promise<void> | undefined;
+    const amounts = new Proxy(
+      { workUnits: 1 },
+      {
+        ownKeys(target) {
+          closing = keynes.close();
+          return Reflect.ownKeys(target);
+        },
+      },
+    );
+    let pending: Promise<unknown> | undefined;
+    expect(() => {
+      pending = keynes.createBudget(amounts);
+    }).not.toThrow();
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toMatchObject({
+      code: "operation_interrupted",
+      cause: failure,
+    });
+    await closing;
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(end).not.toHaveBeenCalled();
+  });
+
+  it("reserves public capture before reentrant close and drains failed preparation", async () => {
+    const connection = connectedClient();
+    const query = vi
+      .spyOn(connection, "query")
+      .mockImplementation(() => Promise.resolve(validated));
+    const end = vi.spyOn(connection, "end");
+    const keynes = await createKeynes({
+      resources: definitions,
+      runtime: borrowed(connection),
+    });
+    const failure = new Error("capture failed");
+    let closing: Promise<void> | undefined;
+    let closed = false;
+    const amounts = new Proxy(
+      { workUnits: 1 },
+      {
+        ownKeys() {
+          closing = keynes.close();
+          void closing.then(() => {
+            closed = true;
+          });
+          throw failure;
+        },
+      },
+    );
+    let pending: Promise<unknown> | undefined;
+    expect(() => {
+      pending = keynes.createBudget(amounts);
+    }).not.toThrow();
+    expect(pending).toBeInstanceOf(Promise);
+    expect(closed).toBe(false);
+    await expect(pending).rejects.toBe(failure);
+    await closing;
+    await expect(keynes.createBudget({ workUnits: NaN })).rejects.toMatchObject(
+      { code: "runtime_closed" },
+    );
+    expect(query).toHaveBeenCalledOnce();
+    expect(end).not.toHaveBeenCalled();
   });
 
   it("dispatches one direct statement and never retries a transport failure", async () => {

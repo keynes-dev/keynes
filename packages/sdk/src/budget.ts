@@ -1,5 +1,4 @@
 import { captureRequest } from "./request-serialization.js";
-import { KeynesSdkError } from "./sdk-errors.js";
 import { randomUUID } from "node:crypto";
 
 import type { BasicRuntimeSession } from "./generated/runtime.js";
@@ -163,20 +162,20 @@ export function createBudgetHandle<
   ) => requestBudget(runtime, budgetId, binding, resources, options);
 
   const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
-    if (runtime.state !== "open")
-      throw new KeynesSdkError("runtime_closed", {});
-    const observedUsage = captureRequest(usage, "settleBudget", "$.usage");
-    return runtime.admit(async () => {
-      const command = {
-        commandId: randomUUID(),
-        budgetId,
-        usage: binding.usage(observedUsage),
-      };
-      const result = await invokeBudgetOperation(binding, () =>
-        runtime.invokeMutation(() => runtime.client.settleBudget(command)),
-      );
-      return projectSettlement(binding, result);
-    });
+    return runtime.admit(
+      () => captureRequest(usage, "settleBudget", "$.usage"),
+      async (observedUsage) => {
+        const command = {
+          commandId: randomUUID(),
+          budgetId,
+          usage: binding.usage(observedUsage),
+        };
+        const result = await invokeBudgetOperation(binding, () =>
+          runtime.invokeMutation(() => runtime.client.settleBudget(command)),
+        );
+        return projectSettlement(binding, result);
+      },
+    );
   };
 
   const inspect = (): Promise<BudgetSnapshot<Names, HistoryNames>> =>
@@ -208,59 +207,62 @@ async function requestBudget<
   options: readonly unknown[],
 ): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
   type RequestedName = Extract<keyof Resources, Names>;
-  if (runtime.state !== "open") throw new KeynesSdkError("runtime_closed", {});
-  const requestedResources = captureRequest(
-    resources,
-    "requestBudget",
-    "$.resources",
-  );
-  const decisionEvidence = requestDecisionEvidence(options);
-  const pending = runtime.admit(async () => {
-    const resolved = binding.resources<RequestedName>(
-      requestedResources,
-      "requestBudget",
-    );
-    const command = {
-      commandId: randomUUID(),
-      parentBudgetId: budgetId,
-      resources: resolved.envelope,
-      ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
-    };
-    const result = await invokeBudgetOperation(resolved.binding, () =>
-      runtime.invokeMutation(() => runtime.client.requestBudget(command)),
-    );
-    const resultDecisionEvidence = canonicalDecisionEvidence(
-      result.decisionEvidence,
-    );
-    if (result.kind === "approved") {
+  const pending = runtime.admit(
+    () => ({
+      requestedResources: captureRequest(
+        resources,
+        "requestBudget",
+        "$.resources",
+      ),
+      decisionEvidence: requestDecisionEvidence(options),
+    }),
+    async ({ requestedResources, decisionEvidence }) => {
+      const resolved = binding.resources<RequestedName>(
+        requestedResources,
+        "requestBudget",
+      );
+      const command = {
+        commandId: randomUUID(),
+        parentBudgetId: budgetId,
+        resources: resolved.envelope,
+        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
+      };
+      const result = await invokeBudgetOperation(resolved.binding, () =>
+        runtime.invokeMutation(() => runtime.client.requestBudget(command)),
+      );
+      const resultDecisionEvidence = canonicalDecisionEvidence(
+        result.decisionEvidence,
+      );
+      if (result.kind === "approved") {
+        return Object.freeze({
+          status: "approved" as const,
+          budget: createBudgetHandle<RequestedName, HistoryNames>(
+            runtime,
+            result.childBudgetId,
+            resolved.binding,
+          ),
+          ...(resultDecisionEvidence === undefined
+            ? {}
+            : { decisionEvidence: resultDecisionEvidence }),
+        });
+      }
       return Object.freeze({
-        status: "approved" as const,
-        budget: createBudgetHandle<RequestedName, HistoryNames>(
-          runtime,
-          result.childBudgetId,
-          resolved.binding,
+        status: "denied" as const,
+        reasons: Object.freeze(
+          result.reasons
+            .map((reason) =>
+              projectDenialReason<RequestedName, HistoryNames>(
+                resolved.binding,
+                reason,
+              ),
+            )
+            .sort(compareDenialReasons),
         ),
         ...(resultDecisionEvidence === undefined
           ? {}
           : { decisionEvidence: resultDecisionEvidence }),
       });
-    }
-    return Object.freeze({
-      status: "denied" as const,
-      reasons: Object.freeze(
-        result.reasons
-          .map((reason) =>
-            projectDenialReason<RequestedName, HistoryNames>(
-              resolved.binding,
-              reason,
-            ),
-          )
-          .sort(compareDenialReasons),
-      ),
-      ...(resultDecisionEvidence === undefined
-        ? {}
-        : { decisionEvidence: resultDecisionEvidence }),
-    });
-  });
+    },
+  );
   return pending;
 }

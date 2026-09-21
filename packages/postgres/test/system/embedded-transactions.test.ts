@@ -976,10 +976,27 @@ describe("public borrowed PostgreSQL adapter", () => {
       try {
         const root = await keynes.createBudget({ modelTokens: 5 });
         const occupied = connection.query("select pg_sleep(0.05)");
+        void occupied.catch(() => undefined);
         const query = vi.spyOn(connection, "query");
         const end = vi.spyOn(connection, "end");
-        const admitted = root.request({ modelTokens: 1 });
+        let reentrantClose: Promise<void> | undefined;
+        const amounts = new Proxy(
+          { modelTokens: 1 },
+          {
+            ownKeys(target) {
+              reentrantClose = keynes.close();
+              return Reflect.ownKeys(target);
+            },
+          },
+        );
+        let admitted: ReturnType<typeof root.request> | undefined;
+        expect(() => {
+          admitted = root.request(amounts);
+        }).not.toThrow();
+        expect(admitted).toBeInstanceOf(Promise);
+        void admitted?.catch(() => undefined);
         const closing = keynes.close();
+        expect(reentrantClose).toBe(closing);
         await expect(root.request({ modelTokens: NaN })).rejects.toMatchObject({
           code: "runtime_closed",
         });

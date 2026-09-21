@@ -73,10 +73,25 @@ try {
     { packageQualificationUnits: 2 },
     { operationKey: createOperationKey() },
   );
+  const malformed = root.request({ packageQualificationUnits: NaN });
+  assert.ok(malformed instanceof Promise);
+  await assert.rejects(malformed, { code: "invalid_command" });
   reference = root.reference;
 } finally {
   await keynes.close();
 }
+
+const closedInput = new Proxy(
+  {},
+  {
+    ownKeys() {
+      throw new Error("closed input accessed");
+    },
+  },
+);
+const closedCall = keynes.createBudget(closedInput);
+assert.ok(closedCall instanceof Promise);
+await assert.rejects(closedCall, { code: "client_closed" });
 
 const reconnected = await createKeynes({
   resources,

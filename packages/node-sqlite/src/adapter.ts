@@ -65,22 +65,45 @@ async function openConfiguredRuntime(
   let state: "open" | "closing" | "closed" = "open";
   let tail = Promise.resolve();
   let closePromise: Promise<void> | undefined;
+  function admit<Result>(operation: () => Promise<Result>): Promise<Result>;
+  function admit<Prepared, Result>(
+    prepare: () => Prepared,
+    execute: (prepared: Prepared) => Promise<Result>,
+  ): Promise<Result>;
+  function admit<Prepared, Result>(
+    prepare: () => Prepared,
+    execute?: (prepared: Prepared) => Promise<Result>,
+  ): Promise<Prepared | Result> {
+    if (state !== "open")
+      return Promise.reject(new KeynesSdkError("runtime_closed", {}));
+    if (execute === undefined) {
+      const result = tail.then(prepare);
+      tail = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    }
+    const previous = tail;
+    const result = Promise.withResolvers<Result>();
+    tail = Promise.allSettled([previous, result.promise]).then(() => undefined);
+    try {
+      const prepared = prepare();
+      previous
+        .then(() => execute(prepared))
+        .then(result.resolve, result.reject);
+    } catch (error: unknown) {
+      result.reject(error);
+    }
+    return result.promise;
+  }
   return {
     client: host.client,
     resources,
     get state() {
       return state;
     },
-    admit<Result>(operation: () => Promise<Result>): Promise<Result> {
-      if (state !== "open")
-        return Promise.reject(new KeynesSdkError("runtime_closed", {}));
-      const result = tail.then(operation);
-      tail = result.then(
-        () => undefined,
-        () => undefined,
-      );
-      return result;
-    },
+    admit,
     invokeMutation,
     close() {
       if (closePromise !== undefined) return closePromise;

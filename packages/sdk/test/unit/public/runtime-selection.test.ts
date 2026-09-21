@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
   createKeynes,
@@ -12,6 +12,62 @@ const resources = {
 } as const;
 
 describe("explicit runtime selection", () => {
+  it.each(["throw", "reject"] as const)(
+    "rejects synchronous and asynchronous initializer failures: %s",
+    async (mode) => {
+      const failure = new Error("initialization failed");
+      const runtime = {
+        kind: "local" as const,
+        initialize() {
+          if (mode === "throw") throw failure;
+          return Promise.reject(failure);
+        },
+      };
+      let pending: unknown;
+      expect(() => {
+        pending = createKeynes({ runtime, resources });
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toBe(failure);
+    },
+  );
+
+  it.each([false, true])(
+    "cleans up a mismatched initialized runtime; cleanup failure %s",
+    async (failCleanup) => {
+      const { nodeSqlite } = await import("@keynes/node-sqlite");
+      const cleanupFailure = new Error("cleanup failed");
+      const runtime = nodeSqlite();
+      const session = await runtime.initialize(resources);
+      const close = vi.fn(async () => {
+        await session.close();
+        if (failCleanup) throw cleanupFailure;
+      });
+      let pending: unknown;
+      expect(() => {
+        pending = createKeynes({
+          resources,
+          runtime: {
+            kind: "local",
+            async initialize() {
+              return { ...session, resources: [], close };
+            },
+          },
+        });
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      if (failCleanup)
+        await expect(pending).rejects.toMatchObject({
+          errors: [expect.any(Error), cleanupFailure],
+        });
+      else
+        await expect(pending).rejects.toMatchObject({
+          code: "unknown",
+        });
+      expect(close).toHaveBeenCalledOnce();
+    },
+  );
+
   it.each([
     { resources },
     { resources, runtime: undefined },

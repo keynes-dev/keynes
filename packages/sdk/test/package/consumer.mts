@@ -221,12 +221,50 @@ async function runClosure(): Promise<void> {
   };
   const keynes = await createKeynes({ runtime: nodeSqlite(), resources });
   const root = await keynes.createBudget({ workUnits: 1 });
-  const firstClose = keynes.close();
+  const malformed: Promise<unknown> = Reflect.apply(root.request, root, [null]);
+  assertEqual(malformed instanceof Promise, true);
+  await assertRejectsCode(malformed, "invalid_command");
+  let firstClose: Promise<void> | undefined;
+  const admitted = root.request(
+    new Proxy(
+      { workUnits: 1 },
+      {
+        getPrototypeOf(target) {
+          firstClose ??= keynes.close();
+          return Reflect.getPrototypeOf(target);
+        },
+      },
+    ),
+  );
+  assertEqual(admitted instanceof Promise, true);
+  if (firstClose === undefined)
+    throw new Error("input was not captured at invocation");
   assertEqual(keynes.close() === firstClose, true);
+  assertEqual(keynes[Symbol.asyncDispose]() === firstClose, true);
   await Promise.all([
     assertRejectsCode(keynes.createBudget({ workUnits: 1 }), "runtime_closed"),
     assertRejectsCode(root.inspect(), "runtime_closed"),
   ]);
+  for (const [owner, method] of [
+    [keynes, keynes.defineResources],
+    [keynes, keynes.createBudget],
+    [root, root.request],
+    [root, root.settle],
+  ] as const) {
+    const input = new Proxy(
+      {},
+      {
+        getPrototypeOf() {
+          throw new Error("closed input inspected");
+        },
+      },
+    );
+    const pending: Promise<unknown> = Reflect.apply(method, owner, [input]);
+    assertEqual(pending instanceof Promise, true);
+    await assertRejectsCode(pending, "runtime_closed");
+  }
+  const outcome = await admitted;
+  assertEqual(outcome.status, "approved");
   await firstClose;
 }
 

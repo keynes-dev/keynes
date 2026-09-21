@@ -2,7 +2,11 @@ import { rootResources } from "@keynes/database/contract-tests";
 
 import { describe, expect, it } from "vitest";
 
-import { createKeynesClient } from "../../../src/generated/client.js";
+import {
+  createRemoteKeynesClient,
+  KeynesError,
+  createKeynesClient,
+} from "../../../src/generated/client.js";
 import type { CommandExecutor } from "../../../src/command-executor.js";
 import type {
   CreateBudgetCommand,
@@ -83,6 +87,52 @@ const EXPECTED_OPERATIONS = [
 ] satisfies readonly OperationName[];
 
 describe("generated client bindings", () => {
+  it.each(["throw", "reject", "error", "malformed"] as const)(
+    "every generated Promise method rejects %s failures on direct invocation",
+    async (failureMode) => {
+      const failure = new Error("executor failure");
+      const execute = (operation: unknown) => {
+        if (failureMode === "throw") throw failure;
+        if (failureMode === "reject") return Promise.reject(failure);
+        return Promise.resolve(
+          failureMode === "error"
+            ? {
+                ok: false,
+                error: {
+                  kind: "error",
+                  code: "invalid_command",
+                  details: {
+                    operation:
+                      typeof operation === "string"
+                        ? operation
+                        : Reflect.get(Object(operation), "method"),
+                    issues: [{ path: "$", rule: "type" }],
+                  },
+                },
+              }
+            : { ok: true },
+        );
+      };
+      for (const client of [
+        createKeynesClient({ execute }),
+        createRemoteKeynesClient({ execute }),
+      ]) {
+        for (const method of Object.values(client)) {
+          let pending: unknown;
+          expect(() => {
+            pending = Reflect.apply(method, client, [{}]);
+          }).not.toThrow();
+          expect(pending).toBeInstanceOf(Promise);
+          if (failureMode === "throw" || failureMode === "reject")
+            await expect(pending).rejects.toBe(failure);
+          else if (failureMode === "error")
+            await expect(pending).rejects.toBeInstanceOf(KeynesError);
+          else await expect(pending).rejects.toBeInstanceOf(Error);
+        }
+      }
+    },
+  );
+
   it("binds every concrete method to its deployment-neutral operation", async () => {
     const calls: OperationName[] = [];
     const stop = new Error("binding observed");

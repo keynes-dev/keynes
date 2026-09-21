@@ -137,19 +137,21 @@ export function createRemoteBudgetHandle<
     usage,
     ...options
   ) => {
+    runtime.assertOpen();
     const { operationKey } = splitRemoteMutationOptions(
       options,
       new Set<string>(),
+    );
+    const capturedUsage = binding.usage(
+      captureRequest(usage, "settleBudget", "$.usage"),
+      "remote",
     );
     const result = await invokeBudgetOperation(binding, () =>
       runtime.invokeMutation("settleBudget", operationKey, () =>
         client.settleBudget({
           operationKey,
           budgetReference,
-          usage: binding.usage(
-            captureRequest(usage, "settleBudget", "$.usage"),
-            "remote",
-          ),
+          usage: capturedUsage,
         }),
       ),
     );
@@ -158,6 +160,7 @@ export function createRemoteBudgetHandle<
   };
 
   const inspect: RemoteBudget<Names, HistoryNames>["inspect"] = async () => {
+    runtime.assertOpen();
     const deadline = Date.now() + HISTORY_DEADLINE_MILLISECONDS;
     const budget = await invokeBudgetOperation(binding, () =>
       beforeInspectionDeadline("getBudget", deadline, () =>
@@ -217,6 +220,7 @@ async function requestRemoteBudget<
 ): Promise<
   RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
 > {
+  runtime.assertOpen();
   const { client } = runtime;
   const { budgetReference } = identity;
   type RequestedName = Extract<keyof Resources, Names>;

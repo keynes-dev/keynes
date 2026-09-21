@@ -185,10 +185,9 @@ export async function createKeynes(
     allocation,
     ...createOptions
   ) => createRemoteRootBudget(runtime, allocation, createOptions);
-  const openBudget: RemoteBudgetOpener = async ({
-    reference,
-    resourceTypes,
-  }) => {
+  const openBudget: RemoteBudgetOpener = async (options) => {
+    runtime.assertOpen();
+    const { reference, resourceTypes } = options;
     const budgetReference = requireBudgetReference(reference);
     const definitions = snapshotResourceDefinitions(
       resourceTypes,
@@ -218,6 +217,7 @@ export async function createKeynes(
   const recoverOperation = async (
     suppliedOperationKey: OperationKey,
   ): Promise<RecoverOperationResult> => {
+    runtime.assertOpen();
     const operationKey = requireOperationKey(suppliedOperationKey);
     const result = await client.recoverOperation({ operationKey });
     if (result.operationKey !== operationKey) throw remoteResultMismatch();
@@ -227,6 +227,7 @@ export async function createKeynes(
     definitions,
     ...options
   ) => {
+    runtime.assertOpen();
     const snapshot = snapshotResourceDefinitions(definitions);
     const { operationKey } = splitRemoteMutationOptions(options, new Set());
     const input = { operationKey, definitions: snapshot };
@@ -251,16 +252,18 @@ function createKeynesHandle(runtime: BasicRuntimeSession): LocalKeynes {
   const defineResources: LocalKeynes["defineResources"] = async (
     definitions,
   ) => {
-    if (runtime.state !== "open")
-      throw new KeynesSdkError("runtime_closed", {});
-    const input = {
-      commandId: randomUUID(),
-      definitions: snapshotResourceDefinitions(definitions),
-    };
-    return runtime.admit(async () => {
-      await runtime.invokeMutation(() => runtime.client.defineResources(input));
-      return createResourceDefinitionBinding();
-    });
+    return runtime.admit(
+      () => ({
+        commandId: randomUUID(),
+        definitions: snapshotResourceDefinitions(definitions),
+      }),
+      async (input) => {
+        await runtime.invokeMutation(() =>
+          runtime.client.defineResources(input),
+        );
+        return createResourceDefinitionBinding();
+      },
+    );
   };
   const createBudget: RootBudgetCreator<string> = (allocation, ...options) =>
     createRootBudget(runtime, allocation, options);
@@ -283,29 +286,32 @@ async function createRootBudget<
   options: readonly unknown[],
 ): Promise<Budget<Extract<keyof Allocation, Names>>> {
   type BudgetName = Extract<keyof Allocation, Names>;
-  if (runtime.state !== "open") throw new KeynesSdkError("runtime_closed", {});
-  const {
-    definitions: selectedDefinitions,
-    amounts,
-    prepared,
-  } = prepareRootResources<BudgetName>(runtime.resources, allocation);
-  requireNoOptions(options);
-  return runtime.admit(async () => {
-    const command = {
-      commandId: randomUUID(),
-      definitions: selectedDefinitions,
-      amounts,
-    };
-    const result = await runtime.invokeMutation(() =>
-      runtime.client.createBudget(command),
-    );
-    const binding = createResourceBinding(prepared, result.budget);
-    return createBudgetHandle<BudgetName>(
-      runtime,
-      result.budget.budgetId,
-      binding,
-    );
-  });
+  return runtime.admit(
+    () => {
+      const prepared = prepareRootResources<BudgetName>(
+        runtime.resources,
+        allocation,
+      );
+      requireNoOptions(options);
+      return prepared;
+    },
+    async ({ definitions: selectedDefinitions, amounts, prepared }) => {
+      const command = {
+        commandId: randomUUID(),
+        definitions: selectedDefinitions,
+        amounts,
+      };
+      const result = await runtime.invokeMutation(() =>
+        runtime.client.createBudget(command),
+      );
+      const binding = createResourceBinding(prepared, result.budget);
+      return createBudgetHandle<BudgetName>(
+        runtime,
+        result.budget.budgetId,
+        binding,
+      );
+    },
+  );
 }
 
 async function createRemoteRootBudget<
@@ -316,6 +322,7 @@ async function createRemoteRootBudget<
   allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
   options: readonly unknown[],
 ): Promise<RemoteBudget<Extract<keyof Allocation, Names>>> {
+  runtime.assertOpen();
   type BudgetName = Extract<keyof Allocation, Names>;
   const { client } = runtime;
   const {

@@ -15,11 +15,13 @@ export interface BasicRuntimeSession {
   readonly client: KeynesClient;
   readonly state: "open" | "closing" | "closed";
   admit<Result>(operation: () => Promise<Result>): Promise<Result>;
+  admit<Prepared, Result>(prepare: () => Prepared, execute: (prepared: Prepared) => Promise<Result>): Promise<Result>;
   invokeMutation<Result>(operation: () => Promise<Result>): Promise<Result>;
   close(): Promise<void>;
 }
 
 export interface RemoteRuntimeSession {
+  assertOpen(): void;
   readonly resources: readonly RuntimeResourceBinding[];
   prepareResources(definitions: unknown): Promise<readonly RuntimeResourceBinding[]>;
   readonly client: RemoteKeynesClient;
