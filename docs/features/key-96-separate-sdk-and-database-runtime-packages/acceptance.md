@@ -191,6 +191,8 @@ Source feedback before the clean candidate passes with exit 0: frozen installati
 
 ## Pending acceptance
 
-Phase 7 and the retained four-archive combined acceptance set: NOT RUN. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+The first retained split attempt at clean `d8202f512a96f55afafb10daf98d589160c1c35b` fails, exit 1, after SDK-only and SDK/SQLite pass. PostgreSQL package tests pass 26 assertions and fail one new path assertion that compares a canonical installed path with an uncanonicalized temporary root on macOS. The failed attempt is retained at `.artifacts/key-96-packages/d8202f5-attempt-1/result.json`; it is not accepted qualification.
+
+Final retained four-archive combined acceptance is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { access, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, realpath, writeFile } from "node:fs/promises";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -53,9 +53,14 @@ describe("@keynes/postgres public entrypoint and blocked deep imports", () => {
       "@keynes/sdk",
       "@keynes/postgres",
     ]);
+    const consumerRoot = await realpath(packed.consumerRoot);
     for (const entry of packed.installedArchives ?? []) {
       expect(entry.sha256).toMatch(/^[a-f0-9]{64}$/);
-      expect(entry.entrypoint.startsWith(packed.consumerRoot)).toBe(true);
+      expect(await realpath(entry.entrypoint)).toBe(entry.entrypoint);
+      const withinConsumer = relative(consumerRoot, entry.entrypoint);
+      expect(isAbsolute(withinConsumer)).toBe(false);
+      expect(withinConsumer).not.toBe("..");
+      expect(withinConsumer.startsWith(`..${sep}`)).toBe(false);
     }
     expect(installed.postgres).not.toBe(source.postgres);
     expect(installed.createKeynes).not.toBe(source.createKeynes);
