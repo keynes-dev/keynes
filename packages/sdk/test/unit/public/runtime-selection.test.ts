@@ -18,7 +18,7 @@ describe("explicit runtime selection", () => {
     { resources, runtime: null },
     { resources, runtime: {} },
     { resources, databaseUrl: "postgresql://localhost/unused" },
-  ])("rejects missing or obsolete selection %# : %j", async (options) => {
+  ])("rejects missing or obsolete selection %#", async (options) => {
     // Close a baseline implicit Local instance if this rejection regresses.
     const result: Promise<Keynes | RemoteKeynes> = Reflect.apply(
       createKeynes,

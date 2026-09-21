@@ -199,6 +199,8 @@ The paired attempt at that revision fails: Local passes 315 assertions and fails
 
 The paired invocation now uses the existing Local configuration, one worker and provider-free environment. Review caught the shared launcher merging removed database variables back into that environment; it now preserves the caller-supplied environment. All callers supply complete environments. The polluted-provider child regression fails before the fix and passes afterward, along with all 197 runner tests and root typechecking. Actual corrected SQLite execution passes all 378 assertions with exit 0 and cleanup. Ponytail review accepts these direct fixes without a new runner abstraction.
 
-Final retained qualification of the corrected paired invocation is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
+The second paired attempt at clean `e1fbd3e0efaf3d647252830798eca428671c75e4` passes all 378 Local and 285 native assertions with both child exits and cleanup successful, but fails retained coverage validation. One runtime-selection test name interpolates a configuration containing a PostgreSQL URL; the existing sanitizer correctly removes that identity. Record: `.artifacts/key-96/e1fbd3e-attempt-2/manifest.json`. The correction removes payload interpolation from that name, retaining its unique case index; redaction and strict validation remain unchanged.
+
+Final retained qualification is pending. Managed Hosted, full Embedded recovery, other hosts/Node versions, live providers, production operations and performance measurements: NOT RUN.
 
 Implementation commits and this evidence remain local-only. Existing published planning links were read in Linear; no links were changed.
