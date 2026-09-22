@@ -11,6 +11,7 @@ import {
   openInstalledPostgresDatabase,
   type PostgresDatabase,
   type FixtureInstallation,
+  type TransactionIsolation,
 } from "./postgres-database.js";
 import {
   createDatabaseProcedureCaller,
@@ -79,10 +80,21 @@ export interface NativeAttempt {
   readonly client: ContractClient;
   readonly backendPid: number;
   commit(): Promise<void>;
+  rollback(): Promise<void>;
 }
 
 export interface NativeTestKeynes extends ContractTestHost {
-  beginAttempt(fixture: FixturePrincipal): Promise<NativeAttempt>;
+  beginAttempt(
+    fixture: FixturePrincipal,
+    options?: ContractClientOptions,
+  ): Promise<NativeAttempt>;
+  beginRepeatableReadAttempt(
+    fixture: FixturePrincipal,
+    options?: ContractClientOptions,
+  ): Promise<NativeAttempt>;
+  beginReadOnlyRepeatableReadAttempt(
+    fixture: FixturePrincipal,
+  ): Promise<NativeAttempt>;
   requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
 }
 
@@ -96,29 +108,101 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
   const application = await owner.createApplicationRole();
   return {
     ...postgresContractHost(owner),
-    async beginAttempt(fixture) {
-      const transaction = await owner.beginTransactionAs(
-        application.role,
-        application.password,
+    beginAttempt(fixture, options) {
+      return beginAttempt(
+        owner,
+        application,
+        fixture,
+        options,
+        "read committed",
       );
-      return {
-        client: createContractClient(
-          createTransactionProcedureCaller(transaction.connection, {
-            tenantId: FIXTURE_TENANT_ID,
-            principalId: FIXTURE_PRINCIPALS[fixture],
-          }),
-        ),
-        backendPid: transaction.backendPid,
-        commit: () => transaction.commit(),
-      };
+    },
+    beginRepeatableReadAttempt(fixture, options) {
+      return beginAttempt(
+        owner,
+        application,
+        fixture,
+        options,
+        "repeatable read",
+      );
+    },
+    beginReadOnlyRepeatableReadAttempt(fixture) {
+      return beginAttempt(
+        owner,
+        application,
+        fixture,
+        undefined,
+        "repeatable read",
+        true,
+      );
     },
     requireBlockedBy: (blockedPid, blockerPid) =>
       owner.requireBlockedBy(blockedPid, blockerPid),
   };
 }
 
+async function beginAttempt(
+  owner: PostgresDatabase,
+  application: { readonly role: string; readonly password: string },
+  fixture: FixturePrincipal,
+  options: ContractClientOptions | undefined,
+  isolation: TransactionIsolation,
+  readOnly = false,
+): Promise<NativeAttempt> {
+  const transaction = await owner.beginTransactionAs(
+    application.role,
+    application.password,
+    isolation,
+  );
+  if (readOnly) await transaction.connection.exec("set transaction read only");
+  return {
+    client: createContractClient(
+      createTransactionProcedureCaller(
+        transaction.connection,
+        transactionContext(fixture, options),
+      ),
+    ),
+    backendPid: transaction.backendPid,
+    commit: () => transaction.commit(),
+    rollback: () => transaction.rollback(),
+  };
+}
+
 function postgresContractHost(owner: PostgresDatabase): ContractTestHost {
   return {
+    async inspectJournal() {
+      const { rows } = await owner.database.query<{
+        readonly tenant_id: string;
+        readonly root_budget_id: string;
+        readonly command_id: string;
+        readonly resource_type_id: string;
+        readonly movement_id: string;
+        readonly reason:
+          | "initial_allocation"
+          | "child_grant"
+          | "consumption"
+          | "settlement_return"
+          | "root_release";
+        readonly source_budget_id: string | null;
+        readonly destination_budget_id: string | null;
+        readonly amount: string;
+      }>(`select tenant_id::text, root_budget_id::text, command_id::text,
+                resource_type_id::text, movement_id::text, reason,
+                source_budget_id::text, destination_budget_id::text, amount::text
+           from keynes_internal.quantity_movements
+          order by tenant_id, root_budget_id, command_id, movement_id`);
+      return rows.map((row) => ({
+        tenantId: row.tenant_id,
+        rootBudgetId: row.root_budget_id,
+        commandId: row.command_id,
+        resourceTypeId: row.resource_type_id,
+        movementId: row.movement_id,
+        reason: row.reason,
+        sourceBudgetId: row.source_budget_id,
+        destinationBudgetId: row.destination_budget_id,
+        amount: Number(row.amount),
+      }));
+    },
     async inspectState() {
       const { rows } = await owner.database.query<
         Awaited<ReturnType<ContractTestHost["inspectState"]>>
@@ -129,7 +213,10 @@ function postgresContractHost(owner: PostgresDatabase): ContractTestHost {
           (SELECT count(*)::integer FROM keynes_internal.budgets) AS budgets,
           (SELECT count(*)::integer FROM keynes_internal.budget_resources) AS holdings,
           (SELECT count(*)::integer FROM keynes_internal.budget_history_entries) AS history,
-          (SELECT coalesce(sum(allocated_amount), 0)::double precision FROM keynes_internal.budget_resources) AS quantity
+          (SELECT coalesce(sum(
+             case when destination_budget_id is not null then amount else 0 end -
+             case when source_budget_id is not null then amount else 0 end
+           ), 0)::double precision FROM keynes_internal.quantity_movements) AS quantity
       `);
       const state = rows[0];
       if (state === undefined)

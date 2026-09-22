@@ -1028,7 +1028,7 @@ describe("public remote Keynes facade", () => {
             unit: "unit",
             accountingBehavior: "consumable",
             allocated: 10,
-            available: 7,
+            available: 0,
             committed: 3,
             directUsage: 2,
             subtreeObservedUsage: 2,
@@ -1404,8 +1404,8 @@ function responseFor(
           installationId: "embedded-postgresql-18.6-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 4,
-          minimumSdkGeneration: 4,
+          semanticGeneration: 5,
+          minimumSdkGeneration: 5,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,
@@ -1487,7 +1487,7 @@ function budgetProjection(
           accountingBehavior: "consumable",
         },
         allocated: 10,
-        available: 7,
+        available: lifecycle === "settled" ? 0 : 7,
         committed: 3,
         directUsage,
         subtreeObservedUsage: 2,

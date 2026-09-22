@@ -214,13 +214,13 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         installationId: expect.any(String),
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 4,
-        minimumSdkGeneration: 4,
+        semanticGeneration: 5,
+        minimumSdkGeneration: 5,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",
             target: "keynes.remote_get_compatibility",
-            revision: 2,
+            revision: 3,
           }),
         ]),
       },
@@ -421,6 +421,91 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       },
     });
     expect(await authorityCounts(fixture)).toEqual(before);
+  });
+
+  it("recovers a lost child terminal cascade without duplicating movements", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    const producer = await fixture.connect(fixture.primary);
+    const recovery = await fixture.connect(fixture.primary);
+    const name = "lost_terminal_tokens";
+    await provisionRoot(producer, name);
+    const created = await queryResponse(
+      producer,
+      "keynes.remote_create_budget",
+      createRoot(operationKey("lost-terminal-root"), name),
+    );
+    expect(created).toMatchObject({ ok: true, result: { kind: "created" } });
+    const rootReference = requireBudgetReference(created);
+    const requested = await queryResponse(producer, "keynes.remote_request", {
+      operationKey: operationKey("lost-terminal-child"),
+      parentBudgetReference: rootReference,
+      resources: [{ resource: name, amount: 2 }],
+    });
+    const childReference = requireChildBudgetReference(requested);
+    await queryResponse(producer, "keynes.remote_settle", {
+      operationKey: operationKey("lost-terminal-root-settle"),
+      budgetReference: rootReference,
+      usage: [{ resource: name, amount: 0 }],
+    });
+    const key = operationKey("lost-terminal-child-settle");
+    const transportErrors: Error[] = [];
+    producer.once("error", (error) => transportErrors.push(error));
+    producer.connection.stream.pause();
+    const pending = queryResponse(producer, "keynes.remote_settle", {
+      operationKey: key,
+      budgetReference: childReference,
+      usage: [{ resource: name, amount: 1 }],
+    });
+    await expect
+      .poll(
+        async () =>
+          record(
+            record(
+              await queryResponse(recovery, "keynes.remote_recover_operation", {
+                operationKey: key,
+              }),
+            ).result,
+          ).kind,
+        { interval: 20, timeout: 2_000 },
+      )
+      .toBe("committed");
+    producer.connection.stream.destroy();
+    await expect(pending).rejects.toBeInstanceOf(Error);
+    expect(transportErrors).toHaveLength(1);
+    const facts = await journalFacts(fixture);
+    const recovered = await queryResponse(
+      recovery,
+      "keynes.remote_recover_operation",
+      { operationKey: key },
+    );
+    expect(recovered).toMatchObject({
+      ok: true,
+      result: {
+        kind: "committed",
+        operation: "settleBudget",
+        result: { kind: "settled" },
+      },
+    });
+    expect(
+      await queryResponse(recovery, "keynes.remote_settle", {
+        operationKey: key,
+        budgetReference: childReference,
+        usage: [{ resource: name, amount: 1 }],
+      }),
+    ).toMatchObject({ ok: true, result: { replayed: true } });
+    expect(await journalFacts(fixture)).toEqual(facts);
+    expect(facts).toEqual(
+      expect.objectContaining({ settlementReturn: "1", rootRelease: "1" }),
+    );
+    expect(
+      await queryResponse(recovery, "keynes.remote_settle", {
+        operationKey: key,
+        budgetReference: childReference,
+        usage: [{ resource: name, amount: 2 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: "command_conflict" } });
+    expect(await journalFacts(fixture)).toEqual(facts);
   });
 
   it("recovers a lost configured creation only after current authorization and selected-definition validation", async () => {
@@ -975,6 +1060,13 @@ function requireBudgetReference(value: unknown): string {
   return reference;
 }
 
+function requireChildBudgetReference(value: unknown): string {
+  const reference = record(record(value).result).childBudgetReference;
+  if (typeof reference !== "string")
+    throw new Error("remote request did not return a child Budget reference");
+  return reference;
+}
+
 interface HistoryPage {
   readonly entries: readonly unknown[];
   readonly nextCursor: string | null;
@@ -1028,6 +1120,20 @@ async function authorityCounts(
        (select count(*)::text from keynes_internal.remote_history_cursors) as cursors`,
   );
   return result.rows;
+}
+
+async function journalFacts(
+  fixture: RemoteIdentityFixture,
+): Promise<Record<string, string>> {
+  const result = await fixture.administrator.query<
+    Record<string, string>
+  >(`select
+    (select count(*)::text from keynes_internal.quantity_movements) as movements,
+    (select count(*)::text from keynes_internal.quantity_movements where reason = 'settlement_return') as "settlementReturn",
+    (select count(*)::text from keynes_internal.quantity_movements where reason = 'root_release') as "rootRelease"`);
+  const facts = result.rows[0];
+  if (facts === undefined) throw new Error("journal facts unavailable");
+  return facts;
 }
 
 function authorityCount(

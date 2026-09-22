@@ -86,7 +86,7 @@ export function registerRequestDenialContractTests(
         (await client.getBudget({ budgetId: child.childBudgetId })).budget,
       ).toMatchObject({
         lifecycle: "settled",
-        resources: [{ allocated: 7, directUsage: 2, available: 5 }],
+        resources: [{ allocated: 7, directUsage: 2, available: 0 }],
       });
     });
 
@@ -422,7 +422,7 @@ export function registerRequestDenialContractTests(
           resources: [{ resourceTypeId: resource.resourceTypeId, amount: 1 }],
         }),
         "budget_not_active",
-        { budgetId: root.budget.budgetId, lifecycle: "settling" },
+        { budgetId: root.budget.budgetId, lifecycle: "settled" },
       );
     });
 

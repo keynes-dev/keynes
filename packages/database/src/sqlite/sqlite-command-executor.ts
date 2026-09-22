@@ -39,6 +39,7 @@ import {
   SqliteStore,
   type SqliteBudgetRow as BudgetRow,
   type SqliteHoldingRow as HoldingRow,
+  type SqliteJournalMovement,
   type SqliteInstallation,
   type SqliteResourceRow as ResourceRow,
 } from "./sqlite-store.js";
@@ -46,6 +47,8 @@ export type SqliteMutationStage =
   | "after_command_binding"
   | "after_resource_insertion"
   | "after_domain_mutation"
+  | "after_quantity_movement"
+  | "after_ancestor_finalization"
   | "after_result_storage"
   | "after_history_insertion";
 
@@ -339,10 +342,27 @@ export class SqliteCommandExecutor implements CommandExecutor {
       lifecycle: "active",
     });
     this.#insertHoldings(context.tenantId, command.commandId, resources);
+    for (const resource of resources) {
+      this.#appendMovement({
+        tenantId: context.tenantId,
+        rootBudgetId: command.commandId,
+        commandId: command.commandId,
+        resourceTypeId: resource.resourceTypeId,
+        reason: "initial_allocation",
+        sourceBudgetId: null,
+        destinationBudgetId: command.commandId,
+        amount: BigInt(resource.amount),
+      });
+    }
     this.#observeMutation?.("after_domain_mutation");
     this.#appendHistory(context.tenantId, command.commandId, {
       kind: "budget_created",
-      entryId: eventId(context.tenantId, command.commandId, "budget_created"),
+      entryId: eventId(
+        context.tenantId,
+        command.commandId,
+        "budget_created",
+        command.commandId,
+      ),
       sequence: 1,
       commandId: command.commandId,
       subjectBudgetId: command.commandId,
@@ -425,10 +445,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
       context.tenantId,
       command.parentBudgetId,
     );
-    const projectedParent = this.#projectBudget(
-      context.tenantId,
-      command.parentBudgetId,
-    );
     if (parent.lifecycle !== "active") {
       fail({
         kind: "error",
@@ -441,14 +457,15 @@ export class SqliteCommandExecutor implements CommandExecutor {
     }
     const resources = canonicalAmounts(command.resources);
     this.#requireResourceTypes(context.tenantId, resources);
-    const available = new Map(
-      projectedParent.resources.map((resource) => [
-        resource.resourceType.resourceTypeId,
-        resource.available,
-      ]),
-    );
+    const available = new Map<string, number>();
     for (const resource of resources) {
-      if (!available.has(resource.resourceTypeId)) {
+      if (
+        this.#holding(
+          context.tenantId,
+          command.parentBudgetId,
+          resource.resourceTypeId,
+        ) === undefined
+      ) {
         fail({
           kind: "error",
           code: "invalid_command",
@@ -458,6 +475,18 @@ export class SqliteCommandExecutor implements CommandExecutor {
           },
         });
       }
+      available.set(
+        resource.resourceTypeId,
+        safeNumber(
+          this.#liveQuantity(
+            context.tenantId,
+            command.parentBudgetId,
+            resource.resourceTypeId,
+          ),
+          "requestBudget",
+          resource.resourceTypeId,
+        ),
+      );
     }
     const reasons = resources.flatMap<RequestDenialReason>((resource) => {
       const amount = available.get(resource.resourceTypeId) ?? 0;
@@ -490,7 +519,12 @@ export class SqliteCommandExecutor implements CommandExecutor {
       this.#observeMutation?.("after_domain_mutation");
       this.#appendHistory(context.tenantId, parent.rootBudgetId, {
         kind: "request_denied",
-        entryId: eventId(context.tenantId, command.commandId, "request_denied"),
+        entryId: eventId(
+          context.tenantId,
+          command.commandId,
+          "request_denied",
+          command.parentBudgetId,
+        ),
         sequence: this.#nextSequence(context.tenantId, parent.rootBudgetId),
         commandId: command.commandId,
         subjectBudgetId: command.parentBudgetId,
@@ -517,10 +551,27 @@ export class SqliteCommandExecutor implements CommandExecutor {
       lifecycle: "active",
     });
     this.#insertHoldings(context.tenantId, command.commandId, resources);
+    for (const resource of resources) {
+      this.#appendMovement({
+        tenantId: context.tenantId,
+        rootBudgetId: parent.rootBudgetId,
+        commandId: command.commandId,
+        resourceTypeId: resource.resourceTypeId,
+        reason: "child_grant",
+        sourceBudgetId: parent.budgetId,
+        destinationBudgetId: command.commandId,
+        amount: BigInt(resource.amount),
+      });
+    }
     this.#observeMutation?.("after_domain_mutation");
     this.#appendHistory(context.tenantId, parent.rootBudgetId, {
       kind: "request_approved",
-      entryId: eventId(context.tenantId, command.commandId, "request_approved"),
+      entryId: eventId(
+        context.tenantId,
+        command.commandId,
+        "request_approved",
+        command.commandId,
+      ),
       sequence: this.#nextSequence(context.tenantId, parent.rootBudgetId),
       commandId: command.commandId,
       subjectBudgetId: command.commandId,
@@ -602,18 +653,52 @@ export class SqliteCommandExecutor implements CommandExecutor {
           item.resourceTypeId,
           attempted,
         );
+        const resource = this.#requireResource(
+          context.tenantId,
+          item.resourceTypeId,
+        );
+        const live = this.#liveQuantity(
+          context.tenantId,
+          command.budgetId,
+          item.resourceTypeId,
+        );
+        this.#store.setDeficit(
+          context.tenantId,
+          command.budgetId,
+          item.resourceTypeId,
+          attempted > live ? attempted - live : 0n,
+        );
+        if (resource.accountingBehavior === "consumable") {
+          this.#appendMovement({
+            tenantId: context.tenantId,
+            rootBudgetId: budget.rootBudgetId,
+            commandId: command.commandId,
+            resourceTypeId: item.resourceTypeId,
+            reason: "consumption",
+            sourceBudgetId: command.budgetId,
+            destinationBudgetId: null,
+            amount: minBigInt(attempted, live),
+          });
+        }
         newlyKnown.push({
           resourceTypeId: item.resourceTypeId,
           amount: item.amount,
         });
       }
     }
-    this.#store.setBudgetLifecycle(
-      context.tenantId,
-      command.budgetId,
-      "settling",
-    );
+    if (budget.lifecycle !== "settled") {
+      this.#store.setBudgetLifecycle(
+        context.tenantId,
+        command.budgetId,
+        "settling",
+      );
+    }
     this.#assertSafeAncestry(context.tenantId, budget, "settleBudget");
+    const finalized = this.#finalizeReadyAncestors(
+      context.tenantId,
+      this.#requireBudget(context.tenantId, command.budgetId),
+      command.commandId,
+    );
     const projection = this.#projectBudget(context.tenantId, command.budgetId);
     const unresolvedResourceTypeIds = this.#holdings(
       context.tenantId,
@@ -639,6 +724,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
         context.tenantId,
         command.commandId,
         "budget_settlement_recorded",
+        command.budgetId,
       ),
       sequence: this.#nextSequence(context.tenantId, budget.rootBudgetId),
       commandId: command.commandId,
@@ -649,6 +735,37 @@ export class SqliteCommandExecutor implements CommandExecutor {
       lifecycle: projection.lifecycle === "settled" ? "settled" : "settling",
       isolatedDeficits,
     });
+    for (const ancestor of finalized.slice(1)) {
+      this.#appendHistory(context.tenantId, budget.rootBudgetId, {
+        kind: "budget_settlement_recorded",
+        entryId: eventId(
+          context.tenantId,
+          command.commandId,
+          "budget_settlement_recorded",
+          ancestor.budgetId,
+        ),
+        sequence: this.#nextSequence(context.tenantId, budget.rootBudgetId),
+        commandId: command.commandId,
+        subjectBudgetId: ancestor.budgetId,
+        budgetId: ancestor.budgetId,
+        newlyKnown: [],
+        unresolvedResourceTypeIds: [],
+        lifecycle: "settled",
+        isolatedDeficits: this.#projectBudget(
+          context.tenantId,
+          ancestor.budgetId,
+        ).resources.flatMap((resource) =>
+          resource.deficit === 0
+            ? []
+            : [
+                {
+                  resourceTypeId: resource.resourceType.resourceTypeId,
+                  amount: resource.deficit,
+                },
+              ],
+        ),
+      });
+    }
     this.#observeMutation?.("after_history_insertion");
     return {
       kind: projection.lifecycle === "settled" ? "settled" : "settling",
@@ -674,14 +791,17 @@ export class SqliteCommandExecutor implements CommandExecutor {
 
   #projectBudget(tenantId: string, budgetId: string): BudgetProjection {
     const budget = this.#requireBudget(tenantId, budgetId);
-    const settled = this.#isSettled(tenantId, budget);
     const resources = this.#holdings(tenantId, budgetId)
       .map((holding) => {
         const resource = this.#requireResource(
           tenantId,
           holding.resourceTypeId,
         );
-        const committed = this.#committed(tenantId, budgetId, resource);
+        const committed = this.#committed(
+          tenantId,
+          budgetId,
+          holding.resourceTypeId,
+        );
         const observed = this.#subtreeObserved(
           tenantId,
           budgetId,
@@ -692,19 +812,15 @@ export class SqliteCommandExecutor implements CommandExecutor {
           budgetId,
           holding.resourceTypeId,
         );
-        const charge =
-          resource.accountingBehavior === "consumable"
-            ? (holding.directUsage ?? 0n) + committed
-            : committed;
         return {
           resourceType: resourceProjection(resource),
           allocated: safeNumber(
-            holding.allocated,
+            this.#allocated(tenantId, budgetId, holding.resourceTypeId),
             "getBudget",
             holding.resourceTypeId,
           ),
           available: safeNumber(
-            holding.allocated - minBigInt(holding.allocated, charge),
+            this.#liveQuantity(tenantId, budgetId, holding.resourceTypeId),
             "getBudget",
             holding.resourceTypeId,
           ),
@@ -724,7 +840,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
           ),
           unresolved,
           deficit: safeNumber(
-            charge > holding.allocated ? charge - holding.allocated : 0n,
+            holding.directDeficit,
             "getBudget",
             holding.resourceTypeId,
           ),
@@ -745,55 +861,135 @@ export class SqliteCommandExecutor implements CommandExecutor {
         "getBudget",
         resources[0]?.resourceType.resourceTypeId ?? budgetId,
       ),
-      lifecycle: settled ? "settled" : budget.lifecycle,
+      lifecycle: budget.lifecycle,
       resources: asNonEmpty(resources),
     };
-  }
-
-  #isSettled(tenantId: string, budget: BudgetRow): boolean {
-    return (
-      budget.lifecycle === "settling" &&
-      this.#holdings(tenantId, budget.budgetId).every(
-        (holding) => holding.directUsage !== null,
-      ) &&
-      this.#children(tenantId, budget.budgetId).every((child) =>
-        this.#isSettled(tenantId, child),
-      )
-    );
   }
 
   #committed(
     tenantId: string,
     budgetId: string,
-    resource: ResourceRow,
+    resourceTypeId: string,
   ): bigint {
-    return this.#children(tenantId, budgetId).reduce((total, child) => {
-      const holding = this.#holding(
-        tenantId,
-        child.budgetId,
-        resource.resourceTypeId,
-      );
-      if (holding === undefined) return total;
-      if (!this.#isSettled(tenantId, child)) return total + holding.allocated;
-      if (resource.accountingBehavior === "reusable") return total;
-      return (
+    return this.#journal(tenantId, budgetId, resourceTypeId).reduce(
+      (total, movement) =>
         total +
-        minBigInt(holding.allocated, this.#charge(tenantId, child, resource))
-      );
-    }, 0n);
+        (movement.reason === "child_grant" &&
+        movement.sourceBudgetId === budgetId
+          ? movement.amount
+          : 0n) -
+        (movement.reason === "settlement_return" &&
+        movement.destinationBudgetId === budgetId
+          ? movement.amount
+          : 0n),
+      0n,
+    );
   }
 
-  #charge(tenantId: string, budget: BudgetRow, resource: ResourceRow): bigint {
-    const holding = this.#holding(
-      tenantId,
-      budget.budgetId,
-      resource.resourceTypeId,
+  #allocated(
+    tenantId: string,
+    budgetId: string,
+    resourceTypeId: string,
+  ): bigint {
+    return this.#journal(tenantId, budgetId, resourceTypeId).reduce(
+      (total, movement) =>
+        total +
+        (movement.destinationBudgetId === budgetId &&
+        (movement.reason === "initial_allocation" ||
+          movement.reason === "child_grant")
+          ? movement.amount
+          : 0n),
+      0n,
     );
-    if (holding === undefined) return 0n;
-    const committed = this.#committed(tenantId, budget.budgetId, resource);
-    return resource.accountingBehavior === "consumable"
-      ? (holding.directUsage ?? 0n) + committed
-      : committed;
+  }
+
+  #liveQuantity(
+    tenantId: string,
+    budgetId: string,
+    resourceTypeId: string,
+  ): bigint {
+    return this.#journal(tenantId, budgetId, resourceTypeId).reduce(
+      (total, movement) =>
+        total +
+        (movement.destinationBudgetId === budgetId ? movement.amount : 0n) -
+        (movement.sourceBudgetId === budgetId ? movement.amount : 0n),
+      0n,
+    );
+  }
+
+  #journal(tenantId: string, budgetId: string, resourceTypeId: string) {
+    return this.#store.journalForBudgetResource(
+      tenantId,
+      budgetId,
+      resourceTypeId,
+    );
+  }
+
+  #appendMovement(movement: Omit<SqliteJournalMovement, "movementId">): void {
+    if (movement.amount === 0n) return;
+    this.#store.insertMovement({
+      ...movement,
+      movementId: eventId(
+        movement.tenantId,
+        movement.commandId,
+        movement.reason,
+        `${movement.resourceTypeId}:${movement.sourceBudgetId ?? "outside"}:${movement.destinationBudgetId ?? "outside"}`,
+      ),
+    });
+    this.#observeMutation?.("after_quantity_movement");
+  }
+
+  #readyToFinalize(tenantId: string, budget: BudgetRow): boolean {
+    return (
+      budget.lifecycle === "settling" &&
+      this.#holdings(tenantId, budget.budgetId).every(
+        (holding) => holding.directUsage !== null,
+      ) &&
+      this.#children(tenantId, budget.budgetId).every(
+        (child) => child.lifecycle === "settled",
+      )
+    );
+  }
+
+  #finalizeReadyAncestors(
+    tenantId: string,
+    starting: BudgetRow,
+    commandId: string,
+  ): BudgetRow[] {
+    const finalized: BudgetRow[] = [];
+    let current: BudgetRow | undefined = starting;
+    while (current !== undefined && this.#readyToFinalize(tenantId, current)) {
+      for (const holding of this.#holdings(tenantId, current.budgetId)) {
+        const live = this.#liveQuantity(
+          tenantId,
+          current.budgetId,
+          holding.resourceTypeId,
+        );
+        this.#appendMovement({
+          tenantId,
+          rootBudgetId: current.rootBudgetId,
+          commandId,
+          resourceTypeId: holding.resourceTypeId,
+          reason:
+            current.parentBudgetId === null
+              ? "root_release"
+              : "settlement_return",
+          sourceBudgetId: current.budgetId,
+          destinationBudgetId: current.parentBudgetId,
+          amount: live,
+        });
+      }
+      this.#store.setBudgetLifecycle(tenantId, current.budgetId, "settled");
+      if (current.budgetId !== starting.budgetId) {
+        this.#observeMutation?.("after_ancestor_finalization");
+      }
+      finalized.push(this.#requireBudget(tenantId, current.budgetId));
+      current =
+        current.parentBudgetId === null
+          ? undefined
+          : this.#requireBudget(tenantId, current.parentBudgetId);
+    }
+    return finalized;
   }
 
   #subtreeObserved(
@@ -909,7 +1105,6 @@ export class SqliteCommandExecutor implements CommandExecutor {
         tenantId,
         budgetId,
         resourceTypeId: resource.resourceTypeId,
-        allocated: BigInt(resource.amount),
       });
     }
   }
@@ -1130,9 +1325,14 @@ function digestText(prefix: string, value: string): string {
   return `${prefix}:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-function eventId(tenantId: string, commandId: string, kind: string): string {
+function eventId(
+  tenantId: string,
+  commandId: string,
+  kind: string,
+  subjectId: string,
+): string {
   const hash = createHash("sha256")
-    .update(`${tenantId}:${commandId}:${kind}`)
+    .update(`${tenantId}:${commandId}:${kind}:${subjectId}`)
     .digest("hex");
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
 }

@@ -79,6 +79,14 @@ Customers evaluate policy in any language, including SQL over customer data. Sup
 
 Customers own evaluation failures, fallback, recomputation and their surrounding transactions. Keynes replay does not rerun customer policy. Supported Embedded calls use the supplied connection without committing, rolling back, replacing or closing it; results remain provisional until caller commit. An evaluation service or a separate customer database does not create a shared atomic transaction.
 
+The movement journal is the quantity authority. Root creation is the only
+external funding, child creation transfers a fixed grant, consumable use removes
+owned quantity, and finalization returns or releases the remainder. Procedures
+lock an existing tree's root before target and membership reads. Inspection
+reads one coherent snapshot. The adapter never commits or rolls back a
+caller-owned transaction. A settled Budget has zero available quantity while
+its allocated, committed, usage, and deficit history remains visible.
+
 The baseline remains fresh-install-only with exact read-only rechecks. This is
 a compatibility break: recreate an incompatible development database and
 install the current archive. No automatic upgrade, state transfer, or old-Policy
@@ -181,7 +189,7 @@ bootstrap principal. The archive contains only `0001-baseline.sql`; development
 databases created from the former migration graph must be recreated.
 The installer supports only fresh installation and exact recheck. It rejects
 incompatible or partial state without repair. Resource definition and configured
-creation use semantic generation 4 and minimum SDK generation 4. Older preview
+creation use semantic generation 5 and minimum SDK generation 5. Older preview
 installations do not match this schema and procedure contract. Prepare a fresh
 database and install the current archive; there is no in-place migration or
 automatic data transfer from an incompatible installation.

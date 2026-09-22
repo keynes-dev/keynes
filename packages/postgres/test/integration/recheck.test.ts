@@ -117,6 +117,16 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
     }
   });
 
+  it("rechecks a valid trigger with a restricted session search path", async () => {
+    const client = await connect(target.databaseUrl);
+    try {
+      await client.query("set search_path = pg_catalog");
+      await recheckInstallation({ client, config });
+    } finally {
+      await client.end();
+    }
+  });
+
   it("rejects an identity missing a required column before reading it", async () => {
     const client = await connect(target.databaseUrl);
     try {
@@ -211,6 +221,20 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
              from pg_proc p
              join pg_namespace n on n.oid = p.pronamespace
             where n.nspname in ('keynes', 'keynes_internal')
+           union all
+           select 'trigger:' || trigger_schema.nspname || '.' || t.tgname || ':' ||
+                  relation_schema.nspname || '.' || relation.relname || ':' ||
+                  trigger_schema.nspname || '.' || trigger_function.proname || '(' ||
+                  replace(pg_get_function_identity_arguments(trigger_function.oid), ', ', ',') || ')' ||
+                  ':' || t.tgenabled::text || ':' ||
+                  t.tgtype::integer || ':' || case when t.tgqual is null then 'none' else 'when' end
+             from pg_trigger t
+             join pg_class relation on relation.oid = t.tgrelid
+             join pg_namespace relation_schema on relation_schema.oid = relation.relnamespace
+             join pg_proc trigger_function on trigger_function.oid = t.tgfoid
+             join pg_namespace trigger_schema on trigger_schema.oid = trigger_function.pronamespace
+            where relation_schema.nspname in ('keynes', 'keynes_internal')
+              and not t.tgisinternal
            order by object_name`,
       );
       expect(objects.rows.map(({ object_name }) => object_name)).toEqual(
@@ -350,6 +374,60 @@ describe("PostgreSQL exact recheck and application-role permissions", () => {
         ).rejects.toMatchObject({ code: "incompatible_target" });
       } finally {
         await client.query(index.definition);
+      }
+      await recheckInstallation({ client, config });
+    } finally {
+      await client.end();
+    }
+  });
+
+  it.each([
+    {
+      name: "missing quantity-movement trigger",
+      mutate:
+        "drop trigger quantity_movements_append_only on keynes_internal.quantity_movements",
+      restore:
+        "create trigger quantity_movements_append_only before insert or update or delete on keynes_internal.quantity_movements for each row execute function keynes_internal.guard_quantity_movement()",
+    },
+    {
+      name: "disabled quantity-movement trigger",
+      mutate:
+        "alter table keynes_internal.quantity_movements disable trigger quantity_movements_append_only",
+      restore:
+        "alter table keynes_internal.quantity_movements enable trigger quantity_movements_append_only",
+    },
+    {
+      name: "quantity-movement trigger with changed events",
+      mutate: `drop trigger quantity_movements_append_only on keynes_internal.quantity_movements;
+        create trigger quantity_movements_append_only before insert on keynes_internal.quantity_movements
+        for each row execute function keynes_internal.guard_quantity_movement()`,
+      restore:
+        "drop trigger quantity_movements_append_only on keynes_internal.quantity_movements; create trigger quantity_movements_append_only before insert or update or delete on keynes_internal.quantity_movements for each row execute function keynes_internal.guard_quantity_movement()",
+    },
+    {
+      name: "rebound quantity-movement trigger",
+      mutate: `create function public.drifted_quantity_movement_trigger() returns trigger language plpgsql as $$ begin return new; end $$;
+        drop trigger quantity_movements_append_only on keynes_internal.quantity_movements;
+        create trigger quantity_movements_append_only before insert or update or delete on keynes_internal.quantity_movements
+        for each row execute function public.drifted_quantity_movement_trigger()`,
+      restore: `drop trigger quantity_movements_append_only on keynes_internal.quantity_movements;
+        create trigger quantity_movements_append_only before insert or update or delete on keynes_internal.quantity_movements
+        for each row execute function keynes_internal.guard_quantity_movement();
+        drop function public.drifted_quantity_movement_trigger()`,
+    },
+  ])("rejects a $name during exact recheck", async ({ mutate, restore }) => {
+    const client = await connect(target.databaseUrl);
+    try {
+      await client.query(mutate);
+      try {
+        await expect(
+          recheckInstallation({ client, config }),
+        ).rejects.toMatchObject({
+          code: "incompatible_target",
+          check: "object-inventory",
+        });
+      } finally {
+        await client.query(restore);
       }
       await recheckInstallation({ client, config });
     } finally {

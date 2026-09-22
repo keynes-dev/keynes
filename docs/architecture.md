@@ -276,16 +276,29 @@ cancel from the tree equation. A zero-valued member has a
 membership record but creates no movement. A fully settled tree has
 `live = 0`.
 
+Inspection exposes fixed creation funding as `allocated`, live quantity as
+`available`, and child grants less child returns as `committed`. `committed` is
+historical accounting information, not authority. If a root allocates 100,
+grants a child 40, and the child consumes 10 before returning 30, the root has
+`allocated: 100`, `available: 90`, and `committed: 10`. When the root settles
+with zero direct use, it releases 90 and retains `allocated: 100` and
+`committed: 10` with `available: 0`.
+
 ### Usage and deficit
 
-Direct usage is evidence owned by the reporting Budget. Reported totals are
-monotonic; only newly reported use is processed by a settlement command.
+Direct usage is evidence owned by the reporting Budget. It changes from unknown
+to known once. A later report must match that known value.
 
 For a consumable Resource, the authority moves at most the currently owned
 quantity to consumption. Use above that quantity becomes deficit evidence and
 never creates a negative balance. For a reusable Resource, usage creates
 evidence without a consumption movement; usage above owned quantity also
 creates deficit evidence.
+
+When use first becomes known, the authority stores
+`max(reported - live at observation, 0)` as the direct deficit. A consumable
+movement removes `min(reported, live at observation)`. A later return does not
+change either value.
 
 Child returns and ancestor balances do not erase an observed
 deficit. Keynes does not track source lots, debit a parent to hide overage, or
@@ -322,6 +335,8 @@ ancestor finalizations appear in `inspect` and history.
 Finalization first writes terminal movements that empty the Budget, then
 changes its lifecycle to `settled`. The database prevents a settled Budget
 from retaining quantity or having a non-settled descendant.
+Inspection of a settled Budget therefore reports `available: 0` while retaining
+its allocated, committed, usage, and deficit history.
 
 ## Command and replay contract
 
@@ -355,12 +370,11 @@ results or become another replay ledger.
 PostgreSQL procedures are the durable transition boundary. Private tables are
 not an application API and application roles cannot write them directly.
 
-Mutations lock the smallest shared state needed for their decision:
-
-- request and parent settlement lock the same parent Budget row;
-- child settlement locks the child, then its parent and ready ancestors;
-- sibling finalizations serialize when they reach their shared parent; and
-- affected Resource memberships lock in canonical Resource order.
+Requests and settlements for an existing tree first lock its root Budget row.
+They then lock the target, memberships in canonical Resource order, and newly
+ready ancestors from the nearest parent upward. The root is already locked. The
+root lock serializes requests with settlement and sibling finalization in that
+tree. Definition commands and new-root creation have no existing tree to lock.
 
 A request therefore cannot approve after its parent starts settling. A child return can
 enter an active or settling parent, and the same transaction either leaves the
@@ -369,6 +383,12 @@ parent waiting or finalizes it.
 Lifecycle compare-and-set and a unique terminal movement per
 Budget/Resource/reason prevent duplicate return or release when descendants
 race. Replay is resolved before mutable state is observed. Command results, submitted evidence, movements, lifecycle and history commit in one transaction. Caller evidence remains untrusted; recording it is not proof of evaluation.
+
+At `REPEATABLE READ` or stronger, a serialization error propagates. The caller
+must retry the whole transaction, including the command's replay check, root
+lock, reads, movements, result, and history. Keynes never retries only part of
+a caller-owned transaction. Inspection reads its projection and history from
+one MVCC snapshot and takes no mutation locks.
 
 The logical PostgreSQL state owners are:
 

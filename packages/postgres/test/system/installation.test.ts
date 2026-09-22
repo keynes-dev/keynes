@@ -146,6 +146,55 @@ describe("PostgreSQL installation", () => {
     });
   });
 
+  it("rejects a synthetic generation-four compatibility baseline", async () => {
+    const migration = await readFile(
+      new URL("0001-baseline.sql", MIGRATIONS_ROOT),
+      "utf8",
+    );
+    const currentGeneration = "'semanticGeneration', 5";
+    if (!migration.includes(currentGeneration)) {
+      throw new Error("expected the generation-five compatibility response");
+    }
+    const legacyMigration = migration.replace(
+      currentGeneration,
+      "'semanticGeneration', 4",
+    );
+    const currentChecksum = createHash("sha256")
+      .update(migration)
+      .digest("hex");
+    const legacyChecksum = createHash("sha256")
+      .update(legacyMigration)
+      .digest("hex");
+    const { installDatabase: installLegacy } = await loadInstallerWith(
+      (path, contents) => {
+        if (path.pathname.endsWith("0001-baseline.sql")) {
+          return typeof contents === "string"
+            ? legacyMigration
+            : Buffer.from(legacyMigration);
+        }
+        if (path.pathname.endsWith("installation-record.json")) {
+          if (typeof contents !== "string")
+            throw new Error("record must be text");
+          return contents.replace(currentChecksum, legacyChecksum);
+        }
+        return contents;
+      },
+    );
+
+    await withFreshDatabase(async (database) => {
+      await installLegacy(database, EXPLICIT_INSTALLATION);
+      vi.doUnmock("node:fs/promises");
+      vi.resetModules();
+      const { installDatabase } = await import("./support/migrations.js");
+      await expect(
+        installDatabase(database, EXPLICIT_INSTALLATION),
+      ).rejects.toMatchObject({
+        code: "installation_drift",
+        details: { migrationId: "0001-baseline" },
+      });
+    });
+  });
+
   it("installs the reduced identity and leaves its exact reinstall read-only", async () => {
     const { installDatabase } = await import("./support/migrations.js");
     await withFreshDatabase(async (database) => {

@@ -127,7 +127,7 @@ describe("repository organization", () => {
     }
   });
 
-  it("pins unchanged command and schema identities and the reviewed PostgreSQL baseline", () => {
+  it("pins the reviewed command identity, unchanged schema identity, and PostgreSQL baseline", () => {
     const database = readJsonObject(
       join(repositoryRoot, "packages/database/package.json"),
     );
@@ -138,16 +138,16 @@ describe("repository organization", () => {
     for (const [path, digest] of [
       [
         "contract.json",
-        "17c11670dbaf042f29a8f546beab401a3c76b920c4100cf07b01c26164b18e5d",
+        "063dee9a232ed01cdbb0883535e26adcc473361b5e38d39c6ab16d1c4d0519f7",
       ],
       [
         "schema.json",
         "7d96d41d1eeb87e89b75a13872fcf9f9d7dbea233413d9bb6becbdf6975e83cf",
       ],
       [
-        // Phase 5 removes internal Budget IDs from public history; command and schema bytes remain unchanged.
+        // KEY-80 makes quantity movements authoritative; schema identity remains unchanged.
         "postgres/migrations/0001-baseline.sql",
-        "87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca",
+        "6a7d89038cb1c3f6926801c88a1c7b8fb4b1b93862d5f663fac8e9f1f60ab3d3",
       ],
     ]) {
       expect(

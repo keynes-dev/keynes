@@ -652,6 +652,9 @@ describe("remote PostgreSQL identity and security", () => {
 
     for (const statement of [
       "select * from keynes_internal.remote_role_mappings",
+      "delete from keynes_internal.quantity_movements",
+      "insert into keynes_internal.quantity_movements default values",
+      "update keynes_internal.quantity_movements set amount = 0",
       "select keynes_internal.apply_command('createBudget', '{}'::jsonb)",
       "select keynes_internal.register_remote_role_v0006(current_user, gen_random_uuid(), gen_random_uuid())",
       `set role ${identifier(fixture.ownerRole)}`,
