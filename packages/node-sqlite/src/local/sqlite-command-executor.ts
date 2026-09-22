@@ -47,6 +47,8 @@ export type SqliteMutationStage =
   | "after_command_binding"
   | "after_resource_insertion"
   | "after_domain_mutation"
+  | "after_quantity_movement"
+  | "after_ancestor_finalization"
   | "after_result_storage"
   | "after_history_insertion";
 

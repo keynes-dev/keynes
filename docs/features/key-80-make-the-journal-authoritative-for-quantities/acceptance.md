@@ -48,6 +48,31 @@ The generated installation record specifies profile
 
 Parent correctness review: PASS, setup evidence is explicitly distinguished from feature qualification. Ponytail review: Lean already. No implementation was included in this phase.
 
+## Phase 2: private fault support
+
+Source revision before this phase: `51d9f70`. Added the private
+`after_quantity_movement` and `after_ancestor_finalization` fault stages, and
+passed `ContractClientOptions` into native caller-owned attempts. The stages
+are declarations only until the real SQLite and PostgreSQL journal paths emit
+them in T012 and T013. Concrete journal facts also wait for those real rows;
+this phase adds no empty, optional, or legacy-derived journal observation.
+
+| Command                                                 | Outcome                           |
+| ------------------------------------------------------- | --------------------------------- |
+| `pnpm generate`                                         | PASS                              |
+| `pnpm generate:check`                                   | PASS                              |
+| `pnpm --filter @keynes/database typecheck`              | PASS                              |
+| `pnpm --filter @keynes/node-sqlite typecheck`           | PASS                              |
+| `pnpm --filter @keynes/postgres typecheck`              | PASS                              |
+| `pnpm --filter @keynes/node-sqlite test -- --runInBand` | PASS: 5 files, 194 existing tests |
+
+The SQLite suite checks that the new stage declarations preserve the current
+host and shared behavior. It does not qualify journal accounting or cascade
+rollback, which remain **NOT RUN** until the journal implementation and
+behavioral tests land.
+
+Parent correctness review: PASS. Ponytail review removed one redundant object spread from the native caller context; no remaining complexity findings.
+
 ## Runtime evidence
 
 All KEY-80 behavioral and runtime qualification lanes are **NOT RUN** at this

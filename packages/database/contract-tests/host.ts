@@ -48,6 +48,8 @@ export type RollbackCheckpoint =
   | "after_command_binding"
   | "after_resource_insertion"
   | "after_domain_mutation"
+  | "after_quantity_movement"
+  | "after_ancestor_finalization"
   | "after_history_insertion"
   | "after_result_storage";
 

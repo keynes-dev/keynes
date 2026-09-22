@@ -82,7 +82,10 @@ export interface NativeAttempt {
 }
 
 export interface NativeTestKeynes extends ContractTestHost {
-  beginAttempt(fixture: FixturePrincipal): Promise<NativeAttempt>;
+  beginAttempt(
+    fixture: FixturePrincipal,
+    options?: ContractClientOptions,
+  ): Promise<NativeAttempt>;
   requireBlockedBy(blockedPid: number, blockerPid: number): Promise<void>;
 }
 
@@ -96,17 +99,17 @@ export async function openNativeTestKeynes(): Promise<NativeTestKeynes> {
   const application = await owner.createApplicationRole();
   return {
     ...postgresContractHost(owner),
-    async beginAttempt(fixture) {
+    async beginAttempt(fixture, options) {
       const transaction = await owner.beginTransactionAs(
         application.role,
         application.password,
       );
       return {
         client: createContractClient(
-          createTransactionProcedureCaller(transaction.connection, {
-            tenantId: FIXTURE_TENANT_ID,
-            principalId: FIXTURE_PRINCIPALS[fixture],
-          }),
+          createTransactionProcedureCaller(
+            transaction.connection,
+            transactionContext(fixture, options),
+          ),
         ),
         backendPid: transaction.backendPid,
         commit: () => transaction.commit(),
