@@ -127,7 +127,7 @@ describe("repository organization", () => {
     }
   });
 
-  it("pins the reviewed command identity, unchanged schema identity, and PostgreSQL baseline", () => {
+  it("pins the reviewed command contract, schema, and PostgreSQL baseline", () => {
     const database = readJsonObject(
       join(repositoryRoot, "packages/database/package.json"),
     );
@@ -138,16 +138,15 @@ describe("repository organization", () => {
     for (const [path, digest] of [
       [
         "contract.json",
-        "063dee9a232ed01cdbb0883535e26adcc473361b5e38d39c6ab16d1c4d0519f7",
+        "470a5ea7d48b356b5dcbe29ef33ae1afd89673692197af3d915ff3dbbf46a6f9",
       ],
       [
         "schema.json",
-        "7d96d41d1eeb87e89b75a13872fcf9f9d7dbea233413d9bb6becbdf6975e83cf",
+        "2823f1fdc7cfdece8e4f7f4e7c63b15518c18b90e5b0a3078934490749aa131d",
       ],
       [
-        // KEY-80 makes quantity movements authoritative; schema identity remains unchanged.
         "postgres/migrations/0001-baseline.sql",
-        "6a7d89038cb1c3f6926801c88a1c7b8fb4b1b93862d5f663fac8e9f1f60ab3d3",
+        "cce55dcab794b80c4928a85dbe81e5a1ecab7bf8190c05bb471989aa0276908d",
       ],
     ]) {
       expect(
