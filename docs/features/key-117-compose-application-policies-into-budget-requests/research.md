@@ -14,7 +14,7 @@ Research is repository-grounded at base `742de39` and incorporates ADR-0014 and 
 
 **Decision**: Let Policy construct any valid final envelope within the parent Resource vocabulary. Validate it exactly and never clip it. Policy-free calls retain proposal-key child typing; Policy-enabled calls use the Policy's declared output vocabulary.
 
-**Rationale**: Model assessments and coupled business rules may change both membership and quantity. Restrictive ceilings alone cannot express those choices. Inferring the child type from the original proposal would be unsound after transformation.
+**Rationale**: Model assessments and customer rules may compare, combine or transform both membership and quantity. A fixed reduction-only model cannot express those choices. Inferring the child type from the original proposal would be unsound after transformation.
 
 **Alternatives considered**: Only reducing quantities is simpler but excludes legitimate request construction. Returning a Budget with every parent Resource is sound but needlessly broad when a Policy declares a narrower output vocabulary.
 
@@ -36,7 +36,7 @@ Research is repository-grounded at base `742de39` and incorporates ADR-0014 and 
 
 ## Toolkit ownership
 
-**Decision**: SDK owns only `Policy`, `PolicyResult`, preparation and validation. Consolidate KEY-116 into optional `@keynes/policy` for configuration, snapshots, portable records and `minimumCeilings`.
+**Decision**: SDK owns only `Policy`, `PolicyResult`, preparation and validation. Consolidate KEY-116 into optional `@keynes/policy` for configuration, snapshots and portable records. Keep comparisons and rule composition in ordinary customer Policy code.
 
 **Rationale**: The common request path needs no Ajv, canonicalization library, Zod or provider dependency. One optional package avoids coordinating separate parameter and Policy helper packages.
 

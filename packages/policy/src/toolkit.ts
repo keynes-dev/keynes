@@ -14,60 +14,6 @@ export type PolicyRecord = DeepReadonly<{
   result: PolicyResult;
 }>;
 
-type ExactCeiling<Names extends string, Ceiling> =
-  Ceiling extends Readonly<Record<NoInfer<Names>, number>>
-    ? Exclude<keyof Ceiling, Names> extends never
-      ? Ceiling
-      : never
-    : never;
-
-export function minimumCeilings<
-  const Names extends string,
-  const Ceilings extends readonly unknown[],
->(options: {
-  readonly resourceNames: readonly Names[];
-  readonly ceilings: Ceilings & {
-    readonly [Index in keyof Ceilings]: ExactCeiling<Names, Ceilings[Index]>;
-  };
-}): Readonly<Record<Names, number>> {
-  const names = captureResourceNames<Names>(options.resourceNames);
-  const ceilings = capture(options.ceilings, "ceilings");
-  if (names.length === 0 || new Set(names).size !== names.length)
-    throw new TypeError("Invalid resourceNames");
-  if (!Array.isArray(ceilings) || ceilings.length === 0)
-    throw new TypeError("Invalid ceilings");
-  const minimums = new Map<Names, number>(
-    names.map((name) => [name, Infinity]),
-  );
-  for (const ceiling of ceilings) {
-    if (
-      ceiling === null ||
-      typeof ceiling !== "object" ||
-      Array.isArray(ceiling) ||
-      Object.keys(ceiling).length !== names.length ||
-      names.some((name) => !Object.hasOwn(ceiling, name))
-    )
-      throw new TypeError("Invalid ceiling");
-    for (const name of names) {
-      const value = ceiling[name];
-      if (
-        typeof value !== "number" ||
-        !Number.isSafeInteger(value) ||
-        value < 0
-      )
-        throw new TypeError("Invalid ceiling");
-      minimums.set(name, Math.min(minimums.get(name) ?? value, value));
-    }
-  }
-  const result: Record<Names, number> = Object.create(null);
-  for (const name of names) {
-    const amount = minimums.get(name);
-    if (amount === undefined) throw new TypeError("Invalid ceiling");
-    result[name] = amount;
-  }
-  return Object.freeze(result);
-}
-
 export function recordPolicyResult<Names extends string>(options: {
   readonly definitionId: string;
   readonly snapshotId: string;
@@ -94,17 +40,6 @@ function captureString(value: unknown, field: string): string {
   const captured = capture(value, field);
   if (typeof captured !== "string") throw new TypeError(`Invalid ${field}`);
   return captured;
-}
-
-function captureResourceNames<Names extends string>(value: unknown): Names[] {
-  const captured = capture(value, "resourceNames");
-  if (!Array.isArray(captured)) throw new TypeError("Invalid resourceNames");
-  const names: string[] = [];
-  for (const name of captured) {
-    if (typeof name !== "string") throw new TypeError("Invalid resourceNames");
-    names.push(name);
-  }
-  return names as Names[];
 }
 
 function capturePolicyResult(value: PolicyResult): PolicyResult {

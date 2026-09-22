@@ -6,7 +6,7 @@
 
 Add one optional, per-call Policy to the SDK's Budget request path and expose the same preparation without allocation. The SDK captures the proposal, invokes customer code once and validates its `PolicyResult`. Only a prepared final request reaches the existing SQLite or PostgreSQL authority. Plain requests keep their current contract.
 
-Consolidate KEY-116 under an optional `@keynes/policy` package for configurable-Policy construction, snapshots, records and `minimumCeilings`. The SDK owns only callback and result types and cannot depend on toolkit schema, Zod or provider code.
+Consolidate KEY-116 under an optional `@keynes/policy` package for configurable-Policy construction, snapshots and records. The SDK owns only callback and result types and cannot depend on toolkit schema, Zod or provider code. Applications express comparisons, combinations and external assessments in ordinary Policy code.
 
 This is a documentation plan. Implementation, runtime tests, provider execution, archive qualification and publication are `NOT RUN`.
 
@@ -55,8 +55,8 @@ packages/sdk/src/
 packages/policy/            # renamed private KEY-116 workspace
   src/parameters.ts
   src/snapshot.ts
-  src/configure.ts           # configured-Policy construction and records
-  src/ceilings.ts
+  src/configure.ts           # configured-Policy construction
+  src/toolkit.ts             # portable Policy records
   src/zod.ts
 ```
 
@@ -82,7 +82,7 @@ Policy runs before the database command and outside engine-owned locks. Borrowed
 
 Plain Policies use SDK types directly. `@keynes/policy` preserves KEY-116 declarations and snapshot bytes and adds a configured-Policy constructor. Without an explicit snapshot it selects and validates declaration initials once. With an explicit snapshot it restores against the trusted declaration before returning the callback.
 
-The toolkit may create a portable Policy record containing caller-selected JSON, parameter identities and the captured result. It never captures arbitrary closure state, credentials or raw thrown values. `minimumCeilings` only computes independent minima. Customer code explicitly decides whether to reject or construct reduced quantities.
+The toolkit may create a portable Policy record containing caller-selected JSON, parameter identities and the captured result. It never captures arbitrary closure state, credentials or raw thrown values. Customer code owns every comparison, combination and request-construction rule; the toolkit defines no universal evaluation model.
 
 The recorded-assessment fixture defines a typed available or unavailable answer. Policy code owns the response to either state. No Jev package, provider adapter or credential boundary is added.
 
@@ -91,7 +91,7 @@ The recorded-assessment fixture defines a typed available or unavailable answer.
 1. Lock SDK callback/result types and policy-free compatibility with failing consumer and lifecycle checks.
 2. Implement shared preparation, then integrate it into Local request and explicit preview.
 3. Add Remote preparation, recovery rules and native transaction/replay coverage.
-4. Move KEY-116 into the optional toolkit and add configured Policies, records, ceilings and recorded-assessment fixtures.
+4. Move KEY-116 into the optional toolkit and add configured Policies, records and recorded-assessment fixtures.
 5. Qualify source behavior and installed SDK/toolkit archives, then reconcile every requirement at one revision.
 
 Each phase ends with a read-only Ponytail review, evaluation of its findings, relevant verification and a local commit before the next phase. One feature remains one PR.

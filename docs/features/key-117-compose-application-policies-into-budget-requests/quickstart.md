@@ -34,7 +34,7 @@ pnpm --filter @keynes/policy test
 pnpm --filter @keynes/policy typecheck
 ```
 
-The toolkit suite must preserve every KEY-116 declaration, override, snapshot, restoration and optional-Zod case. New cases cover plain SDK use without the toolkit, initial-value selection once at configured-Policy construction, explicit snapshot restoration and tamper rejection, portable record privacy, and independent `minimumCeilings` behavior.
+The toolkit suite must preserve every KEY-116 declaration, override, snapshot, restoration and optional-Zod case. New cases cover plain SDK use without the toolkit, initial-value selection once at configured-Policy construction, explicit snapshot restoration and tamper rejection, and portable record privacy. Customer Policies own comparisons and rule composition.
 
 ## Local and native boundaries
 

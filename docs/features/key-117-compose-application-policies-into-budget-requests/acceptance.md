@@ -252,20 +252,16 @@ values. It returns only an SDK-compatible Policy and parameter definition and
 snapshot identities; it creates no snapshot per Policy invocation.
 `recordPolicyResult` deep-captures one typed `PolicyResult` and caller-selected
 strict JSON context, retains no parameter values or closure state, and adds no
-time or random identifier. `minimumCeilings` verifies exact non-empty Resource
-membership in each independent ceiling map and returns only per-key minima; it
-does not reduce or decide a request. `@keynes/policy` imports SDK types only,
-while the SDK has no toolkit dependency. The existing `/zod` export remains
-optional.
+time or random identifier. `@keynes/policy` imports SDK types only, while the
+SDK has no toolkit dependency. The existing `/zod` export remains optional.
+Comparisons, combinations and request construction remain ordinary customer
+Policy code rather than a toolkit rule model.
 
 **Post-review corrections**:
 
 - `configurePolicy` validates and captures one own data-backed `run` callback
   at construction. Later option mutation cannot replace it, and accessor-backed
   callbacks are rejected without invocation.
-- `minimumCeilings` now requires every declared name and no unknown names in
-  literal ceiling maps, and preserves those names in its return type. Runtime
-  checks remain for JavaScript and variable inputs.
 - The configured-Policy composition type test verifies exact proposal and
   final Resource names through `Budget.request`. TypeScript needs the honest
   `run` proposal and result annotations at construction, because its later
@@ -278,18 +274,14 @@ remains generically checked.
 
 The callback regression first failed because the configured Policy returned
 the later replacement callback's `replaced` code instead of the captured
-`original` code. The exact-ceiling type assertions first failed as unused
-`@ts-expect-error` directives, demonstrating that missing and unknown keys
-were previously admitted. The focused test command, policy typecheck, SDK
-build and typecheck, complete policy suite, and repository typecheck above
-were rerun after these corrections and passed with the final 7 focused and 96
-complete policy tests.
-
-The Resource-name capture regression first failed with `resourceNames read
-twice`; computation now uses the strict captured copy throughout. The copied
-Policy-result validator remains because the SDK has no public runtime
-PolicyResult validator and `@keynes/policy` keeps its SDK import type-only, not
-because of a dependency cycle.
+`original` code. The focused test command, policy typecheck, SDK build and
+typecheck, complete policy suite, and repository typecheck above were rerun
+after these corrections and passed with the original 7 focused and 96 complete
+policy tests. Those historical counts include two tests for a specialized
+composition API removed after product review. The final correction evidence is
+recorded below. The copied Policy-result validator remains because the SDK has
+no public runtime PolicyResult validator and `@keynes/policy` keeps its SDK
+import type-only, not because of a dependency cycle.
 
 **Ponytail review**: Lean already. Ship. The implementation reuses declaration,
 snapshot restoration, deep-freeze and strict JSON capture primitives. The small
@@ -432,25 +424,25 @@ that unrelated workspace failure. The shared qualifier is the Local evidence.
 
 ### Requirement reconciliation
 
-| Requirement | Final evidence                                                                                                                              |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| FR-001      | SDK contracts and archive consumer accept one optional request Policy; no registry, default, list, or `next()` surface exists.              |
-| FR-002      | Policy API, lifecycle, preview, and native middleware cases cover one immutable capture and one invocation.                                 |
-| FR-003      | SDK unit and archive consumers cover prepared, rejected, review-required, and failed discriminants.                                         |
-| FR-004      | SDK validation and native cases cover transformed final envelopes with authority validation left to the ordinary command.                   |
-| FR-005      | Policy-free compatibility consumer and SDK unit suite retain the existing request result and inference.                                     |
-| FR-006      | SDK type consumer distinguishes `not_submitted` Policy results from `submitted` allocation results and preserves transformed names.         |
-| FR-007      | Preview and integrated-policy cases pass, with the shared qualifier covering the final Local and PostgreSQL implementations.                |
-| FR-008      | Native middleware and shared PostgreSQL evidence show that only the final ordinary command reaches the authority.                           |
-| FR-009      | Native middleware covers Policy-plus-operation-key precedence and retained-command submission.                                              |
-| FR-010      | Native middleware covers prepared replay, denial replay, conflicts, callback counts, and borrowed-transaction rollback.                     |
-| FR-011      | SDK lifecycle tests cover asynchronous admission, close draining, post-close rejection, and sanitized Policy failure.                       |
-| FR-012      | SDK-only archive consumer runs a plain Policy without toolkit dependencies.                                                                 |
-| FR-013      | Policy core and optional-Zod archive consumers preserve the toolkit boundary and run without drivers or provider packages.                  |
-| FR-014      | Configured-policy coverage and the core archive consumer select once, restore snapshots, and reject tampering.                              |
-| FR-015      | Toolkit coverage validates `minimumCeilings` as a pure independent-bound helper.                                                            |
-| FR-016      | The recorded available, unavailable, and explicit-fallback fixture runs provider-free in the packaged consumer.                             |
-| FR-017      | Every behavioral phase retained an observed red. Final source, shared Local/native, archive, and provider-free evidence are recorded above. |
+| Requirement | Final evidence                                                                                                                                |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | SDK contracts and archive consumer accept one optional request Policy; no registry, default, list, or `next()` surface exists.                |
+| FR-002      | Policy API, lifecycle, preview, and native middleware cases cover one immutable capture and one invocation.                                   |
+| FR-003      | SDK unit and archive consumers cover prepared, rejected, review-required, and failed discriminants.                                           |
+| FR-004      | SDK validation and native cases cover transformed final envelopes with authority validation left to the ordinary command.                     |
+| FR-005      | Policy-free compatibility consumer and SDK unit suite retain the existing request result and inference.                                       |
+| FR-006      | SDK type consumer distinguishes `not_submitted` Policy results from `submitted` allocation results and preserves transformed names.           |
+| FR-007      | Preview and integrated-policy cases pass, with the shared qualifier covering the final Local and PostgreSQL implementations.                  |
+| FR-008      | Native middleware and shared PostgreSQL evidence show that only the final ordinary command reaches the authority.                             |
+| FR-009      | Native middleware covers Policy-plus-operation-key precedence and retained-command submission.                                                |
+| FR-010      | Native middleware covers prepared replay, denial replay, conflicts, callback counts, and borrowed-transaction rollback.                       |
+| FR-011      | SDK lifecycle tests cover asynchronous admission, close draining, post-close rejection, and sanitized Policy failure.                         |
+| FR-012      | SDK-only archive consumer runs a plain Policy without toolkit dependencies.                                                                   |
+| FR-013      | Policy core and optional-Zod archive consumers preserve the toolkit boundary and run without drivers or provider packages.                    |
+| FR-014      | Configured-policy coverage and the core archive consumer select once, restore snapshots, and reject tampering.                                |
+| FR-015      | The public API and active docs define no Keynes-owned comparison or rule-composition helper; applications express those rules in Policy code. |
+| FR-016      | The recorded available, unavailable, and explicit-fallback fixture runs provider-free in the packaged consumer.                               |
+| FR-017      | Every behavioral phase retained an observed red. Final source, shared Local/native, archive, and provider-free evidence are recorded above.   |
 
 | Success criterion | Final evidence                                                                                                    |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |

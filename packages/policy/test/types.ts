@@ -2,7 +2,6 @@ import {
   configurePolicy,
   createParameterSnapshot,
   defineParameters,
-  minimumCeilings,
   recordPolicyResult,
   type ReadonlyJsonValue,
 } from "../src/index.ts";
@@ -151,35 +150,6 @@ void uncertainUnion;
 // @ts-expect-error dynamically assembled combinators cannot promise a number
 const assumedUnion: number = dynamicUnion.values.x;
 void assumedUnion;
-
-const ceilingResult = minimumCeilings({
-  resourceNames: ["usdCents", "searchQueries"] as const,
-  ceilings: [
-    { usdCents: 10, searchQueries: 4 },
-    { usdCents: 8, searchQueries: 5 },
-  ],
-});
-const ceilingUsdCents: number = ceilingResult.usdCents;
-const ceilingSearchQueries: number = ceilingResult.searchQueries;
-void [ceilingUsdCents, ceilingSearchQueries];
-minimumCeilings({
-  resourceNames: ["usdCents", "searchQueries"] as const,
-  // @ts-expect-error Ceilings require every declared Resource.
-  ceilings: [{ usdCents: 1 }],
-});
-minimumCeilings({
-  resourceNames: ["usdCents", "searchQueries"] as const,
-  ceilings: [
-    // @ts-expect-error Ceilings cannot add an undeclared Resource.
-    {
-      usdCents: 1,
-      searchQueries: 1,
-      unknownResource: 1,
-    },
-  ],
-});
-// @ts-expect-error Ceiling output retains the declared Resource names.
-void ceilingResult.unknownResource;
 
 declare const budget: Budget<"usdCents" | "searchQueries">;
 const configuredPolicy = configurePolicy({

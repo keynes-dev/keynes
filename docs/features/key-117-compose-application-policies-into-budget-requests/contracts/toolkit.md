@@ -141,7 +141,7 @@ Existing `createParameterSnapshot`, `overrideParameterSnapshot` and `restorePara
 
 The toolkit may expose `recordPolicyResult` to capture the selected parameter identities, caller-selected strict JSON and one SDK Policy result. Records contain no automatic time, random ID, snapshot values, closure state, raw errors or provider data. A record is not a full fixture, proof of execution or Budget authority.
 
-`minimumCeilings({ resourceNames, ceilings })` remains a pure validated helper. It returns the per-key minimum across supplied independent ceiling maps. It does not accept a proposal, reduce quantities or decide whether work remains valid.
+The toolkit defines no comparison or rule-composition helper. Applications express greater-than, less-than, equality, combinations, reductions and external-assessment rules in ordinary Policy code.
 
 ## Recorded assessment example
 

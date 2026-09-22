@@ -3,62 +3,8 @@ import { expect, it } from "vitest";
 import {
   configurePolicy,
   defineParameters,
-  minimumCeilings,
   recordPolicyResult,
 } from "../src/index.ts";
-
-it("returns the independent minimum for every declared Resource", () => {
-  const ceilings = minimumCeilings({
-    resourceNames: ["usdCents", "searchQueries"],
-    ceilings: [
-      { usdCents: 10, searchQueries: 3 },
-      { usdCents: 7, searchQueries: 5 },
-      { usdCents: 8, searchQueries: 2 },
-    ],
-  });
-
-  expect(ceilings).toEqual({ usdCents: 7, searchQueries: 2 });
-  expect(Object.isFrozen(ceilings)).toBe(true);
-  expect(() =>
-    Reflect.apply(minimumCeilings, undefined, [
-      {
-        resourceNames: ["usdCents", "usdCents"],
-        ceilings: [{ usdCents: 1 }],
-      },
-    ]),
-  ).toThrow(TypeError);
-  expect(() =>
-    Reflect.apply(minimumCeilings, undefined, [
-      {
-        resourceNames: ["usdCents", "searchQueries"],
-        ceilings: [{ usdCents: 1, unknown: 2 }],
-      },
-    ]),
-  ).toThrow(TypeError);
-  expect(() =>
-    Reflect.apply(minimumCeilings, undefined, [
-      {
-        resourceNames: ["usdCents", "searchQueries"],
-        ceilings: [{ usdCents: 1 }],
-      },
-    ]),
-  ).toThrow(TypeError);
-});
-
-it("uses the captured Resource names after validation", () => {
-  let reads = 0;
-  const options = {
-    get resourceNames() {
-      reads += 1;
-      if (reads > 1) throw new Error("resourceNames read twice");
-      return ["usdCents"];
-    },
-    ceilings: [{ usdCents: 2 }, { usdCents: 1 }],
-  };
-
-  expect(minimumCeilings(options)).toEqual({ usdCents: 1 });
-  expect(reads).toBe(1);
-});
 
 it("captures only selected identities, caller JSON, and one Policy result", () => {
   const configured = configurePolicy({

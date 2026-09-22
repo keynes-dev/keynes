@@ -183,7 +183,7 @@ An all-zero root remains valid but cannot later acquire funding.
 Applications may reuse definitions to create independently funded roots. Creating
 a root neither reopens an earlier root nor migrates its balances, and does not
 require unrelated roots to settle first. Root-creation authorization controls
-new allowances; conservation within a tree is not a ceiling across separate roots.
+new allowances; conservation within a tree is not a shared limit across separate roots.
 
 Zero availability alone changes no lifecycle state. Requests that exceed available
 quantity are denied; outstanding children and missing usage remain unresolved.

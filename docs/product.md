@@ -137,7 +137,7 @@ definitions. Each root has independent funding, lineage, and accounting. There i
 no automatic rollover, balance migration, or reopening of settled roots. Creating
 a new root does not require unrelated roots to be settled first. Authorization
 to create roots remains the boundary for introducing new allowances; fixed
-funding does not impose a shared ceiling across independently created roots.
+funding does not impose a shared limit across independently created roots.
 
 Insufficient availability causes a request denial, not automatic settlement.
 Quantity may still be held by children and return later. Missing usage and
@@ -293,7 +293,7 @@ retain separate acceptance, and both are required for the Hosted product experie
 Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
 
 - [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy, composition and record helpers. Its [acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) scopes the implemented evidence.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy and record helpers. Its [acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) scopes the implemented evidence.
 - [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
 
 These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.

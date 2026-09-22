@@ -53,7 +53,7 @@ An application developer can use a plain Policy with no configuration ceremony o
 1. **Given** a plain Policy, **When** it runs, **Then** no parameter declaration, snapshot, revision or toolkit dependency is required.
 2. **Given** a configurable Policy, **When** it is constructed from its declaration, **Then** initial values are selected and validated once rather than snapshotted for every request.
 3. **Given** an explicit retained snapshot, **When** it is restored against the expected declaration, **Then** tampering or a definition mismatch fails before Policy execution.
-4. **Given** several independent ceilings, **When** customer code combines them, **Then** the optional helper returns their per-Resource minimum without changing a request automatically.
+4. **Given** a Policy with comparison, equality, combination or external-assessment rules, **When** it evaluates a proposal, **Then** ordinary customer code decides whether to prepare, reject, require review or fail without a Keynes-owned rule model.
 
 ### User story 4 - Use a recorded model assessment (Priority: P2)
 
@@ -96,9 +96,9 @@ An application developer validates a structured model assessment, supplies it to
 - **FR-010**: Command replay MUST never rerun Policy, customer queries or providers. Existing conflict, denial replay and caller-owned transaction semantics remain authoritative.
 - **FR-011**: SDK admission, asynchronous failure and close/drain behavior MUST cover Policy execution. No failure may become a success-shaped fallback.
 - **FR-012**: Plain Policies MUST require no parameter declaration, snapshot, revision or optional toolkit dependency.
-- **FR-013**: The optional policy toolkit MUST preserve KEY-116 declarations and snapshot formats while adding configured-Policy construction, portable records and composition helpers. The SDK MUST NOT depend on its schema, Zod or provider packages.
+- **FR-013**: The optional policy toolkit MUST preserve KEY-116 declarations and snapshot formats while adding configured-Policy construction and portable records. The SDK MUST NOT depend on its schema, Zod or provider packages.
 - **FR-014**: Configured Policies MUST validate and select initial values once at construction. Explicit snapshots remain available for overrides, retention, restoration and policy tests; they are not created per request.
-- **FR-015**: `minimumCeilings` MUST compose independent upper bounds without automatically changing a request. Coupled rules and reductions remain explicit customer Policy code.
+- **FR-015**: Keynes MUST NOT define a universal comparison or rule-composition model. Greater-than, less-than, equality, combinations, reductions and external assessments remain ordinary customer Policy code.
 - **FR-016**: Recorded model assessments MUST remain application data. Unavailable assessment MUST stay distinct from a negative answer unless customer code provides an explicit fallback.
 - **FR-017**: Behavioral implementation MUST begin with observed failing checks and retain provider-free, Local, native PostgreSQL and installed-package evidence at the implementation revision.
 

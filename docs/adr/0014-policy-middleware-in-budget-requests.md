@@ -28,7 +28,7 @@ The SDK preserves operation admission and close semantics while an asynchronous 
 
 ## Optional tooling and assessments
 
-Plain Policies need no parameter declaration, snapshot, revision or `@keynes/policy` dependency. The optional `@keynes/policy` package owns configurable-policy construction, KEY-116 parameter validation and snapshots, portable records and composition helpers such as `minimumCeilings`. It may create SDK-compatible callbacks, but the SDK does not import its schema, Zod or provider dependencies.
+Plain Policies need no parameter declaration, snapshot, revision or `@keynes/policy` dependency. The optional `@keynes/policy` package owns configurable-policy construction, KEY-116 parameter validation and snapshots, and portable records. It may create SDK-compatible callbacks, but the SDK does not import its schema, Zod or provider dependencies. Keynes defines no universal comparison or rule-composition model; applications express those rules in ordinary Policy code.
 
 A snapshot is a retained configuration version, not a per-request ritual. Configurable policies validate initial values when they are constructed. Applications select explicit snapshots for overrides, restoration and tests. Snapshots remain distinct from Policy results, complete fixtures and replay commands.
 

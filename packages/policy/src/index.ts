@@ -17,8 +17,4 @@ export {
   type JsonValue,
 } from "./schema.ts";
 export { configurePolicy, type ConfiguredPolicy } from "./configure.ts";
-export {
-  minimumCeilings,
-  recordPolicyResult,
-  type PolicyRecord,
-} from "./toolkit.ts";
+export { recordPolicyResult, type PolicyRecord } from "./toolkit.ts";
