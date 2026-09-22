@@ -1,12 +1,27 @@
 import { nodeSqlite } from "@keynes/node-sqlite";
-import { createKeynes, createOperationKey } from "@keynes/sdk";
+import {
+  createKeynes,
+  createOperationKey,
+  type Policy,
+  type PolicyResult,
+} from "@keynes/sdk";
 
 declare const process: {
   readonly argv: readonly string[];
   readonly env: Readonly<Record<string, string | undefined>>;
 };
 
-for (const moduleName of ["pg", "@keynes/database", "@keynes/cli"]) {
+for (const moduleName of [
+  "pg",
+  "@keynes/database",
+  "@keynes/cli",
+  "@keynes/policy",
+  "@keynes/policy/zod",
+  "ajv",
+  "canonicalize",
+  "json-schema-to-ts",
+  "zod",
+]) {
   let imported = false;
   try {
     await import(moduleName);
@@ -258,6 +273,32 @@ async function runApplicationRequest(): Promise<void> {
     assertEqual((await root.inspect()).budget.resources[0]?.available, 80);
     assertEqual(requestFor("basic", 25), null);
     assertEqual(requestFor("pro", 24), null);
+
+    const policyRoot = await keynes.createBudget({ usdCents: 25 });
+    const policy = ((proposal) => ({
+      kind: "prepared",
+      request: proposal,
+    })) satisfies Policy<"usdCents", "usdCents">;
+    const preview: PolicyResult<"usdCents"> = await policyRoot.prepareRequest(
+      { usdCents: 25 },
+      { policy },
+    );
+    assertEqual(preview, {
+      kind: "prepared",
+      request: { usdCents: 25 },
+    });
+    const policyRequest = await policyRoot.request(
+      { usdCents: 25 },
+      { policy },
+    );
+    if (policyRequest.status !== "submitted") {
+      throw new Error("Policy request was not submitted");
+    }
+    assertEqual(policyRequest.policy, preview);
+    if (policyRequest.allocation.status !== "approved") {
+      throw new Error("Policy request was denied");
+    }
+    await policyRequest.allocation.budget.settle({ usdCents: 25 });
   } finally {
     await keynes.close();
   }

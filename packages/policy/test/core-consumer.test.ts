@@ -24,6 +24,14 @@ it("resolves and runs a core consumer without Zod or runtime adapter dependencie
   const source = fileURLToPath(new URL("../", import.meta.url));
   const sdkSource = fileURLToPath(new URL("../../sdk/", import.meta.url));
   try {
+    execFileSync(
+      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+      ["build"],
+      {
+        cwd: source,
+        stdio: "ignore",
+      },
+    );
     for (
       let parent = dirname(consumer);
       parent !== dirname(parent);
@@ -65,7 +73,9 @@ it("resolves and runs a core consumer without Zod or runtime adapter dependencie
     );
     const packagePath = join(consumer, "policy");
     mkdirSync(packagePath, { recursive: true });
-    cpSync(join(source, "src"), join(packagePath, "src"), { recursive: true });
+    cpSync(join(source, "dist"), join(packagePath, "dist"), {
+      recursive: true,
+    });
     cpSync(manifest, join(packagePath, "package.json"));
     mkdirSync(join(consumer, "node_modules/@keynes"), { recursive: true });
     const sdkPath = join(consumer, "node_modules/@keynes/sdk");

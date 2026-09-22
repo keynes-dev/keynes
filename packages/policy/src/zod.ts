@@ -123,7 +123,10 @@ function inspect(
 export function zodParameter<S extends z.ZodType, const I>(
   schema: S,
   initial: I & Exact<I, z.output<S>>,
-) {
+): Readonly<{
+  schema: ReturnType<typeof typedSchema<z.output<S>>>;
+  initial: DeepReadonly<z.output<S>>;
+}> {
   inspect(schema, "", false, new Set());
   let json: unknown;
   // Copy only the trusted converter's JSON fields, excluding its non-enumerable ~standard runtime marker.

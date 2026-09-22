@@ -238,7 +238,6 @@ describe("SDK package-test runner", () => {
       expect(paths).toContain(`package/dist/${module}.d.ts`);
       expect(paths).toContain(`package/dist/${module}.js`);
     }
-    expect(paths.filter((path) => /policy/i.test(path))).toEqual([]);
   });
 
   it("contains no PGlite or copied database archive path", () => {
