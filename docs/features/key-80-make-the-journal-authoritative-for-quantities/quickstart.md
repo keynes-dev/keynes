@@ -37,11 +37,13 @@ Test explicit-zero membership, all-zero trees, omitted membership, repeated know
 
 ```sh
 pnpm test:pr
-pnpm test:sqlite-postgres
+pnpm test:sqlite-postgres -- --output ".artifacts/key-80/paired-$(node -p 'crypto.randomUUID()')"
 pnpm test:embedded
-pnpm test:package:split
+pnpm test:package:split -- --output ".artifacts/key-80/packages-$(node -p 'crypto.randomUUID()')"
 pnpm format:docs
 ```
+
+The paired and package commands require a clean committed candidate and a new output directory for each attempt.
 
 `test:pr` includes generated contracts, types and package-owned tests. The paired command owns shared SQLite/native evidence and its existing installation/remote checks; Embedded owns focused caller-controlled transactions. The package split command exercises clean archives and dependency isolation. Extend existing consumer fixtures to assert the KEY-80 behavior; old import-only success is insufficient. Preserve existing native remote recovery, permissions, tenant isolation and supported connection coverage through the current runners.
 

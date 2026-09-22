@@ -59,6 +59,25 @@ export interface ContractClientOptions {
   readonly dropResponseAfterCommitOnce?: boolean;
 }
 
+export type JournalMovementReason =
+  | "initial_allocation"
+  | "child_grant"
+  | "consumption"
+  | "settlement_return"
+  | "root_release";
+
+export interface JournalMovement {
+  readonly tenantId: string;
+  readonly rootBudgetId: string;
+  readonly commandId: string;
+  readonly resourceTypeId: string;
+  readonly movementId: string;
+  readonly reason: JournalMovementReason;
+  readonly sourceBudgetId: string | null;
+  readonly destinationBudgetId: string | null;
+  readonly amount: number;
+}
+
 export interface ContractClient {
   validateResources(input: unknown): Promise<ValidateResourcesResult>;
   defineResources(input: unknown): Promise<DefineResourcesResult>;
@@ -70,6 +89,7 @@ export interface ContractClient {
 }
 
 export interface ContractTestHost {
+  inspectJournal(): Promise<readonly JournalMovement[]>;
   inspectState(): Promise<{
     resources: number;
     commands: number;

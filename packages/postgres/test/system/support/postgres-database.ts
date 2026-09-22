@@ -97,6 +97,8 @@ export interface PostgresTransaction {
   close(): Promise<void>;
 }
 
+export type TransactionIsolation = "read committed" | "repeatable read";
+
 type TransactionState = "open" | "committed" | "rolled-back";
 
 class OwnedTransaction implements PostgresTransaction {
@@ -177,12 +179,14 @@ export class PostgresDatabase {
     this.#createdRoles = new Set(createdRoles);
   }
 
-  async beginTransaction(): Promise<PostgresTransaction> {
+  async beginTransaction(
+    isolation: TransactionIsolation = "read committed",
+  ): Promise<PostgresTransaction> {
     if (this.#closePromise !== undefined) {
       throw new Error("The PostgreSQL test database is closing");
     }
 
-    return this.#beginTransaction(this.#pool);
+    return this.#beginTransaction(this.#pool, isolation);
   }
 
   async createApplicationRole(): Promise<{
@@ -219,6 +223,7 @@ export class PostgresDatabase {
   async beginTransactionAs(
     role: string,
     password: string,
+    isolation: TransactionIsolation = "read committed",
   ): Promise<PostgresTransaction> {
     const url = new URL(this.#databaseUrl);
     url.username = role;
@@ -227,7 +232,7 @@ export class PostgresDatabase {
     this.#trackClients(pool);
     this.#applicationPools.add(pool);
     try {
-      return await this.#beginTransaction(pool);
+      return await this.#beginTransaction(pool, isolation);
     } catch (error: unknown) {
       this.#applicationPools.delete(pool);
       await pool.end();
@@ -235,10 +240,13 @@ export class PostgresDatabase {
     }
   }
 
-  async #beginTransaction(pool: Pool): Promise<PostgresTransaction> {
+  async #beginTransaction(
+    pool: Pool,
+    isolation: TransactionIsolation,
+  ): Promise<PostgresTransaction> {
     const client = await pool.connect();
     try {
-      await client.query("begin isolation level read committed");
+      await client.query(`begin isolation level ${isolation}`);
       const result = await client.query<{ readonly backend_pid: number }>(
         "select pg_backend_pid() as backend_pid",
       );

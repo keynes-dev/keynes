@@ -19,13 +19,13 @@
     ]
   },
   "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766",
-  "remoteProceduresDigest": "b72a9058b6f827d859168932e6f8c04fedc312f79bef7cb59ebb685478d4eedd",
-  "migrationSetDigest": "71a32dd66d2397ac75f4d2e4af8328d15e2fbc7843b15c5105bbbe0b275f48ed",
+  "remoteProceduresDigest": "913bcd22cef8d41d4c1e093cd4ab931436e7db4971a6baa8a1d7179142077801",
+  "migrationSetDigest": "edf2fb256b385593741f0b637f484f6acd48f2a3d5ca5a511b3176244fa56e6d",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
-      "sha256": "87536ca5a29dbd6569440644bf8f6e9e64483836f571496dc07fbc62343c4fca",
+      "sha256": "ed4777331fe156d64ef193c24d94dbade250aef256d2c2698ee5366b62c9e3c7",
       "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
     }
   ],
@@ -60,6 +60,8 @@
     "table:keynes_internal.resource_types",
     "table:keynes_internal.budgets",
     "table:keynes_internal.budget_resources",
+    "table:keynes_internal.quantity_movements",
+    "trigger:keynes_internal.quantity_movements_append_only:keynes_internal.quantity_movements:keynes_internal.guard_quantity_movement():O:31:none",
     "table:keynes_internal.budget_history_streams",
     "table:keynes_internal.budget_history_entries",
     "table:keynes_internal.remote_role_mappings",
@@ -73,11 +75,13 @@
     "function:keynes_internal.canonical_decision_evidence(operation_name text,value jsonb,issue_path text)",
     "function:keynes_internal.canonical_envelope(operation_name text,value jsonb,issue_path text,allow_null boolean)",
     "function:keynes_internal.event_uuid(seed text)",
-    "function:keynes_internal.budget_is_settled(selected_tenant uuid,selected_budget uuid)",
     "function:keynes_internal.subtree_observed(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
-    "function:keynes_internal.budget_charge(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
+    "function:keynes_internal.budget_live(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
     "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
     "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.finalize_budget_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
+    "function:keynes_internal.finalize_ready_ancestors_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
+    "function:keynes_internal.guard_quantity_movement()",
     "function:keynes_internal.append_history(selected_tenant uuid,selected_stream uuid,selected_command uuid,selected_kind text,selected_subject uuid,details jsonb)",
     "function:keynes_internal.apply_command(operation_name text,input jsonb)",
     "function:keynes_internal.canonical_resource_definition_v0008(operation_name text,value jsonb,issue_path text)",

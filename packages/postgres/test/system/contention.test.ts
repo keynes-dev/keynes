@@ -20,6 +20,8 @@ const CANONICAL_ORDER_ROOT_ID = "27000000-0000-4000-8000-000000000001";
 const EXACT_ROOT_ID = "28000000-0000-4000-8000-000000000001";
 const CONFLICTING_ROOT_ID = "28000000-0000-4000-8000-000000000002";
 const CONFIGURED_ROOT_DEFINITION_ID = "18000000-0000-4000-8000-000000000001";
+const FIRST_CHILD_SETTLEMENT_ID = "45000000-0000-4000-8000-000000000002";
+const SECOND_CHILD_SETTLEMENT_ID = "45000000-0000-4000-8000-000000000003";
 
 type RequestBudgetCommand = Parameters<ContractClient["requestBudget"]>[0];
 
@@ -368,7 +370,7 @@ describe("native PostgreSQL contention", () => {
       });
       const rejected = expect(competing).rejects.toMatchObject({
         code: "budget_not_active",
-        details: { budgetId: ROOT_BUDGET_ID, lifecycle: "settling" },
+        details: { budgetId: ROOT_BUDGET_ID, lifecycle: "settled" },
       });
 
       await keynes.requireBlockedBy(request.backendPid, settlement.backendPid);
@@ -432,6 +434,267 @@ describe("native PostgreSQL contention", () => {
         "budget_settlement_recorded",
       ]);
       expect(final.history.entries[1]).toMatchObject({ decisionEvidence });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it.each(["first child", "second child"] as const)(
+    "serializes sibling finalization through the root when %s commits first",
+    async (firstChild) => {
+      const keynes = await openNativeTestKeynes();
+      try {
+        const { resourceTypeId, childBudgetIds } =
+          await seedSettlingSiblings(keynes);
+        const [firstBudgetId, secondBudgetId] =
+          firstChild === "first child"
+            ? childBudgetIds
+            : [childBudgetIds[1], childBudgetIds[0]];
+        const first = await keynes.beginAttempt("settlement-fixture");
+        const second = await keynes.beginAttempt("settlement-fixture");
+        const firstSettlement = first.client.settleBudget({
+          commandId: FIRST_CHILD_SETTLEMENT_ID,
+          budgetId: firstBudgetId,
+          usage: [{ resourceTypeId, amount: 0 }],
+        });
+        await firstSettlement;
+        const secondSettlement = second.client.settleBudget({
+          commandId: SECOND_CHILD_SETTLEMENT_ID,
+          budgetId: secondBudgetId,
+          usage: [{ resourceTypeId, amount: 0 }],
+        });
+
+        await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+        await first.commit();
+        await secondSettlement;
+        await second.commit();
+
+        const root = await keynes
+          .clientFor("reader-fixture")
+          .getBudget({ budgetId: ROOT_BUDGET_ID });
+        expect(root.budget.resources).toEqual([
+          expect.objectContaining({ available: 0 }),
+        ]);
+        expect(root.budget.lifecycle).toBe("settled");
+        expect(root.history.entries.at(-1)).toMatchObject({
+          kind: "budget_settlement_recorded",
+          budgetId: ROOT_BUDGET_ID,
+        });
+      } finally {
+        await keynes.close();
+      }
+    },
+  );
+
+  it("rejects a stale repeatable-read sibling finalization and allows a full retry", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId, childBudgetIds } =
+        await seedSettlingSiblings(keynes);
+      const stale = await keynes.beginRepeatableReadAttempt("product-fixture");
+      await stale.client.getBudget({ budgetId: ROOT_BUDGET_ID });
+      const winner = await keynes.beginAttempt("settlement-fixture");
+      await winner.client.settleBudget({
+        commandId: FIRST_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[0],
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      await winner.commit();
+
+      await expect(
+        stale.client.settleBudget({
+          commandId: SECOND_CHILD_SETTLEMENT_ID,
+          budgetId: childBudgetIds[1],
+          usage: [{ resourceTypeId, amount: 0 }],
+        }),
+      ).rejects.toMatchObject({ code: "40001" });
+      await stale.rollback();
+
+      const retry = await keynes.beginAttempt("settlement-fixture");
+      await retry.client.settleBudget({
+        commandId: SECOND_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[1],
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      await retry.commit();
+      await expect(
+        keynes
+          .clientFor("reader-fixture")
+          .getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).resolves.toMatchObject({ budget: { lifecycle: "settled" } });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("serializes ancestor overage observation before a child return", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId } = await seedRoot(keynes);
+      const child = await keynes.clientFor("product-fixture").requestBudget({
+        commandId: FIRST_REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId, amount: 10 }],
+      });
+      expect(child.kind).toBe("approved");
+      if (child.kind !== "approved") throw new Error("Expected child approval");
+      const ancestor = await keynes.beginAttempt("settlement-fixture");
+      await ancestor.client.settleBudget({
+        commandId: SETTLEMENT_ID,
+        budgetId: ROOT_BUDGET_ID,
+        usage: [{ resourceTypeId, amount: 11 }],
+      });
+      const childSettlement = await keynes.beginAttempt("settlement-fixture");
+      const returned = childSettlement.client.settleBudget({
+        commandId: FIRST_CHILD_SETTLEMENT_ID,
+        budgetId: child.childBudgetId,
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      await keynes.requireBlockedBy(
+        childSettlement.backendPid,
+        ancestor.backendPid,
+      );
+      await ancestor.commit();
+      await returned;
+      await childSettlement.commit();
+
+      await expect(
+        keynes
+          .clientFor("reader-fixture")
+          .getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).resolves.toMatchObject({
+        budget: {
+          lifecycle: "settled",
+          resources: [expect.objectContaining({ available: 0, deficit: 11 })],
+        },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("allows an independent-root mutation while another tree is locked", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId } = await seedRoot(keynes);
+      const product = keynes.clientFor("product-fixture");
+      await product.createBudget({
+        commandId: COMPETING_ROOT_ID,
+        ...rootResources([
+          {
+            definition: {
+              canonicalName: "native_tokens",
+              unit: "token",
+              accountingBehavior: "consumable",
+            },
+            amount: 1,
+          },
+        ]),
+      });
+      const held = await keynes.beginAttempt("settlement-fixture");
+      await held.client.settleBudget({
+        commandId: SETTLEMENT_ID,
+        budgetId: ROOT_BUDGET_ID,
+        usage: [{ resourceTypeId: RESOURCE_COMMAND_ID, amount: 0 }],
+      });
+      const independent = await keynes.beginAttempt("product-fixture");
+      await expect(
+        independent.client.requestBudget({
+          commandId: SECOND_REQUEST_ID,
+          parentBudgetId: COMPETING_ROOT_ID,
+          resources: [{ resourceTypeId, amount: 1 }],
+        }),
+      ).resolves.toMatchObject({ kind: "approved" });
+      await independent.commit();
+      await held.commit();
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("rejects a sibling observation that overflows the root aggregate", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId, childBudgetIds } = await seedZeroSiblings(keynes);
+      const first = await keynes.beginAttempt("settlement-fixture");
+      await first.client.settleBudget({
+        commandId: FIRST_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[0],
+        usage: [{ resourceTypeId, amount: Number.MAX_SAFE_INTEGER }],
+      });
+      const second = await keynes.beginAttempt("settlement-fixture");
+      const overflow = second.client.settleBudget({
+        commandId: SECOND_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[1],
+        usage: [{ resourceTypeId, amount: Number.MAX_SAFE_INTEGER }],
+      });
+      await keynes.requireBlockedBy(second.backendPid, first.backendPid);
+      const rejected = expect(overflow).rejects.toMatchObject({
+        code: "arithmetic_error",
+      });
+      await first.commit();
+      const beforeSecond = await keynes.inspectState();
+      const journalBeforeSecond = await keynes.inspectJournal();
+      await rejected;
+      await second.commit();
+      expect(await keynes.inspectState()).toEqual(beforeSecond);
+      expect(await keynes.inspectJournal()).toEqual(journalBeforeSecond);
+      await expect(
+        keynes.clientFor("reader-fixture").getBudget({
+          budgetId: childBudgetIds[1],
+        }),
+      ).resolves.toMatchObject({
+        budget: {
+          lifecycle: "active",
+          resources: [expect.objectContaining({ directUsage: null })],
+        },
+      });
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("keeps a read-only snapshot coherent across an uncommitted cascade", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId, childBudgetIds } =
+        await seedSettlingSiblings(keynes);
+      const first = await keynes.beginAttempt("settlement-fixture");
+      await first.client.settleBudget({
+        commandId: FIRST_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[0],
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      await first.commit();
+      const reader =
+        await keynes.beginReadOnlyRepeatableReadAttempt("product-fixture");
+      const before = await reader.client.getBudget({
+        budgetId: ROOT_BUDGET_ID,
+      });
+      const finalizer = await keynes.beginAttempt("settlement-fixture");
+      await finalizer.client.settleBudget({
+        commandId: SECOND_CHILD_SETTLEMENT_ID,
+        budgetId: childBudgetIds[1],
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      expect(
+        await reader.client.getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).toEqual(before);
+      await finalizer.commit();
+      expect(
+        await reader.client.getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).toEqual(before);
+      await reader.commit();
+      await expect(
+        keynes
+          .clientFor("reader-fixture")
+          .getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).resolves.toMatchObject({
+        budget: {
+          lifecycle: "settled",
+          resources: [expect.objectContaining({ available: 0 })],
+        },
+      });
     } finally {
       await keynes.close();
     }
@@ -664,4 +927,83 @@ async function seedRoot(
     ]),
   });
   return { resourceTypeId: resource.resourceType.resourceTypeId };
+}
+
+async function seedSettlingSiblings(keynes: NativeTestKeynes): Promise<{
+  readonly resourceTypeId: string;
+  readonly childBudgetIds: readonly [string, string];
+}> {
+  const { resourceTypeId } = await seedRoot(keynes);
+  const client = keynes.clientFor("product-fixture");
+  const first = await client.requestBudget({
+    commandId: FIRST_REQUEST_ID,
+    parentBudgetId: ROOT_BUDGET_ID,
+    resources: [{ resourceTypeId, amount: 5 }],
+  });
+  const second = await client.requestBudget({
+    commandId: SECOND_REQUEST_ID,
+    parentBudgetId: ROOT_BUDGET_ID,
+    resources: [{ resourceTypeId, amount: 5 }],
+  });
+  expect(first.kind).toBe("approved");
+  expect(second.kind).toBe("approved");
+  if (first.kind !== "approved" || second.kind !== "approved")
+    throw new Error("Expected both sibling requests to be approved");
+  await client.settleBudget({
+    commandId: SETTLEMENT_ID,
+    budgetId: ROOT_BUDGET_ID,
+    usage: [{ resourceTypeId, amount: 0 }],
+  });
+  return {
+    resourceTypeId,
+    childBudgetIds: [first.childBudgetId, second.childBudgetId],
+  };
+}
+
+async function seedZeroSiblings(keynes: NativeTestKeynes): Promise<{
+  readonly resourceTypeId: string;
+  readonly childBudgetIds: readonly [string, string];
+}> {
+  const client = keynes.clientFor("product-fixture");
+  const resource = await client.defineResource({
+    commandId: RESOURCE_COMMAND_ID,
+    definition: {
+      canonicalName: "overflow_tokens",
+      unit: "token",
+      accountingBehavior: "consumable",
+    },
+  });
+  await client.createBudget({
+    commandId: ROOT_BUDGET_ID,
+    ...rootResources([
+      {
+        definition: {
+          canonicalName: "overflow_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+        amount: 0,
+      },
+    ]),
+  });
+  const first = await client.requestBudget({
+    commandId: FIRST_REQUEST_ID,
+    parentBudgetId: ROOT_BUDGET_ID,
+    resources: [
+      { resourceTypeId: resource.resourceType.resourceTypeId, amount: 0 },
+    ],
+  });
+  const second = await client.requestBudget({
+    commandId: SECOND_REQUEST_ID,
+    parentBudgetId: ROOT_BUDGET_ID,
+    resources: [
+      { resourceTypeId: resource.resourceType.resourceTypeId, amount: 0 },
+    ],
+  });
+  if (first.kind !== "approved" || second.kind !== "approved")
+    throw new Error("Expected zero-grant siblings");
+  return {
+    resourceTypeId: resource.resourceType.resourceTypeId,
+    childBudgetIds: [first.childBudgetId, second.childBudgetId],
+  };
 }

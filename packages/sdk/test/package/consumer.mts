@@ -146,11 +146,79 @@ async function runBudgetLoop(): Promise<void> {
       "settled",
     );
     assertEqual(
+      (await approved.budget.inspect()).budget.resources.map(
+        ({ resource, available, committed }) => ({
+          resource,
+          available,
+          committed,
+        }),
+      ),
+      [
+        { resource: "searchQueries", available: 0, committed: 0 },
+        { resource: "usdCents", available: 0, committed: 0 },
+      ],
+    );
+    assertEqual(
+      (await root.inspect()).budget.resources.map(
+        ({ resource, available, committed }) => ({
+          resource,
+          available,
+          committed,
+        }),
+      ),
+      [
+        { resource: "searchQueries", available: 8, committed: 2 },
+        { resource: "usdCents", available: 60, committed: 40 },
+      ],
+    );
+    assertEqual(
       (await root.inspect()).history.entries.map(({ kind }) => kind),
       [
         "budget_created",
         "request_approved",
         "request_denied",
+        "budget_settlement_recorded",
+        "budget_settlement_recorded",
+      ],
+    );
+
+    const returnedRoot = await keynes.createBudget({ usdCents: 100 });
+    const returnedRequest = await returnedRoot.request({ usdCents: 40 });
+    if (returnedRequest.status !== "approved") {
+      throw new Error("expected returned request approval");
+    }
+    assertEqual((await returnedRoot.settle({ usdCents: 0 })).kind, "settling");
+    assertEqual(
+      (await returnedRequest.budget.settle({ usdCents: 10 })).kind,
+      "settled",
+    );
+    const returnedInspection = await returnedRoot.inspect();
+    assertEqual(
+      returnedInspection.budget.resources.map(
+        ({ resource, allocated, available, committed, directUsage }) => ({
+          resource,
+          allocated,
+          available,
+          committed,
+          directUsage,
+        }),
+      ),
+      [
+        {
+          resource: "usdCents",
+          allocated: 100,
+          available: 0,
+          committed: 10,
+          directUsage: 0,
+        },
+      ],
+    );
+    assertEqual(
+      returnedInspection.history.entries.map(({ kind }) => kind),
+      [
+        "budget_created",
+        "request_approved",
+        "budget_settlement_recorded",
         "budget_settlement_recorded",
         "budget_settlement_recorded",
       ],

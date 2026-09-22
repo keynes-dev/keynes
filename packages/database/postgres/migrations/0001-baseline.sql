@@ -166,7 +166,7 @@ BEGIN
   UPDATE keynes_internal.budget_history_streams SET next_sequence = next_sequence + 1
   WHERE tenant_id = selected_tenant AND stream_id = selected_stream;
   event_id := keynes_internal.event_uuid(
-    selected_tenant::text || ':' || selected_command::text || ':' || selected_kind
+    selected_tenant::text || ':' || selected_command::text || ':' || selected_kind || ':' || selected_subject::text
   );
   entry := jsonb_build_object(
     'kind', selected_kind, 'entryId', event_id::text, 'sequence', sequence_value,
@@ -210,6 +210,7 @@ DECLARE
   command_id uuid;
   parent_id uuid;
   target_id uuid;
+  root_id uuid;
   items jsonb;
   canonical_definition jsonb;
   body jsonb;
@@ -229,6 +230,8 @@ DECLARE
   decision_evidence_payload jsonb := '{}'::jsonb;
   available_amount numeric;
   existing_usage bigint;
+  resource_behavior text;
+  live_amount numeric;
   domain_error_message text;
 BEGIN
   permission_name := CASE operation_name
@@ -485,8 +488,19 @@ BEGIN
       ) VALUES (tenant, command_id, NULL, command_id, 0, 'active');
       FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
         INSERT INTO keynes_internal.budget_resources (
-          tenant_id, budget_id, resource_type_id, allocated_amount
-        ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
+          tenant_id, budget_id, resource_type_id
+        ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid);
+        IF (item->>'amount')::bigint > 0 THEN
+          INSERT INTO keynes_internal.quantity_movements (
+            tenant_id, root_budget_id, command_id, resource_type_id, movement_id,
+            reason, source_budget_id, destination_budget_id, amount
+          ) VALUES (
+            tenant, command_id, command_id, (item->>'resourceTypeId')::uuid,
+            keynes_internal.event_uuid(command_id::text || ':' || (item->>'resourceTypeId') || ':initial_allocation'),
+            'initial_allocation', NULL, command_id, (item->>'amount')::bigint
+          );
+          PERFORM keynes_internal.checkpoint('after_quantity_movement');
+        END IF;
       END LOOP;
       INSERT INTO keynes_internal.budget_history_streams (tenant_id, stream_id)
       VALUES (tenant, command_id);
@@ -500,13 +514,17 @@ BEGIN
         'kind', 'created', 'budget', keynes_internal.budget_projection(tenant, command_id)
       );
     ELSIF operation_name = 'requestBudget' THEN
-      SELECT * INTO budget FROM keynes_internal.budgets
-      WHERE tenant_id = tenant AND budget_id = parent_id FOR UPDATE;
+      SELECT root_budget_id INTO root_id FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = parent_id;
       IF NOT FOUND THEN
         PERFORM keynes_internal.raise_domain_error(
           'budget_not_found', jsonb_build_object('budgetId', parent_id::text)
         );
       END IF;
+      PERFORM 1 FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = root_id FOR UPDATE;
+      SELECT * INTO budget FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = parent_id FOR UPDATE;
       IF budget.lifecycle <> 'active' THEN
         PERFORM keynes_internal.raise_domain_error(
           'budget_not_active', jsonb_build_object(
@@ -588,8 +606,19 @@ BEGIN
         );
         FOR item IN SELECT element FROM jsonb_array_elements(items) AS element LOOP
           INSERT INTO keynes_internal.budget_resources (
-            tenant_id, budget_id, resource_type_id, allocated_amount
-          ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid, (item->>'amount')::bigint);
+            tenant_id, budget_id, resource_type_id
+          ) VALUES (tenant, command_id, (item->>'resourceTypeId')::uuid);
+          IF (item->>'amount')::bigint > 0 THEN
+            INSERT INTO keynes_internal.quantity_movements (
+              tenant_id, root_budget_id, command_id, resource_type_id, movement_id,
+              reason, source_budget_id, destination_budget_id, amount
+            ) VALUES (
+              tenant, budget.root_budget_id, command_id, (item->>'resourceTypeId')::uuid,
+              keynes_internal.event_uuid(command_id::text || ':' || (item->>'resourceTypeId') || ':child_grant'),
+              'child_grant', parent_id, command_id, (item->>'amount')::bigint
+            );
+            PERFORM keynes_internal.checkpoint('after_quantity_movement');
+          END IF;
         END LOOP;
         PERFORM keynes_internal.checkpoint('after_domain_mutation');
         PERFORM keynes_internal.append_history(
@@ -607,13 +636,17 @@ BEGIN
         ) || decision_evidence_payload;
       END IF;
     ELSE
-      SELECT * INTO budget FROM keynes_internal.budgets
-      WHERE tenant_id = tenant AND budget_id = target_id FOR UPDATE;
+      SELECT root_budget_id INTO root_id FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = target_id;
       IF NOT FOUND THEN
         PERFORM keynes_internal.raise_domain_error(
           'budget_not_found', jsonb_build_object('budgetId', target_id::text)
         );
       END IF;
+      PERFORM 1 FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = root_id FOR UPDATE;
+      SELECT * INTO budget FROM keynes_internal.budgets
+      WHERE tenant_id = tenant AND budget_id = target_id FOR UPDATE;
       IF EXISTS (
         SELECT 1 FROM jsonb_array_elements(items) AS usage
         WHERE NOT EXISTS (
@@ -643,6 +676,25 @@ BEGIN
           SET direct_usage_amount = (item->>'amount')::bigint, usage_command_id = command_id
           WHERE tenant_id = tenant AND budget_id = target_id
             AND resource_type_id = (item->>'resourceTypeId')::uuid;
+          SELECT accounting_behavior INTO resource_behavior FROM keynes_internal.resource_types
+          WHERE tenant_id = tenant AND resource_type_id = (item->>'resourceTypeId')::uuid;
+          live_amount := keynes_internal.budget_live(tenant, target_id, (item->>'resourceTypeId')::uuid);
+          UPDATE keynes_internal.budget_resources
+          SET direct_deficit_amount = greatest((item->>'amount')::numeric - live_amount, 0)::bigint
+          WHERE tenant_id = tenant AND budget_id = target_id
+            AND resource_type_id = (item->>'resourceTypeId')::uuid;
+          IF resource_behavior = 'consumable' AND least((item->>'amount')::numeric, live_amount) > 0 THEN
+            INSERT INTO keynes_internal.quantity_movements (
+              tenant_id, root_budget_id, command_id, resource_type_id, movement_id,
+              reason, source_budget_id, destination_budget_id, amount
+            ) VALUES (
+              tenant, budget.root_budget_id, command_id, (item->>'resourceTypeId')::uuid,
+              keynes_internal.event_uuid(command_id::text || ':' || target_id::text || ':' || (item->>'resourceTypeId') || ':consumption'),
+              'consumption', target_id, NULL,
+              least((item->>'amount')::numeric, live_amount)::bigint
+            );
+            PERFORM keynes_internal.checkpoint('after_quantity_movement');
+          END IF;
           newly_known := newly_known || jsonb_build_array(item);
         ELSIF existing_usage <> (item->>'amount')::bigint THEN
           PERFORM keynes_internal.raise_domain_error(
@@ -659,6 +711,7 @@ BEGIN
       UPDATE keynes_internal.budgets SET lifecycle = 'settling'
       WHERE tenant_id = tenant AND budget_id = target_id AND lifecycle = 'active';
       PERFORM keynes_internal.assert_safe_accounting(tenant, target_id, operation_name);
+      PERFORM keynes_internal.finalize_budget_v0009(tenant, target_id, command_id);
       PERFORM keynes_internal.checkpoint('after_domain_mutation');
       SELECT coalesce(jsonb_agg(resource_type_id::text ORDER BY resource_type_id), '[]'::jsonb)
       INTO unresolved FROM keynes_internal.budget_resources
@@ -678,6 +731,7 @@ BEGIN
           'lifecycle', projection->>'lifecycle', 'isolatedDeficits', deficits
         )
       );
+      PERFORM keynes_internal.finalize_ready_ancestors_v0009(tenant, target_id, command_id);
       PERFORM keynes_internal.checkpoint('after_history_insertion');
       result := jsonb_build_object(
         'kind', projection->>'lifecycle', 'budget', projection,
@@ -803,11 +857,21 @@ BEGIN
       FROM jsonb_array_elements(resolved_items) AS member(value)
     LOOP
       INSERT INTO keynes_internal.budget_resources (
-        tenant_id, budget_id, resource_type_id, allocated_amount
+        tenant_id, budget_id, resource_type_id
       ) VALUES (
-        tenant, command_id, (item->>'resourceTypeId')::uuid,
-        (item->>'amount')::bigint
+        tenant, command_id, (item->>'resourceTypeId')::uuid
       );
+      IF (item->>'amount')::bigint > 0 THEN
+        INSERT INTO keynes_internal.quantity_movements (
+          tenant_id, root_budget_id, command_id, resource_type_id, movement_id,
+          reason, source_budget_id, destination_budget_id, amount
+        ) VALUES (
+          tenant, command_id, command_id, (item->>'resourceTypeId')::uuid,
+          keynes_internal.event_uuid(command_id::text || ':' || (item->>'resourceTypeId') || ':initial_allocation'),
+          'initial_allocation', NULL, command_id, (item->>'amount')::bigint
+        );
+        PERFORM keynes_internal.checkpoint('after_quantity_movement');
+      END IF;
     END LOOP;
     INSERT INTO keynes_internal.budget_history_streams (
       tenant_id, stream_id
@@ -1215,74 +1279,15 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION keynes_internal.budget_charge(selected_tenant uuid, selected_budget uuid, selected_resource uuid) RETURNS numeric
-LANGUAGE plpgsql
-STABLE
-AS $$
-DECLARE
-  budget_fact record;
-  child_fact record;
-  committed numeric := 0;
-BEGIN
-  SELECT holding.direct_usage_amount, resource.accounting_behavior
-  INTO budget_fact
-  FROM keynes_internal.budget_resources AS holding
-  JOIN keynes_internal.resource_types AS resource
-    USING (tenant_id, resource_type_id)
-  WHERE holding.tenant_id = selected_tenant
-    AND holding.budget_id = selected_budget
-    AND holding.resource_type_id = selected_resource;
-
-  FOR child_fact IN
-    SELECT child.budget_id, holding.allocated_amount
-    FROM keynes_internal.budgets AS child
-    JOIN keynes_internal.budget_resources AS holding
-      ON holding.tenant_id = child.tenant_id
-      AND holding.budget_id = child.budget_id
-    WHERE child.tenant_id = selected_tenant
-      AND child.parent_budget_id = selected_budget
-      AND holding.resource_type_id = selected_resource
-  LOOP
-    IF keynes_internal.budget_is_settled(selected_tenant, child_fact.budget_id) THEN
-      IF budget_fact.accounting_behavior = 'consumable' THEN
-        committed := committed + least(
-          child_fact.allocated_amount,
-          keynes_internal.budget_charge(
-            selected_tenant, child_fact.budget_id, selected_resource
-          )
-        );
-      END IF;
-    ELSE
-      committed := committed + child_fact.allocated_amount;
-    END IF;
-  END LOOP;
-
-  IF budget_fact.accounting_behavior = 'consumable' THEN
-    RETURN coalesce(budget_fact.direct_usage_amount, 0) + committed;
-  END IF;
-  RETURN committed;
-END;
-$$;
-
-CREATE FUNCTION keynes_internal.budget_is_settled(selected_tenant uuid, selected_budget uuid) RETURNS boolean
+CREATE FUNCTION keynes_internal.budget_live(selected_tenant uuid, selected_budget uuid, selected_resource uuid) RETURNS numeric
 LANGUAGE sql
 STABLE
 AS $$
-  SELECT budget.lifecycle = 'settling'
-    AND NOT EXISTS (
-      SELECT 1 FROM keynes_internal.budget_resources AS fact
-      WHERE fact.tenant_id = selected_tenant
-        AND fact.budget_id = selected_budget
-        AND fact.direct_usage_amount IS NULL
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM keynes_internal.budgets AS child
-      WHERE child.tenant_id = selected_tenant
-        AND child.parent_budget_id = selected_budget
-        AND NOT keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
-    )
-  FROM keynes_internal.budgets AS budget
-  WHERE budget.tenant_id = selected_tenant AND budget.budget_id = selected_budget;
+  SELECT coalesce(sum(CASE WHEN destination_budget_id = selected_budget THEN amount ELSE 0 END), 0)::numeric
+       - coalesce(sum(CASE WHEN source_budget_id = selected_budget THEN amount ELSE 0 END), 0)::numeric
+  FROM keynes_internal.quantity_movements
+  WHERE tenant_id = selected_tenant AND resource_type_id = selected_resource
+    AND (source_budget_id = selected_budget OR destination_budget_id = selected_budget);
 $$;
 
 CREATE FUNCTION keynes_internal.budget_projection(selected_tenant uuid, selected_budget uuid) RETURNS jsonb
@@ -1292,17 +1297,16 @@ AS $$
 DECLARE
   budget_row keynes_internal.budgets%ROWTYPE;
   fact record;
-  settled boolean;
-  committed bigint;
+  allocated numeric;
+  available numeric;
+  committed numeric;
   observed numeric;
   unresolved boolean;
-  charge numeric;
   resources jsonb := '[]'::jsonb;
 BEGIN
   SELECT * INTO budget_row FROM keynes_internal.budgets
   WHERE tenant_id = selected_tenant AND budget_id = selected_budget;
   IF NOT FOUND THEN RETURN NULL; END IF;
-  settled := keynes_internal.budget_is_settled(selected_tenant, selected_budget);
   FOR fact IN
     SELECT holding.*, resource.canonical_name, resource.unit,
       resource.accounting_behavior, resource.definition_digest
@@ -1311,25 +1315,15 @@ BEGIN
     WHERE holding.tenant_id = selected_tenant AND holding.budget_id = selected_budget
     ORDER BY resource.canonical_name COLLATE "C", holding.resource_type_id
   LOOP
-    SELECT coalesce(sum(CASE
-      WHEN keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
-        AND fact.accounting_behavior = 'reusable' THEN 0
-      WHEN keynes_internal.budget_is_settled(selected_tenant, child.budget_id)
-        THEN least(
-          child_fact.allocated_amount,
-          keynes_internal.budget_charge(
-            selected_tenant, child.budget_id, fact.resource_type_id
-          )
-        )
-      ELSE child_fact.allocated_amount
-    END), 0)
-    INTO committed
-    FROM keynes_internal.budgets AS child
-    JOIN keynes_internal.budget_resources AS child_fact
-      ON child_fact.tenant_id = child.tenant_id AND child_fact.budget_id = child.budget_id
-    WHERE child.tenant_id = selected_tenant
-      AND child.parent_budget_id = selected_budget
-      AND child_fact.resource_type_id = fact.resource_type_id;
+    SELECT coalesce(sum(CASE WHEN destination_budget_id = selected_budget
+      AND reason IN ('initial_allocation', 'child_grant') THEN amount ELSE 0 END), 0)::numeric,
+      keynes_internal.budget_live(selected_tenant, selected_budget, fact.resource_type_id),
+      coalesce(sum(CASE WHEN source_budget_id = selected_budget AND reason = 'child_grant' THEN amount ELSE 0 END), 0)::numeric
+      - coalesce(sum(CASE WHEN destination_budget_id = selected_budget AND reason = 'settlement_return' THEN amount ELSE 0 END), 0)::numeric
+    INTO allocated, available, committed
+    FROM keynes_internal.quantity_movements
+    WHERE tenant_id = selected_tenant AND resource_type_id = fact.resource_type_id
+      AND (source_budget_id = selected_budget OR destination_budget_id = selected_budget);
     observed := keynes_internal.subtree_observed(
       selected_tenant, selected_budget, fact.resource_type_id
     );
@@ -1350,10 +1344,6 @@ BEGIN
         AND descendant_fact.resource_type_id = fact.resource_type_id
       WHERE subtree.lifecycle = 'active' OR descendant_fact.direct_usage_amount IS NULL
     ) INTO unresolved;
-    charge := CASE fact.accounting_behavior
-      WHEN 'consumable' THEN coalesce(fact.direct_usage_amount, 0) + committed
-      ELSE committed
-    END;
     resources := resources || jsonb_build_array(jsonb_build_object(
       'resourceType', jsonb_build_object(
         'resourceTypeId', fact.resource_type_id::text,
@@ -1362,13 +1352,13 @@ BEGIN
         'accountingBehavior', fact.accounting_behavior,
         'definitionDigest', fact.definition_digest
       ),
-      'allocated', fact.allocated_amount,
-      'available', greatest(fact.allocated_amount - least(fact.allocated_amount, charge), 0),
+      'allocated', allocated,
+      'available', available,
       'committed', committed,
       'directUsage', fact.direct_usage_amount,
       'subtreeObservedUsage', observed,
       'unresolved', unresolved,
-      'deficit', greatest(charge - fact.allocated_amount, 0)
+      'deficit', fact.direct_deficit_amount
     ));
   END LOOP;
   RETURN jsonb_build_object(
@@ -1376,9 +1366,87 @@ BEGIN
     'parentBudgetId', budget_row.parent_budget_id::text,
     'rootBudgetId', budget_row.root_budget_id::text,
     'depth', budget_row.depth,
-    'lifecycle', CASE WHEN settled THEN 'settled' ELSE budget_row.lifecycle END,
+    'lifecycle', budget_row.lifecycle,
     'resources', resources
   );
+END;
+$$;
+
+CREATE FUNCTION keynes_internal.finalize_budget_v0009(selected_tenant uuid, selected_budget uuid, selected_command uuid) RETURNS boolean
+LANGUAGE plpgsql
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+DECLARE budget_row keynes_internal.budgets%ROWTYPE;
+DECLARE fact record;
+DECLARE live_amount numeric;
+BEGIN
+  SELECT * INTO budget_row FROM keynes_internal.budgets
+  WHERE tenant_id = selected_tenant AND budget_id = selected_budget FOR UPDATE;
+  IF NOT FOUND OR budget_row.lifecycle <> 'settling'
+    OR EXISTS (SELECT 1 FROM keynes_internal.budget_resources WHERE tenant_id = selected_tenant
+      AND budget_id = selected_budget AND direct_usage_amount IS NULL)
+    OR EXISTS (SELECT 1 FROM keynes_internal.budgets WHERE tenant_id = selected_tenant
+      AND parent_budget_id = selected_budget AND lifecycle <> 'settled') THEN
+    RETURN false;
+  END IF;
+  FOR fact IN SELECT resource_type_id FROM keynes_internal.budget_resources
+    WHERE tenant_id = selected_tenant AND budget_id = selected_budget
+  LOOP
+    live_amount := keynes_internal.budget_live(selected_tenant, selected_budget, fact.resource_type_id);
+    IF live_amount > 0 THEN
+      INSERT INTO keynes_internal.quantity_movements (
+        tenant_id, root_budget_id, command_id, resource_type_id, movement_id,
+        reason, source_budget_id, destination_budget_id, amount
+      ) VALUES (
+        selected_tenant, budget_row.root_budget_id, selected_command, fact.resource_type_id,
+        keynes_internal.event_uuid(selected_command::text || ':' || selected_budget::text || ':' || fact.resource_type_id::text || ':terminal'),
+        CASE WHEN budget_row.parent_budget_id IS NULL THEN 'root_release' ELSE 'settlement_return' END,
+        selected_budget, budget_row.parent_budget_id, live_amount::bigint
+      );
+      PERFORM keynes_internal.checkpoint('after_quantity_movement');
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM keynes_internal.budget_resources resource
+    WHERE resource.tenant_id = selected_tenant AND resource.budget_id = selected_budget
+      AND keynes_internal.budget_live(selected_tenant, selected_budget, resource.resource_type_id) <> 0) THEN
+    RAISE EXCEPTION 'terminal budget retains quantity' USING ERRCODE = 'XX000';
+  END IF;
+  UPDATE keynes_internal.budgets SET lifecycle = 'settled'
+  WHERE tenant_id = selected_tenant AND budget_id = selected_budget;
+  RETURN true;
+END;
+$$;
+
+CREATE FUNCTION keynes_internal.finalize_ready_ancestors_v0009(selected_tenant uuid, selected_budget uuid, selected_command uuid) RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+DECLARE current_budget keynes_internal.budgets%ROWTYPE;
+DECLARE finalized boolean;
+DECLARE ancestor_deficits jsonb;
+BEGIN
+  SELECT * INTO current_budget FROM keynes_internal.budgets
+  WHERE tenant_id = selected_tenant AND budget_id = selected_budget;
+  WHILE current_budget.parent_budget_id IS NOT NULL LOOP
+    SELECT * INTO current_budget FROM keynes_internal.budgets
+    WHERE tenant_id = selected_tenant AND budget_id = current_budget.parent_budget_id FOR UPDATE;
+    finalized := keynes_internal.finalize_budget_v0009(selected_tenant, current_budget.budget_id, selected_command);
+    EXIT WHEN NOT finalized;
+    SELECT coalesce(jsonb_agg(jsonb_build_object(
+      'resourceTypeId', resource->'resourceType'->>'resourceTypeId',
+      'amount', (resource->>'deficit')::numeric
+    ) ORDER BY resource->'resourceType'->>'resourceTypeId'), '[]'::jsonb)
+    INTO ancestor_deficits
+    FROM jsonb_array_elements(
+      keynes_internal.budget_projection(selected_tenant, current_budget.budget_id)->'resources'
+    ) AS resource
+    WHERE (resource->>'deficit')::numeric > 0;
+    PERFORM keynes_internal.append_history(selected_tenant, current_budget.root_budget_id,
+      selected_command, 'budget_settlement_recorded', current_budget.budget_id,
+      jsonb_build_object('budgetId', current_budget.budget_id::text, 'newlyKnown', '[]'::jsonb,
+        'unresolvedResourceTypeIds', '[]'::jsonb, 'lifecycle', 'settled', 'isolatedDeficits', ancestor_deficits));
+    PERFORM keynes_internal.checkpoint('after_ancestor_finalization');
+  END LOOP;
 END;
 $$;
 
@@ -2437,9 +2505,9 @@ BEGIN
       'installationId', identity.profile_id,
       'contractDigest', identity.contract_digest,
       'remoteProceduresDigest', identity.remote_procedures_digest,
-      'semanticGeneration', 4,
-      'minimumSdkGeneration', 4,
-      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":4},{"name":"requestBudget","target":"keynes.remote_request","revision":2},{"name":"settleBudget","target":"keynes.remote_settle","revision":1},{"name":"getBudget","target":"keynes.remote_get_budget","revision":2},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":2},{"name":"openBudget","target":"keynes.remote_open_budget","revision":2},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":2},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":2}]'::jsonb
+      'semanticGeneration', 5,
+      'minimumSdkGeneration', 5,
+      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":5},{"name":"requestBudget","target":"keynes.remote_request","revision":3},{"name":"settleBudget","target":"keynes.remote_settle","revision":2},{"name":"getBudget","target":"keynes.remote_get_budget","revision":3},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":3},{"name":"openBudget","target":"keynes.remote_open_budget","revision":3},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":3},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":3}]'::jsonb
     )
   );
 END;
@@ -3513,12 +3581,12 @@ CREATE TABLE keynes_internal.budget_resources (
     tenant_id uuid NOT NULL,
     budget_id uuid NOT NULL,
     resource_type_id uuid NOT NULL,
-    allocated_amount bigint NOT NULL,
     direct_usage_amount bigint,
     usage_command_id uuid,
-    CONSTRAINT budget_resource_allocation_safe CHECK (((allocated_amount >= 0) AND (allocated_amount <= '9007199254740991'::bigint))),
+    direct_deficit_amount bigint DEFAULT 0 NOT NULL,
     CONSTRAINT budget_resource_usage_pair CHECK (((direct_usage_amount IS NULL) = (usage_command_id IS NULL))),
-    CONSTRAINT budget_resource_usage_safe CHECK (((direct_usage_amount IS NULL) OR ((direct_usage_amount >= 0) AND (direct_usage_amount <= '9007199254740991'::bigint))))
+    CONSTRAINT budget_resource_usage_safe CHECK (((direct_usage_amount IS NULL) OR ((direct_usage_amount >= 0) AND (direct_usage_amount <= '9007199254740991'::bigint)))),
+    CONSTRAINT budget_resource_deficit_safe CHECK (((direct_deficit_amount >= 0) AND (direct_deficit_amount <= '9007199254740991'::bigint)))
 );
 
 CREATE TABLE keynes_internal.budgets (
@@ -3529,8 +3597,30 @@ CREATE TABLE keynes_internal.budgets (
     depth bigint NOT NULL,
     lifecycle text NOT NULL,
     CONSTRAINT budget_depth_safe CHECK (((depth >= 0) AND (depth <= '9007199254740991'::bigint))),
-    CONSTRAINT budget_lifecycle CHECK ((lifecycle = ANY (ARRAY['active'::text, 'settling'::text]))),
+    CONSTRAINT budget_lifecycle CHECK ((lifecycle = ANY (ARRAY['active'::text, 'settling'::text, 'settled'::text]))),
     CONSTRAINT budget_root_shape CHECK ((((parent_budget_id IS NULL) AND (root_budget_id = budget_id) AND (depth = 0)) OR ((parent_budget_id IS NOT NULL) AND (depth > 0))))
+);
+
+CREATE TABLE keynes_internal.quantity_movements (
+    tenant_id uuid NOT NULL,
+    root_budget_id uuid NOT NULL,
+    command_id uuid NOT NULL,
+    resource_type_id uuid NOT NULL,
+    movement_id uuid NOT NULL,
+    reason text NOT NULL,
+    source_budget_id uuid,
+    destination_budget_id uuid,
+    amount bigint NOT NULL,
+    CONSTRAINT quantity_movement_reason CHECK ((reason = ANY (ARRAY[
+      'initial_allocation'::text, 'child_grant'::text, 'consumption'::text,
+      'settlement_return'::text, 'root_release'::text
+    ]))),
+    CONSTRAINT quantity_movement_amount_safe CHECK ((amount > 0 AND amount <= '9007199254740991'::bigint)),
+    CONSTRAINT quantity_movement_shape CHECK (((reason = 'initial_allocation' AND source_budget_id IS NULL AND destination_budget_id IS NOT NULL AND destination_budget_id = root_budget_id)
+      OR (reason = 'child_grant' AND source_budget_id IS NOT NULL AND destination_budget_id IS NOT NULL)
+      OR (reason = 'consumption' AND source_budget_id IS NOT NULL AND destination_budget_id IS NULL)
+      OR (reason = 'root_release' AND source_budget_id IS NOT NULL AND source_budget_id = root_budget_id AND destination_budget_id IS NULL)
+      OR (reason = 'settlement_return' AND source_budget_id IS NOT NULL AND destination_budget_id IS NOT NULL)))
 );
 
 CREATE TABLE keynes_internal.commands (
@@ -3656,7 +3746,7 @@ ALTER TABLE ONLY keynes_internal.budget_history_entries
     ADD CONSTRAINT budget_history_entries_pkey PRIMARY KEY (tenant_id, stream_id, sequence);
 
 ALTER TABLE ONLY keynes_internal.budget_history_entries
-    ADD CONSTRAINT budget_history_entries_tenant_id_command_id_key UNIQUE (tenant_id, command_id);
+    ADD CONSTRAINT budget_history_entries_tenant_command_kind_subject_key UNIQUE (tenant_id, command_id, event_kind, subject_id);
 
 ALTER TABLE ONLY keynes_internal.budget_history_entries
     ADD CONSTRAINT budget_history_entries_tenant_id_event_id_key UNIQUE (tenant_id, event_id);
@@ -3669,6 +3759,9 @@ ALTER TABLE ONLY keynes_internal.budget_resources
 
 ALTER TABLE ONLY keynes_internal.budgets
     ADD CONSTRAINT budgets_pkey PRIMARY KEY (tenant_id, budget_id);
+
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_pkey PRIMARY KEY (tenant_id, movement_id);
 
 ALTER TABLE ONLY keynes_internal.commands
     ADD CONSTRAINT commands_pkey PRIMARY KEY (tenant_id, command_id);
@@ -3717,6 +3810,27 @@ ALTER TABLE ONLY keynes_internal.schema_migrations
 
 CREATE UNIQUE INDEX commands_binding_reference_idx ON keynes_internal.commands USING btree (binding_reference);
 
+CREATE UNIQUE INDEX quantity_movements_initial_allocation_once_idx
+  ON keynes_internal.quantity_movements (tenant_id, destination_budget_id, resource_type_id)
+  WHERE reason = 'initial_allocation';
+CREATE UNIQUE INDEX quantity_movements_child_grant_once_idx
+  ON keynes_internal.quantity_movements (tenant_id, destination_budget_id, resource_type_id)
+  WHERE reason = 'child_grant';
+CREATE UNIQUE INDEX quantity_movements_consumption_once_idx
+  ON keynes_internal.quantity_movements (tenant_id, source_budget_id, resource_type_id)
+  WHERE reason = 'consumption';
+CREATE UNIQUE INDEX quantity_movements_terminal_once_idx
+  ON keynes_internal.quantity_movements (tenant_id, source_budget_id, resource_type_id)
+  WHERE reason IN ('settlement_return', 'root_release');
+CREATE INDEX quantity_movements_root_resource_idx
+  ON keynes_internal.quantity_movements (tenant_id, root_budget_id, resource_type_id);
+CREATE INDEX quantity_movements_source_resource_idx
+  ON keynes_internal.quantity_movements (tenant_id, source_budget_id, resource_type_id)
+  WHERE source_budget_id IS NOT NULL;
+CREATE INDEX quantity_movements_destination_resource_idx
+  ON keynes_internal.quantity_movements (tenant_id, destination_budget_id, resource_type_id)
+  WHERE destination_budget_id IS NOT NULL;
+
 ALTER TABLE ONLY keynes_internal.budget_history_entries
     ADD CONSTRAINT budget_history_entries_tenant_id_command_id_fkey FOREIGN KEY (tenant_id, command_id) REFERENCES keynes_internal.commands(tenant_id, command_id);
 
@@ -3747,6 +3861,17 @@ ALTER TABLE ONLY keynes_internal.budgets
 ALTER TABLE ONLY keynes_internal.budgets
     ADD CONSTRAINT budgets_tenant_id_root_budget_id_fkey FOREIGN KEY (tenant_id, root_budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
 
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_tenant_root_fkey FOREIGN KEY (tenant_id, root_budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_tenant_command_fkey FOREIGN KEY (tenant_id, command_id) REFERENCES keynes_internal.commands(tenant_id, command_id);
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_tenant_resource_fkey FOREIGN KEY (tenant_id, resource_type_id) REFERENCES keynes_internal.resource_types(tenant_id, resource_type_id);
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_tenant_source_fkey FOREIGN KEY (tenant_id, source_budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
+ALTER TABLE ONLY keynes_internal.quantity_movements
+    ADD CONSTRAINT quantity_movements_tenant_destination_fkey FOREIGN KEY (tenant_id, destination_budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
+
 ALTER TABLE ONLY keynes_internal.remote_budget_references
     ADD CONSTRAINT remote_budget_references_tenant_id_budget_id_fkey FOREIGN KEY (tenant_id, budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
 
@@ -3755,6 +3880,53 @@ ALTER TABLE ONLY keynes_internal.remote_history_cursors
 
 ALTER TABLE ONLY keynes_internal.resource_types
     ADD CONSTRAINT resource_types_definition_command_fkey FOREIGN KEY (tenant_id, definition_command_id) REFERENCES keynes_internal.commands(tenant_id, command_id);
+
+CREATE FUNCTION keynes_internal.guard_quantity_movement() RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+DECLARE endpoint_root uuid;
+BEGIN
+  IF TG_OP <> 'INSERT' THEN
+    RAISE EXCEPTION 'quantity movements are append-only' USING ERRCODE = '55000';
+  END IF;
+  FOR endpoint_root IN SELECT root_budget_id FROM keynes_internal.budgets
+    WHERE tenant_id = NEW.tenant_id AND budget_id = NEW.source_budget_id
+  LOOP
+    IF endpoint_root <> NEW.root_budget_id THEN
+      RAISE EXCEPTION 'quantity movement source is outside root' USING ERRCODE = '23514';
+    END IF;
+  END LOOP;
+  FOR endpoint_root IN SELECT root_budget_id FROM keynes_internal.budgets
+    WHERE tenant_id = NEW.tenant_id AND budget_id = NEW.destination_budget_id
+  LOOP
+    IF endpoint_root <> NEW.root_budget_id THEN
+      RAISE EXCEPTION 'quantity movement destination is outside root' USING ERRCODE = '23514';
+    END IF;
+  END LOOP;
+  IF NEW.source_budget_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.budget_resources WHERE tenant_id = NEW.tenant_id
+      AND budget_id = NEW.source_budget_id AND resource_type_id = NEW.resource_type_id
+  ) THEN RAISE EXCEPTION 'quantity movement source lacks resource membership' USING ERRCODE = '23514'; END IF;
+  IF NEW.destination_budget_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.budget_resources WHERE tenant_id = NEW.tenant_id
+      AND budget_id = NEW.destination_budget_id AND resource_type_id = NEW.resource_type_id
+  ) THEN RAISE EXCEPTION 'quantity movement destination lacks resource membership' USING ERRCODE = '23514'; END IF;
+  IF NEW.reason = 'child_grant' AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.budgets WHERE tenant_id = NEW.tenant_id
+      AND budget_id = NEW.destination_budget_id AND parent_budget_id = NEW.source_budget_id
+  ) THEN RAISE EXCEPTION 'child grant does not follow budget lineage' USING ERRCODE = '23514'; END IF;
+  IF NEW.reason = 'settlement_return' AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.budgets WHERE tenant_id = NEW.tenant_id
+      AND budget_id = NEW.source_budget_id AND parent_budget_id = NEW.destination_budget_id
+  ) THEN RAISE EXCEPTION 'settlement return does not follow budget lineage' USING ERRCODE = '23514'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER quantity_movements_append_only
+BEFORE INSERT OR UPDATE OR DELETE ON keynes_internal.quantity_movements
+FOR EACH ROW EXECUTE FUNCTION keynes_internal.guard_quantity_movement();
 
 REVOKE ALL ON SCHEMA keynes, keynes_internal FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA keynes_internal FROM PUBLIC;

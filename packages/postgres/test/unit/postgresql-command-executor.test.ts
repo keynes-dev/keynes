@@ -559,42 +559,42 @@ function compatibilityResult() {
       {
         name: "createBudget",
         target: "keynes.remote_create_budget",
-        revision: 4,
+        revision: 5,
       },
       {
         name: "requestBudget",
         target: "keynes.remote_request",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "settleBudget",
         target: "keynes.remote_settle",
-        revision: 1,
+        revision: 2,
       },
       {
         name: "getBudget",
         target: "keynes.remote_get_budget",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "getBudgetHistoryPage",
         target: "keynes.remote_get_budget_history_page",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "openBudget",
         target: "keynes.remote_open_budget",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "recoverOperation",
         target: "keynes.remote_recover_operation",
-        revision: 2,
+        revision: 3,
       },
       {
         name: "getCompatibility",
         target: "keynes.remote_get_compatibility",
-        revision: 2,
+        revision: 3,
       },
     ],
   };

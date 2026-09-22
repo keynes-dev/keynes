@@ -96,6 +96,7 @@ export function registerRollbackContractTests(
 
     it.each([
       "after_domain_mutation",
+      "after_quantity_movement",
       "after_result_storage",
     ] satisfies RollbackCheckpoint[])(
       "rolls back bound root creation at %s without invalidating its binding",
@@ -114,12 +115,14 @@ export function registerRollbackContractTests(
           amounts: { savedTokens: 10 },
         } satisfies CreateBudgetCommand;
         const before = await local.inspectState();
+        const journalBefore = await local.inspectJournal();
         await expect(
           local
             .clientFor("product-fixture", { checkpoint })
             .createBudget(command),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
         expect(await local.inspectState()).toEqual(before);
+        expect(await local.inspectJournal()).toEqual(journalBefore);
         await expect(
           client.getBudget({ budgetId: command.commandId }),
         ).rejects.toMatchObject({ code: "budget_not_found" });
@@ -196,7 +199,10 @@ export function registerRollbackContractTests(
         },
       });
 
-      for (const [checkpoint, suffix] of MUTATION_CHECKPOINTS) {
+      for (const [checkpoint, suffix] of [
+        ...MUTATION_CHECKPOINTS,
+        ["after_quantity_movement", "05"],
+      ] as const) {
         const commandId = `24000000-0000-0000-0000-0000000000${suffix}`;
         const command = {
           commandId,
@@ -240,10 +246,10 @@ export function registerRollbackContractTests(
         ...rootResources([rootResource(defined.resourceType, 100)]),
       });
 
-      for (const [
-        index,
-        [checkpoint, suffix],
-      ] of MUTATION_CHECKPOINTS.entries()) {
+      for (const [index, [checkpoint, suffix]] of [
+        ...MUTATION_CHECKPOINTS,
+        ["after_quantity_movement", "05"] as const,
+      ].entries()) {
         const commandId = `34000000-0000-0000-0000-0000000000${suffix}`;
         const command = {
           commandId,
@@ -257,11 +263,13 @@ export function registerRollbackContractTests(
         const faultingRequester = local.clientFor("requester-fixture", {
           checkpoint,
         });
+        const journalBefore = await local.inspectJournal();
         await expect(
           Reflect.apply(faultingRequester.requestBudget, faultingRequester, [
             command,
           ]),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+        expect(await local.inspectJournal()).toEqual(journalBefore);
         await expectKeynesError(
           client.getBudget({ budgetId: commandId }),
           "budget_not_found",
@@ -311,7 +319,10 @@ export function registerRollbackContractTests(
         ...rootResources([rootResource(defined.resourceType, 100)]),
       });
       const children: string[] = [];
-      for (const [, suffix] of MUTATION_CHECKPOINTS) {
+      for (const [, suffix] of [
+        ...MUTATION_CHECKPOINTS,
+        ["after_quantity_movement", "05"],
+      ] as const) {
         const request = await client.requestBudget({
           commandId: `34000000-0000-0000-0000-0000000001${suffix}`,
           parentBudgetId: root.budget.budgetId,
@@ -326,10 +337,10 @@ export function registerRollbackContractTests(
         children.push(request.childBudgetId);
       }
 
-      for (const [
-        index,
-        [checkpoint, suffix],
-      ] of MUTATION_CHECKPOINTS.entries()) {
+      for (const [index, [checkpoint, suffix]] of [
+        ...MUTATION_CHECKPOINTS,
+        ["after_quantity_movement", "05"] as const,
+      ].entries()) {
         const childBudgetId = children[index];
         if (childBudgetId === undefined) {
           throw new Error("fixture child is missing");
@@ -341,12 +352,14 @@ export function registerRollbackContractTests(
             { resourceTypeId: defined.resourceType.resourceTypeId, amount: 5 },
           ],
         } satisfies SettleBudgetCommand;
+        const journalBefore = await local.inspectJournal();
 
         await expect(
           local
             .clientFor("settlement-fixture", { checkpoint })
             .settleBudget(command),
         ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+        expect(await local.inspectJournal()).toEqual(journalBefore);
         const afterFailure = await client.getBudget({
           budgetId: childBudgetId,
         });
@@ -354,7 +367,7 @@ export function registerRollbackContractTests(
           lifecycle: "active",
           resources: [{ directUsage: null }],
         });
-        expect(afterFailure.history.entries).toHaveLength(5 + index);
+        expect(afterFailure.history.entries).toHaveLength(6 + index);
 
         const retry = await local
           .clientFor("settlement-fixture")
@@ -368,9 +381,92 @@ export function registerRollbackContractTests(
         expect(afterRetry.budget.resources[0]).toMatchObject({
           directUsage: 5,
         });
-        expect(afterRetry.history.entries).toHaveLength(6 + index);
+        expect(afterRetry.history.entries).toHaveLength(7 + index);
       }
     });
+
+    it.each([
+      "after_quantity_movement",
+      "after_ancestor_finalization",
+    ] satisfies RollbackCheckpoint[])(
+      "rolls back a child-triggered ancestor cascade at %s",
+      async (checkpoint) => {
+        const client = local.clientFor("product-fixture");
+        const defined = await client.defineResource({
+          commandId: `14000000-0000-0000-0000-0000000000${
+            checkpoint === "after_quantity_movement" ? "51" : "52"
+          }`,
+          definition: {
+            canonicalName: `cascade_${checkpoint}`,
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+        });
+        const root = await client.createBudget({
+          commandId: `24000000-0000-0000-0000-0000000000${
+            checkpoint === "after_quantity_movement" ? "51" : "52"
+          }`,
+          ...rootResources([rootResource(defined.resourceType, 10)]),
+        });
+        const child = await client.requestBudget({
+          commandId: `34000000-0000-0000-0000-0000000000${
+            checkpoint === "after_quantity_movement" ? "51" : "52"
+          }`,
+          parentBudgetId: root.budget.budgetId,
+          resources: [
+            { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
+          ],
+        });
+        if (child.kind !== "approved") {
+          throw new Error("fixture request must be funded");
+        }
+        await client.settleBudget({
+          commandId: `44000000-0000-0000-0000-0000000000${
+            checkpoint === "after_quantity_movement" ? "51" : "52"
+          }`,
+          budgetId: root.budget.budgetId,
+          usage: [
+            { resourceTypeId: defined.resourceType.resourceTypeId, amount: 0 },
+          ],
+        });
+        const childSettlement = {
+          commandId: `44000000-0000-0000-0000-0000000000${
+            checkpoint === "after_quantity_movement" ? "53" : "54"
+          }`,
+          budgetId: child.childBudgetId,
+          usage: [
+            { resourceTypeId: defined.resourceType.resourceTypeId, amount: 0 },
+          ],
+        } satisfies SettleBudgetCommand;
+        const journalBefore = await local.inspectJournal();
+
+        await expect(
+          local
+            .clientFor("settlement-fixture", { checkpoint })
+            .settleBudget(childSettlement),
+        ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+        expect(await local.inspectJournal()).toEqual(journalBefore);
+        expect(
+          (await client.getBudget({ budgetId: root.budget.budgetId })).budget,
+        ).toMatchObject({ lifecycle: "settling" });
+        expect(
+          (await client.getBudget({ budgetId: child.childBudgetId })).budget,
+        ).toMatchObject({
+          lifecycle: "active",
+          resources: [{ directUsage: null }],
+        });
+
+        await expect(
+          client.settleBudget(childSettlement),
+        ).resolves.toMatchObject({ kind: "settled", replayed: false });
+        expect(
+          (await client.getBudget({ budgetId: root.budget.budgetId })).budget,
+        ).toMatchObject({
+          lifecycle: "settled",
+          resources: [{ available: 0 }],
+        });
+      },
+    );
   });
 }
 

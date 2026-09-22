@@ -2,6 +2,7 @@ import { registerRuntimeValidationContractTests } from "./runtime-validation.ts"
 import type { OpenContractTestHost } from "../host.ts";
 
 import { registerBudgetLifecycleContractTests } from "./budget-lifecycle.ts";
+import { registerJournalAccountingContractTests } from "./journal-accounting.ts";
 import { registerReplayContractTests } from "./replay.ts";
 import { registerRequestDenialContractTests } from "./request-denial.ts";
 import { registerRequestEvidenceContractTests } from "./request-evidence.ts";
@@ -13,6 +14,7 @@ import { registerRemoteContractTests } from "./remote.ts";
 
 export {
   registerBudgetLifecycleContractTests,
+  registerJournalAccountingContractTests,
   registerReplayContractTests,
   registerRequestDenialContractTests,
   registerRequestEvidenceContractTests,
@@ -28,6 +30,7 @@ export function registerBudgetContractTests(
 ): void {
   registerRuntimeValidationContractTests(openHost);
   registerBudgetLifecycleContractTests(openHost);
+  registerJournalAccountingContractTests(openHost);
   registerReplayContractTests(openHost);
   registerRequestDenialContractTests(openHost);
   registerRequestEvidenceContractTests(openHost);

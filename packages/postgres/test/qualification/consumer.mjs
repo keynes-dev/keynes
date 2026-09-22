@@ -69,10 +69,66 @@ try {
     (await request.budget.inspect()).budget.resources[0]?.allocated,
     2,
   );
-  await request.budget.settle(
-    { packageQualificationUnits: 2 },
+  await root.settle(
+    { packageQualificationUnits: 0 },
     { operationKey: createOperationKey() },
   );
+  await request.budget.settle(
+    { packageQualificationUnits: 1 },
+    { operationKey: createOperationKey() },
+  );
+  const child = await request.budget.inspect();
+  const rootState = await root.inspect();
+  assert.equal(child.budget.resources[0]?.available, 0);
+  assert.equal(rootState.budget.resources[0]?.available, 0);
+  assert.equal(rootState.budget.resources[0]?.allocated, 5);
+  assert.equal(rootState.budget.resources[0]?.committed, 1);
+  const settlements = rootState.history.entries.filter(
+    ({ kind }) => kind === "budget_settlement_recorded",
+  );
+  assert.equal(settlements.length, 3);
+  assert.deepEqual(
+    settlements.map(
+      ({
+        kind,
+        lifecycle,
+        newlyKnown,
+        unresolvedResources,
+        isolatedDeficits,
+      }) => ({
+        kind,
+        lifecycle,
+        newlyKnown,
+        unresolvedResources,
+        isolatedDeficits,
+      }),
+    ),
+    [
+      {
+        kind: "budget_settlement_recorded",
+        lifecycle: "settling",
+        newlyKnown: [{ resource: "packageQualificationUnits", amount: 0 }],
+        unresolvedResources: ["packageQualificationUnits"],
+        isolatedDeficits: [],
+      },
+      {
+        kind: "budget_settlement_recorded",
+        lifecycle: "settled",
+        newlyKnown: [{ resource: "packageQualificationUnits", amount: 1 }],
+        unresolvedResources: [],
+        isolatedDeficits: [],
+      },
+      {
+        kind: "budget_settlement_recorded",
+        lifecycle: "settled",
+        newlyKnown: [],
+        unresolvedResources: [],
+        isolatedDeficits: [],
+      },
+    ],
+  );
+  assert.equal(settlements[1].sequence, settlements[0].sequence + 1);
+  assert.equal(settlements[2].sequence, settlements[1].sequence + 1);
   const malformed = root.request({ packageQualificationUnits: NaN });
   assert.ok(malformed instanceof Promise);
   await assert.rejects(malformed, { code: "invalid_command" });
@@ -113,8 +169,8 @@ try {
     {
       resource: "packageQualificationUnits",
       allocated: 5,
-      available: 3,
-      subtreeObservedUsage: 2,
+      available: 0,
+      subtreeObservedUsage: 1,
     },
   );
 } finally {

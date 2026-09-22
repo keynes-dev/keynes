@@ -110,6 +110,11 @@ export async function openSqliteContractTestHost(): Promise<ContractTestHost> {
       );
       return createContractClient(caller);
     },
+    inspectJournal: async () =>
+      store.inspectJournal().map((movement) => ({
+        ...movement,
+        amount: Number(movement.amount),
+      })),
     inspectState: async () => store.inspectState(),
     close: async () => executor.close(),
   };

@@ -217,7 +217,7 @@ export function registerBudgetLifecycleContractTests(
             {
               resourceType: resource.resourceType,
               allocated: 40,
-              available: 15,
+              available: 0,
               committed: 0,
               directUsage: 25,
               subtreeObservedUsage: 25,

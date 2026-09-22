@@ -17,13 +17,30 @@ export interface SqliteBudgetRow {
   readonly parentBudgetId: string | null;
   readonly rootBudgetId: string;
   readonly depth: bigint;
-  readonly lifecycle: "active" | "settling";
+  readonly lifecycle: "active" | "settling" | "settled";
 }
 
 export interface SqliteHoldingRow {
   readonly resourceTypeId: string;
-  readonly allocated: bigint;
   readonly directUsage: bigint | null;
+  readonly directDeficit: bigint;
+}
+
+export interface SqliteJournalMovement {
+  readonly tenantId: string;
+  readonly rootBudgetId: string;
+  readonly commandId: string;
+  readonly resourceTypeId: string;
+  readonly movementId: string;
+  readonly reason:
+    | "initial_allocation"
+    | "child_grant"
+    | "consumption"
+    | "settlement_return"
+    | "root_release";
+  readonly sourceBudgetId: string | null;
+  readonly destinationBudgetId: string | null;
+  readonly amount: bigint;
 }
 
 export interface SqliteResourceRow {
@@ -84,17 +101,76 @@ CREATE TABLE budgets (
   parent_budget_id TEXT,
   root_budget_id TEXT NOT NULL,
   depth INTEGER NOT NULL,
-  lifecycle TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, budget_id)
+  lifecycle TEXT NOT NULL CHECK (lifecycle IN ('active', 'settling', 'settled')),
+  PRIMARY KEY (tenant_id, budget_id),
+  FOREIGN KEY (tenant_id, parent_budget_id) REFERENCES budgets (tenant_id, budget_id)
 );
 CREATE TABLE budget_resources (
   tenant_id TEXT NOT NULL,
   budget_id TEXT NOT NULL,
   resource_type_id TEXT NOT NULL,
-  allocated_amount INTEGER NOT NULL,
   direct_usage_amount INTEGER,
-  PRIMARY KEY (tenant_id, budget_id, resource_type_id)
+  direct_deficit_amount INTEGER NOT NULL DEFAULT 0 CHECK (direct_deficit_amount >= 0),
+  PRIMARY KEY (tenant_id, budget_id, resource_type_id),
+  FOREIGN KEY (tenant_id, budget_id) REFERENCES budgets (tenant_id, budget_id),
+  FOREIGN KEY (tenant_id, resource_type_id) REFERENCES resource_types (tenant_id, resource_type_id)
 );
+CREATE TABLE journal_movements (
+  tenant_id TEXT NOT NULL,
+  root_budget_id TEXT NOT NULL,
+  command_id TEXT NOT NULL,
+  resource_type_id TEXT NOT NULL,
+  movement_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  source_budget_id TEXT,
+  destination_budget_id TEXT,
+  amount INTEGER NOT NULL CHECK (amount > 0 AND amount <= 9007199254740991),
+  PRIMARY KEY (tenant_id, movement_id),
+  CHECK (reason IN ('initial_allocation', 'child_grant', 'consumption', 'settlement_return', 'root_release')),
+  FOREIGN KEY (tenant_id, command_id) REFERENCES commands (tenant_id, command_id),
+  FOREIGN KEY (tenant_id, root_budget_id) REFERENCES budgets (tenant_id, budget_id),
+  FOREIGN KEY (tenant_id, source_budget_id) REFERENCES budgets (tenant_id, budget_id),
+  FOREIGN KEY (tenant_id, destination_budget_id) REFERENCES budgets (tenant_id, budget_id),
+  FOREIGN KEY (tenant_id, resource_type_id) REFERENCES resource_types (tenant_id, resource_type_id),
+  CHECK ((reason = 'initial_allocation' AND source_budget_id IS NULL AND destination_budget_id IS NOT NULL) OR
+         (reason IN ('child_grant', 'settlement_return') AND source_budget_id IS NOT NULL AND destination_budget_id IS NOT NULL) OR
+         (reason = 'consumption' AND source_budget_id IS NOT NULL AND destination_budget_id IS NULL) OR
+         (reason = 'root_release' AND source_budget_id IS NOT NULL AND destination_budget_id IS NULL))
+);
+CREATE INDEX journal_movements_destination_idx ON journal_movements (tenant_id, destination_budget_id, resource_type_id);
+CREATE INDEX journal_movements_source_idx ON journal_movements (tenant_id, source_budget_id, resource_type_id);
+CREATE INDEX journal_movements_root_idx ON journal_movements (tenant_id, root_budget_id, command_id);
+CREATE INDEX journal_movements_root_resource_idx ON journal_movements (tenant_id, root_budget_id, resource_type_id);
+CREATE UNIQUE INDEX journal_creation_once ON journal_movements (tenant_id, destination_budget_id, resource_type_id, reason)
+  WHERE reason IN ('initial_allocation', 'child_grant');
+CREATE UNIQUE INDEX journal_terminal_once ON journal_movements (tenant_id, source_budget_id, resource_type_id, reason)
+  WHERE reason IN ('consumption', 'settlement_return', 'root_release');
+CREATE TRIGGER journal_movements_immutable_update BEFORE UPDATE ON journal_movements BEGIN
+  SELECT RAISE(ABORT, 'journal movements are immutable');
+END;
+CREATE TRIGGER journal_movements_immutable_delete BEFORE DELETE ON journal_movements BEGIN
+  SELECT RAISE(ABORT, 'journal movements are immutable');
+END;
+CREATE TRIGGER journal_movements_valid_endpoints BEFORE INSERT ON journal_movements BEGIN
+  SELECT CASE WHEN NEW.reason = 'initial_allocation' AND NEW.destination_budget_id != NEW.root_budget_id
+    THEN RAISE(ABORT, 'initial allocation must fund its root') END;
+  SELECT CASE WHEN NEW.reason = 'root_release' AND NEW.source_budget_id != NEW.root_budget_id
+    THEN RAISE(ABORT, 'root release must empty its root') END;
+  SELECT CASE WHEN NEW.reason = 'child_grant' AND NOT EXISTS (
+    SELECT 1 FROM budgets WHERE tenant_id = NEW.tenant_id AND budget_id = NEW.destination_budget_id AND parent_budget_id = NEW.source_budget_id
+  ) THEN RAISE(ABORT, 'child grant must follow the budget tree') END;
+  SELECT CASE WHEN NEW.reason = 'settlement_return' AND NOT EXISTS (
+    SELECT 1 FROM budgets WHERE tenant_id = NEW.tenant_id AND budget_id = NEW.source_budget_id AND parent_budget_id = NEW.destination_budget_id
+  ) THEN RAISE(ABORT, 'settlement return must follow the budget tree') END;
+  SELECT CASE WHEN NEW.destination_budget_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM budget_resources r JOIN budgets b ON b.tenant_id = r.tenant_id AND b.budget_id = r.budget_id
+    WHERE r.tenant_id = NEW.tenant_id AND r.budget_id = NEW.destination_budget_id AND r.resource_type_id = NEW.resource_type_id AND b.root_budget_id = NEW.root_budget_id
+  ) THEN RAISE(ABORT, 'journal destination must be a root member') END;
+  SELECT CASE WHEN NEW.source_budget_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM budget_resources r JOIN budgets b ON b.tenant_id = r.tenant_id AND b.budget_id = r.budget_id
+    WHERE r.tenant_id = NEW.tenant_id AND r.budget_id = NEW.source_budget_id AND r.resource_type_id = NEW.resource_type_id AND b.root_budget_id = NEW.root_budget_id
+  ) THEN RAISE(ABORT, 'journal source must be a root member') END;
+END;
 CREATE TABLE history_entries (
   tenant_id TEXT NOT NULL,
   root_budget_id TEXT NOT NULL,
@@ -115,7 +191,7 @@ export class SqliteStore {
       (SELECT count(*) FROM budgets) AS budgets,
       (SELECT count(*) FROM budget_resources) AS holdings,
       (SELECT count(*) FROM history_entries) AS history,
-      (SELECT coalesce(sum(allocated_amount), 0) FROM budget_resources) AS quantity
+      (SELECT count(*) FROM journal_movements) AS movements
     `)
       .get();
     if (row === undefined) throw new Error("Missing SQLite state counts");
@@ -125,8 +201,12 @@ export class SqliteStore {
       budgets: Number(row.budgets),
       holdings: Number(row.holdings),
       history: Number(row.history),
-      quantity: Number(row.quantity),
+      quantity: Number(this.#journalLiveQuantity()),
     };
+  }
+
+  inspectJournal(): SqliteJournalMovement[] {
+    return this.#statements.allJournal.all().map(journalMovementRow);
   }
 
   private constructor(database: DatabaseSync) {
@@ -359,13 +439,11 @@ export class SqliteStore {
     readonly tenantId: string;
     readonly budgetId: string;
     readonly resourceTypeId: string;
-    readonly allocated: bigint;
   }): void {
     this.#statements.insertHolding.run(
       holding.tenantId,
       holding.budgetId,
       holding.resourceTypeId,
-      holding.allocated,
     );
   }
 
@@ -376,6 +454,61 @@ export class SqliteStore {
     usage: bigint,
   ): void {
     this.#statements.setUsage.run(usage, tenantId, budgetId, resourceTypeId);
+  }
+
+  setDeficit(
+    tenantId: string,
+    budgetId: string,
+    resourceTypeId: string,
+    deficit: bigint,
+  ): void {
+    this.#statements.setDeficit.run(
+      deficit,
+      tenantId,
+      budgetId,
+      resourceTypeId,
+    );
+  }
+
+  insertMovement(movement: SqliteJournalMovement): void {
+    this.#statements.insertMovement.run(
+      movement.tenantId,
+      movement.rootBudgetId,
+      movement.commandId,
+      movement.resourceTypeId,
+      movement.movementId,
+      movement.reason,
+      movement.sourceBudgetId,
+      movement.destinationBudgetId,
+      movement.amount,
+    );
+  }
+
+  journal(tenantId: string): SqliteJournalMovement[] {
+    return this.#statements.journal.all(tenantId).map(journalMovementRow);
+  }
+
+  journalForBudgetResource(
+    tenantId: string,
+    budgetId: string,
+    resourceTypeId: string,
+  ): SqliteJournalMovement[] {
+    return this.#statements.journalForBudgetResource
+      .all(tenantId, resourceTypeId, budgetId, budgetId)
+      .map(journalMovementRow);
+  }
+
+  #journalLiveQuantity(): bigint {
+    return this.#statements.allJournal
+      .all()
+      .map(journalMovementRow)
+      .reduce(
+        (total, movement) =>
+          total +
+          (movement.destinationBudgetId === null ? 0n : movement.amount) -
+          (movement.sourceBudgetId === null ? 0n : movement.amount),
+        0n,
+      );
   }
 
   nextSequence(tenantId: string, rootBudgetId: string): bigint {
@@ -454,16 +587,31 @@ function prepareStatements(database: DatabaseSync) {
       "UPDATE budgets SET lifecycle = ? WHERE tenant_id = ? AND budget_id = ?",
     ),
     holdings: prepareRead(
-      "SELECT resource_type_id, allocated_amount, direct_usage_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? ORDER BY resource_type_id",
+      "SELECT resource_type_id, direct_usage_amount, direct_deficit_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? ORDER BY resource_type_id",
     ),
     holding: prepareRead(
-      "SELECT resource_type_id, allocated_amount, direct_usage_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
+      "SELECT resource_type_id, direct_usage_amount, direct_deficit_amount FROM budget_resources WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
     ),
     insertHolding: database.prepare(
-      "INSERT INTO budget_resources (tenant_id, budget_id, resource_type_id, allocated_amount) VALUES (?, ?, ?, ?)",
+      "INSERT INTO budget_resources (tenant_id, budget_id, resource_type_id) VALUES (?, ?, ?)",
     ),
     setUsage: database.prepare(
       "UPDATE budget_resources SET direct_usage_amount = ? WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
+    ),
+    setDeficit: database.prepare(
+      "UPDATE budget_resources SET direct_deficit_amount = ? WHERE tenant_id = ? AND budget_id = ? AND resource_type_id = ?",
+    ),
+    insertMovement: database.prepare(
+      "INSERT INTO journal_movements (tenant_id, root_budget_id, command_id, resource_type_id, movement_id, reason, source_budget_id, destination_budget_id, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ),
+    journal: prepareRead(
+      "SELECT tenant_id, root_budget_id, command_id, resource_type_id, movement_id, reason, source_budget_id, destination_budget_id, amount FROM journal_movements WHERE tenant_id = ? ORDER BY root_budget_id, command_id, movement_id",
+    ),
+    journalForBudgetResource: prepareRead(
+      "SELECT tenant_id, root_budget_id, command_id, resource_type_id, movement_id, reason, source_budget_id, destination_budget_id, amount FROM journal_movements WHERE tenant_id = ? AND resource_type_id = ? AND (source_budget_id = ? OR destination_budget_id = ?) ORDER BY command_id, movement_id",
+    ),
+    allJournal: prepareRead(
+      "SELECT tenant_id, root_budget_id, command_id, resource_type_id, movement_id, reason, source_budget_id, destination_budget_id, amount FROM journal_movements ORDER BY root_budget_id, command_id, movement_id",
     ),
     nextSequence: prepareRead(
       "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM history_entries WHERE tenant_id = ? AND root_budget_id = ?",
@@ -492,7 +640,11 @@ function commandRow(value: unknown): SqliteCommandRow {
 function budgetRow(value: unknown): SqliteBudgetRow {
   const row = asRow(value);
   const lifecycle = stringColumn(row, "lifecycle");
-  if (lifecycle !== "active" && lifecycle !== "settling") {
+  if (
+    lifecycle !== "active" &&
+    lifecycle !== "settling" &&
+    lifecycle !== "settled"
+  ) {
     throw new Error(`Invalid stored budget lifecycle: ${lifecycle}`);
   }
   return {
@@ -508,8 +660,33 @@ function holdingRow(value: unknown): SqliteHoldingRow {
   const row = asRow(value);
   return {
     resourceTypeId: stringColumn(row, "resource_type_id"),
-    allocated: bigintColumn(row, "allocated_amount"),
     directUsage: nullableBigintColumn(row, "direct_usage_amount"),
+    directDeficit: bigintColumn(row, "direct_deficit_amount"),
+  };
+}
+
+function journalMovementRow(value: unknown): SqliteJournalMovement {
+  const row = asRow(value);
+  const reason = stringColumn(row, "reason");
+  if (
+    reason !== "initial_allocation" &&
+    reason !== "child_grant" &&
+    reason !== "consumption" &&
+    reason !== "settlement_return" &&
+    reason !== "root_release"
+  ) {
+    throw new Error(`Invalid journal movement reason: ${reason}`);
+  }
+  return {
+    tenantId: stringColumn(row, "tenant_id"),
+    rootBudgetId: stringColumn(row, "root_budget_id"),
+    commandId: stringColumn(row, "command_id"),
+    resourceTypeId: stringColumn(row, "resource_type_id"),
+    movementId: stringColumn(row, "movement_id"),
+    reason,
+    sourceBudgetId: nullableStringColumn(row, "source_budget_id"),
+    destinationBudgetId: nullableStringColumn(row, "destination_budget_id"),
+    amount: bigintColumn(row, "amount"),
   };
 }
 

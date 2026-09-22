@@ -43,10 +43,12 @@ export function registerReplayContractTests(
         ...rootResources([rootResource(defined.resourceType, 100)]),
       } satisfies CreateBudgetCommand;
       const created = await product.createBudget(createCommand);
+      const journalBeforeCreateReplay = await local.inspectJournal();
       const createdReplay = await local
         .clientFor("root-fixture")
         .createBudget(createCommand);
       expect(createdReplay).toEqual({ ...created, replayed: true });
+      expect(await local.inspectJournal()).toEqual(journalBeforeCreateReplay);
 
       const requestCommand = {
         commandId: "33000000-0000-0000-0000-000000000001",
@@ -60,10 +62,12 @@ export function registerReplayContractTests(
       if (requested.kind !== "approved") {
         throw new Error("fixture request must be funded");
       }
+      const journalBeforeRequestReplay = await local.inspectJournal();
       const requestedReplay = await local
         .clientFor("requester-fixture")
         .requestBudget(requestCommand);
       expect(requestedReplay).toEqual({ ...requested, replayed: true });
+      expect(await local.inspectJournal()).toEqual(journalBeforeRequestReplay);
 
       const settleCommand = {
         commandId: "43000000-0000-0000-0000-000000000001",
@@ -73,10 +77,12 @@ export function registerReplayContractTests(
         ],
       } satisfies SettleBudgetCommand;
       const settled = await product.settleBudget(settleCommand);
+      const journalBeforeReplay = await local.inspectJournal();
       const settledReplay = await local
         .clientFor("settlement-fixture")
         .settleBudget(settleCommand);
       expect(settledReplay).toEqual({ ...settled, replayed: true });
+      expect(await local.inspectJournal()).toEqual(journalBeforeReplay);
 
       const read = await product.getBudget({
         budgetId: requested.childBudgetId,
@@ -363,6 +369,7 @@ export function registerReplayContractTests(
           { resourceTypeId: defined.resourceType.resourceTypeId, amount: 25 },
         ],
       });
+      const journalBeforeConflict = await local.inspectJournal();
       await expectCommandConflict(
         local.clientFor("settlement-fixture").settleBudget({
           commandId: "43000000-0000-0000-0000-000000000011",
@@ -375,6 +382,7 @@ export function registerReplayContractTests(
         "settleBudget",
         "settleBudget",
       );
+      expect(await local.inspectJournal()).toEqual(journalBeforeConflict);
       const unchanged = await product.getBudget({
         budgetId: request.childBudgetId,
       });
@@ -608,6 +616,57 @@ export function registerReplayContractTests(
       await expect(
         local.clientFor("requester-fixture").requestBudget(deniedCommand),
       ).resolves.toEqual({ ...denied, replayed: true });
+    });
+
+    it("replays the original settling target after a child finalizes its ancestor", async () => {
+      const client = local.clientFor("product-fixture");
+      const defined = await client.defineResource({
+        commandId: "13000000-0000-0000-0000-000000000098",
+        definition: {
+          canonicalName: "model_tokens",
+          unit: "token",
+          accountingBehavior: "consumable",
+        },
+      });
+      const root = await client.createBudget({
+        commandId: "23000000-0000-0000-0000-000000000098",
+        ...rootResources([rootResource(defined.resourceType, 10)]),
+      });
+      const child = await client.requestBudget({
+        commandId: "33000000-0000-0000-0000-000000000098",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 10 },
+        ],
+      });
+      if (child.kind !== "approved") {
+        throw new Error("fixture request must be funded");
+      }
+      const settlingCommand = {
+        commandId: "43000000-0000-0000-0000-000000000098",
+        budgetId: root.budget.budgetId,
+        usage: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 0 },
+        ],
+      } satisfies SettleBudgetCommand;
+      const settling = await client.settleBudget(settlingCommand);
+      expect(settling).toMatchObject({ kind: "settling" });
+
+      await client.settleBudget({
+        commandId: "43000000-0000-0000-0000-000000000099",
+        budgetId: child.childBudgetId,
+        usage: [
+          { resourceTypeId: defined.resourceType.resourceTypeId, amount: 0 },
+        ],
+      });
+      expect(
+        (await client.getBudget({ budgetId: root.budget.budgetId })).budget,
+      ).toMatchObject({ lifecycle: "settled", resources: [{ available: 0 }] });
+      const journalBeforeTargetReplay = await local.inspectJournal();
+      await expect(
+        local.clientFor("settlement-fixture").settleBudget(settlingCommand),
+      ).resolves.toEqual({ ...settling, replayed: true });
+      expect(await local.inspectJournal()).toEqual(journalBeforeTargetReplay);
     });
 
     it("rejects omitted explicit-zero membership under the same command identity", async () => {

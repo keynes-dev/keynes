@@ -68,6 +68,26 @@ describe("public Budget projections", () => {
       isolatedDeficits: [{ resource: "alpha" }, { resource: "zebra" }],
     });
 
+    const settledSnapshot = await exerciseSettledProjection([
+      { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
+      { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
+    ]);
+    expect(settledSnapshot.budget).toMatchObject({ lifecycle: "settled" });
+    expect(settledSnapshot.budget.resources).toEqual([
+      expect.objectContaining({
+        resource: "alpha",
+        allocated: 1,
+        available: 0,
+        committed: 0,
+      }),
+      expect.objectContaining({
+        resource: "zebra",
+        allocated: 2,
+        available: 0,
+        committed: 0,
+      }),
+    ]);
+
     const narrowed = await exerciseNarrowedProjection([
       { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
       { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
@@ -144,14 +164,30 @@ async function exerciseNarrowedProjection(
   return createBudgetHandle(runtime, BUDGET_ID, binding).inspect();
 }
 
+async function exerciseSettledProjection(
+  resources: readonly InstalledResource[],
+) {
+  const runtime = createRuntime(resources, resources, "settled");
+  const binding = createResourceBinding(
+    preparedResources(resources),
+    budgetProjection(resources, "initial"),
+  );
+  return createBudgetHandle<ResourceName>(
+    runtime,
+    BUDGET_ID,
+    binding,
+  ).inspect();
+}
+
 function createRuntime(
   resources: readonly InstalledResource[],
   budgetResources: readonly InstalledResource[] = resources,
+  state: "current" | "settled" = "current",
 ): BasicRuntimeSession {
   const orderedResources = [...resources].sort((left, right) =>
     left.resourceTypeId.localeCompare(right.resourceTypeId),
   );
-  const client = createClient(orderedResources, budgetResources);
+  const client = createClient(orderedResources, budgetResources, state);
   return {
     client,
     resources: [],
@@ -165,8 +201,9 @@ function createRuntime(
 function createClient(
   resources: readonly InstalledResource[],
   budgetResources: readonly InstalledResource[],
+  state: "current" | "settled" = "current",
 ): KeynesClient {
-  const budget = budgetProjection(budgetResources);
+  const budget = budgetProjection(budgetResources, state);
   const amounts = resourceAmounts(resources);
   const reasons = requireNonempty(
     resources.map((resource) => ({
@@ -255,15 +292,16 @@ function createClient(
 
 function budgetProjection(
   resources: readonly InstalledResource[],
-  state: "initial" | "current" = "current",
+  state: "initial" | "current" | "settled" = "current",
 ): BudgetProjection {
   const initial = state === "initial";
+  const settled = state === "settled";
   return {
     budgetId: BUDGET_ID,
     parentBudgetId: null,
     rootBudgetId: BUDGET_ID,
     depth: 0,
-    lifecycle: initial ? "active" : "settling",
+    lifecycle: initial ? "active" : settled ? "settled" : "settling",
     resources: requireNonempty(
       resources.map((resource) => ({
         resourceType: {
@@ -278,7 +316,7 @@ function budgetProjection(
         committed: 0,
         directUsage: initial ? null : amountFor(resource.key),
         subtreeObservedUsage: 0,
-        unresolved: true,
+        unresolved: !settled,
         deficit: initial ? 0 : amountFor(resource.key),
       })),
     ),

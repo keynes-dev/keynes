@@ -49,11 +49,16 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgres/test/integration/recheck.test.ts": [
     "PostgreSQL exact recheck and application-role permissions rechecks the exact baseline read-only",
+    "PostgreSQL exact recheck and application-role permissions rechecks a valid trigger with a restricted session search path",
     "PostgreSQL exact recheck and application-role permissions rejects an identity missing a required column before reading it",
     "PostgreSQL exact recheck and application-role permissions rejects a profile-mismatched target without changing it",
     "PostgreSQL exact recheck and application-role permissions grants configured creation wrappers only to the runtime role",
     "PostgreSQL exact recheck and application-role permissions rejects a missing definition receipt reference during exact recheck",
     "PostgreSQL exact recheck and application-role permissions rejects a missing unique definition receipt index during exact recheck",
+    "PostgreSQL exact recheck and application-role permissions rejects a 'missing quantity-movement trigger' during exact recheck",
+    "PostgreSQL exact recheck and application-role permissions rejects a 'disabled quantity-movement trigger' during exact recheck",
+    "PostgreSQL exact recheck and application-role permissions rejects a 'quantity-movement trigger with change…' during exact recheck",
+    "PostgreSQL exact recheck and application-role permissions rejects a 'rebound quantity-movement trigger' during exact recheck",
     "PostgreSQL exact recheck and application-role permissions checks the server, checksums, contract, and complete object inventory",
     "PostgreSQL exact recheck and application-role permissions rejects an otherwise exact target that lacks the baseline ledger row",
     "PostgreSQL exact recheck and application-role permissions checks owners, bodies, languages, security, and fixed search paths",
@@ -62,6 +67,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgres/test/system/installation.test.ts": [
+    "PostgreSQL installation rejects a synthetic generation-four compatibility baseline",
     "PostgreSQL installation installs explicit principal permission records",
     "PostgreSQL installation installs a nullable unique private definition receipt reference",
     "PostgreSQL installation installs one baseline and rechecks it without changes",
@@ -83,12 +89,20 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "native PostgreSQL contention funds at most one sibling after proving the second request waits",
     "native PostgreSQL contention rejects a request that waits behind a committed settlement seal",
     "native PostgreSQL contention orders a waiting settlement after the committed request",
+    "native PostgreSQL contention serializes sibling finalization through the root when first child commits first",
+    "native PostgreSQL contention serializes sibling finalization through the root when second child commits first",
+    "native PostgreSQL contention rejects a stale repeatable-read sibling finalization and allows a full retry",
+    "native PostgreSQL contention serializes ancestor overage observation before a child return",
+    "native PostgreSQL contention allows an independent-root mutation while another tree is locked",
+    "native PostgreSQL contention rejects a sibling observation that overflows the root aggregate",
+    "native PostgreSQL contention keeps a read-only snapshot coherent across an uncommitted cascade",
     "native PostgreSQL contention returns the stored result when a matching command waits for commit",
     "native PostgreSQL contention replays matching evidence and rejects changed evidence when contenders wait",
     "native PostgreSQL contention creates concurrent configured roots on one catalog Resource",
     "native PostgreSQL contention returns root Resources in canonical name order despite opposite standalone UUID order",
   ],
   "packages/postgres/test/system/embedded-transactions.test.ts": [
+    "embedded PostgreSQL caller-owned transactions keeps a borrowed child cascade provisional and rolls back its history",
     "public borrowed PostgreSQL adapter uses the supplied Client in session-context autocommit without owning its lifecycle",
     "public borrowed PostgreSQL adapter uses the supplied PoolClient in session-context autocommit without owning its lifecycle",
     "public borrowed PostgreSQL adapter keeps public Budget handles and application outbox provisional until caller commit",
@@ -120,7 +134,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgres/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
-    "remote PostgreSQL installation and administration reports generation-four compatibility and grants configured validation and recovery only to the runtime role",
+    "remote PostgreSQL installation and administration reports generation-five compatibility and grants configured validation and recovery only to the runtime role",
     "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
     "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
     "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",
@@ -160,6 +174,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
   ],
   "packages/postgres/test/system/remote-recovery.test.ts": [
+    "remote PostgreSQL recovery and bounded reads recovers a lost child terminal cascade without duplicating movements",
     "remote PostgreSQL recovery and bounded reads recovers a lost configured creation only after current authorization and selected-definition validation",
 
     "remote PostgreSQL recovery and bounded reads recovers a lost definition response and retains its receipt after ledger expiry",
@@ -200,6 +215,8 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL configured root authorization and rollback removes failed definition receipts and configured-root effects while retaining catalog definitions",
     "PostgreSQL configured root authorization and rollback requires a configured catalog and root-allocation permission",
     "PostgreSQL configured root authorization and rollback rolls back a configured root at its private checkpoint",
+    "PostgreSQL configured root authorization and rollback rolls back terminal settlement at after_quantity_movement without retaining a command",
+    "PostgreSQL configured root authorization and rollback rolls back terminal settlement at after_ancestor_finalization without retaining a command",
   ],
 } as const;
 

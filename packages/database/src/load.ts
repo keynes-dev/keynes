@@ -73,8 +73,8 @@ const EXPECTED_OPERATIONS = [
 ] as const satisfies readonly ContractOperation[];
 
 const EXPECTED_REMOTE = {
-  semanticGeneration: 4,
-  minimumSdkGeneration: 4,
+  semanticGeneration: 5,
+  minimumSdkGeneration: 5,
   semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
@@ -96,7 +96,7 @@ const EXPECTED_REMOTE = {
     {
       method: "createBudget",
       target: "keynes.remote_create_budget",
-      revision: 4,
+      revision: 5,
       mode: "mutation",
       input: "RemoteCreateBudgetCommand",
       output: "RemoteCreateBudgetResult",
@@ -104,7 +104,7 @@ const EXPECTED_REMOTE = {
     {
       method: "requestBudget",
       target: "keynes.remote_request",
-      revision: 2,
+      revision: 3,
       mode: "mutation",
       input: "RemoteRequestBudgetCommand",
       output: "RemoteRequestBudgetResult",
@@ -112,7 +112,7 @@ const EXPECTED_REMOTE = {
     {
       method: "settleBudget",
       target: "keynes.remote_settle",
-      revision: 1,
+      revision: 2,
       mode: "mutation",
       input: "RemoteSettleBudgetCommand",
       output: "RemoteSettleBudgetResult",
@@ -120,7 +120,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getBudget",
       target: "keynes.remote_get_budget",
-      revision: 2,
+      revision: 3,
       mode: "read",
       input: "RemoteGetBudgetQuery",
       output: "RemoteGetBudgetResult",
@@ -128,7 +128,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 2,
+      revision: 3,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",
@@ -136,7 +136,7 @@ const EXPECTED_REMOTE = {
     {
       method: "openBudget",
       target: "keynes.remote_open_budget",
-      revision: 2,
+      revision: 3,
       mode: "read",
       input: "OpenBudgetQuery",
       output: "OpenBudgetResult",
@@ -144,7 +144,7 @@ const EXPECTED_REMOTE = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 2,
+      revision: 3,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",
@@ -152,7 +152,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getCompatibility",
       target: "keynes.remote_get_compatibility",
-      revision: 2,
+      revision: 3,
       mode: "read",
       input: "GetCompatibilityQuery",
       output: "GetCompatibilityResult",
