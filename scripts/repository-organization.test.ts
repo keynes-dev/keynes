@@ -138,16 +138,15 @@ describe("repository organization", () => {
     for (const [path, digest] of [
       [
         "contract.json",
-        "943c389b3ab38e241e0782fc7c3efcccf0f5e65d4946e6494216f2af47b14706",
+        "cfd417e018910406b28e996a5560a5f869b5c1c68acd307bb6e5b47d44c9e0c9",
       ],
       [
         "schema.json",
-        "76f4f12b732f8eb4741b9abe360a6db2a3f8b52d3243dd2e69220d81bc233e95",
+        "3e8e7aabd52e667b20eacdfacea60d92467ea6da307849ce7043278a024ad38c",
       ],
       [
-        // KEY-84 updates the contract, schema, and baseline together.
         "postgres/migrations/0001-baseline.sql",
-        "552830f32a914c068b37f040b585cebcceb526358af8f1600611d3a3df601ac1",
+        "545ef0ea8007971c8128d8ea5781b16d5ff8082a7f7a894ad62642e3bcc2f1d0",
       ],
     ]) {
       expect(

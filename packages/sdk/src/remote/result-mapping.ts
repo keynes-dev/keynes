@@ -182,23 +182,6 @@ export function createRemoteBudgetHandle<
     return requestRemoteBudget(runtime, identity, binding, resources, options);
   }
 
-  function prepareRequest<
-    const Resources extends ResourceAmounts<Names>,
-    FinalNames extends Names,
-  >(
-    resources: ExactResourceAmounts<Names, Resources>,
-    options: BudgetRequestOptions & {
-      readonly policy: Policy<Extract<keyof Resources, Names>, FinalNames>;
-      readonly operationKey?: never;
-    },
-  ): Promise<PolicyResult<FinalNames>>;
-  function prepareRequest(
-    resources: unknown,
-    ...options: readonly unknown[]
-  ): Promise<PolicyResult> {
-    return prepareRemotePolicyRequest(runtime, binding, resources, options);
-  }
-
   const settle: RemoteBudget<Names, HistoryNames>["settle"] = async (
     usage,
     ...options
@@ -279,7 +262,6 @@ export function createRemoteBudgetHandle<
     [budgetBrand]: undefined,
     reference: budgetReference,
     request,
-    prepareRequest,
     settle,
     inspect,
   }) as RemoteBudget<Names, HistoryNames>;
@@ -396,21 +378,6 @@ async function requestRemoteBudget<
     resolved,
     operationKey,
     requestDecisionEvidence(remainingOptions),
-  );
-}
-
-function prepareRemotePolicyRequest<
-  Names extends string,
-  HistoryNames extends string,
->(
-  runtime: RemotePolicySession,
-  binding: BudgetResourceBinding<Names, HistoryNames>,
-  resources: unknown,
-  options: readonly unknown[],
-): Promise<PolicyResult> {
-  return runtime.admitPolicy(
-    () => captureRemotePolicyRequest(resources, options, binding),
-    async (prepared) => resolveRemotePolicyRequest(prepared, binding),
   );
 }
 

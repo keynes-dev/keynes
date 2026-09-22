@@ -72,6 +72,7 @@ describe("Remote Policy middleware", () => {
   it("rejects a Remote Policy plus operation key before proposal capture or callback invocation", async () => {
     const { keynes, createOperationKey } = await openPublicFixture();
     const root = await keynes.createBudget({ modelTokens: 10 });
+    expect(root).not.toHaveProperty("prepareRequest");
     let proposalReads = 0;
     let policyCalls = 0;
     const proposal = new Proxy(
@@ -107,16 +108,11 @@ describe("Remote Policy middleware", () => {
     const { keynes, createOperationKey } = await openPublicFixture();
     const root = await keynes.createBudget({ modelTokens: 10 });
     let policyCalls = 0;
-    const prepared = await prepareRequest(
-      root,
-      { modelTokens: 3 },
-      {
-        policy() {
-          policyCalls += 1;
-          return { kind: "prepared", request: { modelTokens: 3 } };
-        },
-      },
-    );
+    const policy = () => {
+      policyCalls += 1;
+      return { kind: "prepared" as const, request: { modelTokens: 3 } };
+    };
+    const prepared = await policy();
     const key = createOperationKey();
 
     const first = await root.request(prepared.request, { operationKey: key });
@@ -135,16 +131,11 @@ describe("Remote Policy middleware", () => {
     const { keynes, createOperationKey } = await openPublicFixture();
     const root = await keynes.createBudget({ modelTokens: 1 });
     let policyCalls = 0;
-    const prepared = await prepareRequest(
-      root,
-      { modelTokens: 2 },
-      {
-        policy() {
-          policyCalls += 1;
-          return { kind: "prepared", request: { modelTokens: 2 } };
-        },
-      },
-    );
+    const policy = () => {
+      policyCalls += 1;
+      return { kind: "prepared" as const, request: { modelTokens: 2 } };
+    };
+    const prepared = await policy();
     const key = createOperationKey();
 
     await expect(
@@ -235,18 +226,3 @@ describe("borrowed PostgreSQL Policy middleware", () => {
     }
   });
 });
-
-function prepareRequest(
-  budget: object,
-  resources: object,
-  options: object,
-): Promise<{
-  readonly kind: "prepared";
-  readonly request: { readonly modelTokens: number };
-}> {
-  const method = Reflect.get(budget, "prepareRequest");
-  if (typeof method !== "function") {
-    throw new Error("Remote Budget does not expose prepareRequest");
-  }
-  return Reflect.apply(method, budget, [resources, options]);
-}

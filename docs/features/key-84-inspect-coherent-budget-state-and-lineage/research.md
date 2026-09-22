@@ -10,7 +10,7 @@ KEY-80 already derives quantities from the journal and records each automatic an
 
 Current remote role setup authenticates identity but the history-page path lacks a separate read_budget permission check. Every new capture and continuation must check that operation permission, as direct getBudget does. The existing remote JSON projector is VOLATILE, strips private identity and may lazily create Budget references. It cannot be relabeled STABLE or reused unchanged for pure inspection capture.
 
-KEY-80 is Done in live Linear with PR #68; its merge 208873c and KEY-96 merge 3c47555 are ancestors of the planning baseline. KEY-80 acceptance retains revision-specific passing evidence, not proof of KEY-84. Latest main also includes KEY-117; optional policy preparation stays unchanged.
+KEY-80 is Done in live Linear with PR #68; its merge 208873c and KEY-96 merge 3c47555 are ancestors of the planning baseline. KEY-80 acceptance retains revision-specific passing evidence, not proof of KEY-84. The publication merge includes KEY-126: separate `prepareRequest()` is removed, while the optional integrated Policy path on `request()` remains. Inspection changes neither contract.
 
 ## Usage and shape
 

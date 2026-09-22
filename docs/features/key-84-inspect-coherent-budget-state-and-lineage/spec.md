@@ -80,7 +80,7 @@ As an application developer, I can run multiple inspections of the same Budget w
 - **FR-010**: Inspection MUST preserve caller-owned connection and transaction boundaries, including provisional visibility and read-only use, without taking accounting mutation locks or retrying transaction fragments.
 - **FR-011**: Local and native PostgreSQL MUST agree on shared state, lineage, movement and error meaning. SDKs MUST only validate and project authoritative results, with type-safe heterogeneous history and no accounting rules.
 - **FR-012**: Captured remote observations MUST have bounded retention and existing time/page limits MUST fail explicitly. Cleanup of one observation MUST preserve other unexpired observations.
-- **FR-013**: Public examples and contracts MUST distinguish database-verified allocation/movement evidence from caller-supplied decision evidence, preserve optional policy preparation behavior, and limit coherence claims to one authority.
+- **FR-013**: Public examples and contracts MUST distinguish database-verified allocation/movement evidence from caller-supplied decision evidence, preserve optional integrated Policy request behavior, and limit coherence claims to one authority.
 
 ### Key Entities
 
@@ -105,6 +105,6 @@ As an application developer, I can run multiple inspections of the same Budget w
 - Existing lineage means the entire root tree, including siblings and descendants. The state projection describes the requested Budget. This scope is preserved without a new query API.
 - KEY-79 child-creation controls are canceled and absent from the runtime. This feature does not add or fabricate them; older product references to those controls are not an inspection requirement.
 - Inspection has no new public options, durable loading or cross-tenant query API. Internal bounded paging remains an implementation detail.
-- KEY-114 owns decision evidence and KEY-117 owns optional policy preparation. This feature preserves their contracts. KEY-124 owns future cross-authority inspection without globally atomic claims.
+- KEY-114 owns decision evidence. KEY-126 and ADR-0015 own direct application Policy decisions and the optional integrated Policy request path. This feature preserves those contracts. KEY-124 owns future cross-authority inspection without globally atomic claims.
 - External effects and live provider integration are N/A: inspection observes accounting and does not execute application work. Durable Local recovery and historical database upgrades are N/A: first Local remains ephemeral and installation remains fresh-baseline/exact-reinstall only.
 - At planning time, all behavioral acceptance was NOT RUN. Current revision-scoped results live in [acceptance.md](acceptance.md). This specification defines one independently acceptable outcome and one feature PR after its prerequisites.

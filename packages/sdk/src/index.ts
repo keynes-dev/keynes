@@ -10,8 +10,8 @@ export type {
 export { createOperationKey } from "./remote/references.js";
 export type {
   BudgetReference,
+  OperationResult,
   OperationKey,
-  RecoverOperationResult,
 } from "./remote/references.js";
 export type { RemoteBudget } from "./remote/public-types.js";
 export type {

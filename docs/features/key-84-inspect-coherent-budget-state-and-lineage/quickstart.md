@@ -41,7 +41,7 @@ for (const event of snapshot.history.entries) {
 }
 ```
 
-Lineage and movement endpoint IDs are root-relative, not global. A `null` endpoint means funding from outside the tree, consumption, or root release, depending on the movement reason. Automatic ancestor finalization has an `automatic_finalization` cause that references its initiating settlement event. The authority records movement and lifecycle evidence. Caller `decisionEvidence` remains data, not authority, and inspection does not run optional customer Policy.
+Lineage and movement endpoint IDs are root-relative, not global. A `null` endpoint means funding from outside the tree, consumption, or root release, depending on the movement reason. Automatic ancestor finalization has an `automatic_finalization` cause that references its initiating settlement event. The authority records movement and lifecycle evidence. Caller `decisionEvidence` remains data, not authority, and inspection does not run Policy; an optional Policy runs only when the application passes it to `request()`.
 
 Remote inspection owns its cursor and observation lifetime. It reads at most 256 entries per page, 128 pages, and 30 seconds of wall time. It returns one complete result or rejects without a partial successful snapshot.
 
@@ -53,7 +53,7 @@ Remote inspection owns its cursor and observation lifetime. It reads at most 256
 4. Use deterministic native barriers to interleave inspection with an uncommitted request/cascade and writer commit. Prove a complete before-or-after observation at READ COMMITTED. Separately exercise READ ONLY REPEATABLE READ, provisional own writes, caller rollback and stronger-isolation errors without adapter retries.
 5. Produce at least 513 root-tree entries. Start two remote inspections before consuming continuations. Interleave all three pages per reader and new committed mutations. Retry first and intermediate continuations. Each reader retains its captured state, entry identities and terminal history; no missing/duplicate entries and no invalidation by the other reader.
 6. Exercise malformed token, cross-tenant token, another target in the same tree, principal mismatch, read permission revocation and expiry. Require sanitized explicit failures. Cleanup expired observations while an independent unexpired one remains usable. Deadline/page-limit failure must not expose a successful partial snapshot.
-7. Repeat public usage in clean SDK+SQLite and SDK+PostgreSQL archive consumers. Check frozen results, narrowed state versus root-wide history types, identity privacy, movement endpoints and policy-free/optional-policy compatibility.
+7. Repeat public usage in clean SDK+SQLite and SDK+PostgreSQL archive consumers. Check frozen results, narrowed state versus root-wide history types, identity privacy, movement endpoints and policy-free/integrated-Policy compatibility.
 
 Tests should use barriers or existing private checkpoints to force the critical interleavings. Repetition or sleeps alone cannot prove the race was exercised.
 

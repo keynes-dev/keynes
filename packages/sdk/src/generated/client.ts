@@ -44,10 +44,10 @@ import {
 } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "42f110a502b5d3a7ffb64d0a0469ca31136e478b57de50080274873d5c067adf";
+  "8877d5eb086a2304a61e7983c02e9ca2bfa42d4f8d692cdedc5c9d94591cffbe";
 
 export const REMOTE_PROCEDURES_DIGEST =
-  "3f6dd877262cc3ffce15f67ae0c14fc5180ea715068f7e995bddcfbffb8ba9ea";
+  "bff2d60270987fda182a690e028202bfa9c826590b3cc6557f891ec004dd1d9c";
 export const REMOTE_CONTRACT = {
   semanticGeneration: 6,
   minimumSdkGeneration: 6,
@@ -120,7 +120,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",

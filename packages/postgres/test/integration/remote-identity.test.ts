@@ -77,7 +77,7 @@ describe("remote PostgreSQL installation and administration", () => {
               expect.objectContaining({
                 name: "recoverOperation",
                 target: "keynes.remote_recover_operation",
-                revision: 3,
+                revision: 4,
               }),
             ]),
           }),

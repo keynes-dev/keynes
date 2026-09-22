@@ -308,56 +308,54 @@ describe("public remote Keynes facade", () => {
     }
   });
 
-  it.each(["request", "prepareRequest"] as const)(
-    "rejects a closed remote Policy %s before reflecting proposal or options",
-    async (method) => {
-      const executor = createFakeExecutor();
-      openRemoteWith(executor);
-      const remote = await createKeynes({
-        runtime: postgres({ databaseUrl }),
-        resources,
+  it("rejects a closed remote Policy request before reflecting proposal or options", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      expect(root).not.toHaveProperty("prepareRequest");
+      const touched = vi.fn(() => {
+        throw new Error("input touched");
       });
-      try {
-        const root = await remote.createBudget({ workUnits: 10 });
-        const touched = vi.fn(() => {
-          throw new Error("input touched");
-        });
-        const proposal = new Proxy(
-          {},
-          {
-            get: touched,
-            getPrototypeOf: touched,
-            ownKeys: touched,
-          },
-        );
-        const options = new Proxy(
-          {},
-          {
-            get: touched,
-            getPrototypeOf: touched,
-            ownKeys: touched,
-          },
-        );
-        await remote.close();
+      const proposal = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      const options = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      await remote.close();
 
-        let pending: unknown;
-        expect(() => {
-          pending = Reflect.apply(root[method], root, [proposal, options]);
-        }).not.toThrow();
-        expect(pending).toBeInstanceOf(Promise);
-        await expect(pending).rejects.toMatchObject({ code: "client_closed" });
-        expect(touched).not.toHaveBeenCalled();
-      } finally {
-        await remote.close();
-      }
-    },
-  );
+      let pending: unknown;
+      expect(() => {
+        pending = Reflect.apply(root.request, root, [proposal, options]);
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({ code: "client_closed" });
+      expect(touched).not.toHaveBeenCalled();
+    } finally {
+      await remote.close();
+    }
+  });
 
   it.each([
     "defineResources",
     "createBudget",
     "openBudget",
-    "recoverOperation",
+    "getOperationResult",
     "request",
     "settle",
     "inspect",

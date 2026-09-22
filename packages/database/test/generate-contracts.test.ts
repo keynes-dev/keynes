@@ -252,7 +252,7 @@ describe("contract source", () => {
       {
         method: "recoverOperation",
         target: "keynes.remote_recover_operation",
-        revision: 3,
+        revision: 4,
         mode: "read",
         input: "RecoverOperationQuery",
         output: "RecoverOperationResult",
@@ -299,6 +299,7 @@ describe("contract source", () => {
         "RecoverOperationResult",
         { kind: "unresolved", operationKey, retryAfterMilliseconds: 100 },
       ],
+      ["RecoverOperationResult", { kind: "not_found", operationKey }],
       [
         "GetBudgetHistoryPageResult",
         {

@@ -157,6 +157,24 @@ describe("PostgreSQL remote command executor", () => {
     expect(pool.end).toHaveBeenCalledOnce();
   });
 
+  it("refuses an authority that requires a newer SDK generation", async () => {
+    const futureGeneration = {
+      ...compatibilityResult(),
+      minimumSdkGeneration: REMOTE_CONTRACT.minimumSdkGeneration + 1,
+    };
+    const pool = createFakePool(async () =>
+      compatibilityResponse(futureGeneration),
+    );
+    pgMock.constructPool.mockReturnValue(pool);
+
+    await expect(createKeynes(configuredOptions)).rejects.toMatchObject({
+      code: "compatibility_error",
+      details: { category: "sdk_generation" },
+    });
+    expect(pool.client.query).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
   it("refuses the previous Policy-bearing compatibility contract before catalog validation", async () => {
     const pool = createFakePool(async ({ text }) =>
       text.includes("remote_get_compatibility")
@@ -589,7 +607,7 @@ function compatibilityResult() {
       {
         name: "recoverOperation",
         target: "keynes.remote_recover_operation",
-        revision: 3,
+        revision: 4,
       },
       {
         name: "getCompatibility",

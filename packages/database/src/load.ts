@@ -144,7 +144,7 @@ const EXPECTED_REMOTE = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",

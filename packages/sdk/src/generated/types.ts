@@ -219,6 +219,7 @@ export type RecoverOperationResult =
   | RecoveredCommittedOperation
   | RecoveredKnownFailure
   | UnresolvedOperation
+  | NotFoundOperation
   | ExpiredOperation;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -1212,6 +1213,14 @@ export interface UnresolvedOperation {
  */
 export interface ExpiredOperation {
   kind: "expired";
+  operationKey: OperationKey;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "NotFoundOperation".
+ */
+export interface NotFoundOperation {
+  kind: "not_found";
   operationKey: OperationKey;
 }
 /**

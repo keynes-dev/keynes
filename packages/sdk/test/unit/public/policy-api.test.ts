@@ -23,6 +23,7 @@ describe("public API without managed Policy", () => {
       const { createBudget } = keynes;
       const root = await createBudget({ usdCents: 100 });
       expect(Object.isFrozen(root)).toBe(true);
+      expect(root).not.toHaveProperty("prepareRequest");
 
       const { request, inspect } = root;
       const approved = await request({ usdCents: 10 });
@@ -254,91 +255,6 @@ describe("Policy request integration", () => {
         } else {
           expect(result).toEqual({ status: "not_submitted", policy: output });
         }
-      } finally {
-        await keynes.close();
-      }
-    },
-  );
-
-  it("previews the prepared Policy result without allocating and matches integrated preparation", async () => {
-    const descriptor = nodeSqlite();
-    let session: BasicRuntimeSession | undefined;
-    const keynes = await createKeynes({
-      runtime: {
-        ...descriptor,
-        async initialize(definitions: unknown) {
-          session = await descriptor.initialize(definitions);
-          vi.spyOn(session.client, "requestBudget");
-          return session;
-        },
-      },
-      resources: {
-        usdCents: { unit: "cent", accountingBehavior: "consumable" },
-        searchQueries: { unit: "query", accountingBehavior: "reusable" },
-      },
-    });
-    try {
-      const root = await keynes.createBudget({
-        usdCents: 10,
-        searchQueries: 10,
-      });
-      let policyCalls = 0;
-      const policy = () => {
-        policyCalls += 1;
-        return { kind: "prepared" as const, request: { searchQueries: 2 } };
-      };
-
-      const preview = await root.prepareRequest({ usdCents: 1 }, { policy });
-
-      expect(session?.client.requestBudget).not.toHaveBeenCalled();
-      const integrated = await root.request({ usdCents: 1 }, { policy });
-      expect(integrated.status).toBe("submitted");
-      if (integrated.status !== "submitted") {
-        throw new Error("expected submitted Policy request");
-      }
-      expect(policyCalls).toBe(2);
-      expect(JSON.stringify(preview)).toBe(JSON.stringify(integrated.policy));
-      expect(session?.client.requestBudget).toHaveBeenCalledTimes(1);
-    } finally {
-      await keynes.close();
-    }
-  });
-
-  it.each(outcomes.filter(({ output }) => output.kind !== "prepared"))(
-    "does not allocate a $name Policy preview or integrated request",
-    async ({ output }) => {
-      const descriptor = nodeSqlite();
-      let session: BasicRuntimeSession | undefined;
-      const keynes = await createKeynes({
-        runtime: {
-          ...descriptor,
-          async initialize(definitions: unknown) {
-            session = await descriptor.initialize(definitions);
-            vi.spyOn(session.client, "requestBudget");
-            return session;
-          },
-        },
-        resources: {
-          usdCents: { unit: "cent", accountingBehavior: "consumable" },
-          searchQueries: { unit: "query", accountingBehavior: "reusable" },
-        },
-      });
-      try {
-        const root = await keynes.createBudget({
-          usdCents: 10,
-          searchQueries: 10,
-        });
-        const policy = vi.fn(() => output);
-
-        await expect(
-          root.prepareRequest({ usdCents: 1 }, { policy }),
-        ).resolves.toEqual(output);
-        expect(session?.client.requestBudget).not.toHaveBeenCalled();
-        await expect(
-          root.request({ usdCents: 1 }, { policy }),
-        ).resolves.toEqual({ status: "not_submitted", policy: output });
-        expect(policy).toHaveBeenCalledTimes(2);
-        expect(session?.client.requestBudget).not.toHaveBeenCalled();
       } finally {
         await keynes.close();
       }
