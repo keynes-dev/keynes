@@ -34,7 +34,7 @@ describe("remote PostgreSQL installation and administration", () => {
     expect(before.missingProcedures).toEqual([]);
   });
 
-  it("reports generation-five compatibility and grants configured validation and recovery only to the runtime role", async () => {
+  it("reports generation-six compatibility and grants configured validation and recovery only to the runtime role", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const runtime = await fixture.connect(fixture.primary);
@@ -66,8 +66,8 @@ describe("remote PostgreSQL installation and administration", () => {
         response: expect.objectContaining({
           ok: true,
           result: expect.objectContaining({
-            semanticGeneration: 5,
-            minimumSdkGeneration: 5,
+            semanticGeneration: 6,
+            minimumSdkGeneration: 6,
             procedures: expect.arrayContaining([
               expect.objectContaining({
                 name: "validateResources",

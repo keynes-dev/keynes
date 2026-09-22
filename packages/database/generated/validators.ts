@@ -965,7 +965,7 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: ["budget", "history"],
     properties: {
       budget: {
-        $ref: "#/$defs/BudgetProjection",
+        $ref: "#/$defs/BudgetInspectionState",
       },
       history: {
         $ref: "#/$defs/BudgetHistory",
@@ -1549,10 +1549,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   GetBudgetHistoryPageResult: {
     type: "object",
     additionalProperties: false,
-    required: ["budgetReference", "entries", "nextCursor"],
+    required: ["budgetReference", "budget", "entries", "nextCursor"],
     properties: {
       budgetReference: {
         $ref: "#/$defs/BudgetReference",
+      },
+      budget: {
+        $ref: "#/$defs/RemoteBudgetInspectionProjection",
       },
       entries: {
         type: "array",

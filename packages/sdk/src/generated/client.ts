@@ -44,13 +44,13 @@ import {
 } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "0bcf4c9cc8c09e7dff5140705ec172a6363f3f0e602ad5f7707e1bbaeef23ae6";
+  "1f2e4dbc264a30769fc27709b55a1e996070f6937f623119904c98f2f3226fae";
 
 export const REMOTE_PROCEDURES_DIGEST =
-  "913bcd22cef8d41d4c1e093cd4ab931436e7db4971a6baa8a1d7179142077801";
+  "3f6dd877262cc3ffce15f67ae0c14fc5180ea715068f7e995bddcfbffb8ba9ea";
 export const REMOTE_CONTRACT = {
-  semanticGeneration: 5,
-  minimumSdkGeneration: 5,
+  semanticGeneration: 6,
+  minimumSdkGeneration: 6,
   semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
@@ -104,7 +104,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",

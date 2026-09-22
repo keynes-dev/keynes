@@ -68,6 +68,11 @@ const definitions: Readonly<Record<string, Schema>> = {
     minimum: 0,
     maximum: 9007199254740991,
   },
+  LineageBudgetId: {
+    type: "integer",
+    minimum: 1,
+    maximum: 9007199254740991,
+  },
   ResourceAmount: {
     type: "object",
     additionalProperties: false,
@@ -216,6 +221,66 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       rootBudgetId: {
         $ref: "#/$defs/Uuid",
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/BudgetResourceProjection",
+        },
+      },
+    },
+  },
+  BudgetInspectionState: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetId",
+      "parentBudgetId",
+      "rootBudgetId",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      parentBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      rootBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
       },
       depth: {
         $ref: "#/$defs/Amount",
@@ -643,7 +708,7 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: ["budget", "history"],
     properties: {
       budget: {
-        $ref: "#/$defs/BudgetProjection",
+        $ref: "#/$defs/BudgetInspectionState",
       },
       history: {
         $ref: "#/$defs/BudgetHistory",
@@ -777,6 +842,52 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       rootBudgetReference: {
         $ref: "#/$defs/BudgetReference",
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        maxItems: 64,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/RemoteBudgetResourceProjection",
+        },
+      },
+    },
+  },
+  RemoteBudgetInspectionProjection: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetReference",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetReference: {
+        $ref: "#/$defs/BudgetReference",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
       },
       depth: {
         $ref: "#/$defs/Amount",
@@ -1077,10 +1188,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   GetBudgetHistoryPageResult: {
     type: "object",
     additionalProperties: false,
-    required: ["budgetReference", "entries", "nextCursor"],
+    required: ["budgetReference", "budget", "entries", "nextCursor"],
     properties: {
       budgetReference: {
         $ref: "#/$defs/BudgetReference",
+      },
+      budget: {
+        $ref: "#/$defs/RemoteBudgetInspectionProjection",
       },
       entries: {
         type: "array",

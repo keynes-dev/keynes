@@ -1373,6 +1373,38 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION keynes_internal.budget_inspection_projection(selected_tenant uuid, selected_budget uuid) RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  WITH target AS (
+    SELECT budget_id, parent_budget_id, root_budget_id
+      FROM keynes_internal.budgets
+     WHERE tenant_id = selected_tenant
+       AND budget_id = selected_budget
+  )
+  SELECT keynes_internal.budget_projection(selected_tenant, selected_budget)
+    || jsonb_build_object(
+      'lineageId', (
+        SELECT history.sequence
+          FROM keynes_internal.budget_history_entries history
+         WHERE history.tenant_id = selected_tenant
+           AND history.stream_id = target.root_budget_id
+           AND history.subject_id = target.budget_id
+           AND history.event_kind IN ('budget_created', 'request_approved')
+      ),
+      'parentLineageId', CASE WHEN target.parent_budget_id IS NULL THEN NULL ELSE (
+        SELECT history.sequence
+          FROM keynes_internal.budget_history_entries history
+         WHERE history.tenant_id = selected_tenant
+           AND history.stream_id = target.root_budget_id
+           AND history.subject_id = target.parent_budget_id
+           AND history.event_kind IN ('budget_created', 'request_approved')
+      ) END
+    )
+    FROM target;
+$$;
+
 CREATE FUNCTION keynes_internal.finalize_budget_v0009(selected_tenant uuid, selected_budget uuid, selected_command uuid) RETURNS boolean
 LANGUAGE plpgsql
 SET search_path = pg_catalog, keynes_internal, pg_temp
@@ -1785,18 +1817,20 @@ BEGIN
       'budget_not_found', jsonb_build_object('budgetId', budget_id::text)
     );
   END IF;
-  RETURN jsonb_build_object(
-    'ok', true,
-    'result', jsonb_build_object(
-      'budget', keynes_internal.budget_projection(tenant, budget_id),
-      'history', jsonb_build_object(
-        'rootBudgetId', root_id::text,
-        'entries', (SELECT coalesce(jsonb_agg(entry.payload ORDER BY entry.sequence), '[]'::jsonb)
-          FROM keynes_internal.budget_history_entries AS entry
-          WHERE entry.tenant_id = tenant AND entry.stream_id = root_id)
-      )
-    ),
-    'replayed', false
+  RETURN (
+    SELECT jsonb_build_object(
+      'ok', true,
+      'result', jsonb_build_object(
+        'budget', keynes_internal.budget_inspection_projection(tenant, budget_id),
+        'history', jsonb_build_object(
+          'rootBudgetId', root_id::text,
+          'entries', coalesce(jsonb_agg(entry.payload ORDER BY entry.sequence), '[]'::jsonb)
+        )
+      ),
+      'replayed', false
+    )
+    FROM keynes_internal.budget_history_entries AS entry
+    WHERE entry.tenant_id = tenant AND entry.stream_id = root_id
   );
 END;
 $_$;
@@ -2320,6 +2354,120 @@ AS $$
   );
 $$;
 
+CREATE FUNCTION keynes_internal.remote_history_amounts_v0006(selected_tenant uuid, values_json jsonb) RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT coalesce(jsonb_agg(
+    jsonb_build_object(
+      'resource', resource.canonical_name,
+      'amount', (item.value->>'amount')::bigint
+    ) ORDER BY item.ordinality
+  ), '[]'::jsonb)
+  FROM jsonb_array_elements(values_json) WITH ORDINALITY item(value, ordinality)
+  JOIN keynes_internal.resource_types resource
+    ON resource.tenant_id = selected_tenant
+   AND resource.resource_type_id = (item.value->>'resourceTypeId')::uuid;
+$$;
+
+CREATE FUNCTION keynes_internal.remote_inspection_projection_v0006(selected_tenant uuid, selected_budget uuid, selected_reference text) RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  WITH inspection AS (
+    SELECT keynes_internal.budget_inspection_projection(
+      selected_tenant, selected_budget
+    ) AS value
+  )
+  SELECT jsonb_build_object(
+    'budgetReference', selected_reference,
+    'lineageId', value->'lineageId',
+    'parentLineageId', value->'parentLineageId',
+    'depth', value->'depth',
+    'lifecycle', value->'lifecycle',
+    'resources', (
+      SELECT coalesce(jsonb_agg(
+        (resource.value - 'resourceType') || jsonb_build_object(
+          'resource', (resource.value->'resourceType') - ARRAY[
+            'resourceTypeId', 'definitionDigest'
+          ]::text[]
+        ) ORDER BY resource.ordinality
+      ), '[]'::jsonb)
+      FROM jsonb_array_elements(value->'resources') WITH ORDINALITY resource(value, ordinality)
+    )
+  )
+  FROM inspection;
+$$;
+
+CREATE FUNCTION keynes_internal.remote_inspection_history_entry_v0006(selected_tenant uuid, value_json jsonb) RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path = pg_catalog, keynes_internal, pg_temp
+AS $$
+DECLARE result jsonb;
+BEGIN
+  result := jsonb_build_object(
+    'kind', value_json->'kind', 'sequence', value_json->'sequence'
+  );
+  CASE value_json->>'kind'
+    WHEN 'budget_created' THEN
+      RETURN result || jsonb_build_object(
+        'resources', keynes_internal.remote_history_amounts_v0006(
+          selected_tenant, value_json->'resources'
+        )
+      );
+    WHEN 'request_approved' THEN
+      result := result || jsonb_build_object(
+        'resources', keynes_internal.remote_history_amounts_v0006(
+          selected_tenant, value_json->'resources'
+        )
+      );
+      IF value_json ? 'decisionEvidence' THEN
+        result := result || jsonb_build_object(
+          'decisionEvidence', value_json->'decisionEvidence'
+        );
+      END IF;
+      RETURN result;
+    WHEN 'request_denied' THEN
+      result := result || jsonb_build_object('reasons', (
+        SELECT coalesce(jsonb_agg(
+          (reason.value - 'resourceTypeId') || jsonb_build_object(
+            'resource', resource.canonical_name
+          ) ORDER BY reason.ordinality
+        ), '[]'::jsonb)
+        FROM jsonb_array_elements(value_json->'reasons') WITH ORDINALITY reason(value, ordinality)
+        JOIN keynes_internal.resource_types resource
+          ON resource.tenant_id = selected_tenant
+         AND resource.resource_type_id = (reason.value->>'resourceTypeId')::uuid
+      ));
+      IF value_json ? 'decisionEvidence' THEN
+        result := result || jsonb_build_object(
+          'decisionEvidence', value_json->'decisionEvidence'
+        );
+      END IF;
+      RETURN result;
+    WHEN 'budget_settlement_recorded' THEN
+      RETURN result || jsonb_build_object(
+        'newlyKnown', keynes_internal.remote_history_amounts_v0006(
+          selected_tenant, value_json->'newlyKnown'
+        ),
+        'unresolvedResources', (
+          SELECT coalesce(jsonb_agg(resource.canonical_name ORDER BY resource.canonical_name COLLATE "C"), '[]'::jsonb)
+          FROM jsonb_array_elements_text(value_json->'unresolvedResourceTypeIds') item(value)
+          JOIN keynes_internal.resource_types resource
+            ON resource.tenant_id = selected_tenant
+           AND resource.resource_type_id = item.value::uuid
+        ),
+        'lifecycle', value_json->'lifecycle',
+        'isolatedDeficits', keynes_internal.remote_history_amounts_v0006(
+          selected_tenant, value_json->'isolatedDeficits'
+        )
+      );
+  END CASE;
+  RAISE EXCEPTION 'unknown history entry';
+END;
+$$;
+
 CREATE FUNCTION keynes_internal.remote_get_budget_history_page_v0006(input jsonb) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -2327,11 +2475,14 @@ SET search_path = pg_catalog, keynes_internal, pg_temp
 AS $_$
 DECLARE
   tenant uuid;
+  principal uuid;
   selected_budget uuid;
   selected_stream uuid;
   start_sequence bigint := 1;
   terminal_sequence_value bigint;
   next_sequence_value bigint;
+  cursor_token text;
+  captured_projection jsonb;
   entry_count integer;
   entries jsonb;
   next_cursor text := NULL;
@@ -2341,56 +2492,76 @@ BEGIN
   BEGIN
     PERFORM keynes_internal.set_remote_identity_v0006();
     tenant := current_setting('keynes.tenant_id')::uuid;
-    selected_budget := keynes_internal.remote_budget_id_v0006(
-      tenant, input->>'budgetReference', 'getBudgetHistoryPage'
-    );
-    SELECT root_budget_id INTO selected_stream
-      FROM keynes_internal.budgets
-     WHERE tenant_id = tenant AND budget_id = selected_budget;
-    IF NOT FOUND THEN
+    principal := current_setting('keynes.principal_id')::uuid;
+    IF NOT EXISTS (
+      SELECT 1 FROM keynes_internal.principal_permissions
+       WHERE tenant_id = tenant AND principal_id = principal
+         AND permission = 'read_budget'
+    ) THEN
       RETURN keynes_internal.remote_error_v0006(
         'unauthorized', 'getBudgetHistoryPage'
       );
     END IF;
+    selected_budget := keynes_internal.remote_budget_id_v0006(
+      tenant, input->>'budgetReference', 'getBudgetHistoryPage'
+    );
 
-    DELETE FROM keynes_internal.remote_history_cursors cursor_record
-     WHERE cursor_record.ctid IN (
+    DELETE FROM keynes_internal.remote_inspection_snapshots snapshot
+     WHERE snapshot.ctid IN (
        SELECT expired.ctid
-         FROM keynes_internal.remote_history_cursors expired
+         FROM keynes_internal.remote_inspection_snapshots expired
         WHERE expired.expires_at <= clock_timestamp()
-        ORDER BY expired.expires_at, expired.cursor_value
+        ORDER BY expired.expires_at, expired.token
         LIMIT 256
+        FOR UPDATE SKIP LOCKED
      );
 
     IF input ? 'cursor' THEN
-      DELETE FROM keynes_internal.remote_history_cursors cursor_record
-       WHERE cursor_record.cursor_value = input->>'cursor'
-         AND cursor_record.tenant_id = tenant
-         AND cursor_record.stream_id = selected_stream
-         AND cursor_record.expires_at > clock_timestamp()
-      RETURNING cursor_record.next_sequence,
-                cursor_record.terminal_sequence
-           INTO start_sequence, terminal_sequence_value;
-      IF NOT FOUND THEN
+      cursor_token := substring(input->>'cursor' FROM 8 FOR 32);
+      start_sequence := substring(input->>'cursor' FROM 41)::bigint;
+      SELECT snapshot.stream_id, snapshot.budget_projection,
+             snapshot.terminal_sequence
+        INTO selected_stream, captured_projection, terminal_sequence_value
+        FROM keynes_internal.remote_inspection_snapshots snapshot
+       WHERE snapshot.token = cursor_token
+         AND snapshot.tenant_id = tenant
+         AND snapshot.principal_id = principal
+         AND snapshot.target_budget_id = selected_budget
+         AND snapshot.expires_at > clock_timestamp();
+      IF NOT FOUND
+        OR start_sequence > 9007199254740991
+        OR start_sequence < 257
+        OR (start_sequence - 1) % 256 <> 0
+        OR start_sequence > terminal_sequence_value THEN
         PERFORM keynes_internal.invalid_command(
           'getBudgetHistoryPage', '$.cursor', 'format'
         );
       END IF;
     ELSE
-      SELECT coalesce(max(history.sequence), 0)
-        INTO terminal_sequence_value
-        FROM keynes_internal.budget_history_entries history
-       WHERE history.tenant_id = tenant
-         AND history.stream_id = selected_stream;
+      SELECT budget.root_budget_id,
+             keynes_internal.remote_inspection_projection_v0006(
+               tenant, budget.budget_id, input->>'budgetReference'
+             ),
+             coalesce(max(history.sequence), 0)
+        INTO selected_stream, captured_projection, terminal_sequence_value
+        FROM keynes_internal.budgets budget
+        LEFT JOIN keynes_internal.budget_history_entries history
+          ON history.tenant_id = tenant
+         AND history.stream_id = budget.root_budget_id
+       WHERE budget.tenant_id = tenant AND budget.budget_id = selected_budget
+       GROUP BY budget.root_budget_id, budget.budget_id;
+      IF NOT FOUND THEN
+        RETURN keynes_internal.remote_error_v0006(
+          'unauthorized', 'getBudgetHistoryPage'
+        );
+      END IF;
     END IF;
+
     SELECT count(*)::integer,
            coalesce(jsonb_agg(
-             keynes_internal.remote_project_json_v0006(
-               tenant, page.payload - ARRAY[
-                 'budgetId', 'parentBudgetId', 'rootBudgetId', 'childBudgetId'
-               ]::text[]
-             )
-             ORDER BY page.sequence
+             keynes_internal.remote_inspection_history_entry_v0006(
+               tenant, page.payload
+             ) ORDER BY page.sequence
            ) FILTER (WHERE page.ordinal <= 256), '[]'::jsonb)
       INTO entry_count, entries
       FROM (
@@ -2405,33 +2576,28 @@ BEGIN
          LIMIT 257
       ) page;
     IF entry_count > 256 THEN
-      SELECT history.sequence INTO STRICT next_sequence_value
-        FROM keynes_internal.budget_history_entries history
-       WHERE history.tenant_id = tenant
-         AND history.stream_id = selected_stream
-         AND history.sequence >= start_sequence
-         AND history.sequence <= terminal_sequence_value
-       ORDER BY history.sequence
-       OFFSET 256 LIMIT 1;
-      INSERT INTO keynes_internal.remote_history_cursors (
-        cursor_value, tenant_id, stream_id, next_sequence, terminal_sequence
-      ) VALUES (
-        keynes_internal.remote_token_v0006(
-          'khc_v1_', tenant::text || ':' || selected_stream::text || ':' ||
-            next_sequence_value::text
-        ),
-        tenant, selected_stream, next_sequence_value, terminal_sequence_value
-      )
-      ON CONFLICT (
-        tenant_id, stream_id, next_sequence, terminal_sequence
-      ) DO UPDATE
-        SET expires_at = clock_timestamp() + interval '30 minutes'
-      RETURNING cursor_value INTO next_cursor;
+      next_sequence_value := start_sequence + 256;
+      IF NOT (input ? 'cursor') THEN
+        cursor_token :=
+          left(replace(gen_random_uuid()::text, '-', ''), 12)
+          || left(replace(gen_random_uuid()::text, '-', ''), 12)
+          || left(replace(gen_random_uuid()::text, '-', ''), 8);
+        INSERT INTO keynes_internal.remote_inspection_snapshots (
+          token, tenant_id, principal_id, target_budget_id, stream_id,
+          budget_projection, terminal_sequence, expires_at
+        ) VALUES (
+          cursor_token, tenant, principal, selected_budget, selected_stream,
+          captured_projection, terminal_sequence_value,
+          clock_timestamp() + interval '30 minutes'
+        );
+      END IF;
+      next_cursor := 'khc_v2_' || cursor_token || '_' || next_sequence_value::text;
     END IF;
     RETURN jsonb_build_object(
       'ok', true,
       'result', jsonb_build_object(
         'budgetReference', input->>'budgetReference',
+        'budget', captured_projection,
         'entries', entries,
         'nextCursor', next_cursor
       )
@@ -2506,9 +2672,9 @@ BEGIN
       'installationId', identity.profile_id,
       'contractDigest', identity.contract_digest,
       'remoteProceduresDigest', identity.remote_procedures_digest,
-      'semanticGeneration', 5,
-      'minimumSdkGeneration', 5,
-      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":5},{"name":"requestBudget","target":"keynes.remote_request","revision":3},{"name":"settleBudget","target":"keynes.remote_settle","revision":2},{"name":"getBudget","target":"keynes.remote_get_budget","revision":3},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":3},{"name":"openBudget","target":"keynes.remote_open_budget","revision":3},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":3},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":3}]'::jsonb
+      'semanticGeneration', 6,
+      'minimumSdkGeneration', 6,
+      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":5},{"name":"requestBudget","target":"keynes.remote_request","revision":3},{"name":"settleBudget","target":"keynes.remote_settle","revision":2},{"name":"getBudget","target":"keynes.remote_get_budget","revision":3},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":4},{"name":"openBudget","target":"keynes.remote_open_budget","revision":3},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":3},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":3}]'::jsonb
     )
   );
 END;
@@ -2989,6 +3155,16 @@ BEGIN
   EXCEPTION WHEN SQLSTATE 'K0001' THEN
     RETURN keynes_internal.remote_error_v0006('unauthorized', operation_name);
   END;
+  IF operation_name = 'getBudgetHistoryPage' AND NOT EXISTS (
+    SELECT 1 FROM keynes_internal.principal_permissions
+     WHERE tenant_id = current_setting('keynes.tenant_id')::uuid
+       AND principal_id = current_setting('keynes.principal_id')::uuid
+       AND permission = 'read_budget'
+  ) THEN
+    RETURN keynes_internal.remote_error_v0006(
+      'unauthorized', operation_name
+    );
+  END IF;
 
   IF operation_name = 'createBudget' THEN
     allowed_keys := ARRAY['operationKey', 'definitions', 'amounts'];
@@ -3062,7 +3238,7 @@ BEGIN
   END LOOP;
   IF input ? 'cursor' AND (
     jsonb_typeof(input->'cursor') IS DISTINCT FROM 'string'
-    OR input->>'cursor' !~ '^khc_v1_[A-Za-z0-9_-]{43}$'
+    OR input->>'cursor' !~ '^khc_v2_[0-9a-f]{32}_[1-9][0-9]{0,15}$'
   ) THEN
     RETURN keynes_internal.remote_invalid_v0006(
       operation_name, '$.cursor', 'format'
@@ -3688,16 +3864,18 @@ CREATE TABLE keynes_internal.remote_credential_audit (
     CONSTRAINT remote_credential_audit_action_check CHECK ((action = ANY (ARRAY['registered'::text, 'disabled'::text, 'enabled'::text, 'revoked'::text])))
 );
 
-CREATE TABLE keynes_internal.remote_history_cursors (
-    cursor_value text NOT NULL,
+CREATE TABLE keynes_internal.remote_inspection_snapshots (
+    token text NOT NULL,
     tenant_id uuid NOT NULL,
+    principal_id uuid NOT NULL,
+    target_budget_id uuid NOT NULL,
     stream_id uuid NOT NULL,
-    next_sequence bigint NOT NULL,
+    budget_projection jsonb NOT NULL,
     terminal_sequence bigint NOT NULL,
     expires_at timestamp with time zone DEFAULT (clock_timestamp() + '00:30:00'::interval) NOT NULL,
-    CONSTRAINT remote_history_cursors_check CHECK ((terminal_sequence >= next_sequence)),
-    CONSTRAINT remote_history_cursors_cursor_value_check CHECK ((cursor_value ~ '^khc_v1_[A-Za-z0-9_-]{43}$'::text)),
-    CONSTRAINT remote_history_cursors_next_sequence_check CHECK ((next_sequence > 0))
+    CONSTRAINT remote_inspection_snapshots_budget_projection_check CHECK ((jsonb_typeof(budget_projection) = 'object'::text)),
+    CONSTRAINT remote_inspection_snapshots_terminal_sequence_check CHECK (((terminal_sequence >= 1) AND (terminal_sequence <= '9007199254740991'::bigint))),
+    CONSTRAINT remote_inspection_snapshots_token_check CHECK ((token ~ '^[0-9a-f]{32}$'::text))
 );
 
 CREATE TABLE keynes_internal.remote_operations (
@@ -3782,11 +3960,8 @@ ALTER TABLE ONLY keynes_internal.remote_budget_references
 ALTER TABLE ONLY keynes_internal.remote_credential_audit
     ADD CONSTRAINT remote_credential_audit_pkey PRIMARY KEY (audit_id);
 
-ALTER TABLE ONLY keynes_internal.remote_history_cursors
-    ADD CONSTRAINT remote_history_cursors_pkey PRIMARY KEY (cursor_value);
-
-ALTER TABLE ONLY keynes_internal.remote_history_cursors
-    ADD CONSTRAINT remote_history_cursors_tenant_id_stream_id_next_sequence_te_key UNIQUE (tenant_id, stream_id, next_sequence, terminal_sequence);
+ALTER TABLE ONLY keynes_internal.remote_inspection_snapshots
+    ADD CONSTRAINT remote_inspection_snapshots_pkey PRIMARY KEY (token);
 
 ALTER TABLE ONLY keynes_internal.remote_operations
     ADD CONSTRAINT remote_operations_pkey PRIMARY KEY (tenant_id, operation_key);
@@ -3810,6 +3985,9 @@ ALTER TABLE ONLY keynes_internal.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (migration_id);
 
 CREATE UNIQUE INDEX commands_binding_reference_idx ON keynes_internal.commands USING btree (binding_reference);
+
+CREATE INDEX remote_inspection_snapshots_expiry_idx
+  ON keynes_internal.remote_inspection_snapshots (expires_at);
 
 CREATE UNIQUE INDEX quantity_movements_initial_allocation_once_idx
   ON keynes_internal.quantity_movements (tenant_id, destination_budget_id, resource_type_id)
@@ -3876,8 +4054,11 @@ ALTER TABLE ONLY keynes_internal.quantity_movements
 ALTER TABLE ONLY keynes_internal.remote_budget_references
     ADD CONSTRAINT remote_budget_references_tenant_id_budget_id_fkey FOREIGN KEY (tenant_id, budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
 
-ALTER TABLE ONLY keynes_internal.remote_history_cursors
-    ADD CONSTRAINT remote_history_cursors_tenant_id_stream_id_fkey FOREIGN KEY (tenant_id, stream_id) REFERENCES keynes_internal.budget_history_streams(tenant_id, stream_id);
+ALTER TABLE ONLY keynes_internal.remote_inspection_snapshots
+    ADD CONSTRAINT remote_inspection_snapshots_tenant_id_stream_id_fkey FOREIGN KEY (tenant_id, stream_id) REFERENCES keynes_internal.budget_history_streams(tenant_id, stream_id);
+
+ALTER TABLE ONLY keynes_internal.remote_inspection_snapshots
+    ADD CONSTRAINT remote_inspection_snapshots_tenant_target_budget_fkey FOREIGN KEY (tenant_id, target_budget_id) REFERENCES keynes_internal.budgets(tenant_id, budget_id);
 
 ALTER TABLE ONLY keynes_internal.resource_types
     ADD CONSTRAINT resource_types_definition_command_fkey FOREIGN KEY (tenant_id, definition_command_id) REFERENCES keynes_internal.commands(tenant_id, command_id);

@@ -185,7 +185,7 @@ export function registerReplayContractTests(
         replayed: true,
       });
       const read = await product.getBudget({ budgetId: command.commandId });
-      expect(read.budget).toEqual(recovered.budget);
+      expect(read.budget).toMatchObject(recovered.budget);
       expect(read.history.entries).toHaveLength(1);
     });
 
@@ -292,7 +292,7 @@ export function registerReplayContractTests(
       const read = await product.getBudget({
         budgetId: request.childBudgetId,
       });
-      expect(read.budget).toEqual(recovered.budget);
+      expect(read.budget).toMatchObject(recovered.budget);
       expect(read.history.entries.map((entry) => entry.kind)).toEqual([
         "budget_created",
         "request_approved",
@@ -386,7 +386,7 @@ export function registerReplayContractTests(
       const unchanged = await product.getBudget({
         budgetId: request.childBudgetId,
       });
-      expect(unchanged.budget).toEqual(settlement.budget);
+      expect(unchanged.budget).toMatchObject(settlement.budget);
       expect(unchanged.history.entries).toHaveLength(3);
     });
 

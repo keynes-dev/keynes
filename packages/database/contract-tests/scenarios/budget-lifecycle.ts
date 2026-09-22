@@ -207,7 +207,7 @@ export function registerBudgetLifecycleContractTests(
           budgetId: request.childBudgetId,
         });
 
-        expect(result.budget).toEqual({
+        expect(result.budget).toMatchObject({
           budgetId: request.childBudgetId,
           parentBudgetId: root.budget.budgetId,
           rootBudgetId: root.budget.budgetId,

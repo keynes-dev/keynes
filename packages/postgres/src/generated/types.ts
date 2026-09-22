@@ -697,7 +697,7 @@ export interface GetBudgetQuery {
  * via the `definition` "GetBudgetResult".
  */
 export interface GetBudgetResult {
-  budget: BudgetProjection;
+  budget: BudgetInspectionState;
   history: BudgetHistory;
 }
 /**
@@ -924,6 +924,7 @@ export interface GetBudgetHistoryPageQuery {
  */
 export interface GetBudgetHistoryPageResult {
   budgetReference: BudgetReference;
+  budget: RemoteBudgetInspectionProjection;
   /**
    * @maxItems 256
    */

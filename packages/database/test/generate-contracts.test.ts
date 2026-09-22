@@ -162,8 +162,8 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toMatchObject({
-      semanticGeneration: 5,
-      minimumSdkGeneration: 5,
+      semanticGeneration: 6,
+      minimumSdkGeneration: 6,
       semanticIdentities: [
         "installation",
         "command_contract",
@@ -222,7 +222,7 @@ describe("contract source", () => {
       {
         method: "getBudgetHistoryPage",
         target: "keynes.remote_get_budget_history_page",
-        revision: 3,
+        revision: 4,
         mode: "read",
         input: "GetBudgetHistoryPageQuery",
         output: "GetBudgetHistoryPageResult",
@@ -287,7 +287,34 @@ describe("contract source", () => {
       ],
       [
         "GetBudgetHistoryPageResult",
-        { budgetReference, entries: [], nextCursor: cursor },
+        {
+          budgetReference,
+          budget: {
+            budgetReference,
+            lineageId: 1,
+            parentLineageId: null,
+            depth: 0,
+            lifecycle: "active",
+            resources: [
+              {
+                resource: {
+                  canonicalName: "tokens",
+                  unit: "token",
+                  accountingBehavior: "consumable",
+                },
+                allocated: 1,
+                available: 1,
+                committed: 0,
+                directUsage: null,
+                subtreeObservedUsage: 0,
+                unresolved: true,
+                deficit: 0,
+              },
+            ],
+          },
+          entries: [],
+          nextCursor: cursor,
+        },
       ],
       [
         "RemoteErrorEnvelope",
@@ -318,7 +345,7 @@ describe("contract source", () => {
     expect(contract.remoteDigest).not.toBe(contract.digest);
   });
 
-  it("reserves inspection schemas without activating unfinished read results", () => {
+  it("activates inspection state and captured history pages without changing mutations", () => {
     const budgetId = "11111111-1111-4111-8111-111111111111";
     const resourceTypeId = "22222222-2222-4222-8222-222222222222";
     const budgetReference = `kbr_v1_${"b".repeat(43)}`;
@@ -466,7 +493,7 @@ describe("contract source", () => {
         entries: [],
         nextCursor: null,
       }),
-    ).toBe(false);
+    ).toBe(true);
 
     const definitions = loadContract(packageRoot).definitions;
     const activeMutationDefinitions = [
@@ -483,10 +510,10 @@ describe("contract source", () => {
       /lineageId|parentLineageId|movements|automatic_finalization/u,
     );
     expect(definitions.GetBudgetResult).toMatchObject({
-      properties: { budget: { $ref: "#/$defs/BudgetProjection" } },
+      properties: { budget: { $ref: "#/$defs/BudgetInspectionState" } },
     });
     expect(definitions.GetBudgetHistoryPageResult).toMatchObject({
-      required: ["budgetReference", "entries", "nextCursor"],
+      required: ["budgetReference", "budget", "entries", "nextCursor"],
     });
   });
 

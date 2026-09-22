@@ -55,7 +55,7 @@ export function registerResourceBoundRootContractTests(
           const read = await client.getBudget({
             budgetId: created.budget.budgetId,
           });
-          expect(read.budget).toEqual(created.budget);
+          expect(read.budget).toMatchObject(created.budget);
           expect(read.history.entries.map(({ kind }) => kind)).toEqual([
             "budget_created",
           ]);
@@ -128,7 +128,7 @@ export function registerResourceBoundRootContractTests(
         ).toEqual(settled);
         expect(
           (await client.getBudget({ budgetId: second.budget.budgetId })).budget,
-        ).toEqual(second.budget);
+        ).toMatchObject(second.budget);
         expect(third.budget.resources).toEqual([
           expect.objectContaining({ allocated: 30, available: 30 }),
         ]);

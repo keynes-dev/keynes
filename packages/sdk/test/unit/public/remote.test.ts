@@ -1111,7 +1111,7 @@ describe("public remote Keynes facade", () => {
     }
   });
 
-  it("uses the one factory for a shared create, inspect, request, and settle path", async () => {
+  it("uses the captured first page for a shared create, inspect, request, and settle path", async () => {
     const poolConfig: PoolConfig = { host: "db.example.test", max: 10 };
     const executor = createFakeExecutor();
     remoteMocks.normalizeDatabaseUrl.mockReturnValue(poolConfig);
@@ -1202,7 +1202,6 @@ describe("public remote Keynes facade", () => {
     expect(executor.methods).toEqual([
       "validateResources",
       "createBudget",
-      "getBudget",
       "getBudgetHistoryPage",
       "requestBudget",
       "settleBudget",
@@ -1327,15 +1326,14 @@ describe("public remote Keynes facade", () => {
     },
   );
 
-  it("rejects inspection responses for a different Budget", async () => {
+  it("rejects captured inspection responses for a different Budget", async () => {
     const executor = createFakeExecutor({
       getBudgetHistoryPage: () => ({
         ok: true,
-        result: {
+        result: capturedInspectionPage({
           budgetReference: childReference,
-          entries: [],
-          nextCursor: null,
-        },
+          budget: inspectionProjection({ budgetReference: childReference }),
+        }),
       }),
     });
     openRemoteWith(executor);
@@ -1351,16 +1349,286 @@ describe("public remote Keynes facade", () => {
     });
   });
 
-  it("rejects a Budget projection for a different reference", async () => {
+  it("rejects a captured inspection projection for a different reference", async () => {
     const executor = createFakeExecutor({
-      getBudget: () => ({
+      getBudgetHistoryPage: () => ({
         ok: true,
-        result: {
-          budget: {
-            ...budgetProjection("active", null),
-            budgetReference: childReference,
+        result: capturedInspectionPage({
+          budget: inspectionProjection({ budgetReference: childReference }),
+        }),
+      }),
+    });
+    openRemoteWith(executor);
+
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    await expect(root.inspect()).rejects.toMatchObject({
+      name: "KeynesError",
+      code: "unknown",
+    });
+  });
+
+  it("keeps the captured inspection state frozen across continuations", async () => {
+    const firstEntries = historyEntries(1, 256);
+    let page = 0;
+    const executor = createFakeExecutor({
+      getBudgetHistoryPage: () => ({
+        ok: true,
+        result:
+          page++ === 0
+            ? capturedInspectionPage({
+                entries: firstEntries,
+                nextCursor: inspectionCursor(1),
+              })
+            : capturedInspectionPage({
+                entries: [historyEntry(257)],
+              }),
+      }),
+    });
+    openRemoteWith(executor);
+
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    await expect(root.inspect()).resolves.toEqual({
+      budget: {
+        depth: 0,
+        lifecycle: "active",
+        resources: [
+          {
+            resource: "workUnits",
+            unit: "unit",
+            accountingBehavior: "consumable",
+            allocated: 10,
+            available: 7,
+            committed: 3,
+            directUsage: null,
+            subtreeObservedUsage: 2,
+            unresolved: true,
+            deficit: 0,
           },
-        },
+        ],
+      },
+      history: {
+        entries: [...firstEntries, historyEntry(257)].map((entry) => ({
+          ...entry,
+          resources: [{ resource: "workUnits", amount: 10 }],
+        })),
+      },
+    });
+  });
+
+  it("rejects a failed continuation without a partial inspection", async () => {
+    const firstEntries = historyEntries(1, 256);
+    let page = 0;
+    const executor = createFakeExecutor({
+      getBudgetHistoryPage: () =>
+        page++ === 0
+          ? {
+              ok: true,
+              result: capturedInspectionPage({
+                entries: firstEntries,
+                nextCursor: inspectionCursor(1),
+              }),
+            }
+          : invalidCommandResponse("getBudgetHistoryPage"),
+    });
+    openRemoteWith(executor);
+
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    await expect(root.inspect()).rejects.toMatchObject({
+      name: "KeynesError",
+      code: "invalid_command",
+      details: { operation: "getBudgetHistoryPage" },
+    });
+  });
+
+  it("rejects a changed captured inspection projection on continuation", async () => {
+    const firstEntries = historyEntries(1, 256);
+    let page = 0;
+    const executor = createFakeExecutor({
+      getBudgetHistoryPage: () => ({
+        ok: true,
+        result:
+          page++ === 0
+            ? capturedInspectionPage({
+                entries: firstEntries,
+                nextCursor: inspectionCursor(1),
+              })
+            : capturedInspectionPage({
+                budget: inspectionProjection({ available: 6 }),
+                entries: [historyEntry(257)],
+              }),
+      }),
+    });
+    openRemoteWith(executor);
+
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    await expect(root.inspect()).rejects.toMatchObject({
+      name: "KeynesError",
+      code: "unknown",
+    });
+  });
+
+  it("accepts a reordered captured inspection projection on continuation", async () => {
+    const firstEntries = historyEntries(1, 256);
+    const captured = inspectionProjection();
+    const reordered = {
+      resources: captured.resources,
+      lifecycle: captured.lifecycle,
+      depth: captured.depth,
+      parentLineageId: captured.parentLineageId,
+      lineageId: captured.lineageId,
+      budgetReference: captured.budgetReference,
+    };
+    let page = 0;
+    const executor = createFakeExecutor({
+      getBudgetHistoryPage: () => ({
+        ok: true,
+        result:
+          page++ === 0
+            ? capturedInspectionPage({
+                budget: captured,
+                entries: firstEntries,
+                nextCursor: inspectionCursor(1),
+              })
+            : capturedInspectionPage({
+                budget: reordered,
+                entries: [historyEntry(257)],
+              }),
+      }),
+    });
+    openRemoteWith(executor);
+
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    const root = await remote.createBudget({ workUnits: 10 });
+    await expect(root.inspect()).resolves.toMatchObject({
+      history: {
+        entries: expect.arrayContaining([
+          expect.objectContaining({ sequence: 257 }),
+        ]),
+      },
+    });
+  });
+
+  it.each([
+    ["empty", [], `khc_v2_${"b".repeat(32)}_257`, 257],
+    ["short", [historyEntry(257)], `khc_v2_${"b".repeat(32)}_258`, 258],
+    [
+      "token-swapped",
+      historyEntries(257, 256),
+      `khc_v2_${"b".repeat(32)}_513`,
+      513,
+    ],
+    [
+      "unsafe",
+      historyEntries(257, 256),
+      `khc_v2_${"a".repeat(32)}_9007199254740992`,
+      513,
+    ],
+    [
+      "misaligned",
+      historyEntries(257, 256),
+      `khc_v2_${"a".repeat(32)}_514`,
+      513,
+    ],
+  ])(
+    "rejects a %s nonterminal cursor without a partial inspection",
+    async (_name, entries, nextCursor, finalSequence) => {
+      const firstEntries = historyEntries(1, 256);
+      let page = 0;
+      const executor = createFakeExecutor({
+        getBudgetHistoryPage: () => ({
+          ok: true,
+          result:
+            page++ === 0
+              ? capturedInspectionPage({
+                  entries: firstEntries,
+                  nextCursor: inspectionCursor(1),
+                })
+              : page === 2
+                ? capturedInspectionPage({ entries, nextCursor })
+                : capturedInspectionPage({
+                    entries: [historyEntry(finalSequence)],
+                  }),
+        }),
+      });
+      openRemoteWith(executor);
+
+      const remote = await createKeynes({
+        runtime: postgres({ databaseUrl }),
+        resources,
+      });
+      const root = await remote.createBudget({ workUnits: 10 });
+      await expect(root.inspect()).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "unknown",
+      });
+    },
+  );
+
+  it.each([
+    ["skipped", [historyEntry(259)]],
+    ["duplicated", [historyEntry(256)]],
+    ["reordered", [historyEntry(258), historyEntry(257)]],
+  ])(
+    "rejects %s history sequences without a partial inspection",
+    async (_name, entries) => {
+      const firstEntries = historyEntries(1, 256);
+      let page = 0;
+      const executor = createFakeExecutor({
+        getBudgetHistoryPage: () => ({
+          ok: true,
+          result:
+            page++ === 0
+              ? capturedInspectionPage({
+                  entries: firstEntries,
+                  nextCursor: inspectionCursor(1),
+                })
+              : capturedInspectionPage({ entries }),
+        }),
+      });
+      openRemoteWith(executor);
+
+      const remote = await createKeynes({
+        runtime: postgres({ databaseUrl }),
+        resources,
+      });
+      const root = await remote.createBudget({ workUnits: 10 });
+      await expect(root.inspect()).rejects.toMatchObject({
+        name: "KeynesError",
+        code: "unknown",
+      });
+    },
+  );
+
+  it("rejects a nonprogressing inspection continuation", async () => {
+    const firstEntries = historyEntries(1, 256);
+    let page = 0;
+    const cursor = inspectionCursor(1);
+    const executor = createFakeExecutor({
+      getBudgetHistoryPage: () => ({
+        ok: true,
+        result: capturedInspectionPage({
+          entries: page++ === 0 ? firstEntries : [historyEntry(257)],
+          nextCursor: cursor,
+        }),
       }),
     });
     openRemoteWith(executor);
@@ -1425,6 +1693,11 @@ describe("public remote Keynes facade", () => {
     });
     await vi.advanceTimersByTimeAsync(30_000);
     await rejection;
+    expect(executor.methods).toEqual([
+      "validateResources",
+      "createBudget",
+      "getBudgetHistoryPage",
+    ]);
   });
 
   it("reports the stable inspection page limit", async () => {
@@ -1432,11 +1705,10 @@ describe("public remote Keynes facade", () => {
     const executor = createFakeExecutor({
       getBudgetHistoryPage: () => ({
         ok: true,
-        result: {
-          budgetReference: rootReference,
-          entries: [],
-          nextCursor: `khc_v1_${String((page += 1)).padStart(43, "a")}`,
-        },
+        result: capturedInspectionPage({
+          entries: historyEntries(page * 256 + 1, 256),
+          nextCursor: inspectionCursor((page += 1)),
+        }),
       }),
     });
     openRemoteWith(executor);
@@ -1451,6 +1723,11 @@ describe("public remote Keynes facade", () => {
       code: "limit_exceeded",
       details: { limit: "inspection_pages", maximum: 128 },
     });
+    expect(executor.methods).toEqual([
+      "validateResources",
+      "createBudget",
+      ...Array.from({ length: 128 }, () => "getBudgetHistoryPage"),
+    ]);
   });
 });
 
@@ -1562,8 +1839,8 @@ function responseFor(
           installationId: "embedded-postgresql-18.6-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 5,
-          minimumSdkGeneration: 5,
+          semanticGeneration: 6,
+          minimumSdkGeneration: 6,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,
@@ -1587,17 +1864,7 @@ function responseFor(
     case "getBudgetHistoryPage":
       return {
         ok: true,
-        result: {
-          budgetReference: rootReference,
-          entries: [
-            {
-              kind: "budget_created",
-              sequence: 1,
-              resources: [{ resource: "work_units", amount: 10 }],
-            },
-          ],
-          nextCursor: null,
-        },
+        result: capturedInspectionPage(),
       };
     case "requestBudget":
       return {
@@ -1680,6 +1947,70 @@ function createdBudgetProjection() {
       },
     ],
   };
+}
+
+function inspectionProjection({
+  budgetReference = rootReference,
+  available = 7,
+}: {
+  readonly budgetReference?: string;
+  readonly available?: number;
+} = {}) {
+  return {
+    budgetReference,
+    lineageId: 1,
+    parentLineageId: null,
+    depth: 0,
+    lifecycle: "active" as const,
+    resources: [
+      {
+        resource: {
+          canonicalName: "work_units",
+          unit: "unit",
+          accountingBehavior: "consumable" as const,
+        },
+        allocated: 10,
+        available,
+        committed: 3,
+        directUsage: null,
+        subtreeObservedUsage: 2,
+        unresolved: true,
+        deficit: 0,
+      },
+    ],
+  };
+}
+
+function historyEntry(sequence: number) {
+  return {
+    kind: "budget_created" as const,
+    sequence,
+    resources: [{ resource: "work_units", amount: 10 }],
+  };
+}
+
+function historyEntries(start: number, count: number) {
+  return Array.from({ length: count }, (_, index) =>
+    historyEntry(start + index),
+  );
+}
+
+function capturedInspectionPage({
+  budgetReference = rootReference,
+  budget = inspectionProjection(),
+  entries = [historyEntry(1)],
+  nextCursor = null,
+}: {
+  readonly budgetReference?: string;
+  readonly budget?: ReturnType<typeof inspectionProjection>;
+  readonly entries?: readonly ReturnType<typeof historyEntry>[];
+  readonly nextCursor?: string | null;
+} = {}) {
+  return { budgetReference, budget, entries, nextCursor };
+}
+
+function inspectionCursor(page: number): string {
+  return `khc_v2_${"a".repeat(32)}_${String(1 + page * 256)}`;
 }
 
 function invalidCommandResponse(operation: string) {

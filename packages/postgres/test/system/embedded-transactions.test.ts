@@ -9,7 +9,10 @@ import {
   type ContractClient,
 } from "@keynes/database/contract-tests";
 import { openInstalledPostgresDatabase } from "./support/postgres-database.js";
-import type { PostgresTransaction } from "./support/postgres-database.js";
+import type {
+  PostgresTransaction,
+  TransactionIsolation,
+} from "./support/postgres-database.js";
 import type { TransactionalDatabase } from "./support/database.js";
 import { createTransactionProcedureCaller } from "./support/procedure-caller.js";
 import { POSTGRESQL_SYSTEM_CONTEXT_ENV } from "./run.js";
@@ -37,7 +40,9 @@ type RootResourceDefinition = Parameters<
 interface EmbeddedFixture {
   readonly applicationConnectionString: string;
   readonly database: TransactionalDatabase;
-  beginTransaction(): Promise<PostgresTransaction>;
+  beginTransaction(
+    isolation?: TransactionIsolation,
+  ): Promise<PostgresTransaction>;
   close(): Promise<void>;
 }
 
@@ -367,6 +372,67 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     await transaction.rollback();
 
     expect(statements.join("\n")).not.toMatch(/\b(begin|commit|rollback)\b/i);
+  });
+
+  it.each([
+    { isolation: "read committed", readOnly: false },
+    { isolation: "repeatable read", readOnly: true },
+  ] as const)(
+    "returns one caller-owned coherent inspection in $isolation isolation without fragment retries",
+    async ({ isolation, readOnly }) => {
+      database = await openFixture();
+      const { budgetId } = await seedRoot(database);
+      const transaction = await database.beginTransaction(isolation);
+      let closed = false;
+      try {
+        if (readOnly)
+          await transaction.connection.exec("set transaction read only");
+        const query = vi.spyOn(transaction.connection, "query");
+        const result = await createTransactionClient(transaction).getBudget({
+          budgetId,
+        });
+        expect(result).toMatchObject({
+          budget: { lineageId: 1, parentLineageId: null },
+        });
+        const inspectionStatements = query.mock.calls
+          .map(([input]) => statement(input))
+          .filter((sql) => /\bkeynes\.get_budget\b/i.test(sql));
+        expect(inspectionStatements).toHaveLength(1);
+        expectDirectStatements(inspectionStatements);
+        await transaction.rollback();
+        closed = true;
+      } finally {
+        if (!closed) await transaction.rollback();
+      }
+    },
+  );
+
+  it("shows provisional own inspection writes and leaves their rollback and serialization retry to the caller", async () => {
+    database = await openFixture();
+    const { resourceTypeId, budgetId } = await seedRoot(database);
+    const transaction = await database.beginTransaction();
+    let closed = false;
+    try {
+      const client = createTransactionClient(transaction);
+      await client.requestBudget(request(resourceTypeId, budgetId));
+      expect(await client.getBudget({ budgetId })).toMatchObject({
+        budget: { lineageId: 1, parentLineageId: null },
+      });
+      await transaction.rollback();
+      closed = true;
+      const observer = await database.beginTransaction();
+      try {
+        await expect(
+          createTransactionClient(observer).getBudget({
+            budgetId: REQUEST_COMMAND_ID,
+          }),
+        ).rejects.toMatchObject({ code: "budget_not_found" });
+      } finally {
+        await observer.rollback();
+      }
+    } finally {
+      if (!closed) await transaction.rollback();
+    }
   });
 
   it("rolls back a configured root with caller-owned application work", async () => {
@@ -1181,8 +1247,12 @@ async function openFixture(): Promise<EmbeddedFixture> {
   return {
     database: owner.database,
     applicationConnectionString: application.connectionString,
-    beginTransaction: () =>
-      owner.beginTransactionAs(application.role, application.password),
+    beginTransaction: (isolation) =>
+      owner.beginTransactionAs(
+        application.role,
+        application.password,
+        isolation,
+      ),
     close: () => owner.close(),
   };
 }

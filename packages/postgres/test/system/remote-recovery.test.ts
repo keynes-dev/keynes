@@ -214,8 +214,8 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         installationId: expect.any(String),
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 5,
-        minimumSdkGeneration: 5,
+        semanticGeneration: 6,
+        minimumSdkGeneration: 6,
         procedures: expect.arrayContaining([
           expect.objectContaining({
             name: "getCompatibility",
@@ -872,10 +872,11 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     );
   });
 
-  it("paginates one bounded history snapshot with expiring single-use cursors", async () => {
+  it("captures independent repeatable 513-entry observations behind one frozen projection and fence", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
+    const reader = await fixture.connect(fixture.primary);
     await provisionRoot(client, "history_tokens");
     const created = await queryResponse(
       client,
@@ -906,42 +907,82 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       });
     }
 
-    const first = requirePage(
+    const first = requireCapturedPage(
       await queryResponse(client, "keynes.remote_get_budget_history_page", {
         budgetReference,
       }),
     );
     expect(first.entries).toHaveLength(256);
-    expect(first.nextCursor).toEqual(expect.any(String));
+    expect(first.budget.budgetReference).toBe(budgetReference);
     const cursor = requireCursor(first.nextCursor);
-    const expiredCursor = `khc_v1_z${"300".padStart(42, "0")}`;
+    expect(cursor).toMatch(/^khc_v2_[0-9a-f]{32}_257$/u);
+    const secondReader = requireCapturedPage(
+      await queryResponse(reader, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+      }),
+    );
+    expect(secondReader.budget).toEqual(first.budget);
+    expect(secondReader.nextCursor).not.toBe(cursor);
+    const secondReaderCursor = requireCursor(secondReader.nextCursor);
     const cursorLifetime = await fixture.administrator.query<{
       readonly future: boolean;
       readonly bounded: boolean;
+      readonly expires_at: string;
     }>(
       `select expires_at > clock_timestamp() as future,
-                expires_at <= clock_timestamp() + interval '30 minutes 5 seconds' as bounded
-           from keynes_internal.remote_history_cursors
-          where cursor_value = $1`,
+                expires_at <= clock_timestamp() + interval '30 minutes 5 seconds' as bounded,
+                expires_at::text
+           from keynes_internal.remote_inspection_snapshots
+          where token = substring($1 from 8 for 32)`,
       [cursor],
     );
-    expect(cursorLifetime.rows).toEqual([{ future: true, bounded: true }]);
+    expect(cursorLifetime.rows).toEqual([
+      { future: true, bounded: true, expires_at: expect.any(String) },
+    ]);
+    const expiresAt = cursorLifetime.rows[0]?.expires_at;
+    if (expiresAt === undefined) throw new Error("missing capture expiry");
+    const jumped = requireCapturedPage(
+      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+        cursor: cursor.replace(/_257$/u, "_513"),
+      }),
+    );
+    expect(jumped.entries.map(entrySequence)).toEqual([513]);
+    expect(jumped.nextCursor).toBeNull();
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: cursor.replace(/_257$/u, "_513"),
+        }),
+      ),
+    ).toEqual(jumped);
+    const unchangedExpiry = await fixture.administrator.query<{
+      readonly expires_at: string;
+    }>(
+      `select expires_at::text
+           from keynes_internal.remote_inspection_snapshots
+          where token = substring($1 from 8 for 32)`,
+      [cursor],
+    );
+    expect(unchangedExpiry.rows).toEqual([{ expires_at: expiresAt }]);
 
     await fixture.administrator.query(
-      `insert into keynes_internal.remote_history_cursors (
-           cursor_value, tenant_id, stream_id, next_sequence,
-           terminal_sequence, expires_at
+      `insert into keynes_internal.remote_inspection_snapshots (
+           token, tenant_id, principal_id, target_budget_id, stream_id,
+           budget_projection, terminal_sequence, expires_at
          )
-         select 'khc_v1_z' || lpad(series::text, 42, '0'),
-                cursor.tenant_id, cursor.stream_id, 1000 + series,
-                2000 + series,
+         select lpad(series::text, 32, '0'),
+                snapshot.tenant_id, snapshot.principal_id,
+                snapshot.target_budget_id, snapshot.stream_id,
+                snapshot.budget_projection, snapshot.terminal_sequence,
                 clock_timestamp() - interval '1 minute'
-           from keynes_internal.remote_history_cursors cursor
+           from keynes_internal.remote_inspection_snapshots snapshot
            cross join generate_series(1, 300) series
-          where cursor.cursor_value = $1`,
+          where snapshot.token = substring($1 from 8 for 32)`,
       [cursor],
     );
-    const expiredBefore = await expiredCursorCount(fixture);
+    const expiredBefore = await expiredSnapshotCount(fixture);
 
     expect(
       await queryResponse(client, "keynes.remote_request", {
@@ -950,21 +991,40 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         resources: [{ resource: "history_tokens", amount: 1 }],
       }),
     ).toMatchObject({ ok: true });
-    const second = requirePage(
-      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+    const [secondResponse, survivorResponse] = await Promise.all([
+      queryResponse(client, "keynes.remote_get_budget_history_page", {
         budgetReference,
         cursor,
       }),
-    );
+      queryResponse(reader, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+        cursor: secondReaderCursor,
+      }),
+    ]);
+    const second = requireCapturedPage(secondResponse);
+    const survivor = requireCapturedPage(survivorResponse);
+    expect(survivor).toMatchObject({
+      budget: first.budget,
+      entries: second.entries,
+    });
+    expect(survivor.nextCursor).toMatch(/^khc_v2_[0-9a-f]{32}_513$/u);
+    expect(survivor.nextCursor).not.toBe(second.nextCursor);
     expect(second.entries).toHaveLength(256);
-    expect(second.nextCursor).toEqual(expect.any(String));
+    expect(second.budget).toEqual(first.budget);
     const secondCursor = requireCursor(second.nextCursor);
-    const expiredAfter = await expiredCursorCount(fixture);
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor,
+        }),
+      ),
+    ).toEqual(second);
+    const expiredAfter = await expiredSnapshotCount(fixture);
     expect(expiredBefore - expiredAfter).toBeGreaterThan(0);
-    expect(expiredBefore - expiredAfter).toBeLessThanOrEqual(256);
-    expect(expiredAfter).toBeGreaterThan(0);
+    expect(expiredBefore - expiredAfter).toBeLessThanOrEqual(512);
 
-    const third = requirePage(
+    const third = requireCapturedPage(
       await queryResponse(client, "keynes.remote_get_budget_history_page", {
         budgetReference,
         cursor: secondCursor,
@@ -972,13 +1032,52 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     );
     expect(third.entries).toHaveLength(1);
     expect(third.nextCursor).toBeNull();
+    expect(third.budget).toEqual(first.budget);
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: secondCursor,
+        }),
+      ),
+    ).toEqual(third);
     expect(
       [...first.entries, ...second.entries, ...third.entries].map(
         entrySequence,
       ),
     ).toEqual(Array.from({ length: 513 }, (_, index) => index + 1));
+    await fixture.administrator.query(
+      `update keynes_internal.remote_inspection_snapshots
+          set expires_at = clock_timestamp() - interval '1 second'
+        where token = substring($1 from 8 for 32)`,
+      [cursor],
+    );
+    expect(
+      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+        cursor,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "invalid_command" } });
+    expect(
+      requireCapturedPage(
+        await queryResponse(reader, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: secondReaderCursor,
+        }),
+      ),
+    ).toMatchObject({ budget: first.budget });
 
-    for (const invalidCursor of [cursor, expiredCursor]) {
+    const invalidCursors = [
+      "khc_v1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_0257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_0",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_-257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_258",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_9007199254740992",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_769",
+      "khc_v2_ffffffffffffffffffffffffffffffff_257",
+    ];
+    for (const invalidCursor of invalidCursors) {
       expect(
         await queryResponse(client, "keynes.remote_get_budget_history_page", {
           budgetReference,
@@ -988,10 +1087,6 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         ok: false,
         error: {
           code: "invalid_command",
-          details: {
-            operation: "getBudgetHistoryPage",
-            issues: [{ path: "$.cursor", rule: "format" }],
-          },
         },
       });
     }
@@ -1072,6 +1167,10 @@ interface HistoryPage {
   readonly nextCursor: string | null;
 }
 
+interface CapturedHistoryPage extends HistoryPage {
+  readonly budget: Record<string, unknown>;
+}
+
 function requirePage(value: unknown): HistoryPage {
   const envelope = record(value);
   const result = record(envelope.result);
@@ -1082,6 +1181,17 @@ function requirePage(value: unknown): HistoryPage {
     throw new Error("remote history did not return a bounded page");
   }
   return { entries: result.entries, nextCursor: result.nextCursor };
+}
+
+function requireCapturedPage(value: unknown): CapturedHistoryPage {
+  const page = requirePage(value);
+  const budget = record(record(value).result).budget;
+  if (typeof budget !== "object" || budget === null || Array.isArray(budget)) {
+    throw new Error(
+      "remote history did not return a captured inspection projection",
+    );
+  }
+  return { ...page, budget: record(budget) };
 }
 
 function requireCursor(value: string | null): string {
@@ -1117,7 +1227,7 @@ async function authorityCounts(
        (select count(*)::text from keynes_internal.budgets) as budgets,
        (select count(*)::text from keynes_internal.budget_history_entries) as history,
        (select count(*)::text from keynes_internal.remote_operations) as operations,
-       (select count(*)::text from keynes_internal.remote_history_cursors) as cursors`,
+       (select count(*)::text from keynes_internal.remote_inspection_snapshots) as cursors`,
   );
   return result.rows;
 }
@@ -1191,14 +1301,14 @@ async function waitForAdvisoryWait(
   throw new Error("remote mutation did not reach the in-flight checkpoint");
 }
 
-async function expiredCursorCount(
+async function expiredSnapshotCount(
   fixture: RemoteIdentityFixture,
 ): Promise<number> {
   const result = await fixture.administrator.query<{
     readonly count: number;
   }>(
     `select count(*)::int as count
-       from keynes_internal.remote_history_cursors
+       from keynes_internal.remote_inspection_snapshots
       where expires_at <= clock_timestamp()`,
   );
   return result.rows[0]?.count ?? 0;

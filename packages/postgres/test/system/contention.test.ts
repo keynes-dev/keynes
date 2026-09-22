@@ -700,6 +700,102 @@ describe("native PostgreSQL contention", () => {
     }
   });
 
+  it("keeps direct inspection whole across request and automatic-finalization commits", async () => {
+    const keynes = await openNativeTestKeynes();
+    try {
+      const { resourceTypeId } = await seedRoot(keynes);
+      const request = await keynes.beginAttempt("requester-fixture");
+      const approved = await request.client.requestBudget({
+        commandId: FIRST_REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId, amount: 5 }],
+      });
+      if (approved.kind !== "approved")
+        throw new Error("expected child Budget");
+      const requestReader =
+        await keynes.beginReadOnlyRepeatableReadAttempt("reader-fixture");
+      const beforeRequestCommit = await requestReader.client.getBudget({
+        budgetId: ROOT_BUDGET_ID,
+      });
+      expect(beforeRequestCommit).toMatchObject({
+        budget: { lineageId: 1, parentLineageId: null, lifecycle: "active" },
+      });
+      expect(
+        beforeRequestCommit.history.entries.map((entry) => entry.sequence),
+      ).toEqual([1]);
+      await request.commit();
+      expect(
+        await requestReader.client.getBudget({ budgetId: ROOT_BUDGET_ID }),
+      ).toEqual(beforeRequestCommit);
+      await requestReader.commit();
+      expect(
+        (
+          await keynes.clientFor("reader-fixture").getBudget({
+            budgetId: ROOT_BUDGET_ID,
+          })
+        ).history.entries.map((entry) => entry.sequence),
+      ).toEqual([1, 2]);
+
+      const rolledBack = await keynes.beginAttempt("requester-fixture");
+      await rolledBack.client.requestBudget({
+        commandId: SECOND_REQUEST_ID,
+        parentBudgetId: ROOT_BUDGET_ID,
+        resources: [{ resourceTypeId, amount: 1 }],
+      });
+      await rolledBack.rollback();
+      expect(
+        (
+          await keynes.clientFor("reader-fixture").getBudget({
+            budgetId: ROOT_BUDGET_ID,
+          })
+        ).history.entries.map((entry) => entry.sequence),
+      ).toEqual([1, 2]);
+
+      await keynes.clientFor("settlement-fixture").settleBudget({
+        commandId: SETTLEMENT_ID,
+        budgetId: ROOT_BUDGET_ID,
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      const finalization = await keynes.beginAttempt("settlement-fixture");
+      await finalization.client.settleBudget({
+        commandId: FIRST_CHILD_SETTLEMENT_ID,
+        budgetId: approved.childBudgetId,
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      const finalizationReader =
+        await keynes.beginReadOnlyRepeatableReadAttempt("reader-fixture");
+      const beforeFinalizationCommit =
+        await finalizationReader.client.getBudget({
+          budgetId: ROOT_BUDGET_ID,
+        });
+      expect(beforeFinalizationCommit).toMatchObject({
+        budget: { lineageId: 1, parentLineageId: null, lifecycle: "settling" },
+      });
+      expect(
+        beforeFinalizationCommit.history.entries.map((entry) => entry.sequence),
+      ).toEqual([1, 2, 3]);
+      await finalization.commit();
+      expect(
+        await finalizationReader.client.getBudget({
+          budgetId: ROOT_BUDGET_ID,
+        }),
+      ).toEqual(beforeFinalizationCommit);
+      await finalizationReader.commit();
+      const afterFinalization = await keynes
+        .clientFor("reader-fixture", { forbidResourceWrites: true })
+        .getBudget({ budgetId: ROOT_BUDGET_ID });
+      expect(afterFinalization).toMatchObject({
+        budget: { lifecycle: "settled", lineageId: 1, parentLineageId: null },
+        history: { entries: expect.arrayContaining([expect.anything()]) },
+      });
+      expect(
+        afterFinalization.history.entries.map((entry) => entry.sequence),
+      ).toEqual([1, 2, 3, 4, 5]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("returns the stored result when a matching command waits for commit", async () => {
     const keynes = await openNativeTestKeynes();
     try {
