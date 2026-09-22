@@ -67,7 +67,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgres/test/system/installation.test.ts": [
-    "PostgreSQL installation rejects a synthetic generation-four compatibility baseline",
+    "PostgreSQL installation rejects a synthetic generation-five compatibility baseline",
     "PostgreSQL installation installs explicit principal permission records",
     "PostgreSQL installation installs a nullable unique private definition receipt reference",
     "PostgreSQL installation installs one baseline and rechecks it without changes",
