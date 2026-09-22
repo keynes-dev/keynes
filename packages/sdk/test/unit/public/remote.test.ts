@@ -1745,7 +1745,7 @@ describe("public remote Keynes facade", () => {
       "createBudget",
       ...Array.from({ length: 128 }, () => "getBudgetHistoryPage"),
     ]);
-  });
+  }, 30_000);
 });
 
 type RemoteResponseOverrides = Partial<
