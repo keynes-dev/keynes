@@ -96,8 +96,8 @@ All reader, authorization, retention and hostile-page tests below precede the si
 
 Repeat the reader and failure scenarios introduced before US1 implementation against the complete US2 lineage output. This phase adds no second cursor or SDK implementation pass.
 
-- [ ] T029 [US3] Run all focused native reader/security and SDK failure cases, register required acceptance names in `packages/postgres/test/system/required-scenarios.ts`, and record exact page sequences, survivor/cleanup results, authorization failures and revised-source outcomes in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
-- [ ] T030 [US3] Run read-only Ponytail review, evaluate findings, resolve accepted changes and rerun affected checks, then commit US3 before final qualification; record findings and reviewed revision in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
+- [x] T029 [US3] Run all focused native reader/security and SDK failure cases, register required acceptance names in `packages/postgres/test/system/required-scenarios.ts`, and record exact page sequences, survivor/cleanup results, authorization failures and revised-source outcomes in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
+- [x] T030 [US3] Run read-only Ponytail review, evaluate findings, resolve accepted changes and rerun affected checks, then commit US3 before final qualification; record findings and reviewed revision in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
 
 **Checkpoint**: All three stories have focused evidence; full feature acceptance and archive compatibility are still required.
 

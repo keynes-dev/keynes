@@ -81,6 +81,16 @@ The independent correctness review found no runtime or contract defect. It requi
 
 The paired result is not behavioral failure evidence because neither authority launched, but it is not a pass. It must be rerun from the clean final revision. Installed archive/package, `pnpm test:pr`, Hosted, durable Local, provider and cross-authority release lanes remain NOT RUN.
 
+## Phase 5: independent reader and failure qualification
+
+Qualified source revision: `0ff476b9d4b2577bc0fddd8b32a42fd844b4bd88 Add inspection lineage evidence`, clean before and after the commands. This phase adds no cursor, authority or SDK implementation. It reruns the US1 reader and hostile-page cases against the complete US2 lineage result.
+
+`pnpm --filter @keynes/sdk exec vitest run --config vitest.config.ts test/unit/public/remote.test.ts -t inspection --maxWorkers=1` passed 17 inspection tests in one file, with 80 unrelated tests skipped. It covers rejection without partial success for failed or changed continuations, malformed/nonprogressing cursors and sequence errors; stable `invalid_command`/mismatch behavior; the 30-second `getBudgetHistoryPage` timeout; and the 128-page `limit_exceeded` boundary.
+
+`pnpm test:remote` passed 9 files and 249 tests with native setup and cleanup. All 121 mandatory scenario names matched. The recovery case observed 256, 256 and 1 entries with sequences 1 through 513, cursors at 257 and 513 followed by null, identical repeated pages, distinct tokens for independent readers, and a surviving second reader after the first observation expired. Cleanup removed a positive bounded number of expired rows while retaining the unexpired reader. Security cases covered malformed, wrong-target, cross-tenant, principal-mismatch and revoked-permission continuations with sanitized `invalid_command`, `unauthorized` or `resource_binding_mismatch` outcomes; inspection minted no Budget references and exposed no private snapshot table.
+
+The required-scenario registry unit passed 109 tests. No source file changed during T029. Read-only Ponytail review of the Phase 5 evidence returned: Lean already. Ship. T029-T030 are complete in the Phase 5 commit containing this record. Paired SQLite/PostgreSQL acceptance, installed SDK/TLS, installed Embedded, Hosted and the broader runner exclusions remain NOT RUN.
+
 ## Behavioral lanes
 
 | Lane                                                                                                                                       | Status                                     |
@@ -92,7 +102,7 @@ The paired result is not behavioral failure evidence because neither authority l
 | Remote authorization, tenant/principal isolation, revocation, and private metadata protection                                              | PASS in selected Remote lane               |
 | SDK remote mapping, hostile-page rejection, deadline, and page-limit handling                                                              | PASS in focused SDK test                   |
 | Journal movement ownership, causality, replay, conflict, rollback, and finalization lineage                                                | PASS in SQLite and native PostgreSQL lanes |
-| Independent concurrent remote readers and failure-survivor behavior                                                                        | NOT RUN                                    |
+| Independent concurrent remote readers and failure-survivor behavior                                                                        | PASS in complete Remote lane               |
 | Fresh install, compatibility, generated output, and clean archive consumers                                                                | NOT RUN                                    |
 | Paired SQLite/native PostgreSQL, Embedded, full PR, and documentation qualification                                                        | NOT RUN                                    |
 | Hosted/Embedded release readiness, durable Local, providers, cross-authority behavior, performance, publication, and production operations | NOT RUN                                    |
