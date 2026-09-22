@@ -71,6 +71,16 @@ const definitions: Readonly<Record<string, Schema>> = {
     minimum: 0,
     maximum: 9007199254740991,
   },
+  PositiveAmount: {
+    type: "integer",
+    minimum: 1,
+    maximum: 9007199254740991,
+  },
+  LineageBudgetId: {
+    type: "integer",
+    minimum: 1,
+    maximum: 9007199254740991,
+  },
   ResourceAmount: {
     type: "object",
     additionalProperties: false,
@@ -282,6 +292,193 @@ const definitions: Readonly<Record<string, Schema>> = {
         uniqueItems: true,
         items: {
           $ref: "#/$defs/BudgetResourceProjection",
+        },
+      },
+    },
+  },
+  BudgetInspectionState: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetId",
+      "parentBudgetId",
+      "rootBudgetId",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      parentBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      rootBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/BudgetResourceProjection",
+        },
+      },
+    },
+  },
+  LineageCause: {
+    oneOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind"],
+        properties: {
+          kind: {
+            const: "command",
+          },
+        },
+      },
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "eventSequence"],
+        properties: {
+          kind: {
+            const: "automatic_finalization",
+          },
+          eventSequence: {
+            type: "integer",
+            minimum: 1,
+            maximum: 9007199254740991,
+          },
+        },
+      },
+    ],
+  },
+  InitialAllocationMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        const: "initial_allocation",
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        type: "null",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  TransferMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["child_grant", "settlement_return"],
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  ConsumptionOrReleaseMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["consumption", "root_release"],
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        type: "null",
+      },
+    },
+  },
+  InspectionMovement: {
+    oneOf: [
+      {
+        $ref: "#/$defs/InitialAllocationMovement",
+      },
+      {
+        $ref: "#/$defs/TransferMovement",
+      },
+      {
+        $ref: "#/$defs/ConsumptionOrReleaseMovement",
+      },
+    ],
+  },
+  LineageEvidence: {
+    type: "object",
+    additionalProperties: false,
+    required: ["subject", "cause", "movements"],
+    properties: {
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
         },
       },
     },
@@ -786,7 +983,8 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   HistoryCursor: {
     type: "string",
-    pattern: "^khc_v1_[A-Za-z0-9_-]{43}$",
+    maxLength: 56,
+    pattern: "^khc_v2_[0-9a-f]{32}_[1-9][0-9]{0,15}$",
   },
   RemoteMutationName: {
     enum: ["defineResources", "createBudget", "requestBudget", "settleBudget"],
@@ -932,6 +1130,52 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       rootBudgetReference: {
         $ref: "#/$defs/BudgetReference",
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        maxItems: 64,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/RemoteBudgetResourceProjection",
+        },
+      },
+    },
+  },
+  RemoteBudgetInspectionProjection: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetReference",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetReference: {
+        $ref: "#/$defs/BudgetReference",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
       },
       depth: {
         $ref: "#/$defs/Amount",

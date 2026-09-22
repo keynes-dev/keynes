@@ -276,7 +276,7 @@ describe("contract source", () => {
 
     const operationKey = `kop_v1_${"a".repeat(43)}`;
     const budgetReference = `kbr_v1_${"b".repeat(43)}`;
-    const cursor = `khc_v1_${"c".repeat(43)}`;
+    const cursor = `khc_v2_${"c".repeat(32)}_257`;
     for (const [definition, value] of [
       ["OperationKey", operationKey],
       ["BudgetReference", budgetReference],
@@ -316,6 +316,178 @@ describe("contract source", () => {
     expect(validateOperationKey?.(budgetReference)).toBe(false);
     expect(validateBudgetReference?.(operationKey)).toBe(false);
     expect(contract.remoteDigest).not.toBe(contract.digest);
+  });
+
+  it("reserves inspection schemas without activating unfinished read results", () => {
+    const budgetId = "11111111-1111-4111-8111-111111111111";
+    const resourceTypeId = "22222222-2222-4222-8222-222222222222";
+    const budgetReference = `kbr_v1_${"b".repeat(43)}`;
+    const remoteInspectionState = {
+      budgetReference,
+      lineageId: 1,
+      parentLineageId: null,
+      depth: 0,
+      lifecycle: "active",
+      resources: [
+        {
+          resource: {
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+          },
+          allocated: 100,
+          available: 100,
+          committed: 0,
+          directUsage: null,
+          subtreeObservedUsage: 0,
+          unresolved: false,
+          deficit: 0,
+        },
+      ],
+    };
+    const inspectionState = {
+      budgetId,
+      parentBudgetId: null,
+      rootBudgetId: budgetId,
+      lineageId: 1,
+      parentLineageId: null,
+      depth: 0,
+      lifecycle: "active",
+      resources: [
+        {
+          resourceType: {
+            resourceTypeId,
+            canonicalName: "model_tokens",
+            unit: "token",
+            accountingBehavior: "consumable",
+            definitionDigest: `sha256:${"a".repeat(64)}`,
+          },
+          allocated: 100,
+          available: 100,
+          committed: 0,
+          directUsage: null,
+          subtreeObservedUsage: 0,
+          unresolved: false,
+          deficit: 0,
+        },
+      ],
+    };
+    const initialAllocation = {
+      reason: "initial_allocation",
+      resourceTypeId,
+      amount: 100,
+      from: null,
+      to: 1,
+    };
+    const childGrant = {
+      reason: "child_grant",
+      resourceTypeId,
+      amount: 40,
+      from: 1,
+      to: 2,
+    };
+    const consumption = {
+      reason: "consumption",
+      resourceTypeId,
+      amount: 10,
+      from: 2,
+      to: null,
+    };
+    const movements = [initialAllocation, childGrant, consumption];
+
+    const validateLineageId = contractValidator("LineageBudgetId");
+    expect(validateLineageId(1)).toBe(true);
+    for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(validateLineageId(invalid)).toBe(false);
+    }
+
+    const validateCause = contractValidator("LineageCause");
+    expect(validateCause({ kind: "command" })).toBe(true);
+    expect(
+      validateCause({ kind: "automatic_finalization", eventSequence: 2 }),
+    ).toBe(true);
+    expect(
+      validateCause({ kind: "automatic_finalization", eventSequence: 0 }),
+    ).toBe(false);
+
+    const validateMovement = contractValidator("InspectionMovement");
+    for (const movement of movements) {
+      expect(
+        validateMovement(movement),
+        JSON.stringify(validateMovement.errors),
+      ).toBe(true);
+    }
+    for (const invalid of [
+      { ...initialAllocation, from: 1 },
+      { ...childGrant, to: null },
+      { ...consumption, to: 1 },
+      { ...consumption, amount: 0 },
+    ]) {
+      expect(validateMovement(invalid)).toBe(false);
+    }
+
+    const validateEvidence = contractValidator("LineageEvidence");
+    expect(
+      validateEvidence({
+        subject: 2,
+        cause: { kind: "command" },
+        movements,
+      }),
+    ).toBe(true);
+    expect(
+      validateEvidence({
+        subject: 2,
+        cause: { kind: "command" },
+        movements: [{ ...initialAllocation, index: 0 }],
+      }),
+    ).toBe(false);
+
+    expect(contractValidator("BudgetInspectionState")(inspectionState)).toBe(
+      true,
+    );
+    expect(
+      contractValidator("RemoteBudgetInspectionProjection")(
+        remoteInspectionState,
+      ),
+    ).toBe(true);
+
+    const validatePage = contractValidator("GetBudgetHistoryPageResult");
+    expect(
+      validatePage({
+        budgetReference,
+        entries: [],
+        nextCursor: `khc_v1_${"c".repeat(43)}`,
+      }),
+    ).toBe(false);
+    expect(
+      validatePage({
+        budgetReference,
+        budget: remoteInspectionState,
+        entries: [],
+        nextCursor: null,
+      }),
+    ).toBe(false);
+
+    const definitions = loadContract(packageRoot).definitions;
+    const activeMutationDefinitions = [
+      "CreateBudgetResult",
+      "RequestApproved",
+      "RequestDenied",
+      "SettleBudgetResult",
+      "RemoteCreateBudgetResult",
+      "RemoteRequestApprovedResult",
+      "RemoteRequestDeniedResult",
+      "RemoteSettleBudgetResult",
+    ].map((name) => definitions[name]);
+    expect(JSON.stringify(activeMutationDefinitions)).not.toMatch(
+      /lineageId|parentLineageId|movements|automatic_finalization/u,
+    );
+    expect(definitions.GetBudgetResult).toMatchObject({
+      properties: { budget: { $ref: "#/$defs/BudgetProjection" } },
+    });
+    expect(definitions.GetBudgetHistoryPageResult).toMatchObject({
+      required: ["budgetReference", "entries", "nextCursor"],
+    });
   });
 
   it("keeps private database identities out of remote results", () => {

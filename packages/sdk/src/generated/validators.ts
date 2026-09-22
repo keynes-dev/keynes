@@ -660,7 +660,8 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   HistoryCursor: {
     type: "string",
-    pattern: "^khc_v1_[A-Za-z0-9_-]{43}$",
+    maxLength: 56,
+    pattern: "^khc_v2_[0-9a-f]{32}_[1-9][0-9]{0,15}$",
   },
   RemoteMutationName: {
     enum: ["defineResources", "createBudget", "requestBudget", "settleBudget"],

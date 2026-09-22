@@ -22,6 +22,16 @@ export type Sha256Digest = string;
  */
 export type Amount = number;
 /**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "PositiveAmount".
+ */
+export type PositiveAmount = number;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageBudgetId".
+ */
+export type LineageBudgetId = number;
+/**
  * @minItems 1
  *
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -42,6 +52,26 @@ export type RootResourceEnvelope = [RootResourceInput, ...RootResourceInput[]];
  * via the `definition` "UsageEnvelope".
  */
 export type UsageEnvelope = [UsageAmount, ...UsageAmount[]];
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageCause".
+ */
+export type LineageCause =
+  | {
+      kind: "command";
+    }
+  | {
+      kind: "automatic_finalization";
+      eventSequence: number;
+    };
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InspectionMovement".
+ */
+export type InspectionMovement =
+  | InitialAllocationMovement
+  | TransferMovement
+  | ConsumptionOrReleaseMovement;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RequestDenialReason".
@@ -397,6 +427,65 @@ export interface BudgetProjection {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "BudgetInspectionState".
+ */
+export interface BudgetInspectionState {
+  budgetId: Uuid;
+  parentBudgetId: Uuid | null;
+  rootBudgetId: Uuid;
+  lineageId: LineageBudgetId;
+  parentLineageId: LineageBudgetId | null;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  /**
+   * @minItems 1
+   */
+  resources: [BudgetResourceProjection, ...BudgetResourceProjection[]];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InitialAllocationMovement".
+ */
+export interface InitialAllocationMovement {
+  reason: "initial_allocation";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: null;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "TransferMovement".
+ */
+export interface TransferMovement {
+  reason: "child_grant" | "settlement_return";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ConsumptionOrReleaseMovement".
+ */
+export interface ConsumptionOrReleaseMovement {
+  reason: "consumption" | "root_release";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: null;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageEvidence".
+ */
+export interface LineageEvidence {
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "AvailabilityDenialReason".
  */
 export interface AvailabilityDenialReason {
@@ -650,6 +739,25 @@ export interface RemoteBudgetProjection {
   budgetReference: BudgetReference;
   parentBudgetReference: BudgetReference | null;
   rootBudgetReference: BudgetReference;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  /**
+   * @minItems 1
+   * @maxItems 64
+   */
+  resources: [
+    RemoteBudgetResourceProjection,
+    ...RemoteBudgetResourceProjection[],
+  ];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetInspectionProjection".
+ */
+export interface RemoteBudgetInspectionProjection {
+  budgetReference: BudgetReference;
+  lineageId: LineageBudgetId;
+  parentLineageId: LineageBudgetId | null;
   depth: Amount;
   lifecycle: "active" | "settling" | "settled";
   /**

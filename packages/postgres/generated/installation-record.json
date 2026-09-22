@@ -18,15 +18,15 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766",
+  "contractDigest": "0bcf4c9cc8c09e7dff5140705ec172a6363f3f0e602ad5f7707e1bbaeef23ae6",
   "remoteProceduresDigest": "913bcd22cef8d41d4c1e093cd4ab931436e7db4971a6baa8a1d7179142077801",
-  "migrationSetDigest": "41be7ffe29bf1c345be66a594dd6a62c8119903299401bd04f9944216aa6a36a",
+  "migrationSetDigest": "9afc26f63f9ca99f964dceb9bf1c365c409f2e90deefd4059334a6ed09cb9c13",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
       "sha256": "6a7d89038cb1c3f6926801c88a1c7b8fb4b1b93862d5f663fac8e9f1f60ab3d3",
-      "contractDigest": "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766"
+      "contractDigest": "0bcf4c9cc8c09e7dff5140705ec172a6363f3f0e602ad5f7707e1bbaeef23ae6"
     }
   ],
   "expectedTargets": [
