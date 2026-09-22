@@ -18,15 +18,15 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "1f2e4dbc264a30769fc27709b55a1e996070f6937f623119904c98f2f3226fae",
+  "contractDigest": "42f110a502b5d3a7ffb64d0a0469ca31136e478b57de50080274873d5c067adf",
   "remoteProceduresDigest": "3f6dd877262cc3ffce15f67ae0c14fc5180ea715068f7e995bddcfbffb8ba9ea",
-  "migrationSetDigest": "ae8949746a471f7a5669e9ce34a57b02298dc429523f1f6ff38609e69a0cd5ac",
+  "migrationSetDigest": "a1e8cfb47adb7f66eb8f00196fb313ba7e7a0e339775fb6d0a7ded2da0f49617",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
-      "sha256": "500f754e7716a9a56a5f3058e34b5d147bc68fa9582471bd8a1624ccf1da5ec2",
-      "contractDigest": "1f2e4dbc264a30769fc27709b55a1e996070f6937f623119904c98f2f3226fae"
+      "sha256": "552830f32a914c068b37f040b585cebcceb526358af8f1600611d3a3df601ac1",
+      "contractDigest": "42f110a502b5d3a7ffb64d0a0469ca31136e478b57de50080274873d5c067adf"
     }
   ],
   "expectedTargets": [
@@ -80,6 +80,7 @@
     "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
     "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
     "function:keynes_internal.budget_inspection_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.inspection_history_entry_v0009(selected_tenant uuid,selected_stream uuid,terminal_sequence bigint,selected_sequence bigint,selected_command uuid,selected_kind text,selected_subject uuid,value_json jsonb)",
     "function:keynes_internal.finalize_budget_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
     "function:keynes_internal.finalize_ready_ancestors_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
     "function:keynes_internal.guard_quantity_movement()",

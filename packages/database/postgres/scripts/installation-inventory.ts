@@ -28,6 +28,7 @@ const EXPECTED_POSTGRES_OBJECTS = [
   "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
   "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
   "function:keynes_internal.budget_inspection_projection(selected_tenant uuid,selected_budget uuid)",
+  "function:keynes_internal.inspection_history_entry_v0009(selected_tenant uuid,selected_stream uuid,terminal_sequence bigint,selected_sequence bigint,selected_command uuid,selected_kind text,selected_subject uuid,value_json jsonb)",
   "function:keynes_internal.finalize_budget_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
   "function:keynes_internal.finalize_ready_ancestors_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
   "function:keynes_internal.guard_quantity_movement()",

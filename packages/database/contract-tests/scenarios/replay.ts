@@ -87,6 +87,63 @@ export function registerReplayContractTests(
       const read = await product.getBudget({
         budgetId: requested.childBudgetId,
       });
+      expect(read.budget).toMatchObject({ lineageId: 2, parentLineageId: 1 });
+      expect(read.history.entries).toEqual(
+        expect.arrayContaining(
+          [
+            {
+              sequence: 1,
+              subject: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 100,
+                  reason: "initial_allocation",
+                  from: null,
+                  to: 1,
+                },
+              ],
+            },
+            {
+              sequence: 2,
+              subject: 2,
+              parent: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 40,
+                  reason: "child_grant",
+                  from: 1,
+                  to: 2,
+                },
+              ],
+            },
+            {
+              sequence: 3,
+              subject: 2,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 25,
+                  reason: "consumption",
+                  from: 2,
+                  to: null,
+                },
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 15,
+                  reason: "settlement_return",
+                  from: 2,
+                  to: 1,
+                },
+              ],
+            },
+          ].map((entry) => expect.objectContaining(entry)),
+        ),
+      );
       expect(read.history.entries.map((entry) => entry.kind)).toEqual([
         "budget_created",
         "request_approved",
@@ -370,6 +427,9 @@ export function registerReplayContractTests(
         ],
       });
       const journalBeforeConflict = await local.inspectJournal();
+      const inspectionBeforeConflict = await product.getBudget({
+        budgetId: request.childBudgetId,
+      });
       await expectCommandConflict(
         local.clientFor("settlement-fixture").settleBudget({
           commandId: "43000000-0000-0000-0000-000000000011",
@@ -386,6 +446,38 @@ export function registerReplayContractTests(
       const unchanged = await product.getBudget({
         budgetId: request.childBudgetId,
       });
+      expect(unchanged).toEqual(inspectionBeforeConflict);
+      expect(unchanged.budget).toMatchObject({
+        lineageId: 2,
+        parentLineageId: 1,
+      });
+      expect(unchanged.history.entries).toEqual(
+        expect.arrayContaining(
+          [
+            {
+              sequence: 3,
+              subject: 2,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 25,
+                  reason: "consumption",
+                  from: 2,
+                  to: null,
+                },
+                {
+                  resourceTypeId: defined.resourceType.resourceTypeId,
+                  amount: 15,
+                  reason: "settlement_return",
+                  from: 2,
+                  to: 1,
+                },
+              ],
+            },
+          ].map((entry) => expect.objectContaining(entry)),
+        ),
+      );
       expect(unchanged.budget).toMatchObject(settlement.budget);
       expect(unchanged.history.entries).toHaveLength(3);
     });

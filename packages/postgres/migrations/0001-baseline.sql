@@ -1405,6 +1405,104 @@ AS $$
     FROM target;
 $$;
 
+CREATE FUNCTION keynes_internal.inspection_history_entry_v0009(selected_tenant uuid, selected_stream uuid, terminal_sequence bigint, selected_sequence bigint, selected_command uuid, selected_kind text, selected_subject uuid, value_json jsonb) RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  WITH subject_lineage AS (
+    SELECT history.sequence
+      FROM keynes_internal.budget_history_entries history
+     WHERE history.tenant_id = selected_tenant
+       AND history.stream_id = selected_stream
+       AND history.subject_id = selected_subject
+       AND history.event_kind IN ('budget_created', 'request_approved')
+       AND (terminal_sequence IS NULL OR history.sequence <= terminal_sequence)
+  ), parent_lineage AS (
+    SELECT history.sequence
+      FROM keynes_internal.budgets subject
+      JOIN keynes_internal.budget_history_entries history
+        ON history.tenant_id = subject.tenant_id
+       AND history.stream_id = selected_stream
+       AND history.subject_id = subject.parent_budget_id
+       AND history.event_kind IN ('budget_created', 'request_approved')
+     WHERE subject.tenant_id = selected_tenant
+       AND subject.budget_id = selected_subject
+       AND (terminal_sequence IS NULL OR history.sequence <= terminal_sequence)
+  ), initiating_settlement AS (
+    SELECT history.sequence
+      FROM keynes_internal.budget_history_entries history
+     WHERE history.tenant_id = selected_tenant
+       AND history.stream_id = selected_stream
+       AND history.command_id = selected_command
+       AND history.event_kind = 'budget_settlement_recorded'
+       AND history.sequence < selected_sequence
+       AND (terminal_sequence IS NULL OR history.sequence <= terminal_sequence)
+     ORDER BY history.sequence
+     LIMIT 1
+  ), movements AS (
+    SELECT movement.*, resource.canonical_name,
+           source_lineage.sequence AS source_lineage_id,
+           destination_lineage.sequence AS destination_lineage_id
+      FROM keynes_internal.quantity_movements movement
+      JOIN keynes_internal.resource_types resource
+        ON resource.tenant_id = movement.tenant_id
+       AND resource.resource_type_id = movement.resource_type_id
+      LEFT JOIN keynes_internal.budget_history_entries source_lineage
+        ON source_lineage.tenant_id = movement.tenant_id
+       AND source_lineage.stream_id = selected_stream
+       AND source_lineage.subject_id = movement.source_budget_id
+       AND source_lineage.event_kind IN ('budget_created', 'request_approved')
+       AND (terminal_sequence IS NULL OR source_lineage.sequence <= terminal_sequence)
+      LEFT JOIN keynes_internal.budget_history_entries destination_lineage
+        ON destination_lineage.tenant_id = movement.tenant_id
+       AND destination_lineage.stream_id = selected_stream
+       AND destination_lineage.subject_id = movement.destination_budget_id
+       AND destination_lineage.event_kind IN ('budget_created', 'request_approved')
+       AND (terminal_sequence IS NULL OR destination_lineage.sequence <= terminal_sequence)
+     WHERE movement.tenant_id = selected_tenant
+       AND movement.root_budget_id = selected_stream
+       AND movement.command_id = selected_command
+       AND (
+         (selected_kind = 'budget_created'
+          AND movement.reason = 'initial_allocation'
+          AND movement.destination_budget_id = selected_subject)
+         OR (selected_kind = 'request_approved'
+             AND movement.reason = 'child_grant'
+             AND movement.destination_budget_id = selected_subject)
+         OR (selected_kind = 'budget_settlement_recorded'
+             AND movement.reason = 'consumption'
+             AND movement.source_budget_id = selected_subject)
+         OR (selected_kind = 'budget_settlement_recorded'
+             AND movement.reason IN ('settlement_return', 'root_release')
+             AND movement.source_budget_id = selected_subject)
+       )
+  )
+  SELECT value_json || jsonb_build_object(
+    'subject', (SELECT sequence FROM subject_lineage),
+    'cause', CASE
+      WHEN selected_kind = 'budget_settlement_recorded'
+       AND EXISTS (SELECT 1 FROM initiating_settlement) THEN
+        jsonb_build_object(
+          'kind', 'automatic_finalization',
+          'eventSequence', (SELECT sequence FROM initiating_settlement)
+        )
+      ELSE jsonb_build_object('kind', 'command')
+    END,
+    'movements', (
+      SELECT coalesce(jsonb_agg(jsonb_build_object(
+        'resourceTypeId', movement.resource_type_id::text,
+        'amount', movement.amount,
+        'reason', movement.reason,
+        'from', movement.source_lineage_id,
+        'to', movement.destination_lineage_id
+      ) ORDER BY movement.canonical_name COLLATE "C", movement.reason COLLATE "C"), '[]'::jsonb)
+      FROM movements movement
+    )
+  ) || CASE WHEN selected_kind = 'request_approved' THEN
+    jsonb_build_object('parent', (SELECT sequence FROM parent_lineage))
+  ELSE '{}'::jsonb END;
+$$;
+
 CREATE FUNCTION keynes_internal.finalize_budget_v0009(selected_tenant uuid, selected_budget uuid, selected_command uuid) RETURNS boolean
 LANGUAGE plpgsql
 SET search_path = pg_catalog, keynes_internal, pg_temp
@@ -1824,7 +1922,12 @@ BEGIN
         'budget', keynes_internal.budget_inspection_projection(tenant, budget_id),
         'history', jsonb_build_object(
           'rootBudgetId', root_id::text,
-          'entries', coalesce(jsonb_agg(entry.payload ORDER BY entry.sequence), '[]'::jsonb)
+          'entries', coalesce(jsonb_agg(
+            keynes_internal.inspection_history_entry_v0009(
+              tenant, root_id, NULL, entry.sequence, entry.command_id,
+              entry.event_kind, entry.subject_id, entry.payload
+            ) ORDER BY entry.sequence
+          ), '[]'::jsonb)
         )
       ),
       'replayed', false
@@ -2404,27 +2507,55 @@ LANGUAGE plpgsql
 STABLE
 SET search_path = pg_catalog, keynes_internal, pg_temp
 AS $$
+DECLARE inspected jsonb;
 DECLARE result jsonb;
 BEGIN
-  result := jsonb_build_object(
-    'kind', value_json->'kind', 'sequence', value_json->'sequence'
+  inspected := keynes_internal.inspection_history_entry_v0009(
+    selected_tenant,
+    (value_json->>'rootBudgetId')::uuid,
+    (value_json->>'terminalSequence')::bigint,
+    (value_json->>'sequence')::bigint,
+    (value_json->>'commandId')::uuid,
+    value_json->>'kind',
+    (value_json->>'subjectBudgetId')::uuid,
+    value_json
   );
-  CASE value_json->>'kind'
+  result := jsonb_build_object(
+    'kind', inspected->'kind',
+    'sequence', inspected->'sequence',
+    'subject', inspected->'subject',
+    'cause', inspected->'cause',
+    'movements', (
+      SELECT coalesce(jsonb_agg(
+        (movement.value - 'resourceTypeId') || jsonb_build_object(
+          'resource', resource.canonical_name
+        ) ORDER BY movement.ordinality
+      ), '[]'::jsonb)
+      FROM jsonb_array_elements(inspected->'movements')
+        WITH ORDINALITY movement(value, ordinality)
+      JOIN keynes_internal.resource_types resource
+        ON resource.tenant_id = selected_tenant
+       AND resource.resource_type_id =
+         (movement.value->>'resourceTypeId')::uuid
+    )
+  );
+  CASE inspected->>'kind'
     WHEN 'budget_created' THEN
       RETURN result || jsonb_build_object(
         'resources', keynes_internal.remote_history_amounts_v0006(
-          selected_tenant, value_json->'resources'
+          selected_tenant, inspected->'resources'
         )
       );
     WHEN 'request_approved' THEN
       result := result || jsonb_build_object(
+        'parent', inspected->'parent',
         'resources', keynes_internal.remote_history_amounts_v0006(
-          selected_tenant, value_json->'resources'
+          selected_tenant, inspected->'resources'
         )
       );
-      IF value_json ? 'decisionEvidence' THEN
+      IF inspected ? 'decisionEvidence' THEN
         result := result || jsonb_build_object(
-          'decisionEvidence', value_json->'decisionEvidence'
+          'decisionEvidence', inspected->'decisionEvidence'
         );
       END IF;
       RETURN result;
@@ -2435,32 +2566,32 @@ BEGIN
             'resource', resource.canonical_name
           ) ORDER BY reason.ordinality
         ), '[]'::jsonb)
-        FROM jsonb_array_elements(value_json->'reasons') WITH ORDINALITY reason(value, ordinality)
+        FROM jsonb_array_elements(inspected->'reasons') WITH ORDINALITY reason(value, ordinality)
         JOIN keynes_internal.resource_types resource
           ON resource.tenant_id = selected_tenant
          AND resource.resource_type_id = (reason.value->>'resourceTypeId')::uuid
       ));
-      IF value_json ? 'decisionEvidence' THEN
+      IF inspected ? 'decisionEvidence' THEN
         result := result || jsonb_build_object(
-          'decisionEvidence', value_json->'decisionEvidence'
+          'decisionEvidence', inspected->'decisionEvidence'
         );
       END IF;
       RETURN result;
     WHEN 'budget_settlement_recorded' THEN
       RETURN result || jsonb_build_object(
         'newlyKnown', keynes_internal.remote_history_amounts_v0006(
-          selected_tenant, value_json->'newlyKnown'
+          selected_tenant, inspected->'newlyKnown'
         ),
         'unresolvedResources', (
           SELECT coalesce(jsonb_agg(resource.canonical_name ORDER BY resource.canonical_name COLLATE "C"), '[]'::jsonb)
-          FROM jsonb_array_elements_text(value_json->'unresolvedResourceTypeIds') item(value)
+          FROM jsonb_array_elements_text(inspected->'unresolvedResourceTypeIds') item(value)
           JOIN keynes_internal.resource_types resource
             ON resource.tenant_id = selected_tenant
            AND resource.resource_type_id = item.value::uuid
         ),
-        'lifecycle', value_json->'lifecycle',
+        'lifecycle', inspected->'lifecycle',
         'isolatedDeficits', keynes_internal.remote_history_amounts_v0006(
-          selected_tenant, value_json->'isolatedDeficits'
+          selected_tenant, inspected->'isolatedDeficits'
         )
       );
   END CASE;
@@ -2565,7 +2696,12 @@ BEGIN
            ) FILTER (WHERE page.ordinal <= 256), '[]'::jsonb)
       INTO entry_count, entries
       FROM (
-        SELECT history.sequence, history.payload,
+        SELECT history.sequence, history.command_id, history.event_kind,
+               history.subject_id,
+               history.payload || jsonb_build_object(
+                 'rootBudgetId', selected_stream::text,
+                 'terminalSequence', terminal_sequence_value
+               ) AS payload,
                row_number() OVER (ORDER BY history.sequence) AS ordinal
           FROM keynes_internal.budget_history_entries history
          WHERE history.tenant_id = tenant

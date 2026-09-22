@@ -1140,6 +1140,8 @@ describe("public remote Keynes facade", () => {
     });
     expect(inspection).toEqual({
       budget: {
+        lineageId: 1,
+        parentLineageId: null,
         depth: 0,
         lifecycle: "active",
         resources: [
@@ -1162,6 +1164,17 @@ describe("public remote Keynes facade", () => {
           {
             kind: "budget_created",
             sequence: 1,
+            subject: 1,
+            cause: { kind: "command" },
+            movements: [
+              {
+                reason: "initial_allocation",
+                resource: "workUnits",
+                amount: 10,
+                from: null,
+                to: 1,
+              },
+            ],
             resources: [{ resource: "workUnits", amount: 10 }],
           },
         ],
@@ -1397,6 +1410,8 @@ describe("public remote Keynes facade", () => {
     const root = await remote.createBudget({ workUnits: 10 });
     await expect(root.inspect()).resolves.toEqual({
       budget: {
+        lineageId: 1,
+        parentLineageId: null,
         depth: 0,
         lifecycle: "active",
         resources: [
@@ -1417,6 +1432,10 @@ describe("public remote Keynes facade", () => {
       history: {
         entries: [...firstEntries, historyEntry(257)].map((entry) => ({
           ...entry,
+          movements: entry.movements.map((movement) => ({
+            ...movement,
+            resource: "workUnits",
+          })),
           resources: [{ resource: "workUnits", amount: 10 }],
         })),
       },
@@ -1985,6 +2004,17 @@ function historyEntry(sequence: number) {
   return {
     kind: "budget_created" as const,
     sequence,
+    subject: 1,
+    cause: { kind: "command" as const },
+    movements: [
+      {
+        reason: "initial_allocation" as const,
+        resource: "work_units",
+        amount: 10,
+        from: null,
+        to: 1,
+      },
+    ],
     resources: [{ resource: "work_units", amount: 10 }],
   };
 }

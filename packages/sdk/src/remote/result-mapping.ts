@@ -3,6 +3,7 @@ import { KeynesError } from "../generated/client.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
   BudgetInspectionState,
+  InspectionMovement,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
   RemoteBudgetHistoryEntry,
@@ -258,6 +259,7 @@ export function createRemoteBudgetHandle<
         return projectSnapshot<Names, HistoryNames>(
           binding,
           remoteSnapshot(capturedBudget, history),
+          (canonicalName) => binding.resourceByCanonicalName(canonicalName).key,
         );
       }
       if (result.entries.length !== 256) throw remoteResultMismatch();
@@ -611,6 +613,9 @@ function remoteHistoryEntry(
     commandId: PRIVATE_UUID,
     subjectBudgetId: PRIVATE_UUID,
     sequence: entry.sequence,
+    subject: entry.subject,
+    cause: entry.cause,
+    movements: entry.movements.map(remoteMovement),
   };
   switch (entry.kind) {
     case "budget_created":
@@ -626,6 +631,7 @@ function remoteHistoryEntry(
         kind: entry.kind,
         parentBudgetId: PRIVATE_UUID,
         childBudgetId: PRIVATE_UUID,
+        parent: entry.parent,
         resources: remoteEnvelope(entry.resources),
         ...(entry.decisionEvidence === undefined
           ? {}
@@ -661,6 +667,39 @@ function remoteHistoryEntry(
         unresolvedResourceTypeIds: entry.unresolvedResources,
         lifecycle: entry.lifecycle,
         isolatedDeficits: remoteAmounts(entry.isolatedDeficits),
+      };
+  }
+}
+
+function remoteMovement(
+  movement: RemoteBudgetHistoryEntry["movements"][number],
+): InspectionMovement {
+  switch (movement.reason) {
+    case "initial_allocation":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: null,
+        to: movement.to,
+      };
+    case "child_grant":
+    case "settlement_return":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: movement.to,
+      };
+    case "consumption":
+    case "root_release":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: null,
       };
   }
 }

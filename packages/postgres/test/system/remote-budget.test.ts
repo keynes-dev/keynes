@@ -649,6 +649,156 @@ describe("public owned PostgreSQL adapter", () => {
     }
   });
 
+  it("projects frozen root lineage without private identities or caller-evidence rewriting", async () => {
+    const { fixture, keynes } = await openPublicFixture();
+    try {
+      const root = await keynes.createBudget({ modelTokens: 10 });
+      const decisionEvidence = {
+        budget_id: "caller-budget",
+        command_id: "caller-command",
+        resource_type_id: "caller-resource",
+        movement: "caller-movement",
+        cause: "caller-cause",
+        subject: "caller-subject",
+      };
+      const requested = await root.request(
+        { modelTokens: 4 },
+        { decisionEvidence },
+      );
+      if (requested.status !== "approved")
+        throw new Error("Expected lineage fixture approval");
+      await expect(root.settle({ modelTokens: 1 })).resolves.toMatchObject({
+        kind: "settling",
+      });
+      await expect(
+        requested.budget.settle({ modelTokens: 2 }),
+      ).resolves.toMatchObject({ kind: "settled" });
+
+      const snapshot = await requested.budget.inspect();
+      expect(snapshot).toMatchObject({
+        budget: {
+          lineageId: 2,
+          parentLineageId: 1,
+          resources: [{ resource: "modelTokens" }],
+        },
+        history: {
+          entries: [
+            {
+              kind: "budget_created",
+              sequence: 1,
+              subject: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "initial_allocation",
+                  resource: "modelTokens",
+                  amount: 10,
+                  from: null,
+                  to: 1,
+                },
+              ],
+            },
+            {
+              kind: "request_approved",
+              sequence: 2,
+              subject: 2,
+              parent: 1,
+              cause: { kind: "command" },
+              decisionEvidence,
+              movements: [
+                {
+                  reason: "child_grant",
+                  resource: "modelTokens",
+                  amount: 4,
+                  from: 1,
+                  to: 2,
+                },
+              ],
+            },
+            {
+              kind: "budget_settlement_recorded",
+              sequence: 3,
+              subject: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "consumption",
+                  resource: "modelTokens",
+                  amount: 1,
+                  from: 1,
+                  to: null,
+                },
+              ],
+            },
+            {
+              kind: "budget_settlement_recorded",
+              sequence: 4,
+              subject: 2,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "consumption",
+                  resource: "modelTokens",
+                  amount: 2,
+                  from: 2,
+                  to: null,
+                },
+                {
+                  reason: "settlement_return",
+                  resource: "modelTokens",
+                  amount: 2,
+                  from: 2,
+                  to: 1,
+                },
+              ],
+            },
+            {
+              kind: "budget_settlement_recorded",
+              sequence: 5,
+              subject: 1,
+              cause: { kind: "automatic_finalization", eventSequence: 4 },
+              movements: [
+                {
+                  reason: "root_release",
+                  resource: "modelTokens",
+                  amount: 7,
+                  from: 1,
+                  to: null,
+                },
+              ],
+            },
+          ],
+        },
+      });
+      const [created, approved, rootSettled, childSettled, finalRoot] =
+        snapshot.history.entries;
+      expect(Object.isFrozen(snapshot)).toBe(true);
+      expect(Object.isFrozen(snapshot.budget)).toBe(true);
+      expect(Object.isFrozen(snapshot.history)).toBe(true);
+      expect(Object.isFrozen(snapshot.history.entries)).toBe(true);
+      for (const entry of [
+        created,
+        approved,
+        rootSettled,
+        childSettled,
+        finalRoot,
+      ]) {
+        expect(Object.isFrozen(entry)).toBe(true);
+        expect(Object.isFrozen(entry?.cause)).toBe(true);
+        expect(Object.isFrozen(entry?.movements)).toBe(true);
+        expect(Object.isFrozen(entry?.movements[0])).toBe(true);
+      }
+      const serialized = JSON.stringify(snapshot);
+      expect(serialized).not.toMatch(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+      );
+      expect(serialized).not.toContain("kop_v1_");
+    } finally {
+      await keynes.close();
+      await fixture.close();
+    }
+  });
+
   it("reopens with read permission after creation permission is revoked", async () => {
     const { fixture, keynes } = await openPublicFixture();
     try {

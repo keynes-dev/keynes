@@ -264,6 +264,9 @@ export function registerRollbackContractTests(
           checkpoint,
         });
         const journalBefore = await local.inspectJournal();
+        const inspectionBeforeFailure = await client.getBudget({
+          budgetId: root.budget.budgetId,
+        });
         await expect(
           Reflect.apply(faultingRequester.requestBudget, faultingRequester, [
             command,
@@ -278,11 +281,36 @@ export function registerRollbackContractTests(
         const afterFailure = await client.getBudget({
           budgetId: root.budget.budgetId,
         });
+        expect(afterFailure).toEqual(inspectionBeforeFailure);
         expect(afterFailure.budget.resources[0]).toMatchObject({
           committed: index * 10,
           available: 100 - index * 10,
         });
         expect(afterFailure.history.entries).toHaveLength(1 + index);
+        expect(afterFailure.budget).toMatchObject({
+          lineageId: 1,
+          parentLineageId: null,
+        });
+        expect(afterFailure.history.entries).toEqual(
+          expect.arrayContaining(
+            [
+              {
+                sequence: 1,
+                subject: 1,
+                cause: { kind: "command" },
+                movements: [
+                  {
+                    resourceTypeId: defined.resourceType.resourceTypeId,
+                    amount: 100,
+                    reason: "initial_allocation",
+                    from: null,
+                    to: 1,
+                  },
+                ],
+              },
+            ].map((entry) => expect.objectContaining(entry)),
+          ),
+        );
 
         const requester = local.clientFor("requester-fixture");
         const retry = await Reflect.apply(requester.requestBudget, requester, [

@@ -44,7 +44,7 @@ import {
 } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "1f2e4dbc264a30769fc27709b55a1e996070f6937f623119904c98f2f3226fae";
+  "42f110a502b5d3a7ffb64d0a0469ca31136e478b57de50080274873d5c067adf";
 
 export const REMOTE_PROCEDURES_DIGEST =
   "3f6dd877262cc3ffce15f67ae0c14fc5180ea715068f7e995bddcfbffb8ba9ea";
@@ -178,15 +178,16 @@ const resultFieldRank = new Map(
     "minimumSdkGeneration",
     "procedures",
     "sequence",
+    "subject",
+    "parent",
+    "cause",
+    "movements",
     "commandId",
     "definition",
     "amount",
     "definitions",
     "amounts",
     "from",
-    "subject",
-    "cause",
-    "movements",
     "subjectBudgetId",
     "budgetId",
     "newlyKnown",

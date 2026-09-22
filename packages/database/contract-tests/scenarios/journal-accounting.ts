@@ -219,6 +219,260 @@ export function registerJournalAccountingContractTests(
       ]);
     });
 
+    it("explains mixed sibling funding, settlement, and root release once", async () => {
+      const client = local.clientFor("product-fixture");
+      const alpha = await defineResource(
+        client,
+        "16000000-0000-4000-8000-000000000103",
+        "alpha_tokens",
+        "consumable",
+      );
+      const omega = await defineResource(
+        client,
+        "16000000-0000-4000-8000-000000000101",
+        "omega_seats",
+        "reusable",
+      );
+      const zero = await defineResource(
+        client,
+        "16000000-0000-4000-8000-000000000102",
+        "zero_tokens",
+        "consumable",
+      );
+      expect(alpha.resourceTypeId > omega.resourceTypeId).toBe(true);
+      const root = await client.createBudget({
+        commandId: "26000000-0000-4000-8000-000000000101",
+        ...rootResources([
+          rootResource(alpha, 100),
+          rootResource(omega, 2),
+          rootResource(zero, 0),
+        ]),
+      });
+      const child = await request(client, {
+        commandId: "36000000-0000-4000-8000-000000000101",
+        parentBudgetId: root.budget.budgetId,
+        resources: [
+          { resourceTypeId: alpha.resourceTypeId, amount: 40 },
+          { resourceTypeId: omega.resourceTypeId, amount: 1 },
+        ],
+      });
+      const sibling = await request(client, {
+        commandId: "36000000-0000-4000-8000-000000000102",
+        parentBudgetId: root.budget.budgetId,
+        resources: [{ resourceTypeId: omega.resourceTypeId, amount: 1 }],
+      });
+      expect(
+        (await client.getBudget({ budgetId: child })).budget,
+      ).toMatchObject({
+        lineageId: 2,
+        parentLineageId: 1,
+        resources: [
+          { resourceType: alpha, directUsage: null },
+          { resourceType: omega, directUsage: null },
+        ],
+      });
+      await client.settleBudget({
+        commandId: "46000000-0000-4000-8000-000000000101",
+        budgetId: root.budget.budgetId,
+        usage: [
+          { resourceTypeId: alpha.resourceTypeId, amount: 0 },
+          { resourceTypeId: omega.resourceTypeId, amount: 0 },
+          { resourceTypeId: zero.resourceTypeId, amount: 0 },
+        ],
+      });
+      await client.settleBudget({
+        commandId: "46000000-0000-4000-8000-000000000102",
+        budgetId: child,
+        usage: [
+          { resourceTypeId: alpha.resourceTypeId, amount: 10 },
+          { resourceTypeId: omega.resourceTypeId, amount: 0 },
+        ],
+      });
+      await client.settleBudget({
+        commandId: "46000000-0000-4000-8000-000000000103",
+        budgetId: sibling,
+        usage: [{ resourceTypeId: omega.resourceTypeId, amount: 0 }],
+      });
+
+      const inspection = await client.getBudget({ budgetId: child });
+      expect(inspection.budget).toMatchObject({
+        lineageId: 2,
+        parentLineageId: 1,
+        lifecycle: "settled",
+        resources: [
+          {
+            resourceType: alpha,
+            allocated: 40,
+            committed: 0,
+            available: 0,
+            directUsage: 10,
+            deficit: 0,
+          },
+          {
+            resourceType: omega,
+            allocated: 1,
+            committed: 0,
+            available: 0,
+            directUsage: 0,
+            deficit: 0,
+          },
+        ],
+      });
+      expect(inspection.history.entries).toMatchObject([
+        {
+          kind: "budget_created",
+          sequence: 1,
+          subject: 1,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: alpha.resourceTypeId,
+              amount: 100,
+              reason: "initial_allocation",
+              from: null,
+              to: 1,
+            },
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 2,
+              reason: "initial_allocation",
+              from: null,
+              to: 1,
+            },
+          ],
+        },
+        {
+          kind: "request_approved",
+          sequence: 2,
+          subject: 2,
+          parent: 1,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: alpha.resourceTypeId,
+              amount: 40,
+              reason: "child_grant",
+              from: 1,
+              to: 2,
+            },
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 1,
+              reason: "child_grant",
+              from: 1,
+              to: 2,
+            },
+          ],
+        },
+        {
+          kind: "request_approved",
+          sequence: 3,
+          subject: 3,
+          parent: 1,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 1,
+              reason: "child_grant",
+              from: 1,
+              to: 3,
+            },
+          ],
+        },
+        {
+          kind: "budget_settlement_recorded",
+          sequence: 4,
+          subject: 1,
+          cause: { kind: "command" },
+          movements: [],
+        },
+        {
+          kind: "budget_settlement_recorded",
+          sequence: 5,
+          subject: 2,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: alpha.resourceTypeId,
+              amount: 10,
+              reason: "consumption",
+              from: 2,
+              to: null,
+            },
+            {
+              resourceTypeId: alpha.resourceTypeId,
+              amount: 30,
+              reason: "settlement_return",
+              from: 2,
+              to: 1,
+            },
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 1,
+              reason: "settlement_return",
+              from: 2,
+              to: 1,
+            },
+          ],
+        },
+        {
+          kind: "budget_settlement_recorded",
+          sequence: 6,
+          subject: 3,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 1,
+              reason: "settlement_return",
+              from: 3,
+              to: 1,
+            },
+          ],
+        },
+        {
+          kind: "budget_settlement_recorded",
+          sequence: 7,
+          subject: 1,
+          cause: { kind: "automatic_finalization", eventSequence: 6 },
+          movements: [
+            {
+              resourceTypeId: alpha.resourceTypeId,
+              amount: 90,
+              reason: "root_release",
+              from: 1,
+              to: null,
+            },
+            {
+              resourceTypeId: omega.resourceTypeId,
+              amount: 2,
+              reason: "root_release",
+              from: 1,
+              to: null,
+            },
+          ],
+        },
+      ]);
+      const projected = inspectionMovements(inspection.history.entries);
+      const journal = await local.inspectJournal();
+      expect(projected).toHaveLength(journal.length);
+      expect(projected).toEqual([
+        [1, 0, "initial_allocation", alpha.resourceTypeId, 100, null, 1],
+        [1, 1, "initial_allocation", omega.resourceTypeId, 2, null, 1],
+        [2, 0, "child_grant", alpha.resourceTypeId, 40, 1, 2],
+        [2, 1, "child_grant", omega.resourceTypeId, 1, 1, 2],
+        [3, 0, "child_grant", omega.resourceTypeId, 1, 1, 3],
+        [5, 0, "consumption", alpha.resourceTypeId, 10, 2, null],
+        [5, 1, "settlement_return", alpha.resourceTypeId, 30, 2, 1],
+        [5, 2, "settlement_return", omega.resourceTypeId, 1, 2, 1],
+        [6, 0, "settlement_return", omega.resourceTypeId, 1, 3, 1],
+        [7, 0, "root_release", alpha.resourceTypeId, 90, 1, null],
+        [7, 1, "root_release", omega.resourceTypeId, 2, 1, null],
+      ]);
+      expect(inspection.history.entries).toHaveLength(7);
+    });
+
     it("retains direct consumable and reusable deficits after a child returns", async () => {
       const client = local.clientFor("product-fixture");
       const tokens = await defineResource(
@@ -265,6 +519,8 @@ export function registerJournalAccountingContractTests(
 
       const read = await client.getBudget({ budgetId: root.budget.budgetId });
       expect(read.budget).toMatchObject({
+        lineageId: 1,
+        parentLineageId: null,
         lifecycle: "settled",
         resources: [
           { resourceType: tokens, directUsage: 50, deficit: 50, available: 0 },
@@ -300,9 +556,25 @@ export function registerJournalAccountingContractTests(
       });
       const read = await client.getBudget({ budgetId: root.budget.budgetId });
       expect(read.budget).toMatchObject({
+        lineageId: 1,
+        parentLineageId: null,
         lifecycle: "settled",
         resources: [{ resourceType: zero, allocated: 0, available: 0 }],
       });
+      expect(read.history.entries).toMatchObject([
+        {
+          sequence: 1,
+          subject: 1,
+          cause: { kind: "command" },
+          movements: [],
+        },
+        {
+          sequence: 2,
+          subject: 1,
+          cause: { kind: "command" },
+          movements: [],
+        },
+      ]);
       expect(await local.inspectJournal()).toEqual([]);
     });
 
@@ -366,11 +638,50 @@ export function registerJournalAccountingContractTests(
       });
       expect(completed.history.entries).toHaveLength(8);
       expect(completed.history.entries.slice(-3)).toMatchObject([
-        { commandId: finalCommand.commandId, subjectBudgetId: grandchild },
-        { commandId: finalCommand.commandId, subjectBudgetId: child },
+        {
+          commandId: finalCommand.commandId,
+          subjectBudgetId: grandchild,
+          subject: 3,
+          cause: { kind: "command" },
+          movements: [
+            {
+              resourceTypeId: tokens.resourceTypeId,
+              amount: 10,
+              reason: "settlement_return",
+              from: 3,
+              to: 2,
+            },
+          ],
+        },
+        {
+          commandId: finalCommand.commandId,
+          subjectBudgetId: child,
+          subject: 2,
+          cause: { kind: "automatic_finalization", eventSequence: 6 },
+          movements: [
+            {
+              resourceTypeId: tokens.resourceTypeId,
+              amount: 10,
+              reason: "settlement_return",
+              from: 2,
+              to: 1,
+            },
+          ],
+        },
         {
           commandId: finalCommand.commandId,
           subjectBudgetId: root.budget.budgetId,
+          subject: 1,
+          cause: { kind: "automatic_finalization", eventSequence: 6 },
+          movements: [
+            {
+              resourceTypeId: tokens.resourceTypeId,
+              amount: 10,
+              reason: "root_release",
+              from: 1,
+              to: null,
+            },
+          ],
         },
       ]);
       for (const budgetId of [root.budget.budgetId, child, grandchild]) {
@@ -396,6 +707,15 @@ export function registerJournalAccountingContractTests(
         budgetId: root.budget.budgetId,
       });
       expect(repeated.history.entries).toHaveLength(9);
+      expect(repeated.history.entries.at(-1)).toMatchObject({
+        commandId: "46000000-0000-4000-8000-000000000044",
+        subject: 3,
+        cause: { kind: "command" },
+        movements: [],
+      });
+      expect(inspectionMovements(repeated.history.entries)).toEqual(
+        inspectionMovements(completed.history.entries),
+      );
       for (const budgetId of [child, root.budget.budgetId]) {
         expect(
           repeated.history.entries.filter(
@@ -476,6 +796,29 @@ async function request(
 
 function turnoverId(prefix: "36" | "46", cycle: number): string {
   return `${prefix}000000-0000-4000-8000-${String(cycle).padStart(12, "0")}`;
+}
+
+function inspectionMovements(entries: readonly object[]): readonly unknown[][] {
+  return entries.flatMap((entry) => {
+    const movements = Reflect.get(entry, "movements");
+    if (!Array.isArray(movements)) {
+      throw new Error("inspection history entry is missing movements");
+    }
+    return movements.map((movement, index) => {
+      if (movement === null || typeof movement !== "object") {
+        throw new Error("inspection movement must be an object");
+      }
+      return [
+        Reflect.get(entry, "sequence"),
+        index,
+        Reflect.get(movement, "reason"),
+        Reflect.get(movement, "resourceTypeId"),
+        Reflect.get(movement, "amount"),
+        Reflect.get(movement, "from"),
+        Reflect.get(movement, "to"),
+      ];
+    });
+  });
 }
 
 function expectJournalConservation(

@@ -176,6 +176,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority defines Resources through authenticated Remote calls with exact reuse and replay",
     "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",
     "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
+    "public owned PostgreSQL adapter projects frozen root lineage without private identities or caller-evidence rewriting",
   ],
   "packages/postgres/test/system/policy-middleware.test.ts": [
     "Remote Policy middleware rejects a Remote Policy plus operation key before proposal capture or callback invocation",
