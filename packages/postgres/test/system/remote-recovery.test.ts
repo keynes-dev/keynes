@@ -669,7 +669,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
   });
 
-  it("returns known-failure and missing recovery states without mutation", async () => {
+  it("returns known-failure and not-found recovery states without mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
