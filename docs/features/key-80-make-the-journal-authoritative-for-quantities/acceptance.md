@@ -1,7 +1,8 @@
 # KEY-80 acceptance evidence
 
-Implementation is authorized phase by phase. This record begins with the Phase 1
-baseline only; it does not qualify the journal behavior.
+KEY-80 is implemented and locally qualified on the exact source revision in
+[Final acceptance](#final-acceptance). Earlier sections retain the phase
+baselines, failed attempts and review history; they are not final qualification.
 
 ## Phase 1: baseline and compatibility owners
 
@@ -274,9 +275,96 @@ Independent Terra read-only correctness and Ponytail reviews found no actionable
 discrepancy or unnecessary complexity. `pnpm generate:check`, documentation
 formatting and `git diff --check` passed before the candidate commit.
 
-## Remaining acceptance
+## Final acceptance
 
-Final review-revision qualification and PR publication remain pending. Hosted and Embedded release readiness, live providers,
-cross-authority recovery, Node/OS matrices, managed-provider qualification,
-performance qualification, registry publication, and production operations are
-**NOT RUN**. Historical KEY-76 and KEY-96 evidence does not qualify KEY-80.
+Verified source revision: `599d0b48de8490ff211d216ed4738ec5939ba55a`.
+The paired and package records confirm the same clean commit before and after
+execution. The following evidence/task record commit changes no executable
+source, package content or installation assets. It does not retroactively
+change the source revision or archive hashes qualified here.
+
+Host: Darwin 25.5.0 arm64; Node v25.9.0; pnpm 11.21.0; Vitest 4.1.11;
+pg 8.23.0; SQLite 3.53.0;
+Docker 29.6.2; native PostgreSQL 18.6 (`180006`); PgBouncer 1.25.2.
+All four private package versions are `0.0.0`.
+
+| Final command                                                                  | Outcome                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                                                 | PASS: all 18 workspace tasks, none cached; repository/runner tests, generation, types, package tests and dependency boundaries.                                                                                                                            |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-80/final-paired-599d0b4` | PASS: 416 SQLite and 312 native assertions; identical 138 shared scenario names; no failed, pending or todo cases. Both process exits and cleanup passed. Attempt `a719f46b-3fd6-4f51-98c9-4a5628fc643e`.                                                  |
+| `pnpm test:package:split -- --output .artifacts/key-80/final-packages-599d0b4` | PASS: all 9 stages; SDK-only, SDK+SQLite, SDK+PostgreSQL, CLI consumers; 31 PostgreSQL package, 8 CLI and 312 native assertions. Archive integrity, external installed paths and cleanup passed. Native run `5cda66a3-8332-4268-bea3-22fb950446e3`.        |
+| `pnpm test:embedded`                                                           | PASS: 167 assertions in 2 files, source installation, caller-owned commit/rollback and cascade behavior; process exit and cleanup passed.                                                                                                                  |
+| `pnpm format:docs`                                                             | PASS: all 332 selected files. Package README formatting also passed separately.                                                                                                                                                                            |
+| Explicit-directory Spec Kit prerequisites and final diff audit                 | PASS: required feature artifacts present; no allocation column or recursive quantity-authority helper remains in either canonical engine; staged copies pass generation checks. No workflow, Node support or unrelated policy changes in the feature diff. |
+
+### Source and archive identities
+
+| Input                      | SHA-256                                                            |
+| -------------------------- | ------------------------------------------------------------------ |
+| `contractDigest`           | `046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766` |
+| `lockfileSha256`           | `b254d5523aeeb1495946c5c967b84585cde47412cca368bd5441383576c53395` |
+| `installationRecordSha256` | `7224ff2745fa502b1a309464428eef598fd7082c3e473c62a64260bfd34db8eb` |
+
+The canonical baseline SHA-256 is
+`6a7d89038cb1c3f6926801c88a1c7b8fb4b1b93862d5f663fac8e9f1f60ab3d3`.
+The installed archive set below was packed once by the package runner, consumed
+outside the workspace, and rehashed successfully after qualification.
+
+| Archive               | SHA-256                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `@keynes/sdk`         | `83266e77e97c72d70077579b55ae9f7b53e1b7ab3aa41d860f91202fb74678c3` |
+| `@keynes/node-sqlite` | `f841dfa4219f1114283aae973d6984618a16f8ded00db2741b7329757af54550` |
+| `@keynes/postgres`    | `700928dba1abd7393c5c318dda8ac3a7db3002b619e4f1b0f65aa8fc1bb02bea` |
+| `@keynes/cli`         | `59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380` |
+
+### Retained evidence
+
+These are ignored local artifacts in this feature worktree. Full consumer
+records, native observations, sanitized test reports and archives sit beside
+their manifests. The manifests identify tool versions, image digests, installed
+paths and clean source identity. This record retains the claims and hashes in
+Git; it does not claim those local files were uploaded to CI.
+
+| Retained record                                          | SHA-256                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `.artifacts/key-80/final-paired-599d0b4/manifest.json`   | `7bce009f98c72bf5200f2c87b3d6644bd9297b510ef99825e4577b9a82affd83` |
+| `.artifacts/key-80/final-packages-599d0b4/result.json`   | `500f1c711a9239b0f932809e79b8c123f056b8680915b8909dbeaf7f80ff074d` |
+| `.artifacts/key-80/final-checks-599d0b4/test-pr.log`     | `79fd290f183755828905dc8f42b64d945800e797966b4189a517eeb71763419d` |
+| `.artifacts/key-80/final-checks-599d0b4/embedded.log`    | `6d00b7a01244236bfe8ba0f66c3fa2234240ba34032b42a0a550088ba32be9ef` |
+| `.artifacts/key-80/final-checks-599d0b4/format-docs.log` | `0a97dba0647e5af663711fa757dc7f48aa93d4bfe5ceb0c384ee10c342d79aa3` |
+
+### Requirement audit and phase review
+
+| Requirements           | Implementation and executed evidence                                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001/002/003, SC-001 | Both canonical journals own funding, transfers and live projection. Shared mixed-tree, fixed-grant, zero/omitted membership and journal-fold assertions pass on both engines.                                                                             |
+| FR-004/005/006, SC-002 | Observation-time deficits, bounded consumable use, reusable evidence, stored empty settlement and multilevel ancestor history pass, including repeated known usage and zero remainders.                                                                   |
+| FR-007, SC-003         | Shared exact replay, conflict, denial replay and injected rollback compare actual journal facts. Native lost-response cascade recovery and borrowed rollback pass.                                                                                        |
+| FR-008/010, SC-004     | Real native blocking proves both sibling orders, request/settlement serialization, stale repeatable-read full retry, independent roots and observation overflow rejection. Both engines pass 1,025 MAX_SAFE turnover cycles without gross-total overflow. |
+| FR-009/011, SC-005     | Native permissions/tenant isolation, coherent reads, adapters, generation 5 compatibility, exact reinstall/trigger drift, public types and corrected installed consumers pass. Fresh-only compatibility and projection semantics are documented.          |
+| FR-012                 | This feature retains its own clean-revision paired, archive and focused Embedded evidence, with exact hashes and explicit exclusions.                                                                                                                     |
+
+Parent review of the Terra-authored code and documents is complete. Independent
+Terra correctness and requirement audits found no remaining functional gap.
+Ponytail review ran after every phase; final result: "Lean already. Ship."
+All T001-T019 work is complete, including the PR description prepared from the
+repository template. The original planning-only stop was superseded by explicit
+implementation authorization. `.specify/extensions.yml` contains no post-implement
+hooks. No additional convergence tasks are needed.
+
+One draft PR remains the delivery unit: [PR #68](https://github.com/keynes-dev/keynes/pull/68).
+The publication step pushes these commits and replaces its planning-only body.
+CI results are not claimed by this local qualification record; the PR reports
+its current head checks separately. Linear remains In Progress until merge and
+required acceptance. No phase issues or PR stack were created.
+
+### Evidence boundaries
+
+NOT RUN: full Hosted/Embedded release readiness, live or managed providers,
+broad security or performance qualification, Node/OS release matrices,
+cross-authority recovery, registry publication and production operations.
+The recorded native TLS and pooler tests qualify only their specific profiles;
+focused Embedded source checks do not establish installed Embedded release
+readiness. Historical prerequisite and earlier failed attempts do not qualify
+the final candidate. No replenishment, additional grants, Resource/Policy
+redesign, workflow changes or temporary second quantity authority are included.
