@@ -167,13 +167,15 @@ describe("repository organization", () => {
     }
   });
 
-  it("runs contracts through Turbo without a duplicate generator test invocation", () => {
+  it("runs checks before sequential package tests without a duplicate generator test invocation", () => {
     const scripts = requireObject(
       readJsonObject(join(repositoryRoot, "package.json")),
       "scripts",
     );
     expect(scripts["test:pr"]).not.toContain("pnpm test:generator");
-    expect(scripts["test:pr"]).toContain("turbo run quality typecheck test");
+    expect(scripts["test:pr"]).toContain(
+      "turbo run quality typecheck && tsc --project tsconfig.tests.json --noEmit && turbo run test --concurrency=1",
+    );
     expect(scripts["test:generator"]).toBe(
       "pnpm --filter @keynes/database test",
     );

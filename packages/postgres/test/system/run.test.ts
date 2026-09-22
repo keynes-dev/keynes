@@ -1974,6 +1974,7 @@ it.each(["selected", "full"])(
         await child.terminate();
       }
       const args: string[] = JSON.parse(await readFile(output, "utf8"));
+      expect(args).toContain("--maxWorkers=1");
       if (scope === "selected") {
         expect(args).toContain("--config");
         expect(args[args.indexOf("--config") + 1]).toMatch(

@@ -29,7 +29,7 @@
     "test": "turbo run test",
     "check:deps": "turbo boundaries --ui=stream",
     "check:repo": "pnpm generate:check && turbo run quality typecheck && pnpm check:deps",
-    "test:pr": "pnpm generate:check && pnpm test:repository && pnpm exec vitest run scripts/run-sqlite-postgres.test.ts scripts/run-package-split.test.ts packages/postgres/test/system/run.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**' && turbo run quality typecheck test && tsc --project tsconfig.tests.json --noEmit && pnpm check:deps",
+    "test:pr": "pnpm generate:check && pnpm test:repository && pnpm exec vitest run scripts/run-sqlite-postgres.test.ts scripts/run-package-split.test.ts packages/postgres/test/system/run.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**' && turbo run quality typecheck && tsc --project tsconfig.tests.json --noEmit && turbo run test --concurrency=1 && pnpm check:deps",
     "test:sqlite-postgres": "node scripts/run-sqlite-postgres.ts",
     "test:local": "pnpm --filter @keynes/sdk test:local",
     "test:remote": "pnpm --filter @keynes/postgres test:remote",

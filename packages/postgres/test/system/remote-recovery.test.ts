@@ -1193,7 +1193,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         },
       });
     }
-  }, 20_000);
+  });
 });
 
 function operationKey(suffix: string): string {
