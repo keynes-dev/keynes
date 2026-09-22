@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Compose application policies into Budget requests
+# Specification quality checklist: Compose application policies into Budget requests
 
 **Purpose**: Validate specification completeness and quality before planning.
 
@@ -6,33 +6,31 @@
 
 **Feature**: [spec.md](../spec.md)
 
-## Content Quality
+## Content quality
 
-- [x] No implementation prescriptions in user requirements; existing product boundaries are named where necessary.
-- [x] Focused on user value and business needs.
-- [x] Written for stakeholders with the existing Budget vocabulary.
-- [x] All mandatory sections completed.
+- [x] Public behavior is described without prescribing source layout or implementation bodies.
+- [x] The specification focuses on developer outcomes and Budget authority boundaries.
+- [x] Terms are defined in the feature vocabulary.
+- [x] All mandatory sections are complete.
 
-## Requirement Completeness
+## Requirement completeness
 
-- [x] No unresolved clarification markers remain.
+- [x] No clarification markers remain.
 - [x] Requirements are testable and unambiguous.
 - [x] Success criteria are measurable.
-- [x] Success criteria describe observable outcomes rather than implementation choices.
-- [x] Acceptance scenarios cover each user story.
-- [x] Edge cases are identified.
-- [x] Scope is clearly bounded.
+- [x] Success criteria describe observable contract outcomes.
+- [x] Every user story has acceptance scenarios and an independent test.
+- [x] Edge cases cover validation, lifecycle, typing, replay and provider failure.
+- [x] Scope and ownership are explicit.
 - [x] Dependencies and assumptions are identified.
 
-## Feature Readiness
+## Feature readiness
 
-- [x] All functional requirements have acceptance criteria.
-- [x] User scenarios cover primary flows.
-- [x] Success criteria are verifiable by the planned checks.
-- [x] Implementation choices remain in the plan and contracts.
+- [x] Every functional requirement maps to planned acceptance work.
+- [x] The primary request and preparation paths are independently testable.
+- [x] The specification distinguishes current behavior, planned behavior and `NOT RUN` evidence.
+- [x] ADR-0014 and constitution 13.0.0 resolve the former callback prohibition.
 
-## Clarification scan
+## Reassessment notes
 
-No critical ambiguities detected worth formal clarification. Zero questions asked; the preceding architecture recommendation was explicitly accepted. Functional scope, domain/data, interaction, quality attributes, integration, failure cases, constraints, terminology and completion signals are Clear. Interface spelling, runtime snapshot validation and package qualification are planning decisions, resolved in research.md and contracts/toolkit.md. No product decisions are deferred.
-
-Checklist remains 16/16 passing after clarification. No regressions or newly changed items. This validates requirements, not implementation.
+This checklist was reassessed after replacing the standalone evaluator design. The earlier 16/16 result was not carried forward. The rewritten specification removes `evaluate`, `evaluateAndSubmit`, evaluator modes and mandatory per-request snapshots. No unresolved product decision remains.

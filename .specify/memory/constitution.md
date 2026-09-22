@@ -1,11 +1,11 @@
 <!--
 Sync Impact Report
-- Version change: 11.0.0 -> 12.0.0
-- Rationale: adopt customer-owned evaluation and separate SQLite/PostgreSQL accounting implementations.
-- Modified principles: I, one authority per Budget; II, customer evaluation ownership; III, application-owned policies and database-enforced requests; IV, shared behavior across separate engines.
+- Version change: 12.0.0 -> 13.0.0
+- Rationale: permit one optional application Policy callback at the SDK request boundary while keeping the submitted database command policy-free.
+- Modified principles: II, application-owned effects; III, application-owned policies and database-enforced requests.
 - Added sections: none.
-- Removed requirements: managed SQL Policy registration, compilation and evaluation; mandatory PGlite and one PostgreSQL implementation.
-- Migration impact: KEY-114 owns breaking Policy retirement; KEY-96 owns package separation. Current managed Policy behavior remains until replaced. Fresh installs only; no automatic upgrade promise.
+- Removed requirements: the SDK allocation method can never accept a Policy callback.
+- Migration impact: KEY-117 adds optional SDK-side preparation before ordinary allocation. Policy-free calls and database commands remain unchanged.
 - Preserved: exact accounting, fixed funding, permissions, settlement, deterministic replay, native verification and revision-scoped evidence.
 - Later work: KEY-122 governs cross-authority amendments; KEY-123/124 own durability/delegation; KEY-125 owns later shared HTTP evaluation outside accounting.
 - Managed templates and commands: unchanged.
@@ -35,7 +35,7 @@ fail and MUST NOT select local state, another service, or another database.
 
 Keynes MUST govern Resource limits and accounting without taking ownership of
 application work. Applications own workflow validity, request construction,
-policy evaluation, evaluation failures, recomputation, effect execution, provider idempotency and retries, usage
+policy definitions, policy inputs, evaluation failures, recomputation, effect execution, provider idempotency and retries, usage
 observation, business outcomes, fallback behavior, and analysis. An approved
 child Budget permits only its Resource envelope; it MUST NOT be represented as
 proof that external work ran or succeeded. Keynes MUST NOT invent, dispatch,
@@ -48,13 +48,15 @@ and prevents a command retry from duplicating external work.
 
 Customers MAY evaluate policy in any language, including SQL, to produce a typed Keynes request or reject an operation. Keynes MUST validate submitted requests and atomically enforce permissions, Budget constraints, available quantities, allocation, settlement and replay. A valid request MAY still be denied. Caller-supplied decision evidence MUST NOT be treated as proof that a policy executed or as permission to allocate.
 
-The adopted allocation boundary MUST NOT require database-managed Policy registration, compilation or evaluation, a Policy result type, callback signature or transaction manager. Optional application helpers MAY define typed interfaces. Customers MUST own evaluation, input validation, failures, fallback, transactions, parameter selection and recomputation. Keynes command replay MUST return the recorded outcome without rerunning customer policy or external work.
+The adopted allocation boundary MUST NOT require database-managed Policy registration, compilation or evaluation, or a transaction manager. Policy-free requests MUST remain valid. The SDK MAY accept one optional customer-owned Policy callback for a request and run it before submitting the final ordinary allocation command. The callback MUST run outside engine-owned allocation locks. It MUST NOT be sent to the database or treated as authority. Optional application helpers MAY define configuration, record and composition contracts without becoming SDK runtime dependencies. Customers MUST own input validation, failures, fallback, transactions, parameter selection and recomputation. Keynes command replay MUST return the recorded outcome without rerunning customer policy or external work.
 
-Customer ownership permits evaluation inside an application, a customer-operated service or later Keynes Cloud hosting. It MUST NOT require a separate evaluator per app. KEY-125 owns versioned HTTP evaluation shared across applications, outside authoritative Budget accounting. Initial hosting MUST remain evaluation-only; mandatory evaluation-and-submission is deferred. KEY-125 MUST NOT become a first Local or first Cloud release gate.
+The SDK MUST expose the same preparation behavior without allocation for previews and recoverable workflows. A Policy MAY construct a different final Resource envelope within the parent vocabulary. The SDK MUST validate that envelope and MUST NOT silently clip it. Only a prepared result may be submitted. A Remote request that supplies both a Policy and an operation key MUST fail before invoking policy; keyed recovery MUST submit a previously prepared command without Policy options.
+
+Customer ownership permits evaluation inside an application, the SDK request path, a customer-operated service or later Keynes Cloud hosting. It MUST NOT require a separate evaluator per app. KEY-125 owns versioned HTTP evaluation shared across applications, outside authoritative Budget accounting. Initial hosting MUST remain evaluation-only; a hosted mandatory evaluation-and-submission path is deferred. KEY-125 MUST NOT become a first Local or first Cloud release gate.
 
 Structured model assessments MAY inform customer decisions. Customers MUST validate assessments and own provider failures and fallback before constructing requests. Production model-provider integration MUST NOT be required for Local or Cloud; KEY-115 owns independent exploration.
 
-KEY-116 JSON Schema-based typed parameters and local snapshots, KEY-117 optional definitions/composition/prepared requests/evaluation records, and KEY-118 fixture regression utilities MUST be delivered for Local preview. Policy use MUST remain optional per workflow. KEY-119 persisted parameters and KEY-120 a schema-driven editor MUST be delivered for Cloud. Shared helper contracts MUST remain optional tooling contracts, not a mandatory policy language.
+KEY-116 JSON Schema-based typed parameters and local snapshots, KEY-117 optional per-request policy preparation and configurable-policy helpers, and KEY-118 fixture regression utilities MUST be delivered for Local preview. Policy use MUST remain optional per request. KEY-119 persisted parameters and KEY-120 a schema-driven editor MUST be delivered for Cloud. Shared helper contracts MUST remain optional tooling contracts, not a mandatory policy language.
 
 ### IV. Consistent behavior across deployments
 
@@ -125,7 +127,7 @@ host, and attempt that produced it.
   a later constitution amendment and its own behavior, migration, concurrency,
   security, recovery, packaging, and operations evidence.
 - Common command contracts MUST have one source owner. Engine-specific SQLite and PostgreSQL accounting implementations MUST remain outside the SDK; KEY-96 owns package boundaries without duplicating canonical contracts.
-- The SDK MUST carry types and perform actions without accounting rules, Policy compiler code or database drivers. Explicit, separately installable runtimes MUST own engine behavior. Application policy tooling MUST remain separate from allocation.
+- The SDK MUST carry types, invoke an optional customer Policy before submission and perform actions without accounting rules, Policy compiler code, schema libraries, provider adapters or database drivers. Explicit, separately installable runtimes MUST own engine behavior. Optional policy tooling MUST remain outside authoritative allocation.
 - Numeric range, decimal and rounding requirements MUST be justified by product needs during runtime design. PostgreSQL numeric behavior MUST NOT define a universal policy language. Exact accounting, deterministic replay and explicit invalid-input errors MUST remain; this amendment changes no numerical semantics.
 - Supported SQL access MUST remain usable from different application languages without committing to another SDK. Customers control their deployments; guarantees apply to supported operations and MUST NOT promise to prevent owner bypass.
 
@@ -215,4 +217,4 @@ equivalence, and claims that exceed retained evidence. Governance review does
 not replace technical judgment: every rule and exception MUST be justified by
 the concrete correctness, security, operability, or product risk it controls.
 
-**Version**: 12.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-19
+**Version**: 13.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-21

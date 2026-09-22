@@ -1,118 +1,105 @@
-# Implementation Plan: Compose application policies into Budget requests
+# Implementation plan: Compose application policies into Budget requests
 
 **Branch**: `key-117-compose-application-policies-into-budget-requests` | **Date**: 2026-09-21 | **Spec**: [spec.md](spec.md)
 
-**Input**: `docs/features/key-117-compose-application-policies-into-budget-requests/spec.md`
-
 ## Summary
 
-Add one optional `@keynes/policy` distribution containing the accepted parameter functions, an evaluator for one customer function, independent-ceiling composition and a convenience evaluate-and-submit operation. The immutable evaluation is its record; only a prepared variant contains a request. Existing Budget commands retain all accounting authority and transaction/replay semantics. No policy registry, execution graph, model integration or persistence manager is introduced.
+Add one optional, per-call Policy to the SDK's Budget request path and expose the same preparation without allocation. The SDK captures the proposal, invokes customer code once and validates its `PolicyResult`. Only a prepared final request reaches the existing SQLite or PostgreSQL authority. Plain requests keep their current contract.
 
-This is a documentation plan. Implementation, runtime tests and archive qualification are NOT RUN. The user requested a stop before implementation.
+Consolidate KEY-116 under an optional `@keynes/policy` package for configurable-Policy construction, snapshots, records and `minimumCeilings`. The SDK owns only callback and result types and cannot depend on toolkit schema, Zod or provider code.
 
-## Technical Context
+This is a documentation plan. Implementation, runtime tests, provider execution, archive qualification and publication are `NOT RUN`.
 
-**Language/Version**: TypeScript 7.0.2, ESM, Node.js >=24; package consumers qualified on the repository's supported Node matrix.
+## Technical context
 
-**Primary Dependencies**: Reuse Ajv 8.20.0, canonicalize 4.0.0, json-schema-to-ts 3.1.1 and optional Zod 4.6.5 from KEY-116. `@keynes/policy` depends on `@keynes/sdk` for resolvable public types; the dependency never points back. No new third-party dependency is planned.
+**Language/version**: TypeScript 7.0.2, ESM, Node.js >=24.
 
-**Storage**: None owned by toolkit. Applications retain complete parameter snapshots, records, fixtures and recovery attempts. Existing private in-memory SQLite and durable PostgreSQL remain the authorities.
+**Primary dependencies**: SDK core uses no new dependency. The optional toolkit reuses Ajv 8.20.0, canonicalize 4.0.0, json-schema-to-ts 3.1.1 and optional Zod 4.6.5 from KEY-116.
 
-**Testing**: Existing Vitest 4.1.11, TypeScript consumer checks, testkit package-isolation helpers, SDK Local tests and native PostgreSQL system runner.
+**Storage**: None added. Applications retain Policy records, parameter snapshots, assessments and recoverable submission attempts. Existing SQLite and PostgreSQL authorities remain unchanged.
 
-**Target Platform**: Node applications; no browser qualification or hosted execution.
+**Testing**: Existing Vitest, SDK Local tests, native PostgreSQL system runner, type consumers and package-isolation helpers.
 
-**Project Type**: Optional application library with an installable archive, not a service.
+**Target platform**: Node applications. No browser or hosted evaluator qualification.
 
-**Performance Goals**: One policy invocation per evaluation, no toolkit network/database calls, ceiling composition O(total supplied entries). Canonical serialization retains its existing sorting cost. No latency/throughput or memory-scale claim without separate measurements.
+**Performance goals**: One Policy invocation per fresh decision. No Policy invocation during command replay. No latency claim for customer code or providers.
 
-**Constraints**: Nonnegative safe-integer quantities; explicit runtime resource vocabulary; declaration-verified immutable snapshot; only prepared outcomes submit; no hidden retries; strict captured JSON; existing evidence limits; optional Zod import isolation.
+**Constraints**: Policy-free compatibility; one callback per call; immutable captured proposal; strict final envelope validation; no policy plus Remote operation key; no hidden retry, persistence or transaction management.
 
-**Scale/Scope**: One policy function per evaluation and one realistic order-policy consumer. Customer code may compose arbitrary rules; no scheduler, global cache, registry or per-policy state.
+## Constitution check
 
-## Constitution Check
+Pre-research and post-design checks PASS against constitution 13.0.0.
 
-Pre-research check PASS against constitution 12.0.0. Post-design check PASS against the same gates; no amendment or exception is required.
+| Gate                            | Result and planned proof                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| I: one authority                | PASS. Policy preparation changes no Budget state; existing commands remain the only accounting authority.              |
+| II: application-owned effects   | PASS. Customer code owns rules, facts, providers, fallback and external work.                                          |
+| III: optional Policy middleware | PASS. One optional SDK callback runs before command submission; direct requests and supported SQL access remain valid. |
+| IV: deployment consistency      | PASS. The SDK prepares one engine-neutral final envelope; Local and native PostgreSQL exercise the same outcomes.      |
+| V: test-first evidence          | PASS. Every behavioral phase begins with an observed failing check and ends with revision-scoped evidence.             |
+| Privacy and recovery            | PASS. Nothing is captured implicitly; replay submits a retained command without rerunning Policy.                      |
 
-| Gate                                   | Pre-research | Post-design and planned proof                                                                                                                                                                |
-| -------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I: one authority and atomic accounting | PASS         | Toolkit allocates nothing during evaluation. Existing Local/native command tests prove exact submission, denial and rollback. No database schema changes.                                    |
-| II: application-owned effects          | PASS         | Customer function owns external work, input validity, freshness and composition. Convenience submits once; no retry or effect execution framework.                                           |
-| III: optional policy tooling           | PASS         | Direct Budget requests unchanged. Plain optional callback and record contracts remain outside allocation. Evidence is never authority.                                                       |
-| IV: deployment consistency             | PASS         | Shared prepared envelopes are exercised on SQLite and native PostgreSQL; remote replay/conflict and borrowed rollback retain their actual capability scope. No Local crash-recovery promise. |
-| V: test-first and scoped evidence      | PASS         | tasks.md orders failing behavioral checks before implementation. quickstart.md separates source, native and archive commands; all behavioral evidence currently NOT RUN.                     |
-| Privacy and validation                 | PASS         | Trusted declaration restoration, safe quantities, strict caller-selected captured input and controlled failure codes. No implicit secrets or raw exceptions retained.                        |
-| Ownership and delivery                 | PASS         | One issue/branch/feature/PR. Existing parameter contract moved without format change; fixture/hosted consumers remain separate features. No managed Spec Kit edits.                          |
+No exception is required. ADR-0014 and the 13.0.0 amendment resolve the former prohibition on callbacks in the allocation API.
 
-No release qualification is inferred from planning or existing prerequisite evidence. Native TLS, concurrency, permissions and caller transaction regression gates remain required by the existing suite; this feature adds no new auth, tenant storage or durable engine. Provider execution, benchmark SLA, hosted operating acceptance, browser accessibility and database migrations are N/A because none is introduced.
+## Project structure
 
-## Project Structure
-
-### Documentation (this feature)
+Planned source paths:
 
 ```text
-docs/features/key-117-compose-application-policies-into-budget-requests/
-  spec.md
-  plan.md
-  research.md
-  data-model.md
-  contracts/toolkit.md
-  quickstart.md
-  checklists/requirements.md
-  tasks.md
-```
+packages/sdk/src/
+  policy.ts                 # Policy and PolicyResult contracts plus shared preparation
+  budget.ts                 # Local request and prepareRequest entry points
+  remote/public-types.ts    # Remote request and prepareRequest contracts
+  remote/result-mapping.ts  # Remote wrapper integration
 
-### Source Code (repository root)
-
-Planned paths, not files created by this documentation phase:
-
-```text
-packages/policy/                       # move packages/policy-parameters here
-  package.json
-  tsconfig.json
-  tsconfig.build.json
-  README.md
-  LICENSE
-  src/index.ts                        # existing parameter exports plus toolkit
-  src/parameters.ts                   # accepted KEY-116 implementation
+packages/policy/            # renamed private KEY-116 workspace
+  src/parameters.ts
   src/snapshot.ts
-  src/schema.ts
-  src/zod.ts                          # only optional Zod entrypoint
-  src/evaluation.ts                   # definitions, outcomes, record and evaluator
-  src/ceilings.ts                     # shared name/amount and ceiling validation
-  test/evaluation.test.ts
-  test/ceilings.test.ts
-  test/submission.test.ts
-  test/types.test.ts
-  test/consumer.test.ts
-  test/fixtures/order-policy.ts
-  test/package/qualify.ts
-  test/package/consumer.mts
-packages/policy/test/local-integration.test.ts
-packages/postgres/test/system/policy-toolkit.test.ts
+  src/configure.ts           # configured-Policy construction and records
+  src/ceilings.ts
+  src/zod.ts
 ```
 
-Retain the existing moved parameter test files. Integrate new native tests into the actual runner selected by `pnpm test:ci:postgresql`; do not leave an undiscovered test file. Build can use `tsc --project tsconfig.build.json`; add machinery only if emitted exports require it. Local integration lives in the toolkit with a development-only SQLite adapter dependency. Native tests resolve the toolkit through root development dependencies, never an SDK-to-toolkit dependency or a circular package graph. Existing testkit helpers own archive isolation. Update active workspace references, package metadata/lockfile, Turbo tags where required, and `tsconfig.tests.json` for moved tests; do not add a new framework.
+Existing SDK public and package-compatibility tests own callback behavior, operation admission, typing and Local integration. PostgreSQL system tests own Remote replay and transaction boundaries. Toolkit tests own configuration, snapshots, records, assessment fixtures and archive isolation.
 
-**Structure Decision**: One optional package owns parameter validation and evaluation contracts. `evaluation.ts` owns one result/record model and the small convenience operation; `ceilings.ts` owns the shared amount and name checks. No separate record repository, submit service or orchestration modules.
+## Design
 
-Run the toolkit Local integration file explicitly with the Vitest command in quickstart.md and T020. The existing `pnpm test:local` selection remains unchanged and supplies separate regression evidence; it does not discover the new toolkit file.
+### SDK request preparation
+
+`Budget.request(resources, { policy })` and `Budget.prepareRequest(resources, { policy })` call one shared preparation function. The proposal is captured before invoking customer code. A Policy returns `prepared`, `rejected`, `review_required` or `failed`. The SDK captures and validates that result before exposing it or submitting its final request.
+
+Policy-free `request(resources, options?)` retains its current return and proposal-key inference. Policy-enabled request results distinguish non-submission from allocation approval or denial. Their child Budget Resource type comes from the Policy's declared final Resource vocabulary, because the Policy may change membership.
+
+Remote options reject `policy` plus `operationKey` before proposal capture or callback invocation. `prepareRequest` accepts Policy but no operation key. Recovery persists the final request, evidence, target and key before calling ordinary `request` without Policy.
+
+### Lifecycle and authority
+
+The public SDK wrapper admits the operation before reading caller-controlled proposal or Policy properties. An admitted asynchronous Policy participates in close draining. Calls after close reject asynchronously before inspecting input. Policy failures remain Policy failures; allocation errors and denials keep their existing meanings.
+
+Policy runs before the database command and outside engine-owned locks. Borrowed PostgreSQL callers still own their transaction. The SDK sends no callback, assessment or Policy result to SQLite or PostgreSQL.
+
+### Optional toolkit
+
+Plain Policies use SDK types directly. `@keynes/policy` preserves KEY-116 declarations and snapshot bytes and adds a configured-Policy constructor. Without an explicit snapshot it selects and validates declaration initials once. With an explicit snapshot it restores against the trusted declaration before returning the callback.
+
+The toolkit may create a portable Policy record containing caller-selected JSON, parameter identities and the captured result. It never captures arbitrary closure state, credentials or raw thrown values. `minimumCeilings` only computes independent minima. Customer code explicitly decides whether to reject or construct reduced quantities.
+
+The recorded-assessment fixture defines a typed available or unavailable answer. Policy code owns the response to either state. No Jev package, provider adapter or credential boundary is added.
 
 ## Delivery sequence
 
-1. Verify merged prerequisites and write the realistic failing consumer before finalizing imports.
-2. Move existing parameter source and qualify unchanged behavior; establish new outcome/types and shared validation.
-3. Deliver US1 evaluation, exact ceiling checking and immutable records without allocation.
-4. Deliver US2 minimum ceilings and explicit exact/reduce behavior.
-5. Deliver US3 one-shot convenience and real Local/native submission/recovery checks.
-6. Deliver US4 compiled archive and fixture restoration consumer, then run complete feature acceptance.
+1. Lock SDK callback/result types and policy-free compatibility with failing consumer and lifecycle checks.
+2. Implement shared preparation, then integrate it into Local request and explicit preview.
+3. Add Remote preparation, recovery rules and native transaction/replay coverage.
+4. Move KEY-116 into the optional toolkit and add configured Policies, records, ceilings and recorded-assessment fixtures.
+5. Qualify source behavior and installed SDK/toolkit archives, then reconcile every requirement at one revision.
 
-Each behavioral phase starts with an observed failing check. Phase boundaries include a read-only Ponytail review, evaluation of findings and a local commit before advancing during the later implementation run. No phase sub-issues or additional lifecycle. Source tests do not replace native/archive qualification. KEY-88 consumes the retained toolkit archive evidence; it does not own unfinished feature tests.
+Each phase ends with a read-only Ponytail review, evaluation of its findings, relevant verification and a local commit before the next phase. One feature remains one PR.
 
-## Design outputs and verification
+## Verification
 
-[Research](research.md) records decisions and rejected alternatives. [Data model](data-model.md) owns record/entity invariants. [Toolkit contract](contracts/toolkit.md) owns public semantics, validation order and distribution. [Quickstart](quickstart.md) maps runnable planned commands to acceptance. tasks.md is generated only after these design artifacts.
+[quickstart.md](quickstart.md) separates provider-free, Local, native and archive lanes. [contracts/toolkit.md](contracts/toolkit.md) owns the proposed public contract. [data-model.md](data-model.md) defines results and retained data. Existing full gates remain required where the implementation touches their behavior.
 
-## Complexity Tracking
+## Complexity tracking
 
-No constitutional violations. No additional stateful governance objects, runtime dependencies in the SDK, or new policy language.
+No constitutional exception, Policy registry, workflow engine, provider framework, database migration or persistence manager is planned.

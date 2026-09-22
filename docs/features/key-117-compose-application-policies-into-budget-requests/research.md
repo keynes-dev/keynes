@@ -1,61 +1,59 @@
-# Research: application policy toolkit
+# Research: Policy middleware in Budget requests
 
-Research is repository-grounded at base `742de39`, incorporating the accepted architecture comparison and a separate read-only investigation of validation and distribution. This is design evidence, not execution evidence.
+Research is repository-grounded at base `742de39` and incorporates ADR-0014 and constitution 13.0.0. It records design decisions, not runtime evidence.
 
-## Evaluator ownership
+## One Policy at the request boundary
 
-**Decision**: Expose one optional `evaluate` operation over a plain policy definition and one customer function, plus `minimumCeilings` and `evaluateAndSubmit`. Return the immutable evaluation record itself as the discriminated result, so request and record cannot diverge. No `definePolicy` identity wrapper is needed.
+**Decision**: Treat Policy as optional application middleware for one SDK Budget request. Offer `request(resources, { policy })` for the normal path and `prepareRequest(resources, { policy })` for preview and recovery.
 
-**Rationale**: Capturing failures and metadata once hides useful repeated work. Customer code owns multi-rule execution order, precedence, coupled conditions and external dependencies. Evaluation and allocation remain separate. A tiny convenience operation satisfies the issue without owning workflows.
+**Rationale**: This matches how developers describe the work and removes repeated branching around preparation. One shared preparation path avoids drift. Keeping the callback optional preserves direct requests and non-TypeScript access.
 
-**Alternatives considered**: Pure preparation only would leave failure recording to every application and omit the accepted convenience requirement. A registry, multi-policy runner or execution graph introduces ordering, concurrency and partial-failure semantics not needed by the consumer. Keeping both public evaluator and preparation architectures would duplicate contracts.
+**Alternatives considered**: A standalone `evaluate` function duplicates request preparation vocabulary. `evaluateAndSubmit` adds another submission wrapper. A Budget-level default introduces inheritance and override rules. A middleware stack introduces ordering and `next()` semantics with no current consumer need.
 
-**Sources**: [ADR-0013](../../adr/0013-application-owned-policies.md), [request boundary](../../architecture.md#customer-evaluation-and-request-construction), `packages/sdk/src/budget.ts`.
+## Final request construction and typing
 
-## Snapshot trust and resource vocabulary
+**Decision**: Let Policy construct any valid final envelope within the parent Resource vocabulary. Validate it exactly and never clip it. Policy-free calls retain proposal-key child typing; Policy-enabled calls use the Policy's declared output vocabulary.
 
-**Decision**: A plain policy definition includes the accepted parameter declaration and a readonly list of allowed SDK resource member names. Evaluate restores the selected snapshot against that declaration before invoking customer code. Keep KEY-116's explicit functions and exact serialized identity format.
+**Rationale**: Model assessments and coupled business rules may change both membership and quantity. Restrictive ceilings alone cannot express those choices. Inferring the child type from the original proposal would be unsound after transformation.
 
-**Rationale**: TypeScript snapshot types are structurally forgeable. Self-consistent hashes do not prove the expected definition. Existing restoration verifies strict structure, hashes, canonical definition and values without compiling supplied schemas. Generic resource names vanish at runtime; an explicit name list enables offline rejection of unknown names without a Budget or database lookup.
+**Alternatives considered**: Only reducing quantities is simpler but excludes legitimate request construction. Returning a Budget with every parent Resource is sound but needlessly broad when a Policy declares a narrower output vocabulary.
 
-**Alternatives considered**: Trusting `snapshot.values`, verifying hashes alone, or inferring all allowed names from the proposal leaves validation gaps. Opaque ResourceBinding exposes no runtime name list. Declaration-bound method redesign adds no demonstrated benefit.
+## Retry and lifecycle ownership
 
-**Sources**: `packages/policy-parameters/src/snapshot.ts`, `parameters.ts`, `packages/sdk/src/resource-definition-binding.ts`, `resource-binding.ts`. Retain Ajv `ownProperties: true` and accepted restoration diagnostic order.
+**Decision**: Reject Policy plus a caller-supplied Remote operation key before any caller-controlled inspection. Recoverable callers prepare, persist the final command and then submit without Policy. Admit preparation before reflection and include asynchronous Policy work in close draining.
 
-## Quantity semantics and reduction
+**Rationale**: A keyed command must already be stable. Rerunning customer code or a provider under the same key can change canonical input and obscure whether a call is a retry or a new decision. Existing SDK lifecycle guarantees must cover the added asynchronous boundary.
 
-**Decision**: Use SDK resource member names and existing public amount types. Quantities are nonnegative safe integers, not arbitrary parameter numbers. Minimum composition is linear in supplied entries. Exact checking is default; explicit reduction retains proposal membership, including zero, and never introduces omitted resources.
+**Alternatives considered**: Automatically persisting or retrying Policy output would require storage and erase Local/Remote capability differences. Allowing a key on the integrated path encourages Policy reruns during recovery.
 
-**Rationale**: `packages/database/schema.json` defines integer `Amount` and non-empty `ResourceEnvelope`. Parameter JSON also permits fractions, so its JSON validation alone cannot validate quantities. SDK member names differ from authority canonical names; the toolkit must not recreate database name resolution. Independent ceilings are safe to intersect, but coupled rules require custom construction and exact checking.
+## Parameter snapshots
 
-**Alternatives considered**: Unconditionally clipping a request changes work silently. A general constraint solver or callback scheduler is unnecessary. Checking live availability during evaluation would create stale-state assumptions and unnecessary authority coupling.
+**Decision**: Preserve KEY-116 snapshot formats, but do not require snapshots for plain Policies or create them per request. A configured-Policy constructor validates declaration initials once. Callers provide explicit snapshots for override selection, restoration and tests.
 
-## Privacy and records
+**Rationale**: A snapshot identifies one configuration version. It is useful when values change, but it is not the decision, a complete fixture or a replay command. Making it mandatory on every call adds bookkeeping without more authority or reproducibility.
 
-**Decision**: Accept only explicit caller-selected JSON as `capturedInput`. The returned evaluation is also its portable record. Preserve original proposal, mode, selected parameter identities and available composed constraints. Do not add an input-projection callback, automatic timestamps, random record IDs, full snapshots or raw exception messages. Strictly capture/freeze record data using the existing parameter JSON machinery inside the consolidated package.
+**Alternatives considered**: Embedding parameters in every Policy result risks secrets and record growth. Trusting snapshot values without declaration-bound restoration loses tamper and compatibility checks.
 
-**Rationale**: Identical explicit evaluations can yield identical canonical records without implying arbitrary customer code is deterministic. Complete snapshot and sufficient facts are retained separately by the application. Budget evidence is currently a flat scalar object with at most 32 fields and 8192 canonical UTF-8 bytes, not a record store.
+## Toolkit ownership
 
-**Alternatives considered**: Automatic serialization of arbitrary input risks secrets and side effects. A projection callback adds execution order and another failure path while ordinary customer code can construct the same JSON before evaluation. A redacted record cannot promise full replay. A new cryptographic identity scheme is unnecessary: applications can use existing canonical JSON and content hashing when desired. Hashes are not attestations.
+**Decision**: SDK owns only `Policy`, `PolicyResult`, preparation and validation. Consolidate KEY-116 into optional `@keynes/policy` for configuration, snapshots, portable records and `minimumCeilings`.
 
-## Submission and recovery
+**Rationale**: The common request path needs no Ajv, canonicalization library, Zod or provider dependency. One optional package avoids coordinating separate parameter and Policy helper packages.
 
-**Decision**: `evaluateAndSubmit` accepts a customer submission callback, preserves its result type and rejects with its original failure. Non-prepared outcomes never invoke it. Recoverable callers use separate evaluation and ordinary Budget submission, persisting authority/parent, request, evidence and operation key before the first call.
+**Alternatives considered**: Putting schema support in the SDK burdens every consumer. Keeping a second parameter package adds version coordination without an independent published use case.
 
-**Rationale**: Local creates a new internal identity for every public request. Remote exposes operation keys. A universal retry abstraction would conceal this distinction. Exact retry of a recorded denial remains denial; a new key may reuse the prepared result if application freshness permits. Borrowed PostgreSQL transaction results remain provisional until caller commit.
+## Jev and compatible assessments
 
-**Alternatives considered**: A new submission class, persistence callback protocol, generic Budget union or retry loop would duplicate existing SDK behavior or erase Local/Remote result types. Toolkit-managed transactions violate caller ownership.
+**Decision**: Treat an assessment as validated customer input. The example records an available or unavailable answer, then closes over that value in Policy code. Provider-free tests substitute recorded answers.
 
-**Sources**: `packages/sdk/src/remote/public-types.ts`, `remote/result-mapping.ts`, `remote/references.ts`, `packages/database/contract-tests/scenarios/replay.ts`.
+**Rationale**: Jev supplies typed judgments; application code owns thresholds and actions. The distinction between unavailable and negative prevents accidental approval or fabricated confidence. This boundary also permits other providers without a Keynes compatibility framework.
 
-## Distribution and verification
+**Alternatives considered**: A toolkit provider interface, credentials API or live Jev adapter is premature. Persisting assessments in the Budget ledger would confuse evidence with authority.
 
-**Decision**: Move the private source workspace to `packages/policy`, named `@keynes/policy`, with compiled root exports and optional `/zod`. Preserve root parameter operations and snapshot formats. Declare a toolkit-to-SDK dependency for public type resolution; SDK has no dependency back to the toolkit. Reuse existing Ajv/canonicalize/json-schema-to-ts dependencies and optional pinned Zod peer. Keep the package private until the separate publication feature authorizes release.
+## Distribution and evidence
 
-**Rationale**: One package owns shared optional contracts. Emitted SDK type imports still require a resolvable SDK package. Current source-only consumer checks are not archive evidence. Use existing testkit package isolation helpers and add one toolkit archive qualification lane, leaving the four-archive runtime split lane unchanged.
+**Decision**: Qualify SDK-only Policy use separately from the optional toolkit archive. Preserve the existing runtime archive lane and add exact-revision evidence only during implementation.
 
-**Alternatives considered**: Publishing separate parameter and composition packages adds version coordination without an independent consumer need. A source compatibility shim for the private old package is unnecessary. Copying the SDK build runner wholesale is unnecessary; a small build around existing compiler settings can emit both root and Zod entrypoints.
+**Rationale**: Source tests cannot prove emitted declarations or dependency isolation. Passing provider-free checks does not qualify SQLite, PostgreSQL, installed packages or a live provider.
 
-**Migration**: Move source/tests without semantic rewrites; update active workspace imports, package filters and lockfile. Preserve historical KEY-116 evidence and its source-revision paths. Before finalizing imports, implement the realistic consumer as the first failing contract check; if it contradicts this design, revise the owning contracts before expanding implementation.
-
-No unresolved research questions remain. Package spelling is the planned choice, subject to that consumer gate rather than an already published API.
+No unresolved research question remains for implementation. Public names must still pass the first realistic type consumer before implementation expands.

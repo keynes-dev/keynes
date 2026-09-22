@@ -5,6 +5,7 @@
 - **Issue:** [KEY-113](https://linear.app/keynes/issue/KEY-113/document-application-owned-policies-and-the-keynes-request-boundary)
 - **Supersedes in part:** [ADR-0012](0012-postgresql-and-pglite.md) for PGlite Local, one accounting implementation, managed Policy registration/compiler/evaluator and Policy catalog deployment/type-generation requirements; [ADR-0007](0007-direct-postgresql-remote-access.md) for database ownership of Policy decisions
 - **Amends:** [ADR-0006](0006-idiomatic-monorepo.md) for package ownership; adopts SQLite Local again without restoring obsolete APIs or HTTP routing in [ADR-0003](0003-sqlite-and-postgresql.md)
+- **Refined by:** [ADR-0014](0014-policy-middleware-in-budget-requests.md) for one optional SDK-side Policy callback before command submission
 
 ## Context
 
