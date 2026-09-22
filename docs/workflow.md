@@ -6,7 +6,7 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
 
 ## Adopted request and runtime boundary
 
-[ADR-0013](adr/0013-application-owned-policies.md), [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) and constitution 13.0.0 adopt customer-owned policy preparation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests directly or through optional SDK Policy middleware; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove policy execution or grant authority.
+[ADR-0013](adr/0013-application-owned-policies.md), [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md), [ADR-0015](adr/0015-direct-policy-decisions-and-command-result-lookup.md), and constitution 14.0.0 adopt application-owned Policy decisions and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests directly or through optional SDK Policy middleware; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement, and replay. Caller decision evidence does not prove policy execution or grant authority.
 
 KEY-114 retired managed SQL Policies and added bounded caller evidence to the
 request contract. KEY-96 implements explicit runtime/package separation; its acceptance record tracks final qualification. Customer Policy definitions,
@@ -85,6 +85,27 @@ appends remaining tasks; it does not replace review or runtime verification.
 Link the PR to the Linear issue using native GitHub linking. Mark Done only after
 merge and required acceptance passes. Task completion or an open PR is insufficient.
 This workflow does not authorize automatic merging or publication.
+
+## Delivery discipline
+
+For a behavior change, add the smallest test that fails for the expected reason
+before implementation. Record why a mechanical or documentation-only change needs
+no behavioral test. Run provider-free and local checks before tests that spend money
+or change an external system.
+
+An accepted plan must name any external state change or paid validation, its inputs,
+its limits, and the evidence it will retain. Obtain explicit authorization before
+that action unless the current request already grants it. Never put credentials or
+other secrets in fixtures, generated files, logs, prompts, or acceptance evidence.
+
+Record evidence as proposed, implemented, verified, failed, skipped, or `NOT RUN`.
+Tie every verification claim to the exact source revision, command, environment,
+and result. A historical or narrower run cannot qualify a later or broader target.
+
+Use `$speckit-constitution` for a constitutional amendment. State the rationale,
+apply the semantic version rule in the constitution, review dependent guidance and
+templates, and record where each removed requirement moved or why it was retired.
+Preserve historical ADR and acceptance bodies. Supersede them with a new record.
 
 ## Publish feature artifacts
 

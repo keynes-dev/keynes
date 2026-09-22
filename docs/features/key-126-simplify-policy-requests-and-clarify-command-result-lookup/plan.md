@@ -66,6 +66,7 @@ docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup
 packages/database/
 ├── schema.json
 ├── contract.json
+├── postgres/migrations/0001-baseline.sql
 └── generated/
 
 packages/sdk/
@@ -75,7 +76,7 @@ packages/sdk/
 └── test/{unit,package}/
 
 packages/postgres/
-├── migrations/0001-baseline.sql
+├── migrations/0001-baseline.sql (generated copy)
 ├── src/generated/
 └── test/{unit,integration,system,package}/
 

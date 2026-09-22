@@ -69,12 +69,12 @@
 
 **Independent Test**: The ownership ledger accounts for every removed substantive requirement, active documents use current APIs and historical ADR/acceptance bodies remain intact.
 
-- [ ] T023 [P] [US3] Add ADR-0015 under `docs/adr/` to supersede ADR-0014's preparation and recovery portions while preserving its Policy middleware decision
-- [ ] T024 [P] [US3] Update current product behavior and application-workflow boundaries in `docs/product.md`
-- [ ] T025 [P] [US3] Update runtime, Policy, receipt and compatibility ownership in `docs/architecture.md`
-- [ ] T026 [P] [US3] Ensure contributor and constitution-amendment mechanics removed from governance are owned in `docs/workflow.md`
-- [ ] T027 [US3] Reconcile `contracts/constitution-ownership.md` against constitution 13 and search active docs/package examples for obsolete `prepareRequest`, high-level `recoverOperation` and `RecoverOperationResult` guidance
-- [ ] T028 [US3] Run documentation checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
+- [x] T023 [P] [US3] Add ADR-0015 under `docs/adr/` to supersede ADR-0014's preparation and recovery portions while preserving its Policy middleware decision
+- [x] T024 [P] [US3] Update current product behavior and application-workflow boundaries in `docs/product.md`
+- [x] T025 [P] [US3] Update runtime, Policy, receipt and compatibility ownership in `docs/architecture.md`
+- [x] T026 [P] [US3] Ensure contributor and constitution-amendment mechanics removed from governance are owned in `docs/workflow.md`
+- [x] T027 [US3] Reconcile `contracts/constitution-ownership.md` against constitution 13 and search active docs/package examples for obsolete `prepareRequest`, high-level `recoverOperation` and `RecoverOperationResult` guidance
+- [x] T028 [US3] Run documentation checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
 
 ---
 

@@ -143,12 +143,12 @@ Remote request with its own operation key.
 Evidence is part of request identity. Reordering equivalent fields replays the
 recorded result, while changing or omitting evidence under a reused remote
 operation key returns `command_conflict`. A replayed denial remains denied
-after availability changes. Request results, history, and remote recovery
+after availability changes. Request results, history, and command-result lookup
 preserve normalized evidence.
 
-Local request options accept only `decisionEvidence`. Remote request options
-also accept `operationKey`; remote creation options accept only
-`operationKey`. Local creation takes amounts only. Unsupported fields,
+Request options accept `decisionEvidence` and an optional `policy`. Remote
+requests also accept `operationKey`, but cannot combine it with `policy`.
+Remote creation options accept only `operationKey`. Local creation takes amounts only. Unsupported fields,
 including retired `policies`, `childPolicies`, `context`, and
 `policyEvidence`, reject asynchronously with `invalid_configuration`.
 Customer evaluation should use its own typed interfaces and error handling.
@@ -168,9 +168,9 @@ or credential. It provides no durable storage, daemon, socket server, or public
 database interface. Deep imports, package metadata imports, and replay controls
 are private.
 
-`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys and read-only operation recovery. Calls after close begins reject with `client_closed` before reading input. Admission remains per procedure, with the existing bounded close deadline and uncertainty handling. Mutation retries reuse the captured input and operation key.
+`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys, and read-only command-result lookup. Calls after close begins reject with `client_closed` before reading input. Admission remains per procedure, with the existing bounded close deadline and uncertainty handling. Mutation retries reuse the captured input and operation key.
 
-`postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or recovery methods. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
+`postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or command-result lookup. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
 
 ## Create a Remote Budget and inspect its command result
 
