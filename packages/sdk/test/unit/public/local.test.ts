@@ -647,13 +647,84 @@ describe("local Keynes facade", () => {
 
       const settled = await approved.budget.settle({ searchQueries: 2 });
       expect(settled.kind).toBe("settled");
+      expect(settled.budget.resources).toMatchObject([
+        {
+          resource: "searchQueries",
+          allocated: 2,
+          available: 0,
+          committed: 0,
+          directUsage: 2,
+        },
+        {
+          resource: "usdCents",
+          allocated: 40,
+          available: 0,
+          committed: 0,
+          directUsage: 50,
+          deficit: 10,
+        },
+      ]);
 
       const inspection = await root.inspect();
       expect(inspection.budget.lifecycle).toBe("active");
+      expect(inspection.budget.resources).toMatchObject([
+        {
+          resource: "searchQueries",
+          allocated: 10,
+          available: 8,
+          committed: 2,
+        },
+        {
+          resource: "usdCents",
+          allocated: 100,
+          available: 60,
+          committed: 40,
+        },
+      ]);
       expect(inspection.history.entries.map(({ kind }) => kind)).toEqual([
         "budget_created",
         "request_approved",
         "request_denied",
+        "budget_settlement_recorded",
+        "budget_settlement_recorded",
+      ]);
+    } finally {
+      await keynes.close();
+    }
+  });
+
+  it("keeps returned quantity in the root projection and records its ancestor settlement", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: {
+        workUnits: { unit: "unit", accountingBehavior: "consumable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({ workUnits: 100 });
+      const request = await root.request({ workUnits: 40 });
+      if (request.status !== "approved") throw new Error("expected approval");
+
+      expect((await root.settle({ workUnits: 0 })).kind).toBe("settling");
+      expect((await request.budget.settle({ workUnits: 10 })).kind).toBe(
+        "settled",
+      );
+
+      const inspection = await root.inspect();
+      expect(inspection.budget).toMatchObject({ lifecycle: "settled" });
+      expect(inspection.budget.resources).toMatchObject([
+        {
+          resource: "workUnits",
+          allocated: 100,
+          available: 0,
+          committed: 10,
+          directUsage: 0,
+        },
+      ]);
+      expect(inspection.history.entries.map(({ kind }) => kind)).toEqual([
+        "budget_created",
+        "request_approved",
+        "budget_settlement_recorded",
         "budget_settlement_recorded",
         "budget_settlement_recorded",
       ]);

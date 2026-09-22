@@ -183,6 +183,68 @@ describe("PostgreSQL configured root authorization and rollback", () => {
     expect(await keynes.inspectState()).toMatchObject({ budgets: 0 });
   });
 
+  it.each(["after_quantity_movement", "after_ancestor_finalization"] as const)(
+    "rolls back terminal settlement at %s without retaining a command",
+    async (checkpoint) => {
+      keynes = await openPostgresqlContractTestHost();
+      const command = resourceBoundRoot(
+        ROOT_COMMAND_ID,
+        `terminal_${checkpoint}`,
+      );
+      await keynes.clientFor("definer-fixture").defineResources({
+        commandId: RETRY_DEFINITION_ID,
+        definitions: command.definitions,
+      });
+      const created = await keynes
+        .clientFor("product-fixture")
+        .createBudget(command);
+      const resourceTypeId =
+        created.budget.resources[0]?.resourceType.resourceTypeId;
+      if (resourceTypeId === undefined)
+        throw new Error("Missing root Resource");
+      const child = await keynes.clientFor("product-fixture").requestBudget({
+        commandId: "47000000-0000-4000-8000-000000000001",
+        parentBudgetId: created.budget.budgetId,
+        resources: [{ resourceTypeId, amount: 10 }],
+      });
+      expect(child.kind).toBe("approved");
+      if (child.kind !== "approved") throw new Error("Missing child Budget");
+      await keynes.clientFor("product-fixture").settleBudget({
+        commandId: "48000000-0000-4000-8000-000000000001",
+        budgetId: created.budget.budgetId,
+        usage: [{ resourceTypeId, amount: 0 }],
+      });
+      const before = await keynes.inspectState();
+
+      await expect(
+        keynes.clientFor("product-fixture", { checkpoint }).settleBudget({
+          commandId: "46000000-0000-4000-8000-000000000001",
+          budgetId: child.childBudgetId,
+          usage: [{ resourceTypeId, amount: 0 }],
+        }),
+      ).rejects.toThrow(`private rollback checkpoint: ${checkpoint}`);
+
+      expect(await keynes.inspectState()).toEqual(before);
+      await expect(
+        keynes.clientFor("product-fixture").settleBudget({
+          commandId: "46000000-0000-4000-8000-000000000001",
+          budgetId: child.childBudgetId,
+          usage: [{ resourceTypeId, amount: 0 }],
+        }),
+      ).resolves.toMatchObject({ kind: "settled", replayed: false });
+      await expect(
+        keynes.clientFor("reader-fixture").getBudget({
+          budgetId: created.budget.budgetId,
+        }),
+      ).resolves.toMatchObject({
+        budget: {
+          lifecycle: "settled",
+          resources: [expect.objectContaining({ available: 0 })],
+        },
+      });
+    },
+  );
+
   it("rolls back an injected partial configured creation without changing unrelated state", async () => {
     const owner = await openInstalledPostgresDatabase(
       requirePostgresqlSystemAdministratorUrl(),
@@ -248,7 +310,7 @@ describe("PostgreSQL configured root authorization and rollback", () => {
         readonly history: string;
         readonly unrelated_budgets: string;
         readonly unrelated_holdings: string;
-        readonly unrelated_allocated: string;
+        readonly unrelated_live: string;
         readonly unrelated_history: string;
       }>(
         `select
@@ -268,9 +330,10 @@ describe("PostgreSQL configured root authorization and rollback", () => {
              where budget_id = $2::uuid) as unrelated_budgets,
            (select count(*)::text from keynes_internal.budget_resources
              where budget_id = $2::uuid) as unrelated_holdings,
-           (select coalesce(sum(allocated_amount), 0)::text
-             from keynes_internal.budget_resources
-             where budget_id = $2::uuid) as unrelated_allocated,
+           (select coalesce(sum(
+             case when destination_budget_id = $2::uuid then amount else 0 end -
+             case when source_budget_id = $2::uuid then amount else 0 end
+           ), 0)::text from keynes_internal.quantity_movements) as unrelated_live,
            (select count(*)::text from keynes_internal.budget_history_entries
              where command_id = $2::uuid) as unrelated_history`,
         [MALFORMED_PROJECTION_ROOT_ID, ROOT_COMMAND_ID],
@@ -284,7 +347,7 @@ describe("PostgreSQL configured root authorization and rollback", () => {
         history: "0",
         unrelated_budgets: "1",
         unrelated_holdings: "1",
-        unrelated_allocated: "10",
+        unrelated_live: "10",
         unrelated_history: "1",
       });
     } finally {

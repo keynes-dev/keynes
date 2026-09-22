@@ -463,6 +463,20 @@ async function checkObjects(client: QueryClient): Promise<void> {
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
       where n.nspname in ('keynes', 'keynes_internal')
+     union all
+     select 'trigger:' || trigger_schema.nspname || '.' || t.tgname || ':' ||
+            relation_schema.nspname || '.' || relation.relname || ':' ||
+            trigger_schema.nspname || '.' || trigger_function.proname || '(' ||
+            replace(pg_get_function_identity_arguments(trigger_function.oid), ', ', ',') || ')' ||
+            ':' || t.tgenabled::text || ':' ||
+            t.tgtype::integer || ':' || case when t.tgqual is null then 'none' else 'when' end
+       from pg_trigger t
+       join pg_class relation on relation.oid = t.tgrelid
+       join pg_namespace relation_schema on relation_schema.oid = relation.relnamespace
+       join pg_proc trigger_function on trigger_function.oid = t.tgfoid
+       join pg_namespace trigger_schema on trigger_schema.oid = trigger_function.pronamespace
+      where relation_schema.nspname in ('keynes', 'keynes_internal')
+        and not t.tgisinternal
      order by object_name`,
   );
   const actual = objects.rows.map(({ object_name }) => object_name);

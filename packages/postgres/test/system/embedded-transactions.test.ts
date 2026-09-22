@@ -228,6 +228,53 @@ describe("embedded PostgreSQL caller-owned transactions", () => {
     });
   });
 
+  it("keeps a borrowed child cascade provisional and rolls back its history", async () => {
+    database = await openFixture();
+    const { resourceTypeId, budgetId } = await seedRoot(database);
+    const before = await definitionTransactionState(database.database);
+    const transaction = await database.beginTransaction();
+    const client = createTransactionClient(transaction);
+    const approved = await client.requestBudget({
+      commandId: REQUEST_COMMAND_ID,
+      parentBudgetId: budgetId,
+      resources: [{ resourceTypeId, amount: 3 }],
+    });
+    expect(approved.kind).toBe("approved");
+    if (approved.kind !== "approved")
+      throw new Error("Expected child approval");
+    await client.settleBudget({
+      commandId: "41000000-0000-4000-8000-000000000002",
+      budgetId,
+      usage: [{ resourceTypeId, amount: 0 }],
+    });
+    await client.settleBudget({
+      commandId: "41000000-0000-4000-8000-000000000003",
+      budgetId: approved.childBudgetId,
+      usage: [{ resourceTypeId, amount: 0 }],
+    });
+    await expect(client.getBudget({ budgetId })).resolves.toMatchObject({
+      budget: {
+        lifecycle: "settled",
+        resources: [expect.objectContaining({ available: 0 })],
+      },
+    });
+    await transaction.rollback();
+    expect(await definitionTransactionState(database.database)).toEqual(before);
+    const reader = await database.beginTransaction();
+    try {
+      await expect(
+        createTransactionClient(reader).getBudget({ budgetId }),
+      ).resolves.toMatchObject({
+        budget: {
+          lifecycle: "active",
+          resources: [expect.objectContaining({ available: 10 })],
+        },
+      });
+    } finally {
+      await reader.rollback();
+    }
+  });
+
   it("rolls back Keynes when the application write fails after approval", async () => {
     database = await openFixture();
     const { resourceTypeId, budgetId } = await seedRoot(database);

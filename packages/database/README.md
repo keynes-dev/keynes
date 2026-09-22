@@ -8,6 +8,9 @@
 
 `packages/database/` owns the ordered command contract and separate SQLite/PostgreSQL accounting sources. `contract.json` and `schema.json` are hand-authored inputs. The package is private and used only by repository build and test tasks.
 
+Both engines derive live quantity from append-only movements. Membership keeps
+usage and deficit evidence, not an allocated balance.
+
 ## Allowed and public edges
 
 `src/sqlite/` owns SQLite accounting and `postgres/migrations/` owns the authored PostgreSQL baseline. Consumers generate or stage selected copies in their own directories. The contract source is the build-time generator input. Its checked-in consumers under `generated/` are the digest and test-only schema types; generated product files live with their owners.
@@ -26,7 +29,7 @@ The current request contract has no managed Policy fields. A request may include
 bounded `decisionEvidence`, which participates in canonical request identity
 and is returned in request outcomes and history. The generated schema remains
 strict: retired Policy fields and other additional properties are invalid rather
-than ignored. Semantic generation 4 is a fresh-install compatibility break;
+than ignored. Semantic generation 5 is a fresh-install compatibility break;
 the PostgreSQL installer can recheck an exact target but does not upgrade an
 older one.
 

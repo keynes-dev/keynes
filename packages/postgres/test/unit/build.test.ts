@@ -32,12 +32,12 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL package build promotion", () => {
-  it("publishes configured creation with generation four compatibility", () => {
+  it("publishes configured creation with generation five compatibility", () => {
     const { source: contract } = loadContract(
       fileURLToPath(new URL("../../../database/", import.meta.url)),
     );
-    expect(contract.remote.semanticGeneration).toBe(4);
-    expect(contract.remote.minimumSdkGeneration).toBe(4);
+    expect(contract.remote.semanticGeneration).toBe(5);
+    expect(contract.remote.minimumSdkGeneration).toBe(5);
     expect(contract.operations).toContainEqual(
       expect.objectContaining({
         method: "validateResources",
@@ -71,7 +71,7 @@ describe("PostgreSQL package build promotion", () => {
     expect(contract.remote.procedures).toContainEqual(
       expect.objectContaining({
         method: "createBudget",
-        revision: 4,
+        revision: 5,
       }),
     );
     expect(installationRecord.expectedTargets).toContain(

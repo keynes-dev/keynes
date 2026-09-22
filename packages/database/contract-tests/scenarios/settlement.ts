@@ -79,7 +79,7 @@ export function registerSettlementContractTests(
       });
       expect(readFirst.budget).toMatchObject({
         lifecycle: "settled",
-        resources: [{ allocated: 10, directUsage: 4, available: 6 }],
+        resources: [{ allocated: 10, directUsage: 4, available: 0 }],
       });
       expect(
         (await client.getBudget({ budgetId: second.budget.budgetId })).budget,
@@ -228,7 +228,7 @@ export function registerSettlementContractTests(
             directUsage: 10,
             subtreeObservedUsage: 15,
             committed: 5,
-            available: 45,
+            available: 0,
             unresolved: false,
             deficit: 0,
           },
@@ -238,6 +238,7 @@ export function registerSettlementContractTests(
         "budget_created",
         "request_approved",
         "request_approved",
+        "budget_settlement_recorded",
         "budget_settlement_recorded",
         "budget_settlement_recorded",
       ]);
@@ -331,7 +332,7 @@ export function registerSettlementContractTests(
       expect(read.budget.resources[0]).toMatchObject({
         directUsage: 4,
         subtreeObservedUsage: 4,
-        available: 6,
+        available: 0,
         unresolved: false,
       });
       expect(
@@ -478,7 +479,7 @@ export function registerSettlementContractTests(
       });
       expect(settledChild.budget.resources[0]).toMatchObject({
         committed: 20,
-        available: 20,
+        available: 0,
         subtreeObservedUsage: 60,
         deficit: 0,
       });
@@ -539,8 +540,8 @@ export function registerSettlementContractTests(
         budget: {
           lifecycle: "settled",
           resources: [
-            { directUsage: 3, available: 7, unresolved: false },
-            { directUsage: 4, available: 16, unresolved: false },
+            { directUsage: 3, available: 0, unresolved: false },
+            { directUsage: 4, available: 0, unresolved: false },
           ],
         },
       });

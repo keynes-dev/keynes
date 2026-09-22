@@ -73,7 +73,13 @@ if (requestResult.status === "approved") {
   expectType<BudgetReference>(requestResult.budget.reference);
 }
 await root.request({ usdCents: 1 });
-await root.settle({ usdCents: 19 }, { operationKey });
+const remoteSettlement = await root.settle({ usdCents: 19 }, { operationKey });
+const [remoteSettledResource] = remoteSettlement.budget.resources;
+if (remoteSettledResource === undefined) {
+  throw new Error("expected remote settlement Resource");
+}
+expectType<number>(remoteSettledResource.available);
+expectType<number>(remoteSettledResource.committed);
 // @ts-expect-error Explicit undefined is not a remote request option.
 await root.request({ usdCents: 1 }, undefined);
 declare const optionalRemoteOptions:

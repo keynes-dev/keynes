@@ -48,6 +48,8 @@ export type RollbackCheckpoint =
   | "after_command_binding"
   | "after_resource_insertion"
   | "after_domain_mutation"
+  | "after_quantity_movement"
+  | "after_ancestor_finalization"
   | "after_history_insertion"
   | "after_result_storage";
 
@@ -55,6 +57,25 @@ export interface ContractClientOptions {
   readonly forbidResourceWrites?: boolean;
   readonly checkpoint?: RollbackCheckpoint;
   readonly dropResponseAfterCommitOnce?: boolean;
+}
+
+export type JournalMovementReason =
+  | "initial_allocation"
+  | "child_grant"
+  | "consumption"
+  | "settlement_return"
+  | "root_release";
+
+export interface JournalMovement {
+  readonly tenantId: string;
+  readonly rootBudgetId: string;
+  readonly commandId: string;
+  readonly resourceTypeId: string;
+  readonly movementId: string;
+  readonly reason: JournalMovementReason;
+  readonly sourceBudgetId: string | null;
+  readonly destinationBudgetId: string | null;
+  readonly amount: number;
 }
 
 export interface ContractClient {
@@ -68,6 +89,7 @@ export interface ContractClient {
 }
 
 export interface ContractTestHost {
+  inspectJournal(): Promise<readonly JournalMovement[]>;
   inspectState(): Promise<{
     resources: number;
     commands: number;
