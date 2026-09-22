@@ -124,6 +124,43 @@ describe("Policy preparation lifecycle", () => {
     }
   });
 
+  it("drains an admitted public Policy preview during close", async () => {
+    const keynes = await createKeynes({
+      runtime: nodeSqlite(),
+      resources: definitions,
+    });
+    try {
+      const root = await keynes.createBudget({ usdCents: 2 });
+      const started = Promise.withResolvers<void>();
+      const gate = Promise.withResolvers<void>();
+      let closed = false;
+      const pending = root.prepareRequest(
+        { usdCents: 1 },
+        {
+          policy: async () => {
+            started.resolve();
+            await gate.promise;
+            return { kind: "prepared", request: { usdCents: 1 } };
+          },
+        },
+      );
+      await started.promise;
+      const closing = keynes.close().then(() => {
+        closed = true;
+      });
+
+      expect(closed).toBe(false);
+      gate.resolve();
+      await expect(pending).resolves.toEqual({
+        kind: "prepared",
+        request: { usdCents: 1 },
+      });
+      await closing;
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("rejects public Policy work after close before reading caller-controlled values", async () => {
     const keynes = await createKeynes({
       runtime: nodeSqlite(),

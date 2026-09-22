@@ -64,6 +64,7 @@ export const POSTGRESQL_SYSTEM_TEST_FILES = [
   "packages/postgres/test/system/cli-installation.test.ts",
   "packages/postgres/test/system/remote-connections.test.ts",
   "packages/postgres/test/system/remote-budget.test.ts",
+  "packages/postgres/test/system/policy-middleware.test.ts",
   "packages/postgres/test/system/remote-recovery.test.ts",
   "packages/postgres/test/system/remote-security.test.ts",
   "packages/postgres/test/system/rollback.test.ts",

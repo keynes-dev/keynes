@@ -7,7 +7,7 @@ import type {
   ResourceUsage,
   Settlement,
 } from "../budget.js";
-import type { Policy, PolicyRequestResult } from "../policy.js";
+import type { Policy, PolicyRequestResult, PolicyResult } from "../policy.js";
 import type { BudgetReference, RemoteOperationOptions } from "./references.js";
 import type { BudgetRequestOptions } from "../decision-evidence.js";
 
@@ -58,12 +58,23 @@ interface RemoteBudgetRequest<
   >;
 }
 
+interface RemoteBudgetPrepareRequest<Names extends string> {
+  <const Resources extends ResourceAmounts<Names>, FinalNames extends Names>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: RemotePolicyRequestOptions<
+      Extract<keyof Resources, Names>,
+      FinalNames
+    >,
+  ): Promise<PolicyResult<FinalNames>>;
+}
+
 interface RemoteBudgetMethods<
   Names extends string,
   HistoryNames extends string,
 > {
   readonly reference: BudgetReference;
   readonly request: RemoteBudgetRequest<Names, HistoryNames>;
+  readonly prepareRequest: RemoteBudgetPrepareRequest<Names>;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
     options?: RemoteOperationOptions,
@@ -73,5 +84,5 @@ interface RemoteBudgetMethods<
 export type RemoteBudget<
   Names extends string,
   HistoryNames extends string = Names,
-> = Omit<Budget<Names, HistoryNames>, "request"> &
+> = Omit<Budget<Names, HistoryNames>, "request" | "prepareRequest"> &
   RemoteBudgetMethods<Names, HistoryNames>;

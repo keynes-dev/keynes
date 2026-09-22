@@ -278,7 +278,7 @@ function projectBudget(
   };
 }
 
-function invalidConfiguration(
+export function invalidConfiguration(
   field: string,
 ): KeynesSdkError<"invalid_configuration"> {
   return new KeynesSdkError("invalid_configuration", {

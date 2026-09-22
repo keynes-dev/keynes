@@ -135,3 +135,76 @@ adapter contracts unchanged. Its direct Promise chain retains asynchronous
 closed rejection and the same close snapshot. Focused recheck passed: Remote
 public/runtime-selection tests (131), SDK archive consumer, PostgreSQL
 build/typecheck, generation, formatting and `git diff --check`.
+
+## Phase 4 preview and retained requests
+
+**Evidence basis**: the uncommitted Phase 4 diff on `f9d741a`.
+
+**Observed red**:
+
+```sh
+pnpm --filter @keynes/postgres test:ci
+```
+
+Expected red, exit 1. The newly wired native selection ran
+`policy-middleware.test.ts`; all four new cases failed before source changes,
+because `prepareRequest` was absent and Remote did not yet enforce the Policy
+plus `operationKey` precedence. This is a behavioral native red, not the
+runner-context guard.
+
+**Focused green**:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts test/unit/public/policy-lifecycle.test.ts test/unit/public/remote.test.ts --maxWorkers=1
+pnpm --filter @keynes/sdk typecheck
+pnpm --filter @keynes/sdk build
+pnpm --filter @keynes/postgres build
+pnpm --filter @keynes/sdk exec vitest run test/package/qualify.test.ts --maxWorkers=1 --testNamePattern 'imports and typechecks the SDK-only archive'
+pnpm --filter @keynes/sdk test:unit
+pnpm --filter @keynes/postgres test
+pnpm --filter @keynes/postgres test:ci
+```
+
+All commands passed. The focused public suite ran 120 tests; the SDK unit
+suite ran 264; the affected PostgreSQL unit suite ran 169; the selected SDK
+archive consumer passed with 19 unrelated archive tests skipped; and the
+native CI selection ran 13 files and 304 tests. The native runner selected the
+four Policy middleware scenarios, including operation-key precedence, retained
+prepared and denied replay, callback counts, and borrowed-transaction rollback.
+
+`prepareRequest` shares request capture and Policy invocation with the
+integrated path, is admitted for lifecycle close draining, and does not call an
+allocation adapter. It requires a Policy at both public type and runtime
+boundaries and retains its declared final Resource names. A Remote Policy with
+an `operationKey` fails before proposal reflection or Policy invocation. A
+caller replays a retained prepared request through the ordinary no-Policy
+request path, so replay does not run the Policy again. No runtime, adapter, or
+database-command contract changed.
+
+**Local aggregate**:
+
+```sh
+pnpm test:local
+```
+
+Exit 1, unrelated workspace constraint. The current workspace source suites
+passed, but six discovered test files under
+`.claude/worktrees/jolly-lumiere-66366e/` could not resolve `decimal.js` and
+`@keynes/contracts/contract-tests`; the command reported 592 passing tests.
+That nested worktree and its dependencies are outside this Phase 4 diff, so
+this is retained as failed aggregate evidence rather than a Phase 4 pass.
+
+**Ponytail review**: accepted `shrink`: `result-mapping.ts` now reuses the
+existing Remote `invalidConfiguration` helper rather than duplicating it. The
+remaining Phase 4 diff reuses the existing Local and Remote Policy
+capture/invocation paths; the small Remote-specific preparation shape is
+necessary to reject caller operation keys before proposal reflection without
+changing runtime or adapter contracts.
+
+**Post-review type correction**: `RemoteBudget` now omits both inherited
+`request` and `prepareRequest` before adding its Remote methods, so the Remote
+preview signature cannot intersect the Local one. The installed SDK consumer
+asserts transformed `prepareRequest` inference and rejects a Policy request
+preview that supplies an `operationKey`. `pnpm --filter @keynes/sdk typecheck`,
+`pnpm --filter @keynes/sdk build`, and the selected SDK-only archive consumer
+all passed after this correction.

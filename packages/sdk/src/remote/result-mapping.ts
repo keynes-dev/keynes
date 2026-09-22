@@ -30,6 +30,7 @@ import {
   requestPolicyOptions,
   type Policy,
   type PolicyRequestResult,
+  type PolicyResult,
 } from "../policy.js";
 import type { ExactResourceAmounts, ResourceAmounts } from "../budget.js";
 import type { BudgetRequestOptions } from "../decision-evidence.js";
@@ -45,6 +46,7 @@ import type {
 import {
   captureRemoteMutationOptions,
   createOperationKey,
+  invalidConfiguration,
   requireBudgetReference,
   splitRemoteMutationOptions,
   type BudgetReference,
@@ -68,6 +70,11 @@ export interface RemotePolicySession extends RemoteRuntimeSession {
     prepare: () => Prepared,
     execute: (prepared: Prepared) => Promise<Result>,
   ): Promise<Result>;
+}
+
+interface RemotePolicyRequestPreparation {
+  readonly policy: unknown;
+  readonly proposal: ReturnType<typeof capturePolicyProposal>;
 }
 
 export function createRemoteResourceBinding<Name extends string>(
@@ -168,6 +175,23 @@ export function createRemoteBudgetHandle<
     return requestRemoteBudget(runtime, identity, binding, resources, options);
   }
 
+  function prepareRequest<
+    const Resources extends ResourceAmounts<Names>,
+    FinalNames extends Names,
+  >(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: BudgetRequestOptions & {
+      readonly policy: Policy<Extract<keyof Resources, Names>, FinalNames>;
+      readonly operationKey?: never;
+    },
+  ): Promise<PolicyResult<FinalNames>>;
+  function prepareRequest(
+    resources: unknown,
+    ...options: readonly unknown[]
+  ): Promise<PolicyResult> {
+    return prepareRemotePolicyRequest(runtime, binding, resources, options);
+  }
+
   const settle: RemoteBudget<Names, HistoryNames>["settle"] = async (
     usage,
     ...options
@@ -237,6 +261,7 @@ export function createRemoteBudgetHandle<
     [budgetBrand]: undefined,
     reference: budgetReference,
     request,
+    prepareRequest,
     settle,
     inspect,
   }) as RemoteBudget<Names, HistoryNames>;
@@ -258,32 +283,9 @@ async function requestRemoteBudget<
   runtime.assertOpen();
   if (hasPolicyOption(options)) {
     return runtime.admitPolicy(
-      () => {
-        const remoteOptions = captureRemoteMutationOptions(
-          options,
-          new Set(["decisionEvidence", "policy"]),
-        );
-        const policyOptions = requestPolicyOptions(
-          remoteOptions.remainingOptions,
-        );
-        return {
-          ...policyOptions,
-          operationKey: remoteOptions.operationKey,
-          proposal: capturePolicyProposal(resources, binding.resourceNames()),
-        };
-      },
-      async ({ policy, decisionEvidence, operationKey, proposal }) => {
-        if (proposal.kind === "failed") {
-          return Object.freeze({
-            status: "not_submitted",
-            policy: proposal.result,
-          });
-        }
-        const result = await invokePolicy(
-          proposal.proposal,
-          binding.resourceNames(),
-          policy,
-        );
+      () => captureRemotePolicyRequest(resources, options, binding),
+      async (prepared) => {
+        const result = await resolveRemotePolicyRequest(prepared, binding);
         if (result.kind !== "prepared") {
           return Object.freeze({ status: "not_submitted", policy: result });
         }
@@ -295,8 +297,8 @@ async function requestRemoteBudget<
             identity,
             binding,
             result.request,
-            operationKey ?? createOperationKey(),
-            decisionEvidence,
+            createOperationKey(),
+            prepared.decisionEvidence,
           ),
         });
       },
@@ -313,6 +315,58 @@ async function requestRemoteBudget<
     resources,
     operationKey,
     requestDecisionEvidence(remainingOptions),
+  );
+}
+
+function prepareRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  runtime: RemotePolicySession,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  resources: unknown,
+  options: readonly unknown[],
+): Promise<PolicyResult> {
+  runtime.assertOpen();
+  return runtime.admitPolicy(
+    () => captureRemotePolicyRequest(resources, options, binding),
+    async (prepared) => resolveRemotePolicyRequest(prepared, binding),
+  );
+}
+
+function captureRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  resources: unknown,
+  options: readonly unknown[],
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): RemotePolicyRequestPreparation & { readonly decisionEvidence: unknown } {
+  const remoteOptions = captureRemoteMutationOptions(
+    options,
+    new Set(["decisionEvidence", "policy"]),
+  );
+  if (remoteOptions.operationKey !== undefined)
+    throw invalidConfiguration("operationKey");
+  const policyOptions = requestPolicyOptions(remoteOptions.remainingOptions);
+  return {
+    ...policyOptions,
+    proposal: capturePolicyProposal(resources, binding.resourceNames()),
+  };
+}
+
+async function resolveRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  prepared: RemotePolicyRequestPreparation,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): Promise<PolicyResult> {
+  if (prepared.proposal.kind === "failed") return prepared.proposal.result;
+  return invokePolicy(
+    prepared.proposal.proposal,
+    binding.resourceNames(),
+    prepared.policy,
   );
 }
 

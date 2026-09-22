@@ -47,12 +47,12 @@ Checkpoint: integrated Policy requests work for source Local and mocked command 
 
 **Independent test**: Compare preview and integrated Policy results, then replay one retained Remote command with no additional Policy call.
 
-- [ ] T015 [P] [US2] Add failing preview/integrated equivalence and zero-allocation cases in `packages/sdk/test/unit/public/policy-api.test.ts`.
-- [ ] T016 [P] [US2] Add failing Remote Policy-plus-operation-key precedence, denial replay, conflict and callback-count cases in `packages/postgres/test/system/policy-middleware.test.ts`.
-- [ ] T017 [US2] Add `prepareRequest` to Local and Remote public types in `packages/sdk/src/budget.ts` and `packages/sdk/src/remote/public-types.ts`, delegating to the shared preparation function.
-- [ ] T018 [US2] Reject Remote Policy plus `operationKey` before proposal capture and Policy invocation in `packages/sdk/src/remote/result-mapping.ts`.
-- [ ] T019 [US2] Wire `packages/postgres/test/system/policy-middleware.test.ts` into `packages/postgres/test/system/run.ts` and required-scenario checks.
-- [ ] T020 [US2] Run focused preview, Local and native PostgreSQL checks and record source-revision results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T015 [P] [US2] Add failing preview/integrated equivalence and zero-allocation cases in `packages/sdk/test/unit/public/policy-api.test.ts`.
+- [x] T016 [P] [US2] Add failing Remote Policy-plus-operation-key precedence, denial replay, conflict and callback-count cases in `packages/postgres/test/system/policy-middleware.test.ts`.
+- [x] T017 [US2] Add `prepareRequest` to Local and Remote public types in `packages/sdk/src/budget.ts` and `packages/sdk/src/remote/public-types.ts`, delegating to the shared preparation function.
+- [x] T018 [US2] Reject Remote Policy plus `operationKey` before proposal capture and Policy invocation in `packages/sdk/src/remote/result-mapping.ts`.
+- [x] T019 [US2] Wire `packages/postgres/test/system/policy-middleware.test.ts` into `packages/postgres/test/system/run.ts` and required-scenario checks.
+- [x] T020 [US2] Run focused preview, Local and native PostgreSQL checks and record source-revision results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
 
 Checkpoint: preparation and explicit Remote recovery are independently demonstrated. Local still makes no durability promise. Review and commit.
 
