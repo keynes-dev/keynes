@@ -226,14 +226,37 @@ The fixture now expects an empty direct-unresolved array while retaining the
 root's `settling` history and all three target/ancestor records. Parent reviewed
 the one-line correction; Ponytail review found no added complexity.
 
-## Runtime evidence
+## Phase 3 accepted implementation
 
-Clean-revision paired SQLite/native PostgreSQL qualification, focused Embedded
-transactions and clean package consumers remain **NOT RUN**. The native
-assertion passes above do not qualify a runner whose coverage gate failed.
-Phase 3 remains open until those required commands pass.
+Source candidate: `196cafc6bef73c31d819654858181e885e81d4d3`, clean before
+and after qualification. Both engines, generated contracts, native transaction
+coverage and public consumers now agree.
 
-Hosted and Embedded release readiness, live providers, cross-authority recovery,
-Node/OS matrices, managed-provider qualification, performance qualification,
-registry publication, and production operations are also **NOT RUN**. Historical
-KEY-76 and KEY-96 evidence remains revision-scoped and does not qualify KEY-80.
+| Command                                                                      | Result                                                                                                                                                                       |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                                               | PASS on the merged working tree before the one-line consumer correction: 18/18 tasks, types, generation and dependency checks. Final review-revision run follows in Phase 4. |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-80/paired-196cafc-1`   | PASS: 416 SQLite and 312 native PostgreSQL assertions, matching 138 shared scenarios, both cleanups passed. Attempt `0aefe91e-09ff-4476-bd5a-f857acbf1a1c`.                  |
+| `pnpm test:embedded`                                                         | PASS: 167 assertions in 2 files, including caller-owned cascade rollback; cleanup passed. Log `/tmp/key80-embedded-1.log`.                                                   |
+| `pnpm test:package:split -- --output .artifacts/key-80/packages-candidate-1` | PASS: all 9 stages, four clean consumer combinations, 312 native assertions, exact archive identity checks and cleanup.                                                      |
+| `pnpm format:docs`                                                           | PASS: 332 files.                                                                                                                                                             |
+
+Package qualification retains `result.json`, SDK-only and SDK+SQLite records,
+PostgreSQL package and native records, native observations, CLI/native reports,
+and the four archives in `.artifacts/key-80/packages-candidate-1/`. The paired
+manifest and runtime reports are in `.artifacts/key-80/paired-196cafc-1/`.
+These local retained records qualify this source candidate; final documentation
+changes require their own review-revision record below.
+
+Parent correctness review accepted the Terra implementations and consumer
+correction. The final Phase 3 Ponytail review found no unnecessary abstraction
+or dependency: "Lean already. Ship." T004-T016 are complete. The implementation
+candidate and follow-up fixture correction were committed before clean-source
+qualification; this phase-closing commit records the accepted result.
+
+## Remaining acceptance
+
+Phase 4 documentation, final review-revision qualification and PR publication
+remain pending. Hosted and Embedded release readiness, live providers,
+cross-authority recovery, Node/OS matrices, managed-provider qualification,
+performance qualification, registry publication, and production operations are
+**NOT RUN**. Historical KEY-76 and KEY-96 evidence does not qualify KEY-80.
