@@ -67,7 +67,7 @@ type RemoteSettleBudgetResult = Omit<WireRemoteSettleBudgetResult, "budget"> & {
   readonly budget: RemoteBudgetProjection;
 };
 
-export type RecoverOperationResult =
+export type OperationResult =
   | {
       readonly kind: "committed";
       readonly operationKey: OperationKey;
@@ -103,6 +103,10 @@ export type RecoverOperationResult =
       readonly retryAfterMilliseconds?: number;
     }
   | {
+      readonly kind: "not_found";
+      readonly operationKey: OperationKey;
+    }
+  | {
       readonly kind: "expired";
       readonly operationKey: OperationKey;
     };
@@ -114,9 +118,9 @@ export function createOperationKey(): OperationKey {
   return `kop_v1_${randomBytes(32).toString("base64url")}` as OperationKey;
 }
 
-export function projectRecoverOperationResult(
+export function projectOperationResult(
   result: WireRecoverOperationResult,
-): RecoverOperationResult {
+): OperationResult {
   const operationKey = requireOperationKey(result.operationKey);
   if (result.kind !== "committed") return { ...result, operationKey };
   switch (result.operation) {
@@ -204,8 +208,22 @@ export function splitRemoteMutationOptions(
   readonly operationKey: OperationKey;
   readonly remainingOptions: readonly unknown[];
 } {
+  const captured = captureRemoteMutationOptions(options, allowedFields);
+  return {
+    operationKey: captured.operationKey ?? createOperationKey(),
+    remainingOptions: captured.remainingOptions,
+  };
+}
+
+export function captureRemoteMutationOptions(
+  options: readonly unknown[],
+  allowedFields: ReadonlySet<string>,
+): {
+  readonly operationKey: OperationKey | undefined;
+  readonly remainingOptions: readonly unknown[];
+} {
   if (options.length === 0) {
-    return { operationKey: createOperationKey(), remainingOptions: [] };
+    return { operationKey: undefined, remainingOptions: [] };
   }
   const option = options[0];
   if (
@@ -238,7 +256,7 @@ export function splitRemoteMutationOptions(
 
   const operationKey = Object.hasOwn(option, "operationKey")
     ? requireOperationKey(option.operationKey)
-    : createOperationKey();
+    : undefined;
   const remaining: Record<string, unknown> = {};
   for (const field of fields) {
     if (field !== "operationKey") remaining[field] = option[field];
@@ -264,7 +282,7 @@ function projectBudget(
   };
 }
 
-function invalidConfiguration(
+export function invalidConfiguration(
   field: string,
 ): KeynesSdkError<"invalid_configuration"> {
   return new KeynesSdkError("invalid_configuration", {

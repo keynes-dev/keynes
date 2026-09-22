@@ -118,15 +118,37 @@ if (amounts !== null) {
 }
 ```
 
+An optional application `Policy` can produce the final Resource envelope inside
+the same request:
+
+```ts
+import type { Policy } from "@keynes/sdk";
+
+const policy: Policy<"usdCents", "searchQueries"> = async (proposal) => ({
+  kind: "prepared",
+  request: { searchQueries: proposal.usdCents },
+});
+
+const result = await root.request({ usdCents: 2 }, { policy });
+```
+
+The integrated path validates the proposal and Policy result, turns a thrown or
+rejected Policy into `{ kind: "failed", code: "policy_failed" }`, and submits
+only `prepared`. If an application needs to retain a decision before submission,
+it calls `await policy(proposal)` directly and stores that ordinary return value
+in its own workflow. Direct calls keep ordinary JavaScript throw and rejection
+behavior. The application can later submit final resources through a Policy-free
+Remote request with its own operation key.
+
 Evidence is part of request identity. Reordering equivalent fields replays the
 recorded result, while changing or omitting evidence under a reused remote
 operation key returns `command_conflict`. A replayed denial remains denied
-after availability changes. Request results, history, and remote recovery
+after availability changes. Request results, history, and command-result lookup
 preserve normalized evidence.
 
-Local request options accept only `decisionEvidence`. Remote request options
-also accept `operationKey`; remote creation options accept only
-`operationKey`. Local creation takes amounts only. Unsupported fields,
+Request options accept `decisionEvidence` and an optional `policy`. Remote
+requests also accept `operationKey`, but cannot combine it with `policy`.
+Remote creation options accept only `operationKey`. Local creation takes amounts only. Unsupported fields,
 including retired `policies`, `childPolicies`, `context`, and
 `policyEvidence`, reject asynchronously with `invalid_configuration`.
 Customer evaluation should use its own typed interfaces and error handling.
@@ -146,14 +168,14 @@ or credential. It provides no durable storage, daemon, socket server, or public
 database interface. Deep imports, package metadata imports, and replay controls
 are private.
 
-`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys and read-only operation recovery. Calls after close begins reject with `client_closed` before reading input. Admission remains per procedure, with the existing bounded close deadline and uncertainty handling. Mutation retries reuse the captured input and operation key.
+`postgres({ databaseUrl })` from `@keynes/postgres` selects owned remote access. The adapter requires one `postgresql:` URL with exactly one `sslmode=verify-full`, owns a bounded pool and invokes generated remote procedures. PostgreSQL derives identity from the authenticated login role. Remote handles expose durable references, `openBudget`, caller-owned operation keys, and read-only command-result lookup. Calls after close begins reject with `client_closed` before reading input. Admission remains per procedure, with the existing bounded close deadline and uncertainty handling. Mutation retries reuse the captured input and operation key.
 
-`postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or recovery methods. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
+`postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or command-result lookup. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
 
-## Create and recover a Remote Budget
+## Create a Remote Budget and inspect its command result
 
 Remote calls generate operation keys by default. Supply one in the second
-argument when you must recover a creation after a lost response:
+argument when you need to look up a creation after a lost response:
 
 ```ts
 import { createKeynes, createOperationKey } from "@keynes/sdk";
@@ -166,9 +188,9 @@ await using remote = await createKeynes({
 const operationKey = createOperationKey();
 const root = await remote.createBudget({ usdCents: 100 }, { operationKey });
 
-const recovered = await remote.recoverOperation(operationKey);
-if (recovered.kind === "committed" && recovered.operation === "createBudget") {
-  const recoveredRoot = recovered.result.budget;
+const operation = await remote.getOperationResult(operationKey);
+if (operation.kind === "committed" && operation.operation === "createBudget") {
+  const recoveredRoot = operation.result.budget;
 }
 ```
 
@@ -181,15 +203,16 @@ rejects with `command_conflict`.
 The PostgreSQL adapter bounds automatic retries and preserves `uncertain_outcome` when it
 cannot establish completion.
 
-Recovery checks the caller's current authorization. For a committed creation,
+Lookup checks the caller's current authorization. For a committed creation,
 it also validates the recorded selected definitions against the current tenant
-catalog before returning the stored result. Recovery can return `known_failure`,
-`unresolved`, or `expired`. An expired recovery record does not prove that the
-original creation failed.
+catalog before returning the stored result. It can return `committed`,
+`known_failure`, `unresolved`, `not_found`, or `expired`. Neither `not_found`
+nor `expired` proves that a delayed command cannot arrive. Lookup never retries,
+allocates, invokes Policy, or creates a replacement key.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 5 and its matching generated procedure
+This API requires semantic generation 6 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

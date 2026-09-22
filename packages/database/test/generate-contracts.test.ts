@@ -162,8 +162,8 @@ describe("contract source", () => {
     const contract = loadContract(packageRoot);
 
     expect(contract.source.remote).toMatchObject({
-      semanticGeneration: 5,
-      minimumSdkGeneration: 5,
+      semanticGeneration: 6,
+      minimumSdkGeneration: 6,
       semanticIdentities: [
         "installation",
         "command_contract",
@@ -238,7 +238,7 @@ describe("contract source", () => {
       {
         method: "recoverOperation",
         target: "keynes.remote_recover_operation",
-        revision: 3,
+        revision: 4,
         mode: "read",
         input: "RecoverOperationQuery",
         output: "RecoverOperationResult",
@@ -285,6 +285,7 @@ describe("contract source", () => {
         "RecoverOperationResult",
         { kind: "unresolved", operationKey, retryAfterMilliseconds: 100 },
       ],
+      ["RecoverOperationResult", { kind: "not_found", operationKey }],
       [
         "GetBudgetHistoryPageResult",
         { budgetReference, entries: [], nextCursor: cursor },

@@ -16,3 +16,5 @@ export {
   type ParameterErrorCode,
   type JsonValue,
 } from "./schema.ts";
+export { configurePolicy, type ConfiguredPolicy } from "./configure.ts";
+export { recordPolicyResult, type PolicyRecord } from "./toolkit.ts";

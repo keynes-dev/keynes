@@ -166,8 +166,8 @@ const checkedOut: Promise<Keynes<"tokens">> = createKeynes({ resources, runtime:
 const owned: Promise<RemoteKeynes<"tokens">> = createKeynes({ resources, runtime: postgres({ databaseUrl: "unused" }) });
 async function capabilities() {
   const basic = await borrowed;
-  // @ts-expect-error Borrowed sessions expose no remote recovery or references.
-  basic.recoverOperation({ operationKey: "unused" });
+  // @ts-expect-error Borrowed sessions expose no remote result lookup or references.
+  basic.getOperationResult("unused");
   // @ts-expect-error A pool is not a single caller-owned connection.
   postgres({ connection: pool });
   // @ts-expect-error Connection ownership modes are mutually exclusive.

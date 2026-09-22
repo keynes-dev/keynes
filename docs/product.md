@@ -52,9 +52,9 @@ Keynes has no tenant Resource pool, inventory account, or unattached balance.
 
 ## Application-owned policies
 
-A policy is customer-owned logic that produces a typed Keynes request or rejects an operation. Customers may use ordinary application code, SQL over their own data, or optional policy helpers. Allocation requires no Policy result type, callback signature, or transaction manager.
+A policy is customer-owned logic that chooses a typed Keynes request or stops the operation. Customers may use ordinary application code, SQL over their own data, one optional SDK callback or optional policy helpers. Policy-free allocation requires no Policy result type, callback or transaction manager.
 
-Customers own evaluation, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before constructing a request. An assessment or evaluation record is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
+Customers own policy definitions, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before submitting a request. An assessment or Policy result is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
 
 Customer ownership does not dictate where evaluation runs. It may run inside an application, in a customer-operated service or later in Keynes Cloud. Applications can share one policy deployment. Later hosted evaluation remains outside authoritative accounting and does not restore database-managed Policies.
 
@@ -63,6 +63,14 @@ See the [equivalent application-code and SQL examples](architecture.md#customer-
 ### Current request boundary
 
 KEY-114 retired managed SQL Policy authoring, attachment, and evaluation from the runtime and generated contracts. A request can include normalized `decisionEvidence`; it is replay-bound and retained in results and history, but it cannot grant authority or attest to an evaluation. Retired Policy fields are invalid rather than ignored. The [SDK request example](../packages/sdk/README.md#submit-application-computed-requests) shows the supported public shape.
+
+### Optional request middleware
+
+[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. [ADR-0015](adr/0015-direct-policy-decisions-and-command-result-lookup.md) removes the separate preparation API. `request(resources, { policy })` validates and submits a fresh decision through one integrated call.
+
+The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged. A Remote request cannot combine a Policy with a caller-provided operation key.
+
+Applications that need durable decisions call their Policy directly, retain its ordinary return value through their own stack, and submit final resources through a Policy-free request with an operation key. Keynes adds no workflow checkpoint or resume API. Exact replay does not run Policy again.
 
 ## Budgets
 
@@ -111,7 +119,7 @@ later acquire funding. Empty amounts reject.
 
 Creation validates and resolves the declared Resources without shared definition writes. It creates membership, funding, and the command result atomically or leaves no partial Budget. [KEY-78's specification](features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md) owns acceptance, and [ADR-0011](adr/0011-configured-resource-declarations.md) records the revised creation decision.
 
-To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and, remotely, an `operationKey`.
+To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and one optional Policy. Remote requests also accept an `operationKey`, but not with a Policy.
 
 Root creation introduces the tree's complete funding. A child's complete grant
 comes from its parent at creation. Existing
@@ -124,7 +132,7 @@ definitions. Each root has independent funding, lineage, and accounting. There i
 no automatic rollover, balance migration, or reopening of settled roots. Creating
 a new root does not require unrelated roots to be settled first. Authorization
 to create roots remains the boundary for introducing new allowances; fixed
-funding does not impose a shared ceiling across independently created roots.
+funding does not impose a shared limit across independently created roots.
 
 Insufficient availability causes a request denial, not automatic settlement.
 Quantity may still be held by children and return later. Missing usage and
@@ -222,7 +230,9 @@ Hosted may be customer-operated or managed by Keynes. Those choices change who
 operates the service; they do not change Budget behavior. No mode automatically
 moves a live Budget to another authority.
 
-The SDK uses separate SQLite and PostgreSQL runtime packages with shared command contracts and conformance scenarios. Select `nodeSqlite()` from `@keynes/node-sqlite` for Local, or `postgres(...)` from `@keynes/postgres` for an owned remote connection or a borrowed PostgreSQL client. The SDK itself contains no engine or database driver. Borrowed clients expose the basic Budget API; owned remote clients also provide durable references, reopening and operation recovery.
+The SDK uses separate SQLite and PostgreSQL runtime packages with shared command contracts and conformance scenarios. Select `nodeSqlite()` from `@keynes/node-sqlite` for Local, or `postgres(...)` from `@keynes/postgres` for an owned remote connection or a borrowed PostgreSQL client. The SDK itself contains no engine or database driver. Borrowed clients expose the basic Budget API; owned remote clients also provide durable references, reopening, and `getOperationResult`.
+
+`getOperationResult` reads a command receipt. It can report `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. The read never retries, allocates, invokes Policy, or creates a replacement key. A missing or expired receipt does not prove that a delayed command cannot arrive.
 
 First Local is ephemeral and process-owned. It exposes no persistence or database handle and promises no browser support, multi-process coordination or caller-owned PostgreSQL transactions. PostgreSQL remains the durable implementation under this contract. The Hosted SDK currently connects directly to PostgreSQL, with no HTTP Budget service or fallback to local state.
 
@@ -279,10 +289,10 @@ retain separate acceptance, and both are required for the Hosted product experie
 Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
 
 - [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional policy definitions, deterministic composition, prepared requests and evaluation records.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplied optional per-request Policy middleware plus configurable-policy and record helpers. [KEY-126](https://linear.app/keynes/issue/KEY-126) removed its separate preparation API. The [KEY-117 acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) remains historical evidence for that revision.
 - [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
 
-These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. Optional helpers can define typed interfaces without imposing a policy language, result type, callback, or transaction manager on allocation.
+These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.
 
 [KEY-119](https://linear.app/keynes/issue/KEY-119) persisted parameters and [KEY-120](https://linear.app/keynes/issue/KEY-120) a schema-driven editor are required Cloud capabilities. Configuration, evaluation tooling and allocation have separate owners. [KEY-115](https://linear.app/keynes/issue/KEY-115) explores model judgments independently; no production provider integration is required for Local or Cloud.
 

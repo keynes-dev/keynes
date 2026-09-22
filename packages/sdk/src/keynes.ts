@@ -7,7 +7,10 @@ import {
   type ResourceAmounts,
 } from "./budget.js";
 import { requireNoOptions } from "./budget-request-options.js";
-import type { RemoteBudgetProjection } from "./generated/types.js";
+import type {
+  RemoteBudgetProjection,
+  RemoteMutationName,
+} from "./generated/types.js";
 import { KeynesError } from "./generated/client.js";
 import type {
   BasicRuntimeSession,
@@ -26,16 +29,17 @@ import {
   createOpenedRemoteResourceBinding,
   createRemoteBudgetHandle,
   createRemoteResourceBinding,
+  type RemotePolicySession,
 } from "./remote/result-mapping.js";
 import type { RemoteBudget } from "./remote/public-types.js";
 import {
-  projectRecoverOperationResult,
+  projectOperationResult,
   requireBudgetReference,
   requireOperationKey,
   splitRemoteMutationOptions,
   type BudgetReference,
   type OperationKey,
-  type RecoverOperationResult,
+  type OperationResult,
   type RemoteOperationOptions,
 } from "./remote/references.js";
 import {
@@ -104,9 +108,9 @@ export interface RemoteKeynes<Names extends string = string> extends Omit<
   ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
   readonly createBudget: RemoteRootBudgetCreator<Names>;
   readonly openBudget: RemoteBudgetOpener;
-  readonly recoverOperation: (
+  readonly getOperationResult: (
     operationKey: OperationKey,
-  ) => Promise<RecoverOperationResult>;
+  ) => Promise<OperationResult>;
 }
 
 export function createKeynes<
@@ -176,10 +180,11 @@ export async function createKeynes(
     await validateInitializedBindings(runtime, definitions);
     return createKeynesHandle(runtime);
   }
-  const runtime = await invokeResourceConfiguration(() =>
+  const initializedRuntime = await invokeResourceConfiguration(() =>
     descriptor.initialize(definitions),
   );
-  await validateInitializedBindings(runtime, definitions);
+  await validateInitializedBindings(initializedRuntime, definitions);
+  const runtime = admitRemotePolicies(initializedRuntime);
   const { client } = runtime;
   const createBudget: RemoteRootBudgetCreator<string> = (
     allocation,
@@ -214,14 +219,14 @@ export async function createKeynes(
       createOpenedRemoteResourceBinding(resources, result.budget),
     );
   };
-  const recoverOperation = async (
+  const getOperationResult = async (
     suppliedOperationKey: OperationKey,
-  ): Promise<RecoverOperationResult> => {
+  ): Promise<OperationResult> => {
     runtime.assertOpen();
     const operationKey = requireOperationKey(suppliedOperationKey);
     const result = await client.recoverOperation({ operationKey });
     if (result.operationKey !== operationKey) throw remoteResultMismatch();
-    return projectRecoverOperationResult(result);
+    return projectOperationResult(result);
   };
   const defineResources: RemoteKeynes["defineResources"] = async (
     definitions,
@@ -242,7 +247,7 @@ export async function createKeynes(
     defineResources,
     createBudget,
     openBudget,
-    recoverOperation,
+    getOperationResult,
     close,
     [Symbol.asyncDispose]: close,
   });
@@ -274,6 +279,69 @@ function createKeynesHandle(runtime: BasicRuntimeSession): LocalKeynes {
     createBudget,
     close,
     [Symbol.asyncDispose]: close,
+  });
+}
+
+function admitRemotePolicies(
+  runtime: RemoteRuntimeSession,
+): RemotePolicySession {
+  const admitted = new Set<Promise<unknown>>();
+  let closePromise: Promise<void> | undefined;
+
+  function assertOpen(): void {
+    if (closePromise !== undefined) {
+      throw new KeynesError({
+        kind: "error",
+        code: "client_closed",
+        details: {},
+      });
+    }
+    runtime.assertOpen();
+  }
+
+  function admitPolicy<Prepared, Result>(
+    prepare: () => Prepared,
+    execute: (prepared: Prepared) => Promise<Result>,
+  ): Promise<Result> {
+    try {
+      assertOpen();
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
+    let result: Promise<Result>;
+    try {
+      const prepared = prepare();
+      result = Promise.resolve().then(() => execute(prepared));
+    } catch (error: unknown) {
+      result = Promise.reject(error);
+    }
+    admitted.add(result);
+    void result.then(
+      () => admitted.delete(result),
+      () => admitted.delete(result),
+    );
+    return result;
+  }
+
+  function close(): Promise<void> {
+    if (closePromise !== undefined) return closePromise;
+    closePromise = Promise.allSettled(admitted).then(() => runtime.close());
+    return closePromise;
+  }
+
+  return Object.freeze({
+    resources: runtime.resources,
+    prepareResources: (definitions: unknown) =>
+      runtime.prepareResources(definitions),
+    client: runtime.client,
+    invokeMutation: <Result>(
+      operation: RemoteMutationName,
+      operationKey: string,
+      invoke: () => Promise<Result>,
+    ) => runtime.invokeMutation(operation, operationKey, invoke),
+    assertOpen,
+    admitPolicy,
+    close,
   });
 }
 
@@ -318,7 +386,7 @@ async function createRemoteRootBudget<
   Names extends string,
   const Allocation extends ResourceAmounts<Names>,
 >(
-  runtime: RemoteRuntimeSession,
+  runtime: RemotePolicySession,
   allocation: ExactResourceAmounts<NoInfer<Names>, Allocation>,
   options: readonly unknown[],
 ): Promise<RemoteBudget<Extract<keyof Allocation, Names>>> {

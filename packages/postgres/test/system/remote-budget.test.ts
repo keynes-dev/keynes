@@ -550,7 +550,9 @@ describe("public owned PostgreSQL adapter", () => {
         resourceTypes: resources,
       });
       expect(await opened.inspect()).toEqual(inspection);
-      await expect(keynes.recoverOperation(requestKey)).resolves.toMatchObject({
+      await expect(
+        keynes.getOperationResult(requestKey),
+      ).resolves.toMatchObject({
         kind: "committed",
         operation: "requestBudget",
         result: { decisionEvidence: { source: "native" } },

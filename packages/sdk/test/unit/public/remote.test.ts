@@ -267,11 +267,95 @@ describe("configured remote creation", () => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("drains an admitted remote Policy before closing its executor", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const started = Promise.withResolvers<void>();
+      const gate = Promise.withResolvers<void>();
+      let closed = false;
+      const pending = root.request(
+        { workUnits: 1 },
+        {
+          policy: async () => {
+            started.resolve();
+            await gate.promise;
+            return { kind: "rejected", code: "policy_rejected" };
+          },
+        },
+      );
+      await started.promise;
+      const closing = remote.close().then(() => {
+        closed = true;
+      });
+
+      expect(closed).toBe(false);
+      expect(executor.close).not.toHaveBeenCalled();
+      gate.resolve();
+      await expect(pending).resolves.toEqual({
+        status: "not_submitted",
+        policy: { kind: "rejected", code: "policy_rejected" },
+      });
+      await closing;
+      expect(executor.close).toHaveBeenCalledOnce();
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("rejects a closed remote Policy request before reflecting proposal or options", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      expect(root).not.toHaveProperty("prepareRequest");
+      const touched = vi.fn(() => {
+        throw new Error("input touched");
+      });
+      const proposal = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      const options = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      await remote.close();
+
+      let pending: unknown;
+      expect(() => {
+        pending = Reflect.apply(root.request, root, [proposal, options]);
+      }).not.toThrow();
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({ code: "client_closed" });
+      expect(touched).not.toHaveBeenCalled();
+    } finally {
+      await remote.close();
+    }
+  });
+
   it.each([
     "defineResources",
     "createBudget",
     "openBudget",
-    "recoverOperation",
+    "getOperationResult",
     "request",
     "settle",
     "inspect",
@@ -329,6 +413,78 @@ describe("public remote Keynes facade", () => {
         resources: [{ resource: "work_units", amount: 3 }],
         decisionEvidence: { a: 0, kind: true, resources: "application" },
       });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("snapshots a remote Policy request before returning", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const proposal = { workUnits: 3 };
+      const evidence = { revision: 1 };
+      const originalPolicy = vi.fn((captured: { workUnits: number }) => ({
+        kind: "prepared" as const,
+        request: captured,
+      }));
+      const replacementPolicy = vi.fn((captured: { workUnits: number }) => ({
+        kind: "prepared" as const,
+        request: captured,
+      }));
+      const options = {
+        policy: originalPolicy,
+        decisionEvidence: evidence,
+      };
+
+      const pending = root.request(proposal, options);
+      proposal.workUnits = 9;
+      evidence.revision = 2;
+      options.policy = replacementPolicy;
+
+      await expect(pending).resolves.toMatchObject({ status: "submitted" });
+      expect(originalPolicy).toHaveBeenCalledWith({ workUnits: 3 });
+      expect(replacementPolicy).not.toHaveBeenCalled();
+      expect(executor.inputs.at(-1)).toEqual({
+        operationKey: expect.any(String),
+        parentBudgetReference: rootReference,
+        resources: [{ resource: "work_units", amount: 3 }],
+        decisionEvidence: { revision: 1 },
+      });
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("validates request resources before options", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const options = { unknown: true };
+      const pending: unknown = Reflect.apply(root.request, root, [
+        null,
+        options,
+      ]);
+
+      expect(pending).toBeInstanceOf(Promise);
+      await expect(pending).rejects.toMatchObject({
+        code: "invalid_command",
+        details: {
+          operation: "requestBudget",
+          issues: [{ path: "$.resources", rule: "type" }],
+        },
+      });
+      expect(executor.methods).toEqual(["validateResources", "createBudget"]);
     } finally {
       await remote.close();
     }
@@ -1404,8 +1560,8 @@ function responseFor(
           installationId: "embedded-postgresql-18.6-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 5,
-          minimumSdkGeneration: 5,
+          semanticGeneration: 6,
+          minimumSdkGeneration: 6,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,

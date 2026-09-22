@@ -1,8 +1,18 @@
 import {
+  configurePolicy,
   createParameterSnapshot,
   defineParameters,
+  recordPolicyResult,
   type ReadonlyJsonValue,
 } from "../src/index.ts";
+import type {
+  Budget,
+  BudgetRequestResult,
+  Policy,
+  PolicyRequestResult,
+  PolicyResult,
+  ResourceAmounts,
+} from "@keynes/sdk";
 import type { JSONSchema } from "json-schema-to-ts";
 const declaration = defineParameters({
   threshold: { schema: { type: "number" }, initial: 1 },
@@ -140,6 +150,43 @@ void uncertainUnion;
 // @ts-expect-error dynamically assembled combinators cannot promise a number
 const assumedUnion: number = dynamicUnion.values.x;
 void assumedUnion;
+
+declare const budget: Budget<"usdCents" | "searchQueries">;
+const configuredPolicy = configurePolicy({
+  declaration: defineParameters({
+    orderLimit: { schema: { type: "number" }, initial: 3 },
+  }),
+  run: (
+    proposal: ResourceAmounts<"usdCents">,
+    values,
+  ): PolicyResult<"searchQueries"> =>
+    (proposal.usdCents ?? 0) <= values.orderLimit
+      ? { kind: "prepared", request: { searchQueries: 1 } }
+      : { kind: "rejected", code: "order_limit_exceeded" },
+});
+const exactConfiguredPolicy: Policy<"usdCents", "searchQueries"> =
+  configuredPolicy.policy;
+void exactConfiguredPolicy;
+async function composeConfiguredPolicy(): Promise<void> {
+  const outcome = await budget.request(
+    { usdCents: 1 },
+    { policy: configuredPolicy.policy },
+  );
+  const exactOutcome: PolicyRequestResult<
+    "searchQueries",
+    BudgetRequestResult<"searchQueries", "searchQueries" | "usdCents">
+  > = outcome;
+  void exactOutcome;
+}
+void composeConfiguredPolicy;
+const record = recordPolicyResult({
+  definitionId: configuredPolicy.definitionId,
+  snapshotId: configuredPolicy.snapshotId,
+  context: { source: "type-test" },
+  result: { kind: "prepared", request: { searchQueries: 1 } },
+});
+const recordedResult: PolicyResult = record.result;
+void recordedResult;
 const spreadDescriptor = { ...zodParameter(z.number(), 1), initial: "wrong" };
 // @ts-expect-error changing an adapter descriptor initial retains schema-derived type checking
 defineParameters({ x: spreadDescriptor });

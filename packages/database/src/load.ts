@@ -73,8 +73,8 @@ const EXPECTED_OPERATIONS = [
 ] as const satisfies readonly ContractOperation[];
 
 const EXPECTED_REMOTE = {
-  semanticGeneration: 5,
-  minimumSdkGeneration: 5,
+  semanticGeneration: 6,
+  minimumSdkGeneration: 6,
   semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
@@ -144,7 +144,7 @@ const EXPECTED_REMOTE = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",

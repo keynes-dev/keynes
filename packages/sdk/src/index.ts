@@ -10,8 +10,8 @@ export type {
 export { createOperationKey } from "./remote/references.js";
 export type {
   BudgetReference,
+  OperationResult,
   OperationKey,
-  RecoverOperationResult,
 } from "./remote/references.js";
 export type { RemoteBudget } from "./remote/public-types.js";
 export type {
@@ -37,6 +37,12 @@ export type {
   BudgetRequestOptions,
   DecisionEvidence,
 } from "./decision-evidence.js";
+export type {
+  Policy,
+  PolicyOutput,
+  PolicyRequestResult,
+  PolicyResult,
+} from "./policy.js";
 export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 export type {
   DefinedResource,

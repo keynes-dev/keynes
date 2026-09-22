@@ -2506,9 +2506,9 @@ BEGIN
       'installationId', identity.profile_id,
       'contractDigest', identity.contract_digest,
       'remoteProceduresDigest', identity.remote_procedures_digest,
-      'semanticGeneration', 5,
-      'minimumSdkGeneration', 5,
-      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":5},{"name":"requestBudget","target":"keynes.remote_request","revision":3},{"name":"settleBudget","target":"keynes.remote_settle","revision":2},{"name":"getBudget","target":"keynes.remote_get_budget","revision":3},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":3},{"name":"openBudget","target":"keynes.remote_open_budget","revision":3},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":3},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":3}]'::jsonb
+      'semanticGeneration', 6,
+      'minimumSdkGeneration', 6,
+      'procedures', '[{"name":"defineResources","target":"keynes.remote_define_resources","revision":1},{"name":"validateResources","target":"keynes.remote_validate_resources","revision":1},{"name":"createBudget","target":"keynes.remote_create_budget","revision":5},{"name":"requestBudget","target":"keynes.remote_request","revision":3},{"name":"settleBudget","target":"keynes.remote_settle","revision":2},{"name":"getBudget","target":"keynes.remote_get_budget","revision":3},{"name":"getBudgetHistoryPage","target":"keynes.remote_get_budget_history_page","revision":3},{"name":"openBudget","target":"keynes.remote_open_budget","revision":3},{"name":"recoverOperation","target":"keynes.remote_recover_operation","revision":4},{"name":"getCompatibility","target":"keynes.remote_get_compatibility","revision":3}]'::jsonb
     )
   );
 END;
@@ -2835,7 +2835,11 @@ BEGIN
   SELECT * INTO operation_record
     FROM keynes_internal.remote_operations
    WHERE tenant_id = tenant AND operation_key = operation_key_value;
-  IF NOT FOUND OR operation_record.expires_at <= clock_timestamp() THEN
+  IF NOT FOUND THEN
+    recovered := jsonb_build_object(
+      'kind', 'not_found', 'operationKey', operation_key_value
+    );
+  ELSIF operation_record.expires_at <= clock_timestamp() THEN
     recovered := jsonb_build_object(
       'kind', 'expired', 'operationKey', operation_key_value
     );
