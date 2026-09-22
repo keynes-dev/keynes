@@ -204,8 +204,22 @@ export function splitRemoteMutationOptions(
   readonly operationKey: OperationKey;
   readonly remainingOptions: readonly unknown[];
 } {
+  const captured = captureRemoteMutationOptions(options, allowedFields);
+  return {
+    operationKey: captured.operationKey ?? createOperationKey(),
+    remainingOptions: captured.remainingOptions,
+  };
+}
+
+export function captureRemoteMutationOptions(
+  options: readonly unknown[],
+  allowedFields: ReadonlySet<string>,
+): {
+  readonly operationKey: OperationKey | undefined;
+  readonly remainingOptions: readonly unknown[];
+} {
   if (options.length === 0) {
-    return { operationKey: createOperationKey(), remainingOptions: [] };
+    return { operationKey: undefined, remainingOptions: [] };
   }
   const option = options[0];
   if (
@@ -238,7 +252,7 @@ export function splitRemoteMutationOptions(
 
   const operationKey = Object.hasOwn(option, "operationKey")
     ? requireOperationKey(option.operationKey)
-    : createOperationKey();
+    : undefined;
   const remaining: Record<string, unknown> = {};
   for (const field of fields) {
     if (field !== "operationKey") remaining[field] = option[field];
@@ -264,7 +278,7 @@ function projectBudget(
   };
 }
 
-function invalidConfiguration(
+export function invalidConfiguration(
   field: string,
 ): KeynesSdkError<"invalid_configuration"> {
   return new KeynesSdkError("invalid_configuration", {

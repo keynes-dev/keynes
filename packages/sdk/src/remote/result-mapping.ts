@@ -23,8 +23,21 @@ import {
 import { budgetBrand } from "../budget.js";
 import { canonicalDecisionEvidence } from "../decision-evidence.js";
 import { requestDecisionEvidence } from "../decision-evidence.js";
+import {
+  capturePolicyProposal,
+  hasPolicyOption,
+  invokePolicy,
+  requestPolicyOptions,
+  type Policy,
+  type PolicyRequestResult,
+  type PolicyResult,
+} from "../policy.js";
 import type { ExactResourceAmounts, ResourceAmounts } from "../budget.js";
-import { BudgetResourceBinding } from "../resource-binding.js";
+import type { BudgetRequestOptions } from "../decision-evidence.js";
+import {
+  BudgetResourceBinding,
+  type BoundResources,
+} from "../resource-binding.js";
 import {
   type PreparedRootResource,
   type ResourceInstallationDefinition,
@@ -34,9 +47,13 @@ import type {
   RemoteBudgetRequestResult,
 } from "./public-types.js";
 import {
+  captureRemoteMutationOptions,
+  createOperationKey,
+  invalidConfiguration,
   requireBudgetReference,
   splitRemoteMutationOptions,
   type BudgetReference,
+  type RemoteOperationOptions,
 } from "./references.js";
 import type { RemoteRuntimeSession } from "../generated/runtime.js";
 
@@ -49,6 +66,18 @@ interface RemoteBudgetIdentity {
   readonly parentBudgetReference: BudgetReference | null;
   readonly rootBudgetReference: BudgetReference;
   readonly depth: number;
+}
+
+export interface RemotePolicySession extends RemoteRuntimeSession {
+  admitPolicy<Prepared, Result>(
+    prepare: () => Prepared,
+    execute: (prepared: Prepared) => Promise<Result>,
+  ): Promise<Result>;
+}
+
+interface RemotePolicyRequestPreparation {
+  readonly policy: unknown;
+  readonly proposal: ReturnType<typeof capturePolicyProposal>;
 }
 
 export function createRemoteResourceBinding<Name extends string>(
@@ -115,23 +144,56 @@ export function createRemoteBudgetHandle<
   Names extends string,
   HistoryNames extends string = Names,
 >(
-  runtime: RemoteRuntimeSession,
+  runtime: RemotePolicySession,
   identity: RemoteBudgetIdentity,
   binding: BudgetResourceBinding<Names, HistoryNames>,
 ): RemoteBudget<Names, HistoryNames> {
   const { client } = runtime;
   const { budgetReference } = identity;
-  const request = <const Resources extends ResourceAmounts<Names>>(
+  function request<const Resources extends ResourceAmounts<Names>>(
     resources: ExactResourceAmounts<Names, Resources>,
+    ...options: [] | [RemoteOperationOptions & BudgetRequestOptions]
+  ): Promise<
+    RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
+  >;
+  function request<
+    const Resources extends ResourceAmounts<Names>,
+    FinalNames extends Names,
+  >(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: BudgetRequestOptions & {
+      readonly policy: Policy<Extract<keyof Resources, Names>, FinalNames>;
+      readonly operationKey?: never;
+    },
+  ): Promise<
+    PolicyRequestResult<
+      FinalNames,
+      RemoteBudgetRequestResult<FinalNames, HistoryNames>
+    >
+  >;
+  function request(
+    resources: unknown,
     ...options: readonly unknown[]
-  ) =>
-    requestRemoteBudget<Names, HistoryNames, Resources>(
-      runtime,
-      identity,
-      binding,
-      resources,
-      options,
-    );
+  ): Promise<unknown> {
+    return requestRemoteBudget(runtime, identity, binding, resources, options);
+  }
+
+  function prepareRequest<
+    const Resources extends ResourceAmounts<Names>,
+    FinalNames extends Names,
+  >(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: BudgetRequestOptions & {
+      readonly policy: Policy<Extract<keyof Resources, Names>, FinalNames>;
+      readonly operationKey?: never;
+    },
+  ): Promise<PolicyResult<FinalNames>>;
+  function prepareRequest(
+    resources: unknown,
+    ...options: readonly unknown[]
+  ): Promise<PolicyResult> {
+    return prepareRemotePolicyRequest(runtime, binding, resources, options);
+  }
 
   const settle: RemoteBudget<Names, HistoryNames>["settle"] = async (
     usage,
@@ -202,6 +264,7 @@ export function createRemoteBudgetHandle<
     [budgetBrand]: undefined,
     reference: budgetReference,
     request,
+    prepareRequest,
     settle,
     inspect,
   }) as RemoteBudget<Names, HistoryNames>;
@@ -210,21 +273,45 @@ export function createRemoteBudgetHandle<
 async function requestRemoteBudget<
   Names extends string,
   HistoryNames extends string,
-  const Resources extends ResourceAmounts<Names>,
 >(
-  runtime: RemoteRuntimeSession,
+  runtime: RemotePolicySession,
   identity: RemoteBudgetIdentity,
   binding: BudgetResourceBinding<Names, HistoryNames>,
-  resources: ExactResourceAmounts<Names, Resources>,
+  resources: unknown,
   options: readonly unknown[],
 ): Promise<
-  RemoteBudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
+  | RemoteBudgetRequestResult<Names, HistoryNames>
+  | PolicyRequestResult<Names, RemoteBudgetRequestResult<Names, HistoryNames>>
 > {
   runtime.assertOpen();
-  const { client } = runtime;
-  const { budgetReference } = identity;
-  type RequestedName = Extract<keyof Resources, Names>;
-  const resolved = binding.resources<RequestedName>(
+  if (hasPolicyOption(options)) {
+    return runtime.admitPolicy(
+      () => captureRemotePolicyRequest(resources, options, binding),
+      async (prepared) => {
+        const result = await resolveRemotePolicyRequest(prepared, binding);
+        if (result.kind !== "prepared") {
+          return Object.freeze({ status: "not_submitted", policy: result });
+        }
+        const resolved = binding.resources<Names>(
+          captureRequest(result.request, "requestBudget", "$.resources"),
+          "requestBudget",
+          "remote",
+        );
+        return Object.freeze({
+          status: "submitted",
+          policy: result,
+          allocation: await submitRemoteBudget(
+            runtime,
+            identity,
+            resolved,
+            createOperationKey(),
+            prepared.decisionEvidence,
+          ),
+        });
+      },
+    );
+  }
+  const resolved = binding.resources<Names>(
     captureRequest(resources, "requestBudget", "$.resources"),
     "requestBudget",
     "remote",
@@ -233,7 +320,78 @@ async function requestRemoteBudget<
     options,
     new Set(["decisionEvidence"]),
   );
-  const decisionEvidence = requestDecisionEvidence(remainingOptions);
+  return submitRemoteBudget(
+    runtime,
+    identity,
+    resolved,
+    operationKey,
+    requestDecisionEvidence(remainingOptions),
+  );
+}
+
+function prepareRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  runtime: RemotePolicySession,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  resources: unknown,
+  options: readonly unknown[],
+): Promise<PolicyResult> {
+  return runtime.admitPolicy(
+    () => captureRemotePolicyRequest(resources, options, binding),
+    async (prepared) => resolveRemotePolicyRequest(prepared, binding),
+  );
+}
+
+function captureRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  resources: unknown,
+  options: readonly unknown[],
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): RemotePolicyRequestPreparation & { readonly decisionEvidence: unknown } {
+  const remoteOptions = captureRemoteMutationOptions(
+    options,
+    new Set(["decisionEvidence", "policy"]),
+  );
+  if (remoteOptions.operationKey !== undefined)
+    throw invalidConfiguration("operationKey");
+  const policyOptions = requestPolicyOptions(remoteOptions.remainingOptions);
+  return {
+    ...policyOptions,
+    proposal: capturePolicyProposal(resources, binding.resourceNames()),
+  };
+}
+
+async function resolveRemotePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  prepared: RemotePolicyRequestPreparation,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): Promise<PolicyResult> {
+  if (prepared.proposal.kind === "failed") return prepared.proposal.result;
+  return invokePolicy(
+    prepared.proposal.proposal,
+    binding.resourceNames(),
+    prepared.policy,
+  );
+}
+
+async function submitRemoteBudget<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  runtime: RemotePolicySession,
+  identity: RemoteBudgetIdentity,
+  resolved: BoundResources<Names, HistoryNames>,
+  operationKey: string,
+  decisionEvidence: unknown,
+): Promise<RemoteBudgetRequestResult<Names, HistoryNames>> {
+  const { client } = runtime;
+  const { budgetReference } = identity;
   const requestedResources = resolved.envelope;
   return invokeBudgetOperation(resolved.binding, async () => {
     const result = await runtime.invokeMutation(
@@ -263,7 +421,7 @@ async function requestRemoteBudget<
         ...(resultDecisionEvidence === undefined
           ? {}
           : { decisionEvidence: resultDecisionEvidence }),
-        budget: createRemoteBudgetHandle<RequestedName, HistoryNames>(
+        budget: createRemoteBudgetHandle<Names, HistoryNames>(
           runtime,
           {
             budgetReference: requireBudgetReference(
@@ -285,7 +443,7 @@ async function requestRemoteBudget<
       reasons: Object.freeze(
         result.reasons
           .map((reason) =>
-            projectDenialReason<RequestedName, HistoryNames>(
+            projectDenialReason<Names, HistoryNames>(
               resolved.binding,
               remoteDenialReason(reason),
             ),

@@ -37,6 +37,12 @@ export type {
   BudgetRequestOptions,
   DecisionEvidence,
 } from "./decision-evidence.js";
+export type {
+  Policy,
+  PolicyOutput,
+  PolicyRequestResult,
+  PolicyResult,
+} from "./policy.js";
 export { KeynesSdkError, ResourceDefinitionError } from "./sdk-errors.js";
 export type {
   DefinedResource,

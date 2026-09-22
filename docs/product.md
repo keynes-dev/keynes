@@ -52,9 +52,9 @@ Keynes has no tenant Resource pool, inventory account, or unattached balance.
 
 ## Application-owned policies
 
-A policy is customer-owned logic that produces a typed Keynes request or rejects an operation. Customers may use ordinary application code, SQL over their own data, or optional policy helpers. Allocation requires no Policy result type, callback signature, or transaction manager.
+A policy is customer-owned logic that prepares a typed Keynes request or stops the operation. Customers may use ordinary application code, SQL over their own data, one optional SDK callback or optional policy helpers. Policy-free allocation requires no Policy result type, callback or transaction manager.
 
-Customers own evaluation, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before constructing a request. An assessment or evaluation record is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
+Customers own policy definitions, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before preparing a request. An assessment or Policy result is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
 
 Customer ownership does not dictate where evaluation runs. It may run inside an application, in a customer-operated service or later in Keynes Cloud. Applications can share one policy deployment. Later hosted evaluation remains outside authoritative accounting and does not restore database-managed Policies.
 
@@ -64,13 +64,19 @@ See the [equivalent application-code and SQL examples](architecture.md#customer-
 
 KEY-114 retired managed SQL Policy authoring, attachment, and evaluation from the runtime and generated contracts. A request can include normalized `decisionEvidence`; it is replay-bound and retained in results and history, but it cannot grant authority or attest to an evaluation. Retired Policy fields are invalid rather than ignored. The [SDK request example](../packages/sdk/README.md#submit-application-computed-requests) shows the supported public shape.
 
+### Request middleware
+
+[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. `request(resources, { policy })` prepares and submits a fresh decision. `prepareRequest(resources, { policy })` performs the same preparation without allocation for previews and recovery.
+
+The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged. A Remote request cannot combine a Policy with a caller-provided operation key. For recovery, prepare the request, retain the final command and evidence with an operation key, then submit the ordinary request without Policy options. Exact replay does not run Policy again.
+
 ## Budgets
 
 A Budget is the only public stateful governance object. It has immutable
 Resource membership, immutable behavior controls, one
 structural parent, and one lifecycle.
 
-Every Budget exposes `request`, `settle`, and `inspect`. The immutable
+Every Budget exposes `request`, `prepareRequest`, `settle`, and `inspect`. The immutable
 `allows.createChildren` value controls whether an active Budget may request a
 child. Omitting `allows` enables child creation. A child chooses its own value;
 it does not inherit or receive a subset of its parent's behavior controls.
@@ -118,7 +124,7 @@ later acquire funding. Empty amounts reject.
 
 Creation validates and resolves the declared Resources without shared definition writes. It creates membership, funding, and the command result atomically or leaves no partial Budget. [KEY-78's specification](features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md) owns acceptance, and [ADR-0011](adr/0011-configured-resource-declarations.md) records the revised creation decision.
 
-To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and, remotely, an `operationKey`.
+To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and one optional Policy. Remote requests also accept an `operationKey`, but not with a Policy.
 
 Root creation introduces the tree's complete funding. A child's complete grant
 comes from its parent at creation. Existing
@@ -131,7 +137,7 @@ definitions. Each root has independent funding, lineage, and accounting. There i
 no automatic rollover, balance migration, or reopening of settled roots. Creating
 a new root does not require unrelated roots to be settled first. Authorization
 to create roots remains the boundary for introducing new allowances; fixed
-funding does not impose a shared ceiling across independently created roots.
+funding does not impose a shared limit across independently created roots.
 
 Insufficient availability causes a request denial, not automatic settlement.
 Quantity may still be held by children and return later. Missing usage and
@@ -287,10 +293,10 @@ retain separate acceptance, and both are required for the Hosted product experie
 Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
 
 - [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional policy definitions, deterministic composition, prepared requests and evaluation records.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy and record helpers. Its [acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) scopes the implemented evidence.
 - [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
 
-These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. Optional helpers can define typed interfaces without imposing a policy language, result type, callback, or transaction manager on allocation.
+These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.
 
 [KEY-119](https://linear.app/keynes/issue/KEY-119) persisted parameters and [KEY-120](https://linear.app/keynes/issue/KEY-120) a schema-driven editor are required Cloud capabilities. Configuration, evaluation tooling and allocation have separate owners. [KEY-115](https://linear.app/keynes/issue/KEY-115) explores model judgments independently; no production provider integration is required for Local or Cloud.
 

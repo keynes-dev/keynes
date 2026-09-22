@@ -72,8 +72,10 @@ keys, including separately declared variables. Runtime validation also rejects
 unknown keys. Returned Budget types and inspection reflect supplied membership.
 Local creation takes amounts only. Remote creation accepts only
 `{ operationKey? }` for recovery. Requests accept optional
-`{ decisionEvidence? }` locally and `{ operationKey?, decisionEvidence? }`
-remotely. Retired Policy fields are rejected rather than ignored.
+`{ decisionEvidence?, policy? }` locally and
+`{ operationKey?, decisionEvidence?, policy? }` remotely. Remote requests
+reject `policy` with `operationKey` before proposal capture. Retired managed
+Policy fields are rejected rather than ignored.
 
 Local initialization establishes a private ephemeral catalog from declarations.
 Durable initialization validates all supplied definitions against the persisted
@@ -91,6 +93,7 @@ earlier connection-only factory and per-Budget Resource input decision.
 Every Budget has a stable method surface:
 
 - `request` asks the Budget to create and fund one child.
+- `prepareRequest` runs one required Policy without allocating a child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
 
@@ -135,9 +138,10 @@ The SDK exports the structural definition type for callers that want a
 ### Customer evaluation and caller evidence
 
 Keynes has no database-managed Policy definition, registration, compiler, or
-evaluator. Customers own evaluation in any language, including SQL over their
-own data. Optional tooling may define typed helper interfaces, but allocation
-requires no Policy result, callback, or transaction manager.
+evaluator. Customers own Policy definitions in any language, including SQL over
+their own data. Direct allocation requires no Policy result, callback, or
+transaction manager. ADR-0014 additionally permits one optional SDK callback
+before the final ordinary command; it grants no database authority.
 
 Callers may attach bounded `decisionEvidence` to a request. Keynes validates,
 canonicalizes, and records it in results and request history; it also binds it
@@ -179,25 +183,27 @@ An all-zero root remains valid but cannot later acquire funding.
 Applications may reuse definitions to create independently funded roots. Creating
 a root neither reopens an earlier root nor migrates its balances, and does not
 require unrelated roots to settle first. Root-creation authorization controls
-new allowances; conservation within a tree is not a ceiling across separate roots.
+new allowances; conservation within a tree is not a shared limit across separate roots.
 
 Zero availability alone changes no lifecycle state. Requests that exceed available
 quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Customer evaluation and request construction
 
-Customers evaluate business rules, validate inputs and optional structured model assessments, and choose parameters before producing a request or rejecting work. They own evaluation failures, timeout behavior, fallback and recomputation. Keynes does not call their evaluator as part of allocation.
+Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before preparing a request or stopping work. They own failures, timeout behavior, fallback and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command. `prepareRequest` runs the same Policy without allocation for preview and recoverable Remote submission.
+
+The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. SDK preparation validates the final names and quantities. It does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to prepare commands without the TypeScript callback.
 
 The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle/controls and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
 
 Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
 
-Exact command replay returns the recorded result without reevaluating customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity.
+Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key. Recovery prepares first, persists the final command and key, then submits without Policy options.
 
 ### Equivalent customer code and SQL
 
 These examples construct the same request data and bounded caller evidence.
-They are customer-owned evaluation, not new Keynes exports. The customer
+They remain valid customer-owned preparation. The customer
 validates its selected inputs first; this example requires a string tier and a
 non-negative safe-integer limit. The business rule allows only a pro-tier
 operation whose selected limit covers 25 cents.
@@ -238,7 +244,7 @@ denial. When submitting, the application can pass
 25-cent request submitted to a parent with only 10 cents available is denied
 by Keynes. Customer evaluation cannot reserve quantity.
 
-A structured model assessment may supply a fact such as a risk category. Customers validate its schema and allowed values and decide how it affects this rule. Missing or malformed output, timeout and provider failure require customer-owned rejection or an explicit fallback before submission. Confidence is not Budget authority. Neither these examples nor the allocation API requires a model, callback or shared policy result interface.
+A structured model assessment may supply a fact such as a risk category. Customers validate its schema and allowed values and decide how it affects this rule. Missing or malformed output, timeout and provider failure require customer-owned failure or an explicit fallback before submission. Confidence is not Budget authority. The optional Policy callback receives validated assessment data through customer code; the SDK owns no provider integration or credentials.
 
 ### Evaluation hosting
 

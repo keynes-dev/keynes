@@ -173,6 +173,12 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL Budget authority rejects malformed Remote definition batches without partial authority state",
     "remote PostgreSQL Budget authority completes one remote create, request, inspect, and settlement loop",
   ],
+  "packages/postgres/test/system/policy-middleware.test.ts": [
+    "Remote Policy middleware rejects a Remote Policy plus operation key before proposal capture or callback invocation",
+    "Remote Policy middleware replays a retained prepared command exactly, rejects changed input, and does not rerun Policy",
+    "Remote Policy middleware replays a retained prepared denial without rerunning Policy",
+    "borrowed PostgreSQL Policy middleware leaves a Policy-submitted command for the caller to roll back",
+  ],
   "packages/postgres/test/system/remote-recovery.test.ts": [
     "remote PostgreSQL recovery and bounded reads recovers a lost child terminal cascade without duplicating movements",
     "remote PostgreSQL recovery and bounded reads recovers a lost configured creation only after current authorization and selected-definition validation",
@@ -262,6 +268,7 @@ export function remoteScenarioInventory(
     "packages/postgres/test/integration/recheck.test.ts",
     "packages/postgres/test/integration/remote-identity.test.ts",
     "packages/postgres/test/system/remote-budget.test.ts",
+    "packages/postgres/test/system/policy-middleware.test.ts",
     "packages/postgres/test/system/remote-recovery.test.ts",
     "packages/postgres/test/system/remote-security.test.ts",
   ] as const;

@@ -1,23 +1,38 @@
 {
-  "name": "@keynes/policy-parameters",
+  "name": "@keynes/policy",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./zod": "./src/zod.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./zod": {
+      "types": "./dist/zod.d.ts",
+      "import": "./dist/zod.js"
+    }
   },
   "scripts": {
+    "build": "node scripts/build.ts",
+    "prepack": "pnpm build",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test --maxWorkers=1"
+    "test": "vitest run test --maxWorkers=1",
+    "test:package": "node test/package/qualify.ts"
   },
   "dependencies": {
+    "@keynes/sdk": "workspace:*",
     "ajv": "8.20.0",
     "canonicalize": "4.0.0",
     "json-schema-to-ts": "3.1.1"
   },
   "devDependencies": {
+    "@keynes/testkit": "workspace:*",
     "vitest": "4.1.11",
     "zod": "4.6.5"
   },

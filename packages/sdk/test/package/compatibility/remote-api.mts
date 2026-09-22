@@ -7,9 +7,12 @@ import type {
   BudgetReference,
   LocalKeynes,
   OperationKey,
+  Policy,
+  PolicyResult,
   RecoverOperationResult,
   RemoteKeynes,
   RemoteBudget,
+  ResourceAmounts,
   ResourceBinding,
   ResourceDefinitions,
 } from "@keynes/sdk";
@@ -87,6 +90,25 @@ declare const optionalRemoteOptions:
   | undefined;
 // @ts-expect-error Optional option variables cannot supply a remote request option.
 await root.request({ usdCents: 1 }, optionalRemoteOptions);
+
+const transformedRemoteRoot = await remote.createBudget({
+  usdCents: 1_000,
+  searchQueries: 100,
+});
+const remotePolicy = ((proposal) => {
+  expectType<ResourceAmounts<"usdCents">>(proposal);
+  return { kind: "prepared" as const, request: { searchQueries: 1 } };
+}) satisfies Policy<"usdCents", "searchQueries">;
+const remotePreview = await transformedRemoteRoot.prepareRequest(
+  { usdCents: 1 },
+  { policy: remotePolicy },
+);
+expectType<PolicyResult<"searchQueries">>(remotePreview);
+await transformedRemoteRoot.prepareRequest(
+  { usdCents: 1 },
+  // @ts-expect-error Remote Policy execution cannot receive a durable operation key.
+  { policy: remotePolicy, operationKey },
+);
 
 const reopenedPromise = remote.openBudget({
   reference: storedReference,

@@ -15,6 +15,15 @@ import {
   type BudgetRequestOptions,
   type DecisionEvidence,
 } from "./decision-evidence.js";
+import {
+  capturePolicyProposal,
+  hasPolicyOption,
+  invokePolicy,
+  requestPolicyOptions,
+  type Policy,
+  type PolicyRequestResult,
+  type PolicyResult,
+} from "./policy.js";
 import type { BudgetResourceBinding } from "./resource-binding.js";
 
 export const budgetBrand: unique symbol = Symbol("Budget");
@@ -51,6 +60,62 @@ export type BudgetRequestResult<
       readonly reasons: readonly BudgetRequestDenialReason<Names>[];
       readonly decisionEvidence?: DecisionEvidence;
     };
+
+type PolicyEnabledRequestOptions<
+  ProposalNames extends string,
+  FinalNames extends string,
+> = BudgetRequestOptions & {
+  readonly policy: Policy<ProposalNames, FinalNames>;
+};
+
+interface DirectRequestPreparation {
+  readonly kind: "direct";
+  readonly requestedResources: unknown;
+  readonly decisionEvidence: unknown;
+}
+
+interface PolicyRequestPreparation {
+  readonly kind: "policy";
+  readonly capturedProposal: ReturnType<typeof capturePolicyProposal>;
+  readonly policy: unknown;
+  readonly decisionEvidence: unknown;
+}
+
+type RequestPreparation = DirectRequestPreparation | PolicyRequestPreparation;
+type RequestResult<Names extends string, HistoryNames extends string> =
+  | BudgetRequestResult<Names, HistoryNames>
+  | PolicyRequestResult<Names, BudgetRequestResult<Names, HistoryNames>>;
+
+interface BudgetRequest<Names extends string, HistoryNames extends string> {
+  <const Resources extends ResourceAmounts<Names>, FinalNames extends Names>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: PolicyEnabledRequestOptions<
+      Extract<keyof Resources, Names>,
+      FinalNames
+    >,
+  ): Promise<
+    PolicyRequestResult<
+      FinalNames,
+      BudgetRequestResult<FinalNames, HistoryNames>
+    >
+  >;
+  <const Resources extends ResourceAmounts<Names>>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    ...options: [] | [BudgetRequestOptions]
+  ): Promise<
+    BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
+  >;
+}
+
+interface BudgetPrepareRequest<Names extends string> {
+  <const Resources extends ResourceAmounts<Names>, FinalNames extends Names>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: PolicyEnabledRequestOptions<
+      Extract<keyof Resources, Names>,
+      FinalNames
+    >,
+  ): Promise<PolicyResult<FinalNames>>;
+}
 
 export interface BudgetResourceSnapshot<Name extends string = string> {
   readonly resource: Name;
@@ -126,12 +191,8 @@ export interface Budget<
   HistoryNames extends string = Names,
 > {
   readonly [budgetBrand]: undefined;
-  readonly request: <const Resources extends ResourceAmounts<Names>>(
-    resources: ExactResourceAmounts<Names, Resources>,
-    ...options: [] | [BudgetRequestOptions]
-  ) => Promise<
-    BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
-  >;
+  readonly request: BudgetRequest<Names, HistoryNames>;
+  readonly prepareRequest: BudgetPrepareRequest<Names>;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
@@ -156,10 +217,50 @@ export function createBudgetHandle<
   budgetId: string,
   binding: BudgetResourceBinding<Names, HistoryNames>,
 ): Budget<Names, HistoryNames> {
-  const request: Budget<Names, HistoryNames>["request"] = (
-    resources,
-    ...options
-  ) => requestBudget(runtime, budgetId, binding, resources, options);
+  function request<const Resources extends ResourceAmounts<Names>>(
+    resources: ExactResourceAmounts<Names, Resources>,
+    ...options: [] | [BudgetRequestOptions]
+  ): Promise<
+    BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>
+  >;
+  function request<
+    const Resources extends ResourceAmounts<Names>,
+    FinalNames extends Names,
+  >(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: PolicyEnabledRequestOptions<
+      Extract<keyof Resources, Names>,
+      FinalNames
+    >,
+  ): Promise<
+    PolicyRequestResult<
+      FinalNames,
+      BudgetRequestResult<FinalNames, HistoryNames>
+    >
+  >;
+  function request(
+    resources: unknown,
+    ...options: readonly unknown[]
+  ): Promise<unknown> {
+    return requestBudget(runtime, budgetId, binding, resources, options);
+  }
+
+  function prepareRequest<
+    const Resources extends ResourceAmounts<Names>,
+    FinalNames extends Names,
+  >(
+    resources: ExactResourceAmounts<Names, Resources>,
+    options: PolicyEnabledRequestOptions<
+      Extract<keyof Resources, Names>,
+      FinalNames
+    >,
+  ): Promise<PolicyResult<FinalNames>>;
+  function prepareRequest(
+    resources: unknown,
+    ...options: readonly unknown[]
+  ): Promise<PolicyResult> {
+    return prepareBudgetRequest(runtime, binding, resources, options);
+  }
 
   const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
     return runtime.admit(
@@ -189,80 +290,162 @@ export function createBudgetHandle<
   const handle = Object.freeze({
     [budgetBrand]: undefined,
     request,
+    prepareRequest,
     settle,
     inspect,
   });
   return handle;
 }
 
-async function requestBudget<
-  Names extends string,
-  HistoryNames extends string,
-  const Resources extends ResourceAmounts<Names>,
->(
+async function requestBudget<Names extends string, HistoryNames extends string>(
   runtime: BasicRuntimeSession,
   budgetId: string,
   binding: BudgetResourceBinding<Names, HistoryNames>,
-  resources: ExactResourceAmounts<Names, Resources>,
+  resources: unknown,
   options: readonly unknown[],
-): Promise<BudgetRequestResult<Extract<keyof Resources, Names>, HistoryNames>> {
-  type RequestedName = Extract<keyof Resources, Names>;
-  const pending = runtime.admit(
-    () => ({
-      requestedResources: captureRequest(
-        resources,
-        "requestBudget",
-        "$.resources",
-      ),
-      decisionEvidence: requestDecisionEvidence(options),
-    }),
-    async ({ requestedResources, decisionEvidence }) => {
-      const resolved = binding.resources<RequestedName>(
-        requestedResources,
-        "requestBudget",
-      );
-      const command = {
-        commandId: randomUUID(),
-        parentBudgetId: budgetId,
-        resources: resolved.envelope,
-        ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
+): Promise<RequestResult<Names, HistoryNames>> {
+  const pending = runtime.admit<
+    RequestPreparation,
+    RequestResult<Names, HistoryNames>
+  >(
+    () => {
+      if (hasPolicyOption(options)) {
+        return capturePolicyRequest(resources, options, binding);
+      }
+      return {
+        kind: "direct",
+        requestedResources: captureRequest(
+          resources,
+          "requestBudget",
+          "$.resources",
+        ),
+        decisionEvidence: requestDecisionEvidence(options),
       };
-      const result = await invokeBudgetOperation(resolved.binding, () =>
-        runtime.invokeMutation(() => runtime.client.requestBudget(command)),
-      );
-      const resultDecisionEvidence = canonicalDecisionEvidence(
-        result.decisionEvidence,
-      );
-      if (result.kind === "approved") {
-        return Object.freeze({
-          status: "approved" as const,
-          budget: createBudgetHandle<RequestedName, HistoryNames>(
-            runtime,
-            result.childBudgetId,
-            resolved.binding,
-          ),
-          ...(resultDecisionEvidence === undefined
-            ? {}
-            : { decisionEvidence: resultDecisionEvidence }),
-        });
+    },
+    async (prepared) => {
+      if (prepared.kind === "direct") {
+        return submitBudget(
+          runtime,
+          budgetId,
+          binding,
+          prepared.requestedResources,
+          prepared.decisionEvidence,
+        );
+      }
+      const policy = await resolvePolicyRequest(prepared, binding);
+      if (policy.kind !== "prepared") {
+        return Object.freeze({ status: "not_submitted", policy });
       }
       return Object.freeze({
-        status: "denied" as const,
-        reasons: Object.freeze(
-          result.reasons
-            .map((reason) =>
-              projectDenialReason<RequestedName, HistoryNames>(
-                resolved.binding,
-                reason,
-              ),
-            )
-            .sort(compareDenialReasons),
+        status: "submitted",
+        policy,
+        allocation: await submitBudget(
+          runtime,
+          budgetId,
+          binding,
+          policy.request,
+          prepared.decisionEvidence,
         ),
-        ...(resultDecisionEvidence === undefined
-          ? {}
-          : { decisionEvidence: resultDecisionEvidence }),
       });
     },
   );
   return pending;
+}
+
+function prepareBudgetRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  runtime: BasicRuntimeSession,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  resources: unknown,
+  options: readonly unknown[],
+): Promise<PolicyResult> {
+  return runtime.admit(
+    () => capturePolicyRequest(resources, options, binding),
+    async (prepared) => resolvePolicyRequest(prepared, binding),
+  );
+}
+
+function capturePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  resources: unknown,
+  options: readonly unknown[],
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): PolicyRequestPreparation {
+  const policyOptions = requestPolicyOptions(options);
+  return {
+    kind: "policy",
+    ...policyOptions,
+    capturedProposal: capturePolicyProposal(resources, binding.resourceNames()),
+  };
+}
+
+async function resolvePolicyRequest<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  prepared: PolicyRequestPreparation,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+): Promise<PolicyResult> {
+  if (prepared.capturedProposal.kind === "failed")
+    return prepared.capturedProposal.result;
+  return invokePolicy(
+    prepared.capturedProposal.proposal,
+    binding.resourceNames(),
+    prepared.policy,
+  );
+}
+
+async function submitBudget<Names extends string, HistoryNames extends string>(
+  runtime: BasicRuntimeSession,
+  budgetId: string,
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  requestedResources: unknown,
+  decisionEvidence: unknown,
+): Promise<BudgetRequestResult<Names, HistoryNames>> {
+  const resolved = binding.resources<Names>(
+    requestedResources,
+    "requestBudget",
+  );
+  const command = {
+    commandId: randomUUID(),
+    parentBudgetId: budgetId,
+    resources: resolved.envelope,
+    ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
+  };
+  const result = await invokeBudgetOperation(resolved.binding, () =>
+    runtime.invokeMutation(() => runtime.client.requestBudget(command)),
+  );
+  const resultDecisionEvidence = canonicalDecisionEvidence(
+    result.decisionEvidence,
+  );
+  if (result.kind === "approved") {
+    return Object.freeze({
+      status: "approved" as const,
+      budget: createBudgetHandle<Names, HistoryNames>(
+        runtime,
+        result.childBudgetId,
+        resolved.binding,
+      ),
+      ...(resultDecisionEvidence === undefined
+        ? {}
+        : { decisionEvidence: resultDecisionEvidence }),
+    });
+  }
+  return Object.freeze({
+    status: "denied" as const,
+    reasons: Object.freeze(
+      result.reasons
+        .map((reason) =>
+          projectDenialReason<Names, HistoryNames>(resolved.binding, reason),
+        )
+        .sort(compareDenialReasons),
+    ),
+    ...(resultDecisionEvidence === undefined
+      ? {}
+      : { decisionEvidence: resultDecisionEvidence }),
+  });
 }
