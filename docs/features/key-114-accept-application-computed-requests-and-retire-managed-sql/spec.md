@@ -104,6 +104,6 @@ An existing user moves evaluation into customer code and can detect obsolete cal
 
 ## Assumptions
 
-KEY-113 and KEY-78 are landed prerequisites in baseline `6f765b81cc93824340cfcf2a79a3b4b031af7802`. ADR-0013 and constitution 12.0.0 govern the feature. First Local remains private ephemeral SQLite; PostgreSQL owns supported durable/caller-transaction paths. Existing permissions, lifecycle and accounting constraints are preserved.
+KEY-113 and KEY-78 are landed prerequisites in baseline `6f765b81cc93824340cfcf2a79a3b4b031af7802`. ADR-0013 and constitution 12.0.0 govern the feature. First Local remains private ephemeral SQLite; PostgreSQL owns supported durable/caller-transaction paths. Existing behavior controls are preserved; adding the unimplemented child-creation control belongs to KEY-79.
 
 KEY-96 owns package separation. KEY-116/117/118 own optional tooling, KEY-115 model exploration, and KEY-122/123/124 cross-authority accounting, durability and delegation. No additional SDK, hosted evaluator, provider execution, automatic database upgrade or new performance target is included. Those concerns are N/A to this acceptance; existing measurement tooling must still work. One feature has one acceptance outcome and normally one PR. Implementation and local acceptance are recorded in [acceptance.md](acceptance.md); publication and merge are outside this run.

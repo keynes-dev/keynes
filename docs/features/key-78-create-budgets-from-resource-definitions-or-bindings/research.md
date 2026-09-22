@@ -32,7 +32,7 @@ already use these options. Policy Resource requirements must be checked against
 supplied Budget membership, not the whole configuration.
 
 **Alternatives considered**: Nested initial amounts violate FR-001. Metadata inside
-amounts creates name ambiguity. Future Policy bindings and
+amounts creates name ambiguity. Future Policy bindings, behavior controls, and
 loading APIs are outside this change. A public local recovery API is unnecessary;
 local retry retains its generated command identity internally.
 

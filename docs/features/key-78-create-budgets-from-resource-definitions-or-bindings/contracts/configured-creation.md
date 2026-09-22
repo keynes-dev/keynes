@@ -185,5 +185,5 @@ Remove superseded public factory/creation overloads and reject old wire inputs.
 Adapt current callers and consumer fixtures. Preserve historical docs/evidence
 with their original revision meaning. Existing openBudget, request, settle,
 PolicySet, and explicit definition behavior retain their current semantics;
-future loadBudget, Policy bindings, generation tooling, and journal
+future loadBudget, Policy bindings, allows, generation tooling, and journal
 conversion are outside KEY-78.
