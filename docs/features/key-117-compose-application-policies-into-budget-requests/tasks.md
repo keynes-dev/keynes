@@ -62,13 +62,13 @@ Checkpoint: preparation and explicit Remote recovery are independently demonstra
 
 **Independent test**: Run a plain SDK Policy with no toolkit, then run one configured Policy from initials and a restored snapshot.
 
-- [ ] T021 [US3] Move `packages/policy-parameters` to `packages/policy` and update active workspace imports, package filters, `pnpm-lock.yaml`, `turbo.json` and `tsconfig.tests.json` while preserving historical KEY-116 artifacts.
-- [ ] T022 [P] [US3] Add failing configured-Policy tests for initial selection once, explicit restoration, tamper rejection and no per-request snapshot in `packages/policy/test/configure.test.ts`.
-- [ ] T023 [P] [US3] Add failing independent-ceiling and portable-record privacy cases in `packages/policy/test/toolkit.test.ts`.
-- [ ] T024 [US3] Implement configured-Policy construction in `packages/policy/src/configure.ts` by reusing existing declaration and restoration functions.
-- [ ] T025 [US3] Implement `minimumCeilings` and Policy record capture in `packages/policy/src/toolkit.ts` without request reduction, timestamps, random IDs or implicit data capture.
-- [ ] T026 [US3] Export root and optional `/zod` contracts from `packages/policy/src/index.ts` and `packages/policy/src/zod.ts`, retaining SDK-to-toolkit dependency direction.
-- [ ] T027 [US3] Run the complete moved KEY-116 suite plus configured-Policy and type checks, then record results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T021 [US3] Move `packages/policy-parameters` to `packages/policy` and update active workspace imports, package filters, `pnpm-lock.yaml`, `turbo.json` and `tsconfig.tests.json` while preserving historical KEY-116 artifacts.
+- [x] T022 [P] [US3] Add failing configured-Policy tests for initial selection once, explicit restoration, tamper rejection and no per-request snapshot in `packages/policy/test/configure.test.ts`.
+- [x] T023 [P] [US3] Add failing independent-ceiling and portable-record privacy cases in `packages/policy/test/toolkit.test.ts`.
+- [x] T024 [US3] Implement configured-Policy construction in `packages/policy/src/configure.ts` by reusing existing declaration and restoration functions.
+- [x] T025 [US3] Implement `minimumCeilings` and Policy record capture in `packages/policy/src/toolkit.ts` without request reduction, timestamps, random IDs or implicit data capture.
+- [x] T026 [US3] Export root and optional `/zod` contracts from `packages/policy/src/index.ts` and `packages/policy/src/zod.ts`, retaining SDK-to-toolkit dependency direction.
+- [x] T027 [US3] Run the complete moved KEY-116 suite plus configured-Policy and type checks, then record results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
 
 Checkpoint: plain and configured Policies work without making configuration part of every request. Review and commit.
 

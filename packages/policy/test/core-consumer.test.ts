@@ -19,9 +19,10 @@ import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-it("resolves and runs a core consumer without Zod or ancestor dependencies", () => {
+it("resolves and runs a core consumer without Zod or runtime adapter dependencies", () => {
   const consumer = mkdtempSync(join(tmpdir(), "keynes-parameters-"));
   const source = fileURLToPath(new URL("../", import.meta.url));
+  const sdkSource = fileURLToPath(new URL("../../sdk/", import.meta.url));
   try {
     for (
       let parent = dirname(consumer);
@@ -62,15 +63,17 @@ it("resolves and runs a core consumer without Zod or ancestor dependencies", () 
       `@typescript/typescript-${process.platform}-${process.arch}`,
       createRequire(manifest).resolve("typescript/package.json"),
     );
-    const packagePath = join(consumer, "policy-parameters");
+    const packagePath = join(consumer, "policy");
     mkdirSync(packagePath, { recursive: true });
     cpSync(join(source, "src"), join(packagePath, "src"), { recursive: true });
     cpSync(manifest, join(packagePath, "package.json"));
     mkdirSync(join(consumer, "node_modules/@keynes"), { recursive: true });
-    symlinkSync(
-      packagePath,
-      join(consumer, "node_modules/@keynes/policy-parameters"),
-    );
+    const sdkPath = join(consumer, "node_modules/@keynes/sdk");
+    cpSync(join(sdkSource, "dist"), join(sdkPath, "dist"), {
+      recursive: true,
+    });
+    cpSync(join(sdkSource, "package.json"), join(sdkPath, "package.json"));
+    symlinkSync(packagePath, join(consumer, "node_modules/@keynes/policy"));
     expect(existsSync(join(consumer, "node_modules/zod"))).toBe(false);
     writeFileSync(
       join(consumer, "package.json"),
@@ -81,7 +84,7 @@ it("resolves and runs a core consumer without Zod or ancestor dependencies", () 
       `
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createParameterSnapshot, defineParameters, restoreParameterSnapshot } from '@keynes/policy-parameters';
+import { createParameterSnapshot, defineParameters, restoreParameterSnapshot } from '@keynes/policy';
 const snapshot = createParameterSnapshot(defineParameters({ limit: { schema: { type: 'number' }, initial: 3 } }));
 const limit: number = snapshot.values.limit;
 assert.equal(limit, 3);

@@ -1,5 +1,5 @@
 {
-  "name": "@keynes/policy-parameters",
+  "name": "@keynes/policy",
   "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
@@ -13,6 +13,7 @@
     "test": "vitest run test --maxWorkers=1"
   },
   "dependencies": {
+    "@keynes/sdk": "workspace:*",
     "ajv": "8.20.0",
     "canonicalize": "4.0.0",
     "json-schema-to-ts": "3.1.1"

@@ -14,7 +14,7 @@ import {
   defineParameters,
   overrideParameterSnapshot,
   restoreParameterSnapshot,
-} from "@keynes/policy-parameters";
+} from "@keynes/policy";
 import canonicalize from "canonicalize";
 
 const declaration = defineParameters({
@@ -59,11 +59,8 @@ The separate adapter supports exactly Zod 4.6.5. Core imports and snapshot resto
 
 ```ts
 import { z } from "zod";
-import { zodParameter } from "@keynes/policy-parameters/zod";
-import {
-  createParameterSnapshot,
-  defineParameters,
-} from "@keynes/policy-parameters";
+import { zodParameter } from "@keynes/policy/zod";
+import { createParameterSnapshot, defineParameters } from "@keynes/policy";
 
 const declaration = defineParameters({
   reviewThreshold: zodParameter(z.number().min(0), 100),
@@ -89,8 +86,8 @@ Errors expose a controlled `code`, JSON Pointer `path` and validation `rule`, wi
 Run the provider-free source checks from the repository root:
 
 ```sh
-pnpm --filter @keynes/policy-parameters test
-pnpm --filter @keynes/policy-parameters typecheck
+pnpm --filter @keynes/policy test
+pnpm --filter @keynes/policy typecheck
 ```
 
 The [validation guide](../../docs/features/key-116-declare-typed-policy-parameters/quickstart.md) maps checks to acceptance evidence. These checks do not qualify published archives or Local preview publication.

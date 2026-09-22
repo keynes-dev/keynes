@@ -204,7 +204,97 @@ changing runtime or adapter contracts.
 **Post-review type correction**: `RemoteBudget` now omits both inherited
 `request` and `prepareRequest` before adding its Remote methods, so the Remote
 preview signature cannot intersect the Local one. The installed SDK consumer
-asserts transformed `prepareRequest` inference and rejects a Policy request
-preview that supplies an `operationKey`. `pnpm --filter @keynes/sdk typecheck`,
+asserts transformed `prepareRequest` inference and rejects a Policy preview
+that supplies an `operationKey`. `pnpm --filter @keynes/sdk typecheck`,
 `pnpm --filter @keynes/sdk build`, and the selected SDK-only archive consumer
 all passed after this correction.
+
+## Phase 5 configured Policy toolkit
+
+**Evidence basis**: the uncommitted Phase 5 diff on `da2858e`.
+
+**Mechanical relocation**:
+
+`packages/policy-parameters` moved to `packages/policy` and is now named
+`@keynes/policy`. Its active README, core-consumer fixture and lockfile use the
+new package identity. The workspace glob did not name the old directory, and
+`turbo.json` and `tsconfig.tests.json` contained no package-specific reference
+to change. Historical KEY-116 feature artifacts retain their original paths.
+
+**Observed red**:
+
+```sh
+pnpm --filter @keynes/policy exec vitest run test/configure.test.ts test/toolkit.test.ts --maxWorkers=1
+```
+
+Expected red, exit 1. Both new suites failed to import the absent
+`src/configure.ts` and `src/toolkit.ts`; no existing KEY-116 test failed.
+
+**Focused and complete green**:
+
+```sh
+pnpm --filter @keynes/sdk build
+pnpm --filter @keynes/policy exec vitest run test/configure.test.ts test/toolkit.test.ts --maxWorkers=1
+pnpm --filter @keynes/policy test
+pnpm --filter @keynes/policy typecheck
+pnpm --filter @keynes/sdk typecheck
+pnpm typecheck
+```
+
+All commands passed. The new focused suite ran 7 tests. The complete moved
+KEY-116 suite plus configured-Policy and toolkit coverage ran 6 files and 96
+tests. Repository typecheck passed all 10 tasks across 7 packages.
+
+`configurePolicy` selects declaration initials once or restores one caller
+provided snapshot at construction, then closes over the selected immutable
+values. It returns only an SDK-compatible Policy and parameter definition and
+snapshot identities; it creates no snapshot per Policy invocation.
+`recordPolicyResult` deep-captures one typed `PolicyResult` and caller-selected
+strict JSON context, retains no parameter values or closure state, and adds no
+time or random identifier. `minimumCeilings` verifies exact non-empty Resource
+membership in each independent ceiling map and returns only per-key minima; it
+does not reduce or decide a request. `@keynes/policy` imports SDK types only,
+while the SDK has no toolkit dependency. The existing `/zod` export remains
+optional.
+
+**Post-review corrections**:
+
+- `configurePolicy` validates and captures one own data-backed `run` callback
+  at construction. Later option mutation cannot replace it, and accessor-backed
+  callbacks are rejected without invocation.
+- `minimumCeilings` now requires every declared name and no unknown names in
+  literal ceiling maps, and preserves those names in its return type. Runtime
+  checks remain for JavaScript and variable inputs.
+- The configured-Policy composition type test verifies exact proposal and
+  final Resource names through `Budget.request`. TypeScript needs the honest
+  `run` proposal and result annotations at construction, because its later
+  `Budget.request` use cannot provide contextual generic inference.
+
+`PolicyRecord` deliberately exposes broad `PolicyResult`: strict JSON copying
+erases the runtime Resource-name vocabulary, so preserving a result-name
+generic would need a cast or duplicated SDK vocabulary validation. Its input
+remains generically checked.
+
+The callback regression first failed because the configured Policy returned
+the later replacement callback's `replaced` code instead of the captured
+`original` code. The exact-ceiling type assertions first failed as unused
+`@ts-expect-error` directives, demonstrating that missing and unknown keys
+were previously admitted. The focused test command, policy typecheck, SDK
+build and typecheck, complete policy suite, and repository typecheck above
+were rerun after these corrections and passed with the final 7 focused and 96
+complete policy tests.
+
+The Resource-name capture regression first failed with `resourceNames read
+twice`; computation now uses the strict captured copy throughout. The copied
+Policy-result validator remains because the SDK has no public runtime
+PolicyResult validator and `@keynes/policy` keeps its SDK import type-only, not
+because of a dependency cycle.
+
+**Ponytail review**: Lean already. Ship. The implementation reuses declaration,
+snapshot restoration, deep-freeze and strict JSON capture primitives. The small
+copied Policy-result shape remains necessary to produce an immutable, detached
+public `PolicyResult` while keeping the SDK import type-only.
+
+**NOT RUN**: toolkit archive/package consumer qualification is Phase 7
+(`T033`-`T034`); no Local, Remote, native PostgreSQL, runtime archive or live
+provider lane was run for this toolkit-only phase.
