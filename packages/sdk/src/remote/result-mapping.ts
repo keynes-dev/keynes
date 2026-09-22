@@ -34,7 +34,10 @@ import {
 } from "../policy.js";
 import type { ExactResourceAmounts, ResourceAmounts } from "../budget.js";
 import type { BudgetRequestOptions } from "../decision-evidence.js";
-import { BudgetResourceBinding } from "../resource-binding.js";
+import {
+  BudgetResourceBinding,
+  type BoundResources,
+} from "../resource-binding.js";
 import {
   type PreparedRootResource,
   type ResourceInstallationDefinition,
@@ -289,14 +292,18 @@ async function requestRemoteBudget<
         if (result.kind !== "prepared") {
           return Object.freeze({ status: "not_submitted", policy: result });
         }
+        const resolved = binding.resources<Names>(
+          captureRequest(result.request, "requestBudget", "$.resources"),
+          "requestBudget",
+          "remote",
+        );
         return Object.freeze({
           status: "submitted",
           policy: result,
           allocation: await submitRemoteBudget(
             runtime,
             identity,
-            binding,
-            result.request,
+            resolved,
             createOperationKey(),
             prepared.decisionEvidence,
           ),
@@ -304,6 +311,11 @@ async function requestRemoteBudget<
       },
     );
   }
+  const resolved = binding.resources<Names>(
+    captureRequest(resources, "requestBudget", "$.resources"),
+    "requestBudget",
+    "remote",
+  );
   const { operationKey, remainingOptions } = splitRemoteMutationOptions(
     options,
     new Set(["decisionEvidence"]),
@@ -311,8 +323,7 @@ async function requestRemoteBudget<
   return submitRemoteBudget(
     runtime,
     identity,
-    binding,
-    resources,
+    resolved,
     operationKey,
     requestDecisionEvidence(remainingOptions),
   );
@@ -327,7 +338,6 @@ function prepareRemotePolicyRequest<
   resources: unknown,
   options: readonly unknown[],
 ): Promise<PolicyResult> {
-  runtime.assertOpen();
   return runtime.admitPolicy(
     () => captureRemotePolicyRequest(resources, options, binding),
     async (prepared) => resolveRemotePolicyRequest(prepared, binding),
@@ -376,18 +386,12 @@ async function submitRemoteBudget<
 >(
   runtime: RemotePolicySession,
   identity: RemoteBudgetIdentity,
-  binding: BudgetResourceBinding<Names, HistoryNames>,
-  resources: unknown,
+  resolved: BoundResources<Names, HistoryNames>,
   operationKey: string,
   decisionEvidence: unknown,
 ): Promise<RemoteBudgetRequestResult<Names, HistoryNames>> {
   const { client } = runtime;
   const { budgetReference } = identity;
-  const resolved = binding.resources<Names>(
-    captureRequest(resources, "requestBudget", "$.resources"),
-    "requestBudget",
-    "remote",
-  );
   const requestedResources = resolved.envelope;
   return invokeBudgetOperation(resolved.binding, async () => {
     const result = await runtime.invokeMutation(

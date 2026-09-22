@@ -6,7 +6,7 @@ acceptance evidence; GitHub owns PR review, CI, and merge.
 
 ## Adopted request and runtime boundary
 
-[ADR-0013](adr/0013-application-owned-policies.md), [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) and constitution 13.0.0 adopt customer-owned policy preparation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests directly or through planned optional SDK Policy middleware; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove policy execution or grant authority.
+[ADR-0013](adr/0013-application-owned-policies.md), [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) and constitution 13.0.0 adopt customer-owned policy preparation and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests directly or through optional SDK Policy middleware; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement and replay. Caller decision evidence does not prove policy execution or grant authority.
 
 KEY-114 retired managed SQL Policies and added bounded caller evidence to the
 request contract. KEY-96 implements explicit runtime/package separation; its acceptance record tracks final qualification. Customer Policy definitions,

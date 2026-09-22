@@ -308,7 +308,13 @@ function admitRemotePolicies(
     } catch (error: unknown) {
       return Promise.reject(error);
     }
-    const result = Promise.resolve().then(() => execute(prepare()));
+    let result: Promise<Result>;
+    try {
+      const prepared = prepare();
+      result = Promise.resolve().then(() => execute(prepared));
+    } catch (error: unknown) {
+      result = Promise.reject(error);
+    }
     admitted.add(result);
     void result.then(
       () => admitted.delete(result),
@@ -319,9 +325,7 @@ function admitRemotePolicies(
 
   function close(): Promise<void> {
     if (closePromise !== undefined) return closePromise;
-    closePromise = Promise.allSettled([...admitted]).then(() =>
-      runtime.close(),
-    );
+    closePromise = Promise.allSettled(admitted).then(() => runtime.close());
     return closePromise;
   }
 
