@@ -85,9 +85,9 @@ Purpose: retain compiled validators with declarations and remove incoming-schema
 
 ## Phase 8: Refinement qualification and ownership reconciliation
 
-- [ ] T025 Run the full provider-free gate, feature prerequisites, managed-file integrity, formatting and diff checks; retain exact-revision evidence and explicit NOT RUN lanes.
-- [ ] T026 Reconcile final artifacts, evaluate independent correctness and read-only Ponytail reviews, and commit the evidence phase. Push the existing branch, refresh PR #67 and Linear evidence links, and verify required CI at its final head.
-- [ ] T027 Correct Linear ownership: KEY-116 owns this refinement; KEY-117 retains optional toolkit distribution and downstream consumer validation. Preserve issue states, blocking relations and the existing PR's draft status.
+- [x] T025 Run the full provider-free gate, feature prerequisites, managed-file integrity, formatting and diff checks; retain exact-revision evidence and explicit NOT RUN lanes.
+- [x] T026 Reconcile final artifacts, evaluate independent correctness and read-only Ponytail reviews, and commit the evidence phase. Push the existing branch, refresh PR #67 and Linear evidence links, and verify required CI at its final head.
+- [x] T027 Correct Linear ownership: KEY-116 owns this refinement; KEY-117 retains optional toolkit distribution and downstream consumer validation. Preserve issue states, blocking relations and the existing PR's draft status.
 
 ## Dependencies and execution order
 

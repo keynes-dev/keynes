@@ -8,7 +8,7 @@
 
 Define a small, provider-free parameter contract outside the SDK and database runtimes. Literal JSON Schema declarations retain inferred types, explicit initial values produce immutable snapshots, and overrides replace whole parameter values. A separate Zod adapter accepts only declarations whose checks survive portable conversion.
 
-The original implementation is complete; tasks.md now includes the approved declaration-validator and restoration refinement. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) describe the source contract. [Acceptance](acceptance.md) separates historical evidence from verification of the refinement.
+The implementation includes declaration-owned validators and simplified restoration. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) describe the source contract. [Acceptance](acceptance.md) separates historical evidence from verification of the refinement.
 
 ## Technical Context
 
