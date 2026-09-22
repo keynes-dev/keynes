@@ -88,15 +88,18 @@ describe("Policy preparation", () => {
   });
 
   it.each([
-    null,
-    { kind: "approved" },
-    { kind: "prepared", request: { usdCents: 1 }, code: "extra" },
-    { kind: "rejected", code: "UPPERCASE" },
-    { kind: "review_required", code: "has-dash" },
-    { kind: "failed", code: "x".repeat(65) },
+    ["missing object", null],
+    ["unknown kind", { kind: "approved" }],
+    [
+      "extra field",
+      { kind: "prepared", request: { usdCents: 1 }, code: "extra" },
+    ],
+    ["invalid rejection code", { kind: "rejected", code: "UPPERCASE" }],
+    ["invalid review code", { kind: "review_required", code: "has-dash" }],
+    ["overlong failure code", { kind: "failed", code: "x".repeat(65) }],
   ])(
-    "turns malformed Policy discriminants, fields, and codes into failure",
-    async (output) => {
+    "turns a malformed Policy discriminant, field, or code into failure: %s",
+    async (_name, output) => {
       await expect(
         preparePolicy({ usdCents: 1 }, ["usdCents"], () => output),
       ).resolves.toEqual({ kind: "failed", code: "invalid_policy_output" });
@@ -104,20 +107,23 @@ describe("Policy preparation", () => {
   );
 
   it.each([
-    {},
-    { unknown: 1 },
-    { usdCents: 0.5 },
-    { usdCents: -1 },
-    { usdCents: Infinity },
-    { usdCents: Number.MAX_SAFE_INTEGER + 1 },
-  ])("rejects invalid prepared Resource envelopes", async (request) => {
-    await expect(
-      preparePolicy({ usdCents: 1 }, ["usdCents"], () => ({
-        kind: "prepared",
-        request,
-      })),
-    ).resolves.toEqual({ kind: "failed", code: "invalid_policy_output" });
-  });
+    ["empty", {}],
+    ["unknown Resource", { unknown: 1 }],
+    ["fractional quantity", { usdCents: 0.5 }],
+    ["negative quantity", { usdCents: -1 }],
+    ["infinite quantity", { usdCents: Infinity }],
+    ["unsafe integer quantity", { usdCents: Number.MAX_SAFE_INTEGER + 1 }],
+  ])(
+    "rejects an invalid prepared Resource envelope: %s",
+    async (_name, request) => {
+      await expect(
+        preparePolicy({ usdCents: 1 }, ["usdCents"], () => ({
+          kind: "prepared",
+          request,
+        })),
+      ).resolves.toEqual({ kind: "failed", code: "invalid_policy_output" });
+    },
+  );
 
   it("rejects inherited and accessor-backed prepared Resource fields without reading accessors", async () => {
     const inherited = Object.create({ usdCents: 1 });

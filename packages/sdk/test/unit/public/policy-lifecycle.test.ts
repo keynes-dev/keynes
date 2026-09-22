@@ -10,18 +10,18 @@ const definitions = {
 
 describe("Policy preparation lifecycle", () => {
   it.each([
-    () => {
-      throw new Error("customer failure");
-    },
-    () => Promise.reject("customer failure"),
-  ])(
-    "turns synchronous throws and rejected Policy Promises into controlled failures",
-    async (policy) => {
-      await expect(
-        preparePolicy({ usdCents: 1 }, ["usdCents"], policy),
-      ).resolves.toEqual({ kind: "failed", code: "policy_failed" });
-    },
-  );
+    [
+      "synchronous throw",
+      () => {
+        throw new Error("customer failure");
+      },
+    ],
+    ["rejected Promise", () => Promise.reject("customer failure")],
+  ])("turns a Policy %s into a controlled failure", async (_name, policy) => {
+    await expect(
+      preparePolicy({ usdCents: 1 }, ["usdCents"], policy),
+    ).resolves.toEqual({ kind: "failed", code: "policy_failed" });
+  });
 
   it("admits asynchronous Policy work and drains it during close", async () => {
     const session = await nodeSqlite().initialize(definitions);
