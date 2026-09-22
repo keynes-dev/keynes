@@ -8,8 +8,12 @@ import type {
   BudgetSnapshot,
   Keynes,
   LocalKeynes,
+  Policy,
+  PolicyOutput,
+  PolicyResult,
   ResourceBinding,
   ResourceDefinitions,
+  ResourceAmounts,
 } from "@keynes/sdk";
 import * as sdk from "@keynes/sdk";
 
@@ -99,6 +103,40 @@ await root.request({ usdCents: 1 }, { context: undefined });
 await root.request({ usdCents: 1 }, { childPolicies: undefined });
 // @ts-expect-error Legacy Policy evidence is rejected.
 await root.request({ usdCents: 1 }, { policyEvidence: undefined });
+
+const policyFreeResult = await root.request({ usdCents: 1 });
+expectType<BudgetRequestResult<"usdCents">>(policyFreeResult);
+
+const transformedRoot = await keynes.createBudget({
+  usdCents: 100,
+  searchQueries: 100,
+});
+const policy = ((proposal) => {
+  expectType<ResourceAmounts<"usdCents">>(proposal);
+  return { kind: "prepared", request: { searchQueries: 1 } };
+}) satisfies Policy<"usdCents", "searchQueries">;
+const policyOutput = {
+  kind: "prepared",
+  request: { searchQueries: 1 },
+} satisfies PolicyOutput<"searchQueries">;
+expectType<PolicyOutput<"searchQueries">>(policyOutput);
+declare const policyResult: PolicyResult<"searchQueries">;
+expectType<PolicyResult<"searchQueries">>(policyResult);
+
+const transformedResult = await transformedRoot.request(
+  { usdCents: 1 },
+  { policy },
+);
+if (
+  transformedResult.status === "submitted" &&
+  transformedResult.allocation.status === "approved"
+) {
+  const transformedChild = transformedResult.allocation.budget;
+  expectType<Budget<"searchQueries">>(transformedChild);
+  await transformedChild.request({ searchQueries: 1 });
+  // @ts-expect-error A transformed child does not retain only proposal keys.
+  await transformedChild.request({ usdCents: 1 });
+}
 
 declare const legacyRequestResult: BudgetRequestResult<"usdCents">;
 if (legacyRequestResult.status === "approved") {

@@ -10,9 +10,9 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md` with the implementation revision and separate provider-free, Local, native, SDK archive, toolkit archive, runtime archive and live-provider lanes marked `NOT RUN`.
-- [ ] T002 Add the first failing SDK-only consumer for the proposed Policy names, policy-free compatibility and transformed child typing in `packages/sdk/test/package/compatibility/policy-api.mts`.
-- [ ] T003 Confirm the public call shape against that consumer and update `docs/features/key-117-compose-application-policies-into-budget-requests/contracts/toolkit.md` before adding implementation if inference contradicts the plan.
+- [x] T001 Create `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md` with the implementation revision and separate provider-free, Local, native, SDK archive, toolkit archive, runtime archive and live-provider lanes marked `NOT RUN`.
+- [x] T002 Add the first failing SDK-only consumer for the proposed Policy names, policy-free compatibility and transformed child typing in `packages/sdk/test/package/compatibility/policy-api.mts`.
+- [x] T003 Confirm the public call shape against that consumer and update `docs/features/key-117-compose-application-policies-into-budget-requests/contracts/toolkit.md` before adding implementation if inference contradicts the plan.
 
 Checkpoint: the consumer fails only because KEY-117 contracts are absent. Review, record the red result and commit.
 
