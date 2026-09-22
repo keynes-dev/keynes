@@ -92,6 +92,14 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "command_conflict" } });
     expect(await authorityCounts(fixture)).toEqual(before);
+    await fixture.register(fixture.secondary);
+    const otherTenant = await fixture.connect(fixture.secondary);
+    expect(
+      await queryResponse(otherTenant, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toEqual({ ok: true, result: { kind: "not_found", operationKey: key } });
+    expect(await authorityCounts(fixture)).toEqual(before);
     const bindingReference = receipt.bindingReference;
     expect(bindingReference).toEqual(
       expect.stringMatching(/^krs_v1_[A-Za-z0-9_-]{43}$/u),
@@ -109,6 +117,13 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       "delete from keynes_internal.remote_operations where operation_key = $1",
       [key],
     );
+    const afterDelete = await authorityCounts(fixture);
+    expect(
+      await queryResponse(consumer, "keynes.remote_recover_operation", {
+        operationKey: key,
+      }),
+    ).toEqual({ ok: true, result: { kind: "not_found", operationKey: key } });
+    expect(await authorityCounts(fixture)).toEqual(afterDelete);
     const created = await queryResponse(
       consumer,
       "keynes.remote_create_budget",
@@ -214,13 +229,13 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         installationId: expect.any(String),
         contractDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
         remoteProceduresDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        semanticGeneration: 5,
-        minimumSdkGeneration: 5,
+        semanticGeneration: 6,
+        minimumSdkGeneration: 6,
         procedures: expect.arrayContaining([
           expect.objectContaining({
-            name: "getCompatibility",
-            target: "keynes.remote_get_compatibility",
-            revision: 3,
+            name: "recoverOperation",
+            target: "keynes.remote_recover_operation",
+            revision: 4,
           }),
         ]),
       },
@@ -654,7 +669,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     expect(await authorityCounts(fixture)).toEqual(beforeDeniedReplay);
   });
 
-  it("returns known-failure and expired recovery states without mutation", async () => {
+  it("returns known-failure and missing recovery states without mutation", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
@@ -693,7 +708,7 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       await queryResponse(client, "keynes.remote_recover_operation", {
         operationKey: operationKey("z"),
       }),
-    ).toMatchObject({ ok: true, result: { kind: "expired" } });
+    ).toMatchObject({ ok: true, result: { kind: "not_found" } });
     expect(await authorityCounts(fixture)).toEqual(before);
   });
 

@@ -172,10 +172,10 @@ are private.
 
 `postgres({ connection })` selects Embedded access through an already connected `pg.Client` or checked-out `PoolClient`. It returns basic Keynes/Budget handles, without remote references or recovery methods. The caller owns context, transactions and connection lifetime. Close drains the handle only; it never commits, rolls back, releases or ends the connection. See the [borrowed connection example](../postgres/README.md#borrow-a-postgresql-connection).
 
-## Create and recover a Remote Budget
+## Create a Remote Budget and inspect its command result
 
 Remote calls generate operation keys by default. Supply one in the second
-argument when you must recover a creation after a lost response:
+argument when you need to look up a creation after a lost response:
 
 ```ts
 import { createKeynes, createOperationKey } from "@keynes/sdk";
@@ -188,9 +188,9 @@ await using remote = await createKeynes({
 const operationKey = createOperationKey();
 const root = await remote.createBudget({ usdCents: 100 }, { operationKey });
 
-const recovered = await remote.recoverOperation(operationKey);
-if (recovered.kind === "committed" && recovered.operation === "createBudget") {
-  const recoveredRoot = recovered.result.budget;
+const operation = await remote.getOperationResult(operationKey);
+if (operation.kind === "committed" && operation.operation === "createBudget") {
+  const recoveredRoot = operation.result.budget;
 }
 ```
 
@@ -203,15 +203,16 @@ rejects with `command_conflict`.
 The PostgreSQL adapter bounds automatic retries and preserves `uncertain_outcome` when it
 cannot establish completion.
 
-Recovery checks the caller's current authorization. For a committed creation,
+Lookup checks the caller's current authorization. For a committed creation,
 it also validates the recorded selected definitions against the current tenant
-catalog before returning the stored result. Recovery can return `known_failure`,
-`unresolved`, or `expired`. An expired recovery record does not prove that the
-original creation failed.
+catalog before returning the stored result. It can return `committed`,
+`known_failure`, `unresolved`, `not_found`, or `expired`. Neither `not_found`
+nor `expired` proves that a delayed command cannot arrive. Lookup never retries,
+allocates, invokes Policy, or creates a replacement key.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 5 and its matching generated procedure
+This API requires semantic generation 6 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

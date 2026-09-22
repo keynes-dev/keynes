@@ -134,7 +134,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgres/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
-    "remote PostgreSQL installation and administration reports generation-five compatibility and grants configured validation and recovery only to the runtime role",
+    "remote PostgreSQL installation and administration reports generation-six compatibility and grants configured validation and recovery only to the runtime role",
     "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
     "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
     "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",

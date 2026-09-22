@@ -67,7 +67,7 @@ type RemoteSettleBudgetResult = Omit<WireRemoteSettleBudgetResult, "budget"> & {
   readonly budget: RemoteBudgetProjection;
 };
 
-export type RecoverOperationResult =
+export type OperationResult =
   | {
       readonly kind: "committed";
       readonly operationKey: OperationKey;
@@ -103,6 +103,10 @@ export type RecoverOperationResult =
       readonly retryAfterMilliseconds?: number;
     }
   | {
+      readonly kind: "not_found";
+      readonly operationKey: OperationKey;
+    }
+  | {
       readonly kind: "expired";
       readonly operationKey: OperationKey;
     };
@@ -114,9 +118,9 @@ export function createOperationKey(): OperationKey {
   return `kop_v1_${randomBytes(32).toString("base64url")}` as OperationKey;
 }
 
-export function projectRecoverOperationResult(
+export function projectOperationResult(
   result: WireRecoverOperationResult,
-): RecoverOperationResult {
+): OperationResult {
   const operationKey = requireOperationKey(result.operationKey);
   if (result.kind !== "committed") return { ...result, operationKey };
   switch (result.operation) {

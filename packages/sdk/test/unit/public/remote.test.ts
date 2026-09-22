@@ -355,7 +355,7 @@ describe("public remote Keynes facade", () => {
     "defineResources",
     "createBudget",
     "openBudget",
-    "recoverOperation",
+    "getOperationResult",
     "request",
     "settle",
     "inspect",
@@ -1560,8 +1560,8 @@ function responseFor(
           installationId: "embedded-postgresql-18.6-preview",
           contractDigest: `contract:${"a".repeat(64)}`,
           remoteProceduresDigest: `procedures:${"c".repeat(64)}`,
-          semanticGeneration: 5,
-          minimumSdkGeneration: 5,
+          semanticGeneration: 6,
+          minimumSdkGeneration: 6,
           procedures: REMOTE_CONTRACT.procedures.map(
             ({ method: name, target, revision }) => ({
               name,

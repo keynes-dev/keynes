@@ -8,7 +8,7 @@ import type {
   LocalKeynes,
   OperationKey,
   Policy,
-  RecoverOperationResult,
+  OperationResult,
   RemoteKeynes,
   RemoteBudget,
   ResourceAmounts,
@@ -117,12 +117,12 @@ expectType<Promise<Budget<"usdCents" | "searchQueries">>>(reopenedPromise);
 const reopened = await reopenedPromise;
 expectType<BudgetReference>(reopened.reference);
 
-const recoveryPromise = remote.recoverOperation(operationKey);
-expectType<Promise<RecoverOperationResult>>(recoveryPromise);
+const recoveryPromise = remote.getOperationResult(operationKey);
+expectType<Promise<OperationResult>>(recoveryPromise);
 const recovery = await recoveryPromise;
-expectType<"committed" | "known_failure" | "unresolved" | "expired">(
-  recovery.kind,
-);
+expectType<
+  "committed" | "known_failure" | "unresolved" | "not_found" | "expired"
+>(recovery.kind);
 if (recovery.kind === "committed") {
   if (recovery.operation === "defineResources") {
     expectType<ResourceBinding<string>>(recovery.result);
@@ -148,7 +148,12 @@ if (recovery.kind === "committed") {
 // @ts-expect-error A Budget reference cannot be replaced by an operation key.
 await remote.openBudget({ reference: operationKey, resourceTypes });
 // @ts-expect-error A raw string is not a validated operation key.
-await remote.recoverOperation("kop_v1_not_a_valid_operation_key");
+await remote.getOperationResult("kop_v1_not_a_valid_operation_key");
+// @ts-expect-error The high-level recovery name was removed.
+await remote.recoverOperation(operationKey);
+type _RemovedRecoverOperationResult =
+  // @ts-expect-error The high-level recovery result type was removed.
+  import("@keynes/sdk").RecoverOperationResult;
 
 const localPromise = createKeynes({
   runtime: localRuntime,
@@ -162,8 +167,8 @@ const localRoot = await local.createBudget({ usdCents: 100 });
 void localRoot.reference;
 // @ts-expect-error Local Keynes handles cannot reopen durable Budgets.
 await local.openBudget({ reference: storedReference, resourceTypes });
-// @ts-expect-error Local Keynes handles cannot recover remote operations.
-await local.recoverOperation(operationKey);
+// @ts-expect-error Local Keynes handles cannot inspect remote operation results.
+await local.getOperationResult(operationKey);
 // @ts-expect-error Local root creation has no remote operation options.
 await local.createBudget({ usdCents: 100 }, { operationKey });
 // @ts-expect-error Local Budget requests have no remote operation options.

@@ -1,12 +1,12 @@
 // Generated from packages/database. Do not edit.
 
 export const CONTRACT_DIGEST =
-  "046373b4c3c42d50437a120a3ba952ed08f5259fbe5c282d47fda0f04b033766";
+  "58fbd93b13e5efd6258916f449e9de91f4a881c4707482bc046b05125f86cd13";
 export const REMOTE_PROCEDURES_DIGEST =
-  "913bcd22cef8d41d4c1e093cd4ab931436e7db4971a6baa8a1d7179142077801";
+  "22e7b3c80e526694f87f9872bed0645bab4e80d7f472669191354afbe7f2d327";
 export const REMOTE_CONTRACT = {
-  semanticGeneration: 5,
-  minimumSdkGeneration: 5,
+  semanticGeneration: 6,
+  minimumSdkGeneration: 6,
   semanticIdentities: ["installation", "command_contract", "remote_procedures"],
   procedures: [
     {
@@ -76,7 +76,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "recoverOperation",
       target: "keynes.remote_recover_operation",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "RecoverOperationQuery",
       output: "RecoverOperationResult",

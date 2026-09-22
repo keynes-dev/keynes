@@ -48,18 +48,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Add canonical generation expectations for `not_found`, generation 6 and lookup revision 4 in `packages/database/test/generate-contracts.test.ts`
-- [ ] T015 [P] [US2] Change SDK recovery unit and package-consumer tests to require `getOperationResult`, `OperationResult` and `not_found`, and reject removed high-level names in `packages/sdk/test/unit/remote/recovery.test.ts` and `packages/sdk/test/package/compatibility/remote-api.mts`
-- [ ] T016 [P] [US2] Add native missing-versus-expired, in-flight, tenant, authorization, exact replay, conflict and no-mutation assertions in `packages/postgres/test/system/remote-recovery.test.ts` and existing identity tests
-- [ ] T017 [P] [US2] Update compatibility tests for generation 6, procedure revision 4 and explicit old/new mismatch failure in `packages/postgres/test/unit/`, `packages/postgres/test/integration/` and installation tests
-- [ ] T018 [US2] Run the focused tests from T014-T017 and record their expected pre-implementation failures in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
+- [x] T014 [P] [US2] Add canonical generation expectations for `not_found`, generation 6 and lookup revision 4 in `packages/database/test/generate-contracts.test.ts`
+- [x] T015 [P] [US2] Change SDK recovery unit and package-consumer tests to require `getOperationResult`, `OperationResult` and `not_found`, and reject removed high-level names in `packages/sdk/test/unit/remote/recovery.test.ts` and `packages/sdk/test/package/compatibility/remote-api.mts`
+- [x] T016 [P] [US2] Add native missing-versus-expired, in-flight, tenant, authorization, exact replay, conflict and no-mutation assertions in `packages/postgres/test/system/remote-recovery.test.ts` and existing identity tests
+- [x] T017 [P] [US2] Update compatibility tests for generation 6, procedure revision 4 and explicit old/new mismatch failure in `packages/postgres/test/unit/`, `packages/postgres/test/integration/` and installation tests
+- [x] T018 [US2] Run the focused tests from T014-T017 and record their expected pre-implementation failures in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Add `NotFoundOperation` to `packages/database/schema.json`, advance generation/revision in `packages/database/contract.json`, and regenerate checked-in clients, types, validators and compatibility artifacts
-- [ ] T020 [US2] Split missing and expired receipt projection and update generation/revision declarations in `packages/postgres/migrations/0001-baseline.sql` without adding an upgrade migration
-- [ ] T021 [US2] Rename only the high-level facade and projection type in `packages/sdk/src/keynes.ts`, `packages/sdk/src/remote/references.ts` and `packages/sdk/src/index.ts`, keeping generated wire identifiers unchanged
-- [ ] T022 [US2] Run focused database, SDK and native Remote checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
+- [x] T019 [US2] Add `NotFoundOperation` to `packages/database/schema.json`, advance generation/revision in `packages/database/contract.json`, and regenerate checked-in clients, types, validators and compatibility artifacts
+- [x] T020 [US2] Split missing and expired receipt projection and update generation/revision declarations in `packages/database/postgres/migrations/0001-baseline.sql` without adding an upgrade migration
+- [x] T021 [US2] Rename only the high-level facade and projection type in `packages/sdk/src/keynes.ts`, `packages/sdk/src/remote/references.ts` and `packages/sdk/src/index.ts`, keeping generated wire identifiers unchanged
+- [x] T022 [US2] Run focused database, SDK and native Remote checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
 
 ---
 
