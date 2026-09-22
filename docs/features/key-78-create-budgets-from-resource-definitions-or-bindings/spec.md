@@ -163,7 +163,7 @@ attempts, and roll back creation within an application-owned transaction.
   infer reported usage or automatically settle it. Requests exceeding available
   quantity deny without introducing funds or resolving outstanding work.
 - Existing Policy consumers keep their behavior for valid Budget memberships.
-  Policies, behavior controls, and recovery metadata are not Resource amount keys;
+  Policies and recovery metadata are not Resource amount keys;
   their supported integration remains separate from the amounts object.
 
 ## Requirements _(mandatory)_

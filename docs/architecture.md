@@ -37,7 +37,7 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 3. Resource definitions contain no quantity and exist independently of Budgets.
 4. Every live quantity unit belongs to exactly one non-settled Budget.
 5. The append-only quantity movement journal is the only quantity authority.
-6. Budget Resource membership and behavior controls never change.
+6. Budget Resource membership never changes.
 7. A command commits one complete result and its evidence or changes no state.
 8. Customer policy evaluation is outside authoritative accounting; decision evidence grants no authority.
 9. A settled Budget has zero live quantity and no non-settled descendant.
@@ -152,14 +152,11 @@ A Budget owns:
 - opaque identity and, for PostgreSQL, an opaque public reference;
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
-- immutable `allows.createChildren` boolean;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
 
-Omitted `allows` normalizes to `createChildren: true` before replay hashing.
-Children select their own controls; controls do not inherit or narrow from the
-parent. Methods remain present even when disabled. A disabled mutation rejects
-asynchronously with `budget_operation_not_allowed` and commits no state.
+Applications decide when to request children. Each request remains subject to
+database permissions, Resource membership, lifecycle and available quantity.
 
 Root membership is exactly the supplied amount keys, not the whole client schema
 or tenant catalog. Child membership is exactly the Resource keys in the approved
@@ -168,7 +165,6 @@ Non-empty all-zero root amounts are valid; empty root amounts reject.
 
 Membership and original funding never expand. Initial root allocation belongs
 to creation. A child grant belongs to the parent's approved creation request.
-Neither depends on whether the new Budget permits children of its own.
 
 The database rejects any attempt to replenish, top up, or grant additional
 quantity to an existing Budget. Supported direct database callers have the same
@@ -188,7 +184,7 @@ quantity are denied; outstanding children and missing usage remain unresolved.
 
 Customers evaluate business rules, validate inputs and optional structured model assessments, and choose parameters before producing a request or rejecting work. They own evaluation failures, timeout behavior, fallback and recomputation. Keynes does not call their evaluator as part of allocation.
 
-The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle/controls and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
+The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
 
 Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
 
@@ -302,7 +298,7 @@ external usage; deficit evidence does not add quantity to the conservation equat
 to `settling`; later calls may resolve direct usage that was omitted earlier.
 An explicit zero resolves a Resource with no use. While settling, only
 `settle` and `inspect` remain usable on that Budget. Existing active
-descendants continue under their own behavior controls.
+descendants can continue requesting children.
 
 A Budget finalizes only when its direct usage is complete and every child is
 settled:
@@ -379,7 +375,7 @@ The logical PostgreSQL state owners are:
 | State                        | Responsibility                                                    |
 | ---------------------------- | ----------------------------------------------------------------- |
 | definition catalogs          | Immutable Resource identity and digests                           |
-| Budgets and memberships      | Lineage, lifecycle and controls                                   |
+| Budgets and memberships      | Lineage, lifecycle and Resource membership                        |
 | quantity movements           | Sole live-quantity and conservation authority                     |
 | usage and deficits           | Direct observations that do not invent quantity                   |
 | Submitted decision evidence  | Caller-supplied context, never an attestation of policy execution |
@@ -425,7 +421,7 @@ chronological lineage evidence; submitted customer decision records do not
 attest to policy execution. PostgreSQL may page history through independent,
 repeatable, bounded-lifetime cursors.
 
-The development generator reads the supported tenant catalog and emits typed Resource declarations with immutable runtime definition information. Initialization compares supplied definitions without writing missing or conflicting catalog entries. Generated output grants no permission and contains no Budget rows, balances, lifecycle, controls, references, principals, credentials, operation keys, results or history. The database remains authoritative when generated code is stale.
+The development generator reads the supported tenant catalog and emits typed Resource declarations with immutable runtime definition information. Initialization compares supplied definitions without writing missing or conflicting catalog entries. Generated output grants no permission and contains no Budget rows, balances, lifecycle, references, principals, credentials, operation keys, results or history. The database remains authoritative when generated code is stale.
 
 KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authenticated catalog/provisioning support and independently qualifies baseline continuity. Complete remote onboarding needs both. Database-managed Policy descriptors, context/reason types and attachment narrowing are retired target requirements. Optional customer-policy tooling owns its types separately from the Resource catalog and allocation contract.
 
@@ -532,7 +528,7 @@ Runtime implementation requires shared conformance scenarios to pass against SQL
 - definition reuse and conflicts;
 - configured creation, exact amount-key membership, and all-zero Budgets;
 - durable declaration compatibility without shared definition writes;
-- immutable membership and behavior controls;
+- immutable membership;
 - fixed creation funding, settlement returns, and independent successive roots;
 - request validation, quantity denial, permissions and caller-evidence handling;
 - exact child subsets and atomic transfer;

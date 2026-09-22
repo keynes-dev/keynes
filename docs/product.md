@@ -67,18 +67,11 @@ KEY-114 retired managed SQL Policy authoring, attachment, and evaluation from th
 ## Budgets
 
 A Budget is the only public stateful governance object. It has immutable
-Resource membership, immutable behavior controls, one
-structural parent, and one lifecycle.
+Resource membership, one structural parent, and one lifecycle.
 
-Every Budget exposes `request`, `settle`, and `inspect`. The immutable
-`allows.createChildren` value controls whether an active Budget may request a
-child. Omitting `allows` enables child creation. A child chooses its own value;
-it does not inherit or receive a subset of its parent's behavior controls.
-
-Disabled operations reject asynchronously with
-`budget_operation_not_allowed` and change no state. These controls describe
-Budget behavior. They are not caller roles, grants, or an SDK IAM system.
-Database authorization remains below the public SDK.
+Every Budget exposes `request`, `settle`, and `inspect`. Applications decide
+when to request children. Keynes enforces database permissions, Resource
+membership, lifecycle and available quantity for each request.
 
 Every public SDK method that returns a Promise reports validation, lifecycle,
 and operation failures by rejecting that Promise. It does not throw those
@@ -164,8 +157,7 @@ deficit evidence.
 A Budget with incomplete direct usage or a non-settled child is
 `settling`. Subsequent `settle` calls may report an omitted Resource;
 an explicit zero reports that it had no use. The Budget cannot create children,
-but existing active descendants continue under their own
-behavior controls. A Budget becomes `settled` only after its direct usage
+but existing active descendants can continue requesting children. A Budget becomes `settled` only after its direct usage
 is complete and every child is `settled`. A settled Budget can never have
 an active or settling descendant.
 
@@ -196,7 +188,7 @@ applications can report overage, which remains deficit evidence.
 
 ## Loading, types, and history
 
-Remote Budgets have opaque `BudgetReference` values. `openBudget({ reference, resourceTypes })` supplies that reference and the declarations needed to construct typed handles. PostgreSQL returns authoritative membership, behavior controls, balances, lifecycle and lineage. Loading never defines, duplicates or overwrites state, and a reference grants no permission.
+Remote Budgets have opaque `BudgetReference` values. `openBudget({ reference, resourceTypes })` supplies that reference and the declarations needed to construct typed handles. PostgreSQL returns authoritative membership, balances, lifecycle and lineage. Loading never defines, duplicates or overwrites state, and a reference grants no permission.
 
 Catalog generation supplies typed Resource declarations with runtime definition information. Client initialization validates them against the persisted catalog without provisioning. Generated types can become stale; database validation remains authoritative. The target does not generate database-managed Policy bindings or require a Policy catalog. Optional application tooling owns its parameter and helper types.
 

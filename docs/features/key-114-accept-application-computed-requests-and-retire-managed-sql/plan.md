@@ -46,7 +46,7 @@ Keep `Budget.request` and the existing allocation transactions. Remove Policy op
 | Breaking installation          | No upgrades or state conversion          | Strict legacy rejection, version break, exact reinstall           |
 | Scope and delivery             | KEY-113/78 landed; one feature           | No toolkit, package split, durable Local or delegation            |
 
-Both planning checks pass. Current combined SDK/runtime packaging is the staged condition explicitly assigned to KEY-96, not a new exception. The unimplemented `allows.createChildren` target belongs to KEY-79. This feature preserves implemented constraints without claiming to implement those adjacent targets.
+Both planning checks pass. Current combined SDK/runtime packaging is the staged condition explicitly assigned to KEY-96, not a new exception. This feature preserves implemented constraints without claiming to implement adjacent targets.
 
 ## Project Structure
 
