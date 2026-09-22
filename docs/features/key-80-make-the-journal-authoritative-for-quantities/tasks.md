@@ -2,12 +2,12 @@
 
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/accounting.md), [quickstart.md](quickstart.md).
 
-**Boundary**: Planning only. All tasks are unchecked and belong to a later authorized implementation. One full accounting story is the minimum deliverable; no partial engine conversion or temporary second quantity authority may be accepted.
+**Boundary**: This task list was created during planning. Implementation is now authorized phase by phase; one full accounting story remains the minimum deliverable, and no partial engine conversion or temporary second quantity authority may be accepted.
 
 ## Phase 1: Setup
 
-- [ ] T001 Reconfirm the exact KEY-80 branch, KEY-76/KEY-96 ancestry, clean/dirty state and governing documents; create `docs/features/key-80-make-the-journal-authoritative-for-quantities/acceptance.md` with source revision and all runtime lanes NOT RUN.
-- [ ] T002 Record current generated identities and the baseline commands in `docs/features/key-80-make-the-journal-authoritative-for-quantities/acceptance.md`; verify `packages/database/contract.json` and `packages/postgres/generated/installation-record.json` are the compatibility owners before editing.
+- [x] T001 Reconfirmed the exact KEY-80 branch, KEY-76/KEY-96 ancestry, clean state and governing documents; created `docs/features/key-80-make-the-journal-authoritative-for-quantities/acceptance.md` with source revision and all runtime lanes NOT RUN.
+- [x] T002 Recorded current generated identities and baseline commands in `docs/features/key-80-make-the-journal-authoritative-for-quantities/acceptance.md`; verified `packages/database/contract.json` and `packages/postgres/generated/installation-record.json` are the compatibility owners before editing.
 
 ## Phase 2: Foundational test support
 
@@ -62,7 +62,7 @@ One worker may build shared settlement examples in T004 while another adds nativ
 
 ## Implementation strategy
 
-The MVP is the entire US1 plus acceptance. Internal checkpoints are test support, RED evidence, complete paired conversion and final qualification. Do not deploy a partial journal, retain legacy balances temporarily or split this into engine-specific PRs. Review each phase before advancing and commit coherent implementation groups when authorized. Planning does not execute any task.
+The MVP is the entire US1 plus acceptance. Internal checkpoints are test support, RED evidence, complete paired conversion and final qualification. Do not deploy a partial journal, retain legacy balances temporarily or split this into engine-specific PRs. Review each authorized phase before advancing and commit coherent implementation groups.
 
 ## Coverage map
 

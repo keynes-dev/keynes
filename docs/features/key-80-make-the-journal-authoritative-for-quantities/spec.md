@@ -6,7 +6,7 @@
 
 **Issue**: [KEY-80](https://linear.app/keynes/issue/KEY-80/make-the-journal-authoritative-for-quantities)
 
-**Input**: Convert creation, grants, consumption, settlement returns, root release and inspection together. Stop before implementation.
+**Input**: Convert creation, grants, consumption, settlement returns, root release and inspection together. The original planning request stopped before implementation; implementation is now authorized phase by phase.
 
 ## User scenarios & testing
 
@@ -77,4 +77,4 @@ An application gives a root a fixed allowance, divides it among children, report
 - No replenishment, additional grants, Resource or Policy redesign, Node support work, workflow changes, durable Local, cross-authority delegation or reconciliation.
 - Application effects, provider actions and policy evaluation are N/A because this feature only changes accounting. Release does not perform external refunds or quota restoration.
 - No data upgrade or downgrade; development installations are recreated. Full Hosted/Embedded product readiness and broader release matrices remain separate acceptance work.
-- This change contains planning documents only. Implementation, behavioral tests and runtime qualification are not executed by this planning request.
+- This planning record originally contained documents only. Implementation now proceeds phase by phase; behavioral tests and runtime qualification remain unexecuted until their tasks run.

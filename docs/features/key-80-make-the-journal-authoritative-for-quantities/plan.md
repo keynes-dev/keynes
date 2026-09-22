@@ -2,7 +2,7 @@
 
 **Branch**: `key-80-make-the-journal-authoritative-for-quantities` | **Date**: 2026-09-21 | **Spec**: [spec.md](spec.md)
 
-**Input**: [KEY-80 specification](spec.md). Planning baseline `dc58120`. Implementation is not authorized by this planning turn.
+**Input**: [KEY-80 specification](spec.md). Planning baseline `dc58120`. This plan was prepared before implementation authorization; delivery now follows `tasks.md` phase by phase.
 
 ## Summary
 
@@ -65,7 +65,7 @@ Staged `packages/node-sqlite/src/local/`, generated files and distributed Postgr
 3. Complete native contention/security/caller-transaction and public/consumer coverage, updating compatibility identities and generated outputs with the same change.
 4. Align docs and run exact feature acceptance. Retain source revision, commands, outcomes, versions and archive digests. Do not mark unchecked tasks or NOT RUN lanes passed.
 
-Internal commits may be incomplete work, but no phase or PR is independently accepted until the whole story passes. Test-first tasks precede the corresponding implementation; no implementation or tests are executed by this planning request.
+Internal commits may be incomplete work, but no phase or PR is independently accepted until the whole story passes. Test-first tasks precede the corresponding implementation. This planning record does not claim implementation or runtime qualification.
 
 ## Complexity tracking
 
