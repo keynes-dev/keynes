@@ -33,3 +33,38 @@ unrelated consumer or archive error was reported.
 `Policy<ProposalNames, FinalNames>` shape, retains the policy-free
 `BudgetRequestResult`, and requires a submitted transformed child to use its
 declared final Resource names.
+
+## Phase 2 foundational contracts
+
+**Evidence basis**: the uncommitted Phase 2 diff on `689189a`.
+
+**Observed red**:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts test/unit/public/policy-lifecycle.test.ts --maxWorkers=1
+```
+
+Expected red, exit 1. Both new suites stopped at their `preparePolicy` import
+because `packages/sdk/src/policy.ts` did not exist. No unrelated test failure
+was reported.
+
+**Focused green**:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts test/unit/public/policy-lifecycle.test.ts test/package/build.test.ts --maxWorkers=1
+pnpm exec tsc --project packages/sdk/tsconfig.build.json --noEmit
+pnpm --filter @keynes/sdk build
+pnpm --filter @keynes/postgres build && pnpm --filter @keynes/sdk typecheck
+pnpm exec oxfmt --check packages/sdk/src/index.ts packages/sdk/src/policy.ts packages/sdk/scripts/production-modules.ts packages/sdk/test/unit/public/policy-api.test.ts packages/sdk/test/unit/public/policy-lifecycle.test.ts
+git diff --check
+```
+
+All commands passed. The Vitest command ran 3 files and 30 tests. The focused
+checks cover immutable own-data capture, strict discriminants and fields,
+sanitized Policy failures, Resource-envelope validation, existing admission,
+close draining and rejection before caller-controlled reads after close.
+
+**Ponytail review**: one `shrink` finding accepted. The first implementation
+duplicated safe own-property capture in `policy.ts`; the reviewed version reuses
+`captureJson` and keeps only Policy-specific shape and quantity checks. No new
+dependency or second lifecycle remains.

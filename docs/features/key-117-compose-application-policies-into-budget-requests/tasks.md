@@ -18,11 +18,11 @@ Checkpoint: the consumer fails only because KEY-117 contracts are absent. Review
 
 ## Phase 2: Foundational contracts
 
-- [ ] T004 Add failing runtime validation cases for Policy outputs, codes, Resource names, quantities, inherited fields and accessors in `packages/sdk/test/unit/public/policy-api.test.ts`.
-- [ ] T005 Add failing lifecycle cases for admission, calls after close, synchronous throws, rejected Promises and close draining in `packages/sdk/test/unit/public/policy-lifecycle.test.ts`.
-- [ ] T006 Define `Policy`, `PolicyOutput`, `PolicyResult` and Policy-enabled request result types in `packages/sdk/src/policy.ts`, with no toolkit or runtime dependency.
-- [ ] T007 Implement shared immutable proposal/result capture and final-envelope validation in `packages/sdk/src/policy.ts` without allocation or provider logic.
-- [ ] T008 Export only the planned SDK Policy contracts from `packages/sdk/src/index.ts` and complete the foundational type/runtime checks.
+- [x] T004 Add failing runtime validation cases for Policy outputs, codes, Resource names, quantities, inherited fields and accessors in `packages/sdk/test/unit/public/policy-api.test.ts`.
+- [x] T005 Add failing lifecycle cases for admission, calls after close, synchronous throws, rejected Promises and close draining in `packages/sdk/test/unit/public/policy-lifecycle.test.ts`.
+- [x] T006 Define `Policy`, `PolicyOutput`, `PolicyResult` and Policy-enabled request result types in `packages/sdk/src/policy.ts`, with no toolkit or runtime dependency.
+- [x] T007 Implement shared immutable proposal/result capture and final-envelope validation in `packages/sdk/src/policy.ts` without allocation or provider logic.
+- [x] T008 Export only the planned SDK Policy contracts from `packages/sdk/src/index.ts` and complete the foundational type/runtime checks.
 
 Checkpoint: shared preparation types and validation pass independently of Budget adapters. Review and commit.
 

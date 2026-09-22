@@ -10,6 +10,7 @@ export const SDK_PRODUCTION_MODULES = [
   "generated/validators",
   "index",
   "keynes",
+  "policy",
   "replay",
   "request-serialization",
   "resource-binding",
