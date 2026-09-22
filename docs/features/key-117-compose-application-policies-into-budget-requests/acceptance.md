@@ -1,10 +1,10 @@
 # Acceptance evidence: Compose application policies into Budget requests
 
-**Final implementation source revision**: `7d8e0fcbc6e3dfca1aec262ac5de3e3215867efa` (`key-117-compose-application-policies-into-budget-requests`; clean before and after final qualification).
+**Final implementation source revision**: `145e6380eae9558e1ee7e4f95745a5de5df8adce` (`key-117-compose-application-policies-into-budget-requests`; clean before and after final qualification).
 
-This record is revision-scoped. The phase sections retain their own observed-red
-and focused-green revisions. The final qualification section records only the
-clean final implementation revision.
+This record is revision-scoped. The phase sections and initial final
+qualification retain their own observed-red and focused-green revisions. The
+post-review correction section records the clean final implementation revision.
 
 | Lane              | Result    |
 | ----------------- | --------- |
@@ -458,12 +458,80 @@ that unrelated workspace failure. The shared qualifier is the Local evidence.
 | SC-005            | SDK-only and installed toolkit consumers pass without drivers, providers, or mandatory Zod.                       |
 | SC-006            | The packaged recorded-assessment fixture passes without credentials, a provider package, or network access.       |
 
+## Post-review correction qualification
+
+**Evidence basis**: clean source revision
+`145e6380eae9558e1ee7e4f95745a5de5df8adce`. The correction restores Remote
+call-time Policy capture, asynchronous post-close preview rejection, and the
+policy-free resource-before-option validation order. Public types and wire
+contracts are unchanged.
+
+**Observed red** on the uncommitted correction tests over `2bf9c003c8a0014f113151be5e40f4c025aeaa19`:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/remote.test.ts --maxWorkers=1
+```
+
+Expected red, exit 1. Three new cases failed among 84 tests: a closed
+`prepareRequest` threw synchronously, caller mutation replaced the admitted
+Policy request inputs, and malformed options won over malformed resources.
+The remaining 81 tests passed.
+
+**Focused and repository green**:
+
+```sh
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/remote.test.ts --maxWorkers=1
+pnpm --filter @keynes/sdk test
+pnpm typecheck
+CI=true pnpm check:repo
+pnpm format:docs
+git diff --check
+```
+
+All commands passed. The focused Remote suite ran 84 tests and the complete SDK
+suite ran 279 tests. Repository typecheck passed all 10 tasks. `check:repo`
+passed all 12 tasks and dependency boundaries for 315 files; lint retained
+three pre-existing warnings outside the correction diff.
+
+**Exact-revision qualification**:
+
+```sh
+pnpm test:sqlite-postgres -- --output .artifacts/key-117-shared-acceptance-145e638
+pnpm test:package:split -- --output .artifacts/key-117-runtime-archives-145e638
+pnpm --filter @keynes/policy test:package -- --output .artifacts/key-117-policy-archive-145e638.json
+```
+
+All qualifiers passed with clean-before and clean-after checks. Shared runtime
+qualification ran 453 SQLite/source tests and 316 native PostgreSQL tests;
+cleanup and report retention passed. The runtime split passed all nine stages,
+31 SDK package checks, 8 CLI package checks, 316 native tests, and cleanup.
+The toolkit core and optional-Zod consumers typechecked and ran successfully.
+
+| Archive                        | SHA-256                                                            |
+| ------------------------------ | ------------------------------------------------------------------ |
+| Runtime `@keynes/sdk`          | `71cabe691824de7c5fa653a31163a3529d5da35d758dad8c8bd325e23effce69` |
+| `@keynes/node-sqlite`          | `e46aa8e4cfbd8db1623d53775c26d67bfff9f2a40fd22a6277e2ad3347db548d` |
+| `@keynes/postgres`             | `7ec4af4e672e81209bedcfb9b6c98e3d4c64c13358b40f8eac265bfcddcfec70` |
+| `@keynes/cli`                  | `7e0d8456f08f3f5a3f9be6019ed6cb7825da89d1880ebd4068249404a2433b3b` |
+| Toolkit `@keynes/policy`       | `56833658f36f34417e921e92e3530712606f31e36d70555bfe138e432ea73d6a` |
+| Toolkit-consumer `@keynes/sdk` | `4e8b32a64bc3dae0e4fc674aa6c34b189b1cbbcb4f970e3a60c7de7b77170656` |
+
+**NOT RUN**: live-provider execution, browser behavior, Hosted deployment,
+registry publication, production-readiness, security review, and performance
+qualification. These results do not establish those lanes.
+
 ### Final Ponytail review
 
 The final read-only Ponytail reviews covered the Phase 7 code diff
 `551f30e..feca3a3`, its documentation diff, and the product-language correction
 `a313f75..7d8e0fc`. Each result was `Lean already. Ship.` No finding required a
 change.
+
+The correction review accepted two reductions:
+
+- `packages/sdk/src/remote/result-mapping.ts:L338: delete: duplicate open-state check; shared admission already owns it.`
+- `packages/sdk/src/keynes.ts:L328: shrink: pass the admitted Set directly to Promise.allSettled.`
+- `net: -1 line possible`
 
 **NOT RUN**: live-provider execution, browser behavior, Hosted deployment,
 registry publication, production-readiness, security review, and performance
