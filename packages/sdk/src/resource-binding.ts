@@ -98,6 +98,10 @@ export class BudgetResourceBinding<
     return this.#visibleByCanonicalName.size;
   }
 
+  resourceNames(): readonly Names[] {
+    return Object.freeze([...this.#byKey.values()].map(({ key }) => key));
+  }
+
   resources<Name extends Names>(
     input: unknown,
     operation: "requestBudget",

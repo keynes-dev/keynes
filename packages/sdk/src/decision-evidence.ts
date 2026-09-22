@@ -8,13 +8,20 @@ export interface BudgetRequestOptions {
   readonly decisionEvidence?: DecisionEvidence;
 }
 
-export function requestDecisionEvidence(options: readonly unknown[]): unknown {
+export function requestDecisionEvidence(
+  options: readonly unknown[],
+  allowedField?: string,
+): unknown {
   if (options.length === 0) return undefined;
   if (options.length !== 1) throw invalidConfiguration("options");
   const option = options[0];
   if (!isPlainDataObject(option)) throw invalidConfiguration("options");
   const fields = Object.keys(option);
-  if (fields.some((field) => field !== "decisionEvidence"))
+  if (
+    fields.some(
+      (field) => field !== "decisionEvidence" && field !== allowedField,
+    )
+  )
     throw invalidConfiguration("options");
   const descriptor = Object.getOwnPropertyDescriptor(
     option,
@@ -27,7 +34,9 @@ export function requestDecisionEvidence(options: readonly unknown[]): unknown {
   return captureJson(evidence, () => invalidConfiguration("decisionEvidence"));
 }
 
-function isPlainDataObject(value: unknown): value is Record<string, unknown> {
+export function isPlainDataObject(
+  value: unknown,
+): value is Record<string, unknown> {
   if (
     typeof value !== "object" ||
     value === null ||

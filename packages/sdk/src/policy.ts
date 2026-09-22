@@ -1,4 +1,9 @@
 import type { ResourceAmounts } from "./budget.js";
+import {
+  isPlainDataObject,
+  requestDecisionEvidence,
+} from "./decision-evidence.js";
+import { KeynesSdkError } from "./sdk-errors.js";
 import { captureJson, isRecord } from "./request-serialization.js";
 
 const POLICY_CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -62,20 +67,48 @@ export async function preparePolicy(
   resourceNames: readonly string[],
   policy: unknown,
 ): Promise<PolicyResult> {
-  const allowedResources = new Set(resourceNames);
-  let capturedProposal: ResourceAmounts;
+  const captured = capturePolicyProposal(proposal, resourceNames);
+  if (captured.kind === "failed") return captured.result;
+  return invokePolicy(captured.proposal, resourceNames, policy);
+}
+
+type PolicyProposalCapture =
+  | { readonly kind: "captured"; readonly proposal: ResourceAmounts }
+  | {
+      readonly kind: "failed";
+      readonly result: Extract<PolicyResult, { readonly kind: "failed" }>;
+    };
+
+export function capturePolicyProposal(
+  proposal: unknown,
+  resourceNames: readonly string[],
+): PolicyProposalCapture {
   try {
-    capturedProposal = captureResources(proposal, allowedResources, false);
+    return Object.freeze({
+      kind: "captured",
+      proposal: captureResources(proposal, new Set(resourceNames), false),
+    });
   } catch (error: unknown) {
     if (error instanceof PolicyValidationError)
-      return failed("invalid_policy_proposal");
+      return Object.freeze({
+        kind: "failed",
+        result: failed("invalid_policy_proposal"),
+      });
     throw error;
   }
+}
+
+export async function invokePolicy(
+  proposal: ResourceAmounts,
+  resourceNames: readonly string[],
+  policy: unknown,
+): Promise<PolicyResult> {
+  const allowedResources = new Set(resourceNames);
   if (typeof policy !== "function") return failed("invalid_policy");
 
   let output: unknown;
   try {
-    output = await policy(capturedProposal);
+    output = await policy(proposal);
   } catch {
     return failed("policy_failed");
   }
@@ -86,6 +119,34 @@ export async function preparePolicy(
       return failed("invalid_policy_output");
     throw error;
   }
+}
+
+export function hasPolicyOption(options: readonly unknown[]): boolean {
+  return (
+    options.length === 1 &&
+    isPlainDataObject(options[0]) &&
+    Object.hasOwn(options[0], "policy")
+  );
+}
+
+export function requestPolicyOptions(options: readonly unknown[]): {
+  readonly policy: unknown;
+  readonly decisionEvidence: unknown;
+} {
+  if (options.length !== 1 || !isPlainDataObject(options[0]))
+    throw invalidConfiguration("options");
+  const option = options[0];
+  const policy = Object.getOwnPropertyDescriptor(option, "policy");
+  if (
+    policy === undefined ||
+    !("value" in policy) ||
+    typeof policy.value !== "function"
+  )
+    throw invalidConfiguration("policy");
+  return Object.freeze({
+    policy: policy.value,
+    decisionEvidence: requestDecisionEvidence(options, "policy"),
+  });
 }
 
 function capturePolicyOutput(
@@ -151,7 +212,9 @@ function requireFields(
     invalid();
 }
 
-function failed(code: string): PolicyResult {
+function failed(
+  code: string,
+): Extract<PolicyResult, { readonly kind: "failed" }> {
   return Object.freeze({ kind: "failed", code });
 }
 
@@ -160,3 +223,12 @@ function invalid(): never {
 }
 
 class PolicyValidationError extends Error {}
+
+function invalidConfiguration(
+  field: string,
+): KeynesSdkError<"invalid_configuration"> {
+  return new KeynesSdkError("invalid_configuration", {
+    field,
+    reason: "unsupported",
+  });
+}

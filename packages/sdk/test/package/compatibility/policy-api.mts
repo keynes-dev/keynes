@@ -10,6 +10,7 @@ import type {
   LocalKeynes,
   Policy,
   PolicyOutput,
+  PolicyRequestResult,
   PolicyResult,
   ResourceBinding,
   ResourceDefinitions,
@@ -123,6 +124,14 @@ expectType<PolicyOutput<"searchQueries">>(policyOutput);
 declare const policyResult: PolicyResult<"searchQueries">;
 expectType<PolicyResult<"searchQueries">>(policyResult);
 
+declare const policyRequestResult: PolicyRequestResult<
+  "searchQueries",
+  BudgetRequestResult<"searchQueries">
+>;
+expectType<
+  PolicyRequestResult<"searchQueries", BudgetRequestResult<"searchQueries">>
+>(policyRequestResult);
+
 const transformedResult = await transformedRoot.request(
   { usdCents: 1 },
   { policy },
@@ -132,11 +141,20 @@ if (
   transformedResult.allocation.status === "approved"
 ) {
   const transformedChild = transformedResult.allocation.budget;
-  expectType<Budget<"searchQueries">>(transformedChild);
+  expectType<Budget<"searchQueries", "searchQueries" | "usdCents">>(
+    transformedChild,
+  );
   await transformedChild.request({ searchQueries: 1 });
   // @ts-expect-error A transformed child does not retain only proposal keys.
   await transformedChild.request({ usdCents: 1 });
 }
+
+const invalidPolicy = ((proposal) => ({
+  kind: "prepared",
+  request: { unknownResource: proposal.usdCents },
+})) satisfies Policy<"usdCents", "unknownResource">;
+// @ts-expect-error A Policy cannot name Resources outside the parent Budget.
+await transformedRoot.request({ usdCents: 1 }, { policy: invalidPolicy });
 
 declare const legacyRequestResult: BudgetRequestResult<"usdCents">;
 if (legacyRequestResult.status === "approved") {

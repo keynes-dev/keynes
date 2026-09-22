@@ -267,6 +267,86 @@ describe("configured remote creation", () => {
 });
 
 describe("public remote Keynes facade", () => {
+  it("drains an admitted remote Policy before closing its executor", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const started = Promise.withResolvers<void>();
+      const gate = Promise.withResolvers<void>();
+      let closed = false;
+      const pending = root.request(
+        { workUnits: 1 },
+        {
+          policy: async () => {
+            started.resolve();
+            await gate.promise;
+            return { kind: "rejected", code: "policy_rejected" };
+          },
+        },
+      );
+      await started.promise;
+      const closing = remote.close().then(() => {
+        closed = true;
+      });
+
+      expect(closed).toBe(false);
+      expect(executor.close).not.toHaveBeenCalled();
+      gate.resolve();
+      await expect(pending).resolves.toEqual({
+        status: "not_submitted",
+        policy: { kind: "rejected", code: "policy_rejected" },
+      });
+      await closing;
+      expect(executor.close).toHaveBeenCalledOnce();
+    } finally {
+      await remote.close();
+    }
+  });
+
+  it("rejects a closed remote Policy request before reflecting proposal or options", async () => {
+    const executor = createFakeExecutor();
+    openRemoteWith(executor);
+    const remote = await createKeynes({
+      runtime: postgres({ databaseUrl }),
+      resources,
+    });
+    try {
+      const root = await remote.createBudget({ workUnits: 10 });
+      const touched = vi.fn(() => {
+        throw new Error("input touched");
+      });
+      const proposal = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      const options = new Proxy(
+        {},
+        {
+          get: touched,
+          getPrototypeOf: touched,
+          ownKeys: touched,
+        },
+      );
+      await remote.close();
+
+      await expect(
+        Reflect.apply(root.request, root, [proposal, options]),
+      ).rejects.toMatchObject({ code: "client_closed" });
+      expect(touched).not.toHaveBeenCalled();
+    } finally {
+      await remote.close();
+    }
+  });
+
   it.each([
     "defineResources",
     "createBudget",

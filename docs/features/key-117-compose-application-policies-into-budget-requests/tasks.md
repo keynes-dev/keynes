@@ -32,12 +32,12 @@ Checkpoint: shared preparation types and validation pass independently of Budget
 
 **Independent test**: Exercise prepared, rejected, review-required and failed outcomes with zero adapter calls for every non-prepared result.
 
-- [ ] T009 [US1] Add failing integrated Local request cases and exact adapter invocation counts in `packages/sdk/test/unit/public/policy-api.test.ts`.
-- [ ] T010 [US1] Add failing type cases for unchanged policy-free inference and Policy-declared final Resource inference in `packages/sdk/test/package/compatibility/policy-api.mts`.
-- [ ] T011 [US1] Integrate shared Policy preparation into Local `Budget.request` in `packages/sdk/src/budget.ts`, preserving the existing no-Policy branch and result type.
-- [ ] T012 [US1] Integrate Policy preparation into Remote `Budget.request` types and wrappers in `packages/sdk/src/remote/public-types.ts` and `packages/sdk/src/remote/result-mapping.ts` without changing the database command.
-- [ ] T013 [US1] Complete lifecycle coverage for asynchronous Policy work through the public SDK wrappers in `packages/sdk/test/unit/public/policy-lifecycle.test.ts`.
-- [ ] T014 [US1] Run focused SDK runtime and type checks and record exact results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T009 [US1] Add failing integrated Local request cases and exact adapter invocation counts in `packages/sdk/test/unit/public/policy-api.test.ts`.
+- [x] T010 [US1] Add failing type cases for unchanged policy-free inference and Policy-declared final Resource inference in `packages/sdk/test/package/compatibility/policy-api.mts`.
+- [x] T011 [US1] Integrate shared Policy preparation into Local `Budget.request` in `packages/sdk/src/budget.ts`, preserving the existing no-Policy branch and result type.
+- [x] T012 [US1] Integrate Policy preparation into Remote `Budget.request` types and wrappers in `packages/sdk/src/remote/public-types.ts` and `packages/sdk/src/remote/result-mapping.ts` without changing the database command.
+- [x] T013 [US1] Complete lifecycle coverage for asynchronous Policy work through the public SDK wrappers in `packages/sdk/test/unit/public/policy-lifecycle.test.ts`.
+- [x] T014 [US1] Run focused SDK runtime and type checks and record exact results in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
 
 Checkpoint: integrated Policy requests work for source Local and mocked command boundaries; native replay is not yet qualified. Review and commit.
 
