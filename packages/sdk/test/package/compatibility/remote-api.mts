@@ -8,7 +8,6 @@ import type {
   LocalKeynes,
   OperationKey,
   Policy,
-  PolicyResult,
   RecoverOperationResult,
   RemoteKeynes,
   RemoteBudget,
@@ -99,14 +98,14 @@ const remotePolicy = ((proposal) => {
   expectType<ResourceAmounts<"usdCents">>(proposal);
   return { kind: "prepared" as const, request: { searchQueries: 1 } };
 }) satisfies Policy<"usdCents", "searchQueries">;
-const remotePreview = await transformedRemoteRoot.prepareRequest(
+// @ts-expect-error Policy preparation is not a public Remote Budget operation.
+await transformedRemoteRoot.prepareRequest(
   { usdCents: 1 },
   { policy: remotePolicy },
 );
-expectType<PolicyResult<"searchQueries">>(remotePreview);
+// @ts-expect-error Policy preparation is not a public Remote Budget operation.
 await transformedRemoteRoot.prepareRequest(
   { usdCents: 1 },
-  // @ts-expect-error Remote Policy execution cannot receive a durable operation key.
   { policy: remotePolicy, operationKey },
 );
 

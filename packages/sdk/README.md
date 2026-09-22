@@ -118,6 +118,28 @@ if (amounts !== null) {
 }
 ```
 
+An optional application `Policy` can produce the final Resource envelope inside
+the same request:
+
+```ts
+import type { Policy } from "@keynes/sdk";
+
+const policy: Policy<"usdCents", "searchQueries"> = async (proposal) => ({
+  kind: "prepared",
+  request: { searchQueries: proposal.usdCents },
+});
+
+const result = await root.request({ usdCents: 2 }, { policy });
+```
+
+The integrated path validates the proposal and Policy result, turns a thrown or
+rejected Policy into `{ kind: "failed", code: "policy_failed" }`, and submits
+only `prepared`. If an application needs to retain a decision before submission,
+it calls `await policy(proposal)` directly and stores that ordinary return value
+in its own workflow. Direct calls keep ordinary JavaScript throw and rejection
+behavior. The application can later submit final resources through a Policy-free
+Remote request with its own operation key.
+
 Evidence is part of request identity. Reordering equivalent fields replays the
 recorded result, while changing or omitting evidence under a reused remote
 operation key returns `command_conflict`. A replayed denial remains denied

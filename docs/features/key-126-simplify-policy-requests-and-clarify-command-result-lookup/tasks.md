@@ -26,17 +26,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Change Local and shared Policy tests to reject public `prepareRequest` while covering Policy-free requests, transformed resources, one invocation, throws/rejections, lifecycle admission and non-submission in `packages/sdk/test/unit/budget-policy.test.ts` and related Local tests
-- [ ] T007 [P] [US1] Change Remote Policy tests to reject public preparation and preserve option precedence, operation-key exclusion and captured-input behavior in `packages/sdk/test/unit/remote/policy-request.test.ts`
-- [ ] T008 [P] [US1] Add installed package-root negative and positive type assertions in `packages/sdk/test/package/compatibility/policy-api.mts`, `remote-api.mts` and `consumer.mts`
-- [ ] T009 [US1] Run the focused tests from T006-T008 and record their expected pre-implementation failures in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
+- [x] T006 [P] [US1] Change Local and shared Policy tests to reject public `prepareRequest` while covering Policy-free requests, transformed resources, one invocation, throws/rejections, lifecycle admission and non-submission in `packages/sdk/test/unit/public/policy-api.test.ts` and related Local tests
+- [x] T007 [P] [US1] Change Remote Policy tests to reject public preparation and preserve option precedence, operation-key exclusion and captured-input behavior in `packages/sdk/test/unit/public/remote.test.ts`
+- [x] T008 [P] [US1] Add installed package-root negative and positive type assertions in `packages/sdk/test/package/compatibility/policy-api.mts`, `remote-api.mts` and `consumer.mts`
+- [x] T009 [US1] Run the focused tests from T006-T008 and record their expected pre-implementation failures in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Remove public preparation signatures and methods while retaining the shared internal Policy validation path in `packages/sdk/src/budget.ts` and `packages/sdk/src/remote/public-types.ts`
-- [ ] T011 [US1] Remove Remote preparation projection without duplicating Policy logic in `packages/sdk/src/remote/result-mapping.ts`
-- [ ] T012 [US1] Update active SDK examples for integrated and direct Policy execution in `packages/sdk/README.md`
-- [ ] T013 [US1] Run focused SDK and consumer checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
+- [x] T010 [US1] Remove public preparation signatures and methods while retaining the shared internal Policy validation path in `packages/sdk/src/budget.ts` and `packages/sdk/src/remote/public-types.ts`
+- [x] T011 [US1] Remove Remote preparation projection without duplicating Policy logic in `packages/sdk/src/remote/result-mapping.ts`
+- [x] T012 [US1] Update active SDK examples for integrated and direct Policy execution in `packages/sdk/README.md`
+- [x] T013 [US1] Run focused SDK and consumer checks, perform a read-only Ponytail review of the phase, fix accepted findings and commit the phase
 
 ---
 
