@@ -85,6 +85,13 @@ declared plain objects need no helper, generic argument, or `as const`. Use
 `satisfies ResourceDefinitions` for an optional declaration-time check.
 The former standalone `defineResources` export and `ResourceSchema` are removed.
 
+`allocated` is fixed root funding or a child grant. `available` is live quantity
+from the authority's movement journal. `committed` is child grants less child
+returns and never grants authority. A first known overage remains a direct
+deficit even if quantity returns later. Settled Budgets always have
+`available: 0`; allocated, committed, usage, and deficit remain historical
+facts. The SDK maps these values and does not perform accounting.
+
 `Keynes` and `Budget` are exported readonly interface types, not classes.
 Frozen method-bearing objects implement them. The SDK exposes no Resource,
 Budget, command, executor, or database identifier. You may destructure methods
@@ -182,7 +189,7 @@ original creation failed.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 4 and its matching generated procedure
+This API requires semantic generation 5 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

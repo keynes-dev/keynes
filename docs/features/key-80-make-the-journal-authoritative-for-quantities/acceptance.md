@@ -253,10 +253,30 @@ or dependency: "Lean already. Ship." T004-T016 are complete. The implementation
 candidate and follow-up fixture correction were committed before clean-source
 qualification; this phase-closing commit records the accepted result.
 
+## Phase 4 documentation candidate
+
+The architecture and database/runtime/SDK READMEs now describe journal-derived
+quantities, immutable first-known usage, sticky deficits, empty finalized
+Budgets, the public 100/40/10 return example, generation 5 and fresh-only
+installation. PostgreSQL documentation replaces the old child-before-parent
+lock rule with root-before-target coordination, explains whole-transaction
+retry after serialization failure, and retains coherent read-only inspection.
+`docs/product.md` already states this contract and needed no change.
+
+A single canonical SQL comment documents the deliberate per-tree lock
+throughput ceiling requested in the design. Generation refreshed the distributed
+SQL and installation identities; no SQL behavior changed. This changes archive
+and installation hashes, so final qualification uses the documentation candidate
+rather than reusing Phase 3 archive evidence.
+
+Phase 4 parent review checked the documentation against both canonical engines.
+Independent Terra read-only correctness and Ponytail reviews found no actionable
+discrepancy or unnecessary complexity. `pnpm generate:check`, documentation
+formatting and `git diff --check` passed before the candidate commit.
+
 ## Remaining acceptance
 
-Phase 4 documentation, final review-revision qualification and PR publication
-remain pending. Hosted and Embedded release readiness, live providers,
+Final review-revision qualification and PR publication remain pending. Hosted and Embedded release readiness, live providers,
 cross-authority recovery, Node/OS matrices, managed-provider qualification,
 performance qualification, registry publication, and production operations are
 **NOT RUN**. Historical KEY-76 and KEY-96 evidence does not qualify KEY-80.

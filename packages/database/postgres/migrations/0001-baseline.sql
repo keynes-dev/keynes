@@ -521,6 +521,7 @@ BEGIN
           'budget_not_found', jsonb_build_object('budgetId', parent_id::text)
         );
       END IF;
+      -- ponytail: serialize one tree; consider narrower ancestry locks only if measured contention requires them.
       PERFORM 1 FROM keynes_internal.budgets
       WHERE tenant_id = tenant AND budget_id = root_id FOR UPDATE;
       SELECT * INTO budget FROM keynes_internal.budgets

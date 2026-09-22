@@ -147,7 +147,7 @@ describe("repository organization", () => {
       [
         // KEY-80 makes quantity movements authoritative; schema identity remains unchanged.
         "postgres/migrations/0001-baseline.sql",
-        "ed4777331fe156d64ef193c24d94dbade250aef256d2c2698ee5366b62c9e3c7",
+        "6a7d89038cb1c3f6926801c88a1c7b8fb4b1b93862d5f663fac8e9f1f60ab3d3",
       ],
     ]) {
       expect(

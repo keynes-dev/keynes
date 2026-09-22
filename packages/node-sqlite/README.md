@@ -22,4 +22,10 @@ await root.inspect();
 
 There is no path, persistence mode, borrowed database, public connection handle, tenant/principal option or credential. The runtime validates command semantics and owns atomic accounting and replay; the SDK validates responses and maps typed handles. Browser execution and durable Local recovery are outside this package contract.
 
+The private movement journal is the quantity authority. Root creation funds a
+tree, approved child requests transfer quantity, consumable use removes owned
+quantity, and finalization returns or releases the remainder. Inspection derives
+availability from those movements. A settled Budget has zero available quantity
+while its historical fields remain visible.
+
 From the repository root, run `pnpm build:node-sqlite` and `pnpm pack:node-sqlite`. The private archive is `.artifacts/package-tests/node-sqlite/keynes-node-sqlite-0.0.0.tgz`. See the [SDK examples](../sdk/README.md) and [qualification guide](../../docs/features/key-96-separate-sdk-and-database-runtime-packages/quickstart.md).
