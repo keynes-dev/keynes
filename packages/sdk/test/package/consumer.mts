@@ -1,10 +1,5 @@
 import { nodeSqlite } from "@keynes/node-sqlite";
-import {
-  createKeynes,
-  createOperationKey,
-  type Policy,
-  type PolicyResult,
-} from "@keynes/sdk";
+import { createKeynes, createOperationKey, type Policy } from "@keynes/sdk";
 
 declare const process: {
   readonly argv: readonly string[];
@@ -279,14 +274,6 @@ async function runApplicationRequest(): Promise<void> {
       kind: "prepared",
       request: proposal,
     })) satisfies Policy<"usdCents", "usdCents">;
-    const preview: PolicyResult<"usdCents"> = await policyRoot.prepareRequest(
-      { usdCents: 25 },
-      { policy },
-    );
-    assertEqual(preview, {
-      kind: "prepared",
-      request: { usdCents: 25 },
-    });
     const policyRequest = await policyRoot.request(
       { usdCents: 25 },
       { policy },
@@ -294,7 +281,10 @@ async function runApplicationRequest(): Promise<void> {
     if (policyRequest.status !== "submitted") {
       throw new Error("Policy request was not submitted");
     }
-    assertEqual(policyRequest.policy, preview);
+    assertEqual(policyRequest.policy, {
+      kind: "prepared",
+      request: { usdCents: 25 },
+    });
     if (policyRequest.allocation.status !== "approved") {
       throw new Error("Policy request was denied");
     }

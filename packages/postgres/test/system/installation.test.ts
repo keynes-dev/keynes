@@ -146,18 +146,18 @@ describe("PostgreSQL installation", () => {
     });
   });
 
-  it("rejects a synthetic generation-four compatibility baseline", async () => {
+  it("rejects a synthetic generation-five compatibility baseline", async () => {
     const migration = await readFile(
       new URL("0001-baseline.sql", MIGRATIONS_ROOT),
       "utf8",
     );
-    const currentGeneration = "'semanticGeneration', 5";
+    const currentGeneration = "'semanticGeneration', 6";
     if (!migration.includes(currentGeneration)) {
-      throw new Error("expected the generation-five compatibility response");
+      throw new Error("expected the generation-six compatibility response");
     }
     const legacyMigration = migration.replace(
       currentGeneration,
-      "'semanticGeneration', 4",
+      "'semanticGeneration', 5",
     );
     const currentChecksum = createHash("sha256")
       .update(migration)

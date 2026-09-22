@@ -107,16 +107,6 @@ interface BudgetRequest<Names extends string, HistoryNames extends string> {
   >;
 }
 
-interface BudgetPrepareRequest<Names extends string> {
-  <const Resources extends ResourceAmounts<Names>, FinalNames extends Names>(
-    resources: ExactResourceAmounts<Names, Resources>,
-    options: PolicyEnabledRequestOptions<
-      Extract<keyof Resources, Names>,
-      FinalNames
-    >,
-  ): Promise<PolicyResult<FinalNames>>;
-}
-
 export interface BudgetResourceSnapshot<Name extends string = string> {
   readonly resource: Name;
   readonly unit: string;
@@ -192,7 +182,6 @@ export interface Budget<
 > {
   readonly [budgetBrand]: undefined;
   readonly request: BudgetRequest<Names, HistoryNames>;
-  readonly prepareRequest: BudgetPrepareRequest<Names>;
   readonly settle: <const Usage extends ResourceUsage<Names>>(
     usage: ExactResourceUsage<Names, Usage>,
   ) => Promise<Settlement<Names>>;
@@ -245,23 +234,6 @@ export function createBudgetHandle<
     return requestBudget(runtime, budgetId, binding, resources, options);
   }
 
-  function prepareRequest<
-    const Resources extends ResourceAmounts<Names>,
-    FinalNames extends Names,
-  >(
-    resources: ExactResourceAmounts<Names, Resources>,
-    options: PolicyEnabledRequestOptions<
-      Extract<keyof Resources, Names>,
-      FinalNames
-    >,
-  ): Promise<PolicyResult<FinalNames>>;
-  function prepareRequest(
-    resources: unknown,
-    ...options: readonly unknown[]
-  ): Promise<PolicyResult> {
-    return prepareBudgetRequest(runtime, binding, resources, options);
-  }
-
   const settle: Budget<Names, HistoryNames>["settle"] = async (usage) => {
     return runtime.admit(
       () => captureRequest(usage, "settleBudget", "$.usage"),
@@ -290,7 +262,6 @@ export function createBudgetHandle<
   const handle = Object.freeze({
     [budgetBrand]: undefined,
     request,
-    prepareRequest,
     settle,
     inspect,
   });
@@ -350,21 +321,6 @@ async function requestBudget<Names extends string, HistoryNames extends string>(
     },
   );
   return pending;
-}
-
-function prepareBudgetRequest<
-  Names extends string,
-  HistoryNames extends string,
->(
-  runtime: BasicRuntimeSession,
-  binding: BudgetResourceBinding<Names, HistoryNames>,
-  resources: unknown,
-  options: readonly unknown[],
-): Promise<PolicyResult> {
-  return runtime.admit(
-    () => capturePolicyRequest(resources, options, binding),
-    async (prepared) => resolvePolicyRequest(prepared, binding),
-  );
 }
 
 function capturePolicyRequest<

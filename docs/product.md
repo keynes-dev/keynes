@@ -52,9 +52,9 @@ Keynes has no tenant Resource pool, inventory account, or unattached balance.
 
 ## Application-owned policies
 
-A policy is customer-owned logic that prepares a typed Keynes request or stops the operation. Customers may use ordinary application code, SQL over their own data, one optional SDK callback or optional policy helpers. Policy-free allocation requires no Policy result type, callback or transaction manager.
+A policy is customer-owned logic that chooses a typed Keynes request or stops the operation. Customers may use ordinary application code, SQL over their own data, one optional SDK callback or optional policy helpers. Policy-free allocation requires no Policy result type, callback or transaction manager.
 
-Customers own policy definitions, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before preparing a request. An assessment or Policy result is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
+Customers own policy definitions, input validation, parameter selection, failures, fallback, transactions and recomputation. A structured model assessment may inform their decision, but the customer validates it and handles unavailable or malformed responses before submitting a request. An assessment or Policy result is not Budget authority. Caller-supplied decision evidence is never proof that policy executed.
 
 Customer ownership does not dictate where evaluation runs. It may run inside an application, in a customer-operated service or later in Keynes Cloud. Applications can share one policy deployment. Later hosted evaluation remains outside authoritative accounting and does not restore database-managed Policies.
 
@@ -64,27 +64,22 @@ See the [equivalent application-code and SQL examples](architecture.md#customer-
 
 KEY-114 retired managed SQL Policy authoring, attachment, and evaluation from the runtime and generated contracts. A request can include normalized `decisionEvidence`; it is replay-bound and retained in results and history, but it cannot grant authority or attest to an evaluation. Retired Policy fields are invalid rather than ignored. The [SDK request example](../packages/sdk/README.md#submit-application-computed-requests) shows the supported public shape.
 
-### Request middleware
+### Optional request middleware
 
-[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. `request(resources, { policy })` prepares and submits a fresh decision. `prepareRequest(resources, { policy })` performs the same preparation without allocation for previews and recovery.
+[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. [ADR-0015](adr/0015-direct-policy-decisions-and-command-result-lookup.md) removes the separate preparation API. `request(resources, { policy })` validates and submits a fresh decision through one integrated call.
 
-The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged. A Remote request cannot combine a Policy with a caller-provided operation key. For recovery, prepare the request, retain the final command and evidence with an operation key, then submit the ordinary request without Policy options. Exact replay does not run Policy again.
+The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged. A Remote request cannot combine a Policy with a caller-provided operation key.
+
+Applications that need durable decisions call their Policy directly, retain its ordinary return value through their own stack, and submit final resources through a Policy-free request with an operation key. Keynes adds no workflow checkpoint or resume API. Exact replay does not run Policy again.
 
 ## Budgets
 
 A Budget is the only public stateful governance object. It has immutable
-Resource membership, immutable behavior controls, one
-structural parent, and one lifecycle.
+Resource membership, one structural parent, and one lifecycle.
 
-Every Budget exposes `request`, `prepareRequest`, `settle`, and `inspect`. The immutable
-`allows.createChildren` value controls whether an active Budget may request a
-child. Omitting `allows` enables child creation. A child chooses its own value;
-it does not inherit or receive a subset of its parent's behavior controls.
-
-Disabled operations reject asynchronously with
-`budget_operation_not_allowed` and change no state. These controls describe
-Budget behavior. They are not caller roles, grants, or an SDK IAM system.
-Database authorization remains below the public SDK.
+Every Budget exposes `request`, `settle`, and `inspect`. Applications decide
+when to request children. Keynes enforces database permissions, Resource
+membership, lifecycle and available quantity for each request.
 
 Every public SDK method that returns a Promise reports validation, lifecycle,
 and operation failures by rejecting that Promise. It does not throw those
@@ -170,8 +165,7 @@ deficit evidence.
 A Budget with incomplete direct usage or a non-settled child is
 `settling`. Subsequent `settle` calls may report an omitted Resource;
 an explicit zero reports that it had no use. The Budget cannot create children,
-but existing active descendants continue under their own
-behavior controls. A Budget becomes `settled` only after its direct usage
+but existing active descendants can continue requesting children. A Budget becomes `settled` only after its direct usage
 is complete and every child is `settled`. A settled Budget can never have
 an active or settling descendant.
 
@@ -202,7 +196,7 @@ applications can report overage, which remains deficit evidence.
 
 ## Loading, types, and history
 
-Remote Budgets have opaque `BudgetReference` values. `openBudget({ reference, resourceTypes })` supplies that reference and the declarations needed to construct typed handles. PostgreSQL returns authoritative membership, behavior controls, balances, lifecycle and lineage. Loading never defines, duplicates or overwrites state, and a reference grants no permission.
+Remote Budgets have opaque `BudgetReference` values. `openBudget({ reference, resourceTypes })` supplies that reference and the declarations needed to construct typed handles. PostgreSQL returns authoritative membership, balances, lifecycle and lineage. Loading never defines, duplicates or overwrites state, and a reference grants no permission.
 
 Catalog generation supplies typed Resource declarations with runtime definition information. Client initialization validates them against the persisted catalog without provisioning. Generated types can become stale; database validation remains authoritative. The target does not generate database-managed Policy bindings or require a Policy catalog. Optional application tooling owns its parameter and helper types.
 
@@ -236,7 +230,9 @@ Hosted may be customer-operated or managed by Keynes. Those choices change who
 operates the service; they do not change Budget behavior. No mode automatically
 moves a live Budget to another authority.
 
-The SDK uses separate SQLite and PostgreSQL runtime packages with shared command contracts and conformance scenarios. Select `nodeSqlite()` from `@keynes/node-sqlite` for Local, or `postgres(...)` from `@keynes/postgres` for an owned remote connection or a borrowed PostgreSQL client. The SDK itself contains no engine or database driver. Borrowed clients expose the basic Budget API; owned remote clients also provide durable references, reopening and operation recovery.
+The SDK uses separate SQLite and PostgreSQL runtime packages with shared command contracts and conformance scenarios. Select `nodeSqlite()` from `@keynes/node-sqlite` for Local, or `postgres(...)` from `@keynes/postgres` for an owned remote connection or a borrowed PostgreSQL client. The SDK itself contains no engine or database driver. Borrowed clients expose the basic Budget API; owned remote clients also provide durable references, reopening, and `getOperationResult`.
+
+`getOperationResult` reads a command receipt. It can report `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. The read never retries, allocates, invokes Policy, or creates a replacement key. A missing or expired receipt does not prove that a delayed command cannot arrive.
 
 First Local is ephemeral and process-owned. It exposes no persistence or database handle and promises no browser support, multi-process coordination or caller-owned PostgreSQL transactions. PostgreSQL remains the durable implementation under this contract. The Hosted SDK currently connects directly to PostgreSQL, with no HTTP Budget service or fallback to local state.
 
@@ -293,7 +289,7 @@ retain separate acceptance, and both are required for the Hosted product experie
 Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
 
 - [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy and record helpers. Its [acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) scopes the implemented evidence.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplied optional per-request Policy middleware plus configurable-policy and record helpers. [KEY-126](https://linear.app/keynes/issue/KEY-126) removed its separate preparation API. The [KEY-117 acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) remains historical evidence for that revision.
 - [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
 
 These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.

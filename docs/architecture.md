@@ -37,7 +37,7 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 3. Resource definitions contain no quantity and exist independently of Budgets.
 4. Every live quantity unit belongs to exactly one non-settled Budget.
 5. The append-only quantity movement journal is the only quantity authority.
-6. Budget Resource membership and behavior controls never change.
+6. Budget Resource membership never changes.
 7. A command commits one complete result and its evidence or changes no state.
 8. Customer policy evaluation is outside authoritative accounting; decision evidence grants no authority.
 9. A settled Budget has zero live quantity and no non-settled descendant.
@@ -93,12 +93,11 @@ earlier connection-only factory and per-Budget Resource input decision.
 Every Budget has a stable method surface:
 
 - `request` asks the Budget to create and fund one child.
-- `prepareRequest` runs one required Policy without allocating a child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
 
-Owned remote clients also expose `openBudget({ reference, resourceTypes })` and operation recovery. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
-Recovery rechecks the caller's current permission. Before it returns a committed
+Owned remote clients also expose `openBudget({ reference, resourceTypes })` and `getOperationResult(operationKey)`. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
+Command-result lookup rechecks the caller's current permission. Before it returns a committed
 creation result, it validates that creation's selected definitions against the
 current tenant catalog.
 
@@ -156,14 +155,11 @@ A Budget owns:
 - opaque identity and, for PostgreSQL, an opaque public reference;
 - one tenant and one structural parent or root position;
 - immutable Resource membership;
-- immutable `allows.createChildren` boolean;
 - lifecycle `active`, `settling`, or `settled`; and
 - direct usage, deficit, and chronological evidence.
 
-Omitted `allows` normalizes to `createChildren: true` before replay hashing.
-Children select their own controls; controls do not inherit or narrow from the
-parent. Methods remain present even when disabled. A disabled mutation rejects
-asynchronously with `budget_operation_not_allowed` and commits no state.
+Applications decide when to request children. Each request remains subject to
+database permissions, Resource membership, lifecycle and available quantity.
 
 Root membership is exactly the supplied amount keys, not the whole client schema
 or tenant catalog. Child membership is exactly the Resource keys in the approved
@@ -172,7 +168,6 @@ Non-empty all-zero root amounts are valid; empty root amounts reject.
 
 Membership and original funding never expand. Initial root allocation belongs
 to creation. A child grant belongs to the parent's approved creation request.
-Neither depends on whether the new Budget permits children of its own.
 
 The database rejects any attempt to replenish, top up, or grant additional
 quantity to an existing Budget. Supported direct database callers have the same
@@ -190,15 +185,19 @@ quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Customer evaluation and request construction
 
-Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before preparing a request or stopping work. They own failures, timeout behavior, fallback and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command. `prepareRequest` runs the same Policy without allocation for preview and recoverable Remote submission.
+Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before submitting a request or stopping work. They own failures, timeout behavior, fallback, persistence, and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command.
 
-The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. SDK preparation validates the final names and quantities. It does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to prepare commands without the TypeScript callback.
+The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. The integrated `request` path validates the final names and quantities. It converts a thrown or rejected Policy into the SDK's `policy_failed` result and submits only a prepared envelope. Policy execution does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to construct commands without the TypeScript callback.
 
-The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle/controls and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
+An application that needs a durable decision calls its Policy directly and stores the ordinary return value in its own system. Direct calls preserve ordinary JavaScript throw and rejection behavior. The application later submits final resources through a Policy-free Remote request with its own operation key. Keynes supplies no checkpoint, resume method, storage adapter, or workflow coordinator.
+
+The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
 
 Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
 
-Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key. Recovery prepares first, persists the final command and key, then submits without Policy options.
+Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key.
+
+`getOperationResult` is a read-only receipt lookup. It reports `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. Missing means that no receipt exists in the caller's tenant at lookup time. Expired means that a receipt exists but has passed the 30-day expiry. Neither result rules out a delayed command. Lookup does not retry, allocate, invoke Policy, generate a key, or mutate durable command state. The generated wire operation and PostgreSQL procedure retain their recovery names as internal compatibility contracts.
 
 ### Equivalent customer code and SQL
 
@@ -321,7 +320,7 @@ external usage; deficit evidence does not add quantity to the conservation equat
 to `settling`; later calls may resolve direct usage that was omitted earlier.
 An explicit zero resolves a Resource with no use. While settling, only
 `settle` and `inspect` remain usable on that Budget. Existing active
-descendants continue under their own behavior controls.
+descendants can continue requesting children.
 
 A Budget finalizes only when its direct usage is complete and every child is
 settled:
@@ -405,7 +404,7 @@ The logical PostgreSQL state owners are:
 | State                        | Responsibility                                                    |
 | ---------------------------- | ----------------------------------------------------------------- |
 | definition catalogs          | Immutable Resource identity and digests                           |
-| Budgets and memberships      | Lineage, lifecycle and controls                                   |
+| Budgets and memberships      | Lineage, lifecycle and Resource membership                        |
 | quantity movements           | Sole live-quantity and conservation authority                     |
 | usage and deficits           | Direct observations that do not invent quantity                   |
 | Submitted decision evidence  | Caller-supplied context, never an attestation of policy execution |
@@ -451,7 +450,7 @@ chronological lineage evidence; submitted customer decision records do not
 attest to policy execution. PostgreSQL may page history through independent,
 repeatable, bounded-lifetime cursors.
 
-The development generator reads the supported tenant catalog and emits typed Resource declarations with immutable runtime definition information. Initialization compares supplied definitions without writing missing or conflicting catalog entries. Generated output grants no permission and contains no Budget rows, balances, lifecycle, controls, references, principals, credentials, operation keys, results or history. The database remains authoritative when generated code is stale.
+The development generator reads the supported tenant catalog and emits typed Resource declarations with immutable runtime definition information. Initialization compares supplied definitions without writing missing or conflicting catalog entries. Generated output grants no permission and contains no Budget rows, balances, lifecycle, references, principals, credentials, operation keys, results or history. The database remains authoritative when generated code is stale.
 
 KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authenticated catalog/provisioning support and independently qualifies baseline continuity. Complete remote onboarding needs both. Database-managed Policy descriptors, context/reason types and attachment narrowing are retired target requirements. Optional customer-policy tooling owns its types separately from the Resource catalog and allocation contract.
 
@@ -558,7 +557,7 @@ Runtime implementation requires shared conformance scenarios to pass against SQL
 - definition reuse and conflicts;
 - configured creation, exact amount-key membership, and all-zero Budgets;
 - durable declaration compatibility without shared definition writes;
-- immutable membership and behavior controls;
+- immutable membership;
 - fixed creation funding, settlement returns, and independent successive roots;
 - request validation, quantity denial, permissions and caller-evidence handling;
 - exact child subsets and atomic transfer;

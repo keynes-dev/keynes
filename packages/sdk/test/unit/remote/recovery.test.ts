@@ -116,7 +116,7 @@ describe("remote Budget reopen and operation recovery", () => {
       runtime: postgres({ databaseUrl }),
       resources,
     });
-    const recovered = await remote.recoverOperation(operationKey);
+    const recovered = await remote.getOperationResult(operationKey);
     expect(recovered).toMatchObject({
       kind: "committed",
       operation: "defineResources",
@@ -211,7 +211,7 @@ describe("remote Budget reopen and operation recovery", () => {
       { workUnits: 10, zeroSeats: 0 },
       { operationKey },
     );
-    const recovered = await replaying.recoverOperation(operationKey);
+    const recovered = await replaying.getOperationResult(operationKey);
 
     expect(replay.reference).toBe(original.reference);
     expect(recovered).toEqual({
@@ -282,12 +282,12 @@ describe("remote Budget reopen and operation recovery", () => {
       code: "uncertain_outcome",
       details: { operation: "defineResources", operationKey },
     });
-    expect(await remote.recoverOperation(operationKey)).toEqual({
+    expect(await remote.getOperationResult(operationKey)).toEqual({
       kind: "unresolved",
       operationKey,
       retryAfterMilliseconds: 100,
     });
-    expect(await remote.recoverOperation(operationKey)).toEqual({
+    expect(await remote.getOperationResult(operationKey)).toEqual({
       kind: "expired",
       operationKey,
     });
@@ -330,7 +330,7 @@ describe("remote Budget reopen and operation recovery", () => {
         remote.defineResources(resources, { operationKey }),
       ).rejects.toMatchObject({ code });
       expect(executor.inputs).toHaveLength(1);
-      expect(await remote.recoverOperation(operationKey)).toEqual({
+      expect(await remote.getOperationResult(operationKey)).toEqual({
         kind: "known_failure",
         operationKey,
         error: { kind: "error", code, details },
@@ -398,7 +398,7 @@ describe("remote Budget reopen and operation recovery", () => {
       status: "approved",
       decisionEvidence,
     });
-    expect(await remote.recoverOperation(operationKey)).toMatchObject({
+    expect(await remote.getOperationResult(operationKey)).toMatchObject({
       kind: "committed",
       operationKey,
       operation: "requestBudget",
@@ -522,7 +522,7 @@ describe("remote Budget reopen and operation recovery", () => {
     });
   });
 
-  it("projects all four read-only recovery states without changing the key", async () => {
+  it("projects all five read-only operation results without changing the key", async () => {
     const results = [
       {
         kind: "committed",
@@ -536,6 +536,7 @@ describe("remote Budget reopen and operation recovery", () => {
         error: { kind: "error", code: "budget_not_found", details: {} },
       },
       { kind: "unresolved", operationKey, retryAfterMilliseconds: 250 },
+      { kind: "not_found", operationKey },
       { kind: "expired", operationKey },
     ] as const;
     let index = 0;
@@ -553,20 +554,21 @@ describe("remote Budget reopen and operation recovery", () => {
     });
     const recovered = [];
     for (let call = 0; call < results.length; call += 1) {
-      recovered.push(await remote.recoverOperation(operationKey));
+      recovered.push(await remote.getOperationResult(operationKey));
     }
 
     expect(recovered.map(({ kind }) => kind)).toEqual([
       "committed",
       "known_failure",
       "unresolved",
+      "not_found",
       "expired",
     ]);
     expect(
       recovered.every((result) => result.operationKey === operationKey),
     ).toBe(true);
     expect(executor.inputs).toEqual(
-      Array.from({ length: 4 }, () => ({ operationKey })),
+      Array.from({ length: 5 }, () => ({ operationKey })),
     );
   });
 
