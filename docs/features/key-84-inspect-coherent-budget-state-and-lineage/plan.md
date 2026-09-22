@@ -8,7 +8,7 @@
 
 Keep one public inspect call. Capture its Budget state together with a terminal root-history sequence, then page immutable evidence through independent repeatable continuations. Expose movement effects, root-relative subjects and automatic-finalization causes through the existing event variants. Reuse KEY-80's journal and ancestor events; no accounting transitions change.
 
-Planning only. Implementation, failing behavioral tests, native qualification are NOT RUN. The user requested the current checkout rather than a worktree and an explicit stop before implementation.
+Planning baseline: implementation, failing behavioral tests, and native qualification were NOT RUN when this plan was approved. Current revision-scoped results live in [acceptance.md](acceptance.md). The user requested the current checkout rather than a worktree and an explicit stop before implementation.
 
 ## Technical Context
 

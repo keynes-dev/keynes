@@ -1,6 +1,6 @@
 # KEY-84 acceptance evidence
 
-Implementation is in progress. This record distinguishes setup checks from behavioral qualification. No setup result establishes coherent inspection, lineage, deployment readiness, or release acceptance.
+Local implementation, exact-source qualification, and final review are complete. The Phase 6 branch commit containing this record is evidence-only relative to candidate 3. This record distinguishes setup checks from behavioral qualification. No setup result establishes coherent inspection, lineage, deployment readiness, or release acceptance.
 
 ## Phase 1: setup baseline
 
@@ -91,22 +91,62 @@ Qualified source revision: `0ff476b9d4b2577bc0fddd8b32a42fd844b4bd88 Add inspect
 
 The required-scenario registry unit passed 109 tests. No source file changed during T029. Read-only Ponytail review of the Phase 5 evidence returned: Lean already. Ship. T029-T030 are complete in the Phase 5 commit containing this record. Paired SQLite/PostgreSQL acceptance, installed SDK/TLS, installed Embedded, Hosted and the broader runner exclusions remain NOT RUN.
 
-## Behavioral lanes
+## Phase 6: cross-cutting qualification and evidence reconciliation
 
-| Lane                                                                                                                                       | Status                                     |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| Foundational inspection schema, generator, and cursor validation                                                                           | PASS in focused generator and native lanes |
-| SQLite inspection state and root-tree lineage projection                                                                                   | PASS in full Node SQLite lane              |
-| Direct PostgreSQL coherent inspection and caller-owned transaction behavior                                                                | PASS in selected Embedded lane             |
-| Remote captured projection, repeatable paging, retention, and cleanup                                                                      | PASS in selected Remote lane               |
-| Remote authorization, tenant/principal isolation, revocation, and private metadata protection                                              | PASS in selected Remote lane               |
-| SDK remote mapping, hostile-page rejection, deadline, and page-limit handling                                                              | PASS in focused SDK test                   |
-| Journal movement ownership, causality, replay, conflict, rollback, and finalization lineage                                                | PASS in SQLite and native PostgreSQL lanes |
-| Independent concurrent remote readers and failure-survivor behavior                                                                        | PASS in complete Remote lane               |
-| Fresh install, compatibility, generated output, and clean archive consumers                                                                | NOT RUN                                    |
-| Paired SQLite/native PostgreSQL, Embedded, full PR, and documentation qualification                                                        | NOT RUN                                    |
-| Hosted/Embedded release readiness, durable Local, providers, cross-authority behavior, performance, publication, and production operations | NOT RUN                                    |
+The phase used three isolated candidates. Earlier focused evidence remains historical. Candidate 3 is the only complete feature-qualification result, and its exact source differs from the later evidence-only branch commit required by T036.
 
-The quickstart's focused SDK and Node SQLite behavior are covered by passing equivalent commands above; its exact `pnpm test:ci:postgresql` command remains NOT RUN. Of the final commands, `pnpm generate:check` and Embedded pass; `pnpm test:pr`, clean paired acceptance, package-split and documentation-format qualification remain NOT RUN.
+Candidate 1 used source `5c8e52917fbe5e9883d87f0411c956b415123c04` and tree `4896d7ea2d768fa52c8a44083c6630dbea33c7a1`. Paired SQLite/PostgreSQL and Embedded passed. `pnpm test:pr` failed on stale repository digest expectations, and `pnpm test:package:split` failed on a stale PostgreSQL generation-five build assertion. Those failures led only to test expectation corrections; they do not establish a new feature behavior red.
+
+Candidate 2 used source `e3142ef61e59ccb2fc43d177b4b4708b68a185e1` and tree `c9addb3653c029454a6014de595fbf6c9e9f002e`. Frozen install, generation, and Embedded passed. `pnpm test:pr` failed because one SDK recovery fixture still used the old history-page shape. The correction changed that fixture only. The orchestrator also supplied unsupported `--report-dir`, `--artifact-dir`, and `format:docs:check` invocations. Each failed before runner work, was neither a feature failure nor a substitute for the required command, and produced no candidate-2 paired or package artifact.
+
+Candidate 3 used clean detached source `327baa31f2d1a0ff7fe6bc5c23596790abb1fb66` and tree `b51ec5c0e591f569736a47330857188eff26192a`, with Node `25.9.0` and pnpm `11.21.0`. `pnpm install --frozen-lockfile`, `pnpm generate:check`, `pnpm test:pr`, `pnpm test:embedded`, `pnpm test:sqlite-postgres`, `pnpm test:package:split`, and `pnpm format:docs` all passed. The candidate was clean before and after every command and left no process running.
+
+| Candidate-3 command                                                              | Exact result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:pr`                                                                   | PASS: repository 64, native 201, Turbo 18; package counts Database 52, SDK 293, policy 97, PostgreSQL 169, SQLite 204, CLI 2.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `pnpm test:sqlite-postgres -- --output .artifacts/key-84/final-paired-327baa3-1` | PASS: artifact [`final-paired-327baa3-1`](../../../.artifacts/key-84/final-paired-327baa3-1); SQLite 15 files/468 tests, PostgreSQL 15 files/323 tests, report retention and cleanup passed. Manifest `cf17c2b1e0616490cdea4ed53ddd530966dc4edb1311e4c894dc236b93ed051b`; SQLite `8353bae0499f96fe0470b3bf59589a7307d0f567f9a6c14774487818f8e93da9`; PostgreSQL `b04aa38eb43359e6fd4f04ffeac751a0b12e8d28494f20e9aa714243f592c6c5`; observations `34d05753ece2f9154b45a90259c4b2fbcd669e1b4dd134183575ae304a6470e5`; Vitest `5440988471d28f5350a33735dea743b373f24eca8b604917299e57a3cbe5a695`.         |
+| `pnpm test:embedded`                                                             | PASS: 2 files/171 tests and cleanup. Source Embedded behavior passed; installed Embedded release readiness did not run.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `pnpm test:package:split -- --output .artifacts/key-84/final-packages-327baa3-1` | PASS: artifact [`final-packages-327baa3-1`](../../../.artifacts/key-84/final-packages-327baa3-1); SDK-only, SDK+SQLite, PostgreSQL package 31, CLI 8, native 323, and all 9 cleanup stages passed. Result digest `7ed5f44c318d62f73980bc132b20bc313986162c8abc85885ec75d63beac3b3a`; archives SDK `2a7b8c5477005878318a330932bbb33a9fa63fbf35301bd1c4491971b6dce3ca`, SQLite `32ee8fdc964db01a34a82819ad68348d5e9fdb3cc2c821d9f1a239c6dfaff1fe`, PostgreSQL `4c701b8471d5f76242a38cc889ed2d6c1626bce55f545bd730d5802cc5b55bce`, CLI `59d858f791f08d2e24a335bf718b850abefd5d86390db9ca8838641bcc560380`. |
+| `pnpm format:docs`                                                               | PASS.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+### Requirement reconciliation
+
+All requirements have passing candidate-3 evidence. Earlier focused Phase 3-5 evidence remains historical and does not replace candidate-3 qualification.
+
+| Requirement | Candidate-3 evidence                                                    |
+| ----------- | ----------------------------------------------------------------------- |
+| FR-001      | Paired SQLite/PostgreSQL and Embedded inspection lanes.                 |
+| FR-002      | Paired root-tree history and chronology lanes.                          |
+| FR-003      | Paired movement and journal-oracle lanes.                               |
+| FR-004      | Paired automatic-finalization and zero-movement lanes.                  |
+| FR-005      | Paired accounting-state and evidence-separation lanes.                  |
+| FR-006      | Paired replay, conflict, and rollback lanes; package replay assertions. |
+| FR-007      | Paired remote independent-reader lane.                                  |
+| FR-008      | Paired captured-page membership and repeated-page lane.                 |
+| FR-009      | Paired remote authorization, tenant, and continuation lanes.            |
+| FR-010      | Embedded caller transaction and read-only lanes.                        |
+| FR-011      | Paired Local/native comparison and package consumers.                   |
+| FR-012      | Paired retention, cleanup, deadline, and page-limit lanes.              |
+| FR-013      | Package consumers and formatted public examples.                        |
+| SC-001      | Paired concurrent request/settlement inspection lanes.                  |
+| SC-002      | Paired mixed Resource, movement, and finalization lanes.                |
+| SC-003      | Paired three-page independent-reader lane.                              |
+| SC-004      | Paired invalid-continuation, tenant, and revocation lane.               |
+| SC-005      | Paired Local/native, Embedded, and package-consumer lanes.              |
+
+The prerequisite command resolved `docs/features/key-84-inspect-coherent-budget-state-and-lineage`; extension hooks are empty. Stock analysis found all 18 FR/SC items task-covered, no constitutional conflict, and no convergence task beyond T031-T036.
+
+## Behavioral lanes at candidate 3
+
+| Lane                                                                                                                                                                                     | Exact status                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Foundational contract, SQLite and direct PostgreSQL inspection, remote captured paging, authorization, retention, movements, finalization, and independent readers                       | PASS on clean candidate 3 through paired, Embedded, and `pnpm test:pr` lanes above. |
+| SDK mapping, hostile pages, deadline/page limits, consumer types, frozen output, privacy, Policy compatibility, fresh install, exact reinstall, and archives                             | PASS on clean candidate 3 through `pnpm test:pr` and package-split lanes above.     |
+| Hosted and installed Embedded release readiness, durable Local, live providers/external effects, cross-authority coherence, performance/load/production operations, publication/PR/merge | NOT RUN.                                                                            |
+| Historical database upgrades                                                                                                                                                             | N/A under the feature specification's fresh-baseline/exact-reinstall scope.         |
+
+The quickstart's exact `pnpm test:ci:postgresql` command remains NOT RUN. Candidate 3's paired and Embedded commands provide the stated exact feature evidence; they do not convert unrelated release-readiness lanes into PASS.
+
+Final independent correctness review found no actionable issue and confirmed that the current non-documentation implementation and tests match candidate 3. Final read-only Ponytail review returned: Lean already. Ship. The later feature-artifact changes record candidate-3 evidence, Spec Kit analysis/convergence, and this review; they do not extend candidate 3's behavioral qualification to a different source tree. `pnpm format:docs`, the explicit feature prerequisite check, and `git diff --check` pass after those evidence-only changes. No affected behavioral check required a rerun.
 
 Parent correctness review found no setup error. Read-only Ponytail review: Lean already. Ship. `pnpm format:docs` and `git diff --check` pass; no simplification or follow-up edit was needed. T001-T003 are complete at the Phase 1 commit.

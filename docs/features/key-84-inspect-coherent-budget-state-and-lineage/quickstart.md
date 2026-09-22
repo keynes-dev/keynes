@@ -1,6 +1,6 @@
 # Validate coherent inspection
 
-This is a validation guide for the proposed implementation. All behavioral checks below are NOT RUN. Planning validation does not qualify runtime behavior.
+This guide validates the implemented feature. [acceptance.md](acceptance.md) records exact results by source revision. A command remains `NOT RUN` until that evidence records it.
 
 ## Prerequisites
 
@@ -23,6 +23,27 @@ pnpm test:ci:postgresql
 ```
 
 The native runner supplies fixture environment and cleanup. Do not run native system files through raw Vitest without their runner.
+
+## Inspect a Budget
+
+Run the same public call in each archive consumer. The state describes the requested Budget. The history describes its entire root tree.
+
+```ts
+const snapshot = await child.inspect();
+
+console.log(snapshot.budget.lineageId, snapshot.budget.lifecycle);
+for (const event of snapshot.history.entries) {
+  console.log(event.sequence, event.subject, event.cause);
+  for (const movement of event.movements) {
+    console.log(movement.reason, movement.resource, movement.amount);
+    console.log(movement.from, movement.to);
+  }
+}
+```
+
+Lineage and movement endpoint IDs are root-relative, not global. A `null` endpoint means funding from outside the tree, consumption, or root release, depending on the movement reason. Automatic ancestor finalization has an `automatic_finalization` cause that references its initiating settlement event. The authority records movement and lifecycle evidence. Caller `decisionEvidence` remains data, not authority, and inspection does not run optional customer Policy.
+
+Remote inspection owns its cursor and observation lifetime. It reads at most 256 entries per page, 128 pages, and 30 seconds of wall time. It returns one complete result or rejects without a partial successful snapshot.
 
 ## Demonstrations
 

@@ -709,28 +709,25 @@ describe("remote Budget reopen and operation recovery", () => {
   });
 
   it("assembles three private history pages into one public inspection", async () => {
-    const cursors = [`khc_v1_${"a".repeat(43)}`, `khc_v1_${"b".repeat(43)}`];
+    const cursors = [
+      `khc_v2_${"a".repeat(32)}_257`,
+      `khc_v2_${"a".repeat(32)}_513`,
+    ];
     let page = 0;
     const executor = fakeExecutor((method) => {
       if (method === "createBudget") return createdResponse();
-      if (method === "getBudget") {
-        return { ok: true, result: { budget: rootBudget("active", null) } };
-      }
       if (method === "getBudgetHistoryPage") {
         const entries =
-          page === 0
-            ? [
-                {
-                  kind: "budget_created",
-                  sequence: 1,
-                  resources: [{ resource: "work_units", amount: 10 }],
-                },
-              ]
-            : [];
+          page < 2
+            ? Array.from({ length: 256 }, (_, index) =>
+                inspectionHistoryEntry(page * 256 + index + 1),
+              )
+            : [inspectionHistoryEntry(513)];
         return {
           ok: true,
           result: {
             budgetReference: rootReference,
+            budget: inspectionBudget(),
             entries,
             nextCursor: cursors[page++] ?? null,
           },
@@ -747,13 +744,12 @@ describe("remote Budget reopen and operation recovery", () => {
 
     const snapshot = await root.inspect();
 
-    expect(snapshot.history.entries).toEqual([
-      {
-        kind: "budget_created",
-        sequence: 1,
-        resources: [{ resource: "workUnits", amount: 10 }],
-      },
-    ]);
+    expect(snapshot.history.entries).toHaveLength(513);
+    expect(snapshot.history.entries[0]).toMatchObject({
+      kind: "budget_created",
+      sequence: 1,
+      resources: [{ resource: "workUnits", amount: 10 }],
+    });
     expect(
       executor.inputs.filter(
         (_input, index) => executor.methods[index] === "getBudgetHistoryPage",
@@ -922,6 +918,40 @@ function rootBudget(
         deficit: 0,
       },
     ],
+  };
+}
+
+function inspectionBudget() {
+  const { budgetReference, depth, lifecycle, resources } = rootBudget(
+    "active",
+    null,
+  );
+  return {
+    budgetReference,
+    lineageId: 1,
+    parentLineageId: null,
+    depth,
+    lifecycle,
+    resources,
+  };
+}
+
+function inspectionHistoryEntry(sequence: number) {
+  return {
+    kind: "budget_created" as const,
+    sequence,
+    subject: 1,
+    cause: { kind: "command" as const },
+    movements: [
+      {
+        reason: "initial_allocation" as const,
+        resource: "work_units",
+        amount: 10,
+        from: null,
+        to: 1,
+      },
+    ],
+    resources: [{ resource: "work_units", amount: 10 }],
   };
 }
 

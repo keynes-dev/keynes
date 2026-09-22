@@ -4,7 +4,10 @@ declare const remoteRuntime: PostgresRuntime;
 import { createKeynes, createOperationKey } from "@keynes/sdk";
 import type {
   Budget,
+  BudgetHistoryEntry,
   BudgetReference,
+  BudgetSnapshot,
+  LineageBudgetId,
   LocalKeynes,
   OperationKey,
   Policy,
@@ -104,11 +107,74 @@ const remotePreview = await transformedRemoteRoot.prepareRequest(
   { policy: remotePolicy },
 );
 expectType<PolicyResult<"searchQueries">>(remotePreview);
+const transformedResult = await transformedRemoteRoot.request(
+  { usdCents: 1 },
+  { policy: remotePolicy },
+);
+if (
+  transformedResult.status === "submitted" &&
+  transformedResult.allocation.status === "approved"
+) {
+  expectType<RemoteBudget<"searchQueries", "usdCents" | "searchQueries">>(
+    transformedResult.allocation.budget,
+  );
+  expectType<BudgetSnapshot<"searchQueries", "usdCents" | "searchQueries">>(
+    await transformedResult.allocation.budget.inspect(),
+  );
+}
 await transformedRemoteRoot.prepareRequest(
   { usdCents: 1 },
   // @ts-expect-error Remote Policy execution cannot receive a durable operation key.
   { policy: remotePolicy, operationKey },
 );
+
+const narrowedRemoteRoot = await remote.createBudget({
+  usdCents: 100,
+  searchQueries: 10,
+});
+const narrowedRemoteRequest = await narrowedRemoteRoot.request({ usdCents: 1 });
+if (narrowedRemoteRequest.status === "approved") {
+  expectType<RemoteBudget<"usdCents", "usdCents" | "searchQueries">>(
+    narrowedRemoteRequest.budget,
+  );
+  const narrowedInspection = await narrowedRemoteRequest.budget.inspect();
+  expectType<BudgetSnapshot<"usdCents", "usdCents" | "searchQueries">>(
+    narrowedInspection,
+  );
+  expectType<LineageBudgetId>(narrowedInspection.budget.lineageId);
+  expectType<LineageBudgetId | null>(narrowedInspection.budget.parentLineageId);
+  expectType<readonly BudgetHistoryEntry<"usdCents" | "searchQueries">[]>(
+    narrowedInspection.history.entries,
+  );
+  // @ts-expect-error Inspection output cannot expose the runtime Budget UUID.
+  void narrowedInspection.budget.budgetId;
+  for (const entry of narrowedInspection.history.entries) {
+    expectType<LineageBudgetId>(entry.subject);
+    expectType<readonly ("usdCents" | "searchQueries")[]>(
+      entry.movements.map(({ resource }) => resource),
+    );
+    if (entry.cause.kind === "automatic_finalization")
+      expectType<number>(entry.cause.eventSequence);
+    for (const movement of entry.movements) {
+      switch (movement.reason) {
+        case "initial_allocation":
+          expectType<null>(movement.from);
+          expectType<LineageBudgetId>(movement.to);
+          break;
+        case "child_grant":
+        case "settlement_return":
+          expectType<LineageBudgetId>(movement.from);
+          expectType<LineageBudgetId>(movement.to);
+          break;
+        case "consumption":
+        case "root_release":
+          expectType<LineageBudgetId>(movement.from);
+          expectType<null>(movement.to);
+          break;
+      }
+    }
+  }
+}
 
 const reopenedPromise = remote.openBudget({
   reference: storedReference,

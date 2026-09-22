@@ -107,4 +107,4 @@ As an application developer, I can run multiple inspections of the same Budget w
 - Inspection has no new public options, durable loading or cross-tenant query API. Internal bounded paging remains an implementation detail.
 - KEY-114 owns decision evidence and KEY-117 owns optional policy preparation. This feature preserves their contracts. KEY-124 owns future cross-authority inspection without globally atomic claims.
 - External effects and live provider integration are N/A: inspection observes accounting and does not execute application work. Durable Local recovery and historical database upgrades are N/A: first Local remains ephemeral and installation remains fresh-baseline/exact-reinstall only.
-- All behavioral acceptance remains NOT RUN until implementation. This specification defines one independently acceptable outcome and one feature PR after its prerequisites.
+- At planning time, all behavioral acceptance was NOT RUN. Current revision-scoped results live in [acceptance.md](acceptance.md). This specification defines one independently acceptable outcome and one feature PR after its prerequisites.

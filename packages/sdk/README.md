@@ -97,6 +97,29 @@ Frozen method-bearing objects implement them. The SDK exposes no Resource,
 Budget, command, executor, or database identifier. You may destructure methods
 because they do not depend on `this`.
 
+## Inspect a Budget and its lineage
+
+`inspect()` returns the requested Budget's state and the complete history of its root tree in one observation. A child state is not a root summary. History can include siblings and descendants of the inspected Budget.
+
+```ts
+const snapshot = await root.inspect();
+
+console.log(snapshot.budget.lineageId, snapshot.budget.lifecycle);
+for (const event of snapshot.history.entries) {
+  console.log(event.sequence, event.subject, event.cause.kind);
+  for (const movement of event.movements) {
+    console.log(movement.reason, movement.resource, movement.amount);
+    console.log(movement.from, movement.to);
+  }
+}
+```
+
+`lineageId`, `parentLineageId`, `subject`, `from`, and `to` identify Budgets within that root tree. They are not global identifiers. A movement endpoint of `null` means funding from outside the tree, consumption, or root release, according to its `reason`. An `automatic_finalization` cause points at the settlement event that finalized the ancestor.
+
+The authority records movements and lifecycle events. `decisionEvidence` remains caller-supplied data, not authority or proof that customer evaluation ran. Inspection does not run Policy or change its optional, customer-owned role in request preparation.
+
+Remote inspection handles paging internally. A call reads at most 256 history entries per page, 128 pages, and 30 seconds of wall time. It returns one complete snapshot or rejects, and callers manage no cursor or snapshot lifetime.
+
 ## Submit application-computed requests
 
 Compute the request in application code, then optionally attach a compact,
@@ -189,7 +212,7 @@ original creation failed.
 
 ## Compatibility and evidence
 
-This API requires semantic generation 5 and its matching generated procedure
+This API requires semantic generation 6 and its matching generated procedure
 contract. The PostgreSQL installer rejects an older or partial installation;
 it supports fresh installation and exact recheck, with no in-place upgrade.
 Prepare a fresh database for an incompatible preview installation. See the

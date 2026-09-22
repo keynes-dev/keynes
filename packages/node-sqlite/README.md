@@ -18,6 +18,10 @@ if (request.status === "approved") {
 await root.inspect();
 ```
 
+`inspect()` returns the requested Budget's state and the complete history of its root tree in one local authority observation. A child result does not turn its state into a root summary, but its history can include sibling and descendant events. `lineageId`, `parentLineageId`, `subject`, and movement endpoints are root-relative IDs, not global identifiers.
+
+Each movement records its `reason`, Resource, amount, and `from` and `to` endpoints. A `null` endpoint means funding from outside the tree, consumption, or root release according to the reason. An `automatic_finalization` event identifies the settlement event that finalized its ancestor. The authority records that evidence. Caller `decisionEvidence` remains data, not authority, and inspection does not evaluate Policy.
+
 `nodeSqlite()` takes no options and performs no I/O. Its reusable descriptor opens a fresh private database for each `createKeynes` call. Instances share no state. The factory remains synchronous; Promise-returning SDK methods reject input and operation failures. The session reserves work before input capture, captures it before returning to the caller and executes it in queue order. Close drains every reservation, including work whose input reflection starts close. New calls reject with `runtime_closed` before reading input. Repeated close calls share one Promise. Close discards the database; process exit also loses all state.
 
 There is no path, persistence mode, borrowed database, public connection handle, tenant/principal option or credential. The runtime validates command semantics and owns atomic accounting and replay; the SDK validates responses and maps typed handles. Browser execution and durable Local recovery are outside this package contract.

@@ -170,6 +170,20 @@ describe("contract source", () => {
         "remote_procedures",
       ],
     });
+    expect(
+      contract.source.operations.map(({ method, replay }) => ({
+        method,
+        replay,
+      })),
+    ).toEqual([
+      { method: "defineResource", replay: true },
+      { method: "defineResources", replay: true },
+      { method: "validateResources", replay: false },
+      { method: "createBudget", replay: true },
+      { method: "requestBudget", replay: true },
+      { method: "settleBudget", replay: true },
+      { method: "getBudget", replay: false },
+    ]);
     expect(contract.source.remote.procedures).toEqual([
       {
         method: "defineResources",
