@@ -108,7 +108,7 @@ try {
         kind: "budget_settlement_recorded",
         lifecycle: "settling",
         newlyKnown: [{ resource: "packageQualificationUnits", amount: 0 }],
-        unresolvedResources: ["packageQualificationUnits"],
+        unresolvedResources: [],
         isolatedDeficits: [],
       },
       {

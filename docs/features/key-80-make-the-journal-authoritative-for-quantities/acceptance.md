@@ -209,6 +209,23 @@ real 300-assertion report. PostgreSQL typecheck and diff checks also passed.
 This validates the retained report with the corrected inventory, not a new
 terminal native run. Clean-revision qualification follows the candidate commit.
 
+### First clean candidate qualification
+
+Candidate `d7f06847ebc039aee0df26bd49a240de569eeab7` ran
+`pnpm test:sqlite-postgres -- --output .artifacts/key-80/paired-d7f0684-1`.
+Attempt `f5318739-eb7b-42ae-8492-ea53d452b551` retained clean-before/after
+identity and passed all 416 SQLite assertions. Native PostgreSQL passed 311
+assertions and failed the packed consumer walkthrough; cleanup passed. The
+attempt is FAILED and is not qualification. Log: `/tmp/key80-paired-2.log`.
+
+The consumer expected an unresolved direct Resource in the root's first
+settlement history despite explicitly reporting zero direct usage. That history
+field lists missing direct reports; unresolved descendants belong to the Budget
+projection. Both canonical engines and SDK mapping confirm the distinction.
+The fixture now expects an empty direct-unresolved array while retaining the
+root's `settling` history and all three target/ancestor records. Parent reviewed
+the one-line correction; Ponytail review found no added complexity.
+
 ## Runtime evidence
 
 Clean-revision paired SQLite/native PostgreSQL qualification, focused Embedded
