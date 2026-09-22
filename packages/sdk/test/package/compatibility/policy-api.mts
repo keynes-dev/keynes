@@ -136,12 +136,9 @@ const transformedResult = await transformedRoot.request(
   { usdCents: 1 },
   { policy },
 );
-const preparedPreview = await transformedRoot.prepareRequest(
-  { usdCents: 1 },
-  { policy },
-);
-expectType<PolicyResult<"searchQueries">>(preparedPreview);
-// @ts-expect-error Policy preparation requires a Policy option.
+// @ts-expect-error Policy preparation is not a public Budget operation.
+await transformedRoot.prepareRequest({ usdCents: 1 }, { policy });
+// @ts-expect-error Policy preparation is not a public Budget operation.
 await transformedRoot.prepareRequest({ usdCents: 1 });
 if (
   transformedResult.status === "submitted" &&

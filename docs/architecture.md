@@ -93,12 +93,11 @@ earlier connection-only factory and per-Budget Resource input decision.
 Every Budget has a stable method surface:
 
 - `request` asks the Budget to create and fund one child.
-- `prepareRequest` runs one required Policy without allocating a child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
 
-Owned remote clients also expose `openBudget({ reference, resourceTypes })` and operation recovery. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
-Recovery rechecks the caller's current permission. Before it returns a committed
+Owned remote clients also expose `openBudget({ reference, resourceTypes })` and `getOperationResult(operationKey)`. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
+Command-result lookup rechecks the caller's current permission. Before it returns a committed
 creation result, it validates that creation's selected definitions against the
 current tenant catalog.
 
@@ -190,15 +189,19 @@ quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Customer evaluation and request construction
 
-Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before preparing a request or stopping work. They own failures, timeout behavior, fallback and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command. `prepareRequest` runs the same Policy without allocation for preview and recoverable Remote submission.
+Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before submitting a request or stopping work. They own failures, timeout behavior, fallback, persistence, and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command.
 
-The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. SDK preparation validates the final names and quantities. It does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to prepare commands without the TypeScript callback.
+The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. The integrated `request` path validates the final names and quantities. It converts a thrown or rejected Policy into the SDK's `policy_failed` result and submits only a prepared envelope. Policy execution does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to construct commands without the TypeScript callback.
+
+An application that needs a durable decision calls its Policy directly and stores the ordinary return value in its own system. Direct calls preserve ordinary JavaScript throw and rejection behavior. The application later submits final resources through a Policy-free Remote request with its own operation key. Keynes supplies no checkpoint, resume method, storage adapter, or workflow coordinator.
 
 The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle/controls and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
 
 Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
 
-Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key. Recovery prepares first, persists the final command and key, then submits without Policy options.
+Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key.
+
+`getOperationResult` is a read-only receipt lookup. It reports `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. Missing means that no receipt exists in the caller's tenant at lookup time. Expired means that a receipt exists but has passed the 30-day expiry. Neither result rules out a delayed command. Lookup does not retry, allocate, invoke Policy, generate a key, or mutate durable command state. The generated wire operation and PostgreSQL procedure retain their recovery names as internal compatibility contracts.
 
 ### Equivalent customer code and SQL
 

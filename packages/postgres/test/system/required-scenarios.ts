@@ -67,7 +67,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "PostgreSQL exact recheck and application-role permissions denies private and unsupported function access without changing state",
   ],
   "packages/postgres/test/system/installation.test.ts": [
-    "PostgreSQL installation rejects a synthetic generation-four compatibility baseline",
+    "PostgreSQL installation rejects a synthetic generation-five compatibility baseline",
     "PostgreSQL installation installs explicit principal permission records",
     "PostgreSQL installation installs a nullable unique private definition receipt reference",
     "PostgreSQL installation installs one baseline and rechecks it without changes",
@@ -134,7 +134,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
   ],
   "packages/postgres/test/integration/remote-identity.test.ts": [
     "remote PostgreSQL installation and administration installs and rechecks the complete remote procedure contract without changing state",
-    "remote PostgreSQL installation and administration reports generation-five compatibility and grants configured validation and recovery only to the runtime role",
+    "remote PostgreSQL installation and administration reports generation-six compatibility and grants configured validation and recovery only to the runtime role",
     "remote PostgreSQL installation and administration gives the runtime role only remote procedures and no private authority",
     "remote PostgreSQL installation and administration keeps owner, execution, administration, and runtime roles distinct",
     "remote PostgreSQL installation and administration records OID and name mappings without credential secrets",
@@ -189,7 +189,7 @@ export const REQUIRED_POSTGRESQL_SYSTEM_SCENARIOS = {
     "remote PostgreSQL recovery and bounded reads recovers a committed response without adding a command or history entry",
     "remote PostgreSQL recovery and bounded reads replays request evidence and conflicts when its caller decision changes",
     "remote PostgreSQL recovery and bounded reads recovers a committed mutation after its transport response is lost",
-    "remote PostgreSQL recovery and bounded reads returns known-failure and expired recovery states without mutation",
+    "remote PostgreSQL recovery and bounded reads returns known-failure and not-found recovery states without mutation",
     "remote PostgreSQL recovery and bounded reads reports an in-flight mutation as unresolved without changing authority state",
     "remote PostgreSQL recovery and bounded reads converges concurrent exact retries on one committed mutation",
     "remote PostgreSQL recovery and bounded reads reopens a Budget only for the mapped tenant and exact Resource binding",

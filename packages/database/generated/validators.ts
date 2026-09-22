@@ -1526,6 +1526,19 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
+  NotFoundOperation: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "operationKey"],
+    properties: {
+      kind: {
+        const: "not_found",
+      },
+      operationKey: {
+        $ref: "#/$defs/OperationKey",
+      },
+    },
+  },
   RecoverOperationResult: {
     oneOf: [
       {
@@ -1536,6 +1549,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       {
         $ref: "#/$defs/UnresolvedOperation",
+      },
+      {
+        $ref: "#/$defs/NotFoundOperation",
       },
       {
         $ref: "#/$defs/ExpiredOperation",

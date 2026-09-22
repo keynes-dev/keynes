@@ -32,12 +32,12 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL package build promotion", () => {
-  it("publishes configured creation with generation five compatibility", () => {
+  it("publishes configured creation with generation six compatibility", () => {
     const { source: contract } = loadContract(
       fileURLToPath(new URL("../../../database/", import.meta.url)),
     );
-    expect(contract.remote.semanticGeneration).toBe(5);
-    expect(contract.remote.minimumSdkGeneration).toBe(5);
+    expect(contract.remote.semanticGeneration).toBe(6);
+    expect(contract.remote.minimumSdkGeneration).toBe(6);
     expect(contract.operations).toContainEqual(
       expect.objectContaining({
         method: "validateResources",

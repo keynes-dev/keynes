@@ -33,13 +33,13 @@ import {
 } from "./remote/result-mapping.js";
 import type { RemoteBudget } from "./remote/public-types.js";
 import {
-  projectRecoverOperationResult,
+  projectOperationResult,
   requireBudgetReference,
   requireOperationKey,
   splitRemoteMutationOptions,
   type BudgetReference,
   type OperationKey,
-  type RecoverOperationResult,
+  type OperationResult,
   type RemoteOperationOptions,
 } from "./remote/references.js";
 import {
@@ -108,9 +108,9 @@ export interface RemoteKeynes<Names extends string = string> extends Omit<
   ) => Promise<ResourceBinding<Extract<keyof Definitions, string>>>;
   readonly createBudget: RemoteRootBudgetCreator<Names>;
   readonly openBudget: RemoteBudgetOpener;
-  readonly recoverOperation: (
+  readonly getOperationResult: (
     operationKey: OperationKey,
-  ) => Promise<RecoverOperationResult>;
+  ) => Promise<OperationResult>;
 }
 
 export function createKeynes<
@@ -219,14 +219,14 @@ export async function createKeynes(
       createOpenedRemoteResourceBinding(resources, result.budget),
     );
   };
-  const recoverOperation = async (
+  const getOperationResult = async (
     suppliedOperationKey: OperationKey,
-  ): Promise<RecoverOperationResult> => {
+  ): Promise<OperationResult> => {
     runtime.assertOpen();
     const operationKey = requireOperationKey(suppliedOperationKey);
     const result = await client.recoverOperation({ operationKey });
     if (result.operationKey !== operationKey) throw remoteResultMismatch();
-    return projectRecoverOperationResult(result);
+    return projectOperationResult(result);
   };
   const defineResources: RemoteKeynes["defineResources"] = async (
     definitions,
@@ -247,7 +247,7 @@ export async function createKeynes(
     defineResources,
     createBudget,
     openBudget,
-    recoverOperation,
+    getOperationResult,
     close,
     [Symbol.asyncDispose]: close,
   });
