@@ -1,6 +1,6 @@
 # Acceptance evidence: Compose application policies into Budget requests
 
-**Final implementation source revision**: `feca3a3ac240388501b29841a6d362e92ba7956b` (`key-117-compose-application-policies-into-budget-requests`; clean before and after final qualification).
+**Final implementation source revision**: `7d8e0fcbc6e3dfca1aec262ac5de3e3215867efa` (`key-117-compose-application-policies-into-budget-requests`; clean before and after final qualification).
 
 This record is revision-scoped. The phase sections retain their own observed-red
 and focused-green revisions. The final qualification section records only the
@@ -340,48 +340,53 @@ lane. This Phase 6 fixture proves no live provider behavior.
 ## Final implementation qualification
 
 **Evidence basis**: clean source revision
-`feca3a3ac240388501b29841a6d362e92ba7956b`. The archive and shared-runtime
+`7d8e0fcbc6e3dfca1aec262ac5de3e3215867efa`. The archive and shared-runtime
 qualifiers recorded a clean worktree before and after their work.
 
 **Source suites**:
 
 ```sh
+pnpm --filter @keynes/policy test
+pnpm --filter @keynes/policy typecheck
+pnpm --filter @keynes/policy build
 CI=true pnpm test:unit
-pnpm test:ci:postgresql
+CI=true pnpm check:repo
 ```
 
-Both commands passed. `test:unit` ran 36 files and 498 tests: database 51,
-PostgreSQL 169, SDK 276, and CLI 2. `test:ci:postgresql` ran 13 files and 304
-tests, then completed its cleanup. The provider-free recorded-assessment fixture
-remains credential-cleared and provider-free; its archive consumer runs the
-recorded available, unavailable, and explicit-fallback decisions without a
-provider package or network path.
+All commands passed. The final policy suite ran 7 files and 97 tests after the
+specialized composition API and its two tests were deleted. `test:unit` ran 36
+files and 498 tests: database 51, PostgreSQL 169, SDK 276, and CLI 2.
+`check:repo` passed 12 of 12 tasks and dependency boundaries for 315 files
+across 7 packages. The provider-free recorded-assessment fixture remains
+credential-cleared and provider-free; its archive consumer runs the recorded
+available, unavailable, and explicit-fallback decisions without a provider
+package or network path.
 
 ### Installed archives
 
 ```sh
-pnpm --filter @keynes/policy test:package -- --output .artifacts/key-117-policy-archive-feca3a3.json
-pnpm test:package:split -- --output .artifacts/key-117-runtime-archives-feca3a3
+pnpm --filter @keynes/policy test:package -- --output .artifacts/key-117-policy-archive-7d8e0fc.json
+pnpm test:package:split -- --output .artifacts/key-117-runtime-archives-7d8e0fc
 ```
 
 The policy archive qualifier passed at
-`.artifacts/key-117-policy-archive-feca3a3.json`. Its exact archive hashes are
+`.artifacts/key-117-policy-archive-7d8e0fc.json`. Its exact archive hashes are
 `@keynes/policy`
-`b3d75ede0fa1487f01d4d564c1295236cbaa5c935d52a3f12fc1c9824e07a8fa`
+`56833658f36f34417e921e92e3530712606f31e36d70555bfe138e432ea73d6a`
 and `@keynes/sdk`
 `426048e22218d51e6b005a7f19f5d26072b5e3a03f78e3cc1073669a00b75698`.
 Core and optional-Zod child consumers typechecked and ran with exit 0. Cleanup
 passed.
 
 The runtime archive qualifier passed at
-`.artifacts/key-117-runtime-archives-feca3a3/result.json`. Its exact archive
+`.artifacts/key-117-runtime-archives-7d8e0fc/result.json`. Its exact archive
 hashes are:
 
 | Archive               | SHA-256                                                            |
 | --------------------- | ------------------------------------------------------------------ |
 | `@keynes/sdk`         | `426048e22218d51e6b005a7f19f5d26072b5e3a03f78e3cc1073669a00b75698` |
-| `@keynes/node-sqlite` | `e46aa8e4cfbd8db1623d53775c26d67bfff9f2a40fd22a6277e2ad3347db548d` |
-| `@keynes/postgres`    | `a01a58fd5bc3dc3f2c479cea8906a86257617253f76950d987b2ea7ba1088e92` |
+| `@keynes/node-sqlite` | `3e2e0bd4291372236ba3d3a6591fbdb093d9a9efac3c36ab183c8bb74dcd0a9c` |
+| `@keynes/postgres`    | `e5475a4a6c1b8fa787fca3be3ec9da4fea0639c887ebeda7da8d3ca04f84738a` |
 | `@keynes/cli`         | `7e0d8456f08f3f5a3f9be6019ed6cb7825da89d1880ebd4068249404a2433b3b` |
 
 All nine runtime-archive stages and cleanup passed. The CLI consumer ran 8 of
@@ -390,10 +395,10 @@ All nine runtime-archive stages and cleanup passed. The CLI consumer ran 8 of
 ### Shared runtime qualification
 
 ```sh
-pnpm test:sqlite-postgres -- --output .artifacts/key-117-shared-acceptance-feca3a3
+pnpm test:sqlite-postgres -- --output .artifacts/key-117-shared-acceptance-7d8e0fc
 ```
 
-`.artifacts/key-117-shared-acceptance-feca3a3/manifest.json` passed. It records
+`.artifacts/key-117-shared-acceptance-7d8e0fc/manifest.json` passed. It records
 clean-before and clean-after checks, SQLite 450 of 450, PostgreSQL 316 of 316,
 and successful cleanup. The earlier
 `.artifacts/key-117-shared-acceptance-1dbe26e` attempt failed only because the
@@ -403,9 +408,9 @@ revision gives those cases unique names; no behavior or runtime command changed.
 ### Aggregate and independent checks
 
 ```sh
-pnpm test:pr
+CI=true pnpm test:pr
+pnpm exec vitest run scripts/run-sqlite-postgres.test.ts scripts/run-package-split.test.ts packages/postgres/test/system/run.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'
 pnpm exec tsc --project tsconfig.tests.json --noEmit
-pnpm check:deps
 ```
 
 `pnpm test:pr` failed before its later chained lanes at the pre-existing
@@ -413,9 +418,9 @@ repository-organization assertion that `packages/contracts` must be absent.
 The same assertion and directory are present on `origin/main`; the repository
 lane ran 63 of 64 tests and generation passed. It is retained as a failed
 aggregate result, not a feature pass. The later lanes were run independently:
-the runner passed 201 of 201, Turbo quality/typecheck/test passed 18 of 18 with
-800 package tests, the test TypeScript project passed, and dependency checking
-passed for 315 files across 7 packages.
+the runner passed 201 of 201 and the test TypeScript project passed.
+`check:repo` and `test:unit` provide the final-revision quality, type, package
+unit and dependency-boundary results recorded above.
 
 `pnpm --filter @keynes/sdk test:local` is not feature evidence. It discovered
 stale suites below `.claude/worktrees/jolly-lumiere-66366e/` that lacked
@@ -455,9 +460,10 @@ that unrelated workspace failure. The shared qualifier is the Local evidence.
 
 ### Final Ponytail review
 
-The final read-only Ponytail review covered the Phase 7 code diff
-`551f30e..feca3a3` and this documentation diff. Result: `Lean already. Ship.`
-It found no changes to make.
+The final read-only Ponytail reviews covered the Phase 7 code diff
+`551f30e..feca3a3`, its documentation diff, and the product-language correction
+`a313f75..7d8e0fc`. Each result was `Lean already. Ship.` No finding required a
+change.
 
 **NOT RUN**: live-provider execution, browser behavior, Hosted deployment,
 registry publication, production-readiness, security review, and performance
