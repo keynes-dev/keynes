@@ -1,6 +1,6 @@
 # Research: typed policy parameters
 
-Research performed 2026-09-20 against repository base `dc58120` and primary documentation. These are design decisions, not implementation evidence.
+Original research performed 2026-09-20 against repository base `dc58120` and primary documentation. The declaration-owned validator refinement was approved on 2026-09-21 after reviewing PR #67 at `82e32d6`. These are design decisions, not implementation evidence.
 
 ## Portable schema and validation
 
@@ -41,6 +41,14 @@ Sources: [Zod JSON Schema conversion](https://zod.dev/json-schema), [Zod core tr
 **Alternatives considered**: Name-only identity misses schema drift; ordinary JSON.stringify varies with object-key insertion order; an external registry introduces persistence and lookup ownership belonging to later Cloud work. Digests are content identities, not signatures.
 
 Sources: existing canonicalize 4.0.0 use in `packages/database/src/generation/generated-output.ts`; [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785). Reuse the dependency directly without making application tooling import the private database owner.
+
+## Refinement: declaration-owned validators
+
+**Decision**: Retain compiled validators privately with each declaration. Restoration first checks strict JSON/envelope structure and identities, requires exact expected-definition equality, then reuses those validators. Do not compile incoming schemas or add a global cache.
+
+**Rationale**: Equality with a validated declaration establishes the accepted schema's meaning. A different definition is rejected without compiling it. This removes repeated work without changing snapshot identities or accepted inputs. No production performance problem or throughput improvement is claimed.
+
+**Alternatives considered**: Recompiling each snapshot discards declaration-time work. A matching-definition shortcut plus the old foreign-schema path preserves diagnostic ordering but adds branching. The approved refinement instead changes error precedence explicitly: a structurally valid foreign definition with valid digests reports a definition mismatch even when its schema is unsupported. Public declaration methods and package consolidation add unrelated migration; keep the current function API and leave distribution to KEY-117.
 
 ## Delivery boundary
 

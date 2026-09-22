@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { Ajv } from "ajv";
 import canonicalize from "canonicalize";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -93,7 +94,7 @@ describe("snapshot restoration and overrides", () => {
     expect(Object.isFrozen(restored.definition.parameters)).toBe(true);
     expect(Object.isFrozen(restored.values.config)).toBe(true);
   });
-  it("rejects malformed envelopes, versions, digests, schemas and values", () => {
+  it("rejects malformed envelopes, versions, digests and values", () => {
     const invalid = [
       { ...portable(), extra: 1 },
       { ...portable(), formatVersion: 2 },
@@ -121,13 +122,126 @@ describe("snapshot restoration and overrides", () => {
     expect(() =>
       restoreParameterSnapshot(declaration, resign(invalidSchema)),
     ).toThrowError(
-      expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+      expect.objectContaining({ code: "parameter_definition_mismatch" }),
     );
     const invalidVersion = portable();
     invalidVersion.definition.formatVersion = 2;
     expect(() =>
       restoreParameterSnapshot(declaration, resign(invalidVersion)),
     ).toThrow(ParameterError);
+  });
+  it("reuses declaration validators during restore and override", () => {
+    const compile = vi.spyOn(Ajv.prototype, "compile");
+    try {
+      const local = defineParameters({
+        count: { schema: { type: "number" }, initial: 1 },
+      });
+      const snapshot = createParameterSnapshot(local);
+      const declarations = compile.mock.calls.length;
+
+      restoreParameterSnapshot(local, snapshot);
+      restoreParameterSnapshot(local, JSON.parse(JSON.stringify(snapshot)));
+      overrideParameterSnapshot(local, snapshot, { count: 2 });
+      overrideParameterSnapshot(local, snapshot, { count: 3 });
+
+      expect(compile).toHaveBeenCalledTimes(declarations);
+    } finally {
+      compile.mockRestore();
+    }
+  });
+  it("keeps validators independent for each declaration", () => {
+    const numbers = defineParameters({
+      value: { schema: { type: "number" }, initial: 1 },
+    });
+    const strings = defineParameters({
+      value: { schema: { type: "string" }, initial: "one" },
+    });
+
+    expect(() =>
+      overrideParameterSnapshot(numbers, createParameterSnapshot(numbers), {
+        value: "one",
+      } as never),
+    ).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_value" }),
+    );
+    expect(() =>
+      overrideParameterSnapshot(strings, createParameterSnapshot(strings), {
+        value: 1,
+      } as never),
+    ).toThrowError(
+      expect.objectContaining({ code: "invalid_parameter_value" }),
+    );
+  });
+  it("does not expose validators through a declaration constructor", () => {
+    const local = defineParameters({
+      value: { schema: { type: "number" }, initial: 1 },
+    });
+    const snapshot = createParameterSnapshot(local);
+
+    try {
+      expect(Reflect.get(local.constructor, "validators")).toBeUndefined();
+      Reflect.set(local.constructor, "validators", () => ({
+        value: { validate: () => true },
+      }));
+      const invalid = JSON.parse(JSON.stringify(snapshot));
+      invalid.values.value = "wrong";
+
+      expect(() =>
+        restoreParameterSnapshot(local, resign(invalid)),
+      ).toThrowError(
+        expect.objectContaining({ code: "invalid_parameter_snapshot" }),
+      );
+      expect(() =>
+        overrideParameterSnapshot(local, snapshot, { value: "wrong" } as never),
+      ).toThrowError(
+        expect.objectContaining({ code: "invalid_parameter_value" }),
+      );
+    } finally {
+      Reflect.deleteProperty(local.constructor, "validators");
+    }
+  });
+  it.each([
+    { schema: { format: "secret" } },
+    { schema: { type: 1 } },
+    { schema: { type: "number" } },
+  ])(
+    "rejects rehashed foreign schemas without compiling them %#",
+    ({ schema }) => {
+      const compile = vi.spyOn(Ajv.prototype, "compile");
+      try {
+        const foreign = portable();
+        foreign.definition.parameters.threshold = schema;
+        const input = resign(foreign);
+        const declarations = compile.mock.calls.length;
+
+        expect(() => restoreParameterSnapshot(declaration, input)).toThrowError(
+          expect.objectContaining({ code: "parameter_definition_mismatch" }),
+        );
+        expect(compile).toHaveBeenCalledTimes(declarations);
+      } finally {
+        compile.mockRestore();
+      }
+    },
+  );
+  it("reports a bad identity before a foreign unsupported schema mismatch", () => {
+    const compile = vi.spyOn(Ajv.prototype, "compile");
+    try {
+      const foreign = portable();
+      foreign.definition.parameters.threshold = { format: "secret" };
+      const input = resign(foreign);
+      input.snapshotId = "sha256:" + "0".repeat(64);
+      const declarations = compile.mock.calls.length;
+
+      expect(() => restoreParameterSnapshot(declaration, input)).toThrowError(
+        expect.objectContaining({
+          code: "invalid_parameter_snapshot",
+          rule: "identity",
+        }),
+      );
+      expect(compile).toHaveBeenCalledTimes(declarations);
+    } finally {
+      compile.mockRestore();
+    }
   });
   it("reports identity failures before definition mismatch and mismatch before values", () => {
     const changed = portable();

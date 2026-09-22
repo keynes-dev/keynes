@@ -8,6 +8,7 @@ import {
   validateParameterValue,
   type JsonValue,
 } from "./schema.ts";
+import type { ValidateFunction } from "ajv";
 
 export type ReadonlyJsonValue =
   | null
@@ -57,11 +58,15 @@ type Checked<D extends Descriptors> = {
     initial: Exact<D[K]["initial"], SchemaValue<D[K]["schema"]>>;
   };
 };
+type Validators = Readonly<Record<string, { validate: ValidateFunction }>>;
 export type ParameterDefinition = DeepReadonly<{
   formatVersion: 1;
   dialect: typeof dialect;
   parameters: Record<string, JsonValue>;
 }>;
+export let declarationValidators: <V>(
+  declaration: ParameterDeclaration<V>,
+) => Validators;
 
 export function freeze<T>(value: T): DeepReadonly<T> {
   if (value !== null && typeof value === "object") {
@@ -127,6 +132,11 @@ export function typedSchema<T>(schema: JsonValue): TypedSchema<T> {
 
 class Declaration<V> {
   #valid = true;
+  #validators: Validators;
+  static {
+    declarationValidators = <V>(declaration: ParameterDeclaration<V>) =>
+      declaration.#validators;
+  }
   static is(value: unknown): boolean {
     return (
       value !== null &&
@@ -147,6 +157,7 @@ class Declaration<V> {
       );
     const schemas: Record<string, JsonValue> = {};
     const initials: Record<string, JsonValue> = {};
+    const validators: Record<string, { validate: ValidateFunction }> = {};
     for (const [name, raw] of Object.entries(descriptors)) {
       const path = pointer("", name);
       const descriptor = fields(raw, path);
@@ -167,6 +178,7 @@ class Declaration<V> {
         pointer(path, "schema"),
       );
       schemas[name] = compiled.schema;
+      validators[name] = compiled;
       initials[name] = validateParameterValue(
         compiled,
         descriptor.initial,
@@ -181,6 +193,7 @@ class Declaration<V> {
     });
     // Every initial was validated against the schema used to infer V.
     this.initials = freeze(initials) as DeepReadonly<V>;
+    this.#validators = Object.freeze(validators);
     Object.freeze(this);
   }
 }

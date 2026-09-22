@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import canonicalize from "canonicalize";
 import {
   assertDeclaration,
+  declarationValidators,
   type DeepReadonly,
   type ParameterDeclaration,
   type ParameterDefinition,
@@ -35,7 +36,6 @@ export function createParameterSnapshot<V>(
 
 import { freeze, type Exact } from "./parameters.ts";
 import {
-  compileParameterSchema,
   copyJson,
   dialect,
   ParameterError,
@@ -107,19 +107,6 @@ function captureSnapshot<V>(
       "names",
     );
   keys(values, names, "/values");
-  const compiled = Object.fromEntries(
-    Object.entries(schemas).map(([name, schema]) => {
-      const path = pointer("/definition/parameters", name);
-      const result = compileParameterSchema(
-        schema,
-        "invalid_parameter_snapshot",
-        path,
-      );
-      if (canonicalize(result.schema) !== canonicalize(schema))
-        throw new ParameterError("invalid_parameter_snapshot", path, "schema");
-      return [name, result];
-    }),
-  );
   if (
     contentId(definition) !== envelope.definitionId ||
     contentId({
@@ -138,9 +125,10 @@ function captureSnapshot<V>(
       "/definition",
       "definition",
     );
+  const validators = declarationValidators(declaration);
   for (const name of names)
     validateParameterValue(
-      compiled[name],
+      validators[name],
       values[name],
       "invalid_parameter_snapshot",
       pointer("/values", name),
@@ -154,7 +142,7 @@ function captureSnapshot<V>(
     values: typedValues,
     snapshotId: envelope.snapshotId,
   });
-  return { snapshot, compiled };
+  return { snapshot, validators };
 }
 export function restoreParameterSnapshot<V>(
   declaration: ParameterDeclaration<V>,
@@ -170,7 +158,7 @@ export function overrideParameterSnapshot<V, const O extends object>(
   input: unknown,
   overrides: O & CheckedOverrides<NoInfer<V>, NoInfer<O>>,
 ): ParameterSnapshot<V> {
-  const { snapshot, compiled } = captureSnapshot(declaration, input);
+  const { snapshot, validators } = captureSnapshot(declaration, input);
   const replacements = object(
     copyJson(overrides, "invalid_parameter_value"),
     "",
@@ -178,14 +166,14 @@ export function overrideParameterSnapshot<V, const O extends object>(
   );
   const values = object(copyJson(snapshot.values), "/values");
   for (const [name, value] of Object.entries(replacements)) {
-    if (!Object.hasOwn(compiled, name))
+    if (!Object.hasOwn(validators, name))
       throw new ParameterError(
         "invalid_parameter_value",
         pointer("", name),
         "name",
       );
     values[name] = validateParameterValue(
-      compiled[name],
+      validators[name],
       value,
       "invalid_parameter_value",
       pointer("", name),

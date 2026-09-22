@@ -74,9 +74,26 @@ Purpose: finish the source contract and retain exact-revision evidence without c
 - [x] T019 Execute the provider-free guide and `pnpm test:pr`, review dependency boundaries and all FR/SC coverage, and record exact source revision, commands/results, tool versions, host/attempt and fixture digests in `docs/features/key-116-declare-typed-policy-parameters/acceptance.md`. Keep native, archive, Cloud and performance lanes explicit. Cover FR-012 and SC-001 through SC-004.
 - [x] T020 Perform final read-only Spec Kit analysis and code review, resolve accepted findings with focused checks, and update `docs/features/key-116-declare-typed-policy-parameters/acceptance.md` and `docs/features/key-116-declare-typed-policy-parameters/tasks.md`. Do not mark Linear Done before merge and required acceptance.
 
+## Phase 7: Declaration-owned validation and simpler restoration
+
+Purpose: retain compiled validators with declarations and remove incoming-schema compilation without changing snapshot bytes or public signatures.
+
+- [x] T021 Reconcile the specification, contract, plan, research, data model and usage guidance with identity-before-definition-before-values restoration. Preserve structural checks and document changed diagnostics for incompatible schemas.
+- [x] T022 Write and observe failing tests for declaration-owned validator reuse, independent declarations, zero compilation during restore/override and changed error precedence. Preserve existing fixed-fixture, mutation, own-property and type checks.
+- [x] T023 Retain validators privately in declarations and reuse them after strict envelope, identity and exact-definition checks. Remove foreign-schema compilation without a compatibility branch, new public API or global cache.
+- [x] T024 Run package tests/typecheck and focused formatting; evaluate independent correctness and read-only Ponytail reviews, resolve accepted findings and commit this coherent phase.
+
+## Phase 8: Refinement qualification and ownership reconciliation
+
+- [ ] T025 Run the full provider-free gate, feature prerequisites, managed-file integrity, formatting and diff checks; retain exact-revision evidence and explicit NOT RUN lanes.
+- [ ] T026 Reconcile final artifacts, evaluate independent correctness and read-only Ponytail reviews, and commit the evidence phase. Push the existing branch, refresh PR #67 and Linear evidence links, and verify required CI at its final head.
+- [ ] T027 Correct Linear ownership: KEY-116 owns this refinement; KEY-117 retains optional toolkit distribution and downstream consumer validation. Preserve issue states, blocking relations and the existing PR's draft status.
+
 ## Dependencies and execution order
 
 Setup -> foundational validation -> US1 -> US2 -> US3 -> final acceptance. US2 consumes US1's declaration/provisioning path; US3 consumes the same core but needs no policy composition or Cloud work. Each story has an independent acceptance check once its stated foundation is available.
+
+The approved refinement follows existing acceptance: Phase 7 -> Phase 8. Phase 7's behavioral tests must fail before implementation. Review and commit Phase 7 before starting Phase 8; package consolidation remains KEY-117 work.
 
 US1 parallel example: T005 runtime tests and T006 type assertions use different files. US2 parallel example: T010 runtime tests and T011 type assertions. US3 parallel example: T014 parity tests and T015 type assertions. Each pair must finish and fail as expected before its implementation tasks. Do not run phases sharing `test/types.ts` concurrently.
 
@@ -86,21 +103,21 @@ Deliver US1 as the smallest working increment, then snapshot restoration/overrid
 
 ## Coverage map
 
-| Requirement | Tasks                        |
-| ----------- | ---------------------------- |
-| FR-001      | T005, T007, T018             |
-| FR-002      | T003, T004, T005, T007       |
-| FR-003      | T006, T007, T011, T015       |
-| FR-004      | T005, T007, T018             |
-| FR-005      | T010, T011, T012             |
-| FR-006      | T008, T013                   |
-| FR-007      | T010, T012, T013             |
-| FR-008      | T014, T016, T017             |
-| FR-009      | T003, T005, T009, T015, T017 |
-| FR-010      | T003, T004, T008, T010, T012 |
-| FR-011      | T001, T002, T009, T018       |
-| FR-012      | T013, T017, T019, T020       |
-| SC-001      | T005, T006, T019             |
-| SC-002      | T013, T019                   |
-| SC-003      | T009, T017, T019             |
-| SC-004      | T014, T017, T019             |
+| Requirement | Tasks                             |
+| ----------- | --------------------------------- |
+| FR-001      | T005, T007, T018                  |
+| FR-002      | T003, T004, T005, T007, T021-T024 |
+| FR-003      | T006, T007, T011, T015            |
+| FR-004      | T005, T007, T018                  |
+| FR-005      | T010, T011, T012                  |
+| FR-006      | T008, T013                        |
+| FR-007      | T010, T012, T013, T021-T024       |
+| FR-008      | T014, T016, T017                  |
+| FR-009      | T003, T005, T009, T015, T017      |
+| FR-010      | T003, T004, T008, T010, T012      |
+| FR-011      | T001, T002, T009, T018            |
+| FR-012      | T013, T017, T019, T020, T022-T026 |
+| SC-001      | T005, T006, T019, T025            |
+| SC-002      | T013, T019, T025                  |
+| SC-003      | T009, T017, T019, T025            |
+| SC-004      | T014, T017, T019, T025            |

@@ -14,6 +14,8 @@ Schemas and snapshots use only strict JSON trees. A declaration map is non-empty
 
 The [interface contract](contracts/parameters.md) owns transitions, immutability and portable identity rules.
 
+A declaration privately retains the validators compiled for its schemas. They share the declaration's lifetime and are absent from portable definitions and snapshots. Restoration requires exact definition equality before using them; separate declarations do not share mutable validator ownership.
+
 ## Relationships and future consumers
 
 A policy may retain the snapshot it used, but this feature has no policy identity, evaluator or execution record. KEY-117 can reference a snapshot; KEY-118 can store fixtures; KEY-119 can persist this envelope and add publication metadata separately. The snapshot does not carry a tenant, Budget ID, authority, timestamps or automatic decision evidence.

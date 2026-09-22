@@ -8,7 +8,7 @@
 
 Define a small, provider-free parameter contract outside the SDK and database runtimes. Literal JSON Schema declarations retain inferred types, explicit initial values produce immutable snapshots, and overrides replace whole parameter values. A separate Zod adapter accepts only declarations whose checks survive portable conversion.
 
-Implementation is complete; acceptance records executed checks and remaining NOT RUN lanes. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) describe the implemented source contract. [Acceptance](acceptance.md) separates historical planning checks from source verification.
+The original implementation is complete; tasks.md now includes the approved declaration-validator and restoration refinement. [Research](research.md), [data model](data-model.md), [interface contract](contracts/parameters.md), [validation guide](quickstart.md) and [tasks](tasks.md) describe the source contract. [Acceptance](acceptance.md) separates historical evidence from verification of the refinement.
 
 ## Technical Context
 
@@ -83,5 +83,7 @@ Implement in the phases in tasks.md, with failing behavior checks before the cor
 Planning checks: stock Spec Kit prerequisites and integrity, feature-only formatting, repository organization tests and `git diff --check`. Feature acceptance after implementation: private-package tests and typecheck, `pnpm test:pr`, a core-only consumer without Zod, and frozen dependency install. Retain exact revision, command outcomes, dependency versions, host, attempt and fixture hashes in acceptance.md. KEY-117/KEY-88 own distribution/archive qualification, not these source tests.
 
 ## Complexity Tracking
+
+The refinement keeps the current modules and public functions. Declarations retain compiled validators in private instance state, with module-internal access for snapshot operations. Restoration keeps strict JSON/envelope checks, verifies identities, requires exact expected-definition equality, then validates values with those validators. Remove incoming-schema compilation entirely; do not add a compatibility branch for the old schema-before-mismatch diagnostics. Update the contract and tests explicitly, while preserving snapshot bytes, type inference and Zod qualification. No global cache, public validator API or package consolidation is included; KEY-117 retains distribution ownership.
 
 No violations or exceptions. Ajv handles validation, canonicalize handles canonical JSON, and json-schema-to-ts handles schema-derived types. Do not write replacements. The only custom schema traversal restricts the supported profile and rejects lossy authoring; it is not a validation engine.

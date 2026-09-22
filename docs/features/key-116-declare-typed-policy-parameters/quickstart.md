@@ -42,7 +42,7 @@ JS
 
 `test/snapshot.test.ts` verifies whole-value replacement, rejection of incomplete required objects, equal/empty override identities and mutation isolation. It restores the fixed `test/fixtures/snapshot.json` and compares canonical bytes and digests in a fresh Node process. Object-key reordering preserves identity. Array order, values and schema annotations can change it.
 
-Restoration validates the envelope, schemas and identities before comparing the expected definition and validating values. Changed initials have no effect. Tampered payloads, incompatible versions, foreign definitions and hostile JavaScript inputs reject without repair or fallback. Serialize a validated snapshot with `canonicalize(snapshot)`; the helpers perform no file I/O.
+Restoration checks strict JSON and envelope structure, identities and the exact expected definition before validating values with declaration-owned validators. It does not compile incoming schemas. Tests verify validator reuse and isolation between declarations. A structurally valid foreign definition with valid digests reports a definition mismatch, including unsupported schemas; bad identities reject first. Changed initials have no effect. Tampered payloads, incompatible versions, foreign definitions and hostile JavaScript inputs reject without repair or fallback. Serialize a validated snapshot with `canonicalize(snapshot)`; the helpers perform no file I/O.
 
 ## Optional Zod authoring and core isolation
 
