@@ -82,10 +82,10 @@
 
 **Purpose**: Qualify the complete candidate revision and retain honest evidence.
 
-- [ ] T029 Run focused regressions followed by `pnpm generate:check` and record exact outcomes in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
-- [ ] T030 Run `pnpm test:pr`, `pnpm test:sqlite-postgres`, applicable Remote tests and `pnpm test:package:split`; record exact revision, failures and `NOT RUN` lanes in `acceptance.md`
-- [ ] T031 Run optional Policy package qualification and documentation checks when available, otherwise mark each lane `NOT RUN` with its reason in `acceptance.md`
-- [ ] T032 Re-run stock Spec Kit analysis and converge checks, close every task, perform final read-only review and commit exact-revision acceptance evidence
+- [x] T029 Run focused regressions followed by `pnpm generate:check` and record exact outcomes in `docs/features/key-126-simplify-policy-requests-and-clarify-command-result-lookup/acceptance.md`
+- [x] T030 Run `pnpm test:pr`, `pnpm test:sqlite-postgres`, applicable Remote tests and `pnpm test:package:split`; record exact revision, failures and `NOT RUN` lanes in `acceptance.md`
+- [x] T031 Run optional Policy package qualification and documentation checks when available, otherwise mark each lane `NOT RUN` with its reason in `acceptance.md`
+- [x] T032 Re-run stock Spec Kit analysis and converge checks, close every task, perform final read-only review and commit exact-revision acceptance evidence
 
 ---
 
