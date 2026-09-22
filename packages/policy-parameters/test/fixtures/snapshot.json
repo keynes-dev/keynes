@@ -1,0 +1,36 @@
+{
+  "formatVersion": 1,
+  "definition": {
+    "formatVersion": 1,
+    "dialect": "http://json-schema.org/draft-07/schema#",
+    "parameters": {
+      "threshold": {
+        "type": "number",
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "config": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "optional": {
+            "type": "number",
+            "default": 7
+          }
+        },
+        "required": ["x"],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  },
+  "definitionId": "sha256:4586a00e4b148c4c6dbf71ae1f682fad4c82c7f4d9dd37fdd31144ebd0de7fc1",
+  "values": {
+    "threshold": 4,
+    "config": {
+      "x": 1
+    }
+  },
+  "snapshotId": "sha256:f5ac68df7d6eb941bc6764eb7f23506d755a1b99438da882035b7f045a40603c"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@keynes/policy-parameters",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./zod": "./src/zod.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run test --maxWorkers=1"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "canonicalize": "4.0.0",
+    "json-schema-to-ts": "3.1.1"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "zod": "4.6.5"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
