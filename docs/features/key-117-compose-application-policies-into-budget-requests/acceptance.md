@@ -298,3 +298,48 @@ public `PolicyResult` while keeping the SDK import type-only.
 **NOT RUN**: toolkit archive/package consumer qualification is Phase 7
 (`T033`-`T034`); no Local, Remote, native PostgreSQL, runtime archive or live
 provider lane was run for this toolkit-only phase.
+
+## Phase 6 recorded assessment fixture
+
+**Evidence basis**: the uncommitted Phase 6 diff on `4ef19aa`.
+
+**Observed red**:
+
+```sh
+env -u JEV_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u GOOGLE_API_KEY \
+  pnpm --filter @keynes/policy exec vitest run test/fixtures/risk-policy.test.ts --maxWorkers=1
+```
+
+Expected red, exit 1: the new suite could not import the absent
+`test/fixtures/risk-policy.ts`.
+
+**Provider-free green**:
+
+```sh
+env -u JEV_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u GOOGLE_API_KEY \
+  pnpm --filter @keynes/policy exec vitest run test/fixtures/risk-policy.test.ts --maxWorkers=1
+pnpm --filter @keynes/policy test
+pnpm --filter @keynes/policy typecheck
+pnpm typecheck
+```
+
+The credential-cleared fixture passed 3 tests. It records an available low-risk
+assessment, an unavailable assessment that returns the distinct
+`assessment_unavailable` failure, and a caller-chosen manual-review fallback.
+The fixture has no Jev import, provider interface, credential read, or network
+path. The full policy suite and typechecks above were run after the fixture was
+added: the full policy suite passed 7 files and 99 tests, and repository
+typecheck passed all 10 tasks across 7 packages.
+
+The fixture owns only `available`/`unavailable`, bounded risk, confidence, and
+a sanitized unavailable code. Provider/model/question identity and raw answers
+remain application-owned records outside the fixture and Budget authority.
+
+**Ponytail review**: accepted `shrink`: the one-field `RiskPolicyOptions` bag
+was removed, so the fixture takes its optional fallback result directly. It
+remains one discriminated value and one Policy factory with no provider
+abstraction, runtime dependency, credential boundary, or network machinery.
+
+**NOT RUN**: live provider, Local, Remote, native PostgreSQL, SDK archive,
+toolkit archive, runtime archive, browser, Hosted, publication, and any network
+lane. This Phase 6 fixture proves no live provider behavior.

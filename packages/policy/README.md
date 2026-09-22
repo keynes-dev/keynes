@@ -53,6 +53,45 @@ Serialize a validated snapshot with `canonicalize(snapshot)`. Restore parsed JSO
 
 Snapshots contain complete values and schema annotations. Treat them as application data that may contain secrets; decide what to retain or disclose before recording a fixture or decision evidence. A digest proves content identity, not provenance, permission or correct policy execution. Keynes does not execute policy or persist these snapshots.
 
+## Recorded assessments stay in the application
+
+An assessment is application data, not a Keynes provider contract. Validate an external response in application code, then retain only the bounded value that the Policy needs. This provider-free example uses a recorded checkout risk assessment and requires manual review when the assessment is unavailable:
+
+```ts
+import type { Policy } from "@keynes/sdk";
+
+type RiskAssessment =
+  | {
+      readonly kind: "available";
+      readonly risk: "low" | "high";
+      readonly confidence: number;
+    }
+  | { readonly kind: "unavailable"; readonly code: string };
+
+const recorded: RiskAssessment = {
+  kind: "available",
+  risk: "low",
+  confidence: 0.96,
+};
+const unavailableFallback = {
+  kind: "review_required" as const,
+  code: "manual_review",
+};
+
+function policyFor(recorded: RiskAssessment): Policy<"usdCents", "usdCents"> {
+  return (proposal) => {
+    if (recorded.kind === "unavailable") return unavailableFallback;
+    if (recorded.risk === "high" || recorded.confidence < 0.9)
+      return { kind: "review_required", code: "risk_review_required" };
+    return { kind: "prepared", request: proposal };
+  };
+}
+
+const policy = policyFor(recorded);
+```
+
+Without `unavailableFallback`, this application Policy should return `{ kind: "failed", code: "assessment_unavailable" }`; it must not treat unavailability as low risk, a negative answer or zero confidence. Keep provider, model, question revision and raw answers in application records. A bounded projection can accompany an ordinary request as untrusted `decisionEvidence`, but neither the assessment nor a Policy result grants Budget authority. This package adds no provider interface, credentials, network calls or retries.
+
 ## Optional Zod authoring
 
 The separate adapter supports exactly Zod 4.6.5. Core imports and snapshot restoration do not require Zod.

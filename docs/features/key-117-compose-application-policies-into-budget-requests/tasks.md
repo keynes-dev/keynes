@@ -78,10 +78,10 @@ Checkpoint: plain and configured Policies work without making configuration part
 
 **Independent test**: Run one Policy against recorded available and unavailable assessments with no provider dependency or network call.
 
-- [ ] T028 [US4] Add failing recorded available, unavailable and explicit-fallback cases in `packages/policy/test/fixtures/risk-policy.test.ts`.
-- [ ] T029 [US4] Add the smallest synthetic assessment fixture and SDK-compatible Policy in `packages/policy/test/fixtures/risk-policy.ts`, keeping provider identity and raw answers application-owned.
-- [ ] T030 [US4] Add a realistic provider-free example and assessment ownership guidance to `packages/policy/README.md` without introducing Jev imports or a provider interface.
-- [ ] T031 [US4] Run the recorded-assessment fixture with network access and provider credentials absent, then record the result in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T028 [US4] Add failing recorded available, unavailable and explicit-fallback cases in `packages/policy/test/fixtures/risk-policy.test.ts`.
+- [x] T029 [US4] Add the smallest synthetic assessment fixture and SDK-compatible Policy in `packages/policy/test/fixtures/risk-policy.ts`, keeping provider identity and raw answers application-owned.
+- [x] T030 [US4] Add a realistic provider-free example and assessment ownership guidance to `packages/policy/README.md` without introducing Jev imports or a provider interface.
+- [x] T031 [US4] Run the recorded-assessment fixture with network access and provider credentials absent, then record the result in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
 
 Checkpoint: the future Jev path is demonstrated through recorded customer input, not a Keynes provider runtime. Review and commit.
 
