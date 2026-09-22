@@ -8,7 +8,7 @@ description: "Implementation tasks for coherent Budget inspection and lineage"
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/inspection.md](contracts/inspection.md), [quickstart.md](quickstart.md).
 
-**Status**: Planning only. Every task is unchecked. The user must authorize implementation before any task starts. No failing behavioral test, implementation or runtime qualification has run.
+**Status**: Implementation is authorized. Completed task markers record progress; no failing behavioral test, implementation or runtime qualification has run.
 
 **Tests**: Required by the specification and constitution. Observe each new behavioral test failing for its intended reason before implementing that behavior; missing builds, invalid fixtures and unavailable PostgreSQL are not qualifying failures. Retain failing and passing commands/results in feature acceptance evidence. Documentation-only, generated-output and mechanical changes use focused validation because they introduce no independent runtime behavior.
 
@@ -22,9 +22,9 @@ description: "Implementation tasks for coherent Budget inspection and lineage"
 
 **Purpose**: Verify the authorized checkout and establish honest evidence tracking.
 
-- [ ] T001 Verify exact branch `key-84-inspect-coherent-budget-state-and-lineage`, existing checkout, KEY-80/KEY-96 ancestry and clean/unrelated-change boundaries; run `.specify/scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks` with `SPECIFY_FEATURE_DIRECTORY=docs/features/key-84-inspect-coherent-budget-state-and-lineage` and record baseline revision in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
-- [ ] T002 Confirm pinned Node/pnpm, install dependencies, build SDK source prerequisites and initialize command/attempt/source/cleanup evidence sections with all behavioral lanes NOT RUN in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`, using `quickstart.md` in that directory.
-- [ ] T003 Run read-only Ponytail review of setup artifacts, evaluate findings and commit the phase locally; record reviewed revision, checks and finding dispositions in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
+- [x] T001 Verify exact branch `key-84-inspect-coherent-budget-state-and-lineage`, existing checkout, KEY-80/KEY-96 ancestry and clean/unrelated-change boundaries; run `.specify/scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks` with `SPECIFY_FEATURE_DIRECTORY=docs/features/key-84-inspect-coherent-budget-state-and-lineage` and record baseline revision in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
+- [x] T002 Confirm pinned Node/pnpm, install dependencies, build SDK source prerequisites and initialize command/attempt/source/cleanup evidence sections with all behavioral lanes NOT RUN in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`, using `quickstart.md` in that directory.
+- [x] T003 Run read-only Ponytail review of setup artifacts, evaluate findings and commit the phase locally; record reviewed revision, checks and finding dispositions in `docs/features/key-84-inspect-coherent-budget-state-and-lineage/acceptance.md`.
 
 ## Phase 2: Foundational contract definitions
 
