@@ -64,11 +64,11 @@ See the [equivalent application-code and SQL examples](architecture.md#customer-
 
 KEY-114 retired managed SQL Policy authoring, attachment, and evaluation from the runtime and generated contracts. A request can include normalized `decisionEvidence`; it is replay-bound and retained in results and history, but it cannot grant authority or attest to an evaluation. Retired Policy fields are invalid rather than ignored. The [SDK request example](../packages/sdk/README.md#submit-application-computed-requests) shows the supported public shape.
 
-### Planned request middleware
+### Request middleware
 
-[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. `request(resources, { policy })` prepares and submits a fresh decision. `prepareRequest(resources, { policy })` performs the same preparation without allocation for previews and recovery. This is planned KEY-117 behavior and is not implemented or verified.
+[ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) adopts one optional application Policy per SDK request. `request(resources, { policy })` prepares and submits a fresh decision. `prepareRequest(resources, { policy })` performs the same preparation without allocation for previews and recovery.
 
-The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged.
+The Policy receives an immutable proposal and may construct a final Resource envelope, reject, require review or fail. It runs before the allocation command and outside engine-owned locks. The database receives only the final ordinary command and independently checks all authority and live availability. Policy-free requests remain unchanged. A Remote request cannot combine a Policy with a caller-provided operation key. For recovery, prepare the request, retain the final command and evidence with an operation key, then submit the ordinary request without Policy options. Exact replay does not run Policy again.
 
 ## Budgets
 
@@ -76,7 +76,7 @@ A Budget is the only public stateful governance object. It has immutable
 Resource membership, immutable behavior controls, one
 structural parent, and one lifecycle.
 
-Every Budget exposes `request`, `settle`, and `inspect`. The immutable
+Every Budget exposes `request`, `prepareRequest`, `settle`, and `inspect`. The immutable
 `allows.createChildren` value controls whether an active Budget may request a
 child. Omitting `allows` enables child creation. A child chooses its own value;
 it does not inherit or receive a subset of its parent's behavior controls.
@@ -124,7 +124,7 @@ later acquire funding. Empty amounts reject.
 
 Creation validates and resolves the declared Resources without shared definition writes. It creates membership, funding, and the command result atomically or leaves no partial Budget. [KEY-78's specification](features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md) owns acceptance, and [ADR-0011](adr/0011-configured-resource-declarations.md) records the revised creation decision.
 
-To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and, remotely, an `operationKey`.
+To use PostgreSQL, an operator first provisions the durable catalog with `defineResources`. `createKeynes({ resources, runtime: postgres({ databaseUrl }) })` then performs read-only compatibility validation. The client can create only from its configured names. Declarations do not grant permission or create catalog rows. Local creation takes amounts only. Remote creation accepts only `{ operationKey? }`; request options carry optional `decisionEvidence` and one optional Policy. Remote requests also accept an `operationKey`, but not with a Policy.
 
 Root creation introduces the tree's complete funding. A child's complete grant
 comes from its parent at creation. Existing
@@ -293,7 +293,7 @@ retain separate acceptance, and both are required for the Hosted product experie
 Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
 
 - [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy, composition and record helpers.
+- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplies optional per-request Policy preparation plus configurable-policy, composition and record helpers. Its [acceptance record](features/key-117-compose-application-policies-into-budget-requests/acceptance.md) scopes the implemented evidence.
 - [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
 
 These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.

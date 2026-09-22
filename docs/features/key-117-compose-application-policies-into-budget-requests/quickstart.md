@@ -1,6 +1,6 @@
 # Validation guide: Policy middleware in Budget requests
 
-Every behavioral and package command below is planned and `NOT RUN` for KEY-117. This guide does not authorize implementation, provider calls or publication.
+KEY-117 implementation evidence is recorded in the [acceptance record](acceptance.md) at its exact source revision. Run these commands to reproduce a lane or qualify a later revision. This guide does not authorize provider calls or publication.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ pnpm install --frozen-lockfile
 
 ## Provider-free SDK behavior
 
-Planned focused commands:
+Focused commands:
 
 ```sh
 pnpm --filter @keynes/sdk test
@@ -55,7 +55,7 @@ Use a new output directory for every attempt. Retain revision, commands, engine 
 
 ## Installed packages
 
-Planned package checks:
+Package checks:
 
 ```sh
 pnpm --filter @keynes/sdk test:package:unit
@@ -73,9 +73,9 @@ pnpm test:pr
 pnpm format:docs
 ```
 
-The acceptance record created during implementation must identify one exact revision and separate provider-free, Local, native, SDK archive, toolkit archive and runtime archive results. Live provider, browser, managed Hosted and publication lanes remain `NOT RUN` unless separately authorized.
+The acceptance record identifies one exact revision and separates provider-free, Local, native, SDK archive, toolkit archive and runtime archive results. `pnpm test:pr` has a known baseline failure in the repository-organization check; run its later lanes independently and record each result. Live provider, browser, managed Hosted and publication lanes remain `NOT RUN` unless separately authorized.
 
-## Documentation-only validation for this rewrite
+## Documentation and artifact validation
 
 ```sh
 export SPECIFY_FEATURE_DIRECTORY="docs/features/key-117-compose-application-policies-into-budget-requests"
@@ -83,4 +83,4 @@ export SPECIFY_FEATURE_DIRECTORY="docs/features/key-117-compose-application-poli
 pnpm format:docs
 ```
 
-Run stock artifact analysis after task generation. Search active KEY-117 and governing documents for discarded `evaluate`, `evaluateAndSubmit`, exact/reduce evaluator modes and mandatory per-request snapshot assumptions. Documentation checks do not establish runtime behavior.
+Run stock artifact analysis after task generation. Search active KEY-117 and governing documents for discarded `evaluate`, `evaluateAndSubmit`, exact/reduce evaluator modes and mandatory per-request snapshot assumptions. Documentation checks do not replace runtime qualification.

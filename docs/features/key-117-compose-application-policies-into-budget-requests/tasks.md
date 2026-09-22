@@ -2,7 +2,7 @@
 
 **Input**: Design documents in `docs/features/key-117-compose-application-policies-into-budget-requests/`.
 
-**Prerequisites**: spec.md, plan.md, research.md, data-model.md, contracts/toolkit.md and quickstart.md. Implementation is not authorized by this documentation rewrite.
+**Prerequisites**: spec.md, plan.md, research.md, data-model.md, contracts/toolkit.md and quickstart.md. These implemented artifacts govern final acceptance.
 
 **Tests**: Required by FR-017 and constitution V. Observe every behavioral check failing for the expected missing behavior before implementation. Mechanical package relocation uses existing regression checks.
 
@@ -87,13 +87,13 @@ Checkpoint: the future Jev path is demonstrated through recorded customer input,
 
 ## Phase 7: Installed packages and final acceptance
 
-- [ ] T032 Add SDK archive consumer coverage for Policy runtime/types and dependency isolation in `packages/sdk/test/package/consumer.mts`.
-- [ ] T033 Add toolkit build exports and archive consumers for core, optional Zod, configured snapshots and recorded assessments in `packages/policy/package.json` and `packages/policy/test/package/qualify.ts`.
-- [ ] T034 Run SDK and toolkit installed-package checks from `docs/features/key-117-compose-application-policies-into-budget-requests/quickstart.md` and retain exact archive hashes, child status and cleanup in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
-- [ ] T035 Run `pnpm test:pr`, `pnpm test:ci:postgresql`, applicable shared qualification and the existing runtime archive lane, keeping failed, skipped and `NOT RUN` results distinct in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
-- [ ] T036 Reconcile FR-001 through FR-017 and SC-001 through SC-006 against exact-revision evidence in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
-- [ ] T037 Update implemented-behavior wording in `docs/product.md`, `docs/architecture.md` and `docs/adr/0014-policy-middleware-in-budget-requests.md` only after implementation evidence exists.
-- [ ] T038 Run the final read-only Ponytail review, evaluate every finding and complete `pnpm format:docs` before the final feature commit.
+- [x] T032 Add SDK archive consumer coverage for Policy runtime/types and dependency isolation in `packages/sdk/test/package/consumer.mts`.
+- [x] T033 Add toolkit build exports and archive consumers for core, optional Zod, configured snapshots and recorded assessments in `packages/policy/package.json` and `packages/policy/test/package/qualify.ts`.
+- [x] T034 Run SDK and toolkit installed-package checks from `docs/features/key-117-compose-application-policies-into-budget-requests/quickstart.md` and retain exact archive hashes, child status and cleanup in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T035 Run `pnpm test:pr`, `pnpm test:ci:postgresql`, applicable shared qualification and the existing runtime archive lane, keeping failed, skipped and `NOT RUN` results distinct in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T036 Reconcile FR-001 through FR-017 and SC-001 through SC-006 against exact-revision evidence in `docs/features/key-117-compose-application-policies-into-budget-requests/acceptance.md`.
+- [x] T037 Update implemented-behavior wording in `docs/product.md`, `docs/architecture.md` and `docs/adr/0014-policy-middleware-in-budget-requests.md` only after implementation evidence exists.
+- [x] T038 Run the final read-only Ponytail review, evaluate every finding and complete `pnpm format:docs` before the final feature commit.
 
 ## Dependencies and execution order
 
@@ -122,4 +122,4 @@ The smallest usable increment is US1: one optional Policy on a fresh request wit
 | SC-005           | T021 to T027, T032 to T034              |
 | SC-006           | T028 to T031                            |
 
-No task is complete in this documentation run. Implementation and all behavioral evidence remain `NOT RUN`.
+Phase 7 is complete. Final acceptance evidence, review, and formatting are recorded before the feature commit.

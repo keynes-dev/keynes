@@ -1,18 +1,19 @@
 # Acceptance evidence: Compose application policies into Budget requests
 
-**Implementation source revision**: `95d38762fd00ca1b4da1934decb3f7c7e5abf681` (`key-117-compose-application-policies-into-budget-requests`; clean before Phase 1 setup writes).
+**Final implementation source revision**: `feca3a3ac240388501b29841a6d362e92ba7956b` (`key-117-compose-application-policies-into-budget-requests`; clean before and after final qualification).
 
-This record is revision-scoped. Phase 1 establishes the failing consumer only;
-it does not qualify behavior or installed artifacts.
+This record is revision-scoped. The phase sections retain their own observed-red
+and focused-green revisions. The final qualification section records only the
+clean final implementation revision.
 
 | Lane              | Result    |
 | ----------------- | --------- |
-| Provider-free     | `NOT RUN` |
-| Local             | `NOT RUN` |
-| Native PostgreSQL | `NOT RUN` |
-| SDK archive       | `NOT RUN` |
-| Toolkit archive   | `NOT RUN` |
-| Runtime archive   | `NOT RUN` |
+| Provider-free     | passed    |
+| Local             | passed    |
+| Native PostgreSQL | passed    |
+| SDK archive       | passed    |
+| Toolkit archive   | passed    |
+| Runtime archive   | passed    |
 | Live provider     | `NOT RUN` |
 
 ## Phase 1 contract consumer
@@ -343,3 +344,129 @@ abstraction, runtime dependency, credential boundary, or network machinery.
 **NOT RUN**: live provider, Local, Remote, native PostgreSQL, SDK archive,
 toolkit archive, runtime archive, browser, Hosted, publication, and any network
 lane. This Phase 6 fixture proves no live provider behavior.
+
+## Final implementation qualification
+
+**Evidence basis**: clean source revision
+`feca3a3ac240388501b29841a6d362e92ba7956b`. The archive and shared-runtime
+qualifiers recorded a clean worktree before and after their work.
+
+**Source suites**:
+
+```sh
+CI=true pnpm test:unit
+pnpm test:ci:postgresql
+```
+
+Both commands passed. `test:unit` ran 36 files and 498 tests: database 51,
+PostgreSQL 169, SDK 276, and CLI 2. `test:ci:postgresql` ran 13 files and 304
+tests, then completed its cleanup. The provider-free recorded-assessment fixture
+remains credential-cleared and provider-free; its archive consumer runs the
+recorded available, unavailable, and explicit-fallback decisions without a
+provider package or network path.
+
+### Installed archives
+
+```sh
+pnpm --filter @keynes/policy test:package -- --output .artifacts/key-117-policy-archive-feca3a3.json
+pnpm test:package:split -- --output .artifacts/key-117-runtime-archives-feca3a3
+```
+
+The policy archive qualifier passed at
+`.artifacts/key-117-policy-archive-feca3a3.json`. Its exact archive hashes are
+`@keynes/policy`
+`b3d75ede0fa1487f01d4d564c1295236cbaa5c935d52a3f12fc1c9824e07a8fa`
+and `@keynes/sdk`
+`426048e22218d51e6b005a7f19f5d26072b5e3a03f78e3cc1073669a00b75698`.
+Core and optional-Zod child consumers typechecked and ran with exit 0. Cleanup
+passed.
+
+The runtime archive qualifier passed at
+`.artifacts/key-117-runtime-archives-feca3a3/result.json`. Its exact archive
+hashes are:
+
+| Archive               | SHA-256                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `@keynes/sdk`         | `426048e22218d51e6b005a7f19f5d26072b5e3a03f78e3cc1073669a00b75698` |
+| `@keynes/node-sqlite` | `e46aa8e4cfbd8db1623d53775c26d67bfff9f2a40fd22a6277e2ad3347db548d` |
+| `@keynes/postgres`    | `a01a58fd5bc3dc3f2c479cea8906a86257617253f76950d987b2ea7ba1088e92` |
+| `@keynes/cli`         | `7e0d8456f08f3f5a3f9be6019ed6cb7825da89d1880ebd4068249404a2433b3b` |
+
+All nine runtime-archive stages and cleanup passed. The CLI consumer ran 8 of
+8 checks, and native PostgreSQL ran 316 of 316 tests inside the qualifier.
+
+### Shared runtime qualification
+
+```sh
+pnpm test:sqlite-postgres -- --output .artifacts/key-117-shared-acceptance-feca3a3
+```
+
+`.artifacts/key-117-shared-acceptance-feca3a3/manifest.json` passed. It records
+clean-before and clean-after checks, SQLite 450 of 450, PostgreSQL 316 of 316,
+and successful cleanup. The earlier
+`.artifacts/key-117-shared-acceptance-1dbe26e` attempt failed only because the
+strict report parser rejected duplicate parameterized-test names. The final
+revision gives those cases unique names; no behavior or runtime command changed.
+
+### Aggregate and independent checks
+
+```sh
+pnpm test:pr
+pnpm exec tsc --project tsconfig.tests.json --noEmit
+pnpm check:deps
+```
+
+`pnpm test:pr` failed before its later chained lanes at the pre-existing
+repository-organization assertion that `packages/contracts` must be absent.
+The same assertion and directory are present on `origin/main`; the repository
+lane ran 63 of 64 tests and generation passed. It is retained as a failed
+aggregate result, not a feature pass. The later lanes were run independently:
+the runner passed 201 of 201, Turbo quality/typecheck/test passed 18 of 18 with
+800 package tests, the test TypeScript project passed, and dependency checking
+passed for 315 files across 7 packages.
+
+`pnpm --filter @keynes/sdk test:local` is not feature evidence. It discovered
+stale suites below `.claude/worktrees/jolly-lumiere-66366e/` that lacked
+`decimal.js` and `@keynes/contracts/contract-tests`; 592 tests passed before
+that unrelated workspace failure. The shared qualifier is the Local evidence.
+
+### Requirement reconciliation
+
+| Requirement | Final evidence                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-001      | SDK contracts and archive consumer accept one optional request Policy; no registry, default, list, or `next()` surface exists.              |
+| FR-002      | Policy API, lifecycle, preview, and native middleware cases cover one immutable capture and one invocation.                                 |
+| FR-003      | SDK unit and archive consumers cover prepared, rejected, review-required, and failed discriminants.                                         |
+| FR-004      | SDK validation and native cases cover transformed final envelopes with authority validation left to the ordinary command.                   |
+| FR-005      | Policy-free compatibility consumer and SDK unit suite retain the existing request result and inference.                                     |
+| FR-006      | SDK type consumer distinguishes `not_submitted` Policy results from `submitted` allocation results and preserves transformed names.         |
+| FR-007      | Preview and integrated-policy cases pass, with the shared qualifier covering the final Local and PostgreSQL implementations.                |
+| FR-008      | Native middleware and shared PostgreSQL evidence show that only the final ordinary command reaches the authority.                           |
+| FR-009      | Native middleware covers Policy-plus-operation-key precedence and retained-command submission.                                              |
+| FR-010      | Native middleware covers prepared replay, denial replay, conflicts, callback counts, and borrowed-transaction rollback.                     |
+| FR-011      | SDK lifecycle tests cover asynchronous admission, close draining, post-close rejection, and sanitized Policy failure.                       |
+| FR-012      | SDK-only archive consumer runs a plain Policy without toolkit dependencies.                                                                 |
+| FR-013      | Policy core and optional-Zod archive consumers preserve the toolkit boundary and run without drivers or provider packages.                  |
+| FR-014      | Configured-policy coverage and the core archive consumer select once, restore snapshots, and reject tampering.                              |
+| FR-015      | Toolkit coverage validates `minimumCeilings` as a pure independent-bound helper.                                                            |
+| FR-016      | The recorded available, unavailable, and explicit-fallback fixture runs provider-free in the packaged consumer.                             |
+| FR-017      | Every behavioral phase retained an observed red. Final source, shared Local/native, archive, and provider-free evidence are recorded above. |
+
+| Success criterion | Final evidence                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| SC-001            | Policy API and native middleware cases cover all four outcomes and zero allocation for non-prepared outcomes.     |
+| SC-002            | Policy-free and transformed-child type consumers pass.                                                            |
+| SC-003            | Preview and integrated preparation equivalence cases pass.                                                        |
+| SC-004            | Native middleware proves exact replay without an additional Policy invocation and conflicts for changed commands. |
+| SC-005            | SDK-only and installed toolkit consumers pass without drivers, providers, or mandatory Zod.                       |
+| SC-006            | The packaged recorded-assessment fixture passes without credentials, a provider package, or network access.       |
+
+### Final Ponytail review
+
+The final read-only Ponytail review covered the Phase 7 code diff
+`551f30e..feca3a3` and this documentation diff. Result: `Lean already. Ship.`
+It found no changes to make.
+
+**NOT RUN**: live-provider execution, browser behavior, Hosted deployment,
+registry publication, production-readiness, security review, and performance
+qualification. These results do not establish those lanes.

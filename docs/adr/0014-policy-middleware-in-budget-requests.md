@@ -1,7 +1,7 @@
 # ADR-0014: Policy middleware in Budget requests
 
 - **Date:** 2026-09-21
-- **Status:** Accepted direction; implementation and qualification are NOT RUN
+- **Status:** Implemented; qualification is recorded in the KEY-117 acceptance record
 - **Issue:** [KEY-117](https://linear.app/keynes/issue/KEY-117/compose-application-policies-into-budget-requests)
 - **Refines:** [ADR-0013](0013-application-owned-policies.md) for optional SDK-side policy invocation
 - **Supersedes in part:** ADR-0013's prohibition on a Policy callback in the allocation API
@@ -40,4 +40,4 @@ The common call reads as a Budget request with an optional policy. Preview and r
 
 The child Budget type for a Policy-enabled request must follow the Policy's possible final Resource vocabulary, not only the proposal's keys. The contract must preserve precise policy-free inference while avoiding a false narrow type after transformation.
 
-This decision adds client-side SDK behavior but no database schema, Policy authority, automatic retry, hidden persistence, Local recovery or hosted evaluator. Implementation, runtime tests, provider execution, package qualification and publication remain NOT RUN.
+This decision adds client-side SDK behavior but no database schema, Policy authority, automatic retry, hidden persistence, Local recovery or hosted evaluator. The final clean source qualification records Local and native PostgreSQL behavior plus installed SDK, toolkit and runtime archives. Live-provider, browser, Hosted, registry publication, production-readiness and performance lanes remain outside this decision's evidence.

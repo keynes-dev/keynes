@@ -72,8 +72,10 @@ keys, including separately declared variables. Runtime validation also rejects
 unknown keys. Returned Budget types and inspection reflect supplied membership.
 Local creation takes amounts only. Remote creation accepts only
 `{ operationKey? }` for recovery. Requests accept optional
-`{ decisionEvidence? }` locally and `{ operationKey?, decisionEvidence? }`
-remotely. Retired Policy fields are rejected rather than ignored.
+`{ decisionEvidence?, policy? }` locally and
+`{ operationKey?, decisionEvidence?, policy? }` remotely. Remote requests
+reject `policy` with `operationKey` before proposal capture. Retired managed
+Policy fields are rejected rather than ignored.
 
 Local initialization establishes a private ephemeral catalog from declarations.
 Durable initialization validates all supplied definitions against the persisted
@@ -91,6 +93,7 @@ earlier connection-only factory and per-Budget Resource input decision.
 Every Budget has a stable method surface:
 
 - `request` asks the Budget to create and fund one child.
+- `prepareRequest` runs one required Policy without allocating a child.
 - `settle` reports direct usage and begins or completes settlement.
 - `inspect` returns current state and chronological lineage history.
 
@@ -187,7 +190,7 @@ quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Customer evaluation and request construction
 
-Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before preparing a request or stopping work. They own failures, timeout behavior, fallback and recomputation. Planned KEY-117 SDK behavior may invoke one optional customer Policy before it sends an allocation command. Current released request behavior does not yet implement this callback.
+Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before preparing a request or stopping work. They own failures, timeout behavior, fallback and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command. `prepareRequest` runs the same Policy without allocation for preview and recoverable Remote submission.
 
 The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. SDK preparation validates the final names and quantities. It does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to prepare commands without the TypeScript callback.
 

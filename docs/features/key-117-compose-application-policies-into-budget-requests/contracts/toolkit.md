@@ -1,6 +1,6 @@
 # Policy request and toolkit contract
 
-This is the planned KEY-117 public contract. These exports do not exist yet.
+This is the implemented KEY-117 public contract.
 
 ## SDK entry points
 
@@ -38,7 +38,7 @@ const policyResult = await budget.prepareRequest({ usdCents: 25 }, { policy });
 
 ## Policy and results
 
-The conceptual SDK types are:
+The SDK exports these types:
 
 ```ts
 type Policy<ProposalNames extends string, FinalNames extends string> = (
@@ -52,7 +52,7 @@ type PolicyOutput<Names extends string> =
   | { readonly kind: "failed"; readonly code: string };
 ```
 
-The implementation may use equivalent generic spelling after the consumer test proves inference. It must preserve these semantics:
+The public contract preserves these semantics:
 
 - The SDK captures the proposal before invoking Policy and passes a deep-readonly value.
 - Policy runs exactly once for a fresh decision.
@@ -119,10 +119,15 @@ The package keeps existing parameter exports at its root and optional Zod suppor
 Plain SDK Policies need no toolkit. A configured Policy uses one constructor:
 
 ```ts
+import type { PolicyOutput, ResourceAmounts } from "@keynes/sdk";
+
 const configured = configurePolicy({
   declaration,
-  run: (proposal, values) =>
-    proposal.usdCents <= values.orderLimit
+  run: (
+    proposal: ResourceAmounts<"usdCents">,
+    values: Readonly<{ orderLimit: number }>,
+  ): PolicyOutput<"usdCents"> =>
+    (proposal.usdCents ?? 0) <= values.orderLimit
       ? { kind: "prepared", request: proposal }
       : { kind: "rejected", code: "order_limit_exceeded" },
 });
