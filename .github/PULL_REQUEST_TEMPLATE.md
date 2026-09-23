@@ -6,7 +6,6 @@ parts work, and what the evidence proves. Do not reduce a substantial feature
 to a file list. Delete prompts and sections that do not apply.
 -->
 
-**Linear issue:** <!-- Link the owning KEY-N feature issue. -->
 **Specification:** <!-- Link the owning spec.md. -->
 **Prerequisites:** <!-- Link required landed PRs, or write "None." -->
 **Acceptance:** <!-- Link exact feature acceptance evidence; keep task details in Git. -->
