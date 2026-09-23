@@ -47,15 +47,15 @@
 
 **Independent Test**: A clean consumer can discover every current export, lifecycle rule, limit and runnable provider-free example from the owning package without following a feature document.
 
-- [ ] T016 [US1] Create SDK API and adapter-binding references in `packages/sdk/docs/api.md` and `packages/sdk/docs/runtime-bindings.md`
-- [ ] T017 [US1] Reduce `packages/sdk/README.md` to an entrypoint and runnable example linked to package-local and shared owners
-- [ ] T018 [US1] Reconcile Local lifecycle and shared-accounting links in `packages/node-sqlite/README.md`
-- [ ] T019 [P] [US1] Create Policy parameter, toolkit and testing references in `packages/policy/docs/parameters.md`, `toolkit.md`, and `testing.md`
-- [ ] T020 [US1] Reduce `packages/policy/README.md` to an entrypoint and current package-status guide
-- [ ] T021 [US1] Include shipped package-local docs in `packages/sdk/package.json` and `packages/policy/package.json` where archive links require them
-- [ ] T022 [US1] Run Local, Policy, type, package-content, formatting and link checks for `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
-- [ ] T023 [US1] Run a read-only Ponytail review of Phase 3 files under `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
-- [ ] T024 [US1] Commit the reviewed Phase 3 files under `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
+- [x] T016 [US1] Create SDK API and adapter-binding references in `packages/sdk/docs/api.md` and `packages/sdk/docs/runtime-bindings.md`
+- [x] T017 [US1] Reduce `packages/sdk/README.md` to an entrypoint and runnable example linked to package-local and shared owners
+- [x] T018 [US1] Reconcile Local lifecycle and shared-accounting links in `packages/node-sqlite/README.md`
+- [x] T019 [P] [US1] Create Policy parameter, toolkit and testing references in `packages/policy/docs/parameters.md`, `toolkit.md`, and `testing.md`
+- [x] T020 [US1] Reduce `packages/policy/README.md` to an entrypoint and current package-status guide
+- [x] T021 [US1] Include shipped package-local docs in `packages/sdk/package.json` and `packages/policy/package.json` where archive links require them
+- [x] T022 [US1] Run Local, Policy, type, package-content, formatting and link checks for `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
+- [x] T023 [US1] Run a read-only Ponytail review of Phase 3 files under `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
+- [x] T024 [US1] Commit the reviewed Phase 3 files under `packages/sdk/`, `packages/node-sqlite/`, and `packages/policy/`
 
 **Checkpoint**: SDK, Local and Policy behavior is documented beside its implementation with no current feature-doc dependency.
 
