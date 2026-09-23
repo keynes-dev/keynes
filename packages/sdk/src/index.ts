@@ -21,13 +21,18 @@ export type {
 } from "./resources.js";
 export type {
   Budget,
+  BudgetInspectionState,
   BudgetHistoryEntry,
+  BudgetMovement,
   BudgetRequestAvailabilityReason,
   BudgetRequestDenialReason,
   BudgetRequestResult,
   BudgetResourceSnapshot,
   BudgetSnapshot,
   BudgetState,
+  LineageBudgetId,
+  LineageCause,
+  LineageEvidence,
   NamedResourceAmount,
   ResourceAmounts,
   ResourceUsage,

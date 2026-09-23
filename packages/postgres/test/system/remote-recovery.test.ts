@@ -887,10 +887,11 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     );
   });
 
-  it("paginates one bounded history snapshot with expiring single-use cursors", async () => {
+  it("captures independent repeatable 513-entry observations behind one frozen projection and fence", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
     const client = await fixture.connect(fixture.primary);
+    const reader = await fixture.connect(fixture.primary);
     await provisionRoot(client, "history_tokens");
     const created = await queryResponse(
       client,
@@ -921,42 +922,164 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       });
     }
 
-    const first = requirePage(
-      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+    const firstResponse = await queryResponse(
+      client,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference },
+    );
+    const first = requireCapturedPage(firstResponse);
+    expect(first.entries).toHaveLength(256);
+    expect(first.budget.budgetReference).toBe(budgetReference);
+    const cursor = requireCursor(first.nextCursor);
+    expect(cursor).toMatch(/^khc_v2_[0-9a-f]{32}_257$/u);
+    const snapshot = await capturedInspectionSnapshot(fixture, cursor);
+    const authorityPlan = await inspectionPagePlan(fixture, snapshot);
+    const historyRange = explainPlanNodes(authorityPlan).find(
+      (node) => node["Index Name"] === "budget_history_entries_pkey",
+    );
+    if (historyRange === undefined) {
+      throw new Error(
+        "inspection page plan did not use the history stream key",
+      );
+    }
+    expect(historyRange).toMatchObject({
+      "Node Type": "Index Scan",
+      "Relation Name": "budget_history_entries",
+      "Index Name": "budget_history_entries_pkey",
+    });
+    expect(historyRange["Index Cond"]).toEqual(
+      expect.stringContaining("stream_id"),
+    );
+    expect(historyRange["Index Cond"]).toEqual(
+      expect.stringContaining("sequence"),
+    );
+    const entry = await representativeInspectionEntry(fixture, snapshot);
+    for (const subjectId of [snapshot.streamId, entry.subjectId]) {
+      const lineagePlan = await inspectionLineagePlan(
+        fixture,
+        snapshot,
+        subjectId,
+      );
+      const lineageAccess = requirePlanRelation(
+        lineagePlan,
+        "budget_history_entries",
+        "inspection lineage lookup",
+      );
+      expect(lineageAccess).toMatchObject({
+        "Node Type": expect.stringMatching(/^Index (Only )?Scan$/u),
+        "Index Name": "budget_history_entries_creation_lineage_idx",
+      });
+      expect(lineageAccess["Index Cond"]).toEqual(
+        expect.stringContaining("stream_id"),
+      );
+      expect(lineageAccess["Index Cond"]).toEqual(
+        expect.stringContaining("subject_id"),
+      );
+    }
+    const movementPlan = await inspectionMovementPlan(fixture, snapshot, entry);
+    const movementAccess = requirePlanRelation(
+      movementPlan,
+      "quantity_movements",
+      "inspection movement lookup",
+    );
+    expect(movementAccess).toMatchObject({
+      "Node Type": "Index Scan",
+      "Index Name": "quantity_movements_child_grant_once_idx",
+    });
+    expect(movementAccess["Index Cond"]).toEqual(
+      expect.stringContaining("destination_budget_id"),
+    );
+    expect(movementAccess.Filter).toEqual(
+      expect.stringContaining("command_id"),
+    );
+    const resourceAccess = requirePlanRelation(
+      movementPlan,
+      "resource_types",
+      "inspection movement resource lookup",
+    );
+    expect(resourceAccess["Node Type"]).toEqual(
+      expect.stringMatching(/Scan$/u),
+    );
+    const endpointAccesses = explainPlanNodes(movementPlan).filter(
+      (node) => node["Relation Name"] === "budget_history_entries",
+    );
+    expect(endpointAccesses).toHaveLength(2);
+    for (const endpointAccess of endpointAccesses) {
+      expect(endpointAccess).toMatchObject({
+        "Node Type": expect.stringMatching(/^Index (Only )?Scan$/u),
+        "Index Name": "budget_history_entries_creation_lineage_idx",
+      });
+      expect(endpointAccess["Index Cond"]).toEqual(
+        expect.stringContaining("stream_id"),
+      );
+    }
+    const secondReader = requireCapturedPage(
+      await queryResponse(reader, "keynes.remote_get_budget_history_page", {
         budgetReference,
       }),
     );
-    expect(first.entries).toHaveLength(256);
-    expect(first.nextCursor).toEqual(expect.any(String));
-    const cursor = requireCursor(first.nextCursor);
-    const expiredCursor = `khc_v1_z${"300".padStart(42, "0")}`;
+    expect(secondReader.budget).toEqual(first.budget);
+    expect(secondReader.nextCursor).not.toBe(cursor);
+    const secondReaderCursor = requireCursor(secondReader.nextCursor);
     const cursorLifetime = await fixture.administrator.query<{
       readonly future: boolean;
       readonly bounded: boolean;
+      readonly expires_at: string;
     }>(
       `select expires_at > clock_timestamp() as future,
-                expires_at <= clock_timestamp() + interval '30 minutes 5 seconds' as bounded
-           from keynes_internal.remote_history_cursors
-          where cursor_value = $1`,
+                expires_at <= clock_timestamp() + interval '30 minutes 5 seconds' as bounded,
+                expires_at::text
+           from keynes_internal.remote_inspection_snapshots
+          where token = substring($1 from 8 for 32)`,
       [cursor],
     );
-    expect(cursorLifetime.rows).toEqual([{ future: true, bounded: true }]);
+    expect(cursorLifetime.rows).toEqual([
+      { future: true, bounded: true, expires_at: expect.any(String) },
+    ]);
+    const expiresAt = cursorLifetime.rows[0]?.expires_at;
+    if (expiresAt === undefined) throw new Error("missing capture expiry");
+    const jumped = requireCapturedPage(
+      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+        cursor: cursor.replace(/_257$/u, "_513"),
+      }),
+    );
+    expect(jumped.entries.map(entrySequence)).toEqual([513]);
+    expect(jumped.nextCursor).toBeNull();
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: cursor.replace(/_257$/u, "_513"),
+        }),
+      ),
+    ).toEqual(jumped);
+    const unchangedExpiry = await fixture.administrator.query<{
+      readonly expires_at: string;
+    }>(
+      `select expires_at::text
+           from keynes_internal.remote_inspection_snapshots
+          where token = substring($1 from 8 for 32)`,
+      [cursor],
+    );
+    expect(unchangedExpiry.rows).toEqual([{ expires_at: expiresAt }]);
 
     await fixture.administrator.query(
-      `insert into keynes_internal.remote_history_cursors (
-           cursor_value, tenant_id, stream_id, next_sequence,
-           terminal_sequence, expires_at
+      `insert into keynes_internal.remote_inspection_snapshots (
+           token, tenant_id, principal_id, target_budget_id, stream_id,
+           budget_projection, terminal_sequence, expires_at
          )
-         select 'khc_v1_z' || lpad(series::text, 42, '0'),
-                cursor.tenant_id, cursor.stream_id, 1000 + series,
-                2000 + series,
+         select lpad(series::text, 32, '0'),
+                snapshot.tenant_id, snapshot.principal_id,
+                snapshot.target_budget_id, snapshot.stream_id,
+                snapshot.budget_projection, snapshot.terminal_sequence,
                 clock_timestamp() - interval '1 minute'
-           from keynes_internal.remote_history_cursors cursor
+           from keynes_internal.remote_inspection_snapshots snapshot
            cross join generate_series(1, 300) series
-          where cursor.cursor_value = $1`,
+          where snapshot.token = substring($1 from 8 for 32)`,
       [cursor],
     );
-    const expiredBefore = await expiredCursorCount(fixture);
+    const expiredBefore = await expiredSnapshotCount(fixture);
 
     expect(
       await queryResponse(client, "keynes.remote_request", {
@@ -965,35 +1088,102 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         resources: [{ resource: "history_tokens", amount: 1 }],
       }),
     ).toMatchObject({ ok: true });
-    const second = requirePage(
-      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+    const [secondResponse, survivorResponse] = await Promise.all([
+      queryResponse(client, "keynes.remote_get_budget_history_page", {
         budgetReference,
         cursor,
       }),
-    );
-    expect(second.entries).toHaveLength(256);
-    expect(second.nextCursor).toEqual(expect.any(String));
-    const secondCursor = requireCursor(second.nextCursor);
-    const expiredAfter = await expiredCursorCount(fixture);
-    expect(expiredBefore - expiredAfter).toBeGreaterThan(0);
-    expect(expiredBefore - expiredAfter).toBeLessThanOrEqual(256);
-    expect(expiredAfter).toBeGreaterThan(0);
-
-    const third = requirePage(
-      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+      queryResponse(reader, "keynes.remote_get_budget_history_page", {
         budgetReference,
-        cursor: secondCursor,
+        cursor: secondReaderCursor,
       }),
+    ]);
+    const second = requireCapturedPage(secondResponse);
+    const survivor = requireCapturedPage(survivorResponse);
+    expect(survivor).toMatchObject({
+      budget: first.budget,
+      entries: second.entries,
+    });
+    expect(survivor.nextCursor).toMatch(/^khc_v2_[0-9a-f]{32}_513$/u);
+    expect(survivor.nextCursor).not.toBe(second.nextCursor);
+    expect(second.entries).toHaveLength(256);
+    expect(second.budget).toEqual(first.budget);
+    const secondCursor = requireCursor(second.nextCursor);
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor,
+        }),
+      ),
+    ).toEqual(second);
+    const expiredAfter = await expiredSnapshotCount(fixture);
+    expect(expiredBefore - expiredAfter).toBeGreaterThan(0);
+    expect(expiredBefore - expiredAfter).toBeLessThanOrEqual(512);
+
+    const thirdResponse = await queryResponse(
+      client,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference, cursor: secondCursor },
     );
+    const third = requireCapturedPage(thirdResponse);
     expect(third.entries).toHaveLength(1);
     expect(third.nextCursor).toBeNull();
+    expect(third.budget).toEqual(first.budget);
+    expect(
+      requireCapturedPage(
+        await queryResponse(client, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: secondCursor,
+        }),
+      ),
+    ).toEqual(third);
     expect(
       [...first.entries, ...second.entries, ...third.entries].map(
         entrySequence,
       ),
     ).toEqual(Array.from({ length: 513 }, (_, index) => index + 1));
+    const responseBytes = [
+      serializedJsonBytes(firstResponse),
+      serializedJsonBytes(secondResponse),
+      serializedJsonBytes(thirdResponse),
+    ];
+    expect(responseBytes[0]).toBeLessThanOrEqual(responseBytes[2] * 256);
+    expect(responseBytes[1]).toBeLessThanOrEqual(responseBytes[2] * 256);
+    expect(responseBytes[2]).toBeLessThan(responseBytes[0]);
+    expect(responseBytes[2]).toBeLessThan(responseBytes[1]);
+    await fixture.administrator.query(
+      `update keynes_internal.remote_inspection_snapshots
+          set expires_at = clock_timestamp() - interval '1 second'
+        where token = substring($1 from 8 for 32)`,
+      [cursor],
+    );
+    expect(
+      await queryResponse(client, "keynes.remote_get_budget_history_page", {
+        budgetReference,
+        cursor,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "invalid_command" } });
+    expect(
+      requireCapturedPage(
+        await queryResponse(reader, "keynes.remote_get_budget_history_page", {
+          budgetReference,
+          cursor: secondReaderCursor,
+        }),
+      ),
+    ).toMatchObject({ budget: first.budget });
 
-    for (const invalidCursor of [cursor, expiredCursor]) {
+    const invalidCursors = [
+      "khc_v1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_0257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_0",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_-257",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_258",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_9007199254740992",
+      "khc_v2_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_769",
+      "khc_v2_ffffffffffffffffffffffffffffffff_257",
+    ];
+    for (const invalidCursor of invalidCursors) {
       expect(
         await queryResponse(client, "keynes.remote_get_budget_history_page", {
           budgetReference,
@@ -1003,10 +1193,6 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
         ok: false,
         error: {
           code: "invalid_command",
-          details: {
-            operation: "getBudgetHistoryPage",
-            issues: [{ path: "$.cursor", rule: "format" }],
-          },
         },
       });
     }
@@ -1087,6 +1273,229 @@ interface HistoryPage {
   readonly nextCursor: string | null;
 }
 
+interface CapturedHistoryPage extends HistoryPage {
+  readonly budget: Record<string, unknown>;
+}
+
+interface InspectionSnapshot {
+  readonly tenantId: string;
+  readonly streamId: string;
+  readonly terminalSequence: string;
+}
+
+interface InspectionHistoryEntry {
+  readonly commandId: string;
+  readonly eventKind: string;
+  readonly subjectId: string;
+}
+
+async function capturedInspectionSnapshot(
+  fixture: RemoteIdentityFixture,
+  cursor: string,
+): Promise<InspectionSnapshot> {
+  const result = await fixture.administrator.query<{
+    readonly tenant_id: string;
+    readonly stream_id: string;
+    readonly terminal_sequence: string;
+  }>(
+    `select tenant_id::text, stream_id::text, terminal_sequence::text
+       from keynes_internal.remote_inspection_snapshots
+      where token = substring($1 from 8 for 32)`,
+    [cursor],
+  );
+  const snapshot = result.rows[0];
+  if (snapshot === undefined) throw new Error("missing inspection snapshot");
+  return {
+    tenantId: snapshot.tenant_id,
+    streamId: snapshot.stream_id,
+    terminalSequence: snapshot.terminal_sequence,
+  };
+}
+
+async function inspectionPagePlan(
+  fixture: RemoteIdentityFixture,
+  snapshot: InspectionSnapshot,
+): Promise<Record<string, unknown>> {
+  return explainPlan(
+    fixture,
+    `select count(*)::integer,
+              coalesce(jsonb_agg(
+                keynes_internal.remote_inspection_history_entry_v0006(
+                  $1::uuid, page.payload
+                ) order by page.sequence
+              ) filter (where page.ordinal <= 256), '[]'::jsonb)
+         from (
+           select history.sequence,
+                  history.payload || jsonb_build_object(
+                    'rootBudgetId', $2::uuid::text,
+                    'terminalSequence', $3::bigint
+                  ) as payload,
+                  row_number() over (order by history.sequence) as ordinal
+             from keynes_internal.budget_history_entries history
+            where history.tenant_id = $1::uuid
+              and history.stream_id = $2::uuid
+              and history.sequence >= 1
+              and history.sequence <= $3::bigint
+            order by history.sequence
+            limit 257
+         ) page`,
+    [snapshot.tenantId, snapshot.streamId, snapshot.terminalSequence],
+  );
+}
+
+async function representativeInspectionEntry(
+  fixture: RemoteIdentityFixture,
+  snapshot: InspectionSnapshot,
+): Promise<InspectionHistoryEntry> {
+  const result = await fixture.administrator.query<{
+    readonly command_id: string;
+    readonly event_kind: string;
+    readonly subject_id: string;
+  }>(
+    `select command_id::text, event_kind, subject_id::text
+       from keynes_internal.budget_history_entries
+      where tenant_id = $1::uuid
+        and stream_id = $2::uuid
+        and event_kind = 'request_approved'
+        and sequence <= $3::bigint
+      order by sequence
+      limit 1`,
+    [snapshot.tenantId, snapshot.streamId, snapshot.terminalSequence],
+  );
+  const entry = result.rows[0];
+  if (entry === undefined) throw new Error("missing approved history entry");
+  return {
+    commandId: entry.command_id,
+    eventKind: entry.event_kind,
+    subjectId: entry.subject_id,
+  };
+}
+
+async function inspectionLineagePlan(
+  fixture: RemoteIdentityFixture,
+  snapshot: InspectionSnapshot,
+  subjectId: string,
+): Promise<Record<string, unknown>> {
+  return explainPlan(
+    fixture,
+    `select history.sequence
+       from keynes_internal.budget_history_entries history
+      where history.tenant_id = $1::uuid
+        and history.stream_id = $2::uuid
+        and history.subject_id = $3::uuid
+        and history.event_kind in ('budget_created', 'request_approved')
+        and history.sequence <= $4::bigint`,
+    [
+      snapshot.tenantId,
+      snapshot.streamId,
+      subjectId,
+      snapshot.terminalSequence,
+    ],
+  );
+}
+
+async function inspectionMovementPlan(
+  fixture: RemoteIdentityFixture,
+  snapshot: InspectionSnapshot,
+  entry: InspectionHistoryEntry,
+): Promise<Record<string, unknown>> {
+  return explainPlan(
+    fixture,
+    `select movement.amount,
+            resource.canonical_name,
+            source_lineage.sequence as source_lineage_id,
+            destination_lineage.sequence as destination_lineage_id
+       from keynes_internal.quantity_movements movement
+       join keynes_internal.resource_types resource
+         on resource.tenant_id = movement.tenant_id
+        and resource.resource_type_id = movement.resource_type_id
+       left join keynes_internal.budget_history_entries source_lineage
+         on source_lineage.tenant_id = movement.tenant_id
+        and source_lineage.stream_id = $2::uuid
+        and source_lineage.subject_id = movement.source_budget_id
+        and source_lineage.event_kind in ('budget_created', 'request_approved')
+        and source_lineage.sequence <= $5::bigint
+       left join keynes_internal.budget_history_entries destination_lineage
+         on destination_lineage.tenant_id = movement.tenant_id
+        and destination_lineage.stream_id = $2::uuid
+        and destination_lineage.subject_id = movement.destination_budget_id
+        and destination_lineage.event_kind in ('budget_created', 'request_approved')
+        and destination_lineage.sequence <= $5::bigint
+      where movement.tenant_id = $1::uuid
+        and movement.root_budget_id = $2::uuid
+        and movement.command_id = $3::uuid
+        and (
+          ($4::text = 'budget_created'
+           and movement.reason = 'initial_allocation'
+           and movement.destination_budget_id = $6::uuid)
+          or ($4::text = 'request_approved'
+              and movement.reason = 'child_grant'
+              and movement.destination_budget_id = $6::uuid)
+          or ($4::text = 'budget_settlement_recorded'
+              and movement.reason = 'consumption'
+              and movement.source_budget_id = $6::uuid)
+          or ($4::text = 'budget_settlement_recorded'
+              and movement.reason in ('settlement_return', 'root_release')
+              and movement.source_budget_id = $6::uuid)
+        )`,
+    [
+      snapshot.tenantId,
+      snapshot.streamId,
+      entry.commandId,
+      entry.eventKind,
+      snapshot.terminalSequence,
+      entry.subjectId,
+    ],
+  );
+}
+
+async function explainPlan(
+  fixture: RemoteIdentityFixture,
+  statement: string,
+  values: unknown[],
+): Promise<Record<string, unknown>> {
+  const result = await fixture.administrator.query<{
+    readonly "QUERY PLAN": unknown;
+  }>(`explain (format json, costs false, verbose) ${statement}`, values);
+  const plan = result.rows[0]?.["QUERY PLAN"];
+  if (!Array.isArray(plan) || plan.length !== 1) {
+    throw new Error("inspection page EXPLAIN did not return one plan");
+  }
+  return record(record(plan[0]).Plan);
+}
+
+function requirePlanRelation(
+  plan: Record<string, unknown>,
+  relation: string,
+  description: string,
+): Record<string, unknown> {
+  const access = explainPlanNodes(plan).find(
+    (node) => node["Relation Name"] === relation,
+  );
+  if (access === undefined) {
+    throw new Error(`${description} did not access ${relation}`);
+  }
+  return access;
+}
+
+function explainPlanNodes(
+  node: Record<string, unknown>,
+): readonly Record<string, unknown>[] {
+  const children = node.Plans;
+  return [
+    node,
+    ...(Array.isArray(children)
+      ? children.flatMap((child) => explainPlanNodes(record(child)))
+      : []),
+  ];
+}
+
+function serializedJsonBytes(value: unknown): number {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) throw new Error("response is not JSON");
+  return Buffer.byteLength(serialized, "utf8");
+}
+
 function requirePage(value: unknown): HistoryPage {
   const envelope = record(value);
   const result = record(envelope.result);
@@ -1097,6 +1506,17 @@ function requirePage(value: unknown): HistoryPage {
     throw new Error("remote history did not return a bounded page");
   }
   return { entries: result.entries, nextCursor: result.nextCursor };
+}
+
+function requireCapturedPage(value: unknown): CapturedHistoryPage {
+  const page = requirePage(value);
+  const budget = record(record(value).result).budget;
+  if (typeof budget !== "object" || budget === null || Array.isArray(budget)) {
+    throw new Error(
+      "remote history did not return a captured inspection projection",
+    );
+  }
+  return { ...page, budget: record(budget) };
 }
 
 function requireCursor(value: string | null): string {
@@ -1132,7 +1552,7 @@ async function authorityCounts(
        (select count(*)::text from keynes_internal.budgets) as budgets,
        (select count(*)::text from keynes_internal.budget_history_entries) as history,
        (select count(*)::text from keynes_internal.remote_operations) as operations,
-       (select count(*)::text from keynes_internal.remote_history_cursors) as cursors`,
+       (select count(*)::text from keynes_internal.remote_inspection_snapshots) as cursors`,
   );
   return result.rows;
 }
@@ -1206,14 +1626,14 @@ async function waitForAdvisoryWait(
   throw new Error("remote mutation did not reach the in-flight checkpoint");
 }
 
-async function expiredCursorCount(
+async function expiredSnapshotCount(
   fixture: RemoteIdentityFixture,
 ): Promise<number> {
   const result = await fixture.administrator.query<{
     readonly count: number;
   }>(
     `select count(*)::int as count
-       from keynes_internal.remote_history_cursors
+       from keynes_internal.remote_inspection_snapshots
       where expires_at <= clock_timestamp()`,
   );
   return result.rows[0]?.count ?? 0;

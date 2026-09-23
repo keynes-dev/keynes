@@ -2,9 +2,12 @@ import { captureRequest, isRecord } from "../request-serialization.js";
 import { KeynesError } from "../generated/client.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
+  BudgetInspectionState,
+  InspectionMovement,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
   RemoteBudgetHistoryEntry,
+  RemoteBudgetInspectionProjection,
   RemoteBudgetProjection,
   RemoteRequestDenialReason,
   RemoteResourceAmount,
@@ -60,6 +63,7 @@ import type { RemoteRuntimeSession } from "../generated/runtime.js";
 const PRIVATE_UUID = "00000000-0000-4000-8000-000000000000";
 const MAX_HISTORY_PAGES = 128;
 const HISTORY_DEADLINE_MILLISECONDS = 30_000;
+const INSPECTION_CURSOR = /^khc_v2_([0-9a-f]{32})_([1-9][0-9]{0,15})$/u;
 
 interface RemoteBudgetIdentity {
   readonly budgetReference: BudgetReference;
@@ -207,14 +211,11 @@ export function createRemoteBudgetHandle<
   const inspect: RemoteBudget<Names, HistoryNames>["inspect"] = async () => {
     runtime.assertOpen();
     const deadline = Date.now() + HISTORY_DEADLINE_MILLISECONDS;
-    const budget = await invokeBudgetOperation(binding, () =>
-      beforeInspectionDeadline("getBudget", deadline, () =>
-        client.getBudget({ budgetReference }),
-      ),
-    );
-    assertRemoteBudget(binding, identity, budget.budget);
     const history: RemoteBudgetHistoryEntry[] = [];
     let cursor: string | undefined;
+    let cursorToken: string | undefined;
+    let capturedBudget: RemoteBudgetInspectionProjection | undefined;
+    let expectedSequence = 1;
     for (let page = 0; page < MAX_HISTORY_PAGES; page += 1) {
       const result = await invokeBudgetOperation(binding, () =>
         beforeInspectionDeadline("getBudgetHistoryPage", deadline, () =>
@@ -227,13 +228,27 @@ export function createRemoteBudgetHandle<
       if (result.budgetReference !== budgetReference) {
         throw remoteResultMismatch();
       }
+      assertRemoteInspectionBudget(binding, identity, result.budget);
+      if (capturedBudget === undefined) capturedBudget = result.budget;
+      else if (!sameInspectionProjection(capturedBudget, result.budget))
+        throw remoteResultMismatch();
+      for (const entry of result.entries) {
+        if (entry.sequence !== expectedSequence) throw remoteResultMismatch();
+        expectedSequence += 1;
+      }
       history.push(...result.entries);
       if (result.nextCursor === null) {
+        if (capturedBudget === undefined) throw remoteResultMismatch();
         return projectSnapshot<Names, HistoryNames>(
           binding,
-          remoteSnapshot(budget.budget, history),
+          remoteSnapshot(capturedBudget, history),
+          (canonicalName) => binding.resourceByCanonicalName(canonicalName).key,
         );
       }
+      if (result.entries.length !== 256) throw remoteResultMismatch();
+      const nextCursor = inspectionCursor(result.nextCursor, expectedSequence);
+      if (cursorToken === undefined) cursorToken = nextCursor.token;
+      else if (cursorToken !== nextCursor.token) throw remoteResultMismatch();
       cursor = result.nextCursor;
     }
     throw new KeynesError({
@@ -250,6 +265,61 @@ export function createRemoteBudgetHandle<
     settle,
     inspect,
   }) as RemoteBudget<Names, HistoryNames>;
+}
+
+function inspectionCursor(
+  cursor: string,
+  expectedSequence: number,
+): { readonly token: string } {
+  const match = INSPECTION_CURSOR.exec(cursor);
+  const token = match?.[1];
+  const offsetText = match?.[2];
+  if (token === undefined || offsetText === undefined)
+    throw remoteResultMismatch();
+  const offset = Number(offsetText);
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset !== expectedSequence ||
+    (offset - 1) % 256 !== 0
+  ) {
+    throw remoteResultMismatch();
+  }
+  return { token };
+}
+
+function sameInspectionProjection(
+  left: RemoteBudgetInspectionProjection,
+  right: RemoteBudgetInspectionProjection,
+): boolean {
+  if (
+    left.budgetReference !== right.budgetReference ||
+    left.lineageId !== right.lineageId ||
+    left.parentLineageId !== right.parentLineageId ||
+    left.depth !== right.depth ||
+    left.lifecycle !== right.lifecycle ||
+    left.resources.length !== right.resources.length
+  ) {
+    return false;
+  }
+  return left.resources.every((resource) => {
+    const candidate = right.resources.find(
+      (entry) =>
+        entry.resource.canonicalName === resource.resource.canonicalName,
+    );
+    return (
+      candidate !== undefined &&
+      candidate.resource.unit === resource.resource.unit &&
+      candidate.resource.accountingBehavior ===
+        resource.resource.accountingBehavior &&
+      candidate.allocated === resource.allocated &&
+      candidate.available === resource.available &&
+      candidate.committed === resource.committed &&
+      candidate.directUsage === resource.directUsage &&
+      candidate.subtreeObservedUsage === resource.subtreeObservedUsage &&
+      candidate.unresolved === resource.unresolved &&
+      candidate.deficit === resource.deficit
+    );
+  });
 }
 
 async function requestRemoteBudget<
@@ -422,15 +492,46 @@ async function submitRemoteBudget<
 }
 
 function remoteSnapshot(
-  budget: RemoteBudgetProjection,
+  budget: RemoteBudgetInspectionProjection,
   history: readonly RemoteBudgetHistoryEntry[],
 ): GetBudgetResult {
   return {
-    budget: remoteBudget(budget),
+    budget: remoteInspectionBudget(budget),
     history: {
       rootBudgetId: PRIVATE_UUID,
       entries: history.map(remoteHistoryEntry),
     },
+  };
+}
+
+function remoteInspectionBudget(
+  budget: RemoteBudgetInspectionProjection,
+): BudgetInspectionState {
+  const resources = budget.resources.map((resource) => ({
+    resourceType: {
+      resourceTypeId: resource.resource.canonicalName,
+      ...resource.resource,
+      definitionDigest: "remote-projected",
+    },
+    allocated: resource.allocated,
+    available: resource.available,
+    committed: resource.committed,
+    directUsage: resource.directUsage,
+    subtreeObservedUsage: resource.subtreeObservedUsage,
+    unresolved: resource.unresolved,
+    deficit: resource.deficit,
+  }));
+  const [first, ...rest] = resources;
+  if (first === undefined) throw remoteResultMismatch();
+  return {
+    budgetId: PRIVATE_UUID,
+    parentBudgetId: budget.parentLineageId === null ? null : PRIVATE_UUID,
+    rootBudgetId: PRIVATE_UUID,
+    lineageId: budget.lineageId,
+    parentLineageId: budget.parentLineageId,
+    depth: budget.depth,
+    lifecycle: budget.lifecycle,
+    resources: [first, ...rest],
   };
 }
 
@@ -479,6 +580,9 @@ function remoteHistoryEntry(
     commandId: PRIVATE_UUID,
     subjectBudgetId: PRIVATE_UUID,
     sequence: entry.sequence,
+    subject: entry.subject,
+    cause: entry.cause,
+    movements: entry.movements.map(remoteMovement),
   };
   switch (entry.kind) {
     case "budget_created":
@@ -494,6 +598,7 @@ function remoteHistoryEntry(
         kind: entry.kind,
         parentBudgetId: PRIVATE_UUID,
         childBudgetId: PRIVATE_UUID,
+        parent: entry.parent,
         resources: remoteEnvelope(entry.resources),
         ...(entry.decisionEvidence === undefined
           ? {}
@@ -529,6 +634,39 @@ function remoteHistoryEntry(
         unresolvedResourceTypeIds: entry.unresolvedResources,
         lifecycle: entry.lifecycle,
         isolatedDeficits: remoteAmounts(entry.isolatedDeficits),
+      };
+  }
+}
+
+function remoteMovement(
+  movement: RemoteBudgetHistoryEntry["movements"][number],
+): InspectionMovement {
+  switch (movement.reason) {
+    case "initial_allocation":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: null,
+        to: movement.to,
+      };
+    case "child_grant":
+    case "settlement_return":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: movement.to,
+      };
+    case "consumption":
+    case "root_release":
+      return {
+        reason: movement.reason,
+        resourceTypeId: movement.resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: null,
       };
   }
 }
@@ -656,6 +794,40 @@ function assertRemoteBudget<Names extends string, HistoryNames extends string>(
   }
 }
 
+function assertRemoteInspectionBudget<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  identity: RemoteBudgetIdentity,
+  budget: RemoteBudgetInspectionProjection,
+): void {
+  if (
+    budget.budgetReference !== identity.budgetReference ||
+    budget.depth !== identity.depth ||
+    budget.resources.length !== binding.visibleResourceCount()
+  ) {
+    throw remoteResultMismatch();
+  }
+  const names = new Set<string>();
+  for (const actual of budget.resources) {
+    if (names.has(actual.resource.canonicalName)) {
+      throw remoteResultMismatch();
+    }
+    names.add(actual.resource.canonicalName);
+    const expected = binding.findVisibleResourceByCanonicalName(
+      actual.resource.canonicalName,
+    );
+    if (
+      expected === undefined ||
+      actual.resource.unit !== expected.unit ||
+      actual.resource.accountingBehavior !== expected.accountingBehavior
+    ) {
+      throw remoteResultMismatch();
+    }
+  }
+}
+
 function assertRemoteAmounts(
   expected: unknown,
   actual: readonly RemoteResourceAmount[],
@@ -685,7 +857,7 @@ function assertRemoteAmounts(
 }
 
 function beforeInspectionDeadline<Result>(
-  operation: "getBudget" | "getBudgetHistoryPage",
+  operation: "getBudgetHistoryPage",
   deadline: number,
   invoke: () => Promise<Result>,
 ): Promise<Result> {
@@ -709,9 +881,7 @@ function beforeInspectionDeadline<Result>(
   });
 }
 
-function inspectionTimeout(
-  operation: "getBudget" | "getBudgetHistoryPage",
-): KeynesError {
+function inspectionTimeout(operation: "getBudgetHistoryPage"): KeynesError {
   return new KeynesError({
     kind: "error",
     code: "timeout",

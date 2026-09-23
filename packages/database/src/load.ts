@@ -128,7 +128,7 @@ const EXPECTED_REMOTE = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",

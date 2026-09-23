@@ -233,6 +233,101 @@ async function runBudgetLoop(): Promise<void> {
         "budget_settlement_recorded",
       ],
     );
+    const [rootCreated, granted, rootSettled, childSettled, rootFinalized] =
+      returnedInspection.history.entries;
+    if (
+      rootCreated === undefined ||
+      granted === undefined ||
+      rootSettled === undefined ||
+      childSettled === undefined ||
+      rootFinalized === undefined
+    ) {
+      throw new Error("expected complete root history");
+    }
+    if (
+      rootCreated.kind !== "budget_created" ||
+      granted.kind !== "request_approved" ||
+      rootSettled.kind !== "budget_settlement_recorded" ||
+      childSettled.kind !== "budget_settlement_recorded" ||
+      rootFinalized.kind !== "budget_settlement_recorded"
+    ) {
+      throw new Error("unexpected history order");
+    }
+    assertEqual(
+      rootCreated.movements.map(({ reason, from, to }) => ({
+        reason,
+        from,
+        to,
+      })),
+      [{ reason: "initial_allocation", from: null, to: rootCreated.subject }],
+    );
+    assertEqual(
+      granted.movements.map(({ reason, from, to }) => ({ reason, from, to })),
+      [{ reason: "child_grant", from: granted.parent, to: granted.subject }],
+    );
+    assertEqual(rootSettled.cause, { kind: "command" });
+    assertEqual(
+      childSettled.movements.map(({ reason, from, to }) => ({
+        reason,
+        from,
+        to,
+      })),
+      [
+        { reason: "consumption", from: childSettled.subject, to: null },
+        {
+          reason: "settlement_return",
+          from: childSettled.subject,
+          to: rootCreated.subject,
+        },
+      ],
+    );
+    assertEqual(rootFinalized.cause, {
+      kind: "automatic_finalization",
+      eventSequence: childSettled.sequence,
+    });
+    assertEqual(
+      rootFinalized.movements.map(({ reason, from, to }) => ({
+        reason,
+        from,
+        to,
+      })),
+      [{ reason: "root_release", from: rootCreated.subject, to: null }],
+    );
+    assertDeepFrozen(returnedInspection);
+    assertNoPrivateInspectionFields(returnedInspection);
+
+    const narrowedRoot = await keynes.createBudget({
+      usdCents: 10,
+      searchQueries: 5,
+    });
+    const narrowedRequest = await narrowedRoot.request({ usdCents: 4 });
+    if (narrowedRequest.status !== "approved") {
+      throw new Error("expected narrowed request approval");
+    }
+    const narrowedInspection = await narrowedRequest.budget.inspect();
+    assertEqual(
+      narrowedInspection.budget.resources.map(({ resource }) => resource),
+      ["usdCents"],
+    );
+    const [narrowedCreated, narrowedGranted] =
+      narrowedInspection.history.entries;
+    if (
+      narrowedCreated?.kind !== "budget_created" ||
+      narrowedGranted?.kind !== "request_approved"
+    ) {
+      throw new Error("expected narrowed root history");
+    }
+    assertEqual(
+      narrowedInspection.budget.parentLineageId,
+      narrowedCreated.subject,
+    );
+    assertEqual(narrowedInspection.budget.lineageId, narrowedGranted.subject);
+    assertEqual(narrowedCreated.resources, [
+      { resource: "searchQueries", amount: 5 },
+      { resource: "usdCents", amount: 10 },
+    ]);
+    assertDeepFrozen(narrowedInspection);
+    assertNoPrivateInspectionFields(narrowedInspection);
   } finally {
     await keynes.close();
   }
@@ -289,6 +384,10 @@ async function runApplicationRequest(): Promise<void> {
       throw new Error("Policy request was denied");
     }
     await policyRequest.allocation.budget.settle({ usdCents: 25 });
+    const policyInspection = await policyRequest.allocation.budget.inspect();
+    assertEqual(policyInspection.budget.parentLineageId === null, false);
+    assertDeepFrozen(policyInspection);
+    assertNoPrivateInspectionFields(policyInspection);
   } finally {
     await keynes.close();
   }
@@ -418,4 +517,28 @@ function assertEqual(actual: unknown, expected: unknown): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertDeepFrozen(value: unknown): void {
+  if (typeof value !== "object" || value === null) return;
+  if (!Object.isFrozen(value)) throw new Error("inspection output was mutable");
+  for (const key of Reflect.ownKeys(value)) {
+    assertDeepFrozen(Reflect.get(value, key));
+  }
+}
+
+function assertNoPrivateInspectionFields(value: unknown): void {
+  if (typeof value !== "object" || value === null) return;
+  for (const key of Reflect.ownKeys(value)) {
+    if (key === "decisionEvidence") continue;
+    if (
+      key === "budgetId" ||
+      key === "resourceTypeId" ||
+      key === "commandId" ||
+      key === "operationKey"
+    ) {
+      throw new Error(`inspection exposed ${String(key)}`);
+    }
+    assertNoPrivateInspectionFields(Reflect.get(value, key));
+  }
 }

@@ -52,7 +52,7 @@ describe("public Budget projections", () => {
       reasons: [{ resource: "alpha" }, { resource: "zebra" }],
     });
 
-    const [created, denied, settled] = first.snapshot.history.entries;
+    const [created, denied, , settled] = first.snapshot.history.entries;
     expect(created).toMatchObject({
       kind: "budget_created",
       resources: [{ resource: "alpha" }, { resource: "zebra" }],
@@ -99,7 +99,7 @@ describe("public Budget projections", () => {
       "alpha",
     ]);
     expect(narrowed.history.entries[0]).toMatchObject({
-      kind: "budget_created",
+      kind: "budget_created" as const,
       resources: [{ resource: "alpha" }, { resource: "zebra" }],
     });
   });
@@ -130,6 +130,110 @@ describe("public Budget projections", () => {
       '"decisionEvidence":{"a":0,"kind":true,"resources":"application"}',
     );
     expect(Object.isFrozen(result)).toBe(true);
+  });
+
+  it("keeps a narrowed target separate from frozen root-wide lineage", async () => {
+    const snapshot = await exerciseNarrowedProjection([
+      { key: "alpha", resourceTypeId: HIGH_RESOURCE_ID },
+      { key: "zebra", resourceTypeId: LOW_RESOURCE_ID },
+    ]);
+
+    expectTypeOf(snapshot).toEqualTypeOf<
+      BudgetSnapshot<"alpha", ResourceName>
+    >();
+    expect(snapshot.budget).toMatchObject({
+      lineageId: 2,
+      parentLineageId: 1,
+      resources: [{ resource: "alpha" }],
+    });
+    expect(snapshot.history.entries).toMatchObject([
+      {
+        kind: "budget_created",
+        subject: 1,
+        cause: { kind: "command" },
+        movements: [
+          {
+            reason: "initial_allocation",
+            resource: "alpha",
+            amount: 1,
+            from: null,
+            to: 1,
+          },
+          {
+            reason: "initial_allocation",
+            resource: "zebra",
+            amount: 2,
+            from: null,
+            to: 1,
+          },
+        ],
+      },
+      {
+        kind: "request_denied",
+        subject: 1,
+        cause: { kind: "command" },
+        movements: [],
+      },
+      {
+        kind: "request_approved",
+        subject: 2,
+        parent: 1,
+        cause: { kind: "command" },
+        decisionEvidence: {
+          budgetId: "caller-budget",
+          commandId: "caller-command",
+          movement: "caller-movement",
+          resourceTypeId: "caller-resource",
+        },
+        movements: [
+          {
+            reason: "child_grant",
+            resource: "alpha",
+            amount: 1,
+            from: 1,
+            to: 2,
+          },
+        ],
+      },
+      {
+        kind: "budget_settlement_recorded",
+        subject: 2,
+        cause: { kind: "command" },
+        movements: [
+          {
+            reason: "consumption",
+            resource: "alpha",
+            amount: 1,
+            from: 2,
+            to: null,
+          },
+          {
+            reason: "settlement_return",
+            resource: "zebra",
+            amount: 2,
+            from: 2,
+            to: 1,
+          },
+        ],
+      },
+    ]);
+
+    const approved = snapshot.history.entries[2];
+    const childSettled = snapshot.history.entries[3];
+    expect(approved).toBeDefined();
+    expect(childSettled).toBeDefined();
+    expect(Object.isFrozen(snapshot.budget)).toBe(true);
+    expect(Object.isFrozen(snapshot.history)).toBe(true);
+    expect(Object.isFrozen(snapshot.history.entries)).toBe(true);
+    expect(Object.isFrozen(approved)).toBe(true);
+    expect(Object.isFrozen(approved?.cause)).toBe(true);
+    expect(Object.isFrozen(approved?.movements)).toBe(true);
+    expect(Object.isFrozen(approved?.movements[0])).toBe(true);
+    expect(Object.isFrozen(childSettled?.movements)).toBe(true);
+    expect(JSON.stringify(snapshot)).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
+    expect(JSON.stringify(snapshot)).not.toContain("kop_v1_");
   });
 });
 
@@ -203,8 +307,22 @@ function createClient(
   budgetResources: readonly InstalledResource[],
   state: "current" | "settled" = "current",
 ): KeynesClient {
-  const budget = budgetProjection(budgetResources, state);
+  const budget = {
+    ...budgetProjection(budgetResources, state),
+    lineageId: budgetResources.length === resources.length ? 1 : 2,
+    parentLineageId: budgetResources.length === resources.length ? null : 1,
+  };
   const amounts = resourceAmounts(resources);
+  const alphaResourceId = resources.find(
+    ({ key }) => key === "alpha",
+  )?.resourceTypeId;
+  if (alphaResourceId === undefined)
+    throw new Error("test fixture must define alpha");
+  const zebraResourceId = resources.find(
+    ({ key }) => key === "zebra",
+  )?.resourceTypeId;
+  if (zebraResourceId === undefined)
+    throw new Error("test fixture must define zebra");
   const reasons = requireNonempty(
     resources.map((resource) => ({
       code: "insufficient_available" as const,
@@ -218,6 +336,24 @@ function createClient(
       kind: "budget_created",
       entryId: "00000000-0000-4000-8000-000000000101",
       sequence: 1,
+      subject: 1,
+      cause: { kind: "command" },
+      movements: [
+        {
+          reason: "initial_allocation",
+          resourceTypeId: alphaResourceId,
+          amount: 1,
+          from: null,
+          to: 1,
+        },
+        {
+          reason: "initial_allocation",
+          resourceTypeId: zebraResourceId,
+          amount: 2,
+          from: null,
+          to: 1,
+        },
+      ],
       commandId: "00000000-0000-4000-8000-000000000201",
       subjectBudgetId: BUDGET_ID,
       rootBudgetId: BUDGET_ID,
@@ -227,15 +363,66 @@ function createClient(
       kind: "request_denied",
       entryId: "00000000-0000-4000-8000-000000000102",
       sequence: 2,
+      subject: 1,
+      cause: { kind: "command" },
+      movements: [],
       commandId: "00000000-0000-4000-8000-000000000202",
       subjectBudgetId: BUDGET_ID,
       parentBudgetId: BUDGET_ID,
       reasons,
     },
     {
+      kind: "request_approved",
+      entryId: "00000000-0000-4000-8000-000000000104",
+      sequence: 3,
+      subject: 2,
+      parent: 1,
+      cause: { kind: "command" },
+      movements: [
+        {
+          reason: "child_grant",
+          resourceTypeId: alphaResourceId,
+          amount: 1,
+          from: 1,
+          to: 2,
+        },
+      ],
+      commandId: "00000000-0000-4000-8000-000000000204",
+      subjectBudgetId: BUDGET_ID,
+      parentBudgetId: BUDGET_ID,
+      childBudgetId: "00000000-0000-4000-8000-000000000011",
+      resources: requireNonempty([
+        { resourceTypeId: alphaResourceId, amount: 1 },
+      ]),
+      decisionEvidence: {
+        budgetId: "caller-budget",
+        commandId: "caller-command",
+        movement: "caller-movement",
+        resourceTypeId: "caller-resource",
+      },
+    },
+    {
       kind: "budget_settlement_recorded",
       entryId: "00000000-0000-4000-8000-000000000103",
-      sequence: 3,
+      sequence: 4,
+      subject: 2,
+      cause: { kind: "command" },
+      movements: [
+        {
+          reason: "consumption",
+          resourceTypeId: alphaResourceId,
+          amount: 1,
+          from: 2,
+          to: null,
+        },
+        {
+          reason: "settlement_return",
+          resourceTypeId: zebraResourceId,
+          amount: 2,
+          from: 2,
+          to: 1,
+        },
+      ],
       commandId: "00000000-0000-4000-8000-000000000203",
       subjectBudgetId: BUDGET_ID,
       budgetId: BUDGET_ID,

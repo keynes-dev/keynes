@@ -18,15 +18,15 @@
       "production-readiness"
     ]
   },
-  "contractDigest": "58fbd93b13e5efd6258916f449e9de91f4a881c4707482bc046b05125f86cd13",
-  "remoteProceduresDigest": "22e7b3c80e526694f87f9872bed0645bab4e80d7f472669191354afbe7f2d327",
-  "migrationSetDigest": "aee7d46c74d1d194c1d8f527eaff14a3ff5cbe0e45217b6f89bea9e9fb25719c",
+  "contractDigest": "8877d5eb086a2304a61e7983c02e9ca2bfa42d4f8d692cdedc5c9d94591cffbe",
+  "remoteProceduresDigest": "bff2d60270987fda182a690e028202bfa9c826590b3cc6557f891ec004dd1d9c",
+  "migrationSetDigest": "1067189324acc64d4e5e0f9ebb2693db351817a6c32c91a50e0b63a330b29887",
   "migrations": [
     {
       "id": "0001-baseline",
       "path": "0001-baseline.sql",
-      "sha256": "cce55dcab794b80c4928a85dbe81e5a1ecab7bf8190c05bb471989aa0276908d",
-      "contractDigest": "58fbd93b13e5efd6258916f449e9de91f4a881c4707482bc046b05125f86cd13"
+      "sha256": "bbea1fe935a793cc1cfcf6712e3932cc77969c1bf464aed43d28d8fd92cc9d34",
+      "contractDigest": "8877d5eb086a2304a61e7983c02e9ca2bfa42d4f8d692cdedc5c9d94591cffbe"
     }
   ],
   "expectedTargets": [
@@ -68,7 +68,7 @@
     "table:keynes_internal.remote_credential_audit",
     "table:keynes_internal.remote_budget_references",
     "table:keynes_internal.remote_operations",
-    "table:keynes_internal.remote_history_cursors",
+    "table:keynes_internal.remote_inspection_snapshots",
     "function:keynes_internal.raise_domain_error(error_code text,error_details jsonb)",
     "function:keynes_internal.checkpoint(checkpoint_name text)",
     "function:keynes_internal.invalid_command(operation_name text,issue_path text,issue_rule text)",
@@ -79,6 +79,8 @@
     "function:keynes_internal.budget_live(selected_tenant uuid,selected_budget uuid,selected_resource uuid)",
     "function:keynes_internal.assert_safe_accounting(selected_tenant uuid,changed_budget uuid,operation_name text)",
     "function:keynes_internal.budget_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.budget_inspection_projection(selected_tenant uuid,selected_budget uuid)",
+    "function:keynes_internal.inspection_history_entry_v0009(selected_tenant uuid,selected_stream uuid,terminal_sequence bigint,selected_sequence bigint,selected_command uuid,selected_kind text,selected_subject uuid,value_json jsonb)",
     "function:keynes_internal.finalize_budget_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
     "function:keynes_internal.finalize_ready_ancestors_v0009(selected_tenant uuid,selected_budget uuid,selected_command uuid)",
     "function:keynes_internal.guard_quantity_movement()",
@@ -98,6 +100,9 @@
     "function:keynes_internal.remote_invalid_v0006(operation_name text,issue_path text,issue_rule text)",
     "function:keynes_internal.remote_operation_lock_key_v0006(selected_tenant uuid,operation_key_value text)",
     "function:keynes_internal.remote_validate_input_v0006(operation_name text,input jsonb)",
+    "function:keynes_internal.remote_history_amounts_v0006(selected_tenant uuid,values_json jsonb)",
+    "function:keynes_internal.remote_inspection_projection_v0006(selected_tenant uuid,selected_budget uuid,selected_reference text)",
+    "function:keynes_internal.remote_inspection_history_entry_v0006(selected_tenant uuid,value_json jsonb)",
     "function:keynes_internal.remote_get_budget_v0006(input jsonb)",
     "function:keynes_internal.remote_get_budget_history_page_v0006(input jsonb)",
     "function:keynes_internal.remote_open_budget_v0006(input jsonb)",

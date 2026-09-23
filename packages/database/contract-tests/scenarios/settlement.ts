@@ -546,7 +546,7 @@ export function registerSettlementContractTests(
         },
       });
       const read = await client.getBudget({ budgetId: root.budget.budgetId });
-      expect(read.budget).toEqual(completed.budget);
+      expect(read.budget).toMatchObject(completed.budget);
       expect(read.history.entries.map((entry) => entry.kind)).toEqual([
         "budget_created",
         "budget_settlement_recorded",

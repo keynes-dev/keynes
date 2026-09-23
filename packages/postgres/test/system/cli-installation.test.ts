@@ -178,10 +178,17 @@ async function seedAuthority(client: Client): Promise<void> {
       },
     ],
   ] as const) {
-    const result = await client.query(
+    const first = await client.query(
       `select keynes.${procedure}($1::jsonb) as result`,
       [JSON.stringify(input)],
     );
-    expect(result.rows[0]?.result).toMatchObject({ ok: true });
+    expect(first.rows[0]?.result).toMatchObject({ ok: true, replayed: false });
+    const beforeReplay = await snapshot(client);
+    const replay = await client.query(
+      `select keynes.${procedure}($1::jsonb) as result`,
+      [JSON.stringify(input)],
+    );
+    expect(replay.rows[0]?.result).toMatchObject({ ok: true, replayed: true });
+    expect(await snapshot(client)).toEqual(beforeReplay);
   }
 }

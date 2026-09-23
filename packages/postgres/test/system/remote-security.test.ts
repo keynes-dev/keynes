@@ -517,6 +517,161 @@ describe("remote PostgreSQL identity and security", () => {
     expect(await compatibility(client)).toMatchObject({ ok: true });
   });
 
+  it("authorizes every captured-history page without minting references or exposing snapshots", async () => {
+    fixture = await openRemoteIdentityFixture();
+    await fixture.register(fixture.primary);
+    await fixture.register(fixture.secondary);
+    const primary = await fixture.connect(fixture.primary);
+    const secondary = await fixture.connect(fixture.secondary);
+    await provisionDefinitions(primary, {
+      captureTokens: { unit: "token", accountingBehavior: "consumable" },
+    });
+    const firstRoot = requireCreatedReference(
+      await queryResponse(primary, "keynes.remote_create_budget", {
+        operationKey: operationKey("captured-history-root"),
+        definitions: {
+          captureTokens: { unit: "token", accountingBehavior: "consumable" },
+        },
+        amounts: { captureTokens: 1 },
+      }),
+    );
+    const childReference = requireResultReference(
+      await queryResponse(primary, "keynes.remote_request", {
+        operationKey: operationKey("captured-history-child"),
+        parentBudgetReference: firstRoot,
+        resources: [{ resource: "capture_tokens", amount: 1 }],
+      }),
+      "childBudgetReference",
+    );
+    const commands = Array.from({ length: 255 }, (_, index) => ({
+      operationKey: operationKey(`captured-history-${index}`),
+      parentBudgetReference: firstRoot,
+      resources: [{ resource: "capture_tokens", amount: 2 }],
+    }));
+    await primary.query(
+      `select keynes.remote_request(command)
+         from jsonb_array_elements($1::jsonb) as commands(command)`,
+      [JSON.stringify(commands)],
+    );
+    const referencesBefore = await fixture.administrator.query<{
+      count: number;
+    }>(
+      "select count(*)::int as count from keynes_internal.remote_budget_references",
+    );
+    const cursor = requireResultReference(
+      await queryResponse(primary, "keynes.remote_get_budget_history_page", {
+        budgetReference: firstRoot,
+      }),
+      "nextCursor",
+    );
+    expect(cursor).toMatch(/^khc_v2_[0-9a-f]{32}_257$/u);
+    expect(
+      await fixture.administrator.query<{ count: number }>(
+        "select count(*)::int as count from keynes_internal.remote_budget_references",
+      ),
+    ).toEqual(referencesBefore);
+    await expect(
+      primary.query(
+        "select * from keynes_internal.remote_inspection_snapshots",
+      ),
+    ).rejects.toThrow();
+
+    await fixture.setEnabled(fixture.primary.role, false);
+    const disabled = await queryResponse(
+      primary,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference: firstRoot, cursor },
+    );
+    expect(disabled).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    expectSafeRemoteResponse(disabled);
+    await fixture.setEnabled(fixture.primary.role, true);
+    await fixture.administrator.query(
+      `delete from keynes_internal.principal_permissions
+        where tenant_id = $1 and principal_id = $2 and permission = 'read_budget'`,
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    const revoked = await queryResponse(
+      primary,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference: firstRoot, cursor },
+    );
+    expect(revoked).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    expectSafeRemoteResponse(revoked);
+    const revokedMalformed = await queryResponse(
+      primary,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference: firstRoot, cursor: "not-a-cursor" },
+    );
+    expect(revokedMalformed).toMatchObject({
+      ok: false,
+      error: { code: "unauthorized" },
+    });
+    expectSafeRemoteResponse(revokedMalformed);
+    await fixture.administrator.query(
+      `insert into keynes_internal.principal_permissions (tenant_id, principal_id, permission)
+       values ($1, $2, 'read_budget')`,
+      [fixture.primary.tenantId, fixture.primary.principalId],
+    );
+    const alternatePrincipal = "00000000-0000-4000-8000-000000000199";
+    await fixture.administrator.query(
+      `insert into keynes_internal.principal_permissions (tenant_id, principal_id, permission)
+       values ($1, $2, 'read_budget')`,
+      [fixture.primary.tenantId, alternatePrincipal],
+    );
+    await fixture.administrator.query(
+      `update keynes_internal.remote_role_mappings
+          set principal_id = $2
+        where role_name = $1`,
+      [fixture.primary.role, alternatePrincipal],
+    );
+    const wrongPrincipal = await queryResponse(
+      primary,
+      "keynes.remote_get_budget_history_page",
+      { budgetReference: firstRoot, cursor },
+    );
+    expect(wrongPrincipal).toMatchObject({
+      ok: false,
+      error: { code: "invalid_command" },
+    });
+    expectSafeRemoteResponse(wrongPrincipal);
+    await fixture.administrator.query(
+      `update keynes_internal.remote_role_mappings
+          set principal_id = $2
+        where role_name = $1`,
+      [fixture.primary.role, fixture.primary.principalId],
+    );
+
+    for (const { client, budgetReference } of [
+      { client: secondary, budgetReference: firstRoot },
+      { client: primary, budgetReference: childReference },
+    ]) {
+      const rejected = await queryResponse(
+        client,
+        "keynes.remote_get_budget_history_page",
+        { budgetReference, cursor },
+      );
+      expect(rejected).toMatchObject({
+        ok: false,
+        error: {
+          code: client === secondary ? "unauthorized" : "invalid_command",
+        },
+      });
+      expectSafeRemoteResponse(rejected);
+    }
+    expect(
+      await queryResponse(primary, "keynes.remote_get_budget_history_page", {
+        budgetReference: firstRoot,
+        cursor,
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("rejects a recreated login until an operator explicitly registers the stale name and new OID", async () => {
     fixture = await openRemoteIdentityFixture();
     await fixture.register(fixture.primary);
@@ -725,7 +880,7 @@ async function protectedState(
        'operationCount', (select count(*) from keynes_internal.remote_operations),
        'budgetCount', (select count(*) from keynes_internal.budgets),
        'historyCount', (select count(*) from keynes_internal.budget_history_entries),
-       'cursorCount', (select count(*) from keynes_internal.remote_history_cursors),
+       'cursorCount', (select count(*) from keynes_internal.remote_inspection_snapshots),
        'probe', to_regclass('keynes.remote_sql_probe')
      ) as state`,
   );

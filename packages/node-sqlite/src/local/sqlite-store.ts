@@ -44,6 +44,10 @@ export interface SqliteJournalMovement {
   readonly amount: bigint;
 }
 
+export interface SqliteInspectionJournalMovement extends SqliteJournalMovement {
+  readonly canonicalName: string;
+}
+
 export interface SqliteResourceRow {
   readonly resourceTypeId: string;
   readonly definitionCommandId: string;
@@ -536,6 +540,15 @@ export class SqliteStore {
       .all(tenantId, rootBudgetId)
       .map((row) => stringColumn(row, "payload_json"));
   }
+
+  inspectionJournal(
+    tenantId: string,
+    rootBudgetId: string,
+  ): SqliteInspectionJournalMovement[] {
+    return this.#statements.inspectionJournal
+      .all(tenantId, rootBudgetId)
+      .map(inspectionJournalMovementRow);
+  }
 }
 
 function prepareStatements(database: DatabaseSync) {
@@ -623,6 +636,19 @@ function prepareStatements(database: DatabaseSync) {
     history: prepareRead(
       "SELECT payload_json FROM history_entries WHERE tenant_id = ? AND root_budget_id = ? ORDER BY sequence",
     ),
+    inspectionJournal: prepareRead(
+      `SELECT movement.tenant_id, movement.root_budget_id, movement.command_id,
+              movement.resource_type_id, movement.movement_id, movement.reason,
+              movement.source_budget_id, movement.destination_budget_id,
+              movement.amount, resource.canonical_name
+         FROM journal_movements movement
+         JOIN resource_types resource
+           ON resource.tenant_id = movement.tenant_id
+          AND resource.resource_type_id = movement.resource_type_id
+        WHERE movement.tenant_id = ? AND movement.root_budget_id = ?
+        ORDER BY resource.canonical_name COLLATE BINARY, movement.reason COLLATE BINARY,
+                 movement.command_id, movement.movement_id`,
+    ),
   };
 }
 
@@ -688,6 +714,15 @@ function journalMovementRow(value: unknown): SqliteJournalMovement {
     sourceBudgetId: nullableStringColumn(row, "source_budget_id"),
     destinationBudgetId: nullableStringColumn(row, "destination_budget_id"),
     amount: bigintColumn(row, "amount"),
+  };
+}
+
+function inspectionJournalMovementRow(
+  value: unknown,
+): SqliteInspectionJournalMovement {
+  return {
+    ...journalMovementRow(value),
+    canonicalName: stringColumn(value, "canonical_name"),
   };
 }
 

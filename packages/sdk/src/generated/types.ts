@@ -21,6 +21,16 @@ export type Sha256Digest = string;
  */
 export type Amount = number;
 /**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "PositiveAmount".
+ */
+export type PositiveAmount = number;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageBudgetId".
+ */
+export type LineageBudgetId = number;
+/**
  * @minItems 1
  *
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
@@ -41,6 +51,26 @@ export type RootResourceEnvelope = [RootResourceInput, ...RootResourceInput[]];
  * via the `definition` "UsageEnvelope".
  */
 export type UsageEnvelope = [UsageAmount, ...UsageAmount[]];
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageCause".
+ */
+export type LineageCause =
+  | {
+      kind: "command";
+    }
+  | {
+      kind: "automatic_finalization";
+      eventSequence: number;
+    };
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InspectionMovement".
+ */
+export type InspectionMovement =
+  | InitialAllocationMovement
+  | TransferMovement
+  | ConsumptionOrReleaseMovement;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RequestDenialReason".
@@ -123,6 +153,14 @@ export type RemoteUsageEnvelope = [RemoteUsageAmount, ...RemoteUsageAmount[]];
  * via the `definition` "RemoteRequestDenialReason".
  */
 export type RemoteRequestDenialReason = RemoteAvailabilityDenialReason;
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteInspectionMovement".
+ */
+export type RemoteInspectionMovement =
+  | RemoteInitialAllocationMovement
+  | RemoteTransferMovement
+  | RemoteConsumptionOrReleaseMovement;
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RemoteBudgetHistoryEntry".
@@ -397,6 +435,65 @@ export interface BudgetProjection {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "BudgetInspectionState".
+ */
+export interface BudgetInspectionState {
+  budgetId: Uuid;
+  parentBudgetId: Uuid | null;
+  rootBudgetId: Uuid;
+  lineageId: LineageBudgetId;
+  parentLineageId: LineageBudgetId | null;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  /**
+   * @minItems 1
+   */
+  resources: [BudgetResourceProjection, ...BudgetResourceProjection[]];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "InitialAllocationMovement".
+ */
+export interface InitialAllocationMovement {
+  reason: "initial_allocation";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: null;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "TransferMovement".
+ */
+export interface TransferMovement {
+  reason: "child_grant" | "settlement_return";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "ConsumptionOrReleaseMovement".
+ */
+export interface ConsumptionOrReleaseMovement {
+  reason: "consumption" | "root_release";
+  resourceTypeId: Uuid;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: null;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "LineageEvidence".
+ */
+export interface LineageEvidence {
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "AvailabilityDenialReason".
  */
 export interface AvailabilityDenialReason {
@@ -413,6 +510,9 @@ export interface BudgetCreatedHistoryEntry {
   kind: "budget_created";
   entryId: Uuid;
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
   commandId: Uuid;
   subjectBudgetId: Uuid;
   rootBudgetId: Uuid;
@@ -426,6 +526,10 @@ export interface RequestApprovedHistoryEntry {
   kind: "request_approved";
   entryId: Uuid;
   sequence: Amount;
+  subject: LineageBudgetId;
+  parent: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
   commandId: Uuid;
   subjectBudgetId: Uuid;
   parentBudgetId: Uuid;
@@ -448,6 +552,9 @@ export interface RequestDeniedHistoryEntry {
   kind: "request_denied";
   entryId: Uuid;
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
   commandId: Uuid;
   subjectBudgetId: Uuid;
   parentBudgetId: Uuid;
@@ -465,6 +572,9 @@ export interface BudgetSettlementRecordedHistoryEntry {
   kind: "budget_settlement_recorded";
   entryId: Uuid;
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: InspectionMovement[];
   commandId: Uuid;
   subjectBudgetId: Uuid;
   budgetId: Uuid;
@@ -609,7 +719,7 @@ export interface GetBudgetQuery {
  * via the `definition` "GetBudgetResult".
  */
 export interface GetBudgetResult {
-  budget: BudgetProjection;
+  budget: BudgetInspectionState;
   history: BudgetHistory;
 }
 /**
@@ -663,6 +773,25 @@ export interface RemoteBudgetProjection {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteBudgetInspectionProjection".
+ */
+export interface RemoteBudgetInspectionProjection {
+  budgetReference: BudgetReference;
+  lineageId: LineageBudgetId;
+  parentLineageId: LineageBudgetId | null;
+  depth: Amount;
+  lifecycle: "active" | "settling" | "settled";
+  /**
+   * @minItems 1
+   * @maxItems 64
+   */
+  resources: [
+    RemoteBudgetResourceProjection,
+    ...RemoteBudgetResourceProjection[],
+  ];
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RemoteAvailabilityDenialReason".
  */
 export interface RemoteAvailabilityDenialReason {
@@ -673,11 +802,47 @@ export interface RemoteAvailabilityDenialReason {
 }
 /**
  * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteInitialAllocationMovement".
+ */
+export interface RemoteInitialAllocationMovement {
+  reason: "initial_allocation";
+  resource: string;
+  amount: PositiveAmount;
+  from: null;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteTransferMovement".
+ */
+export interface RemoteTransferMovement {
+  reason: "child_grant" | "settlement_return";
+  resource: string;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: LineageBudgetId;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
+ * via the `definition` "RemoteConsumptionOrReleaseMovement".
+ */
+export interface RemoteConsumptionOrReleaseMovement {
+  reason: "consumption" | "root_release";
+  resource: string;
+  amount: PositiveAmount;
+  from: LineageBudgetId;
+  to: null;
+}
+/**
+ * This interface was referenced by `KeynesBudgetContract`'s JSON-Schema
  * via the `definition` "RemoteBudgetCreatedHistoryEntry".
  */
 export interface RemoteBudgetCreatedHistoryEntry {
   kind: "budget_created";
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: RemoteInspectionMovement[];
   resources: RemoteResourceEnvelope;
 }
 /**
@@ -687,6 +852,10 @@ export interface RemoteBudgetCreatedHistoryEntry {
 export interface RemoteRequestApprovedHistoryEntry {
   kind: "request_approved";
   sequence: Amount;
+  subject: LineageBudgetId;
+  parent: LineageBudgetId;
+  cause: LineageCause;
+  movements: RemoteInspectionMovement[];
   resources: RemoteResourceEnvelope;
   decisionEvidence?: DecisionEvidence;
 }
@@ -697,6 +866,9 @@ export interface RemoteRequestApprovedHistoryEntry {
 export interface RemoteRequestDeniedHistoryEntry {
   kind: "request_denied";
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: RemoteInspectionMovement[];
   /**
    * @minItems 1
    */
@@ -710,6 +882,9 @@ export interface RemoteRequestDeniedHistoryEntry {
 export interface RemoteBudgetSettlementHistoryEntry {
   kind: "budget_settlement_recorded";
   sequence: Amount;
+  subject: LineageBudgetId;
+  cause: LineageCause;
+  movements: RemoteInspectionMovement[];
   newlyKnown: RemoteResourceAmount[];
   unresolvedResources: string[];
   lifecycle: "settling" | "settled";
@@ -817,6 +992,7 @@ export interface GetBudgetHistoryPageQuery {
  */
 export interface GetBudgetHistoryPageResult {
   budgetReference: BudgetReference;
+  budget: RemoteBudgetInspectionProjection;
   /**
    * @maxItems 256
    */

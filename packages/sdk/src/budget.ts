@@ -126,43 +126,89 @@ export interface BudgetState<Names extends string = string> {
   readonly resources: readonly BudgetResourceSnapshot<Names>[];
 }
 
+export type LineageBudgetId = number;
+
+export type LineageCause =
+  | { readonly kind: "command" }
+  | {
+      readonly kind: "automatic_finalization";
+      readonly eventSequence: number;
+    };
+
+export type BudgetMovement<Name extends string = string> =
+  | {
+      readonly reason: "initial_allocation";
+      readonly resource: Name;
+      readonly amount: number;
+      readonly from: null;
+      readonly to: LineageBudgetId;
+    }
+  | {
+      readonly reason: "child_grant" | "settlement_return";
+      readonly resource: Name;
+      readonly amount: number;
+      readonly from: LineageBudgetId;
+      readonly to: LineageBudgetId;
+    }
+  | {
+      readonly reason: "consumption" | "root_release";
+      readonly resource: Name;
+      readonly amount: number;
+      readonly from: LineageBudgetId;
+      readonly to: null;
+    };
+
+export interface LineageEvidence<Name extends string = string> {
+  readonly subject: LineageBudgetId;
+  readonly cause: LineageCause;
+  readonly movements: readonly BudgetMovement<Name>[];
+}
+
+export interface BudgetInspectionState<
+  Names extends string = string,
+> extends BudgetState<Names> {
+  readonly lineageId: LineageBudgetId;
+  readonly parentLineageId: LineageBudgetId | null;
+}
+
 export interface NamedResourceAmount<Name extends string = string> {
   readonly resource: Name;
   readonly amount: number;
 }
 
 export type BudgetHistoryEntry<Names extends string = string> =
-  | {
+  | (LineageEvidence<Names> & {
       readonly kind: "budget_created";
       readonly sequence: number;
       readonly resources: readonly NamedResourceAmount<Names>[];
-    }
-  | {
+    })
+  | (LineageEvidence<Names> & {
       readonly kind: "request_approved";
       readonly sequence: number;
+      readonly parent: LineageBudgetId;
       readonly resources: readonly NamedResourceAmount<Names>[];
       readonly decisionEvidence?: DecisionEvidence;
-    }
-  | {
+    })
+  | (LineageEvidence<Names> & {
       readonly kind: "request_denied";
       readonly sequence: number;
       readonly reasons: readonly BudgetRequestDenialReason<Names>[];
       readonly decisionEvidence?: DecisionEvidence;
-    }
-  | {
+    })
+  | (LineageEvidence<Names> & {
       readonly kind: "budget_settlement_recorded";
       readonly sequence: number;
       readonly newlyKnown: readonly NamedResourceAmount<Names>[];
       readonly unresolvedResources: readonly Names[];
       readonly lifecycle: "settling" | "settled";
       readonly isolatedDeficits: readonly NamedResourceAmount<Names>[];
-    };
+    });
 
 export interface BudgetSnapshot<
   Names extends string = string,
   HistoryNames extends string = Names,
 > {
-  readonly budget: BudgetState<Names>;
+  readonly budget: BudgetInspectionState<Names>;
   readonly history: {
     readonly entries: readonly BudgetHistoryEntry<HistoryNames>[];
   };

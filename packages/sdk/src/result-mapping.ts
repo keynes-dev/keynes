@@ -1,6 +1,7 @@
 import { KeynesSdkError } from "./sdk-errors.js";
 import type {
   BudgetHistoryEntry as WireBudgetHistoryEntry,
+  BudgetInspectionState as WireBudgetInspectionState,
   BudgetProjection as WireBudgetProjection,
   GetBudgetResult,
   RequestDenialReason,
@@ -12,9 +13,13 @@ import { canonicalDecisionEvidence } from "./decision-evidence.js";
 import type { BudgetResourceBinding } from "./resource-binding.js";
 import type {
   BudgetHistoryEntry,
+  BudgetInspectionState,
+  BudgetMovement,
   BudgetRequestDenialReason,
   BudgetSnapshot,
   BudgetState,
+  LineageCause,
+  LineageEvidence,
   NamedResourceAmount,
   Settlement,
 } from "./budget.js";
@@ -48,16 +53,33 @@ export function projectSnapshot<
 >(
   binding: BudgetResourceBinding<Names, HistoryNames>,
   result: GetBudgetResult,
+  historyResourceName: (resourceTypeId: string) => HistoryNames = (
+    resourceTypeId,
+  ) => binding.resource(resourceTypeId).key,
 ): BudgetSnapshot<Names, HistoryNames> {
   return Object.freeze({
-    budget: projectBudget(binding, result.budget),
+    budget: projectInspectionBudget(binding, result.budget),
     history: Object.freeze({
       entries: Object.freeze(
         result.history.entries.map((entry) =>
-          projectHistoryEntry(binding, entry),
+          projectHistoryEntry(entry, historyResourceName),
         ),
       ),
     }),
+  });
+}
+
+function projectInspectionBudget<
+  Names extends string,
+  HistoryNames extends string,
+>(
+  binding: BudgetResourceBinding<Names, HistoryNames>,
+  budget: WireBudgetInspectionState,
+): BudgetInspectionState<Names> {
+  return Object.freeze({
+    ...projectBudget(binding, budget),
+    lineageId: budget.lineageId,
+    parentLineageId: budget.parentLineageId,
   });
 }
 
@@ -92,24 +114,29 @@ function projectBudget<Names extends string, HistoryNames extends string>(
   });
 }
 
-function projectHistoryEntry<Names extends string, HistoryNames extends string>(
-  binding: BudgetResourceBinding<Names, HistoryNames>,
+function projectHistoryEntry<HistoryNames extends string>(
   entry: WireBudgetHistoryEntry,
+  resourceName: (resourceTypeId: string) => HistoryNames,
 ): BudgetHistoryEntry<HistoryNames> {
+  const lineage = projectLineageEvidence(entry, resourceName);
   switch (entry.kind) {
     case "budget_created":
-    case "request_approved": {
-      const decisionEvidence =
-        entry.kind === "request_approved"
-          ? canonicalDecisionEvidence(entry.decisionEvidence)
-          : undefined;
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
-        resources: projectAmounts(
-          entry.resources,
-          (resourceTypeId) => binding.resource(resourceTypeId).key,
-        ),
+        ...lineage,
+        resources: projectAmounts(entry.resources, resourceName),
+      });
+    case "request_approved": {
+      const decisionEvidence = canonicalDecisionEvidence(
+        entry.decisionEvidence,
+      );
+      return Object.freeze({
+        kind: entry.kind,
+        sequence: entry.sequence,
+        ...lineage,
+        parent: entry.parent,
+        resources: projectAmounts(entry.resources, resourceName),
         ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
       });
     }
@@ -120,9 +147,10 @@ function projectHistoryEntry<Names extends string, HistoryNames extends string>(
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
+        ...lineage,
         reasons: Object.freeze(
           entry.reasons
-            .map((reason) => projectHistoryDenialReason(binding, reason))
+            .map((reason) => projectHistoryDenialReason(reason, resourceName))
             .sort(compareDenialReasons),
         ),
         ...(decisionEvidence === undefined ? {} : { decisionEvidence }),
@@ -132,25 +160,83 @@ function projectHistoryEntry<Names extends string, HistoryNames extends string>(
       return Object.freeze({
         kind: entry.kind,
         sequence: entry.sequence,
-        newlyKnown: projectAmounts(
-          entry.newlyKnown,
-          (resourceTypeId) => binding.resource(resourceTypeId).key,
-        ),
+        ...lineage,
+        newlyKnown: projectAmounts(entry.newlyKnown, resourceName),
         unresolvedResources: Object.freeze(
           entry.unresolvedResourceTypeIds
-            .map((resourceTypeId) => binding.resource(resourceTypeId).key)
+            .map(resourceName)
             .sort(compareStrings),
         ),
         lifecycle: entry.lifecycle,
-        isolatedDeficits: projectAmounts(
-          entry.isolatedDeficits,
-          (resourceTypeId) => binding.resource(resourceTypeId).key,
-        ),
+        isolatedDeficits: projectAmounts(entry.isolatedDeficits, resourceName),
       });
     default: {
       const exhaustive: never = entry;
       return exhaustive;
     }
+  }
+}
+
+function projectLineageEvidence<HistoryNames extends string>(
+  entry: WireBudgetHistoryEntry,
+  resourceName: (resourceTypeId: string) => HistoryNames,
+): LineageEvidence<HistoryNames> {
+  return Object.freeze({
+    subject: entry.subject,
+    cause: projectLineageCause(entry.cause),
+    movements: Object.freeze(
+      entry.movements.map((movement) =>
+        projectMovement(movement, resourceName),
+      ),
+    ),
+  });
+}
+
+function projectLineageCause(cause: {
+  readonly kind: "command" | "automatic_finalization";
+  readonly eventSequence?: number;
+}): LineageCause {
+  if (cause.kind === "command") return Object.freeze({ kind: cause.kind });
+  if (cause.eventSequence === undefined)
+    throw new Error("Inspection cause omitted its initiating event sequence");
+  return Object.freeze({
+    kind: cause.kind,
+    eventSequence: cause.eventSequence,
+  });
+}
+
+function projectMovement<HistoryNames extends string>(
+  movement: WireBudgetHistoryEntry["movements"][number],
+  resourceName: (resourceTypeId: string) => HistoryNames,
+): BudgetMovement<HistoryNames> {
+  const resource = resourceName(movement.resourceTypeId);
+  switch (movement.reason) {
+    case "initial_allocation":
+      return Object.freeze({
+        reason: movement.reason,
+        resource,
+        amount: movement.amount,
+        from: null,
+        to: movement.to,
+      });
+    case "child_grant":
+    case "settlement_return":
+      return Object.freeze({
+        reason: movement.reason,
+        resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: movement.to,
+      });
+    case "consumption":
+    case "root_release":
+      return Object.freeze({
+        reason: movement.reason,
+        resource,
+        amount: movement.amount,
+        from: movement.from,
+        to: null,
+      });
   }
 }
 
@@ -275,17 +361,11 @@ export function projectDenialReason<
   );
 }
 
-function projectHistoryDenialReason<
-  Names extends string,
-  HistoryNames extends string,
->(
-  binding: BudgetResourceBinding<Names, HistoryNames>,
+function projectHistoryDenialReason<HistoryNames extends string>(
   reason: RequestDenialReason,
+  resourceName: (resourceTypeId: string) => HistoryNames,
 ): BudgetRequestDenialReason<HistoryNames> {
-  return projectDenialReasonWith(
-    reason,
-    (resourceTypeId) => binding.resource(resourceTypeId).key,
-  );
+  return projectDenialReasonWith(reason, resourceName);
 }
 
 function projectDenialReasonWith<Names extends string>(

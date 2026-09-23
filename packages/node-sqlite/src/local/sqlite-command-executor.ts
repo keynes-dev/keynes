@@ -9,6 +9,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import type { CommandExecutor } from "../command-executor.js";
 import type {
+  BudgetInspectionState,
   BudgetHistoryEntry,
   BudgetProjection,
   BudgetResourceProjection,
@@ -21,6 +22,9 @@ import type {
   ErrorEnvelope,
   GetBudgetQuery,
   GetBudgetResult,
+  InspectionMovement,
+  LineageCause,
+  LineageEvidence,
   OperationName,
   PermissionName,
   RequestBudgetCommand,
@@ -40,6 +44,7 @@ import {
   SqliteStore,
   type SqliteBudgetRow as BudgetRow,
   type SqliteHoldingRow as HoldingRow,
+  type SqliteInspectionJournalMovement,
   type SqliteJournalMovement,
   type SqliteInstallation,
   type SqliteResourceRow as ResourceRow,
@@ -783,10 +788,25 @@ export class SqliteCommandExecutor implements CommandExecutor {
     const budget = this.#requireBudget(context.tenantId, query.budgetId);
     const history = this.#store
       .history(context.tenantId, budget.rootBudgetId)
-      .map((payload) => JSON.parse(payload) as BudgetHistoryEntry);
+      .map((payload) => JSON.parse(payload) as StoredBudgetHistoryEntry);
+    const lineageIds = inspectionLineageIds(history);
     return {
-      budget: this.#projectBudget(context.tenantId, query.budgetId),
-      history: { rootBudgetId: budget.rootBudgetId, entries: history },
+      budget: {
+        ...this.#projectBudget(context.tenantId, query.budgetId),
+        lineageId: inspectionLineageId(lineageIds, budget.budgetId),
+        parentLineageId:
+          budget.parentBudgetId === null
+            ? null
+            : inspectionLineageId(lineageIds, budget.parentBudgetId),
+      } satisfies BudgetInspectionState,
+      history: {
+        rootBudgetId: budget.rootBudgetId,
+        entries: inspectionHistory(
+          history,
+          this.#store.inspectionJournal(context.tenantId, budget.rootBudgetId),
+          lineageIds,
+        ),
+      },
     };
   }
 
@@ -1113,7 +1133,7 @@ export class SqliteCommandExecutor implements CommandExecutor {
   #appendHistory(
     tenantId: string,
     rootBudgetId: string,
-    entry: BudgetHistoryEntry,
+    entry: StoredBudgetHistoryEntry,
   ): void {
     this.#store.insertHistory({
       tenantId,
@@ -1158,6 +1178,206 @@ export function openSqliteCommandExecutor(
     context,
     observeMutation,
   );
+}
+
+type StoredBudgetHistoryEntry = OmitHistoryEvidence<BudgetHistoryEntry>;
+
+type OmitHistoryEvidence<Entry> = Entry extends unknown
+  ? Omit<Entry, "subject" | "cause" | "movements" | "parent">
+  : never;
+
+function inspectionHistory(
+  history: readonly StoredBudgetHistoryEntry[],
+  journal: readonly SqliteInspectionJournalMovement[],
+  lineageIds: ReadonlyMap<string, number>,
+): BudgetHistoryEntry[] {
+  const movementsByCommand = new Map<
+    string,
+    SqliteInspectionJournalMovement[]
+  >();
+  for (const movement of journal) {
+    const existing = movementsByCommand.get(movement.commandId);
+    if (existing === undefined) {
+      movementsByCommand.set(movement.commandId, [movement]);
+    } else {
+      existing.push(movement);
+    }
+  }
+  const firstSettlementSequence = new Map<string, number>();
+  for (const entry of history) {
+    if (
+      entry.kind === "budget_settlement_recorded" &&
+      !firstSettlementSequence.has(entry.commandId)
+    ) {
+      firstSettlementSequence.set(entry.commandId, entry.sequence);
+    }
+  }
+
+  const assignedMovementIds = new Set<string>();
+  const entries = history.map((entry) => {
+    const movements = inspectionMovements(
+      entry,
+      movementsByCommand.get(entry.commandId) ?? [],
+      lineageIds,
+      assignedMovementIds,
+    );
+    const evidence = {
+      subject: inspectionLineageId(lineageIds, entry.subjectBudgetId),
+      cause: inspectionCause(entry, firstSettlementSequence),
+      movements,
+    } satisfies LineageEvidence;
+    if (entry.kind === "request_approved") {
+      return {
+        ...entry,
+        ...evidence,
+        parent: inspectionLineageId(lineageIds, entry.parentBudgetId),
+      } satisfies BudgetHistoryEntry;
+    }
+    return { ...entry, ...evidence } satisfies BudgetHistoryEntry;
+  });
+  if (assignedMovementIds.size !== journal.length) {
+    throw new Error("SQLite inspection could not associate every journal row");
+  }
+  return entries;
+}
+
+function inspectionLineageIds(
+  history: readonly StoredBudgetHistoryEntry[],
+): ReadonlyMap<string, number> {
+  const lineageIds = new Map<string, number>();
+  for (const entry of history) {
+    if (entry.kind === "budget_created" || entry.kind === "request_approved") {
+      lineageIds.set(entry.subjectBudgetId, entry.sequence);
+    }
+  }
+  return lineageIds;
+}
+
+function inspectionLineageId(
+  lineageIds: ReadonlyMap<string, number>,
+  budgetId: string,
+): number {
+  const lineageId = lineageIds.get(budgetId);
+  if (lineageId === undefined) {
+    throw new Error("SQLite inspection is missing a Budget creation event");
+  }
+  return lineageId;
+}
+
+function inspectionCause(
+  entry: StoredBudgetHistoryEntry,
+  firstSettlementSequence: ReadonlyMap<string, number>,
+): LineageCause {
+  if (entry.kind !== "budget_settlement_recorded") {
+    return { kind: "command" };
+  }
+  const eventSequence = firstSettlementSequence.get(entry.commandId);
+  if (eventSequence === undefined || eventSequence === entry.sequence) {
+    return { kind: "command" };
+  }
+  return { kind: "automatic_finalization", eventSequence };
+}
+
+function inspectionMovements(
+  entry: StoredBudgetHistoryEntry,
+  candidates: readonly SqliteInspectionJournalMovement[],
+  lineageIds: ReadonlyMap<string, number>,
+  assignedMovementIds: Set<string>,
+): InspectionMovement[] {
+  const movements = candidates
+    .filter((movement) => inspectionMovementBelongsTo(entry, movement))
+    .sort((left, right) => {
+      const resource = compareText(left.canonicalName, right.canonicalName);
+      return resource === 0 ? compareText(left.reason, right.reason) : resource;
+    })
+    .map((movement) => {
+      if (assignedMovementIds.has(movement.movementId)) {
+        throw new Error("SQLite inspection associated a journal row twice");
+      }
+      assignedMovementIds.add(movement.movementId);
+      return inspectionMovement(movement, lineageIds);
+    });
+  return movements;
+}
+
+function inspectionMovementBelongsTo(
+  entry: StoredBudgetHistoryEntry,
+  movement: SqliteInspectionJournalMovement,
+): boolean {
+  if (entry.kind === "budget_created") {
+    return (
+      movement.reason === "initial_allocation" &&
+      movement.destinationBudgetId === entry.subjectBudgetId
+    );
+  }
+  if (entry.kind === "request_approved") {
+    return (
+      movement.reason === "child_grant" &&
+      movement.destinationBudgetId === entry.subjectBudgetId
+    );
+  }
+  return (
+    entry.kind === "budget_settlement_recorded" &&
+    movement.sourceBudgetId === entry.subjectBudgetId
+  );
+}
+
+function inspectionMovement(
+  movement: SqliteInspectionJournalMovement,
+  lineageIds: ReadonlyMap<string, number>,
+): InspectionMovement {
+  const amount = safeNumber(
+    movement.amount,
+    "getBudget",
+    movement.resourceTypeId,
+  );
+  if (movement.reason === "initial_allocation") {
+    return {
+      reason: movement.reason,
+      resourceTypeId: movement.resourceTypeId,
+      amount,
+      from: null,
+      to: inspectionLineageId(
+        lineageIds,
+        inspectionEndpoint(movement.destinationBudgetId),
+      ),
+    };
+  }
+  if (
+    movement.reason === "child_grant" ||
+    movement.reason === "settlement_return"
+  ) {
+    return {
+      reason: movement.reason,
+      resourceTypeId: movement.resourceTypeId,
+      amount,
+      from: inspectionLineageId(
+        lineageIds,
+        inspectionEndpoint(movement.sourceBudgetId),
+      ),
+      to: inspectionLineageId(
+        lineageIds,
+        inspectionEndpoint(movement.destinationBudgetId),
+      ),
+    };
+  }
+  return {
+    reason: movement.reason,
+    resourceTypeId: movement.resourceTypeId,
+    amount,
+    from: inspectionLineageId(
+      lineageIds,
+      inspectionEndpoint(movement.sourceBudgetId),
+    ),
+    to: null,
+  };
+}
+
+function inspectionEndpoint(budgetId: string | null): string {
+  if (budgetId === null) {
+    throw new Error("SQLite inspection journal row has a missing endpoint");
+  }
+  return budgetId;
 }
 
 function canonicalCommand(

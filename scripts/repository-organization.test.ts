@@ -138,15 +138,15 @@ describe("repository organization", () => {
     for (const [path, digest] of [
       [
         "contract.json",
-        "470a5ea7d48b356b5dcbe29ef33ae1afd89673692197af3d915ff3dbbf46a6f9",
+        "cfd417e018910406b28e996a5560a5f869b5c1c68acd307bb6e5b47d44c9e0c9",
       ],
       [
         "schema.json",
-        "2823f1fdc7cfdece8e4f7f4e7c63b15518c18b90e5b0a3078934490749aa131d",
+        "3e8e7aabd52e667b20eacdfacea60d92467ea6da307849ce7043278a024ad38c",
       ],
       [
         "postgres/migrations/0001-baseline.sql",
-        "cce55dcab794b80c4928a85dbe81e5a1ecab7bf8190c05bb471989aa0276908d",
+        "bbea1fe935a793cc1cfcf6712e3932cc77969c1bf464aed43d28d8fd92cc9d34",
       ],
     ]) {
       expect(
@@ -167,13 +167,15 @@ describe("repository organization", () => {
     }
   });
 
-  it("runs contracts through Turbo without a duplicate generator test invocation", () => {
+  it("runs checks before sequential package tests without a duplicate generator test invocation", () => {
     const scripts = requireObject(
       readJsonObject(join(repositoryRoot, "package.json")),
       "scripts",
     );
     expect(scripts["test:pr"]).not.toContain("pnpm test:generator");
-    expect(scripts["test:pr"]).toContain("turbo run quality typecheck test");
+    expect(scripts["test:pr"]).toContain(
+      "turbo run quality typecheck && tsc --project tsconfig.tests.json --noEmit && turbo run test --concurrency=1",
+    );
     expect(scripts["test:generator"]).toBe(
       "pnpm --filter @keynes/database test",
     );

@@ -207,7 +207,7 @@ export function registerBudgetLifecycleContractTests(
           budgetId: request.childBudgetId,
         });
 
-        expect(result.budget).toEqual({
+        expect(result.budget).toMatchObject({
           budgetId: request.childBudgetId,
           parentBudgetId: root.budget.budgetId,
           rootBudgetId: root.budget.budgetId,
@@ -233,6 +233,17 @@ export function registerBudgetLifecycleContractTests(
               kind: "budget_created",
               entryId: expect.any(String),
               sequence: 1,
+              subject: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "initial_allocation",
+                  resourceTypeId: resource.resourceType.resourceTypeId,
+                  amount: 100,
+                  from: null,
+                  to: 1,
+                },
+              ],
               commandId: root.budget.budgetId,
               subjectBudgetId: root.budget.budgetId,
               rootBudgetId: root.budget.budgetId,
@@ -247,6 +258,18 @@ export function registerBudgetLifecycleContractTests(
               kind: "request_approved",
               entryId: expect.any(String),
               sequence: 2,
+              subject: 2,
+              parent: 1,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "child_grant",
+                  resourceTypeId: resource.resourceType.resourceTypeId,
+                  amount: 40,
+                  from: 1,
+                  to: 2,
+                },
+              ],
               commandId: request.commandId,
               subjectBudgetId: request.childBudgetId,
               parentBudgetId: root.budget.budgetId,
@@ -257,6 +280,24 @@ export function registerBudgetLifecycleContractTests(
               kind: "budget_settlement_recorded",
               entryId: expect.any(String),
               sequence: 3,
+              subject: 2,
+              cause: { kind: "command" },
+              movements: [
+                {
+                  reason: "consumption",
+                  resourceTypeId: resource.resourceType.resourceTypeId,
+                  amount: 25,
+                  from: 2,
+                  to: null,
+                },
+                {
+                  reason: "settlement_return",
+                  resourceTypeId: resource.resourceType.resourceTypeId,
+                  amount: 15,
+                  from: 2,
+                  to: 1,
+                },
+              ],
               commandId: "40000000-0000-0000-0000-000000000101",
               subjectBudgetId: request.childBudgetId,
               budgetId: request.childBudgetId,

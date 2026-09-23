@@ -26,6 +26,25 @@ try {
 
 Owned remote handles support references, `openBudget`, operation keys and recovery. The SDK captures command input before returning; mutation retries reuse that input and operation key. The adapter preserves bounded retries and reports `uncertain_outcome` when completion cannot be established.
 
+## Inspect a Budget and its lineage
+
+`inspect()` returns the requested Budget's state and the complete history of its root tree from one captured observation. A child state does not describe the root, although history can include sibling and descendant events.
+
+```ts
+const snapshot = await root.inspect();
+
+for (const event of snapshot.history.entries) {
+  console.log(event.sequence, event.subject, event.cause.kind);
+  for (const movement of event.movements) {
+    console.log(movement.reason, movement.from, movement.to);
+  }
+}
+```
+
+`lineageId`, `parentLineageId`, `subject`, `from`, and `to` are scoped to the root tree. They are not global IDs. A `null` endpoint means funding from outside the tree, consumption, or root release according to the movement reason. An `automatic_finalization` cause links an ancestor finalization to the settlement event that caused it.
+
+Remote inspection pages no more than 256 entries at a time, with a 128-page and 30-second SDK limit. The SDK owns cursors and captured-observation lifetime. It returns one complete result or rejects without a partial success. The movement journal remains the quantity authority. `decisionEvidence` is caller data, not authority, and inspection does not run customer Policy.
+
 ## Borrow a PostgreSQL connection
 
 Pass an already connected `pg.Client` or a checked-out `PoolClient`; a `Pool` and arbitrary query providers are rejected. The caller must provision the catalog and a trusted Embedded role with access to the direct procedures, including `validate_resources`. Remote login grants do not imply that access.
@@ -189,7 +208,7 @@ bootstrap principal. The archive contains only `0001-baseline.sql`; development
 databases created from the former migration graph must be recreated.
 The installer supports only fresh installation and exact recheck. It rejects
 incompatible or partial state without repair. Resource definition and configured
-creation use semantic generation 5 and minimum SDK generation 5. Older preview
+creation use semantic generation 6 and minimum SDK generation 6. Older preview
 installations do not match this schema and procedure contract. Prepare a fresh
 database and install the current archive; there is no in-place migration or
 automatic data transfer from an incompatible installation.

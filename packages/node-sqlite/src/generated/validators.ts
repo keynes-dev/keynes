@@ -71,6 +71,16 @@ const definitions: Readonly<Record<string, Schema>> = {
     minimum: 0,
     maximum: 9007199254740991,
   },
+  PositiveAmount: {
+    type: "integer",
+    minimum: 1,
+    maximum: 9007199254740991,
+  },
+  LineageBudgetId: {
+    type: "integer",
+    minimum: 1,
+    maximum: 9007199254740991,
+  },
   ResourceAmount: {
     type: "object",
     additionalProperties: false,
@@ -286,6 +296,193 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
+  BudgetInspectionState: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetId",
+      "parentBudgetId",
+      "rootBudgetId",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      parentBudgetId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/Uuid",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      rootBudgetId: {
+        $ref: "#/$defs/Uuid",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/BudgetResourceProjection",
+        },
+      },
+    },
+  },
+  LineageCause: {
+    oneOf: [
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind"],
+        properties: {
+          kind: {
+            const: "command",
+          },
+        },
+      },
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "eventSequence"],
+        properties: {
+          kind: {
+            const: "automatic_finalization",
+          },
+          eventSequence: {
+            type: "integer",
+            minimum: 1,
+            maximum: 9007199254740991,
+          },
+        },
+      },
+    ],
+  },
+  InitialAllocationMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        const: "initial_allocation",
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        type: "null",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  TransferMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["child_grant", "settlement_return"],
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  ConsumptionOrReleaseMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resourceTypeId", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["consumption", "root_release"],
+      },
+      resourceTypeId: {
+        $ref: "#/$defs/Uuid",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        type: "null",
+      },
+    },
+  },
+  InspectionMovement: {
+    oneOf: [
+      {
+        $ref: "#/$defs/InitialAllocationMovement",
+      },
+      {
+        $ref: "#/$defs/TransferMovement",
+      },
+      {
+        $ref: "#/$defs/ConsumptionOrReleaseMovement",
+      },
+    ],
+  },
+  LineageEvidence: {
+    type: "object",
+    additionalProperties: false,
+    required: ["subject", "cause", "movements"],
+    properties: {
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
+        },
+      },
+    },
+  },
   AvailabilityDenialReason: {
     type: "object",
     additionalProperties: false,
@@ -319,6 +516,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       "kind",
       "entryId",
       "sequence",
+      "subject",
+      "cause",
+      "movements",
       "commandId",
       "subjectBudgetId",
       "rootBudgetId",
@@ -333,6 +533,18 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
+        },
       },
       commandId: {
         $ref: "#/$defs/Uuid",
@@ -355,6 +567,10 @@ const definitions: Readonly<Record<string, Schema>> = {
       "kind",
       "entryId",
       "sequence",
+      "subject",
+      "parent",
+      "cause",
+      "movements",
       "commandId",
       "subjectBudgetId",
       "parentBudgetId",
@@ -370,6 +586,21 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parent: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
+        },
       },
       commandId: {
         $ref: "#/$defs/Uuid",
@@ -398,6 +629,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       "kind",
       "entryId",
       "sequence",
+      "subject",
+      "cause",
+      "movements",
       "commandId",
       "subjectBudgetId",
       "parentBudgetId",
@@ -412,6 +646,18 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
+        },
       },
       commandId: {
         $ref: "#/$defs/Uuid",
@@ -442,6 +688,9 @@ const definitions: Readonly<Record<string, Schema>> = {
       "kind",
       "entryId",
       "sequence",
+      "subject",
+      "cause",
+      "movements",
       "commandId",
       "subjectBudgetId",
       "budgetId",
@@ -459,6 +708,18 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/InspectionMovement",
+        },
       },
       commandId: {
         $ref: "#/$defs/Uuid",
@@ -769,7 +1030,7 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: ["budget", "history"],
     properties: {
       budget: {
-        $ref: "#/$defs/BudgetProjection",
+        $ref: "#/$defs/BudgetInspectionState",
       },
       history: {
         $ref: "#/$defs/BudgetHistory",
@@ -786,7 +1047,8 @@ const definitions: Readonly<Record<string, Schema>> = {
   },
   HistoryCursor: {
     type: "string",
-    pattern: "^khc_v1_[A-Za-z0-9_-]{43}$",
+    maxLength: 56,
+    pattern: "^khc_v2_[0-9a-f]{32}_[1-9][0-9]{0,15}$",
   },
   RemoteMutationName: {
     enum: ["defineResources", "createBudget", "requestBudget", "settleBudget"],
@@ -951,6 +1213,52 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     },
   },
+  RemoteBudgetInspectionProjection: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "budgetReference",
+      "lineageId",
+      "parentLineageId",
+      "depth",
+      "lifecycle",
+      "resources",
+    ],
+    properties: {
+      budgetReference: {
+        $ref: "#/$defs/BudgetReference",
+      },
+      lineageId: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parentLineageId: {
+        oneOf: [
+          {
+            $ref: "#/$defs/LineageBudgetId",
+          },
+          {
+            type: "null",
+          },
+        ],
+      },
+      depth: {
+        $ref: "#/$defs/Amount",
+      },
+      lifecycle: {
+        type: "string",
+        enum: ["active", "settling", "settled"],
+      },
+      resources: {
+        type: "array",
+        minItems: 1,
+        maxItems: 64,
+        uniqueItems: true,
+        items: {
+          $ref: "#/$defs/RemoteBudgetResourceProjection",
+        },
+      },
+    },
+  },
   RemoteAvailabilityDenialReason: {
     type: "object",
     additionalProperties: false,
@@ -978,16 +1286,117 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
     ],
   },
+  RemoteInitialAllocationMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resource", "amount", "from", "to"],
+    properties: {
+      reason: {
+        const: "initial_allocation",
+      },
+      resource: {
+        type: "string",
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        type: "null",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  RemoteTransferMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resource", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["child_grant", "settlement_return"],
+      },
+      resource: {
+        type: "string",
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+    },
+  },
+  RemoteConsumptionOrReleaseMovement: {
+    type: "object",
+    additionalProperties: false,
+    required: ["reason", "resource", "amount", "from", "to"],
+    properties: {
+      reason: {
+        enum: ["consumption", "root_release"],
+      },
+      resource: {
+        type: "string",
+        pattern: "^[a-z][a-z0-9_]{0,62}$",
+      },
+      amount: {
+        $ref: "#/$defs/PositiveAmount",
+      },
+      from: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      to: {
+        type: "null",
+      },
+    },
+  },
+  RemoteInspectionMovement: {
+    oneOf: [
+      {
+        $ref: "#/$defs/RemoteInitialAllocationMovement",
+      },
+      {
+        $ref: "#/$defs/RemoteTransferMovement",
+      },
+      {
+        $ref: "#/$defs/RemoteConsumptionOrReleaseMovement",
+      },
+    ],
+  },
   RemoteBudgetCreatedHistoryEntry: {
     type: "object",
     additionalProperties: false,
-    required: ["kind", "sequence", "resources"],
+    required: [
+      "kind",
+      "sequence",
+      "subject",
+      "cause",
+      "movements",
+      "resources",
+    ],
     properties: {
       kind: {
         const: "budget_created",
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/RemoteInspectionMovement",
+        },
       },
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
@@ -997,13 +1406,36 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteRequestApprovedHistoryEntry: {
     type: "object",
     additionalProperties: false,
-    required: ["kind", "sequence", "resources"],
+    required: [
+      "kind",
+      "sequence",
+      "subject",
+      "parent",
+      "cause",
+      "movements",
+      "resources",
+    ],
     properties: {
       kind: {
         const: "request_approved",
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      parent: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/RemoteInspectionMovement",
+        },
       },
       resources: {
         $ref: "#/$defs/RemoteResourceEnvelope",
@@ -1016,13 +1448,25 @@ const definitions: Readonly<Record<string, Schema>> = {
   RemoteRequestDeniedHistoryEntry: {
     type: "object",
     additionalProperties: false,
-    required: ["kind", "sequence", "reasons"],
+    required: ["kind", "sequence", "subject", "cause", "movements", "reasons"],
     properties: {
       kind: {
         const: "request_denied",
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/RemoteInspectionMovement",
+        },
       },
       reasons: {
         type: "array",
@@ -1043,6 +1487,9 @@ const definitions: Readonly<Record<string, Schema>> = {
     required: [
       "kind",
       "sequence",
+      "subject",
+      "cause",
+      "movements",
       "newlyKnown",
       "unresolvedResources",
       "lifecycle",
@@ -1054,6 +1501,18 @@ const definitions: Readonly<Record<string, Schema>> = {
       },
       sequence: {
         $ref: "#/$defs/Amount",
+      },
+      subject: {
+        $ref: "#/$defs/LineageBudgetId",
+      },
+      cause: {
+        $ref: "#/$defs/LineageCause",
+      },
+      movements: {
+        type: "array",
+        items: {
+          $ref: "#/$defs/RemoteInspectionMovement",
+        },
       },
       newlyKnown: {
         type: "array",
@@ -1306,10 +1765,13 @@ const definitions: Readonly<Record<string, Schema>> = {
   GetBudgetHistoryPageResult: {
     type: "object",
     additionalProperties: false,
-    required: ["budgetReference", "entries", "nextCursor"],
+    required: ["budgetReference", "budget", "entries", "nextCursor"],
     properties: {
       budgetReference: {
         $ref: "#/$defs/BudgetReference",
+      },
+      budget: {
+        $ref: "#/$defs/RemoteBudgetInspectionProjection",
       },
       entries: {
         type: "array",

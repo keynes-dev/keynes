@@ -44,10 +44,10 @@ import {
 } from "./validators.js";
 
 export const CONTRACT_DIGEST =
-  "58fbd93b13e5efd6258916f449e9de91f4a881c4707482bc046b05125f86cd13";
+  "8877d5eb086a2304a61e7983c02e9ca2bfa42d4f8d692cdedc5c9d94591cffbe";
 
 export const REMOTE_PROCEDURES_DIGEST =
-  "22e7b3c80e526694f87f9872bed0645bab4e80d7f472669191354afbe7f2d327";
+  "bff2d60270987fda182a690e028202bfa9c826590b3cc6557f891ec004dd1d9c";
 export const REMOTE_CONTRACT = {
   semanticGeneration: 6,
   minimumSdkGeneration: 6,
@@ -104,7 +104,7 @@ export const REMOTE_CONTRACT = {
     {
       method: "getBudgetHistoryPage",
       target: "keynes.remote_get_budget_history_page",
-      revision: 3,
+      revision: 4,
       mode: "read",
       input: "GetBudgetHistoryPageQuery",
       output: "GetBudgetHistoryPageResult",
@@ -158,6 +158,7 @@ const resultFieldRank = new Map(
     "parentBudgetReference",
     "childBudgetReference",
     "path",
+    "reason",
     "remoteProceduresDigest",
     "resource",
     "resourceType",
@@ -177,11 +178,16 @@ const resultFieldRank = new Map(
     "minimumSdkGeneration",
     "procedures",
     "sequence",
+    "subject",
+    "parent",
+    "cause",
+    "movements",
     "commandId",
     "definition",
     "amount",
     "definitions",
     "amounts",
+    "from",
     "subjectBudgetId",
     "budgetId",
     "newlyKnown",
@@ -189,12 +195,15 @@ const resultFieldRank = new Map(
     "childBudgetId",
     "reasons",
     "rootBudgetId",
-    "depth",
     "entries",
+    "lineageId",
     "nextCursor",
+    "parentLineageId",
+    "depth",
     "subtreeObservedUsage",
     "target",
     "revision",
+    "to",
     "unit",
     "accountingBehavior",
     "definitionDigest",

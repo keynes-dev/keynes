@@ -1318,6 +1318,7 @@ export const productionRuntime: PostgresqlSystemRuntime = {
         "exec",
         "vitest",
         "run",
+        "--maxWorkers=1",
         ...(selected
           ? ["--config", join(REPOSITORY_ROOT, "packages/sdk/vitest.config.ts")]
           : []),
