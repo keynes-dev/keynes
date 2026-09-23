@@ -4,46 +4,11 @@ Use stock Spec Kit 1.0.4 with the Codex integration. Linear owns scheduling and
 current issue status; Spec Kit artifacts own requirements, plans, tasks, and
 acceptance evidence; GitHub owns PR review, CI, and merge.
 
-## Adopted request and runtime boundary
+## Governing contracts
 
-[ADR-0013](adr/0013-application-owned-policies.md), [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md), [ADR-0015](adr/0015-direct-policy-decisions-and-command-result-lookup.md), and constitution 14.0.0 adopt application-owned Policy decisions and separate SQLite/PostgreSQL accounting implementations outside the SDK. Customers construct typed requests directly or through optional SDK Policy middleware; Keynes validates and atomically enforces permissions, Budget constraints, quantities, allocation, settlement, and replay. Caller decision evidence does not prove policy execution or grant authority.
+Follow [product commitments](product.md#product-commitments), [runtime architecture](architecture.md), and the [constitution](../.specify/memory/constitution.md). Product documentation owns release scope; architecture owns runtime, CLI, installation, and generated-type boundaries. [Linear](https://linear.app/keynes) owns roadmap sequencing.
 
-KEY-114 retired managed SQL Policies and added bounded caller evidence to the
-request contract. KEY-96 implements explicit runtime/package separation; its acceptance record tracks final qualification. Customer Policy definitions,
-optional toolkit contracts, configuration, and model integration remain
-separate from authoritative allocation. No mandatory policy callback or
-transaction manager is introduced; policy-free requests remain valid.
-
-The existing SQLite/native PostgreSQL commands and required CI check names
-remain the executable contract. Retain native concurrency, permissions,
-caller-owned transaction coverage, fail-closed change classification, and
-explicit package/deployment qualification. Preserve the ordinary request,
-evidence, replay, and transaction tests that replaced managed Policy coverage.
-
-First Local remains private, ephemeral Node SQLite. KEY-122 owns later cross-authority accounting amendments; KEY-123 owns durable Node Local recovery and KEY-124 owns delegation/reconciliation required for Cloud. KEY-116/117/118 remain required Local tooling with optional per-workflow use; KEY-119/120 are required Cloud configuration/editor capabilities. KEY-115 model exploration and KEY-125 later shared HTTP evaluation add no first-release gate. See [product commitments](product.md#policy-tooling-and-release-scope) for the capability boundaries and [Linear](https://linear.app/keynes) for current roadmap sequencing.
-
-Reconcile conflicting active feature artifacts when resumed, including KEY-85 lifecycle work, KEY-96 packages and KEY-108 catalog tooling. Preserve historical specifications, ADR bodies and acceptance records at their original revisions. Do not relabel historical PGlite or managed Policy evidence as qualification of this target. Numeric semantics remain unchanged; runtime design must justify range/rounding against product needs.
-
-## CLI and generated types
-
-The private `apps/cli` archive is `@keynes/cli` and exposes `keynes install --config <path>`. It replaces `keynes-postgresql` and delegates installation to `@keynes/postgres/install`. KEY-108 still owns Resource catalog discovery, application type generation, definition deployment and catalog compatibility commands.
-
-Customer evaluation and hosted evaluator deployments are separate from database
-Resource provisioning. The runtime has no managed Policy
-catalog/compiler/evaluator. These changes do not authorize automatic database
-upgrades.
-
-That installer packages one `0001-baseline.sql` for fresh databases. An exact
-reinstall is read-only; historical, partial, drifted, or profile-mismatched
-targets fail closed. Recreate development databases rather than treating the
-baseline as an upgrade or downgrade path.
-
-Do not confuse repository command-type generation from canonical contracts with
-application binding generation from a selected remote catalog. Discovery and checks
-must not write remote definitions. Definition deployment and database installation
-are explicit operations with separate acceptance; neither is a generic schema sync.
-Complete Hosted onboarding requires KEY-108, while KEY-6 can independently qualify
-baseline continuity using manually supplied declarations.
+Reconcile conflicting active feature artifacts when resumed. Preserve historical specifications, ADR bodies and acceptance records at their original revisions; historical PGlite or managed Policy evidence cannot qualify the current target. Preserve the tests and qualification gates described under [verification](#verification-and-engineering-methods).
 
 ## Select and prepare a feature
 
@@ -100,7 +65,7 @@ other secrets in fixtures, generated files, logs, prompts, or acceptance evidenc
 
 Record evidence as proposed, implemented, verified, failed, skipped, or `NOT RUN`.
 Tie every verification claim to the exact source revision, command, environment,
-and result. A historical or narrower run cannot qualify a later or broader target.
+result, and relevant digests in feature acceptance evidence. A historical or narrower run cannot qualify a later or broader target.
 
 Use `$speckit-constitution` for a constitutional amendment. State the rationale,
 apply the semantic version rule in the constitution, review dependent guidance and
@@ -163,39 +128,17 @@ relevant concurrency coverage; final archive qualification cannot absorb deferre
 feature tests. See [product](product.md), [architecture](architecture.md), and the
 [constitution](../.specify/memory/constitution.md) for governing constraints.
 
-Record the source revision, commands, results, and relevant digests in feature
-acceptance evidence. Distinguish failed, skipped, and NOT RUN lanes. Passing unrelated
-CI or inspecting code does not establish runtime behavior.
+### Focused feedback
 
-### KEY-91 feedback command correction
+- `pnpm test:local` runs SDK source tests without package preparation or services.
+- `pnpm test:remote` runs native PostgreSQL feedback, defaults to all modes, and accepts explicit `--mode` selection.
+- `pnpm test:embedded` runs native PostgreSQL feedback without poolers.
 
-KEY-91 provides focused feedback using existing tests and runners. The reduction and local acceptance are complete in
-[the feature task list](features/key-91-make-local-hosted-and-embedded-testing-independently/tasks.md). The commands are `pnpm test:local`, `pnpm test:remote`, and
-`pnpm test:embedded`. Local selects existing SDK source tests without package
-preparation or services. Native selections reuse the existing PostgreSQL runner.
-Remote defaults to all modes and permits explicit `--mode` selection; Embedded
-starts zero poolers. Results use ordinary test output and state their scope.
-These are feedback commands, not a substitute for exact-archive acceptance.
+Native feedback uses source adapters and the source installer through the existing Docker runner with loopback publication; OpenSSL supplies disposable TLS certificates. See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md) and [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md) for selection and prerequisites.
 
-Remote and Embedded feedback use source adapters and the source PostgreSQL installer, installing each ordinary fixture once. Full native acceptance uses the selected SDK/PostgreSQL archives for public owned and borrowed calls, plus a separately installed CLI archive for executable tests. It covers verified TLS, caller transactions and installation refusal/no-op behavior. Both paths reuse the Docker runner with explicit loopback publication. OpenSSL creates certificates for its disposable TLS fixture. The historical Testcontainers pilot remains removed.
+Feedback does not replace [exact-archive qualification](#qualification), including verified TLS, caller transactions and installation refusal/no-op checks. Installed owned/borrowed calls do not establish full Embedded recovery or managed Hosted readiness. Actual Hosted remains `NOT RUN`; `pnpm test:hosted` reports its unavailable reason and exits 1 without acquiring resources. These commands authorize neither publication nor live Hosted execution. Implementation history and revision-scoped results belong in the [acceptance record](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md).
 
-SDK package qualification and the paired gate remain separate acceptance commands. KEY-96 adds exact installed public owned/borrowed PostgreSQL coverage; that does not qualify full Embedded recovery or a managed Hosted product. Actual Hosted remains NOT RUN pending its product environment and operating contract. The Hosted command prints its unavailable reason and exits 1 without acquiring resources.
-
-See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md)
-for target selection and the [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md)
-for repeatable checks. Current and historical results are distinguished in
-[acceptance.md](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md);
-the final reduction section records the verified candidate. No publication or live Hosted
-execution is authorized by these contributor commands.
-
-For incremental deployment work, shared scenarios own common semantics, fixtures
-own target setup/cleanup, and package-owned boundary tests cover lifecycle,
-authentication/transport and caller transactions. Extend existing adapters when
-concrete products land; extract shared setup when real callers need the same
-lifecycle. See KEY-91's [development model](features/key-91-make-local-hosted-and-embedded-testing-independently/plan.md#development-as-modes-mature).
-Deleting runner machinery must preserve or explicitly defer its product assertions,
-as recorded in the feature's research document. Fewer lines alone do not prove
-that future development avoids duplicated behavior or setup.
+Shared scenarios own common semantics, fixtures own setup/cleanup, and package tests own lifecycle, authentication/transport and caller transactions. Extend adapters for concrete products; share setup when callers need the same lifecycle. Removing runner machinery must preserve or explicitly defer its product assertions. See the [development model](features/key-91-make-local-hosted-and-embedded-testing-independently/plan.md#development-as-modes-mature).
 
 ### PR correctness and explicit qualification
 
