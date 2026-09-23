@@ -170,3 +170,55 @@ The read-only Phase 7 Ponytail review found one redundant partial digest table. 
 - GitHub settings inspection or change, push, pull request update, merge and branch deletion: `NOT RUN`
 
 The local history checks prove that the removed bytes remain in the named commit and its locally visible origin-tracking ancestry. They do not prove network availability, public permissions or future hosted retention after a history rewrite.
+
+## Phase 8 source-candidate qualification
+
+**Recorded:** `2026-09-23T23:08:46Z`
+
+**Source revision S:** `af5a89fd79cda7f643d25f8e3affcf6ceb4a40c9`
+
+**Base and merge base:** `origin/main` at `d030ba2ff11601d26b7c83d2e2c85c42840c1bbc`; `git merge-base` returned the same revision.
+
+**Environment:** Git 2.48.1, Node.js 26.5.0, pnpm 11.21.0, Specify CLI 1.0.4 with Python 3.12.4, macOS 26.5.2 on arm64.
+
+The complete `d030ba2ff11601d26b7c83d2e2c85c42840c1bbc..af5a89fd79cda7f643d25f8e3affcf6ceb4a40c9` diff contains 547 files: 27 added, 30 modified and 490 deleted. The text diff has 2,974 insertions and 118,244 deletions, with 15 deleted binary evidence files. The deletions comprise ADR-0008 and the previously recorded 489 files in 36 historical feature directories.
+
+### Final local commands and outcomes
+
+| Command or check                                                                                                                                                           | Result                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `git rev-parse HEAD`, `git rev-parse origin/main`, and `git merge-base HEAD origin/main`                                                                                   | Passed: S and the requested base/merge-base matched the exact revisions above                                                                |
+| `git diff --shortstat d030ba2ff11601d26b7c83d2e2c85c42840c1bbc..af5a89fd79cda7f643d25f8e3affcf6ceb4a40c9` and name-status/numstat counts                                   | Passed: 547 files; 27 added, 30 modified, 490 deleted; 2,974 text insertions, 118,244 text deletions and 15 binary deletions                 |
+| `pnpm format`                                                                                                                                                              | Passed: 326 files                                                                                                                            |
+| `pnpm format:docs`                                                                                                                                                         | Passed: 53 files                                                                                                                             |
+| `SPECIFY_FEATURE_DIRECTORY=docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit .specify/scripts/bash/check-prerequisites.sh --json --paths-only` | Passed: exact branch, feature directory, specification, plan and task list selected                                                          |
+| `specify version` and `specify integration status --json`                                                                                                                  | Passed: CLI 1.0.4; Codex and Spec Kit manifests readable; 22 tracked managed files; 0 missing, modified, invalid or unchecked manifest files |
+| Inline Python current-tree Markdown validator over `README.md`, `docs/`, `packages/`, `apps/`, `.github/` and `AGENTS.md`                                                  | Passed: 52 Markdown files, 145 local links, 0 missing and 0 links to removed feature directories                                             |
+| Repository-local Markdown scan over `README.md`, `docs/`, `packages/`, `apps/`, `.github/` and `AGENTS.md` for prohibited nonpublic workflow vocabulary                    | Passed: 0 matches                                                                                                                            |
+| `node scripts/feature-retention-pilot.ts`                                                                                                                                  | Passed: merge-commit retention and exact bytes; squash/rebase negative controls; shallow recovery; permanent relative-link rejection         |
+| `pnpm test:repository`                                                                                                                                                     | Passed: 3 files, 65 tests, including the retention pilot                                                                                     |
+| `pnpm check:repo`                                                                                                                                                          | Passed: generation; 12 quality/type tasks; 322 dependency files; 5 existing lint warnings and 0 errors                                       |
+| `pnpm test:pr`                                                                                                                                                             | Passed: repository 65, runner 201, database 52, SDK 288, PostgreSQL 170, SQLite 204, Policy 114 plus 5 Node tests and CLI 2; 1,101 total     |
+
+The direct pilot produced fixture commits S `e713f40b8825229cb4a7a42a8ac525917d535a7a`, E `629a2644039881036803879bb60fb95ead1b28ec`, D `b58a806b2571e2928fa47ca44d574f7d25e666cb` and M `98d80f25adb23f49cda14e6b8f16f83dfbba8d26`. Its fresh main-only clone returned `pilot-ok`; original E was unavailable after squash and rebase controls; a depth-one clone could not read E before `--unshallow` and matched all bytes afterward; the deleted relative link was rejected.
+
+The current `docs/features/` tree contains only `COR-131-design-permanent-documentation-and-branch-only-spec-kit`. All 489 historical paths remain readable at `24c0adea5e63a61f51094db222253916329faef1`; the retained tree manifest SHA-256 remains `de2aa6cedbfd2d13e4ab6cb7039929fae195093a6e10322aea5a82a799bc9efc`. The byte-level sample at `key-80-make-the-journal-authoritative-for-quantities/spec.md` remains `5965f276c3f6862d216701496388e354bff715bb09b1ff4db998cd6b8c3debb2`.
+
+### Review and correction history
+
+The Phase 6 correctness review verified temporary-fixture confinement, merge ancestry, exact-byte retrieval, independent negative controls and cleanup. Its Ponytail review removed redundant assertion and link machinery while retaining fresh-clone squash and rebase controls. The Phase 7 audit found five missing permanent contracts: PostgreSQL credential administration, native fixture behavior and the Testcontainers rationale, wider exact journal aggregation, retry timing, and SDK input-capture/failure behavior. Those owners were corrected and their focused provider-free tests passed before S. The Phase 7 Ponytail review removed a redundant partial digest table while retaining all-path reachability and the complete manifest digest.
+
+The final parent correctness review reconciled the complete diff with the specification, ownership contract, phase evidence and task state. It found no unresolved requirement, live dependency on the active feature directory, unsupported behavior claim or unowned documentation topic. The final read-only Ponytail review covered the complete feature diff plus this evidence update and returned `Lean already. Ship.` with no finding.
+
+### Final evidence boundaries
+
+- Native PostgreSQL execution, including live credential-administration behavior: `NOT RUN`
+- Exact archive/package consumer qualification and package publication: `NOT RUN`
+- External PostgreSQL target: `NOT RUN`
+- Hosted service/provider execution and hosted CI: `NOT RUN`
+- Public immutable-link HTTP read-back and public-repository fresh-clone retention: `NOT RUN`
+- GitHub settings inspection or change, push, pull-request creation/update, merge and branch deletion: `NOT RUN`
+- Evidence commit E: this record is the content prepared for E; its full hash is recorded only after commit, outside E
+- Deletion commit D, CI revision C and merge commit M for COR-131: `NOT RUN`
+
+This qualification covers source revision S only. The acceptance and task edits that record it are later uncommitted evidence preparation and do not change the qualified product, documentation or repository behavior. Any source change requires affected checks again.

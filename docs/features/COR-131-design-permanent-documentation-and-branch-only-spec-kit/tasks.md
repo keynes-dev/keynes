@@ -140,10 +140,10 @@
 
 **Goal**: Produce a complete, reviewable candidate while preserving the current feature plan at a pinned commit before its eventual deletion.
 
-- [ ] T056 Update final acceptance evidence and completed task state in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/`
-- [ ] T057 Run final qualification for the complete repository `.` diff and record every NOT RUN lane in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/acceptance.md`
-- [ ] T058 Run final correctness and read-only Ponytail reviews over repository `.` and resolve accepted findings
-- [ ] T059 Commit final planning/evidence revision E for `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/`
+- [x] T056 Update final acceptance evidence and completed task state in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/`
+- [x] T057 Run final qualification for the complete repository `.` diff and record every NOT RUN lane in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/acceptance.md`
+- [x] T058 Run final correctness and read-only Ponytail reviews over repository `.` and resolve accepted findings
+- [x] T059 Commit final planning/evidence revision E for `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/`
 - [ ] T060 Prepare immutable artifact links and exact deletion commit D for `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/` without pushing, changing GitHub settings or merging
 
 **Checkpoint**: The branch is ready for explicit publication/settings/merge authorization. Hosted settings inspection, configuration, push, PR, merge and branch deletion are not claimed until executed.
