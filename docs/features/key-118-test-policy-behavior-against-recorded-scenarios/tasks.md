@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: All implementation tasks are unstarted. The user requested a stop before implementation. A checked planning checklist does not complete any task below.
+**Status**: Implementation is in progress. Phase 1 setup is complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -12,8 +12,8 @@
 
 **Purpose**: Confirm accepted inputs and select the exact feature before edits.
 
-- [ ] T001 Recheck the exact branch, KEY-117/126 contracts and explicit feature selection in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/plan.md`; run stock prerequisites and retain the starting revision in the new `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
-- [ ] T002 Confirm current tests, package exports and clean build order in `packages/policy/package.json`, `packages/policy/tsconfig.json` and `turbo.json`; record required source-only versus public-import commands in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md` without introducing a new runner.
+- [x] T001 Recheck the exact branch, KEY-117/126 contracts and explicit feature selection in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/plan.md`; run stock prerequisites and retain the starting revision in the new `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T002 Confirm current tests, package exports and clean build order in `packages/policy/package.json`, `packages/policy/tsconfig.json` and `turbo.json`; record required source-only versus public-import commands in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md` without introducing a new runner.
 
 **Checkpoint**: Scope still fits examples/tests only. Review this phase read-only with Ponytail, evaluate findings and commit its evidence before advancing.
 
