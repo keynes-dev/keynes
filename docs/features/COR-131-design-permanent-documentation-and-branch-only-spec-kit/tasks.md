@@ -123,14 +123,14 @@
 
 **Independent Test**: No active source, test or permanent document links to a removed directory; every mapped topic is reachable from permanent docs; each directory remains retrievable at its retained commit.
 
-- [ ] T048 [US3] Expand the 36-row inventory in `migration-map.md` into verified section-level dispositions where required for removal
-- [ ] T049 [US3] Repair links under `README.md`, `docs/`, `packages/`, `apps/`, `.github/`, and `AGENTS.md` that would break when feature directories leave HEAD
-- [ ] T050 [US3] Verify every retained behavior, rationale, example and essential evidence item in `docs/features/key-*/` has a permanent owner or explicit retirement reason
-- [ ] T051 [US3] Remove the approved historical `docs/features/key-*` directories from the latest checkout
-- [ ] T052 [US3] Run full formatting, link, repository and provider-free checks over the post-removal repository `.`
-- [ ] T053 [US3] Verify historical bytes for removed `docs/features/key-*/` remain reachable from the pre-removal commit
-- [ ] T054 [US3] Run a read-only Ponytail review of the Phase 7 repository diff for `docs/features/key-*/` and repaired permanent links
-- [ ] T055 [US3] Commit the reviewed Phase 7 removal of `docs/features/key-*/` and repaired permanent links
+- [x] T048 [US3] Expand the 36-row inventory in `migration-map.md` into verified section-level dispositions where required for removal
+- [x] T049 [US3] Repair links under `README.md`, `docs/`, `packages/`, `apps/`, `.github/`, and `AGENTS.md` that would break when feature directories leave HEAD
+- [x] T050 [US3] Verify every retained behavior, rationale, example and essential evidence item in `docs/features/key-*/` has a permanent owner or explicit retirement reason
+- [x] T051 [US3] Remove the approved historical `docs/features/key-*` directories from the latest checkout
+- [x] T052 [US3] Run full formatting, link, repository and provider-free checks over the post-removal repository `.`
+- [x] T053 [US3] Verify historical bytes for removed `docs/features/key-*/` remain reachable from the pre-removal commit
+- [x] T054 [US3] Run a read-only Ponytail review of the Phase 7 repository diff for `docs/features/key-*/` and repaired permanent links
+- [x] T055 [US3] Commit the reviewed Phase 7 removal of `docs/features/key-*/` and repaired permanent links
 
 **Checkpoint**: The latest checkout contains permanent documentation and no migrated historical feature directories.
 

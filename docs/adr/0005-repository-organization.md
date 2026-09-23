@@ -74,7 +74,7 @@ The generated PostgreSQL migration attribution comment remains byte-identical af
 
 ## Links
 
-- [Feature specification](../features/0010-repository-organization/spec.md)
-- [Implementation plan](../features/0010-repository-organization/plan.md)
+- [Historical feature specification](https://github.com/keynes-dev/keynes/blob/e0e85a511024975312cd8b9221c8e6c817272500/docs/features/0010-repository-organization/spec.md)
+- [Historical implementation plan](https://github.com/keynes-dev/keynes/blob/e0e85a511024975312cd8b9221c8e6c817272500/docs/features/0010-repository-organization/plan.md)
 - [Runtime architecture](../architecture.md)
 - [Workflow](../workflow.md)

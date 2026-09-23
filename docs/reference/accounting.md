@@ -63,6 +63,8 @@ initial root funding = live quantity + consumed quantity + released quantity
 
 Internal grants and returns cancel from the tree equation. A fully settled tree has no live quantity. Reusable use and deficits are evidence, so neither changes this equation.
 
+Each command amount and each projected quantity is a non-negative safe integer. Journal aggregation uses exact, wider intermediate arithmetic. It does not add gross inbound or outbound movement in a signed 64-bit accumulator before subtracting them. A Budget can therefore grant its full quantity to a child, receive the unused quantity, and repeat that cycle after total historical movement exceeds the signed 64-bit range. The live result remains valid as long as the final projected quantity stays in the supported safe-integer range.
+
 ## Inspection fields
 
 Each Budget Resource projection separates quantity, use, and evidence:

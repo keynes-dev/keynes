@@ -97,7 +97,7 @@ Lookup rechecks current authorization and performs no retry or mutation. `not_fo
 
 ## Failures and lifecycle
 
-Promise-returning facade methods report validation, lifecycle, and operation failures by rejection; they do not synchronously throw because a getter or proxy failed during input capture. Factories and `createOperationKey()` remain synchronous.
+Promise-returning facade methods copy their command inputs before yielding. They reject accessor-backed command fields without invoking their getters. A supported option getter is read once during capture. If it throws, or if a runtime executor throws synchronously, the method returns a rejected Promise instead of throwing from the call. Factories and `createOperationKey()` remain synchronous.
 
 Public errors have separate owners:
 

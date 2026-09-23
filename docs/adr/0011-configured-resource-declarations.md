@@ -67,8 +67,8 @@ provisioning product is implied.
 
 ## Evidence boundary
 
-[The specification](../features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md)
-owns detailed acceptance. The decision is implemented in the current KEY-78
-source. Historical ADRs, KEY-77 artifacts, and retained evidence keep their
-original revision-specific meaning. The implementation does not add a live
-upgrade path, paid Hosted service claim, or Hosted provisioning product.
+[The historical specification](https://github.com/keynes-dev/keynes/blob/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-78-create-budgets-from-resource-definitions-or-bindings/spec.md)
+owns the acceptance recorded at that revision. The current implementation and
+permanent references own current behavior. Historical ADRs and retained evidence
+keep their original revision-specific meaning. The implementation does not add a
+live upgrade path, paid Hosted service claim, or Hosted provisioning product.

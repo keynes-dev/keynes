@@ -91,9 +91,9 @@ Moving an evidence record does not qualify KEY-53. Each selected record remains 
 
 ## Links
 
-- [Feature specification](../features/key-53-adopt-idiomatic-monorepo/spec.md)
-- [Implementation plan](../features/key-53-adopt-idiomatic-monorepo/plan.md)
-- [Ownership contract](../features/key-53-adopt-idiomatic-monorepo/contracts/ownership.md)
-- [Evidence migration](../features/key-53-adopt-idiomatic-monorepo/evidence-migration.md)
+- [Historical feature specification](https://github.com/keynes-dev/keynes/blob/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-53-adopt-idiomatic-monorepo/spec.md)
+- [Historical implementation plan](https://github.com/keynes-dev/keynes/blob/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-53-adopt-idiomatic-monorepo/plan.md)
+- [Historical ownership contract](https://github.com/keynes-dev/keynes/blob/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-53-adopt-idiomatic-monorepo/contracts/ownership.md)
+- [Historical evidence migration](https://github.com/keynes-dev/keynes/blob/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-53-adopt-idiomatic-monorepo/evidence-migration.md)
 - [Runtime architecture](../architecture.md)
 - [Engineering workflow](../workflow.md)

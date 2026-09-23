@@ -1,9 +1,0 @@
-test_extra_name (test_greet.GreetingTests.test_extra_name) ... ok
-test_missing_name (test_greet.GreetingTests.test_missing_name) ... ok
-test_one_name (test_greet.GreetingTests.test_one_name) ... ok
-test_spaced_name (test_greet.GreetingTests.test_spaced_name) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.059s
-
-OK

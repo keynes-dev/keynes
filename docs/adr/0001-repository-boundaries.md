@@ -110,4 +110,4 @@ KEY-44 implements no Resource, Budget, Policy, settlement, authority, SDK runtim
 - [Product thesis](../product.md)
 - [Runtime architecture](../architecture.md)
 - [Planning and workflow](../workflow.md)
-- [Feature 0001 specification](../features/0001-repository-and-code-architecture/spec.md)
+- [Historical feature specification](https://github.com/keynes-dev/keynes/blob/5744ea80e7a19f007e494f5fc5236bcc450b0bd0/docs/features/0001-repository-and-code-architecture/spec.md)

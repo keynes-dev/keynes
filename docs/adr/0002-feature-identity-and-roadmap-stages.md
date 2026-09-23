@@ -3,6 +3,11 @@
 - **Status:** Superseded by [ADR-0010](0010-upstream-spec-kit-workflow.md)
 - **Date:** 2026-08-22
 
+> **Historical navigation, 2026-09-23:** The feature path recorded below was
+> removed from the latest tree under [ADR-0016](0016-permanent-documentation-and-planning-retention.md).
+> Its exact contents remain available in the
+> [retained revision](https://github.com/keynes-dev/keynes/tree/24c0adea5e63a61f51094db222253916329faef1/docs/features/key-44-define-repository-and-code-architecture).
+
 ## Decision
 
 This decision records an earlier repository workflow. ADR-0010 replaces roadmap stages and the version 1 feature manifest with stock Spec Kit, explicit branch selection and a checkout-local directory pointer.

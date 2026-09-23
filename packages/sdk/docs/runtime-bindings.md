@@ -35,7 +35,9 @@ interface BasicRuntimeSession {
 }
 ```
 
-The two-stage overload is the public source contract. A session must reserve the operation before running `prepare`, capture caller input synchronously, and execute admitted work in its runtime order. This ordering ensures that input reflection cannot start close and strand an untracked command. Calls admitted first drain during close; calls arriving after close begins reject before inspecting input. `close()` is idempotent and returns one shared Promise.
+The two-stage overload is the public source contract. A session must reserve the operation before running `prepare`, copy every command input before yielding, and execute admitted work in its runtime order. Validation inspects property descriptors before reading rejected command shapes, so it rejects accessor-backed amounts, usage, evidence, and Resource fields without invoking their getters. Accepted option values are captured once. If that capture or an executor call throws synchronously, the public facade returns a rejected Promise rather than throwing from the method call.
+
+This ordering ensures that input reflection cannot start close and strand an untracked command. Calls admitted first drain during close; calls arriving after close begins reject before inspecting input. `close()` is idempotent and returns one shared Promise.
 
 `invokeMutation` applies runtime-owned replay behavior. Local SQLite retries one `CommittedResponseLostError` with the same captured command and maps a second lost response to `KeynesSdkError` code `operation_interrupted`. Other failures propagate. Borrowed PostgreSQL owns no transaction retry because the application owns commit and rollback.
 
@@ -45,7 +47,7 @@ The two-stage overload is the public source contract. A session must reserve the
 
 - `assertOpen()` rejects closed work before caller input is read;
 - `prepareResources(definitions)` validates declarations against the durable catalog;
-- `invokeMutation(operation, operationKey, invoke)` owns transport retry and uncertain-outcome handling for one captured remote mutation; and
+- `invokeMutation(operation, operationKey, invoke)` owns transport retry and uncertain-outcome handling for one captured remote mutation; every attempt reuses the same copied command and operation key; and
 - `close()` drains the adapter's admitted procedures and releases only resources it owns.
 
 The SDK adds admission for Policy callbacks around this session. Closing waits for callbacks already accepted by the public facade before it closes the runtime. Concrete pool limits, deadlines, TLS, connection ownership, and retry policy belong to [`@keynes/postgres`](https://github.com/keynes-dev/keynes/blob/main/packages/postgres/README.md).

@@ -34,6 +34,16 @@ Role names use unquoted lowercase PostgreSQL identifiers, must be distinct, and 
 
 The bootstrap identity receives the supported permissions for Resource definition, root creation, Budget reads, requests, and settlement. The application login is mapped to that tenant and principal. Private administration procedures can later register, rotate, disable, inspect, audit, and revoke mappings; secret creation and delivery remain operator-owned.
 
+## Credential administration
+
+A remote mapping stores the login role's PostgreSQL OID and name with one tenant, one principal, and an `enabled`, `disabled`, or `revoked` status. It stores no password or reusable secret. Every public remote wrapper reads `session_user` and requires both the current role OID and role name to match one enabled mapping before it sets transaction-local identity. Recreating a role under the same name gives it a new OID, so calls remain unauthorized until an administrator explicitly registers that new identity.
+
+Only the configured administration role can call the private credential procedures. Registration can restore a stale non-revoked mapping when the old PostgreSQL role no longer exists and the tenant and principal are unchanged. Revocation is terminal for that mapping: registration and enablement cannot restore it, including after the login role is recreated.
+
+`rotate_remote_role_v0006` rotates access to a separately provisioned login. In one administrative transaction, it disables the old mapping and creates an enabled mapping for the new role with the same tenant and principal. After commit, the old role fails its next wrapper call even on an existing pooled session because wrappers revalidate the mapping. A call that passed the identity check before commit may finish.
+
+PostgreSQL password rotation is different from mapping rotation. Changing a role's password affects later authentication but does not terminate sessions that already authenticated. To invalidate Keynes access on existing sessions, disable or revoke the mapping, or rotate the mapping to a new login. Password creation, password rotation, delivery, and connection termination remain operator responsibilities.
+
 ## Install programmatically
 
 ```typescript

@@ -38,6 +38,14 @@ Native lanes require the supported Node.js and pnpm versions, Docker, OpenSSL, a
 
 Native source feedback does not qualify package contents, installed SDK behavior, a registry publication, a managed provider, or production readiness. The paired runner requires a clean, unchanged candidate and a new output directory. It records sanitized reports, environment observations, cleanup, hashes, and `NOT RUN` states in its manifest.
 
+### Native source-feedback fixtures
+
+`pnpm test:remote`, `pnpm test:embedded`, and `pnpm test:ci:postgresql` run source feedback without packing packages or creating an installed consumer. Ordinary database fixtures install the source baseline once. Dedicated installation tests retain exact recheck, no-op, rollback, and packed-CLI coverage.
+
+Each invocation owns distinct Docker networks, containers, databases, roles, clients, and temporary files. Concurrent invocations do not share fixture identity or cleanup. Cancellation stops active children and still runs teardown. A startup, assertion, cancellation, or cleanup failure prevents a passing acceptance record. Cleanup failure invalidates the run even when every assertion passed.
+
+The native lane keeps the existing Docker runner. A Testcontainers pilot added transitive native dependencies that required new build-policy decisions. It also relied on Docker host-binding defaults that can publish services beyond loopback on an uncontrolled daemon. The current runner keeps explicit resource ownership and loopback publication without adding those dependency and host-policy requirements.
+
 CI runs `pnpm test:ci:postgresql` for relevant pull requests. The manual **Database qualification** workflow runs the paired lane and retains its five evidence files for 14 days. Uploaded CI files are temporary; copy essential accepted records into the owning release record before expiry.
 
 ## Exact archive checks
