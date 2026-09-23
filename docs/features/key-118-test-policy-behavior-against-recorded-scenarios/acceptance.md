@@ -243,3 +243,41 @@ Final read-only Ponytail review covered `origin/main` through
 documentation. It found no unnecessary public API, dependency, or runtime
 abstraction. The retained trust-boundary validation and tests are necessary.
 There were no other findings. No publication occurred.
+
+## Review corrections
+
+The correction started from clean revision
+`f0fbf622c00dfef5c8feea2f2bd02af8ce939beb`. A focused test first asserted
+that overriding `requestCap` with `0.5` must fail with
+`invalid_parameter_value` at `/requestCap` under the `type` rule. The run
+failed as intended because the existing number schema accepted that value: 1
+of 17 tests failed with "expected function to throw an error, but it didn't."
+
+Revision `a9227814d4b4b0a99767f06daa1413116f205371` changes only the example
+fixture, its regression tests, and the validation guide. The cap schema is now
+an integer, the retained snapshot identities were regenerated through the
+accepted helpers, and the baseline proposal matches the documented 100-cent
+scenario. The guide describes the implemented state and uses the package-scoped
+SDK command, which does not collect tests from nested worktrees. A final
+read-only Ponytail review found no abstraction, dependency, helper, or test to
+remove.
+
+The exact correction revision was checked in a clean detached worktree under
+`/private/tmp` using Node `v25.9.0`, pnpm `11.21.0`, and macOS `26.5.2` build
+`25F84`.
+
+| Command                                                                                                | Result                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`                                                                       | Passed (exit 0): the frozen lockfile installed 97 packages from the local content-addressable store.                                                                                                                                                                                                                                                                                                        |
+| `CI=true pnpm exec turbo run build --filter='@keynes/policy...'`                                       | Passed (exit 0): 4 build tasks completed for 6 packages in scope.                                                                                                                                                                                                                                                                                                                                           |
+| `CI=true pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1`           | Passed (exit 0): 1 file and 17 tests passed.                                                                                                                                                                                                                                                                                                                                                                |
+| `CI=true pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts --maxWorkers=1` | Passed (exit 0): the intended root file alone ran 28 tests.                                                                                                                                                                                                                                                                                                                                                 |
+| `pnpm exec oxfmt --check` on the three corrected files, then `git diff --check`                        | Passed (exit 0): formatting and whitespace checks passed; the detached worktree remained clean.                                                                                                                                                                                                                                                                                                             |
+| `CI=true pnpm test:pr`                                                                                 | Passed (exit 0): generation, 64 repository tests, 201 selected PostgreSQL feedback tests, 12 quality/typecheck tasks, all 8 provider-free package tasks, dependency checks, and boundaries over 316 files passed. The existing linter reported 5 warnings and no errors. Package suites included database 52, SDK 288, Node SQLite 204, PostgreSQL 170, Policy 114 plus 5 node:test cases, and CLI 2 tests. |
+| `CI=true pnpm test:ci:postgresql`                                                                      | Passed (exit 0): network, certificates, container, readiness, and pooler setup passed; 13 files and 311 tests passed in 60.96 seconds; cleanup passed. A post-run Docker check found no Keynes containers or networks.                                                                                                                                                                                      |
+
+The detached checkout and its empty temporary parent were removed. Other
+worktrees and generated output were untouched. Archive, installed-consumer,
+provider, hosted, release, publication, and customer-data lanes remain NOT RUN.
+This evidence was recorded locally; no push, PR update, or Linear change
+occurred.

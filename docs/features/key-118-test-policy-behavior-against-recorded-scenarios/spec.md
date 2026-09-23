@@ -5,7 +5,7 @@
 **Created**: 2026-09-22
 
 **Status**: Local implementation is complete. Revision
-`8f62bfdf8f7962238b4624c410d4326c6e71f21d` is qualified; archive, hosted,
+`a9227814d4b4b0a99767f06daa1413116f205371` is qualified; archive, hosted,
 release, and publication lanes are NOT RUN.
 
 **Issue**: [KEY-118](https://linear.app/keynes/issue/KEY-118/test-policy-behavior-against-recorded-scenarios)
