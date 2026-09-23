@@ -2,7 +2,7 @@
 
 Declare application settings with JSON Schema, validate explicit initial values, and capture the values used by a policy in an immutable local snapshot. These helpers perform no network, database or filesystem work.
 
-This is a private source workspace for Node.js >=24. The examples use its workspace imports after `pnpm install --frozen-lockfile`; they do not describe a published archive. KEY-117 owns tooling distribution.
+This is a private source workspace for Node.js >=24. The examples use its workspace imports after `pnpm install --frozen-lockfile` and a workspace build; they do not describe a published archive. KEY-117 owns tooling distribution.
 
 ## Declare and use values
 
@@ -52,6 +52,51 @@ Overrides replace whole parameter values. Replacing `{ limit: 10, enabled: true 
 Serialize a validated snapshot with `canonicalize(snapshot)`. Restore parsed JSON against the declaration expected by the application. Restoration checks strict JSON and envelope structure, then digests, exact expected definition and values. It reuses validators retained privately by the declaration and never compiles incoming schemas. With valid structure and digests, a different definition reports `parameter_definition_mismatch`, even if its schemas are unsupported; incorrect digests report `invalid_parameter_snapshot` first. It rejects tampering and incompatible versions without repairing them. Changed initials do not invalidate a snapshot whose definition is unchanged, and restoration never fills values from current initials.
 
 Snapshots contain complete values and schema annotations. Treat them as application data that may contain secrets; decide what to retain or disclose before recording a fixture or decision evidence. A digest proves content identity, not provenance, permission or correct policy execution. Keynes does not execute policy or persist these snapshots.
+
+## Test a Policy directly
+
+An application Policy is an ordinary function. Record every input the Policy
+uses: the complete parameter snapshot, proposal, facts, assessment, expected
+result, and any historical record. Reject incomplete or malformed recordings
+before the Policy or a substitute dependency runs. Use synthetic values or a
+bounded projection for fixtures. Do not put secrets, raw provider answers, or
+customer identifiers in a fixture.
+
+Build the Policy with a retained complete snapshot, call it with a proposal, and
+use native assertions for the exact `prepared`, `rejected`, `review_required`,
+or `failed` result. A direct test does not construct a Budget, invoke an SDK
+wrapper, or normalize synchronous throws or rejected Promises.
+
+```sh
+pnpm exec turbo run build --filter='@keynes/policy...'
+pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1
+node --test packages/policy/test/policy-scenarios.node.ts
+```
+
+The native mock is only an argument and call-count check around the application
+dependency. It is not a provider sandbox. It does not prevent network, file,
+database, clock, or process access in the Policy or dependency under test.
+
+These direct runners establish deterministic behavior for the recorded inputs.
+The SDK tests separately establish how `Budget.request` handles Policy results
+and how the allocation command responds. Live model quality needs application
+evaluation against live inputs. Allocation replay is a Keynes command-receipt
+contract and does not rerun a Policy or a model.
+
+Another native-language runner can reuse a recorded scenario only after it
+agrees on the complete fact schema and result meanings. The fixture does not
+make the TypeScript Policy implementation portable to another language.
+
+## Compare intentional candidates
+
+Keep baseline and candidate expectations literal. An override from cap 100 to
+cap 80 changes the candidate `snapshotId`, not its `definitionId`, and may
+intentionally change the prepared request. A historical `policyRevision`
+identifies Policy code separately from either snapshot identity; candidate runs
+do not edit historical records. For a deliberate broken candidate, evaluate it
+before using `node:assert/strict` equality and assert its `AssertionError` so
+the native expected/actual diagnostic proves sensitivity rather than hiding a
+setup failure.
 
 ## Recorded assessments stay in the application
 

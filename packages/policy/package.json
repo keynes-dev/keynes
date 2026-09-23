@@ -21,8 +21,8 @@
   "scripts": {
     "build": "node scripts/build.ts",
     "prepack": "pnpm build",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run test --maxWorkers=1",
+    "typecheck": "pnpm build && tsc --project tsconfig.json --noEmit",
+    "test": "pnpm build && vitest run test --maxWorkers=1 && node --test test/policy-scenarios.node.ts",
     "test:package": "node test/package/qualify.ts"
   },
   "dependencies": {
