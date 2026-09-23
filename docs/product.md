@@ -1,6 +1,6 @@
 # Keynes: Runtime economics for agents
 
-> **Status:** Adopted product direction. SQLite Local and PostgreSQL enforce accounting while customers compute requests and may attach bounded caller evidence. Managed SQL Policies are retired, and applications select separate runtime packages explicitly. [Linear](https://linear.app/keynes) owns delivery and roadmap status; retained evidence proves only its recorded revision and verification lane.
+> **Status:** Adopted product direction. SQLite Local and PostgreSQL enforce accounting while customers compute requests and may attach bounded caller evidence. Managed SQL Policies are retired, and applications select separate runtime packages explicitly. Retained evidence proves only its recorded revision and verification lane.
 
 ## Thesis
 
@@ -105,23 +105,17 @@ retain separate acceptance, and both are required for the Hosted product experie
 
 ## Policy tooling and release scope
 
-Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran. The following roadmap issues cover optional customer-owned tooling and do not add a Policy runtime to allocation:
+Keynes no longer ships or executes managed Policy definitions. Applications evaluate their own rules and may attach bounded caller evidence to an ordinary request. Evidence is retained for replay and history, but it is neither authorization nor proof that evaluation ran.
 
-- [KEY-116](https://linear.app/keynes/issue/KEY-116) supplies JSON Schema-based typed parameter declarations and local snapshots.
-- [KEY-117](https://linear.app/keynes/issue/KEY-117) supplied optional per-request Policy middleware plus configurable-policy and record helpers. [KEY-126](https://linear.app/keynes/issue/KEY-126) removed its separate preparation API. The [Policy package](../packages/policy/README.md) owns the current contract.
-- [KEY-118](https://linear.app/keynes/issue/KEY-118) supplies fixture-based regression utilities.
+The optional [Policy package](../packages/policy/README.md) owns typed parameters, local snapshots, configurable Policy helpers, portable records and fixture-based regression tools. These are Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly, and optional helpers do not impose a policy language or transaction manager.
 
-These are required Local-preview capabilities, not allocation prerequisites. A workflow may construct requests directly. The SDK callback remains optional per request, and optional helpers do not impose a policy language or transaction manager on allocation.
-
-[KEY-119](https://linear.app/keynes/issue/KEY-119) persisted parameters and [KEY-120](https://linear.app/keynes/issue/KEY-120) a schema-driven editor are required Cloud capabilities. Configuration, evaluation tooling and allocation have separate owners. [KEY-115](https://linear.app/keynes/issue/KEY-115) explores model judgments independently; no production provider integration is required for Local or Cloud.
-
-[KEY-125](https://linear.app/keynes/issue/KEY-125) owns later versioned HTTP evaluation shared across applications, including Keynes Cloud hosting of customer-owned logic. Initial hosting evaluates only and stays outside authoritative Budget accounting. Mandatory evaluation-and-submission is deferred. This work adds no first Local or first Cloud gate.
+Cloud requires persisted parameters and a schema-driven editor, while model assessments remain an independent input. Later versioned HTTP evaluation may let applications share customer-owned logic, including Keynes Cloud hosting. Initial hosting evaluates only and stays outside authoritative Budget accounting; mandatory evaluation-and-submission remains deferred.
 
 ## Later durability and delegation
 
-[KEY-122](https://linear.app/keynes/issue/KEY-122) owns the detailed cross-authority accounting ADR and governing amendments. [KEY-123](https://linear.app/keynes/issue/KEY-123) adds durable Node Local recovery later. [KEY-124](https://linear.app/keynes/issue/KEY-124) delivers PostgreSQL-to-local delegation, active partial surrender and final reconciliation as required Cloud capabilities. Workers, workflows and steps use one Budget model.
+Later work requires a detailed cross-authority accounting ADR before adding durable Node Local recovery or PostgreSQL-to-local delegation with active partial surrender and final reconciliation. Workers, workflows and steps continue to use one Budget model.
 
-This is direction for later work, not a distributed protocol defined here. Current fixed funding and one authority per Budget remain in force until the governing amendment. First Local stays ephemeral and its toolkit gates remain unchanged. [Linear](https://linear.app/keynes) owns current sequence and status; this document defines product commitments.
+This is direction for later work, not a distributed protocol defined here. Current fixed funding and one authority per Budget remain in force until the governing amendment. First Local stays ephemeral and its toolkit gates remain unchanged.
 
 ## Product commitments
 

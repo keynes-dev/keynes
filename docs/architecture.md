@@ -142,7 +142,7 @@ KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authent
 
 `keynes install --config <path>` replaces `keynes-postgresql install --config <path>` with the same JSON configuration and PostgreSQL environment credentials. It supports fresh installation and exact recheck. The remaining catalog workflow belongs to KEY-108.
 
-Only installation is implemented. [Product commitments](product.md#developer-setup-and-remote-onboarding) and [KEY-108](https://linear.app/keynes/issue/KEY-108) own planned catalog commands and their acceptance. SDK command/result types come from central build contracts; application Resource types come from the catalog described [above](#loading-inspection-and-generated-code).
+Only installation is implemented. [Product commitments](product.md#developer-setup-and-remote-onboarding) own planned catalog commands. SDK command/result types come from central build contracts; application Resource types come from the catalog described [above](#loading-inspection-and-generated-code).
 
 Catalog deployment is separate from [database installation](#postgresql-installation) and customer Policy deployment. Definitions are immutable: exact reuse succeeds, conflicts reject, and missing definitions require explicit authorized deployment. Writes must revalidate the catalog; preview grants no authority. Initialization remains read-only, and manual declarations remain supported.
 

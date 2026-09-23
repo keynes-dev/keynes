@@ -2,7 +2,6 @@
 
 - **Date:** 2026-09-19
 - **Status:** Accepted direction; runtime retirement and package separation remain unimplemented
-- **Issue:** [KEY-113](https://linear.app/keynes/issue/KEY-113/document-application-owned-policies-and-the-keynes-request-boundary)
 - **Supersedes in part:** [ADR-0012](0012-postgresql-and-pglite.md) for PGlite Local, one accounting implementation, managed Policy registration/compiler/evaluator and Policy catalog deployment/type-generation requirements; [ADR-0007](0007-direct-postgresql-remote-access.md) for database ownership of Policy decisions
 - **Amends:** [ADR-0006](0006-idiomatic-monorepo.md) for package ownership; adopts SQLite Local again without restoring obsolete APIs or HTTP routing in [ADR-0003](0003-sqlite-and-postgresql.md)
 - **Refined by:** [ADR-0014](0014-policy-middleware-in-budget-requests.md) for one optional SDK-side Policy callback before command submission
@@ -47,7 +46,7 @@ KEY-96 owns separate SDK/runtime packages and the installation CLI boundary. KEY
 
 The PostgreSQL baseline supports fresh installation and exact read-only reinstallation. Incompatible, historical, partial or drifted databases fail closed. No automatic database upgrade, state transfer or old-Policy migration is promised. Applications must revise their policy integration for the breaking API; database installation remains a separate compatibility boundary.
 
-The active product, architecture, constitution and workflow adopt this direction. Linear owns roadmap sequencing and status. Reconcile affected active feature artifacts when resumed; preserve historical specifications, ADR bodies and exact-revision evidence. Existing SQLite/native correctness checks, native permissions/concurrency/caller-transaction coverage, fail-closed change classification and explicit qualification remain in force.
+The active product, architecture, constitution and workflow adopt this direction. Reconcile affected active feature artifacts when resumed; preserve historical specifications, ADR bodies and exact-revision evidence. Existing SQLite/native correctness checks, native permissions/concurrency/caller-transaction coverage, fail-closed change classification and explicit qualification remain in force.
 
 ## Consequences and alternatives
 

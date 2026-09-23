@@ -58,7 +58,7 @@ These bounded outcomes supply the implementation phases in `tasks.md`. W labels 
 
 **Owned output**: Superseding retention ADR; workflow/index/AGENTS/PR template changes; formatter scope and minimal existing-check changes; separately authorized merge configuration and recorded read-back.
 
-**Acceptance**: Local positive/negative pilot passes; a public-safe hosted pilot proves full-clone and pinned-URL retrieval after branch deletion; permanent docs/examples work without feature files. Merge commits retain E; squash/rebase and incompatible queue/linear-history settings are disabled/resolved. Independent approval/required checks remain. Current docs have no private-history dependency. No broad legacy removal bundled here.
+**Acceptance**: Local positive/negative pilot passes; a public-safe hosted pilot proves full-clone and pinned-URL retrieval after branch deletion; permanent docs/examples work without feature files. Merge commits retain E; squash/rebase and incompatible history-rewriting queue or ruleset settings are disabled/resolved. Independent approval/required checks remain. Current docs have no private-history dependency. No broad legacy removal bundled here.
 
 **Prerequisites**: Writing coverage and approved retained history, explicit authorization for external setting changes and hosted pilot actions. Keep adoption incomplete if any gate cannot be proven.
 

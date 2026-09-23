@@ -6,7 +6,7 @@ Status: approved for local implementation. Hosted merge settings and the final m
 
 - Approve the ownership map and a new superseding retention ADR. Reconcile ADR-0009/0010's historical-artifact language without rewriting their original bodies. Keep ADRs in the latest checkout.
 - Resolve the public history baseline through COR-128. A full history clone retains deleted private content too. Deletion is never sanitization. No private planning enters a future-public branch, even temporarily.
-- Inspect repository merge settings, protection/rulesets, merge queues, bypasses and reviewer requirements. Permit merge commits and disable squash/rebase merging on adoption. Required linear history or a queue that rewrites commits is incompatible and must be resolved explicitly.
+- Inspect repository merge settings, protection/rulesets, merge queues, bypasses and reviewer requirements. Permit merge commits and disable squash/rebase merging on adoption. A history-rewriting requirement or queue is incompatible and must be resolved explicitly.
 - Preserve independent approval, required checks and up-to-date candidate review. The author cannot convert a passed automation or their own review into the required independent approval.
 - Keep stock Spec Kit scripts, templates, skills, manifests and explicit selection unchanged. No extension, custom lifecycle runner or automatic cleanup hook is needed.
 
@@ -16,7 +16,7 @@ Status: approved for local implementation. Hosted merge settings and the final m
 2. Commit the implementation candidate S and run the required verification. Record source SHA, command, environment, result, artifacts and limitations. Source-dependent checks refer to S, not the commit that later stores the report.
 3. Review/update permanent documentation using the ownership map. Document every changed behavior and material rationale, repair links, and run examples. If code or normative behavior changes after S, create a new source candidate and repeat affected verification. Do not mark unexecuted lanes passed.
 4. Commit final plans/tasks/reviews/acceptance as E after the applicable gates pass. E records S and any subsequent verified revisions. Include essential public-safe evidence bytes rather than expiring CI-only links. The complete planning directory is present at E.
-5. During authorized publication, push E and pin the PR and all Linear artifact attachments to full E SHA URLs. This includes spec, plan, tasks, supporting contracts and acceptance, not acceptance alone. Verify remote content and read the attachments back. Do not write E's hash inside E as a self-referential verification claim. Record it in the PR/attachments or a later durable release record.
+5. During authorized publication, push E and pin the PR description to full E SHA URLs for the specification, plan, tasks, supporting contracts and acceptance. Verify remote content and read the attachments back. Do not write E's hash inside E as a self-referential verification claim. Record it in the PR or a later durable release record.
 6. Commit deletion D, removing only the approved temporary feature directory. Verify the E..D diff contains only those deletions. No permanent doc or test may still require that directory. Existing unrelated or active feature directories are untouched.
 7. Run final formatting, link/example checks, required CI and independent review on D and the actual CI merge candidate C. CI must classify the whole feature diff, not merely the deletion commit. Record final results in PR/CI metadata; E cannot already contain checks of future D. A later release record retains any final results needed beyond CI retention.
 8. Merge with a merge commit M preserving E and D as ancestors of main. Verify their ancestry from the resulting main, then delete the feature branch. Branch deletion is not required to preserve evidence and must never precede a successful merge/retention check.
@@ -29,7 +29,7 @@ New source, documentation, or base changes after final review require renewed ch
 - Current normative documentation and runnable examples.
 - ADRs and clear supersession notes.
 - Essential release/qualification evidence under `docs/releases/<release>/` when a supported release claim requires it. Retain source/archive hashes and the actual essential reports; a checksum without its report is insufficient.
-- Historical plans and feature acceptance as byte-identical files at E reachable through main. PR/Linear references are navigation aids, not the only copies of engineering content.
+- Historical plans and feature acceptance as byte-identical files at E reachable through main. PR references are navigation aids, not the only copies of engineering content.
 
 Do not create a second per-feature status database or hand-maintained archive catalogue. Commit-pinned PR links and Git history are sufficient for routine delivery records. Release records may reference the same historical material without copying every feature document.
 
@@ -38,7 +38,7 @@ Do not create a second per-feature status database or hand-maintained archive ca
 - A shallow clone or source ZIP contains no guarantee of history. For a shallow clone fetch full main history before retrieval; a ZIP reader must use the pinned public Git URL or clone. Git history is required for historical plans, not for current Core builds or docs.
 - Squash merges may omit all added-then-deleted documents. Rebase merges can replace their IDs. An orphan SHA visible in GitHub temporarily is not proof of retention.
 - Abandoned/unmerged feature branches have no main-retention guarantee. Before deleting them, explicitly decide whether public-safe rationale needs a permanent ADR; do not silently merge a plan-only archive or publish private notes.
-- A history rewrite or new public root invalidates old pins. It requires a separately approved safe evidence migration and fresh retrieval proof. Do not depend on a private old repository, its PRs, or its Linear comments for current public contracts.
+- A history rewrite or new public root invalidates old pins. It requires a separately approved safe evidence migration and fresh retrieval proof. Do not depend on a private old repository, or its PR comments for current public contracts.
 - Historical directories that already exist in main are removed only in explicitly approved batches after content-level migration. The current issue's directory is not an exception to the gate.
 - If approval or settings access is unavailable, keep the feature documents in the current tree and report adoption incomplete. Do not compensate with hidden archival refs or assume permissions.
 

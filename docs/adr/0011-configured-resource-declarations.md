@@ -1,8 +1,7 @@
 # ADR-0011: Configure Resource declarations before Budget creation
 
-- **Status:** Implemented in KEY-78 source; verification remains revision and lane specific
+- **Status:** Implemented; verification remains revision and lane specific
 - **Date:** 2026-09-05
-- **Feature:** [KEY-78](https://linear.app/keynes/issue/KEY-78/create-budgets-from-resource-definitions-or-bindings)
 - **Supersedes in part:** [ADR-0007](0007-direct-postgresql-remote-access.md), only its connection-only factory and per-Budget Resource binding direction
 
 ## Context

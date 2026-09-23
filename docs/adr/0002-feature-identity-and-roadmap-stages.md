@@ -1,11 +1,11 @@
 # ADR 0002: Feature identity and roadmap stages
 
-- **Status:** Superseded by [ADR-0008](0008-linear-planning-and-spec-kit-identity.md)
+- **Status:** Superseded by [ADR-0010](0010-upstream-spec-kit-workflow.md)
 - **Date:** 2026-08-22
 
 ## Decision
 
-This decision records the repository workflow used before the Linear migration. ADR-0008 replaces roadmap stages and the version 1 feature manifest; the feature numbering and canonical branch rules remain in force.
+This decision records an earlier repository workflow. ADR-0010 replaces roadmap stages and the version 1 feature manifest with stock Spec Kit, explicit branch selection and a checkout-local directory pointer.
 
 Spec Kit features are the only numbered delivery units. Feature numbers are global, sequential, four digits, and assigned when Spec Kit starts the feature.
 

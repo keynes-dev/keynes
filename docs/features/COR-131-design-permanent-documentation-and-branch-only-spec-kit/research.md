@@ -2,7 +2,7 @@
 
 ## Evidence baseline
 
-Inspected `d030ba2ff11601d26b7c83d2e2c85c42840c1bbc` on 2026-09-23. It includes KEY-118 at `c0075c7` and the subsequent contributor/architecture simplification. The initial checkout was clean. The branch was created from freshly fetched `origin/main` using the fetched Linear branch name. At the user's request, its prefix and newly created feature directory were subsequently capitalized to `COR-131`; the checkout-local pointer and references were updated. No historical feature directory was renamed.
+Inspected `d030ba2ff11601d26b7c83d2e2c85c42840c1bbc` on 2026-09-23. It includes KEY-118 at `c0075c7` and the subsequent contributor/architecture simplification. The initial checkout was clean. The branch was created from freshly fetched `origin/main`. At the user's request, its prefix and newly created feature directory were capitalized to `COR-131`; the checkout-local pointer and references were updated. No historical feature directory was renamed.
 
 Read COR-131 and its empty comment thread, COR-118 completion and PR #73 reference, and COR-127's accepted decision and explicit user approval. Only public Core implications are retained here. Live issue status is not a substitute for source or acceptance evidence. The roadmap's older KEY names do not require renaming historical files.
 
@@ -42,7 +42,7 @@ The user's follow-up confirms the hybrid placement rule: central shared contract
 
 **Decision**: Keep stock feature directories during work. After verification and permanent-doc review, commit final planning/evidence, pin links, delete temporary files in a separate commit, run final checks/review, and merge with preserved ancestry. Disable squash/rebase merges when this workflow is adopted.
 
-**Rationale**: A deletion commit removes checkout clutter while a merge commit retains the preceding objects. Squash can eliminate an added-then-deleted file from default-branch history entirely. GitHub rebase merging changes SHAs, invalidating pre-merge pins. GitHub documents these merge methods and the conflict with required linear history in [merge options](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-merging-for-pull-requests) and [pull request merges](https://docs.github.com/en/pull-requests/reference/pull-request-merges).
+**Rationale**: A deletion commit removes checkout clutter while a merge commit retains the preceding objects. Squash can eliminate an added-then-deleted file from default-branch history entirely. GitHub rebase merging changes SHAs, invalidating pre-merge pins. GitHub documents these merge methods and the effects of history-rewriting merge requirements in [merge options](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-merging-for-pull-requests) and [pull request merges](https://docs.github.com/en/pull-requests/reference/pull-request-merges).
 
 **Alternatives considered**: Ignored-only plans cannot support reproducible PR review. Keeping every plan in the current tree defeats the requested cleanup. Orphan commits, PR refs, deleted branches, and local reflogs are not the retention contract. A separate planning repository adds another lifecycle and is outside project scope.
 
@@ -98,6 +98,6 @@ Checks ran against baseline `d030ba2ff11601d26b7c83d2e2c85c42840c1bbc` plus this
 | Read-only ownership review                                      | One finding resolved: allow documented disposable PostgreSQL fixture credentials while prohibiting embedded secrets and private-infrastructure dependencies |
 | Final worktree inspection                                       | Only the new COR-131 directory is untracked; existing tracked files unchanged                                                                               |
 
-The specification quality checklist passes. Before/after plan hooks are empty and require no action. Artifacts remain local-only and uncommitted. No Linear links or status were changed.
+The specification quality checklist passes. Before/after plan hooks are empty and require no action. Artifacts remain local-only and uncommitted. No GitHub issue, PR, settings, or status was changed.
 
 Runtime changes, native PostgreSQL qualification, package release qualification, the Git pilot, live settings enforcement, hosted links after branch deletion, and public-only release validation are **NOT RUN** in this design issue.

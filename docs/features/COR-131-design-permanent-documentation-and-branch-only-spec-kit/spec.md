@@ -6,8 +6,6 @@
 
 **Status**: In progress. The approved design is being implemented through the phased task list.
 
-**Issue**: [COR-131](https://linear.app/keynes/issue/COR-131/design-permanent-documentation-and-branch-only-spec-kit-delivery)
-
 **Input**: Plan permanent documentation and temporary Spec Kit retention against the post-KEY-118 repository. Give every topic one clear owner, document all behavior and rationale, assess package-local documentation, and define bounded migration work and a retrieval pilot.
 
 ## User Scenarios & Testing
@@ -64,7 +62,7 @@ The maintainer can execute and review bounded writing and removal phases with ex
 - Deletion follows runtime verification, or later code invalidates that verification.
 - Shallow clones, squash/rebase merges, and history rewrites break retrieval assumptions.
 - An unmerged or cancelled feature is not reachable from the default branch.
-- Renamed Linear identifiers do not rename historical feature paths.
+- A renamed public issue does not rename an established feature branch or historical path.
 - Deletion from the checkout does not remove private content from history.
 
 ## Requirements
@@ -79,7 +77,7 @@ The maintainer can execute and review bounded writing and removal phases with ex
 - **FR-006**: Reuse guides, canonical schemas, decisions, examples, and test runners. Examples demonstrate contracts without becoming a second normative definition.
 - **FR-007**: Define one documentation entrypoint and directional links. Summaries link to owners without repeating exhaustive rules, error lists, or limits.
 - **FR-008**: Specify implementation, verification, permanent-doc review/update, final planning/evidence commit, temporary deletion, final review/checks, and merge commit, in that order.
-- **FR-009**: Preserve stock Spec Kit, explicit feature directory selection, exact Linear issue identity, the user-selected `COR-131` branch, one independently reviewable outcome, and independent approval expectations.
+- **FR-009**: Preserve stock Spec Kit, explicit feature directory selection, the user-selected `COR-131` branch, one independently reviewable outcome, independent approval expectations, and only public GitHub issue and PR context when applicable.
 - **FR-010**: Require immutable historical references, retrieval after branch deletion, and essential release evidence that outlives CI artifact expiry. State shallow-clone and history-rewrite limits.
 - **FR-011**: Implement the approved changes to workflow, contributor instructions, index, PR template, retention decisions and repository checks while preserving hosted settings as a later external action.
 - **FR-012**: Define a pilot covering retrieval, incompatible merge methods, a clean latest checkout, working links/examples, exact-revision evidence, and no private dependency.
@@ -90,7 +88,7 @@ The maintainer can execute and review bounded writing and removal phases with ex
 
 - **Documentation topic**: A behavior, interface, rationale, or procedure with a normative owner and linked evidence.
 - **Migration entry**: Existing content, disposition, destination, and removal prerequisite.
-- **Delivery record**: Issue identity, exact revisions, review outcome, checks, durable evidence, and historical references.
+- **Delivery record**: Optional GitHub issue context, exact revisions, review outcome, checks, durable evidence, and historical references.
 - **Work proposal**: A bounded outcome with prerequisites and independent acceptance.
 
 ## Success Criteria
@@ -107,7 +105,6 @@ The maintainer can execute and review bounded writing and removal phases with ex
 
 - COR-127's approved boundary is the prerequisite. Only public-safe implications belong here.
 - COR-128 owns publication/history treatment; COR-129 owns repository/package separation. This design does not choose the public history baseline or move source.
-- The user must review this design. The issue remains open.
-- Historical KEY identifiers and directory names remain valid after the move to COR.
+- Historical directory names remain revision facts until the migration removes them from the latest checkout.
 - All behavior and rationale means complete coverage of supported observable behavior, consequential implementation constraints, and accepted choices. It does not require copying generated declarations or promoting obsolete proposals.
 - The current instruction authorizes local migration and workflow implementation. Push, PR publication, hosted settings changes and merge remain separate externally evidenced steps.

@@ -16,7 +16,7 @@ Implementation follows the bounded work in `tasks.md`: establish permanent owner
 
 **Language/Version**: Markdown design artifacts; stock Spec Kit 1.0.4, Git, repository Node.js >=24 and pnpm 11.21.0 tooling.
 
-**Primary Dependencies**: Existing source, canonical schemas, ADRs, package guides, repository checks, Git history, and native Linear/GitHub links. No added library, docs site, extension, or workflow service.
+**Primary Dependencies**: Existing source, canonical schemas, ADRs, package guides, repository checks, Git history, and native Git and GitHub links. No added library, docs site, extension, or workflow service.
 
 **Storage**: Tracked Markdown and existing Git objects. `.specify/feature.json` remains ignored checkout-local state. Essential release evidence has a permanent checked-in location.
 
@@ -111,4 +111,4 @@ New package pages split existing large subjects; no page per symbol and no empty
 
 Implement the ownership map and retention choices as one COR-131 branch through the ordered phases in `tasks.md`. Each phase receives delegated implementation, parent correctness review, a read-only Ponytail review, applicable checks and a commit before the next phase.
 
-Complete local migration and the disposable retention pilot. Prepare the branch for review without pushing, creating a PR, updating Linear links, changing hosted merge methods or merging. Those external actions require exact live-state evidence after the local candidate is complete.
+Complete local migration and the disposable retention pilot. Prepare the branch for review without pushing, creating a PR, changing hosted merge methods or merging. Those external actions require exact live-state evidence after the local candidate is complete.

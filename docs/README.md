@@ -1,7 +1,6 @@
 # Documentation
 
 - **Owner:** `@shubsharan`
-- **Planning workspace:** [Keynes in Linear](https://linear.app/keynes)
 
 ## Find the owner
 
@@ -25,18 +24,18 @@ Each current topic has one normative owner. Other pages link to that owner inste
 | Internal contract generation and shared scenarios      | [Database package](../packages/database/README.md)                   |
 | Internal package qualification utilities               | [Testkit package](../packages/testkit/README.md)                     |
 
-## Repository and Linear
+## Repository records
 
-The repository and Linear have separate, explicit responsibilities:
+Each record has a narrow purpose:
 
 | Source                                | Owns                                                                                                                        |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                                     |
 | `docs/adr/`                           | Accepted architectural decisions and their supersession chain                                                               |
 | `docs/features/`                      | Branch-scoped Spec Kit work and exact-revision evidence retained only until its permanent owners and history are sufficient |
-| [Linear](https://linear.app/keynes)   | Projects, sequencing, current status, priority, assignment, dependencies, research studies and issue disposition            |
+| GitHub issues and pull requests       | Current discussion, review, CI, and merge status                                                                            |
 
-Do not copy mutable Linear fields into repository documents. Do not move engineering contracts or retained exact-revision evidence into Linear. A feature specification uses one Linear issue as its identity. Internal task phases stay on that feature branch; they are not published as sub-issues. Each issue links to its specification and PR. See [the upstream Spec Kit workflow](adr/0010-upstream-spec-kit-workflow.md).
+Do not copy mutable GitHub fields into repository documents. A feature may start from one GitHub issue, but its branch and explicit Spec Kit directory identify the work in a checkout. Internal task phases stay in `tasks.md`; they are not mirrored as issues. See [the upstream Spec Kit workflow](adr/0010-upstream-spec-kit-workflow.md).
 
 Historical feature artifacts are revision-scoped records, not current reference. Git history retains their decisions after the finalization gates in [the workflow](workflow.md) permit branch-scoped copies to be removed.
 
@@ -44,10 +43,10 @@ Documentation describes the target system. It does not make unverified work impl
 
 ## Contributor workflow
 
-The [engineering workflow](workflow.md) defines how Linear selects and tracks work while Spec Kit owns durable feature delivery artifacts. Existing engineering skills supply focused investigation, design, review, and verification without a separate lifecycle.
+The [engineering workflow](workflow.md) defines how a branch moves through Spec Kit, GitHub review, CI, and merge. Existing engineering skills supply focused investigation, design, review, and verification without a separate lifecycle.
 
 ## Source policy
 
-Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. Linear may summarize or link to that evidence, but the feature artifact remains authoritative for the engineering claim.
+Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. A GitHub issue or PR may link to that evidence, but the feature artifact remains authoritative for the engineering claim.
 
 Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. When an accepted record supports a durable feature claim, retain only that record beside the owning feature documentation.

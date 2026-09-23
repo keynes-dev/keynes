@@ -1,8 +1,7 @@
 # ADR-0014: Policy middleware in Budget requests
 
 - **Date:** 2026-09-21
-- **Status:** Implemented; qualification is recorded in the KEY-117 acceptance record
-- **Issue:** [KEY-117](https://linear.app/keynes/issue/KEY-117/compose-application-policies-into-budget-requests)
+- **Status:** Implemented; qualification remains revision and lane specific
 - **Refines:** [ADR-0013](0013-application-owned-policies.md) for optional SDK-side policy invocation
 - **Supersedes in part:** ADR-0013's prohibition on a Policy callback in the allocation API
 

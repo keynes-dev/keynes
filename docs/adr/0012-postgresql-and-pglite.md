@@ -47,9 +47,9 @@ Use functional module names during relocation: adapters, CLI, installation, resu
 
 ## Transition and acceptance
 
-[KEY-109](https://linear.app/keynes/issue/KEY-109/run-local-on-postgresql-procedures-with-pglite) owns the runtime replacement using KEY-76's clean baseline. It must prove installation compatibility and current behavior before removing SQLite, with fresh startup, memory, footprint and throughput measurements. A failure blocks replacement; it must not produce another Local business implementation. KEY-87 owns the complete operating envelope and KEY-88 owns final archive qualification.
+KEY-109 owns the runtime replacement using KEY-76's clean baseline. It must prove installation compatibility and current behavior before removing SQLite, with fresh startup, memory, footprint and throughput measurements. A failure blocks replacement; it must not produce another Local business implementation. KEY-87 owns the complete operating envelope and KEY-88 owns final archive qualification.
 
-[KEY-96](https://linear.app/keynes/issue/KEY-96/separate-sdk-and-database-runtime-packages) owns source centralization, thin SDK boundaries, separate distributions and the naming pass. These paths and packages are adopted targets, not existing install instructions. Current source still combines SQLite and SDK code and keeps SQL in `packages/postgresql` and canonical inputs in `packages/contracts`.
+KEY-96 owns source centralization, thin SDK boundaries, separate distributions and the naming pass. These paths and packages are adopted targets, not existing install instructions. Current source still combines SQLite and SDK code and keeps SQL in `packages/postgresql` and canonical inputs in `packages/contracts`.
 
 Until KEY-109's replacement gate lands, the existing SQLite/native PostgreSQL suite and required CI check remain in force. KEY-109 replaces the Local lane with PGlite while preserving native tests, fail-closed change classification, required-check enforcement and retained evidence. Coordinate any check-name change with branch protection; documentation approval alone cannot remove a gate.
 

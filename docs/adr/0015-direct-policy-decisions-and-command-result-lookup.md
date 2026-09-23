@@ -1,8 +1,7 @@
 # ADR-0015: Direct Policy decisions and command-result lookup
 
 - **Date:** 2026-09-22
-- **Status:** Implemented; qualification is recorded in the KEY-126 acceptance record
-- **Issue:** [KEY-126](https://linear.app/keynes/issue/KEY-126/simplify-policy-requests-and-clarify-command-result-lookup)
+- **Status:** Implemented; qualification remains revision and lane specific
 - **Supersedes in part:** [ADR-0014](0014-policy-middleware-in-budget-requests.md) preparation and recovery guidance
 
 ## Context

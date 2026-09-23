@@ -1,57 +1,31 @@
 # Contributor workflow
 
-Use stock Spec Kit 1.0.4 with the Codex integration. Linear owns scheduling and
-current issue status; Spec Kit artifacts own requirements, plans, tasks, and
-acceptance evidence; GitHub owns PR review, CI, and merge.
+Use stock Spec Kit 1.0.4 with the Codex integration. GitHub owns public issue discussion, pull-request review, CI and merge state. Spec Kit artifacts own requirements, plans, tasks and exact-revision evidence.
 
 ## Governing contracts
 
-Follow [product commitments](product.md#product-commitments), [runtime architecture](architecture.md), and the [constitution](../.specify/memory/constitution.md). Product documentation owns release scope; architecture owns runtime, CLI, installation, and generated-type boundaries. [Linear](https://linear.app/keynes) owns roadmap sequencing.
+Follow [product commitments](product.md#product-commitments), [runtime architecture](architecture.md), and the [constitution](../.specify/memory/constitution.md). Product documentation owns release scope; architecture owns runtime, CLI, installation and generated-type boundaries.
 
-Reconcile conflicting active feature artifacts when resumed. Preserve historical specifications, ADR bodies and acceptance records at their original revisions; historical PGlite or managed Policy evidence cannot qualify the current target. Preserve the tests and qualification gates described under [verification](#verification-and-engineering-methods).
+Reconcile conflicting active feature artifacts when resumed. Historical evidence qualifies only its recorded revision and verification lane. Preserve the tests and qualification gates described under [verification](#verification-and-engineering-methods).
 
 ## Select and prepare a feature
 
-1. Read the selected Linear issue using the existing connector. Confirm its exact
-   identifier, title, URL, `gitBranchName`, and prerequisites. Narrow unrelated
-   outcomes before starting. Use one issue and normally one independently accepted PR.
-2. Inspect the current checkout. Create or resume Linear's exact branch with ordinary
-   Git. Use a separate worktree when other work is active. Do not regenerate a branch
-   from the issue title or silently reuse an unrelated branch.
-3. Select the directory explicitly. For new Keynes features, use
-   `docs/features/<final segment of the fetched gitBranchName>/`. For existing
-   features, use the directory linked from the issue; do not rename it on resume.
-4. Invoke `$speckit-specify` with the brief, issue URL, and explicit
-   `SPECIFY_FEATURE_DIRECTORY`. Put the issue link in spec.md. After publication,
-   link the spec from Linear as described in [Publish feature artifacts](#publish-feature-artifacts).
+1. Read the selected GitHub issue when one exists. Confirm its title, scope and genuine prerequisites. Narrow unrelated outcomes before starting. One feature normally has one independently accepted PR.
+2. Fetch the target base, inspect the checkout, and create or resume the exact selected branch with ordinary Git. Use a separate worktree when other work is active. Do not silently reuse an unrelated branch.
+3. Select the Spec Kit directory explicitly. New features use `docs/features/<branch-name>/`; resumed features keep their existing directory.
+4. Invoke `$speckit-specify` with the brief, optional GitHub issue URL and explicit `SPECIFY_FEATURE_DIRECTORY`. Put a supplied public issue link in `spec.md` for context.
 
-The standard specify command creates `.specify/feature.json` with the selected
-`feature_directory`. This pointer is ignored, local to the checkout, and contains
-no Linear identity schema. Issue names can change without renaming authored history.
+The standard specify command creates `.specify/feature.json` with the selected `feature_directory`. This pointer is ignored and local to the checkout. It is not an identity registry, and it must never be committed.
 
 ## Deliver the feature
 
-Run `specify -> clarify when needed -> plan -> tasks -> analyze -> implement`.
-Review the scope after specification and material design choices after planning.
-Resolve blocking analysis findings before implementation. The plan's Constitution
-Check and stock analysis enforce the Keynes constitution, including one acceptance
-outcome and genuine prerequisites. Run `$speckit-constitution` only when amending
-project principles, not at the start of every feature.
+Run `specify -> clarify when needed -> plan -> tasks -> analyze -> implement`. Review scope after specification and material design choices after planning. Resolve blocking analysis findings before implementation. The plan's Constitution Check and stock analysis enforce the Keynes constitution, including one acceptance outcome and genuine prerequisites. Run `$speckit-constitution` only when amending project principles.
 
-Keep documents proportional to the feature and follow upstream applicability rules
-for supporting artifacts. Internal phases stay in tasks.md. Do not invoke
-`$speckit-taskstoissues` or publish task/phase sub-issues. Leave unused upstream
-commands installed; they do not become mandatory workflow steps.
+Keep documents proportional to the feature and follow upstream applicability rules for supporting artifacts. Internal phases stay in `tasks.md`. Do not invoke `$speckit-taskstoissues` or publish task or phase sub-issues. Existing engineering skills operate on the same artifacts and add no second lifecycle.
 
-Run the feature's tests and review the complete PR. Use `$speckit-converge` after
-implementation when the approved artifacts still have unbuilt requirements. It
-appends remaining tasks; it does not replace review or runtime verification.
+Run the feature's tests and review the complete branch diff. Use `$speckit-converge` after implementation when approved artifacts still contain unbuilt requirements. It appends remaining tasks; it does not replace review or runtime verification.
 
-Use `<issue identifier> <issue title>` as the PR title. Linear handles linking and
-status automation. Complete the issue's required checks before merging; track
-separate release or deployment verification in follow-up issues. Issue closure
-does not establish release qualification.
-This workflow does not authorize automatic merging or publication.
+Use the GitHub issue title for the PR when an issue owns the feature; otherwise use a concise outcome title. Link the issue with GitHub's native syntax when closure on merge is appropriate. Required review, checks and acceptance must pass before merge. Issue closure does not establish release qualification. This workflow does not authorize automatic publication or merge.
 
 ## Delivery discipline
 
@@ -76,39 +50,19 @@ Preserve historical ADR and acceptance bodies. Supersede them with a new record.
 
 ## Publish feature artifacts
 
-Spec Kit commands produce local artifacts. Every authorized commit and push of
-planning documents includes linking the published artifacts to their owning
-Linear issue. Complete this step automatically without a separate prompt:
+Spec Kit commands create local artifacts. Commit them on the feature branch only when they are reviewable. The pull-request description links the owning specification and exact acceptance evidence; the plan links its research, data model, contracts and quickstart, and the specification links its task list.
 
-- **Feature specification** links to `spec.md`.
-- **Implementation plan** links to `plan.md`, which links to the applicable
-  research, data model, contracts, and quickstart artifacts.
-- **Implementation tasks** links to `tasks.md`.
-- **Acceptance evidence** links to the feature's acceptance record after
-  verification.
+Use branch URLs for working documents and full commit URLs for exact-revision evidence. Never link a file that has not been pushed. After publication, read every link back from GitHub and report failures explicitly. A successful push alone does not prove that documentation links or evidence resolve.
 
-Update existing attachments rather than creating duplicates. Use branch URLs for
-working documents and commit-pinned URLs for acceptance evidence. Keep document
-contents and detailed task tracking in Git.
-
-Read the issue back after updating its links and verify each title and URL.
-When publishing revisions, confirm that existing links still resolve to the
-intended artifacts. Report a linking failure explicitly; a successful push alone
-does not complete planning-document publication. Never attach a URL for a file
-that has not been pushed.
-
-Each command's completion report must state whether its artifacts are local-only
-or published, and whether Linear links were updated. Generating artifacts alone
-does not authorize publication.
+Each completion report states whether artifacts remain local, were committed, or were pushed. Generating artifacts does not authorize publication.
 
 ## Resume in a checkout
 
-Read the issue's spec link, confirm the Git branch, and explicitly select its
-existing directory before running planning, tasks, analysis, or implementation.
+Confirm the Git branch and explicitly select its existing directory before running planning, tasks, analysis or implementation.
 For example, from the checkout root:
 
 ```sh
-export SPECIFY_FEATURE_DIRECTORY="docs/features/key-89-restore-a-small-upstream-compatible-spec-kit-workflow"
+export SPECIFY_FEATURE_DIRECTORY="docs/features/<selected-branch>"
 .specify/scripts/bash/check-prerequisites.sh --json --paths-only
 ```
 
@@ -136,11 +90,11 @@ feature tests. See [product](product.md), [architecture](architecture.md), and t
 - `pnpm test:remote` runs native PostgreSQL feedback, defaults to all modes, and accepts explicit `--mode` selection.
 - `pnpm test:embedded` runs native PostgreSQL feedback without poolers.
 
-Native feedback uses source adapters and the source installer through the existing Docker runner with loopback publication; OpenSSL supplies disposable TLS certificates. See the [command contract](features/key-91-make-local-hosted-and-embedded-testing-independently/contracts/deployment-checks.md) and [validation guide](features/key-91-make-local-hosted-and-embedded-testing-independently/quickstart.md) for selection and prerequisites.
+Native feedback uses source adapters and the source installer through the existing Docker runner with loopback publication; OpenSSL supplies disposable TLS certificates. The PostgreSQL package guide owns selection and prerequisites.
 
-Feedback does not replace [exact-archive qualification](#qualification), including verified TLS, caller transactions and installation refusal/no-op checks. Installed owned/borrowed calls do not establish full Embedded recovery or managed Hosted readiness. Actual Hosted remains `NOT RUN`; `pnpm test:hosted` reports its unavailable reason and exits 1 without acquiring resources. These commands authorize neither publication nor live Hosted execution. Implementation history and revision-scoped results belong in the [acceptance record](features/key-91-make-local-hosted-and-embedded-testing-independently/acceptance.md).
+Feedback does not replace [exact-archive qualification](#qualification), including verified TLS, caller transactions and installation refusal/no-op checks. Installed owned/borrowed calls do not establish full Embedded recovery or managed Hosted readiness. Actual Hosted remains `NOT RUN`; `pnpm test:hosted` reports its unavailable reason and exits 1 without acquiring resources. These commands authorize neither publication nor live Hosted execution. Implementation history and revision-scoped results belong in exact-revision acceptance evidence.
 
-Shared scenarios own common semantics, fixtures own setup/cleanup, and package tests own lifecycle, authentication/transport and caller transactions. Extend adapters for concrete products; share setup when callers need the same lifecycle. Removing runner machinery must preserve or explicitly defer its product assertions. See the [development model](features/key-91-make-local-hosted-and-embedded-testing-independently/plan.md#development-as-modes-mature).
+Shared scenarios own common semantics, fixtures own setup/cleanup, and package tests own lifecycle, authentication/transport and caller transactions. Extend adapters for concrete products; share setup when callers need the same lifecycle. Removing runner machinery must preserve or explicitly defer its product assertions. Keep shared scenarios independent of runtime adapters.
 
 ### PR correctness and explicit qualification
 
@@ -202,7 +156,7 @@ For package separation, run the four consumer combinations against one selected 
 pnpm test:package:split -- --output ".artifacts/key-96-packages/$(node -p 'crypto.randomUUID()')"
 ```
 
-The runner builds and packs the SDK, SQLite runtime, PostgreSQL runtime and CLI once per attempt. Existing lanes install those exact archives in clean external directories; SDK-only, SDK+SQLite, SDK+PostgreSQL and CLI+dependencies are separate consumer combinations. Native public calls and CLI installation use the same archive set. Retain the attempt's archive hashes, installed realpaths and terminal cleanup results. See the [KEY-96 validation guide](features/key-96-separate-sdk-and-database-runtime-packages/quickstart.md) and its [acceptance record](features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md) for executed evidence and outstanding lanes.
+The runner builds and packs the SDK, SQLite runtime, PostgreSQL runtime and CLI once per attempt. Existing lanes install those exact archives in clean external directories; SDK-only, SDK+SQLite, SDK+PostgreSQL and CLI+dependencies are separate consumer combinations. Native public calls and CLI installation use the same archive set. Retain the attempt's archive hashes, installed realpaths and terminal cleanup results. Retain executed evidence and outstanding lanes with the exact archive-set acceptance record.
 
 Branch protection still requires both historical check names and up-to-date
 candidates. Workflow YAML does not prove hosted enforcement. Shared behavior features
