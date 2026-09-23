@@ -2,7 +2,7 @@
 
 Declare application settings with JSON Schema, validate explicit initial values, and capture the values used by a policy in an immutable local snapshot. These helpers perform no network, database or filesystem work.
 
-This is a private source workspace for Node.js >=24. The examples use its workspace imports after `pnpm install --frozen-lockfile`; they do not describe a published archive. KEY-117 owns tooling distribution.
+This is a private source workspace for Node.js >=24. The examples use its workspace imports after `pnpm install --frozen-lockfile` and a workspace build; they do not describe a published archive. KEY-117 owns tooling distribution.
 
 ## Declare and use values
 
@@ -68,6 +68,7 @@ or `failed` result. A direct test does not construct a Budget, invoke an SDK
 wrapper, or normalize synchronous throws or rejected Promises.
 
 ```sh
+pnpm exec turbo run build --filter='@keynes/policy...'
 pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1
 node --test packages/policy/test/policy-scenarios.node.ts
 ```
