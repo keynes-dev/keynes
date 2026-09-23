@@ -954,22 +954,28 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
       expect.stringContaining("sequence"),
     );
     const entry = await representativeInspectionEntry(fixture, snapshot);
-    const lineagePlan = await inspectionLineagePlan(fixture, snapshot, entry);
-    const lineageAccess = requirePlanRelation(
-      lineagePlan,
-      "budget_history_entries",
-      "inspection lineage lookup",
-    );
-    expect(lineageAccess).toMatchObject({
-      "Node Type": "Index Scan",
-      "Index Name": "budget_history_entries_pkey",
-    });
-    expect(lineageAccess["Index Cond"]).toEqual(
-      expect.stringContaining("stream_id"),
-    );
-    expect(lineageAccess["Filter"]).toEqual(
-      expect.stringContaining("subject_id"),
-    );
+    for (const subjectId of [snapshot.streamId, entry.subjectId]) {
+      const lineagePlan = await inspectionLineagePlan(
+        fixture,
+        snapshot,
+        subjectId,
+      );
+      const lineageAccess = requirePlanRelation(
+        lineagePlan,
+        "budget_history_entries",
+        "inspection lineage lookup",
+      );
+      expect(lineageAccess).toMatchObject({
+        "Node Type": expect.stringMatching(/^Index (Only )?Scan$/u),
+        "Index Name": "budget_history_entries_creation_lineage_idx",
+      });
+      expect(lineageAccess["Index Cond"]).toEqual(
+        expect.stringContaining("stream_id"),
+      );
+      expect(lineageAccess["Index Cond"]).toEqual(
+        expect.stringContaining("subject_id"),
+      );
+    }
     const movementPlan = await inspectionMovementPlan(fixture, snapshot, entry);
     const movementAccess = requirePlanRelation(
       movementPlan,
@@ -1000,14 +1006,11 @@ describe("remote PostgreSQL recovery and bounded reads", () => {
     expect(endpointAccesses).toHaveLength(2);
     for (const endpointAccess of endpointAccesses) {
       expect(endpointAccess).toMatchObject({
-        "Node Type": "Index Scan",
-        "Index Name": "budget_history_entries_pkey",
+        "Node Type": expect.stringMatching(/^Index (Only )?Scan$/u),
+        "Index Name": "budget_history_entries_creation_lineage_idx",
       });
       expect(endpointAccess["Index Cond"]).toEqual(
         expect.stringContaining("stream_id"),
-      );
-      expect(endpointAccess["Index Cond"]).toEqual(
-        expect.stringContaining("sequence"),
       );
     }
     const secondReader = requireCapturedPage(
@@ -1371,7 +1374,7 @@ async function representativeInspectionEntry(
 async function inspectionLineagePlan(
   fixture: RemoteIdentityFixture,
   snapshot: InspectionSnapshot,
-  entry: InspectionHistoryEntry,
+  subjectId: string,
 ): Promise<Record<string, unknown>> {
   return explainPlan(
     fixture,
@@ -1385,7 +1388,7 @@ async function inspectionLineagePlan(
     [
       snapshot.tenantId,
       snapshot.streamId,
-      entry.subjectId,
+      subjectId,
       snapshot.terminalSequence,
     ],
   );

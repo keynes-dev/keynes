@@ -4126,6 +4126,11 @@ ALTER TABLE ONLY keynes_internal.schema_migrations
 
 CREATE UNIQUE INDEX commands_binding_reference_idx ON keynes_internal.commands USING btree (binding_reference);
 
+CREATE INDEX budget_history_entries_creation_lineage_idx
+  ON keynes_internal.budget_history_entries (tenant_id, stream_id, subject_id)
+  INCLUDE (sequence)
+  WHERE event_kind IN ('budget_created', 'request_approved');
+
 CREATE INDEX remote_inspection_snapshots_expiry_idx
   ON keynes_internal.remote_inspection_snapshots (expires_at);
 

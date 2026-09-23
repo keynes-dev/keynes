@@ -146,7 +146,7 @@ describe("repository organization", () => {
       ],
       [
         "postgres/migrations/0001-baseline.sql",
-        "545ef0ea8007971c8128d8ea5781b16d5ff8082a7f7a894ad62642e3bcc2f1d0",
+        "bbea1fe935a793cc1cfcf6712e3932cc77969c1bf464aed43d28d8fd92cc9d34",
       ],
     ]) {
       expect(
