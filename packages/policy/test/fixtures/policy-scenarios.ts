@@ -1,10 +1,11 @@
 import {
+  configurePolicy,
   defineParameters,
   recordPolicyResult,
   restoreParameterSnapshot,
   type ParameterSnapshot,
 } from "@keynes/policy";
-import type { PolicyOutput, ResourceAmounts } from "@keynes/sdk";
+import type { Policy, PolicyOutput, ResourceAmounts } from "@keynes/sdk";
 
 import type { RiskAssessment } from "./risk-policy.ts";
 
@@ -23,10 +24,10 @@ export type PolicyScenario = Readonly<{
 }>;
 
 const declaration = defineParameters({
-  requestCap: { schema: { type: "number", minimum: 0 }, initial: 100 },
+  requestCap: { schema: { type: "number", minimum: 0 }, initial: 0 },
   minimumConfidence: {
     schema: { type: "number", minimum: 0, maximum: 1 },
-    initial: 0.9,
+    initial: 0,
   },
 });
 
@@ -58,14 +59,64 @@ const baseline = {
 
 const recordedScenarios = [
   {
-    name: "eligible low-risk baseline",
-    proposal: { usdCents: 100 },
+    name: "retained cap overrides changed current initials",
+    proposal: { usdCents: 150 },
     facts: { eligible: true },
     parameters: baseline,
     assessment: { kind: "available", risk: "low", confidence: 0.95 },
     expected: { kind: "prepared", request: { usdCents: 100 } },
   },
+  {
+    name: "ineligible facts",
+    proposal: { usdCents: 100 },
+    facts: { eligible: false },
+    parameters: baseline,
+    assessment: { kind: "available", risk: "low", confidence: 0.95 },
+    expected: { kind: "rejected", code: "ineligible" },
+  },
+  {
+    name: "high risk",
+    proposal: { usdCents: 100 },
+    facts: { eligible: true },
+    parameters: baseline,
+    assessment: { kind: "available", risk: "high", confidence: 0.95 },
+    expected: { kind: "review_required", code: "risk_review_required" },
+  },
+  {
+    name: "unavailable assessment",
+    proposal: { usdCents: 100 },
+    facts: { eligible: true },
+    parameters: baseline,
+    assessment: { kind: "unavailable", code: "assessment_unavailable" },
+    expected: { kind: "failed", code: "assessment_unavailable" },
+  },
 ] satisfies readonly PolicyScenario[];
+
+export function makePolicy(
+  options: Pick<PolicyScenario, "parameters" | "assessment" | "facts">,
+): Policy<"usdCents", "usdCents"> {
+  return configurePolicy({
+    declaration,
+    snapshot: options.parameters,
+    run(proposal, values) {
+      if (proposal.usdCents === undefined)
+        return { kind: "rejected", code: "proposal_usd_cents_required" };
+      if (!options.facts.eligible)
+        return { kind: "rejected", code: "ineligible" };
+      if (options.assessment.kind === "unavailable")
+        return { kind: "failed", code: "assessment_unavailable" };
+      if (
+        options.assessment.risk === "high" ||
+        options.assessment.confidence < values.minimumConfidence
+      )
+        return { kind: "review_required", code: "risk_review_required" };
+      return {
+        kind: "prepared",
+        request: { usdCents: Math.min(proposal.usdCents, values.requestCap) },
+      };
+    },
+  }).policy;
+}
 
 export function loadScenarios(
   input: unknown = recordedScenarios,

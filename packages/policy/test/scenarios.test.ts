@@ -1,8 +1,9 @@
 import { expect, it } from "vitest";
 
 import { createParameterSnapshot, defineParameters } from "@keynes/policy";
+import type { Policy } from "@keynes/sdk";
 
-import { loadScenarios } from "./fixtures/policy-scenarios.ts";
+import { loadScenarios, makePolicy } from "./fixtures/policy-scenarios.ts";
 
 it("rejects incomplete or incompatible retained scenarios", () => {
   const [baseline] = loadScenarios();
@@ -47,4 +48,43 @@ it("retains omitted and explicit-zero proposal quantities", () => {
   expect(
     loadScenarios([{ ...baseline, proposal: { usdCents: 0 } }])[0]?.proposal,
   ).toEqual({ usdCents: 0 });
+});
+
+it.each(loadScenarios())("$name", async (scenario) => {
+  const policy = makePolicy(scenario);
+  expect(await policy(scenario.proposal)).toEqual(scenario.expected);
+});
+
+it("handles direct application Policy edge cases", async () => {
+  const [baseline] = loadScenarios();
+  const policy = makePolicy(baseline);
+  expect(await policy({ usdCents: 0 })).toEqual({
+    kind: "prepared",
+    request: { usdCents: 0 },
+  });
+  expect(await policy({})).toEqual({
+    kind: "rejected",
+    code: "proposal_usd_cents_required",
+  });
+  expect(
+    await makePolicy({
+      ...baseline,
+      assessment: { kind: "available", risk: "low", confidence: 0.89 },
+    })({ usdCents: 100 }),
+  ).toEqual({ kind: "review_required", code: "risk_review_required" });
+});
+
+it("preserves direct throws and rejected Promises", async () => {
+  const synchronous = new Error("synchronous");
+  const synchronouslyThrowingPolicy: Policy<"usdCents", "usdCents"> = () => {
+    throw synchronous;
+  };
+  expect(() => synchronouslyThrowingPolicy({ usdCents: 1 })).toThrow(
+    synchronous,
+  );
+
+  const rejection = new Error("rejected");
+  const rejectingPolicy: Policy<"usdCents", "usdCents"> = () =>
+    Promise.reject(rejection);
+  await expect(rejectingPolicy({ usdCents: 1 })).rejects.toBe(rejection);
 });

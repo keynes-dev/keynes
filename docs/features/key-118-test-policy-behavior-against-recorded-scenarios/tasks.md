@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: Implementation is in progress. Phases 1-2 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
+**Status**: Implementation is in progress. Phases 1-3 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -33,10 +33,10 @@
 
 **Independent test**: Four exact outcomes, sync throws and Promise rejection pass in the focused Vitest file with zero provider or Budget operations.
 
-- [ ] T006 [US1] Add direct native assertions for prepared, rejected, review_required and failed outcomes in `packages/policy/test/scenarios.test.ts`; include explicit zero, missing required quantity, high risk and low confidence cases before implementing the example Policy.
-- [ ] T007 [US1] Implement application `makePolicy` in `packages/policy/test/fixtures/policy-scenarios.ts` using `configurePolicy` and the supplied complete snapshot. Use ineligible facts for rejection, existing assessment semantics for review/failure and explicit application cap arithmetic for preparation.
-- [ ] T008 [US1] Add separate synchronous-throw and rejected-Promise assertions in `packages/policy/test/scenarios.test.ts`; preserve error identity and do not wrap the synchronous case in an async function. Prove retained values survive changed declaration initials.
-- [ ] T009 [US1] Add the direct-call-first testing introduction to `packages/policy/README.md`, run focused outcome checks and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T006 [US1] Add direct native assertions for prepared, rejected, review_required and failed outcomes in `packages/policy/test/scenarios.test.ts`; include explicit zero, missing required quantity, high risk and low confidence cases before implementing the example Policy.
+- [x] T007 [US1] Implement application `makePolicy` in `packages/policy/test/fixtures/policy-scenarios.ts` using `configurePolicy` and the supplied complete snapshot. Use ineligible facts for rejection, existing assessment semantics for review/failure and explicit application cap arithmetic for preparation.
+- [x] T008 [US1] Add separate synchronous-throw and rejected-Promise assertions in `packages/policy/test/scenarios.test.ts`; preserve error identity and do not wrap the synchronous case in an async function. Prove retained values survive changed declaration initials.
+- [x] T009 [US1] Add the direct-call-first testing introduction to `packages/policy/README.md`, run focused outcome checks and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
 
 **Checkpoint**: US1 is the MVP. Read-only Ponytail review, evaluate findings, then commit before proceeding.
 

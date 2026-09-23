@@ -53,6 +53,14 @@ Serialize a validated snapshot with `canonicalize(snapshot)`. Restore parsed JSO
 
 Snapshots contain complete values and schema annotations. Treat them as application data that may contain secrets; decide what to retain or disclose before recording a fixture or decision evidence. A digest proves content identity, not provenance, permission or correct policy execution. Keynes does not execute policy or persist these snapshots.
 
+## Test a Policy directly
+
+An application Policy is an ordinary function. Build it with a retained complete
+snapshot, call it with a proposal, and use native test assertions for the exact
+`prepared`, `rejected`, `review_required`, or `failed` result. A direct test does
+not construct a Budget, invoke an SDK wrapper, or normalize synchronous throws
+or rejected Promises.
+
 ## Recorded assessments stay in the application
 
 An assessment is application data, not a Keynes provider contract. Validate an external response in application code, then retain only the bounded value that the Policy needs. This provider-free example uses a recorded checkout risk assessment and requires manual review when the assessment is unavailable:

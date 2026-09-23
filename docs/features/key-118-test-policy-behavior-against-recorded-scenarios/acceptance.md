@@ -60,3 +60,31 @@ exercise missing-field behavior.
 These are focused source checks on the uncommitted Phase 2 candidate based on
 `788f16d4f5840f53e79095a148646b4cefb179a7`; they do not qualify the later
 Policy behavior, SDK boundary, archive, database, provider, or hosted lanes.
+
+## Phase 3: US1 direct Policy calls
+
+At `85ad041c7709769737ee9cadd51e35116cd714a4`, the direct assertions were
+added before `makePolicy`. The first focused run failed as intended: one of four
+tests failed because the fixture did not yet export the function. The test then
+passed after the application-only `makePolicy` used `configurePolicy` with the
+supplied snapshot. Its declaration's current initials are zero, while the
+retained snapshot's cap is 100 and confidence threshold is 0.9; the cap result
+proves the retained values win.
+
+| Command                                                                                                                    | Result                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1`                                       | Failed as intended (exit 1): 1 of 4 tests failed with `TypeError: makePolicy is not a function`; the other 3 tests passed. |
+| `pnpm --filter @keynes/policy build && pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1` | Passed (exit 0): final focused run after Phase 3 review corrections, 1 file and 8 tests passed.                            |
+| `pnpm --filter @keynes/policy test`                                                                                        | Passed (exit 0): final package run after Phase 3 review corrections, 8 files and 105 tests passed.                         |
+| `pnpm --filter @keynes/policy typecheck`                                                                                   | Passed (exit 0): own-package build completed, then `tsc --project tsconfig.json --noEmit` passed.                          |
+| `pnpm exec oxfmt --check` on the five Phase 3 files                                                                        | Passed (exit 0): all matched files use the correct format.                                                                 |
+| `git diff --check`                                                                                                         | Passed (exit 0).                                                                                                           |
+
+The native `it.each` table directly calls the application Policy for the fixed
+prepared, rejected, review-required, and failed rows, with each row name in the
+test title. The retained-cap baseline proves that its complete snapshot wins over
+the changed current initials. One separate direct-policy test covers explicit
+zero, an omitted required proposal quantity, and low confidence; a second
+separate test preserves native synchronous throw and Promise-rejection identity.
+It constructs no Budget and invokes no provider, SDK request wrapper, database,
+archive, or hosted service. Phase 4 and later behavior remains unstarted.
