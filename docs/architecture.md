@@ -134,19 +134,7 @@ The SDK exports the structural definition type for callers that want a
 `satisfies` check. There is no standalone definition helper outside
 `keynes.defineResources`.
 
-### Customer evaluation and caller evidence
-
-Keynes has no database-managed Policy definition, registration, compiler, or
-evaluator. Customers own Policy definitions in any language, including SQL over
-their own data. Direct allocation requires no Policy result, callback, or
-transaction manager. ADR-0014 additionally permits one optional SDK callback
-before the final ordinary command; it grants no database authority.
-
-Callers may attach bounded `decisionEvidence` to a request. Keynes validates,
-canonicalizes, and records it in results and request history; it also binds it
-to replay identity. The evidence remains an assertion, so it cannot override
-permission, membership, lifecycle, availability, or funding. Historical managed
-Policy evidence keeps its original meaning.
+Customer Policy and evidence handling are described under [request construction](#customer-evaluation-and-request-construction).
 
 ## Budget state
 
@@ -185,13 +173,13 @@ quantity are denied; outstanding children and missing usage remain unresolved.
 
 ## Customer evaluation and request construction
 
-Customers define business rules, validate inputs and optional structured model assessments, and choose parameters before submitting a request or stopping work. They own failures, timeout behavior, fallback, persistence, and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command.
+Keynes has no database-managed Policy definition, registration, compiler, or evaluator. Customers define business rules in any language, including SQL over their own data, validate inputs and optional structured model assessments, and choose parameters before submitting a request or stopping work. They own failures, timeout behavior, fallback, persistence, and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command.
 
 The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. The integrated `request` path validates the final names and quantities. It converts a thrown or rejected Policy into the SDK's `policy_failed` result and submits only a prepared envelope. Policy execution does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to construct commands without the TypeScript callback.
 
 An application that needs a durable decision calls its Policy directly and stores the ordinary return value in its own system. Direct calls preserve ordinary JavaScript throw and rejection behavior. The application later submits final resources through a Policy-free Remote request with its own operation key. Keynes supplies no checkpoint, resume method, storage adapter, or workflow coordinator.
 
-The database treats the submitted request and any caller-supplied decision evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
+Keynes validates, canonicalizes, and records bounded `decisionEvidence` in results and request history, and binds it to replay identity. Historical managed Policy evidence keeps its original meaning. The database treats the submitted request and evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
 
 Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
 
@@ -199,51 +187,11 @@ Exact command replay returns the recorded result without rerunning customer poli
 
 `getOperationResult` is a read-only receipt lookup. It reports `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. Missing means that no receipt exists in the caller's tenant at lookup time. Expired means that a receipt exists but has passed the 30-day expiry. Neither result rules out a delayed command. Lookup does not retry, allocate, invoke Policy, generate a key, or mutate durable command state. The generated wire operation and PostgreSQL procedure retain their recovery names as internal compatibility contracts.
 
-### Equivalent customer code and SQL
+### Request example
 
-These examples construct the same request data and bounded caller evidence.
-They remain valid customer-owned preparation. The customer
-validates its selected inputs first; this example requires a string tier and a
-non-negative safe-integer limit. The business rule allows only a pro-tier
-operation whose selected limit covers 25 cents.
+After validating its inputs, customer code or SQL may produce a request `{ usdCents: 25 }` with options `{ decisionEvidence: { tier: "pro", selected_limit: 25 } }`. Customer SQL runs on its own connection with bound values; Local exposes no database handle. Customer rejection before submission creates no Keynes denial record. A valid request submitted to a parent with only 10 cents available is denied by Keynes; evaluation reserves no quantity.
 
-```ts
-function requestFor(
-  tier: string,
-  maxCents: number,
-): { usdCents: number } | null {
-  if (
-    typeof tier !== "string" ||
-    !Number.isSafeInteger(maxCents) ||
-    maxCents < 0
-  ) {
-    throw new Error("Invalid customer policy inputs");
-  }
-  return tier === "pro" && maxCents >= 25 ? { usdCents: 25 } : null;
-}
-
-const request = requestFor("pro", 25);
-const decisionEvidence = { tier: "pro", selected_limit: 25 };
-```
-
-A customer SQLite query over those same validated inputs produces equivalent JSON. This query runs on the customer's own connection, not through a Keynes Local database handle. Production callers bind values instead of interpolating them into SQL.
-
-```sql
-WITH customer_inputs(tier, max_cents) AS (VALUES ('pro', 25))
-SELECT json_object('usdCents', 25) AS request
-FROM customer_inputs
-WHERE tier = 'pro' AND max_cents >= 25;
-```
-
-Both yield `{"usdCents":25}`. A limit of 24 or a non-pro tier yields
-`null` in customer code and no SQL row; the caller rejects before submitting
-any allocation command. This customer rejection is not a recorded Keynes
-denial. When submitting, the application can pass
-`{ decisionEvidence: { tier: "pro", selected_limit: 25 } }`; a valid
-25-cent request submitted to a parent with only 10 cents available is denied
-by Keynes. Customer evaluation cannot reserve quantity.
-
-A structured model assessment may supply a fact such as a risk category. Customers validate its schema and allowed values and decide how it affects this rule. Missing or malformed output, timeout and provider failure require customer-owned failure or an explicit fallback before submission. Confidence is not Budget authority. The optional Policy callback receives validated assessment data through customer code; the SDK owns no provider integration or credentials.
+Customers validate model assessments and handle malformed output, timeout and provider failure, or select an explicit fallback before submission. The optional Policy receives validated assessments through customer code; the SDK owns no provider integration or credentials.
 
 ### Evaluation hosting
 
@@ -460,32 +408,11 @@ KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies authent
 
 `keynes install --config <path>` replaces `keynes-postgresql install --config <path>` with the same JSON configuration and PostgreSQL environment credentials. It supports fresh installation and exact recheck. The remaining catalog workflow belongs to KEY-108.
 
-| Operation                      | Direction and responsibility                                                                                                                 |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Install and verify             | Install canonical Keynes tables/procedures and verify version/profile compatibility                                                          |
-| Generate application types     | Read the selected remote catalog and write deterministic Resource TypeScript bindings                                                        |
-| Preview and deploy definitions | Compare authored definitions with the selected remote catalog, display changes, then explicitly apply through database provisioning commands |
-| Check compatibility            | Detect conflicting definitions, stale bindings and incompatible database installations without writes                                        |
+Only installation is implemented. [Product commitments](product.md#developer-setup-and-remote-onboarding) and [KEY-108](https://linear.app/keynes/issue/KEY-108) own planned catalog commands and their acceptance. SDK command/result types come from central build contracts; application Resource types come from the catalog described [above](#loading-inspection-and-generated-code).
 
-Only installation is implemented. The other rows describe future catalog capabilities, not finalized CLI subcommands. SDK command and
-result types are generated during the Keynes build from central contracts;
-application-specific Resource types come from the selected catalog. Optional policy helper types and configuration are application tooling contracts.
-Generated bindings retain runtime compatibility descriptors, grant no permissions,
-and contain no credentials, Budget rows or balances.
+Catalog deployment is separate from [database installation](#postgresql-installation) and customer Policy deployment. Definitions are immutable: exact reuse succeeds, conflicts reject, and missing definitions require explicit authorized deployment. Writes must revalidate the catalog; preview grants no authority. Initialization remains read-only, and manual declarations remain supported.
 
-There is no bidirectional schema sync. Remote definitions remain immutable;
-exact reuse succeeds, missing definitions require explicit authorized deployment,
-and conflicts fail without overwriting or deleting definitions. Definition writes
-must revalidate the catalog in the database; a prior preview cannot authorize a
-stale or conflicting write. Client initialization remains non-mutating. Supported
-manual declarations remain valid.
-
-Database installation is separate from Resource definition deployment and customer policy deployment. The current
-baseline supports fresh installation and exact reinstallation; upgrades require
-a separate migration contract. CLI acceptance must cover selected host and tenant,
-read-only credentials for discovery, separate write permissions, deterministic
-output, mismatch refusal and exact-archive clean consumers. SQLite Local and native
-fixtures do not establish Hosted onboarding or Embedded readiness.
+CLI acceptance must cover host/tenant selection, read-only discovery credentials, separate write permissions, deterministic output, mismatch refusal and exact-archive clean consumers. SQLite and native fixtures do not establish Hosted onboarding or Embedded readiness.
 
 ## PostgreSQL installation
 
