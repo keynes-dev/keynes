@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: Implementation is in progress. Phase 1 setup is complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
+**Status**: Implementation is in progress. Phases 1-2 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -21,9 +21,9 @@
 
 **Purpose**: Establish complete retained data before any Policy execution.
 
-- [ ] T003 Add failing completeness and snapshot-restoration assertions in `packages/policy/test/scenarios.test.ts`, covering missing own fields, tampered values and incompatible definitions; verify failure for the intended missing fixture behavior.
-- [ ] T004 Add the application declaration, retained complete baseline snapshot, typed scenario rows and fixed-shape `loadScenarios` boundary in `packages/policy/test/fixtures/policy-scenarios.ts`; validate proposal/facts/assessment/expectations and delegate snapshots/results to accepted helpers. Keep named answers missing versus unavailable distinct and avoid live fallbacks.
-- [ ] T005 Prepend the existing own-package build to test and typecheck in `packages/policy/package.json` so the fixture's public imports resolve. Run foundational assertions and typecheck, recording results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T003 Add failing completeness and snapshot-restoration assertions in `packages/policy/test/scenarios.test.ts`, covering missing own fields, tampered values and incompatible definitions; verify failure for the intended missing fixture behavior.
+- [x] T004 Add the application declaration, retained complete baseline snapshot, typed scenario rows and fixed-shape `loadScenarios` boundary in `packages/policy/test/fixtures/policy-scenarios.ts`; validate proposal/facts/assessment/expectations and delegate snapshots/results to accepted helpers. Keep named answers missing versus unavailable distinct and avoid live fallbacks.
+- [x] T005 Prepend the existing own-package build to test and typecheck in `packages/policy/package.json` so the fixture's public imports resolve. Run foundational assertions and typecheck, recording results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
 
 **Checkpoint**: The fixture boundary returns independent validated data without invoking Policy. Review read-only with Ponytail, resolve accepted findings and commit before US1.
 
