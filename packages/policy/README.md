@@ -55,11 +55,36 @@ Snapshots contain complete values and schema annotations. Treat them as applicat
 
 ## Test a Policy directly
 
-An application Policy is an ordinary function. Build it with a retained complete
-snapshot, call it with a proposal, and use native test assertions for the exact
-`prepared`, `rejected`, `review_required`, or `failed` result. A direct test does
-not construct a Budget, invoke an SDK wrapper, or normalize synchronous throws
-or rejected Promises.
+An application Policy is an ordinary function. Record every input the Policy
+uses: the complete parameter snapshot, proposal, facts, assessment, expected
+result, and any historical record. Reject incomplete or malformed recordings
+before the Policy or a substitute dependency runs. Use synthetic values or a
+bounded projection for fixtures. Do not put secrets, raw provider answers, or
+customer identifiers in a fixture.
+
+Build the Policy with a retained complete snapshot, call it with a proposal, and
+use native assertions for the exact `prepared`, `rejected`, `review_required`,
+or `failed` result. A direct test does not construct a Budget, invoke an SDK
+wrapper, or normalize synchronous throws or rejected Promises.
+
+```sh
+pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1
+node --test packages/policy/test/policy-scenarios.node.ts
+```
+
+The native mock is only an argument and call-count check around the application
+dependency. It is not a provider sandbox. It does not prevent network, file,
+database, clock, or process access in the Policy or dependency under test.
+
+These direct runners establish deterministic behavior for the recorded inputs.
+The SDK tests separately establish how `Budget.request` handles Policy results
+and how the allocation command responds. Live model quality needs application
+evaluation against live inputs. Allocation replay is a Keynes command-receipt
+contract and does not rerun a Policy or a model.
+
+Another native-language runner can reuse a recorded scenario only after it
+agrees on the complete fact schema and result meanings. The fixture does not
+make the TypeScript Policy implementation portable to another language.
 
 ## Compare intentional candidates
 

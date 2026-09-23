@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: Implementation is in progress. Phases 1-6 are complete; Phase 7 remains unstarted. A checked planning checklist does not complete any task below.
+**Status**: All 23 tasks are complete and committed phase by phase; no push, PR, or Linear publication is authorized by this task list.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -79,10 +79,10 @@
 
 ## Phase 7: Documentation and final verification
 
-- [ ] T020 Complete `packages/policy/README.md` with recording completeness, sensitive-input handling, framework commands, no-sandbox statement and the distinct deterministic/SDK/live-model/replay evidence boundaries. Explain future agreed fact schemas and native-language runners without claiming TypeScript portability.
-- [ ] T021 Verify the commands in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md` once in an isolated exact-revision checkout with no generated output; confirm typecheck/public imports and both runner selections, retaining environment, statuses and cleanup in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
-- [ ] T022 Run required repository and provider-free checks from `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md`, record the required PostgreSQL CI lane when available, and audit `packages/policy/package.json` plus the final diff for new exports/dependencies. Record failures and all NOT RUN lanes in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md` without claiming archive or release qualification.
-- [ ] T023 Run stock cross-artifact analysis and final read-only Ponytail review against `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/spec.md`, `plan.md`, `tasks.md` and the implementation diff; resolve accepted findings, reconcile task status and commit final evidence without publishing unless separately authorized.
+- [x] T020 Complete `packages/policy/README.md` with recording completeness, sensitive-input handling, framework commands, no-sandbox statement and the distinct deterministic/SDK/live-model/replay evidence boundaries. Explain future agreed fact schemas and native-language runners without claiming TypeScript portability.
+- [x] T021 Verify the commands in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md` once in an isolated exact-revision checkout with no generated output; confirm typecheck/public imports and both runner selections, retaining environment, statuses and cleanup in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T022 Run required repository and provider-free checks from `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md`, record the required PostgreSQL CI lane when available, and audit `packages/policy/package.json` plus the final diff for new exports/dependencies. Record failures and all NOT RUN lanes in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md` without claiming archive or release qualification.
+- [x] T023 Run stock cross-artifact analysis and final read-only Ponytail review against `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/spec.md`, `plan.md`, `tasks.md` and the implementation diff; resolve accepted findings, reconcile task status and commit final evidence without publishing unless separately authorized.
 
 ## Dependencies and execution order
 
@@ -116,4 +116,4 @@ For US1, a read-only reviewer can inspect assertions while one implementer edits
 
 ## Implementation strategy
 
-US1 supplies the first useful direct-test example. Each later story adds an independently observable capability to that same example. Finish and verify the complete feature before claiming acceptance. All 23 tasks remain unchecked at planning handoff. Phase reviews and commits belong to future authorized implementation; no task authorizes a push, PR, Linear publication or external provider call.
+US1 supplies the first useful direct-test example. Each later story adds an independently observable capability to that same example. The complete feature is verified at the recorded implementation revision. No task authorizes a push, PR, Linear publication or external provider call.

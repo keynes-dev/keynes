@@ -177,3 +177,69 @@ incomplete. The excluded rerun qualifies the selected root test file.
 This is focused evidence on a dirty, uncommitted candidate. Archive,
 clean-checkout, repository, PostgreSQL, provider, hosted, and publication lanes
 remain NOT RUN. Phases 1-6 are complete; Phase 7 remains unstarted.
+
+## Phase 7: Documentation and final verification
+
+Phase 7 qualifies committed revision
+`8f62bfdf8f7962238b4624c410d4326c6e71f21d` only. The source worktree was
+clean at that revision before the Phase 7 documentation edits, and no other
+agent was writing. A new detached checkout under
+`/private/tmp/keynes-key-118-nhf1jv/checkout` started at that exact revision.
+Before installation, `git status --short`, `git clean -ndx`, and the search for
+package `dist` and `coverage` directories produced no output.
+
+The checkout used Node `v26.5.0`, pnpm `11.21.0`, and macOS `26.5.2`
+build `25F84`. Docker Engine `29.6.2` was available. Every execution gate
+below used `CI=true`; the frozen install did not need it.
+
+| Command                                                                              | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm install --frozen-lockfile`                                                     | Passed (exit 0): the frozen lockfile installed 133 packages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `pnpm exec turbo run build --filter='@keynes/policy...'`                             | Passed (exit 0): 4 build tasks completed for 6 packages in scope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `pnpm exec turbo run typecheck --filter='@keynes/policy'`                            | Passed (exit 0): 2 tasks completed, including the package's own build and public self-import typecheck.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `pnpm --filter @keynes/policy test`                                                  | Passed (exit 0): Vitest passed 8 files and 114 tests, then node:test passed 5 tests with zero failures, cancellations, skips, or todos.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1` | Passed (exit 0): 1 file and 17 tests passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `node --test packages/policy/test/policy-scenarios.node.ts`                          | Passed (exit 0): 5 tests passed with zero failures, cancellations, skips, or todos.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `pnpm test:repository`                                                               | Passed (exit 0): 2 files and 64 tests passed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `pnpm test:pr`                                                                       | Passed (exit 0) on the final repeat. It passed generation, repository checks (2 files, 64 tests), selected PostgreSQL feedback (3 files, 201 tests), 12 quality/typecheck tasks, the full provider-free Turbo suite (8 tasks), dependency checks, and package-boundary checks over 316 files in 7 packages. The complete suite included database 52, SDK 288, Node SQLite 204, PostgreSQL 170, Policy 114 plus node:test 5, and CLI 2 tests. An earlier terminal capture ended before it reported an exit status, so it is not used as evidence. |
+| `pnpm check:repo`                                                                    | Passed (exit 0): generation, 12 quality/typecheck tasks, dependency checks, and package-boundary checks over 316 files in 7 packages passed. The existing linter emitted 5 warnings and no errors.                                                                                                                                                                                                                                                                                                                                               |
+| `pnpm test:unit`                                                                     | Passed (exit 0): database 3 files and 52 tests, PostgreSQL 17 and 170, SDK 15 and 288, and CLI 1 and 2.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `pnpm test:ci:postgresql`                                                            | Passed (exit 0): network creation, TLS certificates, container start, port discovery, readiness, and poolers passed; 13 files and 311 tests passed in 60.95 seconds; the runner reported `PostgreSQL cleanup: passed`. A post-run Docker check found no containers or Keynes PostgreSQL networks.                                                                                                                                                                                                                                                |
+
+The exact implementation diff contains five files: Phase 6 evidence and task
+records, the policy test script, the native runner, and the SDK test. The only
+`packages/policy/package.json` change appends the existing node:test command to
+`test`. There are no changes to its exports, runtime dependencies, development
+dependencies, peer dependencies, workspace manifest, root manifest, or
+`pnpm-lock.yaml`. `git diff --check 8f62bfd^ 8f62bfd` passed.
+
+The detached checkout was removed with `git worktree remove --force`. The only
+file left in its `mktemp` parent was the disposable `test-pr.log`; it was
+unlinked before `rmdir` removed the parent. The path is absent from both the
+filesystem and `git worktree list`. No other worktree or generated output was
+touched.
+
+`pnpm --filter @keynes/policy test:package` is NOT RUN, so this is not archive
+or installed-consumer qualification. No provider, credentials, live model,
+hosted environment, release, publication, or customer data was used. Live model
+quality remains application evidence. Hosted verification and publication remain
+NOT RUN. T020-T023 are complete; the Phase 7 commit records the final
+documentation and evidence.
+
+## Phase 7: Final analysis and review
+
+`SPECIFY_FEATURE_DIRECTORY=docs/features/key-118-test-policy-behavior-against-recorded-scenarios .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks`
+passed and reported the selected feature directory with `research.md`,
+`data-model.md`, `contracts/`, `quickstart.md`, and `tasks.md`.
+
+Stock cross-artifact analysis covered all 14 functional requirements, all 5
+success criteria, and all 23 tasks. It found one medium stale-status issue in
+the feature documents. The status and planning-turn language now describe the
+local implementation and exact revision evidence. The analysis found no
+constitution conflict.
+
+Final read-only Ponytail review covered `origin/main` through
+`8f62bfdf8f7962238b4624c410d4326c6e71f21d` and the current Phase 7
+documentation. It found no unnecessary public API, dependency, or runtime
+abstraction. The retained trust-boundary validation and tests are necessary.
+There were no other findings. No publication occurred.

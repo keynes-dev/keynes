@@ -4,7 +4,9 @@
 
 **Created**: 2026-09-22
 
-**Status**: Draft for approval. Planning only; implementation and qualification NOT RUN.
+**Status**: Local implementation is complete. Revision
+`8f62bfdf8f7962238b4624c410d4326c6e71f21d` is qualified; archive, hosted,
+release, and publication lanes are NOT RUN.
 
 **Issue**: [KEY-118](https://linear.app/keynes/issue/KEY-118/test-policy-behavior-against-recorded-scenarios)
 
@@ -119,4 +121,4 @@ A developer uses the same recorded data in another native test framework and can
 - KEY-117 is Done in Linear and its accepted contracts are on baseline `581a643`. [ADR-0015](../../adr/0015-direct-policy-decisions-and-command-result-lookup.md) and KEY-126 supersede its separate preparation API. KEY-118's older issue wording about an existing `prepareRequest` does not restore that API.
 - No existing KEY-118 artifacts or attachments were found on the selected branch or current checkout. Its existing branch is resumed and fast-forwarded to current main; earlier uncommitted drafts are not governing contracts.
 - Vitest and node:test are explicit delivery requirements, not a new product test framework. Example business rules and fixture shape stay application-owned.
-- No external writes, provider calls, paid validation or publication are part of this plan. Implementation awaits the user's requested checkpoint.
+- No external writes, provider calls, paid validation or publication are part of this feature. Local implementation is complete; publication and release remain separately authorized work.

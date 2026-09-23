@@ -4,7 +4,9 @@
 
 **Input**: `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/spec.md`
 
-**Status**: Proposed for the user's checkpoint. Implementation and runtime qualification NOT RUN.
+**Status**: Local implementation is complete. Revision
+`8f62bfdf8f7962238b4624c410d4326c6e71f21d` is qualified; archive, hosted,
+release, and publication lanes are NOT RUN.
 
 ## Summary
 
@@ -50,7 +52,7 @@ No constitutional exception or amendment is required. Historical KEY-117 prepara
 
 ### Documentation
 
-This directory contains `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/scenarios.md`, `quickstart.md`, `tasks.md` and `checklists/requirements.md`. Implementation will add `acceptance.md` for exact-revision evidence. Existing historical acceptance records remain untouched.
+This directory contains `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/scenarios.md`, `quickstart.md`, `tasks.md`, `checklists/requirements.md` and `acceptance.md`. The acceptance record retains exact-revision evidence. Existing historical acceptance records remain untouched.
 
 ### Planned source and test changes
 
@@ -71,7 +73,7 @@ The [task list](tasks.md) is the sole implementation checklist. Setup and founda
 
 US1 is the smallest useful increment. US2 and US3 both follow it. US4's Node example follows the shared data; SDK test work can proceed independently of that example. Keep one feature and one independently acceptable PR. Do not create phase issues.
 
-During implementation, use bounded subagents for independent test/documentation slices when useful, review each phase read-only with Ponytail, resolve accepted findings, and commit the completed phase before advancing. These checkpoints do not authorize implementation in this planning turn, publication or merging.
+Implementation used bounded subagents for independent test and documentation slices, read-only Ponytail review after each phase, accepted-finding resolution, and a commit before the next phase. These checkpoints do not authorize publication or merging.
 
 ## Verification and boundaries
 
@@ -79,4 +81,4 @@ Follow [quickstart.md](quickstart.md) for exact commands. Required implementatio
 
 No runtime or accounting behavior changes are planned, so a new full database/package qualification run is not required solely to accept these examples. Preserve existing integration coverage and run broader lanes if implementation expands the scope. KEY-88 owns release archive qualification, KEY-105 publishing, KEY-125 hosted evaluation. Live model calls, paid validation, Cloud execution and external writes are excluded.
 
-The planning turn verifies document formatting, task/requirement coverage and stock prerequisites only. Every implementation, database, provider and archive result remains NOT RUN until executed on the implementation revision.
+`acceptance.md` records exact-revision implementation, provider-free, and PostgreSQL CI evidence. Archive, installed-consumer, provider, hosted, release, and publication lanes remain separate and are NOT RUN.
