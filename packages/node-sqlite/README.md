@@ -43,14 +43,6 @@ Local state disappears on `close()` or process exit. The package accepts no data
 
 The package ships only its public root export. Deep imports and generated engine files are private.
 
-## Build and test
+## Verification
 
-Run these commands from the repository root:
-
-```sh
-pnpm build:node-sqlite
-pnpm --filter @keynes/node-sqlite test
-pnpm pack:node-sqlite
-```
-
-`pnpm pack:node-sqlite` writes `.artifacts/package-tests/node-sqlite/keynes-node-sqlite-0.0.0.tgz`.
+The [repository testing reference](../../docs/testing.md) owns source, Local, native, and exact-archive commands and explains what each result proves.

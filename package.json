@@ -36,7 +36,7 @@
     "test:embedded": "pnpm --filter @keynes/postgres test:embedded",
     "test:hosted": "pnpm --filter @keynes/sdk test:hosted",
     "test:ci:postgresql": "pnpm --filter @keynes/postgres test:ci",
-    "format:docs": "oxfmt --check docs .specify/memory AGENTS.md .github/PULL_REQUEST_TEMPLATE.md README.md",
+    "format:docs": "oxfmt --check docs packages/*/README.md packages/*/docs apps/*/README.md .specify/memory AGENTS.md .github/PULL_REQUEST_TEMPLATE.md README.md",
     "build:node-sqlite": "pnpm --filter @keynes/node-sqlite build",
     "pack:node-sqlite": "pnpm --filter @keynes/node-sqlite pack --pack-destination .artifacts/package-tests/node-sqlite",
     "build:cli": "pnpm --filter @keynes/cli build",

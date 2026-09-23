@@ -4,7 +4,7 @@
 
 ## Install
 
-Install matching `@keynes/cli` and `@keynes/postgres` packages. The CLI archive contains only the executable and declares `@keynes/postgres` as its only production dependency. Repository contributors can build and pack it with `pnpm build:cli` and `pnpm pack:cli`.
+Install matching `@keynes/cli` and `@keynes/postgres` packages. The CLI archive contains only the executable and declares `@keynes/postgres` as its only production dependency. The [repository testing reference](../../docs/testing.md) owns build and exact-archive qualification commands.
 
 The PostgreSQL package owns the [supported profile, prepared roles, grants, compatibility checks, and installation behavior](https://github.com/keynes-dev/keynes/blob/main/packages/postgres/docs/installation.md).
 

@@ -2,13 +2,7 @@
 
 `@keynes/sdk` is the ESM TypeScript API for Keynes. It supplies typed Budget handles and generated runtime bindings; SQLite and PostgreSQL live in separate adapter packages.
 
-This package is private and is installed from the archive built at the repository root:
-
-```sh
-CI=true pnpm pack:sdk
-```
-
-Install `.artifacts/package-tests/sdk/keynes-sdk-0.0.0.tgz` with one runtime archive. Node.js 24 or later is required.
+This package is private and is installed from a repository-built archive with one runtime archive. Node.js 24 or later is required. The [testing reference](../../docs/testing.md) owns the build and exact-archive qualification commands.
 
 ## Create and use a Budget
 

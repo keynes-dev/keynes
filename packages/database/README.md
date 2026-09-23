@@ -23,7 +23,7 @@ Production code must not import this package. Owner-local generator scripts and 
 2. Update the engine implementations independently: `src/sqlite/` owns SQLite behavior and `postgres/migrations/` owns PostgreSQL behavior.
 3. Put shared behavior coverage in `contract-tests/scenarios/`; keep engine, transport, locking and permission coverage with the owning runtime.
 4. Run `pnpm generate` and review every generated consumer and digest change.
-5. Run the repository checks selected by `docs/testing.md`, added by this migration.
+5. Run the repository checks selected by the [testing reference](../../docs/testing.md).
 
 Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata and digests derive from these inputs. Do not hand-edit generated files.
 

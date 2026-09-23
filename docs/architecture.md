@@ -233,7 +233,7 @@ tenant isolation, TLS, recovery, and direct and supported pooled connections.
 Local evidence must cover queue ordering, isolation, close/drain behavior,
 package contents, and the declared Node.js qualification lanes.
 
-Existing SQLite/native correctness commands and required CI check names remain unchanged. Preserve native coverage, fail-closed change classification, required-check enforcement, and explicit qualification. Retain ordinary request, caller-evidence, replay, transaction, permission, and concurrency coverage. `pnpm test:sqlite-postgres` remains the explicit shared qualification command; documentation adoption does not qualify runtime behavior.
+The [testing reference](testing.md) owns the current commands, lane boundaries, fail-closed CI classification, and evidence requirements. Documentation adoption does not qualify runtime behavior.
 
 Current passing provider-free checks do not prove this target. Native
 PostgreSQL, hosted, package, provider, security, recovery, performance, and

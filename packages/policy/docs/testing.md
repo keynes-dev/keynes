@@ -73,14 +73,4 @@ Another language can reuse a scenario only after it implements the same fact sch
 
 ## Run the package checks
 
-From the repository root, run:
-
-```sh
-pnpm exec turbo run build --filter='@keynes/policy...'
-pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1
-node --test packages/policy/test/policy-scenarios.node.ts
-pnpm --filter @keynes/policy typecheck
-pnpm --filter @keynes/policy test:package
-```
-
-The first four commands qualify source behavior and types. `test:package` qualifies the packed root and `@keynes/policy/zod` exports. These checks do not qualify a registry publication or Local runtime behavior.
+The [repository testing reference](../../../docs/testing.md) owns current source and exact-archive commands and their evidence boundaries. Policy source checks cover both Vitest and `node:test` scenarios. The Policy archive lane qualifies the packed root and `@keynes/policy/zod` exports; it does not qualify a registry publication, live provider, or Local runtime.

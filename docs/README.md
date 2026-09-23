@@ -6,23 +6,23 @@
 
 Each current topic has one normative owner. Other pages link to that owner instead of restating its rules.
 
-| Topic                                                  | Owner                                                                |
-| ------------------------------------------------------ | -------------------------------------------------------------------- |
-| Product thesis, outcomes and commitments               | [Product](product.md)                                                |
-| Components, authority and trust boundaries             | [Architecture](architecture.md)                                      |
-| Resource, Budget, quantity and settlement behavior     | [Accounting reference](reference/accounting.md)                      |
-| Commands, validation, atomicity, replay and inspection | [Command reference](reference/commands.md)                           |
-| TypeScript SDK API and adapter bindings                | [SDK package](../packages/sdk/README.md)                             |
-| Ephemeral Local runtime                                | [Node SQLite package](../packages/node-sqlite/README.md)             |
-| PostgreSQL installation and runtime                    | [PostgreSQL package](../packages/postgres/README.md)                 |
-| Optional customer-owned Policy tools                   | [Policy package](../packages/policy/README.md)                       |
-| Developer CLI                                          | [CLI app](../apps/cli/README.md)                                     |
-| Repository verification                                | `docs/testing.md` (added by this migration)                          |
-| Contributor delivery and Spec Kit retention            | [Workflow](workflow.md)                                              |
-| Release procedure and retained release evidence        | `docs/releases/README.md` (added by this migration)                  |
-| Accepted cross-package decisions                       | Existing records in `docs/adr/`; an index is added by this migration |
-| Internal contract generation and shared scenarios      | [Database package](../packages/database/README.md)                   |
-| Internal package qualification utilities               | [Testkit package](../packages/testkit/README.md)                     |
+| Topic                                                  | Owner                                                    |
+| ------------------------------------------------------ | -------------------------------------------------------- |
+| Product thesis, outcomes and commitments               | [Product](product.md)                                    |
+| Components, authority and trust boundaries             | [Architecture](architecture.md)                          |
+| Resource, Budget, quantity and settlement behavior     | [Accounting reference](reference/accounting.md)          |
+| Commands, validation, atomicity, replay and inspection | [Command reference](reference/commands.md)               |
+| TypeScript SDK API and adapter bindings                | [SDK package](../packages/sdk/README.md)                 |
+| Ephemeral Local runtime                                | [Node SQLite package](../packages/node-sqlite/README.md) |
+| PostgreSQL installation and runtime                    | [PostgreSQL package](../packages/postgres/README.md)     |
+| Optional customer-owned Policy tools                   | [Policy package](../packages/policy/README.md)           |
+| Developer CLI                                          | [CLI app](../apps/cli/README.md)                         |
+| Repository verification                                | [Testing](testing.md)                                    |
+| Contributor delivery and Spec Kit retention            | [Workflow](workflow.md)                                  |
+| Release procedure and retained release evidence        | [Releases](releases/README.md)                           |
+| Accepted cross-package decisions                       | [Architectural decisions](adr/)                          |
+| Internal contract generation and shared scenarios      | [Database package](../packages/database/README.md)       |
+| Internal package qualification utilities               | [Testkit package](../packages/testkit/README.md)         |
 
 ## Repository records
 

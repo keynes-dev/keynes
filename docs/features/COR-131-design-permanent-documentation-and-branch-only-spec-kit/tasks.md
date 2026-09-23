@@ -86,14 +86,14 @@
 
 **Independent Test**: A contributor can select the right current command and state exactly what its evidence proves without consulting `docs/features/`.
 
-- [ ] T033 [US1] Create the verification-lane reference in `docs/testing.md`
-- [ ] T034 [US1] Create release procedure and evidence-retention guidance in `docs/releases/README.md`
-- [ ] T035 [US1] Replace active feature-guide links in `README.md`, `docs/`, `packages/`, and `apps/` with testing/release/package owners
-- [ ] T036 [US1] Extend documentation formatting coverage in `package.json` to package and application docs
-- [ ] T037 [US1] Preserve fail-closed CI classification in `scripts/classify-sqlite-postgres-changes.ts` and add only focused regression coverage required by any classifier change
-- [ ] T038 [US1] Run documented provider-free checks for `docs/testing.md` and verify every documented command exists; mark native/archive lanes NOT RUN unless executed
-- [ ] T039 [US1] Run a read-only Ponytail review of Phase 5 files under `docs/`, `package.json`, and `scripts/`
-- [ ] T040 [US1] Commit the reviewed Phase 5 files under `docs/`, `package.json`, and `scripts/`
+- [x] T033 [US1] Create the verification-lane reference in `docs/testing.md`
+- [x] T034 [US1] Create release procedure and evidence-retention guidance in `docs/releases/README.md`
+- [x] T035 [US1] Replace active feature-guide links in `README.md`, `docs/`, `packages/`, and `apps/` with testing/release/package owners
+- [x] T036 [US1] Extend documentation formatting coverage in `package.json` to package and application docs
+- [x] T037 [US1] Preserve fail-closed CI classification in `scripts/classify-sqlite-postgres-changes.ts` and add only focused regression coverage required by any classifier change
+- [x] T038 [US1] Run documented provider-free checks for `docs/testing.md` and verify every documented command exists; mark native/archive lanes NOT RUN unless executed
+- [x] T039 [US1] Run a read-only Ponytail review of Phase 5 files under `docs/`, `package.json`, and `scripts/`
+- [x] T040 [US1] Commit the reviewed Phase 5 files under `docs/`, `package.json`, and `scripts/`
 
 **Checkpoint**: Current testing and release claims have durable owners and explicit evidence limits.
 

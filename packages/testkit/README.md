@@ -23,4 +23,4 @@ Callers choose the package, command, environment and evidence path. Testkit owns
 
 Keep package-specific assertions with the package. Add a testkit helper only when multiple qualification paths need the same lifecycle or artifact operation; otherwise use the standard library in the owning test.
 
-See `docs/testing.md`, added by this migration, for lane selection and evidence meaning.
+See the [testing reference](../../docs/testing.md) for lane selection and evidence meaning.
