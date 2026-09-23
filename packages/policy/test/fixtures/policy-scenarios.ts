@@ -1,9 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+
 import {
   configurePolicy,
   defineParameters,
   recordPolicyResult,
   restoreParameterSnapshot,
   type ParameterSnapshot,
+  type PolicyRecord,
 } from "@keynes/policy";
 import type { Policy, PolicyOutput, ResourceAmounts } from "@keynes/sdk";
 
@@ -21,6 +24,10 @@ export type PolicyScenario = Readonly<{
   parameters: ParameterSnapshot<Values>;
   assessment: RiskAssessment;
   expected: PolicyOutput<"usdCents">;
+  historical?: Readonly<{
+    policyRevision: string;
+    record: PolicyRecord;
+  }>;
 }>;
 
 const declaration = defineParameters({
@@ -130,19 +137,36 @@ function loadScenario(input: unknown, names: Set<string>): PolicyScenario {
   const row = object(input, "scenario");
   fields(
     row,
-    ["name", "proposal", "facts", "parameters", "assessment", "expected"],
+    Object.hasOwn(row, "historical")
+      ? [
+          "name",
+          "proposal",
+          "facts",
+          "parameters",
+          "assessment",
+          "expected",
+          "historical",
+        ]
+      : ["name", "proposal", "facts", "parameters", "assessment", "expected"],
     "scenario",
   );
   const name = string(row.name, "scenario.name");
   if (names.has(name)) throw new TypeError("Duplicate scenario name");
   names.add(name);
-  return {
+  const parameters = restoreParameterSnapshot(declaration, row.parameters);
+  const expected = output(row.expected);
+  const scenario = {
     name,
     proposal: amounts(row.proposal, "scenario.proposal", false),
     facts: facts(row.facts),
-    parameters: restoreParameterSnapshot(declaration, row.parameters),
+    parameters,
     assessment: assessment(row.assessment),
-    expected: output(row.expected),
+    expected,
+  };
+  if (!Object.hasOwn(row, "historical")) return scenario;
+  return {
+    ...scenario,
+    historical: historical(row.historical, parameters, expected),
   };
 }
 
@@ -245,6 +269,48 @@ function assessment(input: unknown): RiskAssessment {
   )
     throw new TypeError("Invalid scenario.assessment");
   return { kind, risk, confidence };
+}
+
+function historical(
+  input: unknown,
+  parameters: ParameterSnapshot<Values>,
+  expected: PolicyOutput<"usdCents">,
+): Readonly<{ policyRevision: string; record: PolicyRecord }> {
+  const value = object(input, "scenario.historical");
+  fields(value, ["policyRevision", "record"], "scenario.historical");
+  const record = object(value.record, "scenario.historical.record");
+  fields(
+    record,
+    ["definitionId", "snapshotId", "context", "result"],
+    "scenario.historical.record",
+  );
+  const definitionId = string(
+    record.definitionId,
+    "scenario.historical.record.definitionId",
+  );
+  if (definitionId !== parameters.definitionId)
+    throw new TypeError("Invalid scenario.historical.definition_id_mismatch");
+  const snapshotId = string(
+    record.snapshotId,
+    "scenario.historical.record.snapshotId",
+  );
+  if (snapshotId !== parameters.snapshotId)
+    throw new TypeError("Invalid scenario.historical.snapshot_id_mismatch");
+  const result = output(record.result);
+  if (!isDeepStrictEqual(result, expected))
+    throw new TypeError("Invalid scenario.historical.result_mismatch");
+  return {
+    policyRevision: string(
+      value.policyRevision,
+      "scenario.historical.policyRevision",
+    ),
+    record: recordPolicyResult({
+      definitionId,
+      snapshotId,
+      context: record.context,
+      result,
+    }),
+  };
 }
 
 function output(input: unknown): PolicyOutput<"usdCents"> {

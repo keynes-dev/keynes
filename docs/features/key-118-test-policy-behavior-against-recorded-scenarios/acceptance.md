@@ -88,3 +88,34 @@ zero, an omitted required proposal quantity, and low confidence; a second
 separate test preserves native synchronous throw and Promise-rejection identity.
 It constructs no Budget and invokes no provider, SDK request wrapper, database,
 archive, or hosted service. Phase 4 and later behavior remains unstarted.
+
+## Phase 4: US2 dependency substitution
+
+At `4822aa5d4a7ecc95ae95e99f04d7f9958c28597a`, the first focused assertion
+addition failed as intended because a complete historical row was rejected as
+`Invalid scenario` before the optional historical loader existed. That first run
+also exposed an incorrectly constructed duplicate-name matrix assertion; it was
+corrected before the loader implementation, retaining the intended preflight
+check for malformed data and the distinct duplicate-name check.
+
+`loadScenarios` now accepts the fixed optional
+`historical: { policyRevision, record }` shape. It restores the retained
+snapshot, checks the record's definition and snapshot identities and expected
+result, then captures the record through `recordPolicyResult`. It neither
+retrieves code for `policyRevision` nor invokes a Policy/dependency. The tests
+keep missing assessment, unavailable assessment, high risk, and low confidence
+as distinct observations. Test-local `assessRisk` mocks observe the exact
+proposal/facts object and one call outside the Policy. Separate loads use fresh
+mock closures and mutable proposal copies; reverse-order outcomes remain equal.
+
+| Command                                                                                                                    | Result                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @keynes/policy build && pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1` | Initial test-first run failed (exit 1): 2 of 10 tests failed, including the intended missing optional-historical implementation. |
+| `pnpm --filter @keynes/policy build && pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1` | Passed (exit 0): 1 file and 16 tests passed after the Phase 4 implementation.                                                    |
+| `pnpm --filter @keynes/policy test`                                                                                        | Passed (exit 0): own-package build completed, then 8 files and 113 tests passed.                                                 |
+| `pnpm --filter @keynes/policy typecheck`                                                                                   | Passed (exit 0): own-package build completed, then `tsc --project tsconfig.json --noEmit` passed.                                |
+| `pnpm exec oxfmt --check` on the four Phase 4 files and `git diff --check`                                                 | Passed (exit 0): all matched files use the correct format; the diff has no whitespace errors.                                    |
+
+These checks qualify the uncommitted Phase 4 candidate only. They do not run a
+public SDK request path, a second native runner, a package archive, database,
+provider, or hosted lane. Phase 5 and later work remains unstarted.
