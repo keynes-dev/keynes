@@ -9,7 +9,7 @@ When creating or updating a pull request, read
 repository-specific facts. Write for a reviewer who has not followed the
 implementation thread.
 
-Use the Linear issue title as `KEY-N Title`.
+Follow `docs/workflow.md` for PR titles and issue completion.
 
 Use the current branch diff, linked Linear issue and project, Spec Kit artifacts,
 ADRs, and live CI state as evidence.

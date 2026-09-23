@@ -47,8 +47,10 @@ Run the feature's tests and review the complete PR. Use `$speckit-converge` afte
 implementation when the approved artifacts still have unbuilt requirements. It
 appends remaining tasks; it does not replace review or runtime verification.
 
-Link the PR to the Linear issue using native GitHub linking. Mark Done only after
-merge and required acceptance passes. Task completion or an open PR is insufficient.
+Use `<issue identifier> <issue title>` as the PR title. Linear handles linking and
+status automation. Complete the issue's required checks before merging; track
+separate release or deployment verification in follow-up issues. Issue closure
+does not establish release qualification.
 This workflow does not authorize automatic merging or publication.
 
 ## Delivery discipline
