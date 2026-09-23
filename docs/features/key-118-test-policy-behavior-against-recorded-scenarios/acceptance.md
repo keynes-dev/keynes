@@ -149,3 +149,31 @@ Historical records and their `policyRevision` remain unchanged.
 
 No public SDK request path, second native runner, archive, database, provider,
 or hosted lane ran. Phase 6 and later work remains unstarted.
+
+## Phase 6: US4 native runner and SDK boundary
+
+At the uncommitted candidate based on
+`7590ae2fbe3e6c2c94369b613cce8aab4e93abc9`, the policy package test script
+now runs its existing Vitest suite and then explicitly runs
+`test/policy-scenarios.node.ts`. The native file uses the same retained rows,
+`loadScenarios`, and `makePolicy` as Vitest; its `.node.ts` suffix remains
+outside Vitest discovery. Its one `node:test` mock observes one exact
+proposal/facts argument outside the Policy.
+
+The focused SDK test uses real Node SQLite. Invalid output and direct
+throw/rejection normalize before submission; a prepared request submits once
+and may still be denied for quantity. The unexcluded quickstart command also
+discovered an unrelated nested `.claude` worktree whose dependencies are
+incomplete. The excluded rerun qualifies the selected root test file.
+
+| Command                                                                                                                                                           | Result                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @keynes/policy typecheck`                                                                                                                          | Passed (exit 0): own-package build completed, then `tsc --project tsconfig.json --noEmit` passed.                                                                                                     |
+| `pnpm --filter @keynes/policy test`                                                                                                                               | Passed (exit 0): own-package build completed, Vitest reported 8 files and 114 tests passed, then native Node reported 5 tests passed.                                                                 |
+| `node --test packages/policy/test/policy-scenarios.node.ts`                                                                                                       | Passed (exit 0): 5 tests passed; 0 failed, cancelled, skipped, or todo.                                                                                                                               |
+| `pnpm exec vitest run packages/sdk/test/unit/public/policy-api.test.ts --config packages/sdk/vitest.config.ts --maxWorkers=1`                                     | Failed (exit 1): the command also found a nested `.claude` worktree, which could not import `decimal.js`; 2 files and 32 tests passed, while that unrelated nested suite failed before its tests ran. |
+| `pnpm exec vitest run packages/sdk/test/unit/public/policy-api.test.ts --config packages/sdk/vitest.config.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'` | Passed (exit 0): the selected root file reported 1 file and 28 tests passed.                                                                                                                          |
+
+This is focused evidence on a dirty, uncommitted candidate. Archive,
+clean-checkout, repository, PostgreSQL, provider, hosted, and publication lanes
+remain NOT RUN. Phases 1-6 are complete; Phase 7 remains unstarted.

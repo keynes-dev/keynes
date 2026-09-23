@@ -261,6 +261,67 @@ describe("Policy request integration", () => {
     },
   );
 
+  it("normalizes failed Policy work before one prepared denial", async () => {
+    const descriptor = nodeSqlite();
+    let session: BasicRuntimeSession | undefined;
+    const keynes = await createKeynes({
+      runtime: {
+        ...descriptor,
+        async initialize(definitions: unknown) {
+          session = await descriptor.initialize(definitions);
+          vi.spyOn(session.client, "requestBudget");
+          return session;
+        },
+      },
+      resources: {
+        usdCents: { unit: "cent", accountingBehavior: "consumable" },
+        searchQueries: { unit: "query", accountingBehavior: "reusable" },
+      },
+    });
+    try {
+      const root = await keynes.createBudget({
+        usdCents: 10,
+        searchQueries: 1,
+      });
+      for (const { policy, expected } of [
+        {
+          policy: () => ({ kind: "approved" }),
+          expected: { kind: "failed", code: "invalid_policy_output" },
+        },
+        {
+          policy: () => {
+            throw new Error("customer failure");
+          },
+          expected: { kind: "failed", code: "policy_failed" },
+        },
+        {
+          policy: () => Promise.reject("customer failure"),
+          expected: { kind: "failed", code: "policy_failed" },
+        },
+      ]) {
+        await expect(
+          Reflect.apply(root.request, root, [{ usdCents: 1 }, { policy }]),
+        ).resolves.toEqual({ status: "not_submitted", policy: expected });
+        expect(session?.client.requestBudget).not.toHaveBeenCalled();
+      }
+
+      const policy = {
+        kind: "prepared",
+        request: { searchQueries: 2 },
+      } satisfies PolicyOutput<"searchQueries">;
+      await expect(
+        root.request({ usdCents: 1 }, { policy: () => policy }),
+      ).resolves.toMatchObject({
+        status: "submitted",
+        policy,
+        allocation: { status: "denied" },
+      });
+      expect(session?.client.requestBudget).toHaveBeenCalledTimes(1);
+    } finally {
+      await keynes.close();
+    }
+  });
+
   it("validates a malformed Policy option before capturing the proposal", async () => {
     await using keynes = await createKeynes({
       runtime: nodeSqlite(),

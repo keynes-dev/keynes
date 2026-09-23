@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: Implementation is in progress. Phases 1-5 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
+**Status**: Implementation is in progress. Phases 1-6 are complete; Phase 7 remains unstarted. A checked planning checklist does not complete any task below.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -71,9 +71,9 @@
 
 **Independent test**: Node runs the same outcome rows; public request tests observe zero submissions for invalid/non-prepared output and ordinary approval/denial for prepared output.
 
-- [ ] T017 [P] [US4] Add `packages/policy/test/policy-scenarios.node.ts` using the same `loadScenarios` and `makePolicy`, native strict equality and one native mock with argument/count assertions. Keep the `.node.ts` suffix outside Vitest discovery.
-- [ ] T018 [P] [US4] Extend only missing public-path assertions in `packages/sdk/test/unit/public/policy-api.test.ts` for malformed output, throws/rejections and prepared allocation denial; reuse current real SQLite setup and submission observation, preserving existing all-outcome cases.
-- [ ] T019 [US4] Append explicit Node execution to `packages/policy/package.json` after Vitest, run both frameworks and focused SDK checks from `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md`, and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T017 [P] [US4] Add `packages/policy/test/policy-scenarios.node.ts` using the same `loadScenarios` and `makePolicy`, native strict equality and one native mock with argument/count assertions. Keep the `.node.ts` suffix outside Vitest discovery.
+- [x] T018 [P] [US4] Extend only missing public-path assertions in `packages/sdk/test/unit/public/policy-api.test.ts` for malformed output, throws/rejections and prepared allocation denial; reuse current real SQLite setup and submission observation, preserving existing all-outcome cases.
+- [x] T019 [US4] Append explicit Node execution to `packages/policy/package.json` after Vitest, run both frameworks and focused SDK checks from `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/quickstart.md`, and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
 
 **Checkpoint**: Direct results and SDK/allocation results remain separate. Read-only Ponytail review, evaluate findings, then commit.
 
