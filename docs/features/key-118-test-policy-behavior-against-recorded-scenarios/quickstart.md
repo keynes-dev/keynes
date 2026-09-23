@@ -35,7 +35,7 @@ Expect exact prepared, rejected, review-required and failed results. The first e
 
 ## Check incomplete and independent fixtures
 
-Run the Vitest scenario file above. Confirm missing and malformed required fields, duplicate names, mismatched record identities, incompatible code revision and invalid snapshots fail preflight before Policy/dependency calls. Recorded unavailable and high-risk assessments are valid inputs with separate meanings.
+Run the Vitest scenario file above. Confirm missing and malformed required fields, duplicate names, mismatched record identities, historical evidence without a code revision and invalid snapshots fail preflight before Policy/dependency calls. Recorded unavailable and high-risk assessments are valid inputs with separate meanings.
 
 Run complete cases twice and in reverse order. Mutate one loaded proposal/fact/assessment and verify a separately loaded copy remains unchanged. Each dependency example must create a new native mock and verify the actual arguments and call count outside the Policy.
 

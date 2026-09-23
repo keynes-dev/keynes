@@ -71,16 +71,19 @@ import type { RiskAssessment } from "./risk-policy.ts";
 
 type Values = { requestCap: number; minimumConfidence: number };
 type Facts = Readonly<{ eligible: boolean }>;
+type HistoricalScenario = Readonly<{
+  policyRevision: string;
+  record: PolicyRecord;
+}>;
 
 type Scenario = Readonly<{
   name: string;
-  policyRevision: string;
   proposal: ResourceAmounts<"usdCents">;
   facts: Facts;
   parameters: ParameterSnapshot<Values>;
   assessment: RiskAssessment;
   expected: PolicyOutput<"usdCents">;
-  historicalRecord?: PolicyRecord;
+  historical?: HistoricalScenario;
 }>;
 
 declare const recordedScenarios: unknown;
@@ -88,9 +91,9 @@ declare const recordedScenarios: unknown;
 function loadScenarios(
   input: unknown = recordedScenarios,
 ): readonly Scenario[] {
-  // Check application fields, unique names and the known example revision.
+  // Check application fields and unique names.
   // Restore complete snapshots using the existing declaration.
-  // Capture optional records with recordPolicyResult and check baseline identity.
+  // Capture an optional historical record and check its baseline identity.
   // Return fresh rows only after every row passes; never invoke a Policy here.
   throw new Error("not implemented");
 }
@@ -110,7 +113,7 @@ The cap is an explicit application decision, never implicit SDK clipping. An omi
 
 ## Fixture boundary
 
-The loader owns one fixed application shape. It has no file discovery, query interface, plugins, result normalization or invocation hook. Validate own required fields and complete variants, including the proposal, eligible fact, assessment, explicit expected result and revision. Reject duplicate names. Snapshot integrity belongs to existing restoration; retained result capture belongs to existing record helpers. Do not copy their implementations.
+The loader owns one fixed application shape. It has no file discovery, query interface, plugins, result normalization or invocation hook. Validate own required fields and complete variants, including the proposal, eligible fact, assessment and explicit expected result. Reject duplicate names. Snapshot integrity belongs to existing restoration; retained result capture belongs to existing record helpers. Do not copy their implementations. When a row retains historical evidence, validate its paired record and code revision.
 
 Retain complete baseline snapshots as data, generated once with accepted helpers and reviewed before committing. Do not generate baseline expectations from actual results. For the one historical fixture, its accepted `PolicyRecord.result` can supply the baseline expected value when authoring the row. If the fixture retains both, reject a baseline mismatch at preflight. Candidate expectations remain explicit and may differ without changing the historical record.
 
@@ -118,24 +121,25 @@ Historical records are optional, not a requirement for ordinary direct tests. Th
 
 ## Required behavior matrix
 
-| Input or action                                           | Expected evidence                                                                       |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Eligible, low risk, sufficient confidence                 | Exact prepared request                                                                  |
-| Ineligible business facts                                 | Exact rejected outcome                                                                  |
-| High risk or insufficient confidence                      | Exact review_required outcome                                                           |
-| Recorded unavailable assessment                           | Exact failed outcome                                                                    |
-| Missing/malformed assessment, facts, snapshot or revision | Preflight failure; zero Policy and dependency calls                                     |
-| Direct synchronous throw                                  | Native synchronous throw assertion                                                      |
-| Direct rejected Promise                                   | Native Promise rejection assertion                                                      |
-| Baseline cap 100, candidate cap 80, proposal 100          | Separate exact requests 100 and 80; unchanged baseline and facts                        |
-| Deliberately broken candidate ignores cap                 | Native equality fails against expected 80; outer native assertion confirms that failure |
-| Repeat/reverse complete cases                             | Identical pinned outcomes with fresh mocks                                              |
-| Mutate one loaded copy                                    | Separately loaded copy remains unchanged                                                |
-| Zero or omitted required quantity                         | Zero retained; missing quantity explicitly rejected by application rule                 |
-| Public request with malformed output                      | not_submitted with failed/invalid_policy_output; zero allocation calls                  |
-| Public request with non-prepared output                   | not_submitted; zero allocation calls                                                    |
-| Public request with throw/rejection                       | not_submitted with failed/policy_failed; zero allocation calls                          |
-| Public request with prepared output                       | One allocation call; ordinary approval or quantity denial                               |
+| Input or action                                          | Expected evidence                                                                       |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Eligible, low risk, sufficient confidence                | Exact prepared request                                                                  |
+| Ineligible business facts                                | Exact rejected outcome                                                                  |
+| High risk or insufficient confidence                     | Exact review_required outcome                                                           |
+| Recorded unavailable assessment                          | Exact failed outcome                                                                    |
+| Missing/malformed assessment, facts or snapshot          | Preflight failure; zero Policy and dependency calls                                     |
+| Historical evidence with missing record or code revision | Preflight failure; zero Policy and dependency calls                                     |
+| Direct synchronous throw                                 | Native synchronous throw assertion                                                      |
+| Direct rejected Promise                                  | Native Promise rejection assertion                                                      |
+| Baseline cap 100, candidate cap 80, proposal 100         | Separate exact requests 100 and 80; unchanged baseline and facts                        |
+| Deliberately broken candidate ignores cap                | Native equality fails against expected 80; outer native assertion confirms that failure |
+| Repeat/reverse complete cases                            | Identical pinned outcomes with fresh mocks                                              |
+| Mutate one loaded copy                                   | Separately loaded copy remains unchanged                                                |
+| Zero or omitted required quantity                        | Zero retained; missing quantity explicitly rejected by application rule                 |
+| Public request with malformed output                     | not_submitted with failed/invalid_policy_output; zero allocation calls                  |
+| Public request with non-prepared output                  | not_submitted; zero allocation calls                                                    |
+| Public request with throw/rejection                      | not_submitted with failed/policy_failed; zero allocation calls                          |
+| Public request with prepared output                      | One allocation call; ordinary approval or quantity denial                               |
 
 The returned `failed` row does not subsume the two direct exception assertions. The regression demonstration evaluates the broken candidate before the outer assertion so a setup exception cannot masquerade as a caught equality failure. Use the framework's native equality and diff, without a custom comparator.
 

@@ -4,7 +4,7 @@ All scenario types belong to the example application. This feature adds no expor
 
 ## Scenario
 
-A complete scenario contains a unique `name`, ordinary `proposal`, explicit business `facts`, complete `parameters`, recorded `assessment` and explicit `expected` Policy outcome. The example uses `facts.eligible` to distinguish business rejection from assessment-driven review. A `policyRevision` identifies the example code; retaining an identifier does not retrieve or execute old code.
+A complete scenario contains a unique `name`, ordinary `proposal`, explicit business `facts`, complete `parameters`, recorded `assessment` and explicit `expected` Policy outcome. The example uses `facts.eligible` to distinguish business rejection from assessment-driven review.
 
 Each call to the application loader creates fresh proposal, facts, assessment and expected-result objects for every row. Restore the retained parameter envelope through the existing declaration. Immutable snapshots may be shared only if their immutability is retained. Create mocks and the Policy closure inside each case. The loader must not obtain current time, randomness, environment credentials or live service data.
 
@@ -28,7 +28,7 @@ Reuse `PolicyOutput<"usdCents">` from the SDK. A prepared outcome contains its e
 
 Reuse `PolicyRecord` unchanged: `definitionId`, `snapshotId`, selected JSON `context` and `result`. It is optional historical evidence beside the complete scenario, not the sole source of runnable inputs. For a retained baseline fixture, verify record identities match the restored snapshot and record.result matches the recorded baseline expectation. A candidate may intentionally differ and must not overwrite or be constrained to the historical result.
 
-`loadScenarios(input: unknown = recordedScenarios)` is a private, example-specific input boundary. It validates required own fields, proposal quantities, business facts, assessment and the known example revision before returning runnable scenarios. Use existing `recordPolicyResult` when recapturing an optional historical record; validate application-specific result Resource names against the example's vocabulary. Reject missing data and mismatched identities without repairing or fetching it. No assertion framework or Policy invocation belongs in restoration.
+`loadScenarios(input: unknown = recordedScenarios)` is a private, example-specific input boundary. It validates required own fields, proposal quantities, business facts and assessment before returning runnable scenarios. Use existing `recordPolicyResult` when recapturing an optional historical record; validate application-specific result Resource names against the example's vocabulary. Historical evidence pairs its record with an executable Policy revision. Reject missing data and mismatched identities without repairing or fetching it. No assertion framework or Policy invocation belongs in restoration.
 
 Full snapshots and retained inputs can contain sensitive application data. Commit synthetic, reviewed fixtures only. Redaction may make a record unsuitable for reproduction. An incomplete historical record remains evidence; it does not become executable until the application supplies the missing reviewed inputs.
 

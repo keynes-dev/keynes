@@ -22,26 +22,7 @@ The [caller-first sketch](contracts/scenarios.md) defines one application scenar
 
 ## Synthesis decision
 
-Two independent architect runners produced structurally distinct packages. A used complete retained scenario rows plus one application loader. B used typed per-scenario factories plus a separate retained-envelope restoration example. Both preserved native calls and avoided public execution APIs. A third read-only agent cross-judged both after they were complete. No runner dropped out.
-
-Scores are out of five per criterion. The parent's final scores incorporate the omissions noted below; the judge's scores are retained separately rather than presented as consensus.
-
-| Criterion                                          | Parent A | Parent B | Judge A | Judge B |
-| -------------------------------------------------- | -------- | -------- | ------- | ------- |
-| Direct function and native assertion first         | 5        | 5        | 5       | 5       |
-| Existing contracts and separate code identity      | 4        | 4        | 5       | 4       |
-| Complete deterministic scenarios and dependencies  | 4        | 4        | 5       | 5       |
-| Parameter expectations, regression and two runners | 5        | 4        | 5       | 4       |
-| Small ownership-correct design and build wiring    | 5        | 4        | 5       | 4       |
-| Total                                              | 23       | 21       | 25      | 22      |
-
-Choose A. The parent initially favored B's fresh-state construction. Re-reading both rationales against the judge's argument showed that A can return fresh rows without a per-case factory interface, and that A resolves both test and typecheck self-import builds. This makes retained data easier to inspect with fewer caller concepts.
-
-Graft B's checks for own required fields and proof that mutating one loaded copy cannot change another. Keep its observation that a revision label does not retrieve old code. Do not graft a second forwarding Policy constructor or per-scenario executable factory protocol.
-
-Revise two omissions shared by the candidates: include explicit business facts and keep historical records optional. A originally made its recorded table depend on records and changed high risk to rejection. The synthesis keeps high risk as review, matching the existing application risk example, and uses ineligible business facts for rejection. This is application behavior, not a new Keynes rule. Retained baseline result consistency is checked when historical evidence is supplied; candidate expectations may deliberately differ.
-
-Screened both designs for shallow modules, leaked representation, temporal decomposition and pass-through functions. The selected loader earns its place by validating one application's complete recording and returning independent data. It has no file discovery, plugins, runner lifecycle or evaluation stage. No new library helper is justified by these two consumers.
+Architect and Arena chose complete retained scenario rows with one application loader after independent comparison and cross-review because they keep recorded inputs inspectable while returning fresh test data without a second factory protocol. Historical evidence is optional and pairs a record with a code revision only when exact reproduction needs it. The loader has no file discovery, plugins, runner lifecycle or evaluation stage.
 
 ## Decisions and alternatives
 

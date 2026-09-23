@@ -54,14 +54,14 @@ This directory contains `spec.md`, `plan.md`, `research.md`, `data-model.md`, `c
 
 ### Planned source and test changes
 
-| Path                                                | Change                                                                                                                                                               |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/policy/test/fixtures/policy-scenarios.ts` | New application table, declaration, known example revision, fixed-shape loader and Policy factory. Reuse the existing RiskAssessment type. No test-framework import. |
-| `packages/policy/test/scenarios.test.ts`            | New Vitest direct outcomes, exceptions, fixture validity/isolation, named dependency and parameter/regression assertions.                                            |
-| `packages/policy/test/policy-scenarios.node.ts`     | New small Node example over the exact same fixtures, with one native mock example.                                                                                   |
-| `packages/policy/package.json`                      | Prepend `pnpm build` to test and typecheck; append `node --test test/policy-scenarios.node.ts` to test. No new runtime/test dependency.                              |
-| `packages/policy/README.md`                         | Direct-call-first testing section, commands and evidence/portability limits.                                                                                         |
-| `packages/sdk/test/unit/public/policy-api.test.ts`  | Extend existing public request integration cases for missing malformed-output, exception and denial coverage.                                                        |
+| Path                                                | Change                                                                                                                                                                                               |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/policy/test/fixtures/policy-scenarios.ts` | New application table, declaration, fixed-shape loader and Policy factory. Historical evidence optionally retains a code revision. Reuse the existing RiskAssessment type. No test-framework import. |
+| `packages/policy/test/scenarios.test.ts`            | New Vitest direct outcomes, exceptions, fixture validity/isolation, named dependency and parameter/regression assertions.                                                                            |
+| `packages/policy/test/policy-scenarios.node.ts`     | New small Node example over the exact same fixtures, with one native mock example.                                                                                                                   |
+| `packages/policy/package.json`                      | Prepend `pnpm build` to test and typecheck; append `node --test test/policy-scenarios.node.ts` to test. No new runtime/test dependency.                                                              |
+| `packages/policy/README.md`                         | Direct-call-first testing section, commands and evidence/portability limits.                                                                                                                         |
+| `packages/sdk/test/unit/public/policy-api.test.ts`  | Extend existing public request integration cases for missing malformed-output, exception and denial coverage.                                                                                        |
 
 The fixture stays under the current TypeScript include. The Node filename is outside Vitest's default test/spec discovery. Toolkit production exports and distribution manifests stay unchanged. If fixture data is too verbose, split only that data into a neighboring JSON fixture during implementation; do not create a discovery protocol or another module hierarchy.
 

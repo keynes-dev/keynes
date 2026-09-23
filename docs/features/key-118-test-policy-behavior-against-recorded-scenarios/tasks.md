@@ -46,8 +46,8 @@
 
 **Independent test**: Missing/malformed inputs fail before calls, native mocks report exact calls, and repeated/reordered cases remain independent.
 
-- [ ] T010 [US2] Add failing edge assertions in `packages/policy/test/scenarios.test.ts` for missing/malformed named answers, facts, proposal, snapshot, code revision and historical context; cover duplicate names and mismatched record/snapshot identities with zero Policy/dependency calls.
-- [ ] T011 [US2] Complete optional historical `PolicyRecord` capture/identity checks and known example revision validation in `packages/policy/test/fixtures/policy-scenarios.ts`; round-trip the complete fixture through JSON without regenerating data or changing the accepted record format.
+- [ ] T010 [US2] Add failing edge assertions in `packages/policy/test/scenarios.test.ts` for missing/malformed named answers, facts, proposal, snapshot and historical context; cover duplicate names, mismatched record/snapshot identities and historical evidence without a code revision with zero Policy/dependency calls.
+- [ ] T011 [US2] Complete optional historical `PolicyRecord` capture/identity checks and paired code-revision validation in `packages/policy/test/fixtures/policy-scenarios.ts`; round-trip the complete fixture through JSON without regenerating data or changing the accepted record format.
 - [ ] T012 [US2] Add test-local `assessRisk` native mocks and application composition in `packages/policy/test/scenarios.test.ts`; assert exact arguments/counts outside Policy and distinguish missing, unavailable, high-risk and low-confidence observations without a production dependency import.
 - [ ] T013 [US2] Prove repeat/reverse-order equality, fresh mock state and mutation isolation between separate loads in `packages/policy/test/scenarios.test.ts`; run focused checks and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
 
