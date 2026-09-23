@@ -67,14 +67,14 @@
 
 **Independent Test**: An adopter can distinguish owned Hosted access, borrowed Embedded access, installation compatibility and CLI behavior from the package entrypoints alone.
 
-- [ ] T025 [US1] Create PostgreSQL runtime and installation references in `packages/postgres/docs/runtime.md` and `packages/postgres/docs/installation.md`
-- [ ] T026 [US1] Reduce `packages/postgres/README.md` to setup navigation and runnable owned/borrowed examples
-- [ ] T027 [US1] Complete CLI command, configuration, output, redaction and installation links in `apps/cli/README.md`
-- [ ] T028 [US1] Include shipped PostgreSQL package docs in `packages/postgres/package.json`
-- [ ] T029 [US1] Verify generation compatibility from `packages/database/contract.json` and remove stale duplicated values
-- [ ] T030 [US1] Run PostgreSQL/CLI source, archive-content, formatting and link checks for `packages/postgres/` and `apps/cli/`
-- [ ] T031 [US1] Run a read-only Ponytail review of Phase 4 files under `packages/postgres/` and `apps/cli/`
-- [ ] T032 [US1] Commit the reviewed Phase 4 files under `packages/postgres/` and `apps/cli/`
+- [x] T025 [US1] Create PostgreSQL runtime and installation references in `packages/postgres/docs/runtime.md` and `packages/postgres/docs/installation.md`
+- [x] T026 [US1] Reduce `packages/postgres/README.md` to setup navigation and runnable owned/borrowed examples
+- [x] T027 [US1] Complete CLI command, configuration, output, redaction and installation links in `apps/cli/README.md`
+- [x] T028 [US1] Include shipped PostgreSQL package docs in `packages/postgres/package.json`
+- [x] T029 [US1] Verify generation compatibility from `packages/database/contract.json` and remove stale duplicated values
+- [x] T030 [US1] Run PostgreSQL/CLI source, archive-content, formatting and link checks for `packages/postgres/` and `apps/cli/`
+- [x] T031 [US1] Run a read-only Ponytail review of Phase 4 files under `packages/postgres/` and `apps/cli/`
+- [x] T032 [US1] Commit the reviewed Phase 4 files under `packages/postgres/` and `apps/cli/`
 
 **Checkpoint**: PostgreSQL and CLI behavior has package-local owners and no current feature-doc dependency.
 

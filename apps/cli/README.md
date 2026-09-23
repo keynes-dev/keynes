@@ -1,18 +1,31 @@
-# Keynes CLI
+# `@keynes/cli`
 
-Use `keynes install --config path/to/config.json` in place of the former
-`keynes-postgresql install --config ...` command. The configuration is unchanged:
-`ownerRole`, `executionRole`, `administrationRole`, `applicationRole`, `tenantId`,
-and `principalId`. See the [PostgreSQL installation guide](../../packages/postgres/README.md)
-for role requirements and a complete configuration example.
+`@keynes/cli` supplies the `keynes` executable for installing the PostgreSQL authority. Runtime consumers do not need it.
 
-Set the PostgreSQL connection through `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`,
-and `PGPASSWORD`. The command delegates to `@keynes/postgres/install`; SQL and
-installation checks remain in that package.
+## Install
 
-A fresh target returns `outcome: "installed"`. An exact existing installation
-returns `outcome: "already-installed"`. Incompatible targets fail closed; the
-command does not repair or upgrade installations. Success and failure use JSON
-on stdout. Failures also produce a sanitized message on stderr and exit nonzero.
+Install matching `@keynes/cli` and `@keynes/postgres` packages. The CLI archive contains only the executable and declares `@keynes/postgres` as its only production dependency. Repository contributors can build and pack it with `pnpm build:cli` and `pnpm pack:cli`.
 
-The private `@keynes/cli` archive declares `@keynes/postgres` as its only production dependency. Use the matching PostgreSQL and SDK archives for an external consumer; the [split qualification runner](../../docs/features/key-96-separate-sdk-and-database-runtime-packages/quickstart.md#exact-archive-consumers) selects that exact dependency closure without registry publication. Build and pack with `pnpm build:cli` and `pnpm pack:cli` from the repository root. Runtime consumers do not need this CLI.
+The PostgreSQL package owns the [supported profile, prepared roles, grants, compatibility checks, and installation behavior](https://github.com/keynes-dev/keynes/blob/main/packages/postgres/docs/installation.md).
+
+## Command
+
+```sh
+keynes install --config path/to/config.json
+```
+
+This is the only command shape. The CLI requires exactly `install --config <path>` and rejects repair, SQL override, profile, explicit recheck, repeated flags, and additional arguments.
+
+## Configuration and connection
+
+The UTF-8 file must contain one JSON object accepted by `parseInstallationConfig` from `@keynes/postgres/install`. The [installation configuration](https://github.com/keynes-dev/keynes/blob/main/packages/postgres/docs/installation.md#configuration) owns its fields and constraints.
+
+Connection settings come from the standard `pg` environment, including `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, and `PGSSLMODE` where applicable. Keep passwords and connection details out of the configuration file.
+
+## Output, exit status, and redaction
+
+The command writes exactly one JSON value to standard output followed by a newline. On success it serializes the [`InstallationResult`](https://github.com/keynes-dev/keynes/blob/main/packages/postgres/docs/installation.md#install-programmatically) unchanged.
+
+Failure writes `{"ok":false,"error":{"kind":"postgresql_installation_error","code":"...","check":"..."}}` to standard output, writes a short sanitized diagnostic to standard error, and exits with status 1. Success exits with status 0 and does not write a diagnostic.
+
+The CLI never includes file contents, passwords, database URLs, connection settings, driver errors, SQL, private catalog rows, tenant or principal secrets, or application data in either stream. It reports malformed JSON and unreadable files as `invalid_config`; connection and installation failures retain the bounded PostgreSQL installation code and check.

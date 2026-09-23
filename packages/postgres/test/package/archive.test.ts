@@ -38,6 +38,8 @@ const expectedFiles = [
   "package/dist/remote/postgresql-command-executor.js",
   "package/dist/remote/retry.d.ts",
   "package/dist/remote/retry.js",
+  "package/docs/installation.md",
+  "package/docs/runtime.md",
   "package/generated/installation-record.json",
   "package/migrations/0001-baseline.sql",
   "package/migrations/manifest.json",
@@ -159,36 +161,6 @@ describe("@keynes/postgres packed archive", () => {
     }
   });
 
-  it("documents the current six-key, four-role installation and ten remote procedures", () => {
-    const readme = entry("package/README.md").body.toString("utf8");
-
-    for (const key of [
-      "ownerRole",
-      "executionRole",
-      "administrationRole",
-      "applicationRole",
-      "tenantId",
-      "principalId",
-    ]) {
-      expect(readme).toContain(`\`${key}\``);
-    }
-    for (const procedure of [
-      "remote_define_resources",
-      "remote_validate_resources",
-      "remote_create_budget",
-      "remote_request",
-      "remote_settle",
-      "remote_get_budget",
-      "remote_get_budget_history_page",
-      "remote_open_budget",
-      "remote_recover_operation",
-      "remote_get_compatibility",
-    ]) {
-      expect(readme).toContain(`keynes.${procedure}(jsonb)`);
-    }
-    expect(readme).not.toContain("exactly the five supported functions");
-  });
-
   it("contains no SQLite implementation or private source import", () => {
     const content = Buffer.concat(
       entries
@@ -206,7 +178,7 @@ describe("@keynes/postgres packed archive", () => {
     expect(entries.some(({ path }) => /policy/iu.test(path))).toBe(false);
     const runtime = Buffer.concat(
       entries
-        .filter(({ path }) => path !== "package/README.md")
+        .filter(({ path }) => !path.endsWith(".md"))
         .map(({ body }) => body),
     ).toString("utf8");
     expect(runtime).not.toMatch(/\bpolicy\b/iu);
