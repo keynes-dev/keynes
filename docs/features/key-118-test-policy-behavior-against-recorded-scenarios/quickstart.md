@@ -1,6 +1,6 @@
 # Validate recorded Policy scenarios
 
-This is the proposed validation procedure after implementation. The new files and script changes below are not implemented in this planning turn. All runtime commands are NOT RUN for KEY-118.
+Run these checks against the implemented KEY-118 examples. Exact-revision results and limits are recorded in [the acceptance evidence](acceptance.md).
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ pnpm install --frozen-lockfile
 pnpm exec turbo run build --filter='@keynes/policy...'
 ```
 
-The filtered build includes the SDK and other existing upstream build dependencies. Public `@keynes/policy` imports resolve the built package. Rebuild after changing production source. The proposed package scripts also build their own package before test/typecheck; Turbo's existing `^build` dependency alone covers only upstream packages.
+The filtered build includes the SDK and other existing upstream build dependencies. Public `@keynes/policy` imports resolve the built package. Rebuild after changing production source. The package scripts also build their own package before test/typecheck; Turbo's existing `^build` dependency alone covers only upstream packages.
 
 ## Run the direct examples
 
@@ -48,7 +48,7 @@ The regression demonstration uses a deliberately broken candidate that ignores t
 ## Check the SDK boundary separately
 
 ```sh
-pnpm exec vitest run packages/sdk/test/unit/public/policy-api.test.ts --config packages/sdk/vitest.config.ts --maxWorkers=1
+pnpm --filter @keynes/sdk exec vitest run test/unit/public/policy-api.test.ts --maxWorkers=1
 ```
 
 Reuse real Node SQLite and existing session observation. Assert zero allocation calls for non-prepared and malformed outputs, `invalid_policy_output` for malformed results, and `policy_failed` for SDK-invoked throws/rejections. A prepared outcome submits once and may still receive quantity denial. These tests add no new public runner and do not replace existing lifecycle, permission or command replay coverage.
@@ -64,12 +64,12 @@ pnpm test:repository
 pnpm test:pr
 ```
 
-The first command must resolve the package's public self-import without a manual own-package build; upstream builds come from Turbo and the proposed typecheck script supplies the own build. The test command must then execute both runners. Preserve the source checkout and unrelated artifacts; do not delete generated output from another active task.
+The first command must resolve the package's public self-import without a manual own-package build; upstream builds come from Turbo and the typecheck script supplies the own build. The test command must then execute both runners. Preserve the source checkout and unrelated artifacts; do not delete generated output from another active task.
 
 Mixed executable changes keep both required CI lanes. Record `pnpm test:ci:postgresql` from the existing CI or an explicit local run with its documented Docker/OpenSSL prerequisites. A failed process or cleanup is failed evidence even if individual assertions pass. If unavailable, mark it NOT RUN and do not claim full required CI acceptance.
 
 ## Retain evidence and state limits
 
-In this feature's future `acceptance.md`, record the exact revision, clean/dirty state, Node/pnpm versions, OS, commands, assertion counts, exit statuses and cleanup results. Record failed attempts and distinguish focused source examples from existing broader tests.
+For each new qualification, record the exact revision, clean/dirty state, Node/pnpm versions, OS, commands, assertion counts, exit statuses and cleanup results in `acceptance.md`. Record failed attempts and distinguish focused source examples from existing broader tests.
 
 No new public exports or production dependencies are expected. Check the final diff and preserve optional Zod isolation. Do not call a workspace example a packed-archive test. KEY-88 owns release clean-consumer qualification, KEY-105 publication and KEY-125 hosted verification. Live prompt/model quality, allocation command replay, hosted operation and publication remain separate evidence. No paid or external-state-changing action is proposed.

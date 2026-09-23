@@ -33,6 +33,18 @@ it("rejects incomplete or incompatible retained scenarios", () => {
     /invalid_parameter_snapshot/,
   );
 
+  expect(() =>
+    overrideParameterSnapshot(declaration, baseline.parameters, {
+      requestCap: 0.5,
+    }),
+  ).toThrowError(
+    expect.objectContaining({
+      code: "invalid_parameter_value",
+      path: "/requestCap",
+      rule: "type",
+    }),
+  );
+
   const incompatibleDefinition = {
     ...baseline,
     parameters: createParameterSnapshot(
@@ -269,7 +281,7 @@ it("keeps repeated and reversed loads independent", async () => {
   expect(secondRun.assessRisk).toHaveBeenCalledTimes(1);
 
   Reflect.set(firstBaseline.proposal, "usdCents", 1);
-  expect(secondBaseline.proposal).toEqual({ usdCents: 150 });
+  expect(secondBaseline.proposal).toEqual({ usdCents: 100 });
 });
 
 it("retains omitted and explicit-zero proposal quantities", () => {

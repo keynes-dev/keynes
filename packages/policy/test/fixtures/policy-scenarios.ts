@@ -31,7 +31,7 @@ export type PolicyScenario = Readonly<{
 }>;
 
 export const declaration = defineParameters({
-  requestCap: { schema: { type: "number", minimum: 0 }, initial: 0 },
+  requestCap: { schema: { type: "integer", minimum: 0 }, initial: 0 },
   minimumConfidence: {
     schema: { type: "number", minimum: 0, maximum: 1 },
     initial: 0,
@@ -45,7 +45,7 @@ const baseline = {
     dialect: "http://json-schema.org/draft-07/schema#",
     parameters: {
       requestCap: {
-        type: "number",
+        type: "integer",
         minimum: 0,
         $schema: "http://json-schema.org/draft-07/schema#",
       },
@@ -58,16 +58,16 @@ const baseline = {
     },
   },
   definitionId:
-    "sha256:d85f73a3a05eb02e357af04e0698179065bca2051b81786d9adfbf014c6e8dae",
+    "sha256:a6c444d5fbc91aa1b513ad8e1fc8f4f2302b7d8877f6aee1e35fae98e7d27415",
   values: { requestCap: 100, minimumConfidence: 0.9 },
   snapshotId:
-    "sha256:3f46e0529ee9b68078d3f6294b53f22dc8af26e89fd33bf10db0458911a49f7d",
+    "sha256:f0bc49bb5bfdc865aa1c7e70169aad6f41e752e08b658817e6651bf50b06197a",
 } satisfies ParameterSnapshot<Values>;
 
 const recordedScenarios = [
   {
     name: "retained cap overrides changed current initials",
-    proposal: { usdCents: 150 },
+    proposal: { usdCents: 100 },
     facts: { eligible: true },
     parameters: baseline,
     assessment: { kind: "available", risk: "low", confidence: 0.95 },
