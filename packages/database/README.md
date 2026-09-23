@@ -1,15 +1,11 @@
 # Database
 
 - **Owner:** `@shubsharan`
-- **Functional status:** provider-free contract implemented; KEY-114 request
-  evidence and Policy retirement implemented; KEY-96 source ownership centralized
+- **Functional status:** private canonical source and shared conformance suite
 
 ## Responsibility
 
-`packages/database/` owns the ordered command contract and separate SQLite/PostgreSQL accounting sources. `contract.json` and `schema.json` are hand-authored inputs. The package is private and used only by repository build and test tasks.
-
-Both engines derive live quantity from append-only movements. Membership keeps
-usage and deficit evidence, not an allocated balance.
+`packages/database/` owns the ordered command contract and separate SQLite/PostgreSQL accounting sources. [`contract.json`](contract.json) and [`schema.json`](schema.json) are hand-authored inputs. The package is private and used only by repository build and test tasks.
 
 ## Allowed and public edges
 
@@ -21,21 +17,18 @@ A consumer must not infer the contract from private database tables or SDK imple
 
 Production code must not import this package. Owner-local generator scripts and tests may declare it as a development dependency.
 
-## Source policy
+## Change procedure
 
-Author logical contract inputs here and review each change as a shared interface change. Run `pnpm generate` after an approved change. Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata, and the digest derive from these inputs.
+1. Change `contract.json` or `schema.json` and treat the edit as a shared interface change.
+2. Update the engine implementations independently: `src/sqlite/` owns SQLite behavior and `postgres/migrations/` owns PostgreSQL behavior.
+3. Put shared behavior coverage in `contract-tests/scenarios/`; keep engine, transport, locking and permission coverage with the owning runtime.
+4. Run `pnpm generate` and review every generated consumer and digest change.
+5. Run the repository checks selected by `docs/testing.md`, added by this migration.
 
-The current request contract has no managed Policy fields. A request may include
-bounded `decisionEvidence`, which participates in canonical request identity
-and is returned in request outcomes and history. The generated schema remains
-strict: retired Policy fields and other additional properties are invalid rather
-than ignored. Semantic generation 5 is a fresh-install compatibility break;
-the PostgreSQL installer can recheck an exact target but does not upgrade an
-older one.
+Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata and digests derive from these inputs. Do not hand-edit generated files.
 
-## Deferred work
+## Contract and test boundaries
 
-KEY-43 does not provide a general contract catalog, a released package, or a
-compatibility policy. KEY-114 records native source evidence in its
-[acceptance record](../../docs/features/key-114-accept-application-computed-requests-and-retire-managed-sql/acceptance.md);
-that evidence applies only to its recorded revision and lanes. KEY-96 package and runtime qualification is tracked in its own [acceptance record](../../docs/features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md).
+The generated schema defines wire structure. The [accounting reference](../../docs/reference/accounting.md) explains the domain meaning; the [command reference](../../docs/reference/commands.md) explains validation, atomicity and replay. Runtime packages own connection and lifecycle behavior, and the SDK owns TypeScript adaptation.
+
+Contract scenarios are the cross-engine semantic suite. Passing a SQLite scenario does not prove PostgreSQL locking, grants, transport behavior or installation compatibility. Passing a PostgreSQL scenario does not make this private package a supported consumer API.

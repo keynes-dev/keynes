@@ -3,21 +3,42 @@
 - **Owner:** `@shubsharan`
 - **Planning workspace:** [Keynes in Linear](https://linear.app/keynes)
 
-## Responsibility
+## Find the owner
+
+Each current topic has one normative owner. Other pages link to that owner instead of restating its rules.
+
+| Topic                                                  | Owner                                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------------- |
+| Product thesis, outcomes and commitments               | [Product](product.md)                                                |
+| Components, authority and trust boundaries             | [Architecture](architecture.md)                                      |
+| Resource, Budget, quantity and settlement behavior     | [Accounting reference](reference/accounting.md)                      |
+| Commands, validation, atomicity, replay and inspection | [Command reference](reference/commands.md)                           |
+| TypeScript SDK API and adapter bindings                | [SDK package](../packages/sdk/README.md)                             |
+| Ephemeral Local runtime                                | [Node SQLite package](../packages/node-sqlite/README.md)             |
+| PostgreSQL installation and runtime                    | [PostgreSQL package](../packages/postgres/README.md)                 |
+| Optional customer-owned Policy tools                   | [Policy package](../packages/policy/README.md)                       |
+| Developer CLI                                          | [CLI app](../apps/cli/README.md)                                     |
+| Repository verification                                | `docs/testing.md` (added by this migration)                          |
+| Contributor delivery and Spec Kit retention            | [Workflow](workflow.md)                                              |
+| Release procedure and retained release evidence        | `docs/releases/README.md` (added by this migration)                  |
+| Accepted cross-package decisions                       | Existing records in `docs/adr/`; an index is added by this migration |
+| Internal contract generation and shared scenarios      | [Database package](../packages/database/README.md)                   |
+| Internal package qualification utilities               | [Testkit package](../packages/testkit/README.md)                     |
+
+## Repository and Linear
 
 The repository and Linear have separate, explicit responsibilities:
 
-| Source                              | Owns                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `docs/product.md`                   | Product thesis and commitments                                                                                            |
-| `docs/architecture.md`              | Runtime semantics and boundaries                                                                                          |
-| `docs/adr/`                         | Accepted architectural decisions                                                                                          |
-| `docs/features/`                    | Spec Kit specifications, plans, tasks, contracts, and retained evidence                                                   |
-| [Linear](https://linear.app/keynes) | Projects, sequencing, current status, priority, assignment, dependencies, research studies, and current issue disposition |
+| Source                                | Owns                                                                                                                        |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                                     |
+| `docs/adr/`                           | Accepted architectural decisions and their supersession chain                                                               |
+| `docs/features/`                      | Branch-scoped Spec Kit work and exact-revision evidence retained only until its permanent owners and history are sufficient |
+| [Linear](https://linear.app/keynes)   | Projects, sequencing, current status, priority, assignment, dependencies, research studies and issue disposition            |
 
 Do not copy mutable Linear fields into repository documents. Do not move engineering contracts or retained exact-revision evidence into Linear. A feature specification uses one Linear issue as its identity. Internal task phases stay on that feature branch; they are not published as sub-issues. Each issue links to its specification and PR. See [the upstream Spec Kit workflow](adr/0010-upstream-spec-kit-workflow.md).
 
-Historical feature artifacts remain revision-scoped records. Their old references to superseded planning files describe the workflow at that revision and do not restore those files as current sources of truth.
+Historical feature artifacts are revision-scoped records, not current reference. Git history retains their decisions after the finalization gates in [the workflow](workflow.md) permit branch-scoped copies to be removed.
 
 Documentation describes the target system. It does not make unverified work implemented by describing it.
 

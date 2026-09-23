@@ -27,15 +27,15 @@
 
 **Independent Test**: Starting at `docs/README.md`, find one authoritative explanation for every shared Resource, Budget, accounting, command, replay and inspection rule without consulting `docs/features/`.
 
-- [ ] T007 [US1] Create shared accounting reference in `docs/reference/accounting.md` from current source, accepted contracts and shared tests
-- [ ] T008 [US1] Create shared command reference in `docs/reference/commands.md` from canonical operations, validation and replay behavior
-- [ ] T009 [US1] Reduce duplicated normative behavior in `docs/product.md` and `docs/architecture.md` to product and architecture ownership with links to the new references
-- [ ] T010 [US1] Update owner navigation and implementation status in `docs/README.md` and `README.md`
-- [ ] T011 [US1] Document internal source/test ownership in `packages/database/README.md` and create `packages/testkit/README.md`
-- [ ] T012 [US1] Verify shared-reference coverage against `packages/database/contract.json`, exports and SQLite/PostgreSQL scenarios
-- [ ] T013 [US1] Run relevant formatting, links, examples and repository checks for `docs/reference/`
-- [ ] T014 [US1] Run a read-only Ponytail review of Phase 2 files under `docs/`, `README.md`, `packages/database/README.md`, and `packages/testkit/README.md`
-- [ ] T015 [US1] Commit the reviewed Phase 2 files under `docs/`, `README.md`, `packages/database/`, and `packages/testkit/`
+- [x] T007 [US1] Create shared accounting reference in `docs/reference/accounting.md` from current source, accepted contracts and shared tests
+- [x] T008 [US1] Create shared command reference in `docs/reference/commands.md` from canonical operations, validation and replay behavior
+- [x] T009 [US1] Reduce duplicated normative behavior in `docs/product.md` and `docs/architecture.md` to product and architecture ownership with links to the new references
+- [x] T010 [US1] Update owner navigation and implementation status in `docs/README.md` and `README.md`
+- [x] T011 [US1] Document internal source/test ownership in `packages/database/README.md` and create `packages/testkit/README.md`
+- [x] T012 [US1] Verify shared-reference coverage against `packages/database/contract.json`, exports and SQLite/PostgreSQL scenarios
+- [x] T013 [US1] Run relevant formatting, links, examples and repository checks for `docs/reference/`
+- [x] T014 [US1] Run a read-only Ponytail review of Phase 2 files under `docs/`, `README.md`, `packages/database/README.md`, and `packages/testkit/README.md`
+- [x] T015 [US1] Commit the reviewed Phase 2 files under `docs/`, `README.md`, `packages/database/`, and `packages/testkit/`
 
 **Checkpoint**: Shared behavior has one permanent central owner; package docs can link to it.
 

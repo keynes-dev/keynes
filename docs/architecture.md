@@ -3,8 +3,9 @@
 > **Status:** [ADR-0013](adr/0013-application-owned-policies.md) is implemented
 > for the request boundary: customers compute requests, optional caller evidence
 > is bounded and recorded, and SQLite Local and PostgreSQL Hosted/Embedded
-> enforce accounting through separate implementations. KEY-114 retired managed
-> SQL Policies. KEY-96 implements package separation; its [acceptance record](features/key-96-separate-sdk-and-database-runtime-packages/acceptance.md) tracks final qualification. Historical evidence proves only its recorded revision and lane.
+> enforce accounting through separate implementations. Managed SQL Policies are
+> retired, and package separation with explicit runtime selection is implemented.
+> Historical evidence proves only its recorded revision and lane.
 
 ## Purpose
 
@@ -45,282 +46,15 @@ is the technical PostgreSQL access profile used by Hosted, not a fourth mode.
 11. Root creation introduces all tree funding; child creation transfers a fixed
     parent-funded grant. Settlement returns restore availability, never funding.
 
-## Public contract
+## Contract boundaries
 
-The SDK configures Resource declarations once and creates Budgets from amounts. Every client selects a runtime explicitly:
+The private database package owns the generated command schema and independent SQLite and PostgreSQL implementations. The [accounting reference](reference/accounting.md) owns the shared Resource, Budget, journal, usage, settlement and inspection semantics. The [command reference](reference/commands.md) owns shared validation, authorization, atomicity, denial and replay behavior.
 
-```ts
-import { createKeynes } from "@keynes/sdk";
-import { nodeSqlite } from "@keynes/node-sqlite";
+The SDK owns TypeScript handles, inference, input capture, result validation and public errors. Runtime packages bind those calls to one authority and own connection, admission and close behavior. Neither layer may reinterpret accounting or maintain a second replay ledger. Package guides own their concrete APIs and lifecycle limits.
 
-const resources = {
-  usdCents: { unit: "cent", accountingBehavior: "consumable" },
-  reviewSeats: { unit: "seat", accountingBehavior: "reusable" },
-};
+Customer evaluation runs before the authoritative command and outside engine-owned locks. The database receives an ordinary final request and rechecks current state. Embedded applications can evaluate and invoke supported procedures in their own PostgreSQL transaction; they own isolation, retry, commit and rollback. Local exposes no database handle. These choices keep customer policy replaceable while every supported path uses the same authority boundary.
 
-const keynes = await createKeynes({ resources, runtime: nodeSqlite() });
-
-const root = await keynes.createBudget({
-  usdCents: 1_000,
-  reviewSeats: 0,
-});
-```
-
-The amounts object has no `initial` field or per-Budget definitions or bindings.
-Configured Resource names drive autocomplete and rejection of unknown amount
-keys, including separately declared variables. Runtime validation also rejects
-unknown keys. Returned Budget types and inspection reflect supplied membership.
-Local creation takes amounts only. Remote creation accepts only
-`{ operationKey? }` for recovery. Requests accept optional
-`{ decisionEvidence?, policy? }` locally and
-`{ operationKey?, decisionEvidence?, policy? }` remotely. Remote requests
-reject `policy` with `operationKey` before proposal capture. Retired managed
-Policy fields are rejected rather than ignored.
-
-Local initialization establishes a private ephemeral catalog from declarations.
-Durable initialization validates all supplied definitions against the persisted
-tenant catalog. Missing or conflicting definitions fail initialization; additional
-persisted Resources remain compatible. Initialization and Budget creation never
-write shared Resource definitions. Explicit provisioning owns those writes.
-Failed initialization releases acquired resources and cannot select another
-authority or fall back to local state.
-
-The authority remains responsible for validation and authorization during
-creation. A declaration is compatibility information, not permission or durable
-identity. [ADR-0011](adr/0011-configured-resource-declarations.md) supersedes the
-earlier connection-only factory and per-Budget Resource input decision.
-
-Every Budget has a stable method surface:
-
-- `request` asks the Budget to create and fund one child.
-- `settle` reports direct usage and begins or completes settlement.
-- `inspect` returns current state and chronological lineage history.
-
-Owned remote clients also expose `openBudget({ reference, resourceTypes })` and `getOperationResult(operationKey)`. Reopening validates the supplied declarations against authoritative membership and catalog definitions. Declarations construct typed handles; they cannot overwrite database state or grant permission. Borrowed clients expose the basic Keynes/Budget API.
-Command-result lookup rechecks the caller's current permission. Before it returns a committed
-creation result, it validates that creation's selected definitions against the
-current tenant catalog.
-
-Promise-returning SDK operations reject input and operation failures without throwing synchronously. They capture supported caller input before returning and reject values that cannot be represented losslessly. Runtimes validate command semantics; the SDK validates returned envelopes and builds typed handles. Descriptor factories, generated-client factories and `createOperationKey` remain synchronous.
-
-Local and borrowed PostgreSQL sessions reserve work before inspecting input, prepare it synchronously and execute it in queue order. Close drains every reservation, including calls whose input reflection starts close. A preparation failure rejects that call without skipping earlier work in the drain. New calls reject with `runtime_closed` before reading input. Borrowed sessions retain caller ownership of transactions and connections.
-
-Owned remote calls check executor state before inspecting input and reject with `client_closed` after close begins. Admission remains per procedure; the existing close deadline and uncertain-outcome rules still apply. Mutation retries use one captured input and operation key. Repeated close calls share one Promise in each mode.
-
-## Definition authority
-
-### Resources
-
-`defineResources` accepts one non-empty plain object. The authority
-canonicalizes and validates the complete batch, then defines or exact-reuses
-each tenant-scoped name atomically.
-
-A Resource definition contains:
-
-- canonical name;
-- unit;
-- accounting behavior, `consumable` or `reusable`; and
-- canonical definition digest.
-
-The same name and definition returns the existing identity. The same name with
-a different definition returns `resource_type_conflict` and rolls back
-the batch.
-
-The result is one immutable, quantity-free `ResourceBinding`. It cannot be
-serialized as a public identifier. Budget creation uses the client's
-declarations and does not take a Resource binding per Budget.
-
-The SDK exports the structural definition type for callers that want a
-`satisfies` check. There is no standalone definition helper outside
-`keynes.defineResources`.
-
-Customer Policy and evidence handling are described under [request construction](#customer-evaluation-and-request-construction).
-
-## Budget state
-
-A Budget owns:
-
-- opaque identity and, for PostgreSQL, an opaque public reference;
-- one tenant and one structural parent or root position;
-- immutable Resource membership;
-- lifecycle `active`, `settling`, or `settled`; and
-- direct usage, deficit, and chronological evidence.
-
-Applications decide when to request children. Each request remains subject to
-database permissions, Resource membership, lifecycle and available quantity.
-
-Root membership is exactly the supplied amount keys, not the whole client schema
-or tenant catalog. Child membership is exactly the Resource keys in the approved
-request. An explicit zero includes the Resource; an omitted key excludes it.
-Non-empty all-zero root amounts are valid; empty root amounts reject.
-
-Membership and original funding never expand. Initial root allocation belongs
-to creation. A child grant belongs to the parent's approved creation request.
-
-The database rejects any attempt to replenish, top up, or grant additional
-quantity to an existing Budget. Supported direct database callers have the same
-restriction as SDK callers. Settlement returns are the only post-creation inbound
-transfers and restore previously delegated quantity without increasing funding.
-An all-zero root remains valid but cannot later acquire funding.
-
-Applications may reuse definitions to create independently funded roots. Creating
-a root neither reopens an earlier root nor migrates its balances, and does not
-require unrelated roots to settle first. Root-creation authorization controls
-new allowances; conservation within a tree is not a shared limit across separate roots.
-
-Zero availability alone changes no lifecycle state. Requests that exceed available
-quantity are denied; outstanding children and missing usage remain unresolved.
-
-## Customer evaluation and request construction
-
-Keynes has no database-managed Policy definition, registration, compiler, or evaluator. Customers define business rules in any language, including SQL over their own data, validate inputs and optional structured model assessments, and choose parameters before submitting a request or stopping work. They own failures, timeout behavior, fallback, persistence, and recomputation. The SDK may invoke one optional customer Policy before it sends an allocation command.
-
-The Policy receives an immutable proposed envelope and may return a different final envelope, reject, require review or fail. The integrated `request` path validates the final names and quantities. It converts a thrown or rejected Policy into the SDK's `policy_failed` result and submits only a prepared envelope. Policy execution does not reserve quantity or hold engine-owned allocation locks. Plain requests remain valid, and supported SQL callers may continue to construct commands without the TypeScript callback.
-
-An application that needs a durable decision calls its Policy directly and stores the ordinary return value in its own system. Direct calls preserve ordinary JavaScript throw and rejection behavior. The application later submits final resources through a Policy-free Remote request with its own operation key. Keynes supplies no checkpoint, resume method, storage adapter, or workflow coordinator.
-
-Keynes validates, canonicalizes, and records bounded `decisionEvidence` in results and request history, and binds it to replay identity. Historical managed Policy evidence keeps its original meaning. The database treats the submitted request and evidence as untrusted input. It validates Resource names and quantities, authenticates and authorizes the caller, checks Budget lifecycle and live availability, and atomically records a denial or allocates the exact requested child envelope. Invalid input or unauthorized commands reject without allocation. A valid request may still be denied. Evidence claiming that a policy approved does not prove evaluation ran or grant permission.
-
-Availability observed during customer evaluation can become stale. The authoritative command checks current quantities under its own transaction/concurrency controls. A customer SQL query in another database or an HTTP evaluator does not share that transaction. Embedded callers may evaluate and invoke supported Keynes procedures in their own PostgreSQL transaction; they own isolation, retries, commit and rollback. Keynes does not supply a transaction manager or retry a fragment on their behalf.
-
-Exact command replay returns the recorded result without rerunning customer policy, querying customer tables or invoking providers. A recorded denial stays the same on exact retry even after availability changes. Reusing command identity with changed canonical input conflicts. Customers own a deliberate recomputed attempt and its identity. A Remote call cannot combine a Policy with a caller-supplied operation key.
-
-`getOperationResult` is a read-only receipt lookup. It reports `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. Missing means that no receipt exists in the caller's tenant at lookup time. Expired means that a receipt exists but has passed the 30-day expiry. Neither result rules out a delayed command. Lookup does not retry, allocate, invoke Policy, generate a key, or mutate durable command state. The generated wire operation and PostgreSQL procedure retain their recovery names as internal compatibility contracts.
-
-### Request example
-
-After validating its inputs, customer code or SQL may produce a request `{ usdCents: 25 }` with options `{ decisionEvidence: { tier: "pro", selected_limit: 25 } }`. Customer SQL runs on its own connection with bound values; Local exposes no database handle. Customer rejection before submission creates no Keynes denial record. A valid request submitted to a parent with only 10 cents available is denied by Keynes; evaluation reserves no quantity.
-
-Customers validate model assessments and handle malformed output, timeout and provider failure, or select an explicit fallback before submission. The optional Policy receives validated assessments through customer code; the SDK owns no provider integration or credentials.
-
-### Evaluation hosting
-
-Customer-owned logic can run in an application, a customer service or later Keynes Cloud hosting. Shared deployment across apps is allowed; an evaluator per app is not required. KEY-125 owns later versioned HTTP evaluation. Initial hosting evaluates only, outside authoritative accounting; mandatory evaluation-and-submission is deferred. It adds no first Local or first Cloud gate and does not restore managed database Policies.
-
-## Quantity accounting
-
-### Movement journal
-
-The movement journal records every quantity change:
-
-| Reason             | Source        | Destination       | Meaning                                 |
-| ------------------ | ------------- | ----------------- | --------------------------------------- |
-| initial allocation | outside       | root Budget       | Introduces initial quantity             |
-| child grant        | parent Budget | new child Budget  | Transfers ownership                     |
-| consumption        | Budget        | consumed          | Removes consumable quantity             |
-| settlement return  | child Budget  | structural parent | Returns the full remainder              |
-| root release       | root Budget   | outside           | Ends Keynes governance of the remainder |
-
-“Outside” and “consumed” are journal meanings, not Resource pools or stored
-accounts. Consumption and release both have no destination Budget, but their
-reasons remain distinct.
-
-For Budget `B` and Resource `R`:
-
-```text
-live(B, R) = inbound(B, R) - outbound(B, R)
-live(B, R) >= 0
-```
-
-For each root tree and Resource:
-
-```text
-initial root funding = live quantity + consumed quantity + released quantity
-```
-
-Initial allocation is the only external funding movement. Internal transfers
-cancel from the tree equation. A zero-valued member has a
-membership record but creates no movement. A fully settled tree has
-`live = 0`.
-
-Inspection exposes fixed creation funding as `allocated`, live quantity as
-`available`, and child grants less child returns as `committed`. `committed` is
-historical accounting information, not authority. If a root allocates 100,
-grants a child 40, and the child consumes 10 before returning 30, the root has
-`allocated: 100`, `available: 90`, and `committed: 10`. When the root settles
-with zero direct use, it releases 90 and retains `allocated: 100` and
-`committed: 10` with `available: 0`.
-
-### Usage and deficit
-
-Direct usage is evidence owned by the reporting Budget. It changes from unknown
-to known once. A later report must match that known value.
-
-For a consumable Resource, the authority moves at most the currently owned
-quantity to consumption. Use above that quantity becomes deficit evidence and
-never creates a negative balance. For a reusable Resource, usage creates
-evidence without a consumption movement; usage above owned quantity also
-creates deficit evidence.
-
-When use first becomes known, the authority stores
-`max(reported - live at observation, 0)` as the direct deficit. A consumable
-movement removes `min(reported, live at observation)`. A later return does not
-change either value.
-
-Child returns and ancestor balances do not erase an observed
-deficit. Keynes does not track source lots, debit a parent to hide overage, or
-infer unreported usage. Fixed funding limits authorized quantity, not observed
-external usage; deficit evidence does not add quantity to the conservation equation.
-
-## Settlement lifecycle
-
-`settle` records supplied direct usage. The first call moves an active Budget
-to `settling`; later calls may resolve direct usage that was omitted earlier.
-An explicit zero resolves a Resource with no use. While settling, only
-`settle` and `inspect` remain usable on that Budget. Existing active
-descendants can continue requesting children.
-
-A Budget finalizes only when its direct usage is complete and every child is
-settled:
-
-```text
-non-root finalization: Budget remainder -> structural parent
-root finalization:     root remainder   -> released
-```
-
-All remaining quantity is fungible. A child's complete remainder returns to
-its parent without increasing the parent's original funding. A root's complete
-remainder is released outside Keynes governance. Release does
-not perform a refund, restore provider quota, or cause another external side
-effect.
-
-When the last blocking descendant settles, that transaction finalizes every
-newly ready ancestor on the path to the root. Callers do not settle those
-ancestors again. The command result describes only its target Budget; automatic
-ancestor finalizations appear in `inspect` and history.
-
-Finalization first writes terminal movements that empty the Budget, then
-changes its lifecycle to `settled`. The database prevents a settled Budget
-from retaining quantity or having a non-settled descendant.
-Inspection of a settled Budget therefore reports `available: 0` while retaining
-its allocated, committed, usage, and deficit history.
-
-## Command and replay contract
-
-One shared semantic contract defines these commands for both authorities. KEY-114
-implemented the breaking removal of managed Policy inputs and generated
-definitions:
-
-| Command           | Meaning                                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| `defineResources` | Atomically define or exact-reuse a Resource batch                                              |
-| `createBudget`    | Validate declared Resources and amounts, then create one root without shared definition writes |
-| `requestBudget`   | Validate requests and atomically deny or transfer quantity to one child                        |
-| `settleBudget`    | Record usage and finalize every newly ready Budget                                             |
-| `inspectBudget`   | Read one coherent state and lineage-history snapshot                                           |
-
-Each mutation has one canonical operation, operation key, normalized input
-digest, stored result, and ordered history effects. Exact retry returns the
-stored result. Reusing an operation key with different normalized input returns
-`command_conflict`. For creation, explicit zero membership participates in
-canonical meaning. Amount-key order and compatible unused client declarations
-do not change that meaning. An exact retry returns the original Budget even when
-the recovering client declares additional unused Resources.
-
-The SDK generates operation keys for ordinary calls. A caller supplies one
-only for persisted crash recovery or an ambiguous remote response. Remote
-operation lookup references the canonical command record; it cannot duplicate
-results or become another replay ledger.
+Generated types describe a known contract but grant no permission and cannot prove current database state. Resource provisioning is explicit. Client initialization and Budget loading validate existing definitions without creating or changing them.
 
 ## PostgreSQL transactions and concurrency
 
@@ -467,13 +201,13 @@ Customers control their deployments. Guarantees cover supported Keynes operation
 
 Private `packages/database` is the source owner for canonical command schemas, shared conformance scenarios, the SQLite engine and PostgreSQL SQL. The SDK owns typed handles, inference, lossless serialization, alias mapping, result validation and public errors. It contains no accounting rules, managed Policy compiler or database drivers.
 
-Four private archives form the consumer surface: `@keynes/sdk`, `@keynes/node-sqlite`, `@keynes/postgres` and `@keynes/cli`. SQLite stages only its engine; PostgreSQL stages its installation assets and supplies owned/borrowed adapters plus `/install`. `@keynes/database` and `@keynes/testkit` are build/test dependencies, never production dependencies or declaration imports. KEY-114 retired managed Policy definitions, compilation and evaluation; they are not relocated into these packages.
+Five private archives form the consumer surface: `@keynes/sdk`, `@keynes/node-sqlite`, `@keynes/postgres`, `@keynes/policy` and `@keynes/cli`. SQLite stages only its engine; PostgreSQL stages its installation assets and supplies owned/borrowed adapters plus `/install`; Policy supplies optional customer-owned helpers. `@keynes/database` and `@keynes/testkit` are build/test dependencies, never production dependencies or declaration imports. Managed Policy definitions, compilation and evaluation remain retired rather than relocated.
 
 Consumer builds produce their own outputs from canonical inputs without writing sibling workspaces, maintaining SQL copies or leaking private workspace imports. Tests stay beside their subject; shared conformance scenarios stay independent of adapters. Local consumers exclude the PostgreSQL driver; SDK-only consumers install neither engine nor compiler.
 
 The exported `BasicRuntimeSession` requires both `admit(operation)` and `admit(prepare, execute)`; the latter owns reservation before synchronous preparation and queued execution. `RemoteRuntimeSession.assertOpen()` checks the executor's existing state. Custom session implementations must adopt these source compatibility changes; built-in descriptor call sites are unchanged. Generated clients keep admission and input capture under their supplied executor.
 
-Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. The [package API contract](features/key-96-separate-sdk-and-database-runtime-packages/contracts/package-api.md) defines exact factory options and capability types.
+Use explicit runtime selection without fallback. Adapters must not replace, close, commit or roll back borrowed connections or retry part of an application transaction. Results remain provisional until caller commit. The SDK and runtime package guides own their current factory options and capability types.
 
 Numeric range, decimal and rounding requirements must follow product needs in runtime design. PostgreSQL numeric behavior does not define a universal policy language. Exact accounting, deterministic replay and explicit invalid-input handling remain mandatory; no numerical semantic rewrite is bundled into this documentation or KEY-121.
 
