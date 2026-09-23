@@ -119,3 +119,33 @@ mock closures and mutable proposal copies; reverse-order outcomes remain equal.
 These checks qualify the uncommitted Phase 4 candidate only. They do not run a
 public SDK request path, a second native runner, a package archive, database,
 provider, or hosted lane. Phase 5 and later work remains unstarted.
+
+## Phase 5: US3 parameter candidates
+
+At the uncommitted candidate based on
+`0c6abfd562a370b4e97526d451a95e7c391cd8fd`, the test first failed (exit 1)
+because its new snapshot override imported an unexported test-fixture
+declaration and therefore received `undefined`, reported as
+`invalid_parameter_declaration`. Exporting that existing declaration was the
+only fixture change; no production API changed.
+
+The retained cap-100 scenario explicitly expects `{ usdCents: 100 }`; its
+cap-80 candidate explicitly expects `{ usdCents: 80 }` for the same proposal,
+facts, and assessment. The candidate retains `definitionId` and gets a new
+`snapshotId`; the retained snapshot values, facts, and assessment remain
+unchanged. A test-local candidate that ignores the cap is evaluated before
+`node:assert/strict` `deepStrictEqual` fails. The outer assertion verifies the
+`AssertionError`, so a setup error cannot satisfy the regression test.
+Historical records and their `policyRevision` remain unchanged.
+
+| Command                                                                                                                                                                                                                                                                                                                                     | Result                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @keynes/policy build && pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1`                                                                                                                                                                                                                  | Initial test-first run failed (exit 1): 1 of 17 tests failed with `invalid_parameter_declaration` before the existing declaration was exported from the test fixture. |
+| `pnpm --filter @keynes/policy build && pnpm --filter @keynes/policy exec vitest run test/scenarios.test.ts --maxWorkers=1`                                                                                                                                                                                                                  | Passed (exit 0): 1 file and 17 tests passed.                                                                                                                          |
+| `pnpm --filter @keynes/policy test`                                                                                                                                                                                                                                                                                                         | Passed (exit 0): own-package build completed, then 8 files and 114 tests passed.                                                                                      |
+| `pnpm --filter @keynes/policy typecheck`                                                                                                                                                                                                                                                                                                    | Passed (exit 0): own-package build completed, then `tsc --project tsconfig.json --noEmit` passed.                                                                     |
+| `pnpm exec oxfmt --check packages/policy/test/scenarios.test.ts packages/policy/test/fixtures/policy-scenarios.ts packages/policy/README.md docs/features/key-118-test-policy-behavior-against-recorded-scenarios/tasks.md`                                                                                                                 | Initial check found layout only in `scenarios.test.ts`; the repository formatter was applied before the final check below.                                            |
+| `pnpm exec oxfmt --check packages/policy/test/scenarios.test.ts packages/policy/test/fixtures/policy-scenarios.ts packages/policy/README.md docs/features/key-118-test-policy-behavior-against-recorded-scenarios/{acceptance.md,tasks.md} && git diff --check && git diff --exit-code -- packages/policy/src packages/policy/package.json` | Passed (exit 0): all five files are formatted, the diff has no whitespace errors, and no production source, package manifest, export, or dependency changed.          |
+
+No public SDK request path, second native runner, archive, database, provider,
+or hosted lane ran. Phase 6 and later work remains unstarted.

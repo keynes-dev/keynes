@@ -61,6 +61,17 @@ snapshot, call it with a proposal, and use native test assertions for the exact
 not construct a Budget, invoke an SDK wrapper, or normalize synchronous throws
 or rejected Promises.
 
+## Compare intentional candidates
+
+Keep baseline and candidate expectations literal. An override from cap 100 to
+cap 80 changes the candidate `snapshotId`, not its `definitionId`, and may
+intentionally change the prepared request. A historical `policyRevision`
+identifies Policy code separately from either snapshot identity; candidate runs
+do not edit historical records. For a deliberate broken candidate, evaluate it
+before using `node:assert/strict` equality and assert its `AssertionError` so
+the native expected/actual diagnostic proves sensitivity rather than hiding a
+setup failure.
+
 ## Recorded assessments stay in the application
 
 An assessment is application data, not a Keynes provider contract. Validate an external response in application code, then retain only the bounded value that the Policy needs. This provider-free example uses a recorded checkout risk assessment and requires manual review when the assessment is unavailable:

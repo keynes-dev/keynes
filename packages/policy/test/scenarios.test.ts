@@ -1,9 +1,19 @@
+import { AssertionError, deepStrictEqual } from "node:assert/strict";
+
 import { expect, it, vi } from "vitest";
 
-import { createParameterSnapshot, defineParameters } from "@keynes/policy";
+import {
+  createParameterSnapshot,
+  defineParameters,
+  overrideParameterSnapshot,
+} from "@keynes/policy";
 import type { Policy } from "@keynes/sdk";
 
-import { loadScenarios, makePolicy } from "./fixtures/policy-scenarios.ts";
+import {
+  declaration,
+  loadScenarios,
+  makePolicy,
+} from "./fixtures/policy-scenarios.ts";
 
 it("rejects incomplete or incompatible retained scenarios", () => {
   const [baseline] = loadScenarios();
@@ -138,6 +148,47 @@ it("retains complete historical evidence only when it matches the baseline", () 
   const roundTrip = loadScenarios(JSON.parse(JSON.stringify([complete])));
   expect(roundTrip).toEqual(
     loadScenarios(JSON.parse(JSON.stringify(roundTrip))),
+  );
+});
+
+it("makes intentional parameter candidates explicit", async () => {
+  const [baseline] = loadScenarios();
+  const candidate = overrideParameterSnapshot(
+    declaration,
+    baseline.parameters,
+    {
+      requestCap: 80,
+    },
+  );
+  const baselineExpected = { kind: "prepared", request: { usdCents: 100 } };
+  const candidateExpected = { kind: "prepared", request: { usdCents: 80 } };
+
+  expect(await makePolicy(baseline)(baseline.proposal)).toEqual(
+    baselineExpected,
+  );
+  expect(
+    await makePolicy({ ...baseline, parameters: candidate })(baseline.proposal),
+  ).toEqual(candidateExpected);
+  expect(candidate.definitionId).toBe(baseline.parameters.definitionId);
+  expect(candidate.snapshotId).not.toBe(baseline.parameters.snapshotId);
+  expect(baseline.parameters.values).toEqual({
+    requestCap: 100,
+    minimumConfidence: 0.9,
+  });
+  expect(baseline.facts).toEqual({ eligible: true });
+  expect(baseline.assessment).toEqual({
+    kind: "available",
+    risk: "low",
+    confidence: 0.95,
+  });
+
+  const ignoresCap: Policy<"usdCents", "usdCents"> = (proposal) => ({
+    kind: "prepared",
+    request: { usdCents: proposal.usdCents ?? 0 },
+  });
+  const brokenResult = await ignoresCap(baseline.proposal);
+  expect(() => deepStrictEqual(brokenResult, candidateExpected)).toThrow(
+    AssertionError,
   );
 });
 

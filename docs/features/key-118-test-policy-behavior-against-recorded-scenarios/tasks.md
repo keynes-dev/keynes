@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md), [data-model.md](data-model.md), [contract](contracts/scenarios.md), [quickstart.md](quickstart.md).
 
-**Status**: Implementation is in progress. Phases 1-4 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
+**Status**: Implementation is in progress. Phases 1-5 are complete; later phases remain unstarted. A checked planning checklist does not complete any task below.
 
 **Tests**: Explicit feature deliverables. Add the smallest failing assertion for new behavior before filling its implementation; preserve native runner output. Paths below are relative to the repository root.
 
@@ -59,9 +59,9 @@
 
 **Independent test**: Cap 100 and cap 80 produce the separately expected requests; a broken candidate fails the pinned correct candidate expectation.
 
-- [ ] T014 [US3] Add explicit baseline/candidate assertions in `packages/policy/test/scenarios.test.ts` using `overrideParameterSnapshot`, fixed expected requests 100/80 and unchanged facts/assessment; assert snapshot identity change and baseline immutability.
-- [ ] T015 [US3] Add a deliberately broken local candidate that ignores the cap in `packages/policy/test/scenarios.test.ts`; evaluate it before asserting its native equality failure against the correct candidate expectation, keeping the normal suite green and checking an assertion error rather than any setup failure.
-- [ ] T016 [US3] Document intentional differences, native failure diagnostics, historical Policy code revision and snapshot identity in `packages/policy/README.md`; run checks and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
+- [x] T014 [US3] Add explicit baseline/candidate assertions in `packages/policy/test/scenarios.test.ts` using `overrideParameterSnapshot`, fixed expected requests 100/80 and unchanged facts/assessment; assert snapshot identity change and baseline immutability.
+- [x] T015 [US3] Add a deliberately broken local candidate that ignores the cap in `packages/policy/test/scenarios.test.ts`; evaluate it before asserting its native equality failure against the correct candidate expectation, keeping the normal suite green and checking an assertion error rather than any setup failure.
+- [x] T016 [US3] Document intentional differences, native failure diagnostics, historical Policy code revision and snapshot identity in `packages/policy/README.md`; run checks and record results in `docs/features/key-118-test-policy-behavior-against-recorded-scenarios/acceptance.md`.
 
 **Checkpoint**: Expected results are independently stated and historical records remain unchanged. Read-only Ponytail review, evaluate findings, then commit.
 

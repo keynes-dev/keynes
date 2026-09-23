@@ -30,7 +30,7 @@ export type PolicyScenario = Readonly<{
   }>;
 }>;
 
-const declaration = defineParameters({
+export const declaration = defineParameters({
   requestCap: { schema: { type: "number", minimum: 0 }, initial: 0 },
   minimumConfidence: {
     schema: { type: "number", minimum: 0, maximum: 1 },
