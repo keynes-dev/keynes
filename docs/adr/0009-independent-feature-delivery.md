@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-04
 - **Deciders:** Keynes maintainers
+- **Retention:** Superseded by [ADR-0016](0016-permanent-documentation-and-planning-retention.md); this record's independent-delivery decision remains accepted
 
 ## Context
 

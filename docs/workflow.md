@@ -43,13 +43,30 @@ apply the semantic version rule in the constitution, review dependent guidance a
 templates, and record where each removed requirement moved or why it was retired.
 Preserve historical ADR and acceptance bodies. Supersede them with a new record.
 
-## Publish feature artifacts
+## Publish and finalize feature artifacts
 
-Spec Kit commands create local artifacts. Commit them on the feature branch only when they are reviewable. The pull-request description links the owning specification and exact acceptance evidence; the plan links its research, data model, contracts and quickstart, and the specification links its task list.
+Spec Kit commands create local artifacts. Commit public-safe artifacts on the feature branch when they are reviewable. The pull-request description links the owning specification and acceptance evidence; the plan links its supporting design artifacts, and the specification links its task list. Generating or committing artifacts does not authorize publication.
 
-Use branch URLs for working documents and full commit URLs for exact-revision evidence. Never link a file that has not been pushed. After publication, read every link back from GitHub and report failures explicitly. A successful push alone does not prove that documentation links or evidence resolve.
+Use branch URLs only for working documents. Exact evidence uses a full 40-character commit URL, for example `https://github.com/keynes-dev/keynes/blob/<commit>/docs/features/<branch>/acceptance.md`. Never link a file that has not been pushed. After publication, read every link back from GitHub and report failures explicitly. A successful push alone does not prove that a link or retained file resolves.
 
-Each completion report states whether artifacts remain local, were committed, or were pushed. Generating artifacts does not authorize publication.
+Close a completed feature in this order:
+
+1. Commit implementation candidate S. Run the required checks and record S, commands, environment, outcomes, artifacts, and limits.
+2. Update the permanent documentation owners for every changed behavior and material rationale. Repair current links and rerun affected examples and checks. A change after S requires a new candidate and affected verification.
+3. Commit final public-safe plans, tasks, reviews, and acceptance as evidence commit E. E contains the complete feature directory and identifies the revisions its evidence covers; it does not claim checks of later commits.
+4. After publication is authorized, push E. Put full-E links to the specification, plan, tasks, supporting contracts, and acceptance in the pull request, then read them back. Do not put E's own hash inside E.
+5. Commit deletion D. Its E..D diff removes only the approved feature directory. Permanent docs, tests, and examples must work without that directory.
+6. Run final formatting, link, example, required CI, and independent review against D and the actual CI candidate C. CI classifies the complete feature diff, not only D. Record newer results in pull-request or CI metadata; retain release evidence under `docs/releases/` when it must outlive CI.
+7. Merge with merge commit M. Verify E and D are ancestors of M, then delete the feature branch. Squash and rebase merge do not preserve the reviewed evidence identity and are not valid for this closeout.
+8. Confirm the feature directory is absent at merged HEAD, verify the full-E links, and record any post-merge result against M.
+
+S, E, D, C, and M are separate evidence roles even if one commit serves more than one role. A base update or source change after final review requires checks appropriate to the new candidate. If E was already published, merge the base or create, publish, and relink a replacement E; do not amend the linked commit away.
+
+Historical plans are available from a full main-history clone with `git show <E>:docs/features/<branch>/spec.md`. A shallow clone must fetch full main history first. Branch deletion is safe only after merge ancestry and retrieval pass. It does not sanitize earlier content, so private material must never enter a branch intended for retained public history.
+
+This repository does not change GitHub settings automatically. Before adopting deletion on a hosted feature, verify that merge commits are allowed, squash/rebase and any history-rewriting queue are disabled or otherwise resolved, required checks cover C, and independent review remains enforced. Settings inspection, mutation, push, merge, and branch deletion require their own authorization and read-back evidence. [ADR-0016](adr/0016-permanent-documentation-and-planning-retention.md) records the decision and limits.
+
+Each completion report states whether artifacts remain local, were committed, or were pushed, and lists hosted actions as `NOT RUN` until they occur.
 
 ## Resume in a checkout
 

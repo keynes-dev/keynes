@@ -4,6 +4,7 @@
 - **Date:** 2026-09-04
 - **Deciders:** Keynes maintainers
 - **Supersedes:** ADR-0002's custom feature registry and retained manifest; preserves independent delivery from ADR-0009
+- **Retention:** Superseded by [ADR-0016](0016-permanent-documentation-and-planning-retention.md); stock Spec Kit and explicit selection remain accepted
 
 ## Decision
 

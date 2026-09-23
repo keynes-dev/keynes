@@ -28,16 +28,17 @@ Each current topic has one normative owner. Other pages link to that owner inste
 
 Each record has a narrow purpose:
 
-| Source                                | Owns                                                                                                                        |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                                     |
-| `docs/adr/`                           | Accepted architectural decisions and their supersession chain                                                               |
-| `docs/features/`                      | Branch-scoped Spec Kit work and exact-revision evidence retained only until its permanent owners and history are sufficient |
-| GitHub issues and pull requests       | Current discussion, review, CI, and merge status                                                                            |
+| Source                                | Owns                                                                                                     |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                  |
+| `docs/adr/`                           | Accepted architectural decisions and their supersession chain                                            |
+| `docs/features/`                      | Active branch-scoped Spec Kit work and exact-revision evidence before reviewed finalization              |
+| Main Git history                      | Byte-exact finalized feature records retained at their evidence commits after they leave the latest tree |
+| GitHub issues and pull requests       | Current discussion, review, CI, merge status, and full-commit navigation to finalized records            |
 
 Do not copy mutable GitHub fields into repository documents. A feature may start from one GitHub issue, but its branch and explicit Spec Kit directory identify the work in a checkout. Internal task phases stay in `tasks.md`; they are not mirrored as issues. See [the upstream Spec Kit workflow](adr/0010-upstream-spec-kit-workflow.md).
 
-Historical feature artifacts are revision-scoped records, not current reference. Git history retains their decisions after the finalization gates in [the workflow](workflow.md) permit branch-scoped copies to be removed.
+Historical feature artifacts are revision-scoped records, not current reference. Git history retains their exact bytes after the [workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts) permit branch-scoped copies to be removed. [ADR-0016](adr/0016-permanent-documentation-and-planning-retention.md) explains why this requires a merge commit and full-history retrieval.
 
 Documentation describes the target system. It does not make unverified work implemented by describing it.
 
@@ -47,6 +48,6 @@ The [engineering workflow](workflow.md) defines how a branch moves through Spec 
 
 ## Source policy
 
-Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. A GitHub issue or PR may link to that evidence, but the feature artifact remains authoritative for the engineering claim.
+Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. A GitHub issue or PR may link to the full evidence commit, but mutable issue or branch state is not the engineering claim.
 
-Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. When an accepted record supports a durable feature claim, retain only that record beside the owning feature documentation.
+Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. Final feature acceptance is committed at E before its directory leaves the latest tree. Release evidence that must outlive CI belongs under `docs/releases/`, not in a duplicate feature archive.

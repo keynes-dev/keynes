@@ -105,13 +105,13 @@
 
 **Independent Test**: The disposable positive and negative Git pilot proves merge-commit retention, squash/rebase incompatibility and shallow-clone recovery without touching the real repository.
 
-- [ ] T041 [US2] Add the superseding retention decision in the next available file under `docs/adr/` and add supersession notices to ADR-0009/0010
-- [ ] T042 [US2] Update `docs/workflow.md`, `AGENTS.md`, `docs/README.md` and `.github/PULL_REQUEST_TEMPLATE.md` with a GitHub-native lifecycle, ordered closeout, immutable links and revision distinctions
-- [ ] T043 [US2] Implement the disposable standard-library Git pilot under `scripts/` with one focused repository test
-- [ ] T044 [US2] Run positive merge, squash/rebase negative, shallow-clone recovery and permanent-link failure cases through the pilot under `scripts/`
-- [ ] T045 [US2] Run workflow, repository, formatting and link checks; verify permanent docs contain only public repository context; record the exact local pilot evidence in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/acceptance.md`
-- [ ] T046 [US2] Run a read-only Ponytail review of Phase 6 files under `docs/`, `scripts/`, `AGENTS.md`, and `.github/PULL_REQUEST_TEMPLATE.md`
-- [ ] T047 [US2] Commit the reviewed Phase 6 files under `docs/`, `scripts/`, `AGENTS.md`, and `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] T041 [US2] Add the superseding retention decision in the next available file under `docs/adr/` and add supersession notices to ADR-0009/0010
+- [x] T042 [US2] Update `docs/workflow.md`, `AGENTS.md`, `docs/README.md` and `.github/PULL_REQUEST_TEMPLATE.md` with a GitHub-native lifecycle, ordered closeout, immutable links and revision distinctions
+- [x] T043 [US2] Implement the disposable standard-library Git pilot under `scripts/` with one focused repository test
+- [x] T044 [US2] Run positive merge, squash/rebase negative, shallow-clone recovery and permanent-link failure cases through the pilot under `scripts/`
+- [x] T045 [US2] Run workflow, repository, formatting and link checks; verify permanent docs contain only public repository context; record the exact local pilot evidence in `docs/features/COR-131-design-permanent-documentation-and-branch-only-spec-kit/acceptance.md`
+- [x] T046 [US2] Run a read-only Ponytail review of Phase 6 files under `docs/`, `scripts/`, `AGENTS.md`, and `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] T047 [US2] Commit the reviewed Phase 6 files under `docs/`, `scripts/`, `AGENTS.md`, and `.github/PULL_REQUEST_TEMPLATE.md`
 
 **Checkpoint**: Local workflow and tests enforce retained ancestry without changing hosted settings.
 

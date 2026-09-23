@@ -6,9 +6,25 @@ parts work, and what the evidence proves. Do not reduce a substantial feature
 to a file list. Delete prompts and sections that do not apply.
 -->
 
-**Specification:** <!-- Link the owning spec.md. -->
+**GitHub issue:** <!-- Link the public issue when one owns the feature, or write "None." -->
+**Specification:** <!-- Full-E URL to spec.md, or "Not applicable." -->
+**Plan and tasks:** <!-- Full-E URLs to plan.md and tasks.md, or "Not applicable." -->
+**Acceptance:** <!-- Full-E URL to exact feature acceptance evidence. -->
+**Permanent documentation:** <!-- Link the current behavior and rationale owners. -->
 **Prerequisites:** <!-- Link required landed PRs, or write "None." -->
-**Acceptance:** <!-- Link exact feature acceptance evidence; keep task details in Git. -->
+
+| Revision                   | Full commit | Evidence role                                                        |
+| -------------------------- | ----------- | -------------------------------------------------------------------- |
+| Implementation candidate S |             | Revision against which implementation checks ran                     |
+| Final planning/evidence E  |             | Revision used by immutable specification and acceptance links        |
+| Feature-doc deletion D     |             | Revision whose E..D diff removes only the approved feature directory |
+| CI/review candidate C      |             | Exact candidate evaluated by required checks and final review        |
+| Merge M                    |             | Fill after merge; must retain E and D as ancestors                   |
+
+<!--
+Use full 40-character commits. Say "Same as <role>" when one revision serves
+multiple roles. Follow docs/workflow.md rather than copying the closeout policy here.
+-->
 
 ## Why this change exists
 
@@ -38,7 +54,7 @@ Explain how the change preserves existing invariants and repository boundaries.
 
 <!--
 Record the material choices, rejected alternatives, compatibility effects, and
-deliberate limits. Link the owning ADR, specification, plan, or issue.
+deliberate limits. Link the owning ADR, specification, plan, or public issue.
 -->
 
 ## Verification
@@ -53,14 +69,15 @@ as passed because a narrower command passed.
 # Replace with the commands that ran.
 ```
 
-<!-- Include useful counts, artifacts, run links, revisions, and digests. -->
+<!-- Include useful counts, artifacts, run links, exact revisions, and digests. -->
 
 ## Evidence boundaries
 
 <!--
 State what this PR does not implement or prove. Mark relevant unexecuted lanes
 as NOT RUN. Call out evidence retained from older revisions without presenting
-it as evidence for this revision.
+it as evidence for this revision. State whether hosted settings inspection,
+settings changes, publication, merge, branch deletion, and post-merge retrieval ran.
 -->
 
 ## Review guide
@@ -88,5 +105,8 @@ decision or risk to inspect at each step.
 - [ ] Verification lists exact commands and outcomes.
 - [ ] CI or hosted evidence links to the exact revision when relevant.
 - [ ] `NOT RUN` and unsupported claims are explicit.
+- [ ] Permanent documentation owns every changed behavior and material rationale.
+- [ ] Full-E links resolve, and D removes only the approved temporary feature directory when applicable.
+- [ ] The merge method preserves E and D ancestry when branch-scoped feature documents are removed.
 - [ ] The review guide points to the highest-risk decisions first.
 - [ ] Documentation and follow-up work are linked.
