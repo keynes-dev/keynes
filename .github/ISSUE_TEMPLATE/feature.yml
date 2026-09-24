@@ -1,0 +1,17 @@
+name: Feature request
+description: Describe a problem Keynes could help solve.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change and alternatives
+      description: Describe the behavior you need and any alternatives you tried.
+    validations:
+      required: true

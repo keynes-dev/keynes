@@ -51,8 +51,12 @@ the [PostgreSQL runtime guide](packages/postgres/README.md).
 Use the [documentation index](docs/README.md) to find the owner of each topic.
 Start with the [SDK guide](packages/sdk/README.md),
 [product vision](docs/product.md), or [architecture](docs/architecture.md).
-Contributors follow [the workflow](docs/workflow.md) and
+Start contributing with the [setup and contribution guide](CONTRIBUTING.md) and
 [testing reference](docs/testing.md). Release candidates follow the
 [release and evidence procedure](docs/releases/README.md). Historical feature
 records prove only their recorded revisions and verification lanes; they are not
 current reference documentation.
+
+## License
+
+Copyright 2026 Shubhankar Sharan. Licensed under [Apache-2.0](LICENSE).

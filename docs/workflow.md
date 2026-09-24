@@ -1,8 +1,17 @@
 # Contributor workflow
 
-Use stock Spec Kit 1.0.4 with the Codex integration. GitHub owns public issue
-discussion, pull-request review, CI and merge state. Spec Kit artifacts own
-requirements, plans, tasks and exact-revision evidence.
+Start with [contributor setup](../CONTRIBUTING.md). GitHub owns public issue
+discussion, pull-request review, CI and merge state.
+
+Small fixes and documentation changes use a focused pull request with an
+explanation, relevant checks and updated documentation. They do not require a
+Spec Kit feature directory or the feature-artifact closeout procedure below.
+
+For larger features, maintainers use stock Spec Kit 1.0.4 to record
+requirements, plans, tasks and exact-revision evidence. The repository includes
+its Codex integration, but contributors do not need Codex or another agent to
+build, test or submit changes. The following planning and artifact procedures
+apply to those larger features.
 
 ## Governing contracts
 
