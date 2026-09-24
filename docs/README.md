@@ -4,7 +4,8 @@
 
 ## Find the owner
 
-Each current topic has one normative owner. Other pages link to that owner instead of restating its rules.
+Each current topic has one normative owner. Other pages link to that owner
+instead of restating its rules.
 
 | Topic                                                  | Owner                                                    |
 | ------------------------------------------------------ | -------------------------------------------------------- |
@@ -36,18 +37,35 @@ Each record has a narrow purpose:
 | Main Git history                      | Byte-exact finalized feature records retained at their evidence commits after they leave the latest tree |
 | GitHub issues and pull requests       | Current discussion, review, CI, merge status, and full-commit navigation to finalized records            |
 
-Do not copy mutable GitHub fields into repository documents. A feature may start from one GitHub issue, but its branch and explicit Spec Kit directory identify the work in a checkout. Internal task phases stay in `tasks.md`; they are not mirrored as issues. See the [contributor workflow](workflow.md).
+Do not copy mutable GitHub fields into repository documents. A feature may start
+from one GitHub issue, but its branch and explicit Spec Kit directory identify
+the work in a checkout. Internal task phases stay in `tasks.md`; they are not
+mirrored as issues. See the [contributor workflow](workflow.md).
 
-Historical feature artifacts are revision-scoped records, not current reference. Git history retains their exact bytes after the [workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts) permit branch-scoped copies to be removed.
+Historical feature artifacts are revision-scoped records, not current reference.
+Git history retains their exact bytes after the
+[workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts)
+permit branch-scoped copies to be removed.
 
-Documentation describes the target system. It does not make unverified work implemented by describing it.
+Documentation describes the target system. It does not make unverified work
+implemented by describing it.
 
 ## Contributor workflow
 
-The [engineering workflow](workflow.md) defines how a branch moves through Spec Kit, GitHub review, CI, and merge. Existing engineering skills supply focused investigation, design, review, and verification without a separate lifecycle.
+The [engineering workflow](workflow.md) defines how a branch moves through Spec
+Kit, GitHub review, CI, and merge. Existing engineering skills supply focused
+investigation, design, review, and verification without a separate lifecycle.
 
 ## Source policy
 
-Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. A GitHub issue or PR may link to the full evidence commit, but mutable issue or branch state is not the engineering claim.
+Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence
+honestly. Accepted evidence in Git must identify its source revision and
+boundary. A GitHub issue or PR may link to the full evidence commit, but mutable
+issue or branch state is not the engineering claim.
 
-Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. Pre-deletion feature evidence is committed at E before its directory leaves the latest tree. Later CI and review results belong in pull-request or CI metadata. Release evidence that must outlive CI belongs under `docs/releases/`, not in a duplicate feature archive.
+Local archives, measurements, and test records are transient output under the
+ignored `.artifacts/` tree. CI owns uploaded run artifacts. Pre-deletion feature
+evidence is committed at E before its directory leaves the latest tree. Later CI
+and review results belong in pull-request or CI metadata. Release evidence that
+must outlive CI belongs under `docs/releases/`, not in a duplicate feature
+archive.

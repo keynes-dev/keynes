@@ -1,10 +1,13 @@
 # `@keynes/postgres`
 
-`@keynes/postgres` connects `@keynes/sdk` to an installed PostgreSQL authority. Choose an owned connection for Hosted access or borrow one connected `pg` client for Embedded access.
+`@keynes/postgres` connects `@keynes/sdk` to an installed PostgreSQL authority.
+Choose an owned connection for Hosted access or borrow one connected `pg` client
+for Embedded access.
 
 ## Owned connection
 
-These examples assume the installed catalog already contains the `tokens` Resource definition.
+These examples assume the installed catalog already contains the `tokens`
+Resource definition.
 
 ```typescript
 import { postgres } from "@keynes/postgres";
@@ -25,7 +28,10 @@ try {
 }
 ```
 
-The adapter owns its pool and closes it with the Keynes client. The database URL must select verified TLS. See [runtime behavior](docs/runtime.md#owned-connections) for the URL contract, identity, retries, limits, and shutdown rules.
+The adapter owns its pool and closes it with the Keynes client. The database URL
+must select verified TLS. See
+[runtime behavior](docs/runtime.md#owned-connections) for the URL contract,
+identity, retries, limits, and shutdown rules.
 
 ## Borrow a PostgreSQL connection
 
@@ -62,10 +68,21 @@ export async function allocate(
 }
 ```
 
-The caller owns the connection, transaction, identity context, commit, rollback, and recovery. Keynes never closes or releases the borrowed connection. See [runtime behavior](docs/runtime.md#borrowed-connections) before using provisional results outside the transaction.
+The caller owns the connection, transaction, identity context, commit, rollback,
+and recovery. Keynes never closes or releases the borrowed connection. See
+[runtime behavior](docs/runtime.md#borrowed-connections) before using
+provisional results outside the transaction.
 
 ## Install the authority
 
-The package exposes `install`, `parseInstallationConfig`, and `InstallationError` from `@keynes/postgres/install`. The separate `@keynes/cli` package supplies the `keynes install` executable. See [installation](docs/installation.md) for the supported profile, prepared roles, exact rechecks, compatibility checks, and unsupported operations.
+The package exposes `install`, `parseInstallationConfig`, and
+`InstallationError` from `@keynes/postgres/install`. The separate `@keynes/cli`
+package supplies the `keynes install` executable. See
+[installation](docs/installation.md) for the supported profile, prepared roles,
+exact rechecks, compatibility checks, and unsupported operations.
 
-Shared Budget and command meaning belongs to the public [accounting](https://github.com/keynes-dev/keynes/blob/main/docs/reference/accounting.md) and [command](https://github.com/keynes-dev/keynes/blob/main/docs/reference/commands.md) references.
+Shared Budget and command meaning belongs to the public
+[accounting](https://github.com/keynes-dev/keynes/blob/main/docs/reference/accounting.md)
+and
+[command](https://github.com/keynes-dev/keynes/blob/main/docs/reference/commands.md)
+references.

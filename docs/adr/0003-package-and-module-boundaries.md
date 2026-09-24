@@ -34,11 +34,15 @@ the private database source package.
 
 - Applications install the SDK with an explicit runtime package.
 - Database behavior changes update both engines and shared conformance coverage.
-- Runtime-specific connection, installation, and lifecycle tests stay with their owner.
+- Runtime-specific connection, installation, and lifecycle tests stay with their
+  owner.
 - Optional Policy and test tooling do not enlarge the accounting authority.
 
 ## Rejected alternatives
 
-- One package would couple drivers, build sources, optional tools, and public API releases.
-- A shared accounting engine would force different databases through one implementation model.
-- Empty extension interfaces would promise supported implementations that do not exist.
+- One package would couple drivers, build sources, optional tools, and public
+  API releases.
+- A shared accounting engine would force different databases through one
+  implementation model.
+- Empty extension interfaces would promise supported implementations that do not
+  exist.

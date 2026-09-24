@@ -22,13 +22,17 @@ resume the command.
 
 ## Consequences
 
-- Customer code owns business facts, provider effects, Policy persistence, and recomputation.
-- Keynes validates and accounts only the final command submitted to its authority.
-- Integrated Policy requests are convenient but are not a durable workflow boundary.
+- Customer code owns business facts, provider effects, Policy persistence, and
+  recomputation.
+- Keynes validates and accounts only the final command submitted to its
+  authority.
+- Integrated Policy requests are convenient but are not a durable workflow
+  boundary.
 - Command-result lookup never retries or mutates a command.
 
 ## Rejected alternatives
 
 - Managed SQL Policies would make Keynes own customer business logic and facts.
 - Replaying Policy with a command could repeat customer or provider effects.
-- Treating decision evidence as authorization would weaken the accounting boundary.
+- Treating decision evidence as authorization would weaken the accounting
+  boundary.

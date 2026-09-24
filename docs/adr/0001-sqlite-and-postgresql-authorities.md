@@ -6,8 +6,8 @@
 ## Context
 
 Local evaluation and tests need an authority with no service or installation.
-Durable deployments need transactions, independent clients, concurrency
-control, recovery tooling, and composition with application transactions.
+Durable deployments need transactions, independent clients, concurrency control,
+recovery tooling, and composition with application transactions.
 
 ## Decision
 
@@ -20,8 +20,8 @@ the transaction lifecycle with the application.
 PostgreSQL initialization validates Resource declarations against the installed
 catalog. Provisioning remains a separate authorized operation.
 
-SQLite and PostgreSQL implement the same command and accounting contract and
-run the shared conformance scenarios.
+SQLite and PostgreSQL implement the same command and accounting contract and run
+the shared conformance scenarios.
 
 ## Consequences
 
@@ -32,6 +32,9 @@ run the shared conformance scenarios.
 
 ## Rejected alternatives
 
-- Requiring PostgreSQL locally adds installation and process costs to ephemeral use.
-- Making SQLite durable would require a separate recovery and concurrency contract.
-- A generic storage adapter would imply support that conformance alone cannot provide.
+- Requiring PostgreSQL locally adds installation and process costs to ephemeral
+  use.
+- Making SQLite durable would require a separate recovery and concurrency
+  contract.
+- A generic storage adapter would imply support that conformance alone cannot
+  provide.
