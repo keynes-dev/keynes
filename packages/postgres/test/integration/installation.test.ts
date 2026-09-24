@@ -531,7 +531,7 @@ describe("native PostgreSQL installation", () => {
     });
   });
 
-  it("rolls back the baseline after an injected failure", async () => {
+  it("sanitizes an installation failure after rolling back the baseline", async () => {
     const target = await openTarget();
     const failure = new Error("injected migration failure");
     let injectionReached = false;
@@ -552,8 +552,15 @@ describe("native PostgreSQL installation", () => {
       return await originalQuery.apply(this, args);
     });
 
-    await expect(install(target)).rejects.toBe(failure);
+    const error = await install(target).catch((caught: unknown) => caught);
     querySpy.mockRestore();
+    expect(error).toMatchObject({
+      kind: "postgresql_installation_error",
+      code: "database_unavailable",
+      check: "installation",
+    });
+    expect(error).not.toHaveProperty("cause");
+    expect(String(error)).not.toContain(failure.message);
     expect(injectionReached).toBe(true);
     expect(await schemasExist(target)).toBe(false);
     await expect(install(target)).resolves.toMatchObject({
@@ -562,7 +569,7 @@ describe("native PostgreSQL installation", () => {
     });
   });
 
-  it("preserves installation and rollback failures together", async () => {
+  it("sanitizes combined installation and rollback failures", async () => {
     const target = await openTarget();
     const installationFailure = new Error("injected migration failure");
     const rollbackFailure = new Error("injected rollback failure");
@@ -585,12 +592,41 @@ describe("native PostgreSQL installation", () => {
 
     const error = await install(target).catch((caught: unknown) => caught);
     querySpy.mockRestore();
-    expect(error).toBeInstanceOf(AggregateError);
-    expect((error as AggregateError).errors).toEqual([
-      installationFailure,
-      rollbackFailure,
-    ]);
+    expect(error).toMatchObject({
+      kind: "postgresql_installation_error",
+      code: "database_unavailable",
+      check: "installation",
+    });
+    expect(error).not.toHaveProperty("cause");
+    expect(String(error)).not.toContain(installationFailure.message);
+    expect(String(error)).not.toContain(rollbackFailure.message);
     expect(await schemasExist(target)).toBe(false);
+  });
+
+  it("sanitizes a fresh verification connection failure", async () => {
+    const target = await openTarget();
+    const failure = new Error("verification connection exposed a secret");
+    const originalConnect = Client.prototype.connect;
+    let connectionCount = 0;
+    const connectSpy = vi.spyOn(Client.prototype, "connect");
+    connectSpy.mockImplementation(async function (
+      this: InstanceType<typeof Client>,
+      ...args
+    ) {
+      connectionCount += 1;
+      if (connectionCount === 2) throw failure;
+      return await originalConnect.apply(this, args);
+    });
+
+    const error = await install(target).catch((caught: unknown) => caught);
+    connectSpy.mockRestore();
+    expect(error).toMatchObject({
+      kind: "postgresql_installation_error",
+      code: "database_unavailable",
+      check: "installation",
+    });
+    expect(error).not.toHaveProperty("cause");
+    expect(String(error)).not.toContain(failure.message);
   });
 });
 

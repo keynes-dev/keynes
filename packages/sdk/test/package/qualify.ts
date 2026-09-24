@@ -33,6 +33,8 @@ export const PRODUCTION_LIMIT_BYTES = 35 * 1024 * 1024;
 const allowedPackageFiles = [
   "package/LICENSE",
   "package/README.md",
+  "package/docs/api.md",
+  "package/docs/runtime-bindings.md",
   "package/package.json",
   ...SDK_PRODUCTION_MODULES.flatMap((path) => [
     `package/dist/${path}.d.ts`,

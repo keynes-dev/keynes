@@ -1,35 +1,76 @@
-# @keynes/node-sqlite
+# Node SQLite runtime
 
-Private in-memory SQLite runtime for `@keynes/sdk` on Node.js 24+. Install the SDK and SQLite archives together; the SDK remains a peer dependency. This package stages its engine from the private database source owner and ships no PostgreSQL driver, SQL installation assets or CLI.
+`@keynes/node-sqlite` provides the ephemeral Local runtime for `@keynes/sdk` on
+Node.js 24 or later. It stages the SQLite engine from the private database
+source package. The SDK remains a peer dependency.
+
+## Create a Local Budget
 
 ```ts
-import { createKeynes } from "@keynes/sdk";
 import { nodeSqlite } from "@keynes/node-sqlite";
+import { createKeynes } from "@keynes/sdk";
 
 await using keynes = await createKeynes({
   runtime: nodeSqlite(),
-  resources: { workUnits: { unit: "unit", accountingBehavior: "consumable" } },
+  resources: {
+    workUnits: { unit: "unit", accountingBehavior: "consumable" },
+  },
 });
+
 const root = await keynes.createBudget({ workUnits: 10 });
 const request = await root.request({ workUnits: 3 });
 if (request.status === "approved") {
   await request.budget.settle({ workUnits: 2 });
 }
-await root.inspect();
+
+const inspection = await root.inspect();
+console.log(inspection.budget.resources);
 ```
 
-`inspect()` returns the requested Budget's state and the complete history of its root tree in one local authority observation. A child result does not turn its state into a root summary, but its history can include sibling and descendant events. `lineageId`, `parentLineageId`, `subject`, and movement endpoints are root-relative IDs, not global identifiers.
+The
+[Resource and Budget accounting reference](https://github.com/keynes-dev/keynes/blob/main/docs/reference/accounting.md)
+defines allocation, availability, settlement, lifecycle, and inspection. The
+[command reference](https://github.com/keynes-dev/keynes/blob/main/docs/reference/commands.md)
+defines validation, atomicity, replay, and decision evidence. The
+[SDK package](https://github.com/keynes-dev/keynes/blob/main/packages/sdk/README.md)
+owns the TypeScript handles and request API.
 
-Each movement records its `reason`, Resource, amount, and `from` and `to` endpoints. A `null` endpoint means funding from outside the tree, consumption, or root release according to the reason. An `automatic_finalization` event identifies the settlement event that finalized its ancestor. The authority records that evidence. Caller `decisionEvidence` remains data, not authority, and inspection does not evaluate Policy.
+## Runtime lifecycle
 
-`nodeSqlite()` takes no options and performs no I/O. Its reusable descriptor opens a fresh private database for each `createKeynes` call. Instances share no state. The factory remains synchronous; Promise-returning SDK methods reject input and operation failures. The session reserves work before input capture, captures it before returning to the caller and executes it in queue order. Close drains every reservation, including work whose input reflection starts close. New calls reject with `runtime_closed` before reading input. Repeated close calls share one Promise. Close discards the database; process exit also loses all state.
+`nodeSqlite()` takes no arguments. It returns a reusable descriptor without
+opening a database or performing I/O. Each `createKeynes` call initializes a new
+private in-memory database, so two Local instances never share state.
 
-There is no path, persistence mode, borrowed database, public connection handle, tenant/principal option or credential. The runtime validates command semantics and owns atomic accounting and replay; the SDK validates responses and maps typed handles. Browser execution and durable Local recovery are outside this package contract.
+The runtime captures accepted input before the public method returns, then
+executes admitted work in queue order. Calling `close()` stops admission and
+drains all reserved work, including calls whose input capture started the close.
+Calls admitted after close begins reject with `runtime_closed` before the
+runtime reads caller input. Repeated `close()` calls return the same Promise.
+Use `await using`, as in the example, or call `await keynes.close()`.
 
-The private movement journal is the quantity authority. Root creation funds a
-tree, approved child requests transfer quantity, consumable use removes owned
-quantity, and finalization returns or releases the remainder. Inspection derives
-availability from those movements. A settled Budget has zero available quantity
-while its historical fields remain visible.
+If a committed mutation loses its response, Local retries the exact captured
+command once. A second lost response rejects with `operation_interrupted`. The
+retry cannot duplicate accounting state because the command identity and
+normalized body are unchanged.
 
-From the repository root, run `pnpm build:node-sqlite` and `pnpm pack:node-sqlite`. The private archive is `.artifacts/package-tests/node-sqlite/keynes-node-sqlite-0.0.0.tgz`. See the [SDK examples](../sdk/README.md) and [qualification guide](../../docs/features/key-96-separate-sdk-and-database-runtime-packages/quickstart.md).
+`nodeSqlite()` reports unsupported arguments synchronously as
+`invalid_configuration`. Promise-returning SDK operations reject validation,
+initialization, and command failures. If initialization fails and closing the
+acquired database also fails, the rejection preserves both errors in an
+`AggregateError`.
+
+## Limits
+
+Local state disappears on `close()` or process exit. The package accepts no
+database path, persistence mode, borrowed connection, tenant, principal,
+credential, extension, or public database handle. It provides no browser
+runtime, durable recovery, multi-process coordination, PostgreSQL driver, SQL
+installation assets, or CLI.
+
+The package ships only its public root export. Deep imports and generated engine
+files are private.
+
+## Verification
+
+The [repository testing reference](../../docs/testing.md) owns source, Local,
+native, and exact-archive commands and explains what each result proves.

@@ -90,57 +90,62 @@ export async function install(input: {
 }> {
   const config = parseInstallationConfig(input.config);
   const assets = await installationAssets();
-  const client = new Client(
-    input.connectionString === undefined
-      ? {}
-      : { connectionString: input.connectionString },
-  );
   try {
-    await client.connect();
-  } catch {
-    throw new InstallationError("database_unavailable", "connection");
-  }
-  try {
-    await checkServer(client);
-    await checkRoles(client, config);
-    await client.query(
-      "select pg_advisory_lock(hashtextextended('keynes-installation:' || current_database(), 0))",
+    const client = new Client(
+      input.connectionString === undefined
+        ? {}
+        : { connectionString: input.connectionString },
     );
-    const state = await classifyTarget(client);
-    if (state === "incompatible")
-      throw new InstallationError("incompatible_target", "target");
-    if (state === "exact") {
-      await recheckTransaction(client, config, assets);
-      return success("already-installed", config);
-    }
-
-    await client.query("begin");
     try {
-      await client.query(`set local role ${identifier(config.ownerRole)}`);
-      for (const asset of assets) await client.query(asset.sql);
-      await recordInstallation(client, config);
-      await configureRemoteAccess(client, config);
-      await checkExactTarget(client, config, assets);
-      await client.query("commit");
-    } catch (error: unknown) {
-      await rollback(client, error);
+      await client.connect();
+    } catch {
+      throw new InstallationError("database_unavailable", "connection");
     }
-  } finally {
-    await client.end();
-  }
+    try {
+      await checkServer(client);
+      await checkRoles(client, config);
+      await client.query(
+        "select pg_advisory_lock(hashtextextended('keynes-installation:' || current_database(), 0))",
+      );
+      const state = await classifyTarget(client);
+      if (state === "incompatible")
+        throw new InstallationError("incompatible_target", "target");
+      if (state === "exact") {
+        await recheckTransaction(client, config, assets);
+        return success("already-installed", config);
+      }
 
-  const verify = new Client(
-    input.connectionString === undefined
-      ? {}
-      : { connectionString: input.connectionString },
-  );
-  try {
-    await verify.connect();
-    await recheckInstallation({ client: verify, config });
-  } finally {
-    await verify.end();
+      await client.query("begin");
+      try {
+        await client.query(`set local role ${identifier(config.ownerRole)}`);
+        for (const asset of assets) await client.query(asset.sql);
+        await recordInstallation(client, config);
+        await configureRemoteAccess(client, config);
+        await checkExactTarget(client, config, assets);
+        await client.query("commit");
+      } catch (error: unknown) {
+        await rollback(client, error);
+      }
+    } finally {
+      await client.end();
+    }
+
+    const verify = new Client(
+      input.connectionString === undefined
+        ? {}
+        : { connectionString: input.connectionString },
+    );
+    try {
+      await verify.connect();
+      await recheckInstallation({ client: verify, config });
+    } finally {
+      await verify.end();
+    }
+    return success("installed", config);
+  } catch (error: unknown) {
+    if (error instanceof InstallationError) throw error;
+    throw new InstallationError("database_unavailable", "installation");
   }
-  return success("installed", config);
 }
 
 export async function recheckInstallation(input: {

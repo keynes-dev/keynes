@@ -71,7 +71,7 @@ function resultDefinitions(
   for (const name of names) {
     const definition = source[name];
     const serialized = JSON.stringify(definition);
-    for (const match of serialized.matchAll(/"\$ref":"#\/\$defs\/([^"\/]+)"/g))
+    for (const match of serialized.matchAll(/"\$ref":"#\/\$defs\/([^"/]+)"/g))
       names.add(match[1]);
   }
   return Object.fromEntries(
