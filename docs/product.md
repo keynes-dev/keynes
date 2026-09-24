@@ -30,7 +30,7 @@ Customers decide what work is worth doing. A customer Policy can return a typed 
 
 Keynes receives the final Resource envelope and independently checks permission, Budget state and live quantity. Caller-supplied decision evidence is bounded and replay-bound, but it grants no authority and does not prove that evaluation ran. Replay never reruns customer logic or an external effect. Customers own policy definitions, inputs, parameter selection, failures, fallback, recomputation, application transactions and provider recovery.
 
-This boundary lets applications change decision logic without changing the accounting authority. [ADR-0013](adr/0013-application-owned-policies.md) records the governing decision; [ADR-0014](adr/0014-policy-middleware-in-budget-requests.md) and [ADR-0015](adr/0015-direct-policy-decisions-and-command-result-lookup.md) define the optional request integration. The [Policy package](../packages/policy/README.md) owns its public helpers, and the [SDK package](../packages/sdk/README.md) owns TypeScript request shapes.
+This boundary lets applications change decision logic without changing the accounting authority. [ADR-0002](adr/0002-application-owned-policies.md) records the governing decision. The [Policy package](../packages/policy/README.md) owns its public helpers, and the [SDK package](../packages/sdk/README.md) owns TypeScript request shapes.
 
 ## Deployment choices
 

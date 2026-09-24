@@ -31,14 +31,14 @@ Each record has a narrow purpose:
 | Source                                | Owns                                                                                                     |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                  |
-| `docs/adr/`                           | Accepted architectural decisions and their supersession chain                                            |
+| `docs/adr/`                           | Current cross-package architectural decisions                                                            |
 | `docs/features/`                      | Active branch-scoped Spec Kit work and exact-revision evidence before reviewed finalization              |
 | Main Git history                      | Byte-exact finalized feature records retained at their evidence commits after they leave the latest tree |
 | GitHub issues and pull requests       | Current discussion, review, CI, merge status, and full-commit navigation to finalized records            |
 
-Do not copy mutable GitHub fields into repository documents. A feature may start from one GitHub issue, but its branch and explicit Spec Kit directory identify the work in a checkout. Internal task phases stay in `tasks.md`; they are not mirrored as issues. See [the upstream Spec Kit workflow](adr/0010-upstream-spec-kit-workflow.md).
+Do not copy mutable GitHub fields into repository documents. A feature may start from one GitHub issue, but its branch and explicit Spec Kit directory identify the work in a checkout. Internal task phases stay in `tasks.md`; they are not mirrored as issues. See the [contributor workflow](workflow.md).
 
-Historical feature artifacts are revision-scoped records, not current reference. Git history retains their exact bytes after the [workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts) permit branch-scoped copies to be removed. [ADR-0016](adr/0016-permanent-documentation-and-planning-retention.md) explains why this requires a merge commit and full-history retrieval.
+Historical feature artifacts are revision-scoped records, not current reference. Git history retains their exact bytes after the [workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts) permit branch-scoped copies to be removed.
 
 Documentation describes the target system. It does not make unverified work implemented by describing it.
 

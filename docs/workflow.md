@@ -41,7 +41,7 @@ Record evidence as proposed, implemented, verified, failed, skipped, or `NOT RUN
 Use `$speckit-constitution` for a constitutional amendment. State the rationale,
 apply the semantic version rule in the constitution, review dependent guidance and
 templates, and record where each removed requirement moved or why it was retired.
-Preserve historical ADR and acceptance bodies. Supersede them with a new record.
+Keep the current ADR set concise and update a record when its architectural decision changes.
 
 ## Publish and finalize feature artifacts
 
@@ -64,7 +64,7 @@ S, E, D, C, and M are separate evidence roles even if one commit serves more tha
 
 Historical plans are available from a full main-history clone with `git show <E>:docs/features/<branch>/spec.md`. A shallow clone must fetch full main history first. Branch deletion is safe only after merge ancestry and retrieval pass. It does not sanitize earlier content, so private material must never enter a branch intended for retained public history.
 
-This repository does not change GitHub settings automatically. Before adopting deletion on a hosted feature, verify that merge commits are allowed, squash/rebase and any history-rewriting queue are disabled or otherwise resolved, required checks cover C, and independent review remains enforced. Settings inspection, mutation, push, merge, and branch deletion require their own authorization and read-back evidence. [ADR-0016](adr/0016-permanent-documentation-and-planning-retention.md) records the decision and limits.
+This repository does not change GitHub settings automatically. Before adopting deletion on a hosted feature, verify that merge commits are allowed, squash/rebase and any history-rewriting queue are disabled or otherwise resolved, required checks cover C, and independent review remains enforced. Settings inspection, mutation, push, merge, and branch deletion require their own authorization and read-back evidence.
 
 Each completion report states whether artifacts remain local, were committed, or were pushed, and lists hosted actions as `NOT RUN` until they occur.
 
@@ -110,9 +110,8 @@ specify integration status --json
 
 Use `--force` only after reviewing which managed modifications will be replaced.
 Commit all generated Codex skills, including unused commands, and check that a fresh
-checkout reports no missing files. Keep authored specifications and historical ADRs
-unchanged. Reapply the same version in a disposable checkout and verify those
-artifacts survive. See [ADR-0010](adr/0010-upstream-spec-kit-workflow.md).
+checkout reports no missing files. Keep authored specifications and ADRs unchanged.
+Reapply the same version in a disposable checkout and verify those artifacts survive.
 
 If a recurring need eventually requires customization, use supported preset
 composition instead of modifying generated files. Add it only for an observed need.

@@ -1,6 +1,6 @@
 # Keynes runtime architecture
 
-> **Status:** [ADR-0013](adr/0013-application-owned-policies.md) is implemented
+> **Status:** [ADR-0002](adr/0002-application-owned-policies.md) is implemented
 > for the request boundary: customers compute requests, optional caller evidence
 > is bounded and recorded, and SQLite Local and PostgreSQL Hosted/Embedded
 > enforce accounting through separate implementations. Managed SQL Policies are

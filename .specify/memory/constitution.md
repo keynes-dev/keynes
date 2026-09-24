@@ -1,11 +1,9 @@
 <!--
 Sync Impact Report
 
-- Version: 14.0.0 -> 15.0.0
-- Rationale: Permit retired ADR bodies to leave HEAD once their active rationale has a
-  current owner and retained main history preserves the exact records.
-- Modified section: Engineering Accountability, historical decision record retention.
-- Templates reviewed: plan, spec, tasks, checklist, and agent templates remain compatible.
+- Version: 15.0.0 -> 1.0.0, a user-directed clean-slate reset.
+- Modified sections: Engineering Accountability and Governance.
+- Templates: compatible. Follow-up TODOs: none.
 -->
 
 # Keynes Constitution
@@ -76,17 +74,13 @@ checked before protected state or replayed outcomes are disclosed.
 
 ## Engineering Accountability
 
-Specifications MUST describe public behavior and acceptance outcomes before
-implementation begins. Architectural decisions MUST record durable technical choices
-and their tradeoffs. Feature and command contracts MUST own concrete APIs, result
-variants, compatibility rules, and validation behavior. Contributor documentation
-MUST own branch, planning, testing, qualification, and publication procedures.
+Specifications MUST own public outcomes. ADRs MUST own durable cross-package choices
+and their tradeoffs. Current reference documentation and contracts MUST own APIs,
+result variants, compatibility rules, and validation behavior. The contributor
+workflow MUST own branch, planning, testing, qualification, and publication procedures.
 
-When a requirement moves between these owners, the change MUST identify its new owner
-or explain why the requirement is obsolete. A retired ADR body MAY leave HEAD only
-after its active rationale moves to a current owner, retained main history preserves its
-exact contents, and the ADR index links to that pinned revision. Historical acceptance
-and feature evidence MUST remain intact as governed by the contributor workflow.
+Each requirement MUST have one clear owner. When a requirement moves, the change MUST
+name its new owner or state that the requirement no longer applies.
 
 ## Governance
 
@@ -94,13 +88,14 @@ This constitution governs enduring product and engineering principles. It MUST N
 used as a catalogue of current API signatures, runtime technologies, package layouts,
 issue dependencies, test commands, or contributor mechanics.
 
-Amendments require an explicit rationale, a semantic version change, and a review of
-dependent guidance. Major versions remove or redefine a principle, minor versions add
-or materially expand one, and patch versions clarify wording without changing meaning.
+This clean-slate constitution starts semantic versioning at 1.0.0. Amendments require
+an explicit rationale, a semantic version change, and a review of dependent guidance.
+Major versions remove or redefine a principle. Minor versions add or materially expand
+one. Patch versions clarify wording without changing meaning.
 
 Active specifications, contracts, ADRs, product documentation, architecture
 documentation, and contributor workflow MUST remain consistent with these principles.
 If they conflict, work pauses until the conflict is resolved or this constitution is
 amended.
 
-**Version**: 15.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-24
+**Version**: 1.0.0 | **Ratified**: 2026-09-24 | **Last Amended**: 2026-09-24
