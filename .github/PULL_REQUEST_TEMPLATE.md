@@ -6,12 +6,21 @@ parts work, and what the evidence proves. Do not reduce a substantial feature
 to a file list. Delete prompts and sections that do not apply.
 -->
 
-**GitHub issue:** <!-- Link the public issue when one owns the feature, or write "None." -->
+**GitHub issue:**
+<!-- Link the public issue when one owns the feature, or write "None." -->
+
 **Specification:** <!-- Full-E URL to spec.md, or "Not applicable." -->
-**Plan and tasks:** <!-- Full-E URLs to plan.md and tasks.md, or "Not applicable." -->
+
+**Plan and tasks:**
+<!-- Full-E URLs to plan.md and tasks.md, or "Not applicable." -->
+
 **Acceptance:** <!-- Full-E URL to exact feature acceptance evidence. -->
-**Permanent documentation:** <!-- Link the current behavior and rationale owners. -->
-**Prerequisites:** <!-- Link required landed PRs, or write "None." -->
+
+**Permanent documentation:**
+<!-- Link the current behavior and rationale owners. -->
+
+**Prerequisites:**
+<!-- Link required landed PRs, or write "None." -->
 
 | Revision                   | Full commit | Evidence role                                                        |
 | -------------------------- | ----------- | -------------------------------------------------------------------- |
@@ -99,14 +108,19 @@ decision or risk to inspect at each step.
 
 ## Checklist
 
-- [ ] The description explains why the change exists, not only what files changed.
+- [ ] The description explains why the change exists, not only what files
+      changed.
 - [ ] Public behavior and compatibility effects are explicit.
-- [ ] Ownership, transaction, retry, and lifecycle boundaries are clear where relevant.
+- [ ] Ownership, transaction, retry, and lifecycle boundaries are clear where
+      relevant.
 - [ ] Verification lists exact commands and outcomes.
 - [ ] CI or hosted evidence links to the exact revision when relevant.
 - [ ] `NOT RUN` and unsupported claims are explicit.
-- [ ] Permanent documentation owns every changed behavior and material rationale.
-- [ ] Full-E links resolve, and D removes only the approved temporary feature directory when applicable.
-- [ ] The merge method preserves E and D ancestry when branch-scoped feature documents are removed.
+- [ ] Permanent documentation owns every changed behavior and material
+      rationale.
+- [ ] Full-E links resolve, and D removes only the approved temporary feature
+      directory when applicable.
+- [ ] The merge method preserves E and D ancestry when branch-scoped feature
+      documents are removed.
 - [ ] The review guide points to the highest-risk decisions first.
 - [ ] Documentation and follow-up work are linked.

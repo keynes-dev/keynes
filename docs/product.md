@@ -46,9 +46,8 @@ detailed rules shared by every deployment mode.
 
 Customers decide what work is worth doing. A customer Policy can return a typed
 request or stop the operation before Keynes sees it. It can run in application
-code, customer SQL, a customer service or later Keynes Cloud. Optional Policy
-middleware and helpers remain customer-owned tooling rather than an allocation
-prerequisite.
+code, customer SQL, or a customer service. Optional Policy middleware and
+helpers remain customer-owned tooling rather than an allocation prerequisite.
 
 Keynes receives the final Resource envelope and independently checks permission,
 Budget state and live quantity. Caller-supplied decision evidence is bounded and
@@ -75,9 +74,8 @@ replay, inspection, accounting, and history have the same public meaning.
 | Hosted   | A PostgreSQL authority separate from the application | Durable shared governance across applications and workers | The operator manages durable access, credentials, capacity, recovery, and support |
 | Embedded | The application's PostgreSQL installation            | Governance that must commit with application data         | The application calls canonical procedures inside its own transaction             |
 
-Hosted may be customer-operated or managed by Keynes. Those choices change who
-operates the service; they do not change Budget behavior. No mode automatically
-moves a live Budget to another authority.
+The Hosted operator owns service administration without changing Budget
+behavior. No mode automatically moves a live Budget to another authority.
 
 The [architecture](architecture.md#deployment-ownership) owns package, access,
 and connection details for these modes. The [SDK](../packages/sdk/README.md),
@@ -135,12 +133,6 @@ parameters, local snapshots, configurable Policy helpers, portable records and
 fixture-based regression tools. These are Local-preview capabilities, not
 allocation prerequisites. A workflow may construct requests directly, and
 optional helpers do not impose a policy language or transaction manager.
-
-Cloud requires persisted parameters and a schema-driven editor, while model
-assessments remain an independent input. Later versioned HTTP evaluation may let
-applications share customer-owned logic, including Keynes Cloud hosting. Initial
-hosting evaluates only and stays outside authoritative Budget accounting;
-mandatory evaluation-and-submission remains deferred.
 
 ## Later durability and delegation
 

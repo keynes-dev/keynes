@@ -139,9 +139,8 @@ locking, permissions, contention or caller transactions. Shared contracts and
 scenarios preserve public command meaning without requiring a shared accounting
 engine.
 
-KEY-123 owns later durable Node Local recovery under KEY-122's governing
-amendment. This direction changes neither first Local nor its qualification
-requirements.
+Durable Node Local recovery requires a governing accounting decision before
+implementation. Current Local behavior and qualification remain unchanged.
 
 ## Node.js support
 
@@ -183,12 +182,12 @@ no Budget rows, balances, lifecycle, references, principals, credentials,
 operation keys, results or history. The database remains authoritative when
 generated code is stale.
 
-KEY-108 owns catalog generation and developer onboarding; KEY-6 supplies
-authenticated catalog/provisioning support and independently qualifies baseline
-continuity. Complete remote onboarding needs both. Database-managed Policy
-descriptors, context/reason types and attachment narrowing are retired target
-requirements. Optional customer-policy tooling owns its types separately from
-the Resource catalog and allocation contract.
+Complete remote onboarding requires catalog generation and authenticated
+catalog/provisioning support, with baseline continuity independently qualified.
+The complete workflow is not implemented. Database-managed Policy descriptors,
+context/reason types and attachment narrowing are retired target requirements.
+Optional customer-policy tooling owns its types separately from the Resource
+catalog and allocation contract.
 
 ## Developer CLI
 
@@ -200,7 +199,7 @@ consumers do not install developer tooling implicitly.
 `keynes install --config <path>` replaces
 `keynes-postgresql install --config <path>` with the same JSON configuration and
 PostgreSQL environment credentials. It supports fresh installation and exact
-recheck. The remaining catalog workflow belongs to KEY-108.
+recheck. The remaining catalog workflow is not implemented.
 
 Only installation is implemented.
 [Product commitments](product.md#developer-setup-and-remote-onboarding) own
@@ -249,9 +248,8 @@ Hosted uses PostgreSQL as a separate durable authority.
 `postgres({ databaseUrl })` owns a bounded PostgreSQL pool, strict
 `sslmode=verify-full` normalization, compatibility checks and bounded remote
 retries. It invokes only supported wrappers and never falls back to Local state
-or another database. A customer-operated Hosted deployment and Keynes Cloud use
-the same command contract; they differ in who owns credentials, upgrades,
-backups, recovery, monitoring, capacity, incidents, and support.
+or another database. The operator owns credentials, upgrades, backups, recovery,
+monitoring, capacity, incidents, and support.
 
 Embedded applications pass an already connected `pg.Client` or checked-out
 `PoolClient` to `postgres({ connection })`. A `Pool` is rejected. The
@@ -264,18 +262,17 @@ drains admitted work and rejects new work, while results remain provisional
 until commit.
 
 These deployment-specific responsibilities do not change a Budget command's
-semantics. Hosted delivery, including managed Cloud, is not a product-readiness
-claim until its own exact-revision evidence exists.
+semantics. Hosted delivery is not a product-readiness claim until its own
+exact-revision evidence exists.
 
 ### Later cross-authority accounting
 
-KEY-122 owns the detailed accounting ADR and governing amendment before durable
-Local or delegation changes the current contract. KEY-123 adds durable Node
-Local recovery; KEY-124 supplies PostgreSQL-to-local delegation with active
-partial surrender and final reconciliation required for Cloud. Workers,
-workflows and steps use one Budget model. This document does not define that
-protocol or relax current fixed funding and single-authority ownership. First
-Local remains ephemeral with unchanged toolkit requirements.
+Durable Local recovery and PostgreSQL-to-local delegation require a detailed
+accounting ADR and governing amendment before changing the current contract.
+Delegation must define active partial surrender and final reconciliation.
+Workers, workflows and steps use one Budget model. This document does not define
+that protocol or relax current fixed funding and single-authority ownership.
+First Local remains ephemeral with unchanged toolkit requirements.
 
 ## Security boundary
 
@@ -339,7 +336,7 @@ Numeric range, decimal and rounding requirements must follow product needs in
 runtime design. PostgreSQL numeric behavior does not define a universal policy
 language. Exact accounting, deterministic replay and explicit invalid-input
 handling remain mandatory; no numerical semantic rewrite is bundled into this
-documentation or KEY-121.
+documentation.
 
 ## Verification model
 
