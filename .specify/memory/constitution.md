@@ -1,15 +1,11 @@
 <!--
 Sync Impact Report
 
-- Version: 13.0.0 -> 14.0.0
-- Amendment: Reduce the constitution to enduring product and engineering principles.
-- Removed from constitutional scope: product release commitments, runtime and package
-  choices, public API details, validation rules, issue sequencing, branch selection,
-  Spec Kit mechanics, test commands, and publication procedures.
-- Relocation: KEY-126 records each substantive requirement's active owner or retirement
-  reason before implementation acceptance.
+- Version: 14.0.0 -> 15.0.0
+- Rationale: Permit retired ADR bodies to leave HEAD once their active rationale has a
+  current owner and retained main history preserves the exact records.
+- Modified section: Engineering Accountability, historical decision record retention.
 - Templates reviewed: plan, spec, tasks, checklist, and agent templates remain compatible.
-- Follow-up: keep the KEY-126 ownership ledger current as active documents are revised.
 -->
 
 # Keynes Constitution
@@ -87,8 +83,10 @@ variants, compatibility rules, and validation behavior. Contributor documentatio
 MUST own branch, planning, testing, qualification, and publication procedures.
 
 When a requirement moves between these owners, the change MUST identify its new owner
-or explain why the requirement is obsolete. Historical decision and acceptance records
-MUST remain intact; later decisions supersede them through new records.
+or explain why the requirement is obsolete. A retired ADR body MAY leave HEAD only
+after its active rationale moves to a current owner, retained main history preserves its
+exact contents, and the ADR index links to that pinned revision. Historical acceptance
+and feature evidence MUST remain intact as governed by the contributor workflow.
 
 ## Governance
 
@@ -105,4 +103,4 @@ documentation, and contributor workflow MUST remain consistent with these princi
 If they conflict, work pauses until the conflict is resolved or this constitution is
 amended.
 
-**Version**: 14.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-22
+**Version**: 15.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-09-24
