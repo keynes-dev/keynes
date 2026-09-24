@@ -116,9 +116,3 @@ History records Budget creation, approved requests, denied requests, and settlem
 Exact command replay adds no history entry or movement. Inspection is read-only and never defines Resources, retries commands, changes authority state, or performs external work.
 
 PostgreSQL may page a captured remote history, but all pages belong to one fenced observation. The SDK returns either the complete supported snapshot or an error, never a partial successful history. Transport limits and cursor behavior belong to the PostgreSQL runtime reference.
-
-## Why the journal is authoritative
-
-Stored balances would duplicate facts and could drift from the movement record. Keynes instead derives live quantity and inspection projections from the journal and immutable creation facts. The journal also makes conservation, returns, consumption, and release distinguishable during review.
-
-Usage and deficits stay outside the quantity equation because they describe observed external work. This preserves the product boundary: Keynes accounts for authority that passed through it, while the application owns the external effect and reports what happened.

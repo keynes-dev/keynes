@@ -47,7 +47,7 @@ Malformed input, an unknown Resource, an inactive Budget, contradictory known us
 
 ## Authorization and disclosure
 
-Every database operation authenticates its execution context and checks its required permission. Tenant and target authorization apply before protected state can be disclosed.
+Every database operation runs under a tenant and principal context and checks its required permission. Durable runtimes authenticate that context. Tenant and target authorization apply before protected state can be disclosed.
 
 Authorization is part of the command transaction. A caller cannot gain access by knowing a Budget reference, operation key, command ID, or history cursor. Receipt and inspection reads repeat their own current authorization checks.
 
@@ -55,7 +55,7 @@ Errors exposed through remote procedures are bounded and sanitized. They do not 
 
 ## Atomic results
 
-Each mutation commits its state, history, journal movements, and replay record together. A failure before commit leaves none of them visible.
+Each mutation writes its state, history, journal movements, and replay record in one transaction. A failure before that transaction commits leaves none of them visible.
 
 - Resource set definition either defines or exact-reuses every member, or defines none.
 - Root creation writes membership, initial funding, history, and its result together.
@@ -114,9 +114,3 @@ Remote `getOperationResult` is a read-only lookup for an existing operation key.
 Expected domain and validation failures use the closed error envelopes in `schema.json`. Generated clients validate both successful results and error envelopes. Transport loss, process termination, and unmapped database failures do not become success-shaped values.
 
 After an ambiguous mutation failure, retry the exact command identity or read its remote receipt. Do not infer failure from a timeout and submit changed input under the same identity. External work has its own idempotency and recovery because Keynes replay covers Keynes state only.
-
-## Why commands own replay
-
-Replay belongs beside the authoritative mutation because only that boundary can compare normalized input and return the original committed result without repeating state changes. SDK-only deduplication cannot protect another caller or survive process loss.
-
-The same boundary separates denial from failure. A denial is a valid decision about current quantity and belongs in history. Invalid, unauthorized, or conflicting commands never become accounting decisions.

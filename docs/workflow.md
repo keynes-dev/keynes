@@ -57,14 +57,14 @@ Close a completed feature in this order:
 4. After publication is authorized, push E. Put full-E links to the specification, plan, tasks, supporting contracts, and acceptance in the pull request, then read them back. Do not put E's own hash inside E.
 5. Commit deletion D. Its E..D diff removes only the approved feature directory. Permanent docs, tests, and examples must work without that directory.
 6. Run final formatting, link, example, required CI, and independent review against D and the actual CI candidate C. CI classifies the complete feature diff, not only D. Record newer results in pull-request or CI metadata; retain release evidence under `docs/releases/` when it must outlive CI.
-7. Merge with merge commit M. Verify E and D are ancestors of M, then delete the feature branch. Squash and rebase merge do not preserve the reviewed evidence identity and are not valid for this closeout.
+7. Integrate with a fast-forward or merge commit. Record the resulting main revision as M. Verify E and D are ancestors of M, then delete the feature branch. Squash and rebase do not preserve the reviewed evidence identity after E is published.
 8. Confirm the feature directory is absent at merged HEAD, verify the full-E links, and record any post-merge result against M.
 
-S, E, D, C, and M are separate evidence roles even if one commit serves more than one role. A base update or source change after final review requires checks appropriate to the new candidate. If E was already published, merge the base or create, publish, and relink a replacement E; do not amend the linked commit away.
+S, E, D, C, and M are separate evidence roles even if one commit serves more than one role. A base update or source change after final review requires checks appropriate to the new candidate. If E was already published, merge the base, then create, publish, and relink a replacement E before D. Do not amend the linked commit away.
 
 Historical plans are available from a full main-history clone with `git show <E>:docs/features/<branch>/spec.md`. A shallow clone must fetch full main history first. Branch deletion is safe only after merge ancestry and retrieval pass. It does not sanitize earlier content, so private material must never enter a branch intended for retained public history.
 
-This repository does not change GitHub settings automatically. Before adopting deletion on a hosted feature, verify that merge commits are allowed, squash/rebase and any history-rewriting queue are disabled or otherwise resolved, required checks cover C, and independent review remains enforced. Settings inspection, mutation, push, merge, and branch deletion require their own authorization and read-back evidence.
+This repository does not change GitHub settings automatically. Before adopting deletion on a hosted feature, verify an ancestry-preserving integration path, resolve any forced squash, rebase, or history-rewriting queue, confirm that required checks cover C, and retain independent review. Settings inspection, mutation, push, integration, and branch deletion require their own authorization and read-back evidence.
 
 Each completion report states whether artifacts remain local, were committed, or were pushed, and lists hosted actions as `NOT RUN` until they occur.
 

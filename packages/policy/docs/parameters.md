@@ -79,7 +79,7 @@ Use an RFC 8785 canonical JSON implementation when exact serialized bytes matter
 
 ## Restore a snapshot
 
-`restoreParameterSnapshot` accepts parsed input and returns a validated, frozen snapshot. It checks the envelope, version, digest syntax, parameter names, exact fields, computed identities, expected definition, and parameter values in that order. A bad computed identity reports `invalid_parameter_snapshot` before definition comparison. A valid foreign definition reports `parameter_definition_mismatch` before value validation.
+`restoreParameterSnapshot` accepts parsed input and returns a validated, frozen snapshot. It checks the envelope and exact fields, version, digest syntax, parameter names, computed identities, expected definition, and parameter values in that order. A bad computed identity reports `invalid_parameter_snapshot` before definition comparison. A valid foreign definition reports `parameter_definition_mismatch` before value validation.
 
 Restoration reuses validators compiled with the trusted declaration. It never compiles a schema supplied by the snapshot.
 
@@ -107,7 +107,7 @@ const snapshot = createParameterSnapshot(declaration);
 
 The adapter accepts unchecked strings, booleans, `null`, JSON literals and enums, finite numbers with bounds, safe integers, homogeneous arrays with length bounds, strict objects, ordinary unions, nullable wrappers, and optional object properties. Wrap the complete union for an optional property in `.optional()`.
 
-The adapter rejects refinements, transforms, coercion, defaults, catches, string checks, numeric multiples, non-JSON types, optional union branches, discriminated unions, XOR unions, custom conversion callbacks, and global metadata. It converts the accepted subset to draft-07 and applies the strict core validation. Core imports and snapshot restoration do not load Zod.
+The adapter rejects refinements, transforms, coercion, defaults, catches, string checks, numeric multiples, non-JSON types, optional union branches, discriminated unions, XOR unions, and custom conversion callbacks. It ignores global metadata, converts the accepted subset to draft-07, and applies the strict core validation. Core imports and snapshot restoration do not load Zod.
 
 ## Handle errors
 

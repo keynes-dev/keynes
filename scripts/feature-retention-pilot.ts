@@ -89,7 +89,7 @@ function runPositive(root: string): {
   const fixture = createFixture(root);
   const feature = createFeature(fixture.work);
   git(fixture.work, ["switch", "--quiet", "main"]);
-  git(fixture.work, ["merge", "--no-ff", "feature/pilot", "-m", "merge pilot"]);
+  git(fixture.work, ["merge", "--ff-only", "feature/pilot"]);
   const merge = revision(fixture.work);
   git(fixture.work, ["push", "--quiet", "origin", "main"]);
   git(fixture.work, ["branch", "-D", "feature/pilot"]);

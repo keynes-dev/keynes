@@ -25,8 +25,6 @@ Production code must not import this package. Owner-local generator scripts and 
 4. Run `pnpm generate` and review every generated consumer and digest change.
 5. Run the repository checks selected by the [testing reference](../../docs/testing.md).
 
-Generated TypeScript types, validators, PostgreSQL wrappers, installation metadata and digests derive from these inputs. Do not hand-edit generated files.
-
 ## Contract and test boundaries
 
 The generated schema defines wire structure. The [accounting reference](../../docs/reference/accounting.md) explains the domain meaning; the [command reference](../../docs/reference/commands.md) explains validation, atomicity and replay. Runtime packages own connection and lifecycle behavior, and the SDK owns TypeScript adaptation.

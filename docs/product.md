@@ -49,20 +49,7 @@ Hosted may be customer-operated or managed by Keynes. Those choices change who
 operates the service; they do not change Budget behavior. No mode automatically
 moves a live Budget to another authority.
 
-The SDK uses separate SQLite and PostgreSQL runtime packages with shared command contracts and conformance scenarios. Select `nodeSqlite()` from `@keynes/node-sqlite` for Local, or `postgres(...)` from `@keynes/postgres` for an owned remote connection or a borrowed PostgreSQL client. The SDK itself contains no engine or database driver. Borrowed clients expose the basic Budget API; owned remote clients also provide durable references, reopening, and `getOperationResult`.
-
-`getOperationResult` reads a command receipt. It can report `committed`, `known_failure`, `unresolved`, `not_found`, or `expired`. The read never retries, allocates, invokes Policy, or creates a replacement key. A missing or expired receipt does not prove that a delayed command cannot arrive.
-
-First Local is ephemeral and process-owned. It exposes no persistence or database handle and promises no browser support, multi-process coordination or caller-owned PostgreSQL transactions. PostgreSQL remains the durable implementation under this contract. The Hosted SDK currently connects directly to PostgreSQL, with no HTTP Budget service or fallback to local state.
-
-Keynes TypeScript packages support Node.js 24 and later. The package engine
-range does not exclude an intermediate or end-of-life major. Production
-deployments should use a release that the Node.js project still supports.
-Keynes compatibility does not provide Node.js security maintenance.
-
-PostgreSQL supports two access surfaces: direct procedures for trusted Embedded callers and constrained remote wrappers that derive identity from the authenticated login role. The current installation command uses one fixed preview profile; it does not expose an access-profile selector. Borrowed SDK use requires the existing direct grants and caller context.
-
-`remote` names an access surface, not a fourth product mode or public IAM product. Hosted delivery, whether customer-operated or managed by Keynes, needs its own security, recovery and operational evidence.
+The [architecture](architecture.md#deployment-ownership) owns package, access, and connection details for these modes. The [SDK](../packages/sdk/README.md), [Node SQLite](../packages/node-sqlite/README.md), and [PostgreSQL](../packages/postgres/README.md) guides own their current APIs and limits.
 
 ### Shared behavior and mode-specific capabilities
 
@@ -87,21 +74,7 @@ Customers control their deployments. Keynes does not promise to prevent an owner
 
 ## Developer setup and remote onboarding
 
-The separate `@keynes/cli` application provides `keynes install --config <path>` for fresh PostgreSQL installation and exact recheck. Using the SDK does not require developer tools. Catalog type generation, definition preview/deployment and catalog compatibility checks remain KEY-108 work.
-
-The remote catalog supplies application-specific Resource declarations. Optional application policy tooling owns its own typed interfaces and configuration.
-Generated bindings can be committed for offline editing and reproducible builds.
-Keynes generates the SDK's own command types from its central contracts during
-its build. Neither kind of generated type grants database permissions.
-
-Schema synchronization has explicit direction. Catalog reads generate local
-bindings; authorized definition deployment creates missing immutable definitions
-or reuses exact matches. Conflicts fail without overwriting existing definitions.
-Ordinary initialization never deploys definitions. Database upgrades are separate
-from catalog deployment and require a migration contract beyond the clean baseline.
-
-Catalog capabilities are adopted targets, not available commands. KEY-96 establishes the installation CLI boundary; KEY-108 owns the remaining remote developer workflow. Manual declarations remain supported. Baseline Hosted continuity and complete developer onboarding
-retain separate acceptance, and both are required for the Hosted product experience.
+Current setup supports manual declarations and `keynes install --config <path>` for fresh PostgreSQL installation and exact recheck. Catalog generation, preview, deployment, and compatibility remain adopted targets rather than available commands. The [Developer CLI](architecture.md#developer-cli) and package guides own the current mechanics.
 
 ## Policy tooling and release scope
 

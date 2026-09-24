@@ -61,7 +61,3 @@ Remote login grants do not provide direct-procedure access. Before creating the 
 Initialization performs one read-only Resource-definition validation. Each later operation invokes one direct procedure and queues behind earlier borrowed work. The adapter captures admitted input synchronously, but it never connects, begins, commits, rolls back, sets identity context, retries, reconnects, releases, or ends the connection.
 
 Results and handles remain provisional until the caller commits. The caller owns rollback and recovery after an error. Close drains admitted work, then rejects later work as `runtime_closed`; repeated closes share one Promise. Closing the Keynes handle does not close the connection. Borrowed clients expose the basic Keynes and Budget surface without remote references, opening, or operation-receipt recovery.
-
-## Why ownership is explicit
-
-An owned pool gives the remote adapter enough control to verify TLS, retry keyed mutations, and clean up connections. A borrowed connection lets application writes and Keynes commands share one transaction, so Keynes must leave transaction and connection decisions to the application. Treating these as separate capabilities prevents a helper from silently committing caller data or retrying an application transaction.

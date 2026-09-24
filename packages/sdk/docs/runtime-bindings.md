@@ -93,4 +93,4 @@ Runtime bindings are source contracts, not a plugin discovery system. The SDK ha
 
 The current remote contract requires semantic generation 6 and the matching generated procedure contract. Compatibility only proves contract identity; it does not prove deployment security, provider support, performance, backup, or recovery.
 
-The SDK owns two cross-runtime limits: remote inspection stops after 128 pages or 30 seconds, and each page is requested with a maximum of 256 entries. The PostgreSQL adapter owns transport and receipt limits. SQLite owns its queue and ephemeral database lifetime. Keeping those limits with the enforcing layer prevents an adapter detail from becoming a false universal guarantee.
+The SDK owns the [remote inspection limits](api.md#budget-handles). The PostgreSQL adapter owns transport and receipt limits. SQLite owns its queue and ephemeral database lifetime.

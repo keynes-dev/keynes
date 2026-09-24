@@ -10,7 +10,7 @@ The [testing reference](../testing.md) owns current commands and the meaning of 
 2. Confirm the intended package versions, public entrypoints, generated contracts, license, package contents, and package-to-package version compatibility.
 3. Run the applicable provider-free checks from the testing reference. Fix the candidate and restart evidence collection if source, generated output, dependencies, or documentation changes.
 4. Produce one archive set from the selected commit. Record every filename and SHA-256 digest before qualification.
-5. Run the exact-archive lane against those bytes. Run native, external, operating-system, Node.js, security, recovery, or performance lanes only when the release claim needs them.
+5. Run the four-package runtime and CLI lane. If the release includes `@keynes/policy`, run its separate archive lane too. Run native, external, operating-system, Node.js, security, recovery, or performance lanes only when the release claim needs them.
 6. Review every report, cleanup result, exclusion, and `NOT RUN` lane. A failed or incomplete attempt cannot qualify a release.
 7. Create `docs/releases/<release>/` only for an accepted release candidate and retain the essential public-safe evidence described below.
 8. Publish only the qualified archive bytes. Repacking or rebuilding creates a different candidate and requires new archive digests and affected qualification.

@@ -52,7 +52,7 @@ CI runs `pnpm test:ci:postgresql` for relevant pull requests. The manual **Datab
 
 Archive evidence must identify the SHA-256 digest of every installed archive and must exercise packages from clean consumer directories outside the repository. The consumer must resolve the shipped files and declared dependencies rather than workspace aliases, which is why building or testing source does not establish this lane.
 
-The complete current archive lane is:
+The four-package runtime and CLI archive lane is:
 
 ```sh
 pnpm test:package:split -- --output ".artifacts/package-tests/$(node -p 'crypto.randomUUID()')"
@@ -69,7 +69,7 @@ Package-specific archive entrypoints remain available for focused work:
 - `KEYNES_SDK_PACKAGE_ARCHIVE=<sdk.tgz> pnpm test:package:postgresql -- --archive <postgres.tgz> --output <new-result-file>` checks an already selected PostgreSQL archive and SDK peer without starting PostgreSQL.
 - `pnpm test:external:postgresql -- --profile <profile.json> --sdk-archive <sdk.tgz> --postgresql-archive <postgres.tgz> --output <new-result-file>` qualifies exact archives against an explicitly authorized external PostgreSQL target.
 
-These focused lanes do not replace the complete archive set required by a claim spanning multiple packages. The external lane owns local connection cleanup, while disposal of the provider database remains operator-owned.
+Run the Policy archive lane when a release includes `@keynes/policy`. Other focused lanes do not replace the archive set required by a claim spanning multiple packages. The external lane owns local connection cleanup, while disposal of the provider database remains operator-owned.
 
 ## Hosted and external evidence
 

@@ -70,7 +70,3 @@ Any partial, drifted, older, newer, or differently configured target fails as `i
 `InstallationError` uses stable codes: `unsupported_postgresql`, `missing_role`, `insufficient_privilege`, `incompatible_target`, and `database_unavailable`. Its optional `check` identifies the failed fact. The CLI adds `invalid_arguments` and `invalid_config` for its own boundary. Neither surface exposes raw database errors, configuration values, credentials, SQL, or private catalog contents.
 
 This preview supports only the exact PostgreSQL profile and operations declared in [`generated/installation-record.json`](../generated/installation-record.json). Its deferred list is authoritative for upgrades, downgrades, rolling deployment, uninstall, backup, recovery, failover, managed providers, security qualification, performance qualification, and production readiness. Self-hosted operators own those capabilities until the record adopts them.
-
-## Why exactness is required
-
-The installed SQL is the authority for accounting and permissions. Accepting an approximate schema or silently repairing drift could change command meaning while clients still report compatibility. Exact digests, object checks, and fail-closed rechecks make a client either match one known authority contract or refuse it.

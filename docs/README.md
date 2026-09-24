@@ -50,4 +50,4 @@ The [engineering workflow](workflow.md) defines how a branch moves through Spec 
 
 Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence honestly. Accepted evidence in Git must identify its source revision and boundary. A GitHub issue or PR may link to the full evidence commit, but mutable issue or branch state is not the engineering claim.
 
-Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. Final feature acceptance is committed at E before its directory leaves the latest tree. Release evidence that must outlive CI belongs under `docs/releases/`, not in a duplicate feature archive.
+Local archives, measurements, and test records are transient output under the ignored `.artifacts/` tree. CI owns uploaded run artifacts. Pre-deletion feature evidence is committed at E before its directory leaves the latest tree. Later CI and review results belong in pull-request or CI metadata. Release evidence that must outlive CI belongs under `docs/releases/`, not in a duplicate feature archive.

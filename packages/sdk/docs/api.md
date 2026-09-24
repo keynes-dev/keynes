@@ -75,6 +75,12 @@ The inspection export group maps that shared model into readonly TypeScript valu
 
 Codes are lowercase identifiers of at most 64 characters. Proposals and prepared requests use known Resource names and non-negative safe integers; a prepared request must be non-empty. Invalid callback output becomes `failed: invalid_policy_output`, and a throw or rejected Promise becomes `failed: policy_failed`.
 
+Pass the Policy with the proposal:
+
+```ts
+const result = await budget.request({ usdCents: 100 }, { policy });
+```
+
 An integrated request returns `PolicyRequestResult`: `not_submitted` with the non-prepared Policy result, or `submitted` with the prepared Policy result and allocation result. Remote Policy requests cannot supply an operation key because retrying customer code as part of transport recovery would repeat an application effect. Call the Policy directly and persist its ordinary result when the application needs a separately recoverable workflow, then submit the final request without `policy` under an application-owned operation key.
 
 ## Remote references and receipts
@@ -97,7 +103,7 @@ Lookup rechecks current authorization and performs no retry or mutation. `not_fo
 
 ## Failures and lifecycle
 
-Promise-returning facade methods copy their command inputs before yielding. They reject accessor-backed command fields without invoking their getters. A supported option getter is read once during capture. If it throws, or if a runtime executor throws synchronously, the method returns a rejected Promise instead of throwing from the call. Factories and `createOperationKey()` remain synchronous.
+Promise-returning facade methods copy their command inputs before yielding. They reject accessor-backed command fields without invoking their getters. A supported option getter is read once during capture. If it throws, or if a runtime executor throws synchronously, the method returns a rejected Promise instead of throwing from the call. Descriptor factories, generated-client factories, and `createOperationKey()` remain synchronous.
 
 Public errors have separate owners:
 

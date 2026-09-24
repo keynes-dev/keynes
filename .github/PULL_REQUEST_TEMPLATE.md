@@ -19,7 +19,7 @@ to a file list. Delete prompts and sections that do not apply.
 | Final planning/evidence E  |             | Revision used by immutable specification and acceptance links        |
 | Feature-doc deletion D     |             | Revision whose E..D diff removes only the approved feature directory |
 | CI/review candidate C      |             | Exact candidate evaluated by required checks and final review        |
-| Merge M                    |             | Fill after merge; must retain E and D as ancestors                   |
+| Main revision M            |             | Fill after integration; must retain E and D as ancestors             |
 
 <!--
 Use full 40-character commits. Say "Same as <role>" when one revision serves
