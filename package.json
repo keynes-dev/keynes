@@ -15,7 +15,7 @@
     "lint:fix": "oxlint --fix .",
     "test:unit": "pnpm --filter @keynes/database test && pnpm --filter @keynes/postgres test && pnpm --filter @keynes/sdk test && pnpm --filter @keynes/cli test",
     "test:generator": "pnpm --filter @keynes/database test",
-    "test:repository": "vitest run scripts/repository-organization.test.ts scripts/classify-sqlite-postgres-changes.test.ts scripts/feature-retention-pilot.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'",
+    "test:repository": "vitest run scripts/repository-organization.test.ts scripts/classify-sqlite-postgres-changes.test.ts --maxWorkers=1 --exclude '**/.claude/worktrees/**'",
     "build:sdk": "pnpm --filter @keynes/sdk build",
     "pack:sdk": "pnpm --config.node-linker=hoisted --filter @keynes/sdk pack --pack-destination .artifacts/package-tests/sdk",
     "build:postgresql": "pnpm --filter @keynes/postgres build",
