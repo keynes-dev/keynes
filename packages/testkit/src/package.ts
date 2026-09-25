@@ -232,7 +232,6 @@ export async function installPackageArchive(
       [
         "install",
         "--ignore-scripts",
-        "--offline",
         archivePath,
         ...(options.companionArchivePaths ?? []).map((path) => resolve(path)),
       ],
