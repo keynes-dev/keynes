@@ -12,8 +12,10 @@ implementation thread.
 
 Follow `docs/workflow.md` for PR titles and issue completion.
 
-Use the current branch diff, linked GitHub issue when applicable, Spec Kit
-artifacts, ADRs, and live CI state as evidence.
+Use the current branch diff, linked GitHub discussion, relevant ADRs and live CI
+state as evidence. Spec Kit is optional maintainer tooling, not a contribution
+requirement. Before merge, update permanent docs and remove temporary planning
+files as described in `docs/workflow.md`.
 
 ## Learned User Preferences
 

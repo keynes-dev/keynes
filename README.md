@@ -24,24 +24,24 @@ excluded from consumer runtime dependencies.
 
 ## Start with Local
 
-Install the SDK and SQLite archives together, then select the runtime
-explicitly:
+From a source checkout, install dependencies and run the
+[Local example](packages/node-sqlite/examples/local.mjs):
 
-```ts
-import { createKeynes } from "@keynes/sdk";
-import { nodeSqlite } from "@keynes/node-sqlite";
-
-await using keynes = await createKeynes({
-  resources: { tokens: { unit: "token", accountingBehavior: "consumable" } },
-  runtime: nodeSqlite(),
-});
-const root = await keynes.createBudget({ tokens: 10 });
-const request = await root.request({ tokens: 3 });
-if (request.status === "approved") {
-  await request.budget.settle({ tokens: 2 });
-}
-await root.inspect();
+```sh
+pnpm install --frozen-lockfile
+pnpm example:local
 ```
+
+Use Node.js 24 or newer and pnpm 11.21.0. The command builds the required
+workspace packages, creates a Budget with 10 tokens, allocates 3 to a child, and
+settles 2 tokens of usage. After the build logs, it prints:
+
+```text
+Tokens available after settlement: 8
+```
+
+The example asserts the result and closes the runtime. It needs no published
+package, database service, credentials or agent tooling.
 
 Each Local instance has an independent ephemeral database. Closing the instance
 or exiting the process discards its state. PostgreSQL supports durable remote

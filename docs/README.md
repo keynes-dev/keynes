@@ -19,7 +19,7 @@ instead of restating its rules.
 | Optional customer-owned Policy tools                   | [Policy package](../packages/policy/README.md)           |
 | Developer CLI                                          | [CLI app](../apps/cli/README.md)                         |
 | Repository verification                                | [Testing](testing.md)                                    |
-| Contributor delivery and Spec Kit retention            | [Workflow](workflow.md)                                  |
+| Contribution and documentation cleanup                 | [Workflow](workflow.md)                                  |
 | Release procedure and retained release evidence        | [Releases](releases/README.md)                           |
 | Accepted cross-package decisions                       | [Architectural decisions](adr/)                          |
 | Internal contract generation and shared scenarios      | [Database package](../packages/database/README.md)       |
@@ -27,45 +27,29 @@ instead of restating its rules.
 
 ## Repository records
 
-Each record has a narrow purpose:
+Current references and package guides own implemented behavior and supported
+procedures. `docs/adr/` records lasting architectural decisions. GitHub issues
+and pull requests own proposals, exploratory discussion, review and ordinary
+verification results.
 
-| Source                                | Owns                                                                                                     |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Current references and package guides | Implemented behavior, public and internal contracts, rationale and supported procedures                  |
-| `docs/adr/`                           | Current cross-package architectural decisions                                                            |
-| `docs/features/`                      | Active branch-scoped Spec Kit work and exact-revision evidence before reviewed finalization              |
-| Main Git history                      | Byte-exact finalized feature records retained at their evidence commits after they leave the latest tree |
-| GitHub issues and pull requests       | Current discussion, review, CI, merge status, and full-commit navigation to finalized records            |
+Temporary plans, including optional Spec Kit work under `docs/features/`, may
+exist locally or on a feature branch. Promote useful conclusions into current
+documentation and remove temporary files before merge. Existing historical
+records remain context for their recorded revisions, not current reference. See
+the [pre-merge checklist](workflow.md#before-merge).
 
-Do not copy mutable GitHub fields into repository documents. A feature may start
-from one GitHub issue, but its branch and explicit Spec Kit directory identify
-the work in a checkout. Internal task phases stay in `tasks.md`; they are not
-mirrored as issues. See the [contributor workflow](workflow.md).
+Do not copy mutable GitHub status into repository documents. Documentation must
+distinguish implemented behavior from proposals; describing a target does not
+make it available.
 
-Historical feature artifacts are revision-scoped records, not current reference.
-Git history retains their exact bytes after the
-[workflow's finalization gates](workflow.md#publish-and-finalize-feature-artifacts)
-permit branch-scoped copies to be removed.
+## Evidence
 
-Documentation describes the target system. It does not make unverified work
-implemented by describing it.
+Report checks honestly, including failures and `NOT RUN` lanes, with the tested
+revision and relevant environment. Local archives, measurements and test records
+are transient output under the ignored `.artifacts/` tree. Ordinary test and
+review results belong in the PR or CI.
 
-## Contributor workflow
-
-The [engineering workflow](workflow.md) defines how a branch moves through Spec
-Kit, GitHub review, CI, and merge. Existing engineering skills supply focused
-investigation, design, review, and verification without a separate lifecycle.
-
-## Source policy
-
-Mark proposed, implemented, verified, failed, skipped, and `NOT RUN` evidence
-honestly. Accepted evidence in Git must identify its source revision and
-boundary. A GitHub issue or PR may link to the full evidence commit, but mutable
-issue or branch state is not the engineering claim.
-
-Local archives, measurements, and test records are transient output under the
-ignored `.artifacts/` tree. CI owns uploaded run artifacts. Pre-deletion feature
-evidence is committed at E before its directory leaves the latest tree. Later CI
-and review results belong in pull-request or CI metadata. Release evidence that
-must outlive CI belongs under `docs/releases/`, not in a duplicate feature
-archive.
+Release qualification that must outlive CI retains actual reports, exact source
+revisions and archive digests under `docs/releases/` according to the
+[release procedure](releases/README.md). Temporary feature plans need no
+separate archive, evidence commit or special merge method.

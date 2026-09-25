@@ -10,7 +10,5 @@
 
 <!-- Note breaking changes, limitations and updated docs. Delete if not applicable. -->
 
-<!--
-For planned features, link the specification and exact-revision acceptance
-evidence required by docs/workflow.md. Routine fixes do not need a feature dossier.
--->
+- [ ] Permanent documentation is current and temporary planning files are
+      removed.

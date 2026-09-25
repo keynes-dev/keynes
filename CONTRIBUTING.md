@@ -21,7 +21,8 @@ provider credentials. Native PostgreSQL tests additionally need Docker and
 OpenSSL; see the [testing reference](docs/testing.md) for commands and
 prerequisites.
 
-For a faster Local feedback loop, run `pnpm test:local`. Local uses an ephemeral
+Run `pnpm example:local` to try a complete Local request and settlement. For a
+faster Local feedback loop, run `pnpm test:local`. Local uses an ephemeral
 in-process SQLite database. Packages are currently unpublished; source checks do
 not establish npm release or production readiness.
 
@@ -34,10 +35,12 @@ not establish npm release or production readiness.
 4. Open a pull request explaining the problem, change and verification. Include
    any checks you could not run and update documentation when behavior changes.
 
-Small fixes and documentation changes need only an issue when useful and a pull
-request. Larger changes follow the [contributor workflow](docs/workflow.md).
-Maintainers can help with planning artifacts; contributors do not need a
-particular editor or AI assistant.
+Major features need an agreed design before implementation: describe the
+behavior, API compatibility and testing in a GitHub issue or PR. Maintainers own
+any optional planning records. You do not need Spec Kit, an AI assistant or a
+particular editor. Follow the
+[pre-merge checklist](docs/workflow.md#before-merge) to update permanent docs
+and remove temporary plans.
 
 ## Community and license
 

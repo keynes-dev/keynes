@@ -42,7 +42,8 @@
     "build:cli": "pnpm --filter @keynes/cli build",
     "pack:cli": "pnpm --filter @keynes/cli pack --pack-destination .artifacts/package-tests/cli",
     "test:package:cli": "pnpm --filter @keynes/cli test:package",
-    "test:package:split": "node scripts/run-package-split.ts"
+    "test:package:split": "node scripts/run-package-split.ts",
+    "example:local": "pnpm build:sdk && pnpm build:node-sqlite && node packages/node-sqlite/examples/local.mjs"
   },
   "devDependencies": {
     "@keynes/node-sqlite": "workspace:*",
