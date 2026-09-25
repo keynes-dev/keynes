@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible problem in Keynes.
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include secrets or private data. Report vulnerabilities using SECURITY.md, not a public issue."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Commit or package version, Node.js version, OS and runtime.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal code or steps, with expected and actual results.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Optional. Remove credentials and private data before posting.

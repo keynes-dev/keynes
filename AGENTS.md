@@ -12,13 +12,15 @@ implementation thread.
 
 Follow `docs/workflow.md` for PR titles and issue completion.
 
-Use the current branch diff, linked GitHub issue when applicable, Spec Kit
-artifacts, ADRs, and live CI state as evidence.
+Use the current branch diff, linked GitHub discussion, relevant ADRs and live CI
+state as evidence. Maintainers may use Spec Kit for planning. Before merge,
+update permanent docs and remove temporary planning files as described in
+`docs/workflow.md`.
 
-## Learned User Preferences
+## Writing
 
 - Write product and vision prose like a person: lead with a clear, bold,
   product-focused thesis. Avoid marketing copy, long noun-and-clause lists, and
   overwritten list-style sentences.
 - Let oxfmt format documentation using `.oxfmtrc.json`. Run `pnpm format:fix` to
-  apply the repository rules; do not maintain separate manual wrapping rules.
+  apply the repository rules.

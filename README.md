@@ -24,24 +24,23 @@ excluded from consumer runtime dependencies.
 
 ## Start with Local
 
-Install the SDK and SQLite archives together, then select the runtime
-explicitly:
+From a source checkout, install dependencies and run the
+[Local example](packages/node-sqlite/examples/local.mjs):
 
-```ts
-import { createKeynes } from "@keynes/sdk";
-import { nodeSqlite } from "@keynes/node-sqlite";
-
-await using keynes = await createKeynes({
-  resources: { tokens: { unit: "token", accountingBehavior: "consumable" } },
-  runtime: nodeSqlite(),
-});
-const root = await keynes.createBudget({ tokens: 10 });
-const request = await root.request({ tokens: 3 });
-if (request.status === "approved") {
-  await request.budget.settle({ tokens: 2 });
-}
-await root.inspect();
+```sh
+pnpm install --frozen-lockfile
+pnpm example:local
 ```
+
+Use Node.js 24 or newer and pnpm 11.21.0. The command builds the required
+workspace packages, creates a Budget with 10 tokens, allocates 3 to a child, and
+settles 2 tokens of usage. After the build logs, it prints:
+
+```text
+Tokens available after settlement: 8
+```
+
+The example runs in process, asserts the result and closes the runtime.
 
 Each Local instance has an independent ephemeral database. Closing the instance
 or exiting the process discards its state. PostgreSQL supports durable remote
@@ -51,8 +50,10 @@ the [PostgreSQL runtime guide](packages/postgres/README.md).
 Use the [documentation index](docs/README.md) to find the owner of each topic.
 Start with the [SDK guide](packages/sdk/README.md),
 [product vision](docs/product.md), or [architecture](docs/architecture.md).
-Contributors follow [the workflow](docs/workflow.md) and
+Start contributing with the [setup and contribution guide](CONTRIBUTING.md) and
 [testing reference](docs/testing.md). Release candidates follow the
-[release and evidence procedure](docs/releases/README.md). Historical feature
-records prove only their recorded revisions and verification lanes; they are not
-current reference documentation.
+[release and evidence procedure](docs/releases/README.md).
+
+## License
+
+Copyright 2026 Shubhankar Sharan. Licensed under [Apache-2.0](LICENSE).
