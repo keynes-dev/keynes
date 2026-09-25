@@ -56,4 +56,8 @@ Start contributing with the [setup and contribution guide](CONTRIBUTING.md) and
 
 ## License
 
+Git history includes a retired loopback Cloud service prototype and superseded
+design records. They are historical Apache-2.0 work, not supported services or
+current product direction. Current behavior is documented in the guides above.
+
 Copyright 2026 Shubhankar Sharan. Licensed under [Apache-2.0](LICENSE).
