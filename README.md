@@ -61,3 +61,6 @@ design records. They are historical Apache-2.0 work, not supported services or
 current product direction. Current behavior is documented in the guides above.
 
 Copyright 2026 Shubhankar Sharan. Licensed under [Apache-2.0](LICENSE).
+
+Bundled Spec Kit scripts, templates, and agent skills retain GitHub's
+[MIT license](.specify/LICENSE).
