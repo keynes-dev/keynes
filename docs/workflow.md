@@ -49,6 +49,11 @@ Use the owning GitHub issue title for the PR when applicable and link the issue.
 Keep temporary branch material public-safe because it remains accessible in Git
 history.
 
+Push the branch and open a pull request with the change description and
+verification results. Address review comments, resolve completed discussions,
+and rerun affected checks after revisions. A maintainer merges the PR once the
+required checks pass and review is complete.
+
 Release qualification follows the
 [release and retained-evidence procedure](releases/README.md), including exact
 revisions, archive digests and durable reports.

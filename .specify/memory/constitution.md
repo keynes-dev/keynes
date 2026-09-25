@@ -79,8 +79,9 @@ disclosed.
 Specifications MUST own public outcomes. ADRs MUST own durable cross-package
 choices and their tradeoffs. Current reference documentation and contracts MUST
 own APIs, result variants, compatibility rules, and validation behavior. The
-contributor workflow MUST own branch, planning, testing, qualification, and
-publication procedures.
+contributor workflow MUST own branch, planning, testing, review, and merge
+procedures. Release documentation MUST own package qualification, publication,
+and retained release evidence.
 
 Each requirement MUST have one clear owner. When a requirement moves, the change
 MUST name its new owner or state that the requirement no longer applies.
