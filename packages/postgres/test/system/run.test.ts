@@ -1259,7 +1259,6 @@ describe("checkout package preparation lock", () => {
       ).toEqual([
         "install",
         "--ignore-scripts",
-        "--offline",
         archivePath,
         companionArchive,
       ]);
