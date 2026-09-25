@@ -40,8 +40,7 @@ settles 2 tokens of usage. After the build logs, it prints:
 Tokens available after settlement: 8
 ```
 
-The example asserts the result and closes the runtime. It needs no published
-package, database service, credentials or agent tooling.
+The example runs in process, asserts the result and closes the runtime.
 
 Each Local instance has an independent ephemeral database. Closing the instance
 or exiting the process discards its state. PostgreSQL supports durable remote
@@ -53,9 +52,7 @@ Start with the [SDK guide](packages/sdk/README.md),
 [product vision](docs/product.md), or [architecture](docs/architecture.md).
 Start contributing with the [setup and contribution guide](CONTRIBUTING.md) and
 [testing reference](docs/testing.md). Release candidates follow the
-[release and evidence procedure](docs/releases/README.md). Historical feature
-records prove only their recorded revisions and verification lanes; they are not
-current reference documentation.
+[release and evidence procedure](docs/releases/README.md).
 
 ## License
 

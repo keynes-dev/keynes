@@ -16,45 +16,41 @@ pnpm exec turbo run build
 pnpm test:pr
 ```
 
-These commands need no Linear account, agent tools, private repository or
-provider credentials. Native PostgreSQL tests additionally need Docker and
-OpenSSL; see the [testing reference](docs/testing.md) for commands and
-prerequisites.
+Native PostgreSQL tests additionally need Docker and OpenSSL; see the
+[testing reference](docs/testing.md) for commands and prerequisites.
 
 Run `pnpm example:local` to try a complete Local request and settlement. For a
 faster Local feedback loop, run `pnpm test:local`. Local uses an ephemeral
-in-process SQLite database. Packages are currently unpublished; source checks do
-not establish npm release or production readiness.
+in-process SQLite database.
 
 ## Send a change
 
 1. Create a branch and keep the change focused on one problem.
 2. Follow nearby code conventions. For behavior changes, add a test that fails
-   before the fix. Documentation-only changes need no behavioral test.
+   before the fix. Check formatting and links for documentation changes.
 3. Run `pnpm format:fix` and the relevant checks from the testing reference.
 4. Open a pull request explaining the problem, change and verification. Include
    any checks you could not run and update documentation when behavior changes.
 
 Major features need an agreed design before implementation: describe the
 behavior, API compatibility and testing in a GitHub issue or PR. Maintainers own
-any optional planning records. You do not need Spec Kit, an AI assistant or a
-particular editor. Follow the
+any optional planning records. Follow the
 [pre-merge checklist](docs/workflow.md#before-merge) to update permanent docs
 and remove temporary plans.
 
 ## Community and license
 
-Be respectful, keep criticism about the work, and do not post private
-information. Harassment and discriminatory behavior are not welcome. Maintainer
+Be respectful, keep criticism about the work, and protect others' privacy.
+Harassment and discriminatory behavior are not welcome. Maintainer
 [@shubsharan](https://github.com/shubsharan) handles public contribution
 questions and may remove abusive content or restrict participation.
 
 Report conduct concerns privately to Shubhankar Sharan at
 [shub@shub.gg](mailto:shub@shub.gg). Reports are handled by the repository
-owner; there is no separate moderation team.
+owner.
 
-Do not disclose security vulnerabilities in public issues. See
-[security reporting](SECURITY.md).
+Use the private channel in [security reporting](SECURITY.md) for suspected
+vulnerabilities.
 
 Contributions are made under the repository's [Apache-2.0 license](LICENSE).
 Only submit work you have the right to contribute, and preserve third-party

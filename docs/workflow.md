@@ -1,8 +1,7 @@
 # Contributor workflow
 
 Start with [contributor setup](../CONTRIBUTING.md). Contributions follow GitHub
-discussion, a focused change, tests and pull-request review. No planning tool or
-agent integration is required.
+discussion, a focused change, tests and pull-request review.
 
 ## Agree on the change
 
@@ -22,18 +21,18 @@ records; contributors submit code, tests and docs.
 
 Confirm the intended branch and preserve unrelated work. Keep each PR focused on
 one independently reviewable outcome. For behavior changes, add the smallest
-test that fails before the fix. Documentation-only changes need no behavioral
-test.
+test that fails before the fix. Check formatting and links for documentation
+changes.
 
 Select checks from the [testing reference](testing.md). Shared behavior changes
 need SQLite and native PostgreSQL evidence; package claims need exact-archive
 checks. Record commands, outcomes, the tested revision and relevant environment
-in the PR or CI. Mark unexecuted lanes `NOT RUN`; earlier or narrower results do
-not qualify later or broader changes.
+in the PR or CI. Mark unexecuted lanes `NOT RUN` and state which behavior each
+result covers.
 
-Obtain authorization for external state changes or paid validation unless the
-request already covers them. Never put credentials, customer data or private
-planning in repository files, logs or public discussion.
+Confirm authorization for external state changes or paid validation. Keep
+repository files, logs and public discussion safe to share; redact credentials
+and customer data.
 
 ## Before merge
 
@@ -47,31 +46,25 @@ planning in repository files, logs or public discussion.
 - Review the complete diff, including documentation and temporary-file cleanup.
 
 Use the owning GitHub issue title for the PR when applicable and link the issue.
-There is no special evidence-commit, deletion-commit or merge-method requirement
-for temporary plans. Existing history stays intact; deleting a file does not
-remove it from history, so even temporary branch material must be public-safe.
+Keep temporary branch material public-safe because it remains accessible in Git
+history.
 
-Release qualification still follows the
+Release qualification follows the
 [release and retained-evidence procedure](releases/README.md), including exact
-revisions, archive digests and durable reports. Ordinary planning belongs in
-GitHub discussion, not a release record. Contribution work does not authorize
-pushing, merging, changing hosted settings, repository visibility or package
-publication unless requested.
+revisions, archive digests and durable reports.
 
 ## Optional maintainer tooling
 
-Maintainers may use stock Spec Kit 1.0.4 locally or on a feature branch. The
-installed Codex integration is optional; builds, tests and CI do not invoke it.
-Its plans follow the same pre-merge cleanup rule as any other temporary files.
+Maintainers may use stock Spec Kit 1.0.4 and its Codex integration locally or on
+a feature branch. Its plans follow the pre-merge cleanup checklist.
 
 When using Spec Kit, explicitly select `docs/features/<branch-name>/` through
 `SPECIFY_FEATURE_DIRECTORY` and confirm the branch before running its commands.
-The local `.specify/feature.json` pointer is ignored and must not be committed.
-Do not infer the feature from another checkout's selection.
+The ignored `.specify/feature.json` pointer stores the selection for that
+checkout.
 
-Upstream owns the installed templates, scripts, skills and manifests. Leave them
-unchanged during ordinary contribution work. For a reviewed tooling upgrade, use
-an isolated branch and the upstream integration commands:
+Use upstream integration commands to upgrade the installed templates, scripts,
+skills and manifests. Review tooling upgrades on an isolated branch:
 
 ```sh
 specify version
@@ -80,5 +73,5 @@ specify integration upgrade codex --script sh
 specify integration status --json
 ```
 
-Review replacement changes and verify authored documentation survives. Do not
-manually edit managed hashes or add a custom workflow runner or cleanup gate.
+Review the generated changes and verify that authored documentation is
+preserved.

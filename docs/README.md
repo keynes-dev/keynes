@@ -34,13 +34,11 @@ verification results.
 
 Temporary plans, including optional Spec Kit work under `docs/features/`, may
 exist locally or on a feature branch. Promote useful conclusions into current
-documentation and remove temporary files before merge. Existing historical
-records remain context for their recorded revisions, not current reference. See
-the [pre-merge checklist](workflow.md#before-merge).
+documentation and remove temporary files before merge. See the
+[pre-merge checklist](workflow.md#before-merge).
 
-Do not copy mutable GitHub status into repository documents. Documentation must
-distinguish implemented behavior from proposals; describing a target does not
-make it available.
+Keep work status in GitHub and describe available behavior in current
+documentation. Label proposed capabilities explicitly.
 
 ## Evidence
 
@@ -51,5 +49,4 @@ review results belong in the PR or CI.
 
 Release qualification that must outlive CI retains actual reports, exact source
 revisions and archive digests under `docs/releases/` according to the
-[release procedure](releases/README.md). Temporary feature plans need no
-separate archive, evidence commit or special merge method.
+[release procedure](releases/README.md).
