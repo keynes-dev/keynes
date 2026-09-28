@@ -16,25 +16,66 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
-      disposition: ${{ steps.relevance.outputs.disposition }}
-      run_databases: ${{ steps.relevance.outputs.run_databases }}
+      route: ${{ steps.route.outputs.route }}
+      all: ${{ steps.filter.outputs.all }}
+      code: ${{ steps.filter.outputs.code }}
+      full: ${{ steps.filter.outputs.full }}
+      merge_base: ${{ steps.revisions.outputs.merge_base }}
     steps:
-      - name: Check out repository
+      # paths-filter's PR Git backend uses the checkout as head, ignoring ref.
+      - name: Check out event head for classification
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: package.json
-          check-latest: false
-          package-manager-cache: false
+      - name: Resolve event comparison
+        id: revisions
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          [[ "$BASE" =~ ^[0-9a-f]{40}$ && "$HEAD" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$HEAD"
+          merge_base=$(git merge-base "$BASE" "$HEAD")
+          echo "merge_base=$merge_base" >> "$GITHUB_OUTPUT"
 
-      - name: Classify relevance
-        id: relevance
-        run: node scripts/classify-sqlite-postgres-changes.ts
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad
+        with:
+          token: ""
+          base: ${{ steps.revisions.outputs.merge_base }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          filters: .github/filters.yml
+          predicate-quantifier: every
+
+      - name: Select route
+        id: route
+        env:
+          ALL: ${{ steps.filter.outputs.all }}
+          CODE: ${{ steps.filter.outputs.code }}
+          FULL: ${{ steps.filter.outputs.full }}
+        run: |
+          case "$ALL/$CODE/$FULL" in
+            true/false/false) route=docs ;;
+            true/true/false) route=affected ;;
+            true/true/true) route=full ;;
+            *) echo "Missing, empty or contradictory change filters" >&2; exit 1 ;;
+          esac
+          echo "route=$route" >> "$GITHUB_OUTPUT"
+
+      - name: Record classification
+        if: ${{ always() }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          MERGE_BASE: ${{ steps.revisions.outputs.merge_base }}
+          CANDIDATE: ${{ github.sha }}
+          ROUTE: ${{ steps.route.outputs.route }}
+        run: |
+          printf 'Base: `%s`\n\nHead: `%s`\n\nMerge base: `%s`\n\nMerge candidate: `%s`\n\nRoute: `%s`\n' "$BASE" "$HEAD" "$MERGE_BASE" "$CANDIDATE" "$ROUTE" >> "$GITHUB_STEP_SUMMARY"
 
   checks:
     name: Repository and tests
@@ -42,47 +83,78 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      TURBO_SCM_BASE: ${{ needs.changes.outputs.merge_base }}
+      TURBO_SCM_HEAD: ${{ github.event.pull_request.head.sha }}
     steps:
-      - name: Require explicit relevance decision
+      - name: Require explicit route
         env:
           CLASSIFICATION: ${{ needs.changes.result }}
-          DISPOSITION: ${{ needs.changes.outputs.disposition }}
-          RUN_DATABASES: ${{ needs.changes.outputs.run_databases }}
+          ROUTE: ${{ needs.changes.outputs.route }}
+          CODE: ${{ needs.changes.outputs.code }}
+          FULL: ${{ needs.changes.outputs.full }}
+          ALL: ${{ needs.changes.outputs.all }}
         run: |
-          case "$CLASSIFICATION/$RUN_DATABASES/$DISPOSITION" in
-            success/true/relevant | success/false/not-applicable) ;;
-            *) exit 1 ;;
+          case "$CLASSIFICATION/$ALL/$CODE/$FULL/$ROUTE" in
+            success/true/false/false/docs | success/true/true/false/affected | success/true/true/true/full) ;;
+            *) echo "Invalid or failed classification" >&2; exit 1 ;;
           esac
-
-      - name: Check out repository
+      - name: Check out merge candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          fetch-depth: 1
+          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
-        with:
-          version: 11.21.0
-          run_install: false
+      - name: Set up workspace
+        uses: ./.github/actions/setup
 
-      - name: Set up Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: package.json
-          check-latest: false
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Record task selection
+        if: ${{ needs.changes.outputs.route != 'docs' }}
+        env:
+          ROUTE: ${{ needs.changes.outputs.route }}
+        run: |
+          args=()
+          if [[ "$ROUTE" == affected ]]; then args+=(--affected); fi
+          pnpm exec turbo run typecheck test "${args[@]}" --dry=json > "$RUNNER_TEMP/turbo-selection.json"
+          {
+            printf 'Checked-out candidate: `%s`\n\nSelected packages and tasks:\n\n```json\n' "$(git rev-parse HEAD)"
+            node --input-type=module -e 'import { readFileSync } from "node:fs"; const plan = JSON.parse(readFileSync(process.argv[1], "utf8")); console.log(JSON.stringify({packages: plan.packages, tasks: plan.tasks.map(task => ({task: task.taskId, cache: task.cache}))}, null, 2));' "$RUNNER_TEMP/turbo-selection.json"
+            printf '\n```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check documentation formatting
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'false' }}
+        if: ${{ needs.changes.outputs.route == 'docs' }}
         run: pnpm format:docs
 
-      - name: Run repository checks and tests
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
-        run: pnpm test:pr
+      - name: Run affected provider-free checks
+        if: ${{ needs.changes.outputs.route == 'affected' }}
+        shell: bash
+        run: pnpm test:pr:affected | tee "$RUNNER_TEMP/provider-free.log"
+
+      - name: Run full provider-free checks
+        if: ${{ needs.changes.outputs.route == 'full' }}
+        shell: bash
+        run: pnpm test:pr | tee "$RUNNER_TEMP/provider-free.log"
+
+      - name: Record task outcomes and skipped lanes
+        if: ${{ always() }}
+        env:
+          ROUTE: ${{ needs.changes.outputs.route }}
+        run: |
+          if [[ -f "$RUNNER_TEMP/provider-free.log" ]]; then
+            {
+              printf 'Task totals in execution order: typechecks, then source tests.\n\n```text\n'
+              sed -n '/^ Tasks:/p; /^Cached:/p; /^  Time:/p' "$RUNNER_TEMP/provider-free.log"
+              printf '\n```\n'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ "$ROUTE" == docs ]]; then
+            echo 'Package source tests and typechecks: NOT RUN (documentation only).' >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$ROUTE" == affected ]]; then
+            echo 'Unselected package source tests and typechecks: NOT RUN. Selected source tests always execute.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo 'Archive qualification and measurements: NOT RUN (manual workflows).' >> "$GITHUB_STEP_SUMMARY"
 
   sqlite-postgres:
     name: SQLite and PostgreSQL behavior tests
@@ -91,49 +163,41 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Require explicit relevance decision
+      - name: Require explicit route
         env:
           CLASSIFICATION: ${{ needs.changes.result }}
-          DISPOSITION: ${{ needs.changes.outputs.disposition }}
-          RUN_DATABASES: ${{ needs.changes.outputs.run_databases }}
+          ROUTE: ${{ needs.changes.outputs.route }}
+          CODE: ${{ needs.changes.outputs.code }}
+          FULL: ${{ needs.changes.outputs.full }}
+          ALL: ${{ needs.changes.outputs.all }}
         run: |
-          case "$CLASSIFICATION/$RUN_DATABASES/$DISPOSITION" in
-            success/true/relevant | success/false/not-applicable) ;;
-            *) exit 1 ;;
+          case "$CLASSIFICATION/$ALL/$CODE/$FULL/$ROUTE" in
+            success/true/false/false/docs | success/true/true/false/affected | success/true/true/true/full) ;;
+            *) echo "Invalid or failed classification" >&2; exit 1 ;;
           esac
+      - name: Record native PostgreSQL skip
+        if: ${{ needs.changes.outputs.route != 'full' }}
+        run: |
+          echo 'Native PostgreSQL correctness: NOT RUN (explicit docs or affected route).' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Check out repository
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
+      - name: Check out merge candidate
+        if: ${{ needs.changes.outputs.route == 'full' }}
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Set up pnpm
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
-        with:
-          version: 11.21.0
-          run_install: false
-
-      - name: Set up Node.js
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: package.json
-          check-latest: false
-          cache: pnpm
-
-      - name: Install dependencies
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
-        run: pnpm install --frozen-lockfile
+      - name: Set up workspace
+        if: ${{ needs.changes.outputs.route == 'full' }}
+        uses: ./.github/actions/setup
 
       - name: Run native PostgreSQL correctness
-        if: ${{ success() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
+        if: ${{ needs.changes.outputs.route == 'full' }}
         run: pnpm test:ci:postgresql -- --diagnostics "$RUNNER_TEMP/ci/postgresql.json"
 
       - name: Retain failure diagnostics
-        if: ${{ failure() && !cancelled() && needs.changes.outputs.run_databases == 'true' }}
+        if: ${{ failure() && !cancelled() && needs.changes.outputs.route == 'full' }}
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

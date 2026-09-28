@@ -29,7 +29,7 @@ service:
 | Command                | What it checks                                                                                                         | What it does not prove                                                             |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `pnpm format:docs`     | Formatting of permanent, package, application, contributor, and Spec Kit Markdown                                      | Links, behavior, types, or runtime correctness                                     |
-| `pnpm test:repository` | Repository organization and fail-closed pull-request change classification                                             | Product behavior or package contents                                               |
+| `pnpm test:repository` | Repository organization, CI routing policy, and required-check failure handling                                        | Product behavior or package contents                                               |
 | `pnpm check:repo`      | Generated-file freshness, formatting, lint, types, and workspace dependency boundaries                                 | Runtime behavior                                                                   |
 | `pnpm test:local`      | SDK source behavior against the in-memory Node SQLite runtime                                                          | Packed packages, persistence, PostgreSQL, or Hosted                                |
 | `pnpm test:pr`         | The complete provider-free PR suite: repository tests, runner tests, package source tests, types, lint, and boundaries | Native PostgreSQL, exact archive consumers, external targets, or release readiness |
@@ -169,22 +169,58 @@ artifact or lifecycle operation.
 
 ## Pull-request classification
 
-The PR workflow classifies the complete merge-base-to-head change set once.
-`docs/`, `.specify/memory/`, and the exact approved root metadata files may
-select documentation formatting only. Package and application documentation,
-executable tooling, dependencies, workflows, mixed changes, deletions from
-relevant paths, and unknown paths select the full provider-free and native
-correctness jobs.
+The PR workflow uses SHA-pinned `dorny/paths-filter` with its Git backend and
+`predicate-quantifier: every`. It computes the merge base from the event base
+and head SHAs, checks out that head for classification, and compares it with the
+merge base. This checkout matters because the action's PR Git backend ignores
+its `ref` input. Git reports both sides of moves as deletion and addition.
 
-Classification is fail closed because an unknown or missing decision must not
-skip required runtime checks. Empty, malformed, duplicated, unsafe,
-unrecognized, or raw rename-status input cannot produce a success-shaped
-decision. Git rename detection is disabled so both the deleted and added paths
-are classified. Both required jobs independently reject a missing, failed, or
-contradictory classification. A documentation-only decision means SQLite and
-PostgreSQL are `NOT RUN`; it is not a passing runtime result. New pushes cancel
-superseded runs.
+| Changed paths                                                                                        | Provider-free checks    | Native PostgreSQL  |
+| ---------------------------------------------------------------------------------------------------- | ----------------------- | ------------------ |
+| Approved documentation and metadata only                                                             | `pnpm format:docs`      | `NOT RUN`          |
+| Policy or CLI only, optionally with approved docs                                                    | `pnpm test:pr:affected` | `NOT RUN`          |
+| SDK, database, adapters, testkit, root configuration, tooling, workflows, lockfile, or unknown paths | `pnpm test:pr`          | Source correctness |
 
-Change the classifier only when repository path ownership changes. Any change
-must retain focused coverage for safe-only, mixed, unknown, deleted, renamed,
-malformed, and failed-Git cases.
+`.github/filters.yml` owns the exact allowlist. Documentation includes `docs/`,
+`.specify/memory/`, root README/contributor/security documents, package and
+application READMEs, and Markdown in their `docs/` directories. Markdown
+elsewhere is not automatically exempt. Both required jobs validate the
+classification before any skip. Missing outputs, failed classification,
+contradictory outputs, and empty change sets fail the required checks. Unknown
+paths select full CI. The PostgreSQL job skips installation when its lane is
+explicitly unnecessary.
+
+`pnpm test:pr` remains the full local provider-free command. Both code routes
+run `test:pr:checks` first: generated-file freshness, repository and runner
+tests, formatting, lint, root test typechecking, and workspace boundaries. The
+affected route then runs package typechecks followed by serialized source tests.
+Turbo uses explicit `TURBO_SCM_BASE` and `TURBO_SCM_HEAD` comparison SHAs with
+full Git history; commands execute against the checked-out PR merge candidate.
+Shared-core changes always use the full route because SDK tests also consume
+adapter source outside the package dependency graph.
+
+The local setup action installs frozen dependencies and restores `.turbo`
+through GitHub Actions cache. Cache keys include OS, architecture, resolved Node
+version, lockfile and cache configuration, then the commit and job. Compatible
+prefixes restore earlier entries within GitHub's branch and fork cache scope.
+There are no remote-cache credentials. Build and typecheck tasks cache results
+with root configuration and shared-core inputs included in invalidation. Policy
+typechecking retains its build and caches the resulting `dist` files. Direct
+package commands retain their behavior.
+
+Source tests, root checks, native PostgreSQL, archive qualification and
+measurements always execute when selected. Job summaries record comparison SHAs,
+the merge candidate, route, selected packages/tasks, cache lookup results, and
+skipped lanes. A cache hit or a skipped lane is not database or archive
+evidence. The required names remain `Repository and tests` and
+`SQLite and PostgreSQL behavior tests`. Superseded PR runs are cancelled;
+permissions remain read-only and checkout credentials are not persisted.
+
+For routing changes, run the routing tests, validate workflows with pinned
+`actionlint` v1.7.7, inspect Turbo dry runs for Policy and CLI changes, and run
+the full provider-free and native PostgreSQL correctness commands. Validate a
+clean checkout without `dist`, then warm-cache reuse and
+shared-source/configuration invalidation. Before merge, retain an unprivileged
+fork PR run and compare both elapsed time and summed job duration with
+documentation-only and package-only baseline runs. Local validation does not
+establish GitHub cache hits, fork permissions, or hosted timing improvements.
