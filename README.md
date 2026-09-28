@@ -1,57 +1,131 @@
-# Keynes
+# Keynes - Runtime economics for agents
 
-**Applications decide what work is worth doing. Keynes enforces the quantity
-they are allowed to use.** A Budget grants Resource quantities to child Budgets
-and settles reported usage. Customer code owns policy evaluation and external
-work; Keynes validates requests and records atomic accounting, replay and
-history.
+**Keynes give agents clear resource limits before they act.** Those resources
+can represent inference tokens, tool calls, runtime minutes, concurrent browser
+sessions, or any other quantity an application needs to control.
 
-## Packages
+Limits often end up scattered across prompts, workflow code, and provider
+settings. Keynes puts them in one accounting model. Applications decide which
+work is worth doing and perform the external work. Keynes checks each request
+against the available quantity, records the allocation, and prevents concurrent
+or repeated commands from spending the same quantity twice.
 
-The repository builds five private, unpublished ESM archives for Node.js 24+:
+## How it works
 
-| Package               | Purpose                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `@keynes/sdk`         | Typed handles, request serialization, response validation and public errors; no engine or driver |
-| `@keynes/node-sqlite` | Private in-memory SQLite Local runtime                                                           |
-| `@keynes/postgres`    | Owned remote and borrowed PostgreSQL runtimes; installation API at `/install`                    |
-| `@keynes/policy`      | Optional customer-owned Policy parameters, snapshots and helpers                                 |
-| `@keynes/cli`         | `keynes install --config <path>`                                                                 |
+A **Resource** names a countable quantity and defines how Keynes accounts for
+it. A **Budget** holds fixed quantities of one or more Resources. An application
+can ask a Budget to allocate some of its quantity to a child Budget for a task.
 
-`packages/database` owns canonical contracts, engine source, SQL and shared
-scenarios. It and `packages/testkit` are private build/test dependencies,
-excluded from consumer runtime dependencies.
+A typical workflow looks like this:
 
-## Start with Local
+1. Create a root Budget with the quantities available to a workflow.
+2. Request a smaller child Budget before starting a task.
+3. Perform the work only when Keynes approves the request.
+4. Settle the child Budget with the quantity the task used.
 
-From a source checkout, install dependencies and run the
-[Local example](packages/node-sqlite/examples/local.mjs):
+For a consumable Resource, settlement returns the unused quantity to the parent.
+For example, if a task receives 3 tokens and reports using 2, the remaining 1
+returns to the parent Budget. Keynes records the request, result, settlement,
+and history so retries produce the same accounting result.
+
+Your application still owns its business rules, policy evaluation, provider
+calls, retries, and other external effects. Keynes owns Resource accounting and
+checks the final request against the Budget's state and available quantity.
+
+## Try it locally
+
+Keynes currently builds from source. You need Node.js 24 or newer and pnpm
+11.21.0.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm example:local
 ```
 
-Use Node.js 24 or newer and pnpm 11.21.0. The command builds the required
-workspace packages, creates a Budget with 10 tokens, allocates 3 to a child, and
-settles 2 tokens of usage. After the build logs, it prints:
+The [Local example](packages/node-sqlite/examples/local.mjs) creates a Budget
+with 10 tokens, allocates 3 tokens to a child, and settles 2 tokens of usage.
+After the build logs, it prints:
 
 ```text
 Tokens available after settlement: 8
 ```
 
-The example runs in process, asserts the result and closes the runtime.
+The essential API is small:
 
-Each Local instance has an independent ephemeral database. Closing the instance
-or exiting the process discards its state. PostgreSQL supports durable remote
-calls over verified TLS and direct commands on a caller-owned connection; see
-the [PostgreSQL runtime guide](packages/postgres/README.md).
+```js
+import { createKeynes } from "@keynes/sdk";
+import { nodeSqlite } from "@keynes/node-sqlite";
 
-Use the [documentation index](docs/README.md) to find the owner of each topic.
-Start with the [SDK guide](packages/sdk/README.md),
-[product vision](docs/product.md), or [architecture](docs/architecture.md).
-Start contributing with the [setup and contribution guide](CONTRIBUTING.md) and
-[testing reference](docs/testing.md). Release candidates follow the
+const keynes = await createKeynes({
+  resources: {
+    tokens: { unit: "token", accountingBehavior: "consumable" },
+  },
+  runtime: nodeSqlite(),
+});
+
+try {
+  const root = await keynes.createBudget({ tokens: 10 });
+  const request = await root.request({ tokens: 3 });
+
+  if (request.status === "approved") {
+    // Perform the task, then report the quantity it used.
+    await request.budget.settle({ tokens: 2 });
+  }
+} finally {
+  await keynes.close();
+}
+```
+
+## Choose a runtime
+
+Use `[@keynes/node-sqlite](packages/node-sqlite/README.md)` for local
+development, tests, and disposable work. Each Keynes instance gets a private
+in-memory SQLite database. Its state disappears when the instance closes or the
+process exits, and separate processes cannot share it.
+
+Use `[@keynes/postgres](packages/postgres/README.md)` when Budgets need durable,
+shared state. Keynes can own a PostgreSQL connection pool for remote calls, or
+it can borrow a connected `pg` client so an application can run Keynes commands
+inside its own database transaction. With a borrowed connection, the application
+owns the transaction, identity context, commit, rollback, and recovery. The
+PostgreSQL authority must be installed before either mode is used.
+
+Both runtimes implement the same Resource and Budget rules. The runtime changes
+where the accounting lives, not what a request or settlement means.
+
+## Packages
+
+This repository builds five private, unpublished ESM packages for Node.js 24 or
+newer:
+
+| Package               | Use it to                                                                     |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `@keynes/sdk`         | Define Resources and work with typed Budget handles                           |
+| `@keynes/node-sqlite` | Run Keynes in process with a private in-memory SQLite database                |
+| `@keynes/postgres`    | Connect to or install a durable PostgreSQL authority                          |
+| `@keynes/policy`      | Build optional, customer-owned policy parameters, snapshots, and test helpers |
+| `@keynes/cli`         | Install the PostgreSQL authority with `keynes install --config <path>`        |
+
+The SDK does not select a runtime automatically. Applications install the SDK
+with the runtime they intend to use. The optional Policy package does not grant
+Budget authority or replace request validation.
+
+## Documentation
+
+- Read the [SDK guide](packages/sdk/README.md) for the TypeScript API and
+  runtime bindings.
+- Read the [accounting reference](docs/reference/accounting.md) for Resource,
+  Budget, allocation, settlement, and inspection rules.
+- Read the [command reference](docs/reference/commands.md) for validation,
+  authorization, atomicity, replay, and recovery.
+- Read the [product direction](docs/product.md) and
+  [architecture](docs/architecture.md) for product boundaries and deployment
+  ownership.
+- Use the [documentation index](docs/README.md) to find the owner of each topic.
+
+To contribute, start with the [setup and contribution guide](CONTRIBUTING.md)
+and use the [testing reference](docs/testing.md) to choose the checks that match
+your change. Release candidates follow the
 [release and evidence procedure](docs/releases/README.md).
 
 ## License
