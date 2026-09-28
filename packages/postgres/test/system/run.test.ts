@@ -1256,13 +1256,7 @@ describe("checkout package preparation lock", () => {
             "utf8",
           ),
         ),
-      ).toEqual([
-        "install",
-        "--ignore-scripts",
-        "--offline",
-        archivePath,
-        companionArchive,
-      ]);
+      ).toEqual(["install", "--ignore-scripts", archivePath, companionArchive]);
       expect(installed.consumerRoot.startsWith(root)).toBe(false);
       expect(
         JSON.parse(
