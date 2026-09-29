@@ -1,0 +1,23 @@
+# Complement filters require predicate-quantifier: every. Unknown paths run full CI.
+all:
+  - "**"
+code:
+  - "!docs/**"
+  - "!.specify/memory/**"
+  - "!{README,CONTRIBUTING,SECURITY,AGENTS}.md"
+  - "!LICENSE"
+  - "!.github/CODEOWNERS"
+  - "!.github/PULL_REQUEST_TEMPLATE.md"
+  - "!{packages,apps}/*/README.md"
+  - "!{packages,apps}/*/docs/**/*.md"
+full:
+  - "!docs/**"
+  - "!.specify/memory/**"
+  - "!{README,CONTRIBUTING,SECURITY,AGENTS}.md"
+  - "!LICENSE"
+  - "!.github/CODEOWNERS"
+  - "!.github/PULL_REQUEST_TEMPLATE.md"
+  - "!{packages,apps}/*/README.md"
+  - "!{packages,apps}/*/docs/**/*.md"
+  - "!packages/policy/**"
+  - "!apps/cli/**"

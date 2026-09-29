@@ -174,7 +174,7 @@ describe("repository organization", () => {
     );
     expect(scripts["test:pr"]).not.toContain("pnpm test:generator");
     expect(scripts["test:pr"]).toContain(
-      "turbo run quality typecheck && tsc --project tsconfig.tests.json --noEmit && turbo run test --concurrency=1",
+      "pnpm test:pr:checks && turbo run typecheck && turbo run test --concurrency=1",
     );
     expect(scripts["test:generator"]).toBe(
       "pnpm --filter @keynes/database test",
