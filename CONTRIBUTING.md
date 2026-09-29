@@ -55,3 +55,16 @@ vulnerabilities.
 Contributions are made under the repository's [Apache-2.0 license](LICENSE).
 Only submit work you have the right to contribute, and preserve third-party
 license and attribution notices.
+
+CI runs documentation formatting for approved documentation-only changes. Policy
+and CLI changes run the root checks and affected package typechecks/tests;
+shared core and tooling changes run the full provider-free and native PostgreSQL
+lanes. Keep using `pnpm test:pr` for full local verification. To reproduce an
+affected run with fetched comparison commits:
+
+```sh
+TURBO_SCM_BASE=<merge-base-sha> TURBO_SCM_HEAD=<head-sha> pnpm test:pr:affected
+```
+
+See the [testing reference](docs/testing.md#pull-request-classification) for
+routing, cache invalidation, and skipped-lane evidence.

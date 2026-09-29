@@ -21,12 +21,24 @@
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "cache": false,
       "dependsOn": ["^build"]
     },
     "test": {
       "cache": false,
       "dependsOn": ["^build"]
+    },
+    "@keynes/policy#typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     }
-  }
+  },
+  "globalDependencies": [
+    "tsconfig*.json",
+    ".oxlintrc.json",
+    ".oxfmtrc.json",
+    "packages/{database,sdk,node-sqlite,postgres,testkit}/{src,scripts}/**",
+    "packages/{database,sdk,node-sqlite,postgres,testkit}/*.json",
+    "packages/database/{generated,postgres,contract-tests,fixtures}/**"
+  ],
+  "globalEnv": ["NODE_OPTIONS"]
 }
